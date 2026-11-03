@@ -16,7 +16,7 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * Who opens a Split Resolution's Split Evidence Package (FR-84, FR-63, AD-8, AD-19, AD-40): only the assignee, under the grant
- * their take opened, until a withdrawal or 30 days after the decision. Every view of a tab is written to the Audit Log. It is
+ * their take opened, until a withdrawal, 30 days after the decision, or the Job's content going. Every view of a tab is written to the Audit Log. It is
  * assembled on demand from the owning modules' queries, each of which holds to the grant and audits its own read too.
  */
 @Component

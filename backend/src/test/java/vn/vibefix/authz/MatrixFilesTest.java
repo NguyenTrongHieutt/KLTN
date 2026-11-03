@@ -268,8 +268,7 @@ class MatrixFilesTest {
 	static final Set<String> SPLIT_CANARIES = Set.of("SPLIT_OPEN", "SPLIT_PART");
 
 	/** A Split Resolution's words (Story 22.3, A-18): its parties', the Mentor included, and its assigned Administrator's. */
-	static final Set<String> SPLIT_RESOLUTION_CANARIES = Set.of("SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT",
-			"SPLIT_DECISION_REASONING");
+	static final Set<String> SPLIT_RESOLUTION_CANARIES = Set.of("SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
 
 	/** A Crew Application's canaries (Story 21.4): the applicant's and the Job's Mentor's alone. */
 	static final Set<String> CREW_APPLICATION_CANARIES = Set.of("CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
@@ -788,12 +787,17 @@ class MatrixFilesTest {
 			assertThat(canaries.get(name).visibleTo()).as(name)
 				.containsExactlyInAnyOrder(MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY);
 		}
-		// A Split Resolution's reason, statements and reasoning go to its parties and its assignee only (A-18).
+		// A Split Resolution's reason and statements go to its parties and its assignee only (A-18).
 		for (String name : SPLIT_RESOLUTION_CANARIES) {
 			assertThat(canaries.get(name).visibleTo()).as(name)
 				.containsExactlyInAnyOrder(MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY,
 						MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT);
 		}
+		// Its reasoning, once decided, goes to its parties and is the record every Administrator reads (AD-24); the Customer reads none.
+		assertThat(canaries.get("SPLIT_DECISION_REASONING").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.MENTOR,
+				MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY, MatrixCaller.ADMINISTRATOR,
+				MatrixCaller.ADMIN_DISPUTE_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT, MatrixCaller.ADMIN_ABUSE_REPORT_GRANT,
+				MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT);
 		assertThat(canaries.get("SPLIT_POOL_ENTRY").visibleTo()).isEmpty();
 		assertThat(canaries.get("SPLIT_POOL_REVERSAL").visibleTo()).isEmpty();
 	}
@@ -848,7 +852,7 @@ class MatrixFilesTest {
 				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
 				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART",
-				"CREW_LEFT_NOTE", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT", "SPLIT_DECISION_REASONING");
+				"CREW_LEFT_NOTE", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
 		// No Administrator reads a bid's proof (Story 21.2) or a Crew Application (Story 21.4): no read grant covers them.
 		for (MatrixCaller grant : GRANT_SCOPES.keySet()) {
 			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")

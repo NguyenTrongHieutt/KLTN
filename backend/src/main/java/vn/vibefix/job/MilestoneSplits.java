@@ -232,8 +232,9 @@ public interface MilestoneSplits {
 	/**
 	 * {@code job.holdSplit}, under {@link #lockForSplit}: the split is {@code IN_RESOLUTION}, so nobody edits or confirms, the
 	 * confirmation Deadline and its reminder end {@code OBSOLETE} by their own handlers, and {@code job.confirm_split}
-	 * closes. The pool stays where it is.
-	 * @throws IllegalStateException unless the split is {@code PROPOSED} and in time: its caller checked that under the lock
+	 * closes. The pool stays where it is. Its caller read the Clock under the lock and checked the due time: a due time passing
+	 * since then does not undo that.
+	 * @throws IllegalStateException unless the split is {@code PROPOSED}
 	 */
 	void holdSplit(UUID milestoneId, UUID resolutionId);
 
@@ -274,6 +275,13 @@ public interface MilestoneSplits {
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} unless an open grant of theirs covers the split's versions
 	 */
 	List<EvidenceVersion> evidenceUnderGrant(UUID adminId, UUID splitId);
+
+	/**
+	 * Whether the Job's own content, which a Split Resolution's evidence reads, still stands (AD-24): its row is there, its
+	 * Product was not deleted, and no retention run retired it. A split not {@code FINAL} keeps its evidence either way; once
+	 * the split is final, what waited for it goes.
+	 */
+	boolean jobContentKept(UUID jobId);
 
 	/**
 	 * The Milestone's final split as {@link MilestoneSplitFinalized} carried it, for FR-64's retry of a refused one

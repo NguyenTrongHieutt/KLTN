@@ -131,11 +131,7 @@ class SplitResolutionDecisions {
 			return;
 		}
 		SplitCase split = this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		Set<@Nullable UUID> involved = new HashSet<>(this.conflicts.crewOf(split.jobId()));
-		involved.add(split.customerId());
-		involved.add(split.mentorId());
-		split.parties().forEach(party -> involved.add(party.accountId()));
-		this.conflicts.refuseIfLinked(adminId, involved, "dispute.split_resolution", resolutionId, resolution.jobId());
+		refuseIfLinked(adminId, resolution, split);
 		Instant now = this.clock.instant();
 		UUID previous = resolution.grantId();
 		if (previous != null) {
@@ -168,9 +164,11 @@ class SplitResolutionDecisions {
 	}
 
 	/**
-	 * The assignee's decision, after the step-up, in one transaction: a refused one changes nothing but the step-up's count.
+	 * The assignee's decision, after the step-up, in one transaction: a refused one changes nothing but the step-up's count. A
+	 * person-link signal recorded since the take stops it before the step-up, as it would have stopped the take (AD-19, A-17).
 	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_ASSIGNED} (SG-31); {@code CONFLICT ALREADY_DECIDED};
-	 * {@code GUARD_FAILED SPLIT_RESOLUTION_ENDED}; {@code VALIDATION}, with {@code SPLIT_INVALID} for the percentages
+	 * {@code GUARD_FAILED} with {@code SPLIT_RESOLUTION_ENDED} or {@code CONFLICT_OF_INTEREST}; {@code VALIDATION}, with
+	 * {@code SPLIT_INVALID} for the percentages
 	 */
 	@Transactional
 	Outcome decide(UUID resolutionId, UUID adminId, List<PercentLine> lines, String reasoning, String stepUpCode) {
@@ -181,12 +179,13 @@ class SplitResolutionDecisions {
 		if (text.isEmpty() || text.length() > 4000) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
+		SplitCase split = this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		refuseIfLinked(adminId, resolution, split);
 		PreviewBasis basis = this.splits.decisionBasis(resolution.splitId(), lines);
 		AdministratorStepUp.Result check = this.stepUp.check(adminId, stepUpCode);
 		if (!check.passed()) {
 			return new Outcome.Refused(check.refusal(), check.endSession());
 		}
-		SplitCase split = this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Instant now = this.clock.instant();
 		SplitEvidenceSnapshots.SplitEvidenceSnapshot snapshot = this.snapshots.take(split, partyAccounts(split), now);
 		int versionNo = this.splits.decideSplit(resolution.milestoneId(), resolutionId, adminId, lines);
@@ -221,7 +220,8 @@ class SplitResolutionDecisions {
 
 	/**
 	 * Whether {@code adminId} reads the case's evidence now: its assignee, under the grant their take opened, until 30 days
-	 * after the decision; a withdrawal ended it at once.
+	 * after the decision or until the Job's content goes, which a final split no longer holds back; a withdrawal ended it at
+	 * once.
 	 */
 	boolean evidenceReadable(Resolution resolution, UUID adminId) {
 		if (resolution.grantId() == null || !adminId.equals(resolution.assigneeId())) {
@@ -231,8 +231,14 @@ class SplitResolutionDecisions {
 			case OPEN -> true;
 			case WITHDRAWN -> false;
 			case DECIDED -> resolution.endedAt() != null
-					&& this.clock.instant().isBefore(resolution.endedAt().plus(GRANT_AFTER_DECISION));
+					&& this.clock.instant().isBefore(resolution.endedAt().plus(GRANT_AFTER_DECISION))
+					&& this.splits.jobContentKept(resolution.jobId());
 		};
+	}
+
+	/** A decided case whose Job's content went: its record stands, with no evidence behind it to read (AD-24). */
+	boolean jobContentGone(Resolution resolution) {
+		return resolution.status() == SplitResolutions.Status.DECIDED && !this.splits.jobContentKept(resolution.jobId());
 	}
 
 	/** The decision's record; empty before it. */
@@ -253,6 +259,15 @@ class SplitResolutionDecisions {
 	/** The split's parties who still have an account. */
 	static List<UUID> partyAccounts(SplitCase split) {
 		return split.parties().stream().map(CaseParty::accountId).filter(Objects::nonNull).toList();
+	}
+
+	/** The Customer, the Mentor, the Crew and the parties (AD-19, A-17). */
+	private void refuseIfLinked(UUID adminId, Resolution resolution, SplitCase split) {
+		Set<@Nullable UUID> involved = new HashSet<>(this.conflicts.crewOf(split.jobId()));
+		involved.add(split.customerId());
+		involved.add(split.mentorId());
+		split.parties().forEach(party -> involved.add(party.accountId()));
+		this.conflicts.refuseIfLinked(adminId, involved, "dispute.split_resolution", resolution.id(), resolution.jobId());
 	}
 
 	private static void requireAssignee(Resolution resolution, UUID adminId) {

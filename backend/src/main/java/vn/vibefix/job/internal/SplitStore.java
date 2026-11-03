@@ -276,6 +276,14 @@ class SplitStore {
 			.single();
 	}
 
+	/** Whether the Job's row stands with its Product, and no retention run retired that Product's data since the Job began. */
+	boolean contentKept(UUID jobId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job j WHERE j.id = :id AND " + Jobs.LIVE + """
+				 AND NOT EXISTS (SELECT 1 FROM job.product_retention r
+				    WHERE r.product_id = j.product_id AND r.retired_at >= j.created_at))
+				""").param("id", jobId).query(Boolean.class).single();
+	}
+
 	/** When the party's Crew row says they left, a lock included, while the row exists. */
 	Map<UUID, Instant> leftAt(UUID jobId, List<UUID> accounts) {
 		Map<UUID, Instant> left = new HashMap<>();

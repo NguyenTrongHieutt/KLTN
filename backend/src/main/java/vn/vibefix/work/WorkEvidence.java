@@ -42,11 +42,13 @@ public interface WorkEvidence {
 	}
 
 	/**
-	 * The Milestone's Work Items an open grant of the Administrator covers, by number, with their histories, audited
-	 * {@code work.admin_read} (AD-8, AD-20): a Split Resolution's grant covers those of the split's parties.
-	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} unless they hold such a grant on the Job
+	 * The Milestone's Work Items that one open grant of the Administrator covers, by number, with their histories, audited
+	 * {@code work.admin_read} (AD-8, AD-20): a Split Resolution's grant covers those of the split's parties, whatever another
+	 * case's grant of the same Administrator covers on the Job.
+	 * @param grantId the grant of the case being read
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} unless that grant is theirs, open, and covers Work Items
 	 */
-	List<PartyItem> milestoneItemsUnderGrant(UUID adminId, UUID jobId, UUID milestoneId);
+	List<PartyItem> milestoneItemsUnderGrant(UUID adminId, UUID grantId, UUID jobId, UUID milestoneId);
 
 	/** The Milestone's Work Items that involve one of these accounts, by number, for a decision's record. */
 	List<ItemLine> milestoneItems(UUID jobId, UUID milestoneId, List<UUID> accounts);

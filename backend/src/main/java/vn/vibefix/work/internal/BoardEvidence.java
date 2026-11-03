@@ -60,10 +60,11 @@ class BoardEvidence implements WorkEvidence {
 
 	@Override
 	@Transactional
-	public List<PartyItem> milestoneItemsUnderGrant(UUID adminId, UUID jobId, UUID milestoneId) {
+	public List<PartyItem> milestoneItemsUnderGrant(UUID adminId, UUID grantId, UUID jobId, UUID milestoneId) {
 		Instant now = this.clock.instant();
 		List<AdminReadGrant> open = this.grants.grants(adminId, jobId)
 			.stream()
+			.filter(grant -> grant.grantId().equals(grantId))
 			.filter(grant -> grant.endsAt() == null || now.isBefore(grant.endsAt()))
 			.filter(grant -> grant.items().stream().anyMatch(item -> item.scope() == AdminReadScope.WORK_ITEMS))
 			.toList();

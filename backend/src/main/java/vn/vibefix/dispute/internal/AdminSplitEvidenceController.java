@@ -97,8 +97,9 @@ class AdminSplitEvidenceController {
 	 * "Trao đổi nhóm": the Crew Chat of the Milestone's interval, which N-31 promises.
 	 * @param from the Milestone's funding; absent on a split older than Story 22.3 whose Milestone had gone
 	 * @param to the Milestone's release
+	 * @param total how many messages the interval holds, of which {@code messages} are the newest
 	 */
-	record SplitEvidenceChatView(@Nullable Instant from, Instant to, List<SplitEvidenceMessageView> messages) {
+	record SplitEvidenceChatView(@Nullable Instant from, Instant to, int total, List<SplitEvidenceMessageView> messages) {
 	}
 
 	/**
@@ -172,8 +173,10 @@ class AdminSplitEvidenceController {
 	@GetMapping("/work-items")
 	List<SplitEvidenceWorkItemView> workItems(@PathVariable UUID resolutionId) {
 		UUID me = this.callers.get().requireAccountId();
-		SplitCase split = view(resolutionId, me, Tab.WORK_ITEMS);
-		List<WorkEvidence.PartyItem> items = this.work.milestoneItemsUnderGrant(me, split.jobId(), split.milestoneId());
+		Resolution resolution = this.evidence.view(resolutionId, me, Tab.WORK_ITEMS);
+		SplitCase split = caseOf(resolution);
+		List<WorkEvidence.PartyItem> items = this.work.milestoneItemsUnderGrant(me, Objects.requireNonNull(resolution.grantId()),
+				split.jobId(), split.milestoneId());
 		List<UUID> mentioned = new ArrayList<>();
 		items.forEach(item -> {
 			if (item.assigneeId() != null) {
@@ -212,9 +215,9 @@ class AdminSplitEvidenceController {
 	SplitEvidenceChatView crewChat(@PathVariable UUID resolutionId) {
 		UUID me = this.callers.get().requireAccountId();
 		SplitCase split = view(resolutionId, me, Tab.CREW_CHAT);
-		List<ChatEvidence.CrewMessage> messages = this.chat.crewChatUnderGrant(me, split.jobId(), split.fundedAt(), split.releasedAt());
-		Map<UUID, String> names = names(split, messages.stream().map(ChatEvidence.CrewMessage::authorId).toList());
-		return new SplitEvidenceChatView(split.fundedAt(), split.releasedAt(), messages.stream()
+		ChatEvidence.CrewMessages read = this.chat.crewChatUnderGrant(me, split.jobId(), split.fundedAt(), split.releasedAt());
+		Map<UUID, String> names = names(split, read.messages().stream().map(ChatEvidence.CrewMessage::authorId).toList());
+		return new SplitEvidenceChatView(split.fundedAt(), split.releasedAt(), read.total(), read.messages().stream()
 			.map(message -> new SplitEvidenceMessageView(message.messageId(), nameOf(message.authorId(), names), message.body(),
 					message.attachmentName(), message.sentAt()))
 			.toList());
@@ -235,12 +238,20 @@ class AdminSplitEvidenceController {
 			.toList();
 	}
 
+	/** A Customer with no display name left has none here either: the screen says "unnamed", not an empty name. */
 	private @Nullable String personName(UUID account, @Nullable UUID customer, Map<UUID, String> names) {
-		return account.equals(customer) ? this.customers.displayName(account) : names.get(account);
+		if (!account.equals(customer)) {
+			return names.get(account);
+		}
+		String name = this.customers.displayName(account);
+		return name.isBlank() ? null : name;
 	}
 
 	private SplitCase view(UUID resolutionId, UUID me, Tab tab) {
-		Resolution resolution = this.evidence.view(resolutionId, me, tab);
+		return caseOf(this.evidence.view(resolutionId, me, tab));
+	}
+
+	private SplitCase caseOf(Resolution resolution) {
 		return this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 

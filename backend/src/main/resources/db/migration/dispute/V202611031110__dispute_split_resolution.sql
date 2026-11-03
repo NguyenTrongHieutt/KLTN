@@ -35,7 +35,8 @@ CREATE TABLE dispute.split_resolution
     CHECK ((status = 'OPEN') = (ended_at IS NULL)),
     CHECK ((status = 'DECIDED') = (decision_version_no IS NOT NULL)),
     CHECK ((status = 'DECIDED') = (decision_reasoning IS NOT NULL)),
-    CHECK ((status = 'DECIDED') = (decision_amounts IS NOT NULL))
+    CHECK ((status = 'DECIDED') = (decision_amounts IS NOT NULL)),
+    CHECK ((status = 'DECIDED') = (evidence_snapshot IS NOT NULL))
 );
 
 CREATE UNIQUE INDEX split_resolution_one_per_party_idx ON dispute.split_resolution (milestone_id, raiser_party_id);

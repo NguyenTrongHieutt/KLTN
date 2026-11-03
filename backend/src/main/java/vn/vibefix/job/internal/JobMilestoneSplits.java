@@ -428,6 +428,12 @@ class JobMilestoneSplits implements MilestoneSplits {
 
 	@Override
 	@Transactional(readOnly = true)
+	public boolean jobContentKept(UUID jobId) {
+		return this.store.contentKept(jobId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public Optional<MilestoneSplitFinalized> finalSplitOf(UUID milestoneId) {
 		return this.store.ofMilestone(milestoneId)
 			.filter(split -> split.status() == Status.FINAL && split.mentorId() != null)

@@ -427,15 +427,10 @@ class AbuseReportIT extends IntegrationTest {
 
 	/** Story 22.3 (AD-19, A-17): an Administrator linked to the reporter or the reported account does not take the report. */
 	@Test
-	void anAdministratorLinkedToTheReporterOrTheAuthorCannotTakeTheReportAndAnotherCan() throws Exception {
+	void anAdministratorLinkedToTheReporterCannotTakeTheReportAndAnotherCan() throws Exception {
 		file(this.world.hung(), Role.MENTOR, "JOB_POST", this.post).andExpect(status().isCreated());
 		UUID report = reportOf("JOB_POST");
-		for (UUID holder : List.of(this.ha.accountId(), this.world.hung())) {
-			this.jdbc.sql("""
-					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
-					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
-					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
-		}
+		linkToAdministrator(this.world.hung());
 
 		this.mvc.perform(post("/api/v1/admin/abuse-reports/" + report + "/take").with(admin(this.ha.accountId())).with(csrf()))
 			.andExpect(status().isUnprocessableEntity())
@@ -445,6 +440,42 @@ class AbuseReportIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'admin.take_conflict_refused'")).isOne();
 		assertThat(count("SELECT count(*) FROM admin.abuse_report WHERE assigned_admin_id IS NOT NULL")).isZero();
 		take(this.quan, report);
+	}
+
+	/** Hùng wrote the message Vy reported: Vy, the reporter, is linked to nobody. */
+	@Test
+	void anAdministratorLinkedToTheAuthorOfWhatWasReportedCannotTakeTheReport() throws Exception {
+		file(this.world.vy(), Role.STUDENT, "CREW_CHAT_MESSAGE", this.crewMessage).andExpect(status().isCreated());
+		UUID report = reportOf("CREW_CHAT_MESSAGE");
+		linkToAdministrator(this.world.hung());
+
+		this.mvc.perform(post("/api/v1/admin/abuse-reports/" + report + "/take").with(admin(this.ha.accountId())).with(csrf()))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+		assertThat(count("SELECT count(*) FROM admin.abuse_report WHERE assigned_admin_id IS NOT NULL")).isZero();
+	}
+
+	@Test
+	void anAdministratorLinkedToAReportedPersonCannotTakeTheReport() throws Exception {
+		UUID person = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		file(this.world.vy(), Role.STUDENT, "USER", person).andExpect(status().isCreated());
+		UUID report = reportOf("USER");
+		linkToAdministrator(person);
+
+		this.mvc.perform(post("/api/v1/admin/abuse-reports/" + report + "/take").with(admin(this.ha.accountId())).with(csrf()))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+		assertThat(count("SELECT count(*) FROM admin.abuse_report WHERE assigned_admin_id IS NOT NULL")).isZero();
+	}
+
+	/** The Administrator Hà Phương and {@code person} come to share a person-link signal. */
+	private void linkToAdministrator(UUID person) {
+		for (UUID holder : List.of(this.ha.accountId(), person)) {
+			this.jdbc.sql("""
+					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
+					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
+		}
 	}
 
 	private ResultActions take(UUID admin, UUID report) throws Exception {

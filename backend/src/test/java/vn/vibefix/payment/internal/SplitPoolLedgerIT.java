@@ -49,6 +49,8 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.Releases;
+import vn.vibefix.operations.OperationRun;
+import vn.vibefix.operations.Outcome;
 import vn.vibefix.shared.ErasureOutcome;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.HeldCrewJob;
@@ -107,6 +109,9 @@ class SplitPoolLedgerIT extends IntegrationTest {
 
 	@Autowired
 	private OperationWorker worker;
+
+	@Autowired
+	private SplitPoolRefusedOperation refusedOperation;
 
 	@Autowired
 	private FailedOperations failed;
@@ -498,6 +503,38 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		assertThat(this.ledger.releasedTotal(this.milestone)).isEqualTo(HeldCrewJob.PRICE);
 	}
 
+	/** Story 22.3 (FR-64): a split paid since it was refused is done: the re-run succeeds and writes nothing. */
+	@Test
+	void reRunningAfterPaymentSucceedsWithNoNewRows() throws Exception {
+		accept();
+		finalize(percentages(20, 40, 40));
+		await().atMost(Duration.ofSeconds(15)).until(() -> count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'") == 1);
+		awaitListeners();
+		long rows = count("SELECT count(*) FROM payment.ledger_entry");
+
+		assertThat(reRun("PARTS_OFF")).isInstanceOf(Outcome.Succeeded.class);
+
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(rows);
+	}
+
+	/** Story 22.3 (FR-64): with a party erased before it was ever paid, nobody can be named: the re-run writes nothing. */
+	@Test
+	void reRunningWithAPartyErasedIsRefusedAsPartiesDifferWithNoRows() throws Exception {
+		accept();
+		finalizeBySql(splitId(), percentages(20, 40, 40));
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = :now WHERE id = :id").param("now", now).param("id", this.world.job()).update();
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'JOB_ENDED', released_at = :now, window_end = :now WHERE job_id = :id
+				""").param("now", now).param("id", this.world.job()).update();
+		ErasureOutcome outcome = this.transactions.execute(status -> this.personalData.erase(this.world.minh()));
+		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
+
+		assertThat(reRun("PARTS_OFF")).isEqualTo(new Outcome.Transient("PARTIES_DIFFER"));
+
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'POOL_RELEASED')")).isZero();
+	}
+
 	@Test
 	void anAlertReachesAdministratorsThroughTheFailedQueue() throws Exception {
 		UUID administrator = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
@@ -823,6 +860,12 @@ class SplitPoolLedgerIT extends IntegrationTest {
 
 	private void publish(MilestoneSplitFinalized event) {
 		this.transactions.executeWithoutResult(status -> this.events.publishEvent(event));
+	}
+
+	/** {@code payment.split_pool_refused} run again, as FR-64's retry on ADM-7 runs it. */
+	private Outcome reRun(String reason) {
+		return this.refusedOperation.run(new OperationRun(UUID.randomUUID(), SplitPoolRefusedOperation.TYPE + ":" + this.milestone,
+				SplitPoolRefusedOperation.TYPE, 1, Map.of("milestoneId", this.milestone.toString(), "reason", reason), null));
 	}
 
 	private void refusedOnce(String reason) throws Exception {

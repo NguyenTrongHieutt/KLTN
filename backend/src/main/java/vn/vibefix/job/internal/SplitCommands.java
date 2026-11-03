@@ -277,14 +277,15 @@ class SplitCommands {
 	}
 
 	/**
-	 * {@code job.holdSplit}: a Split Resolution was raised, under the lock its caller took. Nothing else moves: the round's
+	 * {@code job.holdSplit}: a Split Resolution was raised, under the lock its caller took and past the due-time check it made
+	 * there, which this does not make again: the Clock may have passed the due time since. Nothing else moves: the round's
 	 * Deadline and reminder find the status changed and end {@code OBSOLETE}.
 	 */
 	@Transactional
 	void hold(UUID milestoneId, UUID resolutionId) {
 		Split split = ofMilestone(milestoneId);
-		if (split.status() != Status.PROPOSED || split.pastDue(this.clock.instant())) {
-			throw new IllegalStateException("Only a split out for confirmation and in time is held");
+		if (split.status() != Status.PROPOSED) {
+			throw new IllegalStateException("Only a split out for confirmation is held");
 		}
 		this.store.hold(split.id());
 		this.notices.held(split);

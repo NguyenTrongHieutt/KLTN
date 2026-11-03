@@ -211,14 +211,7 @@ class EvidencePackageIT extends IntegrationTest {
 	@Test
 	void aDisputeAndASplitResolutionOnOneJobLendEachOtherNoGrant() throws Exception {
 		UUID dispute = open();
-		UUID split = JobContent.proposedSplit(this.jdbc, this.world.job(), this.world.product(), this.world.milestone(), 1,
-				this.world.hung(), this.world.vy(), this.world.minh(), 30, 40, 30, this.clock.instant(),
-				this.clock.instant().plus(Duration.ofDays(3)))[0];
-		this.mvc.perform(post("/api/v1/splits/" + split + "/resolutions").with(as(this.world.vy(), null)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"splitVersionNo\":1,\"reason\":\"Phần của tôi quá ít\"}"))
-			.andExpect(status().isCreated());
-		UUID resolution = this.jdbc.sql("SELECT id FROM dispute.split_resolution").query(UUID.class).single();
+		UUID resolution = splitResolution();
 		String splitEvidence = "/api/v1/admin/split-resolutions/" + resolution + "/evidence/versions";
 		String crewChat = "/api/v1/boards/" + this.world.job() + "/crew-chat/messages";
 
@@ -237,6 +230,23 @@ class EvidencePackageIT extends IntegrationTest {
 		this.mvc.perform(get(jobChat()).with(admin(this.quan))).andExpect(status().isOk());
 		this.mvc.perform(get(splitEvidence).with(admin(this.quan))).andExpect(status().isNotFound());
 		this.mvc.perform(get(crewChat).with(admin(this.quan))).andExpect(status().isNotFound());
+	}
+
+	/** Story 22.3 (AD-20): the Work Items tab reads its own case's grant, whatever else its Administrator holds on the Job. */
+	@Test
+	void theSplitWorkItemsTabListsWhatItsOwnGrantCoversNotADisputesOfTheSameAdministrator() throws Exception {
+		UUID dispute = open();
+		UUID resolution = splitResolution();
+		take(this.ha.accountId(), dispute);
+		this.mvc.perform(post("/api/v1/admin/split-resolutions/" + resolution + "/take").with(admin(this.ha.accountId())).with(csrf()))
+			.andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/work-items").with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].id").value(this.item.toString()));
+		this.mvc.perform(get("/api/v1/admin/split-resolutions/" + resolution + "/evidence/work-items").with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(0));
 	}
 
 	@Test
@@ -349,6 +359,18 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(status().isCreated());
 		return this.jdbc.sql("SELECT id FROM dispute.dispute WHERE job_id = :job").param("job", this.world.job()).query(UUID.class)
 			.single();
+	}
+
+	/** A split of the held Milestone out for confirmation, and Vy's Split Resolution on it. */
+	private UUID splitResolution() throws Exception {
+		UUID split = JobContent.proposedSplit(this.jdbc, this.world.job(), this.world.product(), this.world.milestone(), 1,
+				this.world.hung(), this.world.vy(), this.world.minh(), 30, 40, 30, this.clock.instant(),
+				this.clock.instant().plus(Duration.ofDays(3)))[0];
+		this.mvc.perform(post("/api/v1/splits/" + split + "/resolutions").with(as(this.world.vy(), null)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"splitVersionNo\":1,\"reason\":\"Phần của tôi quá ít\"}"))
+			.andExpect(status().isCreated());
+		return this.jdbc.sql("SELECT id FROM dispute.split_resolution").query(UUID.class).single();
 	}
 
 	private ResultActions take(UUID admin, UUID dispute) throws Exception {

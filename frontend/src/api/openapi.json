@@ -9643,6 +9643,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "jobContentGone" : {
+            "type" : "boolean"
+          },
           "jobId" : {
             "type" : "string",
             "format" : "uuid"
@@ -9688,7 +9691,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "capApplies", "daysUndecided", "evidenceReadable", "id", "jobId", "milestoneNumber", "parties", "pooledVnd", "raisedAt", "statements", "status", "undecidedLong" ]
+        "required" : [ "assigned", "assignedToMe", "capApplies", "daysUndecided", "evidenceReadable", "id", "jobContentGone", "jobId", "milestoneNumber", "parties", "pooledVnd", "raisedAt", "statements", "status", "undecidedLong" ]
       },
       "AdminSplitResolutionRow" : {
         "type" : "object",
@@ -19291,9 +19294,13 @@
           "to" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
-        "required" : [ "messages", "to" ]
+        "required" : [ "messages", "to", "total" ]
       },
       "SplitEvidenceCommitView" : {
         "type" : "object",

@@ -41,8 +41,9 @@
 #   and a link. Only the Bidder and the Job's Customer read them; no Administrator grant covers a bid's proof.
 # - SPLIT_RESOLUTION_ID, SPLIT_RESOLUTION_REASON, SPLIT_STATEMENT and SPLIT_DECISION_REASONING are the crew Job's Split
 #   Resolutions (Story 22.3, A-18): the reason of the one open on the Milestone held for it and a statement on it, and
-#   the ID and the reasoning of one an Administrator decided on another Milestone. The words reach its parties and its
-#   assigned Administrator only, and the queue shows every Administrator a case's ID; the Customer reads none of them.
+#   the ID and the reasoning of one an Administrator decided on another Milestone. The reason and the statement reach its
+#   parties and its assigned Administrator only, and the queue shows every Administrator a case's ID. The reasoning reaches
+#   its parties and, as the record of the decision (AD-24), every Administrator. The Customer reads none of them.
 # - CREW_LEFT_NOTE is the reason a member who is no caller gave when leaving the crew Job (Story 21.6, FR-82): only the
 #   Job's Mentor reads it, on JOB-9's Crew list. It reaches no notification, to-do, or other view, and its author's export
 #   is no caller's.
@@ -93,4 +94,4 @@ CREW_LEFT_NOTE,canary-crew-left-note-7b2e41,MENTOR,the reason a member gave when
 SPLIT_RESOLUTION_ID,01923c4f-6b7c-7d8e-9f0a-2b3c4d5e6f70,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the ID of the Split Resolution an Administrator decided
 SPLIT_RESOLUTION_REASON,canary-split-resolution-reason-5a3e71,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMIN_SPLIT_RESOLUTION_GRANT,the reason of the open Split Resolution
 SPLIT_STATEMENT,canary-split-statement-2f8c64,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMIN_SPLIT_RESOLUTION_GRANT,a party's statement on the open Split Resolution
-SPLIT_DECISION_REASONING,canary-split-decision-reasoning-9d1b36,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMIN_SPLIT_RESOLUTION_GRANT,the reasoning of the decided Split Resolution
+SPLIT_DECISION_REASONING,canary-split-decision-reasoning-9d1b36,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the reasoning of the decided Split Resolution

@@ -3500,7 +3500,8 @@ GET /api/v1/admin/split-resolutions,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions,CROSS_ROLE,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions,ADMINISTRATOR,,,200
 GET /api/v1/admin/split-resolutions,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
-# One case: every Administrator sees it exists, and only its assignee its words (A-18).
+# One case: every Administrator sees it exists, and only its assignee its words (A-18). resolution=decided makes
+# {resolutionId} the decided case on another Milestone, whose record every Administrator reads (AD-24).
 GET /api/v1/admin/split-resolutions/{resolutionId},ANONYMOUS,,,401
 GET /api/v1/admin/split-resolutions/{resolutionId},LOCKED,,,401
 GET /api/v1/admin/split-resolutions/{resolutionId},USER_UNVERIFIED,,,404 NOT_FOUND
@@ -3514,6 +3515,8 @@ GET /api/v1/admin/split-resolutions/{resolutionId},CROSS_ROLE,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId},MENTOR,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId},ADMINISTRATOR,,,200
 GET /api/v1/admin/split-resolutions/{resolutionId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMINISTRATOR,resolution=decided,,200
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMIN_SPLIT_RESOLUTION_GRANT,resolution=decided,,200
 # "Nhận xử lý": another Administrator takes it over.
 POST /api/v1/admin/split-resolutions/{resolutionId}/take,ANONYMOUS,,,401
 POST /api/v1/admin/split-resolutions/{resolutionId}/take,LOCKED,,,401

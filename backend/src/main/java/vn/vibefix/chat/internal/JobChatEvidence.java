@@ -61,21 +61,21 @@ class JobChatEvidence implements ChatEvidence {
 
 	@Override
 	@Transactional
-	public List<CrewMessage> crewChatUnderGrant(UUID adminId, UUID jobId, @Nullable Instant from, Instant to) {
+	public CrewMessages crewChatUnderGrant(UUID adminId, UUID jobId, @Nullable Instant from, Instant to) {
 		UUID chat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")
 			.param("job", jobId)
 			.query(UUID.class)
 			.optional()
 			.orElse(null);
 		if (chat == null) {
-			return List.of();
+			return new CrewMessages(List.of(), 0);
 		}
 		if (!this.grants.permits(adminId, jobId, AdminReadScope.CREW_CHAT, chat, List.of(), this.clock.instant())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(adminId), "chat.admin_read", AuditObject.of("chat.chat", chat))
 			.forJob(jobId));
-		return this.jdbc.sql("""
+		List<CrewMessage> newest = this.jdbc.sql("""
 				SELECT * FROM (SELECT m.id, m.author_account_id, m.body, m.attachment_name, m.sent_at FROM chat.message m
 				    WHERE m.chat_id = :chat AND """ + IN_INTERVAL + """
 				    ORDER BY m.sent_at DESC, m.id DESC LIMIT :most) newest
@@ -88,6 +88,7 @@ class JobChatEvidence implements ChatEvidence {
 			.query((rs, n) -> new CrewMessage(rs.getObject("id", UUID.class), rs.getObject("author_account_id", UUID.class),
 					rs.getString("body"), rs.getString("attachment_name"), rs.getTimestamp("sent_at").toInstant()))
 			.list();
+		return new CrewMessages(newest, crewChat(jobId, from, to).messageCount());
 	}
 
 	@Override

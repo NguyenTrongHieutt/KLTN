@@ -167,6 +167,9 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		/** {@code split=decided}: {@code {splitId}} names the crew Job's split an Administrator decided (Story 22.3). */
 		SPLIT_DECIDED("split", "decided", "splitId", "decidedSplitId"),
 
+		/** {@code resolution=decided}: {@code {resolutionId}} names the decided Split Resolution, whose record every Administrator reads. */
+		RESOLUTION_DECIDED("resolution", "decided", "resolutionId", "decidedResolutionId"),
+
 		/**
 		 * {@code file=crew-proof}: {@code {fileId}} names the stored file of the recruiting Job's Crew Application proof,
 		 * which {@code CrewApplicationProofFiles} serves to the applicant and the Job's Mentor only (Story 21.4).

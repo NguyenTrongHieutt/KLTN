@@ -28,12 +28,20 @@ public interface ChatEvidence {
 	}
 
 	/**
-	 * The Crew Chat between two instants, oldest first, for an Administrator under a grant naming it, audited
-	 * {@code chat.admin_read} (AD-8, AD-20); no messages when the Job has no Crew Chat any more.
+	 * The Crew Chat of an interval as one view shows it.
+	 * @param messages the newest of them, at most 1,000, oldest first
+	 * @param total how many messages the interval holds
+	 */
+	record CrewMessages(List<CrewMessage> messages, int total) {
+	}
+
+	/**
+	 * The Crew Chat between two instants for an Administrator under a grant naming it, audited {@code chat.admin_read} (AD-8,
+	 * AD-20); no messages when the Job has no Crew Chat any more.
 	 * @param from the start, both ends included; empty for a split older than Story 22.3 whose Milestone had gone
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} unless an open grant of theirs covers the Crew Chat
 	 */
-	List<CrewMessage> crewChatUnderGrant(UUID adminId, UUID jobId, @Nullable Instant from, Instant to);
+	CrewMessages crewChatUnderGrant(UUID adminId, UUID jobId, @Nullable Instant from, Instant to);
 
 	/** How far the Crew Chat reached between two instants, for a decision's record, never a message's text. */
 	ChatExtent crewChat(UUID jobId, @Nullable Instant from, Instant to);

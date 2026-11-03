@@ -4349,6 +4349,7 @@ export interface components {
             evidenceReadable: boolean;
             /** Format: uuid */
             id: string;
+            jobContentGone: boolean;
             /** Format: uuid */
             jobId: string;
             jobTitle?: string;
@@ -7786,6 +7787,8 @@ export interface components {
             messages: components["schemas"]["SplitEvidenceMessageView"][];
             /** Format: date-time */
             to: string;
+            /** Format: int32 */
+            total: number;
         };
         SplitEvidenceCommitView: {
             /** Format: int64 */

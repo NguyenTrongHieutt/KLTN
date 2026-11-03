@@ -97,6 +97,20 @@ class PersonLinksIT extends IntegrationTest {
 		assertThat(audits(lan)).isOne();
 	}
 
+	/** Story 22.3 (A-17): an Administrator's email is a signal, and ADM-2 has no page to lead to their account. */
+	@Test
+	void anAdministratorSharingASignalIsNoLink() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID lan = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-lan", "3.1");
+		String email = IdentityTestSupport.fakeHmac("lan@gmail.test");
+		signal(lan, "EMAIL", "GOOGLE_EMAIL", email);
+		signal(ha.accountId(), "EMAIL", "ADMIN_EMAIL", email);
+
+		this.mvc.perform(get("/api/v1/admin/users/" + lan).with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.personLinks.length()").value(0));
+	}
+
 	@Test
 	void everyOpenedReadIsAuditedAnEmptyOneTooButNotALockOrAnUnlock() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");

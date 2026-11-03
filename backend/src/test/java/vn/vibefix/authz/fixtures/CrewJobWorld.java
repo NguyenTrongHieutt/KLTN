@@ -110,8 +110,8 @@ import vn.vibefix.support.TestPeople;
  * with its real grant ({@link AdminReadItem#forSplitResolution}), and reads a Story, a commit and the Crew Chat of that
  * Milestone's interval, the {@code CREW_CHAT} canaries lying outside it. Its two members share a person-link signal whose HMAC
  * is {@code PERSON_SIGNAL}, which the Package never shows. A sixth's ({@code {decidedSplitId}}) was decided
- * ({@code SPLIT_RESOLUTION_ID}, {@code SPLIT_DECISION_REASONING}). Both stand beside {@code {splitId}}, which stays
- * out for confirmation.
+ * ({@code {decidedResolutionId}}, the {@code SPLIT_RESOLUTION_ID}, with its {@code SPLIT_DECISION_REASONING}). Both stand beside
+ * {@code {splitId}}, which stays out for confirmation.
  */
 final class CrewJobWorld {
 
@@ -731,13 +731,23 @@ final class CrewJobWorld {
 				""").param("at", Timestamp.from(WRITTEN)).param("id", split[0]).update();
 		UUID resolution = UUID.fromString(value("SPLIT_RESOLUTION_ID"));
 		insertResolution(resolution, split[0], job, product, milestone, 6, split[2], this.activeParty, "Phần chia chưa công bằng");
+		String amounts = """
+				{"pooledVnd":%d,"lines":[{"partyId":"%s","percent":30,"amountVnd":%d},{"partyId":"%s","percent":40,"amountVnd":%d},
+				 {"partyId":"%s","percent":30,"amountVnd":%d}]}
+				""".formatted(RESOLVED_PRICE, split[1], RESOLVED_PRICE * 30 / 100, split[2], RESOLVED_PRICE * 40 / 100, split[3],
+				RESOLVED_PRICE * 30 / 100);
+		String snapshot = """
+				{"takenAt":"%s","versions":[{"versionNo":1,"kind":"DRAFT","confirmations":0,"createdAt":"%s"}],"workItems":[],"commits":[],
+				 "crewChat":{"messageCount":0,"lastMessageId":null,"lastSentAt":null},"personLinks":0}
+				""".formatted(WRITTEN, ACCEPTED);
 		this.jdbc.sql("""
 				UPDATE dispute.split_resolution SET status = 'DECIDED', ended_at = :at, decision_version_no = 2,
-				    decision_reasoning = :reasoning, decision_amounts = '{"pooledVnd":0,"lines":[]}'::jsonb
+				    decision_reasoning = :reasoning, decision_amounts = CAST(:amounts AS JSONB), evidence_snapshot = CAST(:snapshot AS JSONB)
 				WHERE id = :id
 				""").param("at", Timestamp.from(WRITTEN)).param("reasoning", value("SPLIT_DECISION_REASONING"))
-			.param("id", resolution).update();
+			.param("amounts", amounts).param("snapshot", snapshot).param("id", resolution).update();
 		world.put("decidedSplitId", split[0]);
+		world.put("decidedResolutionId", resolution);
 	}
 
 	/** A Split Resolution raised on the fixed day; a suite that seeds several worlds keeps the first of a fixed ID. */

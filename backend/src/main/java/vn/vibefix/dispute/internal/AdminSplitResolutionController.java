@@ -44,10 +44,12 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * ADM-4's "Phân chia tiền" tab (FR-84, AD-20, AD-40, UX-DR107): the Split Resolutions, the open ones first, with the "undecided
- * 7+ days" filter, read from each row's stored due time; one with "Nhận xử lý", and the decision form with its VND preview under
- * the step-up. Every Administrator sees that a case exists; its raiser, reason, statements, parties and decision are for its
- * assignee (A-18). The Split Evidence Package is {@link AdminSplitEvidenceController}'s.
+ * ADM-4's "Phân chia tiền" tab (FR-84, AD-20, AD-40, UX-DR107): the Split Resolutions, the open ones first, with the filter of
+ * those undecided past the due time each row stored; one with "Nhận xử lý", and the decision form with its VND preview under the
+ * step-up. Every Administrator sees that a case exists, and the notice told each of them who raised it (EXPERIENCE.md); its
+ * reason, statements and parties are for its assignee (A-18), and this screen names the raiser beside them. Once decided, the
+ * decision's record reaches every Administrator, as a Dispute's does, since an erasure may leave the case with no assignee
+ * (AD-24). The Split Evidence Package is {@link AdminSplitEvidenceController}'s.
  */
 @RestController
 @RequestMapping("/api/v1/admin/split-resolutions")
@@ -89,18 +91,21 @@ class AdminSplitResolutionController {
 	 * @param daysUndecided whole days since the raise, until it ended
 	 * @param undecidedLong still open at or past its stored due time
 	 * @param evidenceReadable the viewer reads the Split Evidence Package now
-	 * @param raiserName the assignee's only; absent too once an erasure anonymized the raiser
+	 * @param raiserName shown to the assignee beside the reason, though the notice names the raiser to every Administrator;
+	 * absent too once an erasure anonymized the raiser
 	 * @param reason the assignee's only
 	 * @param statements the assignee's only
 	 * @param parties the assignee's only
 	 * @param cap the cap stored on the latest version; absent when none applies (X5), and for anyone but the assignee
 	 * @param capApplies a party other than the Mentor was still in the Crew at the release
+	 * @param decision the record, for every Administrator once decided
+	 * @param jobContentGone decided, and the Job's content has gone: the record stands with no evidence behind it to read
 	 */
 	record AdminSplitResolutionDetail(UUID id, UUID jobId, @Nullable String jobTitle, int milestoneNumber, long pooledVnd,
 			Status status, Instant raisedAt, long daysUndecided, boolean undecidedLong, @Nullable Instant endedAt, boolean assigned,
 			boolean assignedToMe, boolean evidenceReadable, @Nullable String raiserName, @Nullable String reason,
 			List<AdminSplitStatementView> statements, List<AdminSplitPartyView> parties, boolean capApplies, @Nullable Integer cap,
-			@Nullable AdminSplitDecisionView decision) {
+			@Nullable AdminSplitDecisionView decision, boolean jobContentGone) {
 	}
 
 	/** "Nhận xử lý" went through. */
@@ -234,7 +239,8 @@ class AdminSplitResolutionController {
 		SplitCase split = this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Instant now = this.clock.instant();
 		boolean mine = me.equals(resolution.assigneeId());
-		Map<UUID, String> names = mine
+		boolean decided = resolution.status() == Status.DECIDED;
+		Map<UUID, String> names = mine || decided
 				? this.people.names(SplitResolutionDecisions.partyAccounts(split), split.mentorId()) : Map.of();
 		Instant until = resolution.endedAt() == null ? now : resolution.endedAt();
 		UUID raiser = resolution.raiserId();
@@ -254,7 +260,8 @@ class AdminSplitResolutionController {
 					.map(party -> new AdminSplitPartyView(party.partyId(), nameOf(party, names), party.mentor(), party.wholeInterval(),
 							party.activeAtRelease()))
 					.toList() : List.of(),
-				split.capApplies(), mine ? split.latestCap() : null, mine ? decision(resolutionId, split, names) : null);
+				split.capApplies(), mine ? split.latestCap() : null, decided ? decision(resolutionId, split, names) : null,
+				this.decisions.jobContentGone(resolution));
 	}
 
 	private @Nullable AdminSplitDecisionView decision(UUID resolutionId, SplitCase split, Map<UUID, String> names) {
