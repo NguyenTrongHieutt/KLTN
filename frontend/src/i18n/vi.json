@@ -2575,7 +2575,7 @@
         "held": "Đang giữ chờ nghiệm thu",
         "releasesTitle": "Các lần chuyển tiền",
         "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia và chuyển theo phân chia đã chốt của giai đoạn đó. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
-        "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, bạn nhận phần của mình theo điều khoản nhóm thực hiện.",
+        "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia; phần của bạn về số dư khi phân chia đã chốt.",
         "empty": "Chưa có lần chuyển tiền nào. Tiền được chuyển khi khách hàng nghiệm thu một giai đoạn.",
         "job": "Công việc · giai đoạn",
         "date": "Ngày",
