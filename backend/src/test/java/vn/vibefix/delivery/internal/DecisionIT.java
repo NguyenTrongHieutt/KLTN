@@ -247,9 +247,8 @@ class DecisionIT extends IntegrationTest {
 
 	/**
 	 * An Active Assessment Job with Milestone 1 Funded at {@code PRICE} after Vy signed, its seeded Story approved and
-	 * the Assessment Report written, and Milestone 2 Planned.
+	 * the Assessment Report written, and Milestone 2 Planned; the Milestone was funded a minute before the clock.
 	 */
-	/** The Milestone was funded a minute before the clock, after Vy signed. */
 	private void world(int revisionRounds) throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
