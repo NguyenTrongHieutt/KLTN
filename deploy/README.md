@@ -89,6 +89,8 @@ without them.
    `secrets/google-oauth-client-secret`. Write each value without a trailing newline (the files are
    read-only: `chmod 644` them first, and `chmod 444` after).
 4. Restart the backend: `docker compose -f deploy/compose.yaml up -d --force-recreate backend`.
+   On a checkpoint 1 stack, pass `-f deploy/compose.integrations.yaml` too, or the backend loses the
+   Apps and VNPay.
 
 The ID token is checked by Spring against Google's keys, issuer, audience, and nonce, and the
 account is keyed by Google's subject (`sub`), never the email. vibefix keeps no Google token and no
@@ -124,6 +126,8 @@ production still refuses to start without them. Without them, ACC-2 says linking
    it into `secrets/github-oauth-client-secret`. Write each value without a trailing newline (the
    files are read-only: `chmod 644` them first, and `chmod 444` after).
 3. Restart the backend: `docker compose -f deploy/compose.yaml up -d --force-recreate backend`.
+   On a checkpoint 1 stack, pass `-f deploy/compose.integrations.yaml` too, or the backend loses the
+   Apps and VNPay.
 
 The app asks only for `read:user` and `user:email` (FR-80), with PKCE and a `state` bound to the
 session. vibefix keeps the token only for the owner of a live Product, or for a link started from
@@ -158,9 +162,16 @@ sign-in; ADM-1's automatic refresh does not keep it open.
 
 ## The end-to-end path (checkpoint 1)
 
-Checkpoint 1 runs the Mentor path with a one-Student Crew on a test repository: Mentor approval and
-Team, intake, an Assessment Job, a Code Job with two Milestones, and closure with a Final Merge. Beyond
-the stack above it needs the dev Platform App, the dev Merge App, and the dev VNPay sandbox merchant.
+Checkpoint 1 runs the context-roles path on a test repository with three users and a one-member Crew:
+Google sign-in and GitHub linking, intake, an Assessment Job, a Code Job with two Milestones, each
+Milestone's split (confirmed by the Crew member, or decided by an Administrator), and closure with a
+Final Merge. Roles belong to each Job, never to an account. Beyond the stack above it needs the dev
+Google client ("Signing in with Google locally"), the dev GitHub OAuth App with its linking callback
+("Linking GitHub locally"), the dev Platform App, the dev Merge App, and the dev VNPay sandbox merchant.
+
+A database from before Epics 19–22 cannot run this path: its accounts have no Google subject, and Story
+22.4's ledger check stops the backend at boot while `RELEASE_HELD` rows remain. Reset it first (an
+author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml down -v`.
 
 1. **Give the backend the three accounts.** Copy `.env.example` to `deploy/.env` and fill in the App
    IDs, the Platform App's installation ID on `vibefix-dev`, and the VNPay terminal code. The keys stay
@@ -188,18 +199,25 @@ the stack above it needs the dev Platform App, the dev Merge App, and the dev VN
 4. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost either. Accepted
    invitations, pushes to the Working Repository, and organization drift are read back every 10 minutes
    (`vibefix.repo.grant-sweep`, `vibefix.repo.push-sweep`).
-5. **Use four accounts, one browser profile each.** A GitHub account has one role, and a browser holds
-   one vibefix session at a time:
-   - the Customer, who owns the public Source Repository and has admin rights on it;
-   - the Mentor and the Student, two GitHub accounts that are not members of `vibefix-dev` (a member
-     gets access without an invitation, which alerts Administrators), each with two-factor
-     authentication on;
+5. **Use four accounts, one browser profile each.** A browser holds one vibefix session, and one
+   signed-in GitHub account, at a time:
+   - three users, each with their own Google account (a test user of the dev Google client) and their
+     own linked GitHub account: the Customer, who owns the public Source Repository and has admin
+     rights on it; the Mentor and the Crew member, two GitHub accounts that are not members of
+     `vibefix-dev` (a member gets access without an invitation, which alerts Administrators), each
+     with two-factor authentication on and never a contributor to the Source Repository;
    - an Administrator, created with the bootstrap CLI ("The first Administrator", above).
 
-   The Student verifies with a school email code: `ten@truong.test` is a seeded school domain, and the
-   code arrives in Mailpit.
+   No two accounts may share an email address, whether a Google address, a verified GitHub email, a
+   school email, or the Administrator's: a shared address is a person-link signal, so bids, Crew
+   Applications and picks refuse with `CONFLICT_OF_INTEREST`, and an Administrator who shares one cannot
+   take the case. Student verification is optional and gates nothing (`ten@truong.test` is a seeded
+   school domain, and the code arrives in Mailpit). Verified on LinkedIn waits on Spike S5 and is not
+   needed.
 6. **Clean up after a run.** The Intermediary and Working Repositories are public repositories in
-   `vibefix-dev`; delete them by hand.
+   `vibefix-dev`; delete them by hand. After the Final Merge, GitHub lists the Crew member (and the
+   Mentor, if they committed) among the Source Repository's contributors, so the next run needs another
+   test repository.
 
 ## Spike S1: the admin check for organization-owned repositories
 
