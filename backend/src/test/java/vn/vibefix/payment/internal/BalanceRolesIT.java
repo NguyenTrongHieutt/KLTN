@@ -24,9 +24,10 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * FR-44, AD-20, AD-43, Story 20.3: any unlocked user opens their Balance, which never needs an account role; the
- * Crew's parts of a release are shown only on the Jobs whose Mentor the reader is, by their role in each Job, so a
- * Mentor of one Job who is a Crew member of another reads that other Job's parts as a Crew member does: none.
+ * FR-44, AD-20, AD-43, Stories 20.3 and 22.5: any unlocked user opens their Balance, which never needs an account role;
+ * the Crew's parts of a release are shown only on the lines whose Mentor the reader is, by the role held on each Job
+ * (these releases have no split row; {@code SplitHistoryIT} reads the split's), so a Mentor of one Job who is a Crew
+ * member of another reads that other Job's parts as a Crew member does: none.
  */
 class BalanceRolesIT extends IntegrationTest {
 
@@ -58,7 +59,9 @@ class BalanceRolesIT extends IntegrationTest {
 			.andExpect(jsonPath("$.balanceVnd").value(4_000_000))
 			.andExpect(jsonPath("$.releases").value(2))
 			.andExpect(jsonPath("$.lines[?(@.yourPartVnd == 1000000)].crew[*].amountVnd").value(4_000_000))
+			.andExpect(jsonPath("$.lines[?(@.yourPartVnd == 1000000)].role").value("MENTOR"))
 			.andExpect(jsonPath("$.lines[?(@.yourPartVnd == 3000000)].crew[*]").isEmpty())
+			.andExpect(jsonPath("$.lines[?(@.yourPartVnd == 3000000)].role").value("CREW"))
 			.andExpect(jsonPath("$.sentToCrewVnd").value(4_000_000))
 			.andReturn()
 			.getResponse()

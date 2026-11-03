@@ -10522,12 +10522,27 @@
               "$ref" : "#/components/schemas/CrewPartView"
             }
           },
+          "finalAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finality" : {
+            "type" : "string",
+            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+          },
           "jobId" : {
             "type" : "string",
             "format" : "uuid"
           },
+          "jobLive" : {
+            "type" : "boolean"
+          },
           "jobTitle" : {
             "type" : "string"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
           "milestoneTitle" : {
             "type" : "string"
@@ -10536,13 +10551,24 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "pending" : {
+            "type" : "boolean"
+          },
           "releasedAt" : {
             "type" : "string",
             "format" : "date-time"
           },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "MENTOR", "CREW" ]
+          },
           "splitVersionNo" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_DRAFT", "PROPOSED", "IN_RESOLUTION", "FINAL" ]
           },
           "yourPartVnd" : {
             "type" : "integer",
@@ -10553,7 +10579,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "baseAmountVnd", "crew", "jobId", "jobTitle", "milestoneTitle", "number", "releasedAt", "yourPartVnd" ]
+        "required" : [ "baseAmountVnd", "crew", "jobId", "jobLive", "jobTitle", "milestoneId", "milestoneTitle", "number", "pending", "releasedAt", "yourPartVnd" ]
       },
       "BalanceView" : {
         "type" : "object",
@@ -12088,6 +12114,9 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "erased" : {
+            "type" : "boolean"
+          },
           "name" : {
             "type" : "string"
           },
@@ -12096,7 +12125,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "amountVnd", "name" ]
+        "required" : [ "amountVnd", "erased", "name" ]
       },
       "CrewPickView" : {
         "type" : "object",
@@ -15411,6 +15440,14 @@
       "MentorFundingMilestoneView" : {
         "type" : "object",
         "properties" : {
+          "finalAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finality" : {
+            "type" : "string",
+            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+          },
           "fundedVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -15422,6 +15459,13 @@
           "number" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "paid" : {
+            "type" : "boolean"
+          },
+          "pooledVnd" : {
+            "type" : "integer",
+            "format" : "int64"
           },
           "priceVnd" : {
             "type" : "integer",
@@ -15441,6 +15485,10 @@
               "$ref" : "#/components/schemas/MentorReleaseView"
             }
           },
+          "splitStatus" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_DRAFT", "PROPOSED", "IN_RESOLUTION", "FINAL" ]
+          },
           "state" : {
             "type" : "string"
           },
@@ -15452,7 +15500,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "fundedVnd", "milestoneId", "number", "priceVnd", "refundedVnd", "releasedTotalVnd", "releases", "state", "title", "topUpVnd" ]
+        "required" : [ "fundedVnd", "milestoneId", "number", "paid", "priceVnd", "refundedVnd", "releasedTotalVnd", "releases", "state", "title", "topUpVnd" ]
       },
       "MentorInvitationView" : {
         "type" : "object",
@@ -15615,6 +15663,9 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "erased" : {
+            "type" : "boolean"
+          },
           "name" : {
             "type" : "string"
           },
@@ -15634,7 +15685,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "amountVnd", "name", "releasedAt", "role" ]
+        "required" : [ "amountVnd", "erased", "name", "releasedAt", "role" ]
       },
       "MentorResultView" : {
         "type" : "object",

@@ -39,14 +39,32 @@ public interface MilestoneSplits {
 	}
 
 	/**
-	 * What SG-23's daily check and a gone Job's Balance lines read of a split.
+	 * What SG-23's daily check, a gone Job's Balance lines, and the Mentor's JOB-7 read of a split.
 	 * @param milestoneNumber the Milestone's number when the split was created
 	 * @param mentorId the split's Mentor, empty once an erasure anonymized them
 	 * @param latestDueAt its latest due time: the later of the draft deadline and its current confirmation round's
 	 * @param finalSince when it became {@code FINAL}
+	 * @param finality how it became {@code FINAL}
 	 */
 	record SplitState(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable UUID mentorId, Status status,
-			Instant latestDueAt, @Nullable Instant finalSince) {
+			Instant latestDueAt, @Nullable Instant finalSince, @Nullable Finality finality) {
+	}
+
+	/**
+	 * A split as one of its parties' payment history reads it (FR-44, AD-15, AD-20): the split's own state and the reader's
+	 * own party row, never another person's.
+	 * @param milestoneNumber the Milestone's number when the split was created
+	 * @param mentor the reader's party row is the Mentor's ({@code is_mentor})
+	 * @param finality how it became {@code FINAL}
+	 * @param finalAt when it became {@code FINAL}
+	 * @param releasedAt when the release created it
+	 * @param draftDueAt the draft deadline
+	 * @param confirmationDueAt the current round's due time, once a version was sent
+	 * @param jobLive the Job still has its screens: its row exists and its Product was not deleted
+	 */
+	record PartySplit(UUID splitId, UUID jobId, UUID milestoneId, int milestoneNumber, boolean mentor, Status status,
+			@Nullable Finality finality, @Nullable Instant finalAt, Instant releasedAt, Instant draftDueAt,
+			@Nullable Instant confirmationDueAt, boolean jobLive) {
 	}
 
 	/**
@@ -197,6 +215,13 @@ public interface MilestoneSplits {
 
 	/** The Milestone's split, if a release created one. */
 	Optional<SplitState> splitOf(UUID milestoneId);
+
+	/**
+	 * Every split {@code accountId} is a party of, in one read of the split rows joined to the reader's party row, never
+	 * the role in a Job: a former member keeps theirs whatever their {@code window_end} says, and a split outlives its Job.
+	 * The newest release first. An anonymized party row names nobody, so an erased person finds nothing.
+	 */
+	List<PartySplit> ofParty(UUID accountId);
 
 	/** Every {@code FINAL} split that became final before {@code cutoff}. */
 	List<SplitState> finalBefore(Instant cutoff);
