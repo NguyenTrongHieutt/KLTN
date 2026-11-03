@@ -81,7 +81,7 @@ class NotificationAudiencesTest {
 
 	@Test
 	void splitNoticesReachTheSplitPartiesOnly() {
-		assertThat(type("payment.share_held").audiences()).containsExactly(Audience.SPLIT_PARTY);
+		assertThat(type("job.split_pending").audiences()).containsExactly(Audience.SPLIT_PARTY);
 		// A-11: a member who was never a party of that Milestone cannot receive a part's amount.
 		assertThat(type("payment.funds_released").audiences()).containsExactlyInAnyOrder(Audience.MENTOR, Audience.SPLIT_PARTY);
 		for (NotificationType type : this.catalog.notificationTypes()) {
@@ -130,7 +130,7 @@ class NotificationAudiencesTest {
 
 		for (Audience audience : Audience.values()) {
 			if (audience != Audience.SPLIT_PARTY) {
-				assertThatThrownBy(() -> registry.checkRecipient("payment.share_held", type("payment.share_held").audiences(),
+				assertThatThrownBy(() -> registry.checkRecipient("job.split_pending", type("job.split_pending").audiences(),
 						account, audience, job, UUID.randomUUID(), UUID.randomUUID()))
 					.as(audience.name())
 					.isInstanceOf(IllegalArgumentException.class)
@@ -146,23 +146,23 @@ class NotificationAudiencesTest {
 	void aSplitPartyNeedsTheMilestoneAndALookupThatConfirmsItInIt() {
 		Confirming lookup = new Confirming();
 		NotificationRegistry registry = new NotificationRegistry(List.of(this.catalog), List.of(lookup));
-		Set<Audience> allowed = type("payment.share_held").audiences();
+		Set<Audience> allowed = type("job.split_pending").audiences();
 		UUID account = UUID.randomUUID();
 		UUID job = UUID.randomUUID();
 		UUID milestone = UUID.randomUUID();
 
-		assertThatThrownBy(() -> registry.checkRecipient("payment.share_held", allowed, account, Audience.SPLIT_PARTY, job,
+		assertThatThrownBy(() -> registry.checkRecipient("job.split_pending", allowed, account, Audience.SPLIT_PARTY, job,
 				null, null))
 			.hasMessageContaining("SPLIT_PARTY needs the Milestone");
-		assertThatThrownBy(() -> registry.checkRecipient("payment.share_held", allowed, account, Audience.SPLIT_PARTY, null,
+		assertThatThrownBy(() -> registry.checkRecipient("job.split_pending", allowed, account, Audience.SPLIT_PARTY, null,
 				null, milestone))
 			.hasMessageContaining("SPLIT_PARTY needs the Job");
-		assertThatCode(() -> registry.checkRecipient("payment.share_held", allowed, account, Audience.SPLIT_PARTY, job, null,
+		assertThatCode(() -> registry.checkRecipient("job.split_pending", allowed, account, Audience.SPLIT_PARTY, job, null,
 				milestone))
 			.doesNotThrowAnyException();
 		assertThat(lookup.milestones).containsExactly(milestone);
 		lookup.confirms = false;
-		assertThatThrownBy(() -> registry.checkRecipient("payment.share_held", allowed, account, Audience.SPLIT_PARTY, job,
+		assertThatThrownBy(() -> registry.checkRecipient("job.split_pending", allowed, account, Audience.SPLIT_PARTY, job,
 				null, milestone))
 			.hasMessageContaining("not confirmed as SPLIT_PARTY");
 	}

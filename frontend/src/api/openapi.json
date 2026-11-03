@@ -10589,12 +10589,6 @@
             "type" : "integer",
             "format" : "int64"
           },
-          "heldParts" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HeldPartView"
-            }
-          },
           "heldVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -10614,7 +10608,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "balanceVnd", "heldParts", "lines", "releases" ]
+        "required" : [ "balanceVnd", "lines", "releases" ]
       },
       "BidProofRequest" : {
         "type" : "object",
@@ -14564,34 +14558,6 @@
           }
         },
         "required" : [ "milestoneId", "number", "releasableVnd", "title" ]
-      },
-      "HeldPartView" : {
-        "type" : "object",
-        "properties" : {
-          "amountVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "heldAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "jobTitle" : {
-            "type" : "string"
-          },
-          "milestoneTitle" : {
-            "type" : "string"
-          },
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "amountVnd", "heldAt", "jobId", "jobTitle", "milestoneTitle", "number" ]
       },
       "HideRequest" : {
         "type" : "object",

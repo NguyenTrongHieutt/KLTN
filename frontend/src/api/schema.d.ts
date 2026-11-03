@@ -4697,7 +4697,6 @@ export interface components {
         BalanceView: {
             /** Format: int64 */
             balanceVnd: number;
-            heldParts: components["schemas"]["HeldPartView"][];
             /** Format: int64 */
             heldVnd?: number;
             lines: components["schemas"]["BalanceReleaseView"][];
@@ -6080,18 +6079,6 @@ export interface components {
             /** Format: int64 */
             releasableVnd: number;
             title: string;
-        };
-        HeldPartView: {
-            /** Format: int64 */
-            amountVnd: number;
-            /** Format: date-time */
-            heldAt: string;
-            /** Format: uuid */
-            jobId: string;
-            jobTitle: string;
-            milestoneTitle: string;
-            /** Format: int32 */
-            number: number;
         };
         HideRequest: {
             reason: string;

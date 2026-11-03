@@ -2606,9 +2606,6 @@
         "count": "Từ {n} lần chuyển tiền",
         "sentToCrew": "Đã chuyển cho nhóm thực hiện",
         "held": "Đang giữ chờ nghiệm thu",
-        "onHoldTitle": "Đang giữ",
-        "onHoldLead": "Phần tiền của bạn cho các giai đoạn này được giữ lại cho đến khi khiếu nại nội bộ có kết quả. Phần này chưa tính vào số dư.",
-        "onHoldLine": "{job} · Giai đoạn {n}",
         "releasesTitle": "Các lần chuyển tiền",
         "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được chia theo điều khoản nhóm thực hiện của phiên bản đang áp dụng. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
         "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, bạn nhận phần của mình theo điều khoản nhóm thực hiện.",
@@ -4685,9 +4682,6 @@
       }
     },
     "payment": {
-      "share_held": {
-        "title": "Phần tiền của bạn cho Giai đoạn {n} đang được giữ đến khi khiếu nại nội bộ có kết quả"
-      },
       "payment_received": {
         "title": "Đã nhận thanh toán thử nghiệm {amount} cho Giai đoạn {n} của {job}"
       },
@@ -5025,8 +5019,7 @@
       "CHAT_READ_ONLY": "Cuộc trò chuyện này chỉ còn để xem."
     },
     "payment": {
-      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm",
-      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền."
+      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"
     },
     "work": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn làm được việc này.",

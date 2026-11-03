@@ -107,8 +107,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	/**
 	 * The picked person signs the NDA and the commitment on MEN-3 (FR-81, UX-DR112, Story 21.5), due at the end of the
-	 * 3-day signature period, until they sign or decline, the pick is withdrawn or ends, or the period passes; it
-	 * replaces the retired Crew Terms confirmation to-do.
+	 * 3-day signature period, until they sign or decline, the pick is withdrawn or ends, or the period passes.
 	 */
 	static final TodoType MATCHING_SIGN_COMMITMENT = new TodoType("matching.sign_commitment", Set.of(Audience.CREW_ASSIGNED),
 			1, Set.of("job"));
@@ -830,14 +829,6 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("job"));
 
-	/**
-	 * AD-40: a release held this party's part for an open share Team Issue. Nothing sends it since Story 22.1, and
-	 * Story 22.4 removes it. A split notice reaches the Milestone's split parties only (AD-20, Story 20.5), never the
-	 * Customer or a Crew member outside the split.
-	 */
-	static final NotificationType PAYMENT_SHARE_HELD = new NotificationType("payment.share_held",
-			Set.of(Audience.SPLIT_PARTY), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("n"));
-
 	/** FR-54: the decision was carried out; the Job unfroze. */
 	static final NotificationType DISPUTE_DISPUTE_DECIDED = new NotificationType("dispute.dispute_decided",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_EVER_ACTIVE), Channel.IN_APP_AND_EMAIL,
@@ -922,7 +913,7 @@ class NotificationTypes implements NotificationCatalog {
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
 				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED, ADMIN_ABUSE_REPORT_RESOLVED, IDENTITY_DELETION_REQUESTED,
 				ADMIN_SKILL_SUGGESTION_APPROVED, ADMIN_SKILL_SUGGESTION_DECLINED,
-				PAYMENT_SHARE_HELD, JOB_JOB_STARTING, JOB_SPLIT_DRAFT_DUE, JOB_SPLIT_PENDING, JOB_SPLIT_DRAFT_REMINDER,
+				JOB_JOB_STARTING, JOB_SPLIT_DRAFT_DUE, JOB_SPLIT_PENDING, JOB_SPLIT_DRAFT_REMINDER,
 				JOB_SPLIT_PROPOSED, JOB_SPLIT_DEFAULTED, JOB_SPLIT_EDITED, JOB_SPLIT_CONFIRMATION_REMINDER,
 				JOB_SPLIT_PARTY_CONFIRMED, JOB_SPLIT_FINAL,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,

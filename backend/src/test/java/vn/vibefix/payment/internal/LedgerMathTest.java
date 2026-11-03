@@ -24,21 +24,6 @@ class LedgerMathTest {
 	}
 
 	@Test
-	void payingAHoldOutLeavesPaidOutAndTheReleasedTotalUnchanged() {
-		List<Entry> entries = new ArrayList<>(List.of(new Entry("FUND", "MILESTONE", 1_000_000), new Entry("RELEASE", null, 700_000),
-				new Entry("RELEASE_HELD", null, 300_000)));
-		long paidOut = LedgerMath.paidOut(entries);
-		long released = LedgerMath.releasedTotal(entries);
-
-		entries.add(new Entry("HELD_RELEASED", null, 300_000));
-		entries.add(new Entry("RELEASE", null, 300_000));
-
-		assertThat(LedgerMath.paidOut(entries)).isEqualTo(paidOut).isEqualTo(1_000_000);
-		assertThat(LedgerMath.releasedTotal(entries)).isEqualTo(released);
-		assertThat(LedgerMath.releasable(entries)).isZero();
-	}
-
-	@Test
 	void aPoolCountsAsPaidOutAndAFinalSplitChangesNeitherReleasableNorTheReleasedTotal() {
 		List<Entry> entries = new ArrayList<>(List.of(new Entry("FUND", "MILESTONE", 10_000_001),
 				new Entry("RELEASE_POOLED", null, 10_000_001)));

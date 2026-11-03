@@ -565,11 +565,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
 		evidence(world);
 		confirmedRefund(world, 250_000);
-		this.jdbc.sql("""
-				INSERT INTO payment.share_hold (team_issue_id, milestone_id, job_id, product_id, raiser_account_id, held_at)
-				VALUES (:issue, :milestone, :job, :product, :raiser, now())
-				""").param("issue", UUID.randomUUID()).param("milestone", world.milestone()).param("job", world.job())
-			.param("product", world.product()).param("raiser", world.vy()).update();
 		long ledger = count("SELECT count(*) FROM payment.ledger_entry");
 		String order = text("SELECT id::text FROM payment.payment_order");
 
@@ -579,7 +574,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 			.isEqualTo(new UUID(0, 0) + ":true");
 		assertThat(count("SELECT count(*) FROM payment.payment_order WHERE customer_account_id IS NULL")).isOne();
 		assertThat(count("SELECT count(*) FROM payment.refund WHERE customer_account_id IS NULL")).isOne();
-		assertThat(count("SELECT count(*) FROM payment.share_hold")).isZero();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(ledger);
 		this.mvc.perform(get("/api/v1/payment-orders/" + order).with(as(world.hung(), Role.MENTOR))).andExpect(status().isNotFound());
 		assertDeferred(world, "DELETE");

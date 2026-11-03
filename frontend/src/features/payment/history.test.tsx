@@ -45,7 +45,6 @@ describe('MEN-7: a release of a deleted Product (AD-24)', () => {
           sentToCrewVnd: 960000,
           heldVnd: 0,
           lines: [release({ jobId: '00000000-0000-0000-0000-000000000000', jobTitle: '', number: 2, milestoneTitle: '' })],
-          heldParts: [],
         }),
     })
     renderAt('/so-du')
@@ -98,7 +97,7 @@ describe('MEN-7: the test Balance (FR-44, AD-20)', () => {
   it('shows the Mentor the Crew parts of each release', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
-      'GET /api/v1/balance': () => json({ balanceVnd: 240000, releases: 1, sentToCrewVnd: 960000, heldVnd: 2000000, lines: [release()], heldParts: [] }),
+      'GET /api/v1/balance': () => json({ balanceVnd: 240000, releases: 1, sentToCrewVnd: 960000, heldVnd: 2000000, lines: [release()] }),
     })
     renderAt('/so-du')
 
@@ -114,7 +113,7 @@ describe('MEN-7: the test Balance (FR-44, AD-20)', () => {
   it('shows a Crew member only their own parts', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
-      'GET /api/v1/balance': () => json({ balanceVnd: 960000, releases: 1, lines: [release({ yourPartVnd: 960000, yourPercent: 80, crew: [] })], heldParts: [] }),
+      'GET /api/v1/balance': () => json({ balanceVnd: 960000, releases: 1, lines: [release({ yourPartVnd: 960000, yourPercent: 80, crew: [] })] }),
     })
     renderAt('/so-du')
 

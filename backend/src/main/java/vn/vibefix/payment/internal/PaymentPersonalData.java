@@ -19,7 +19,7 @@ import vn.vibefix.shared.PersonalDataSection;
  * Payment Orders. The ledger, its accounts, the Payment Orders, and the refunds are financial records under NFR-10's
  * legal retention, and other people's Balances stand on them (A-01): a Product deletion and an erasure keep them, and an
  * erasure anonymizes the Customer on the orders and refunds. A running Job already keeps its Customer from being erased
- * ({@code job}'s blocker). Only the share holds of those Jobs go, until Story 22.4 retires the rest of them.
+ * ({@code job}'s blocker).
  */
 @Component
 class PaymentPersonalData implements PersonalDataParticipant {
@@ -32,8 +32,7 @@ class PaymentPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("payment.payment_order", "payment.ledger_account", "payment.ledger_entry", "payment.refund",
-				"payment.share_hold");
+		return Set.of("payment.payment_order", "payment.ledger_account", "payment.ledger_entry", "payment.refund");
 	}
 
 	@Override
@@ -55,9 +54,6 @@ class PaymentPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void eraseAccount(UUID accountId) {
-		this.jdbc.sql("""
-				DELETE FROM payment.share_hold WHERE job_id IN (SELECT job_id FROM payment.payment_order WHERE customer_account_id = :id)
-				""").param("id", accountId).update();
 		for (String table : List.of("payment.payment_order", "payment.refund")) {
 			this.jdbc.sql("UPDATE " + table + " SET customer_account_id = NULL WHERE customer_account_id = :id")
 				.param("id", accountId)
@@ -67,7 +63,7 @@ class PaymentPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public void deleteProduct(UUID productId) {
-		this.jdbc.sql("DELETE FROM payment.share_hold WHERE product_id = :id").param("id", productId).update();
+		// Nothing goes: the ledger, the Payment Orders and the refunds stay under legal retention (AD-24, A-01).
 	}
 
 	@Override
