@@ -157,6 +157,19 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		}
 	}
 
+	/** Story 22.3 (AD-24, A-01): a Split Resolution and its statements are never deleted. */
+	@Test
+	void theSplitResolutionTablesAreCoveredAndTheRuntimeRoleCannotDeleteFromThem() throws Exception {
+		Set<String> covered = new HashSet<>();
+		this.context.getBeansOfType(PersonalDataParticipant.class).values().forEach(p -> covered.addAll(p.tables()));
+		for (String table : List.of("dispute.split_resolution", "dispute.split_resolution_statement")) {
+			assertThat(covered).contains(table);
+			assertThat(query("SELECT has_table_privilege('%s', '%s', 'DELETE')".formatted(PostgresTestDatabase.APP, table)))
+				.as("%s is never deleted", table)
+				.containsExactly("f");
+		}
+	}
+
 	@Test
 	void theRuntimeRoleCannotDeleteTheRecordsUnderLegalRetention() throws Exception {
 		for (String table : List.of("payment.ledger_entry", "payment.ledger_account", "payment.payment_order", "payment.refund")) {

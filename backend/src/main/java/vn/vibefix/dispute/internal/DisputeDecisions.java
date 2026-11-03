@@ -87,9 +87,12 @@ class DisputeDecisions implements DisputeQueue {
 
 	private final ObjectProvider<EvidenceSnapshots> snapshots;
 
+	private final TakeConflicts conflicts;
+
 	DisputeDecisions(JdbcClient jdbc, Disputes disputes, MilestoneSettlements settlements, Ledger ledger, AdministratorStepUp stepUp,
 			AuditLog auditLog, Clock clock, ObjectProvider<DisputeStatements> statements, List<AdminReadGrants> grants,
-			IdGenerator ids, ObjectProvider<EvidenceSnapshots> snapshots) {
+			IdGenerator ids, ObjectProvider<EvidenceSnapshots> snapshots, TakeConflicts conflicts) {
+		this.conflicts = conflicts;
 		this.statements = statements;
 		this.snapshots = snapshots;
 		this.grants = grants;
@@ -129,9 +132,17 @@ class DisputeDecisions implements DisputeQueue {
 			.list();
 	}
 
+	@Override
+	public List<Waiting> splitResolutionsOpen() {
+		return this.jdbc.sql("SELECT id, raised_at FROM dispute.split_resolution WHERE status = 'OPEN' ORDER BY raised_at, id")
+			.query((rs, n) -> new Waiting(rs.getObject("id", UUID.class), rs.getTimestamp("raised_at").toInstant()))
+			.list();
+	}
+
 	/**
 	 * "Nhận xử lý": the Administrator takes the Dispute, over another if need be, and reads its evidence under
 	 * a new grant; the assignee taking it again changes nothing.
+	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT ALREADY_DECIDED}; {@code GUARD_FAILED CONFLICT_OF_INTEREST}
 	 */
 	@Transactional
 	void take(UUID disputeId, UUID administrator) {
@@ -147,6 +158,8 @@ class DisputeDecisions implements DisputeQueue {
 		if (administrator.equals(current.adminId()) && current.grantId() != null) {
 			return;
 		}
+		this.conflicts.refuseIfLinked(administrator, this.conflicts.involvedInJob(dispute.jobId()), "dispute.dispute", disputeId,
+				dispute.jobId());
 		Instant now = this.clock.instant();
 		UUID previous = current.grantId();
 		if (previous != null) {

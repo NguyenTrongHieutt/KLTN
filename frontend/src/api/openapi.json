@@ -163,7 +163,7 @@
     },
     "/api/v1/admin/abuse-reports/{reportId}/decision" : {
       "post" : {
-        "operationId" : "decide_2",
+        "operationId" : "decide_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "reportId",
@@ -200,7 +200,7 @@
     },
     "/api/v1/admin/abuse-reports/{reportId}/take" : {
       "post" : {
-        "operationId" : "take_2",
+        "operationId" : "take_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "reportId",
@@ -677,7 +677,7 @@
     },
     "/api/v1/admin/disputes/{disputeId}/decision" : {
       "post" : {
-        "operationId" : "decide_1",
+        "operationId" : "decide_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "disputeId",
@@ -927,7 +927,7 @@
     },
     "/api/v1/admin/disputes/{disputeId}/take" : {
       "post" : {
-        "operationId" : "take_1",
+        "operationId" : "take_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "disputeId",
@@ -1450,6 +1450,308 @@
         "tags" : [ "admin-skill-suggestion-controller" ]
       }
     },
+    "/api/v1/admin/split-resolutions" : {
+      "get" : {
+        "operationId" : "list_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "undecided",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminSplitResolutionRow"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-resolution-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}" : {
+      "get" : {
+        "operationId" : "detail",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminSplitResolutionDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-resolution-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/decision" : {
+      "post" : {
+        "operationId" : "decide_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminSplitDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminSplitResolutionDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-resolution-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/commits" : {
+      "get" : {
+        "operationId" : "commits",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SplitEvidenceCommitView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat" : {
+      "get" : {
+        "operationId" : "crewChat_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitEvidenceChatView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links" : {
+      "get" : {
+        "operationId" : "personLinks",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SplitEvidencePairView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/versions" : {
+      "get" : {
+        "operationId" : "versions_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitEvidenceVersionsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items" : {
+      "get" : {
+        "operationId" : "workItems_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SplitEvidenceWorkItemView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-evidence-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/preview" : {
+      "post" : {
+        "operationId" : "preview_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminSplitPreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminSplitPreviewView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-resolution-controller" ]
+      }
+    },
+    "/api/v1/admin/split-resolutions/{resolutionId}/take" : {
+      "post" : {
+        "operationId" : "take_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminSplitResolutionTakenView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-resolution-controller" ]
+      }
+    },
     "/api/v1/admin/statistics" : {
       "get" : {
         "operationId" : "statistics",
@@ -1944,7 +2246,7 @@
     },
     "/api/v1/boards/{boardId}/cancellation/withdraw" : {
       "post" : {
-        "operationId" : "withdraw_4",
+        "operationId" : "withdraw_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -3313,7 +3615,7 @@
     },
     "/api/v1/change-requests/{changeRequestId}/withdraw" : {
       "post" : {
-        "operationId" : "withdraw_3",
+        "operationId" : "withdraw_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "changeRequestId",
@@ -5567,7 +5869,7 @@
     },
     "/api/v1/jobs/{jobId}/withdraw" : {
       "post" : {
-        "operationId" : "withdraw_2",
+        "operationId" : "withdraw_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -5615,7 +5917,7 @@
     },
     "/api/v1/mentor/applications/{applicationId}/withdraw" : {
       "post" : {
-        "operationId" : "withdraw_1",
+        "operationId" : "withdraw_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "applicationId",
@@ -5681,7 +5983,7 @@
     },
     "/api/v1/mentor/crew-applications/{crewApplicationId}/withdraw" : {
       "post" : {
-        "operationId" : "withdraw",
+        "operationId" : "withdraw_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "crewApplicationId",
@@ -7718,6 +8020,70 @@
         "tags" : [ "skill-suggestion-controller" ]
       }
     },
+    "/api/v1/split-resolutions/{resolutionId}/statements" : {
+      "post" : {
+        "operationId" : "addStatement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SplitResolutionStatementRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitResolutionsView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "split-resolution-controller" ]
+      }
+    },
+    "/api/v1/split-resolutions/{resolutionId}/withdraw" : {
+      "post" : {
+        "operationId" : "withdraw",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitResolutionWithdrawnView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "split-resolution-controller" ]
+      }
+    },
     "/api/v1/splits/{splitId}/confirmations" : {
       "post" : {
         "operationId" : "confirm_1",
@@ -7790,6 +8156,68 @@
           }
         },
         "tags" : [ "milestone-split-controller" ]
+      }
+    },
+    "/api/v1/splits/{splitId}/resolutions" : {
+      "get" : {
+        "operationId" : "resolutions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "splitId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitResolutionsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "split-resolution-controller" ]
+      },
+      "post" : {
+        "operationId" : "raise_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "splitId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SplitResolutionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SplitResolutionsView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "split-resolution-controller" ]
       }
     },
     "/api/v1/splits/{splitId}/versions" : {
@@ -9039,6 +9467,315 @@
           }
         },
         "required" : [ "createdAt", "id", "name", "status" ]
+      },
+      "AdminSplitDecisionLineView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "amountVnd", "partyId", "percent" ]
+      },
+      "AdminSplitDecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reasoning" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminSplitShareRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "stepUpCode" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$"
+          }
+        },
+        "required" : [ "reasoning", "shares", "stepUpCode" ]
+      },
+      "AdminSplitDecisionView" : {
+        "type" : "object",
+        "properties" : {
+          "decidedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "evidenceSnapshot" : {
+            "$ref" : "#/components/schemas/SplitEvidenceSnapshot"
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminSplitDecisionLineView"
+            }
+          },
+          "pooledVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "reasoning" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "decidedAt", "evidenceSnapshot", "lines", "pooledVnd", "reasoning", "versionNo" ]
+      },
+      "AdminSplitPartyView" : {
+        "type" : "object",
+        "properties" : {
+          "activeAtRelease" : {
+            "type" : "boolean"
+          },
+          "mentor" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "wholeInterval" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "activeAtRelease", "mentor", "partyId", "wholeInterval" ]
+      },
+      "AdminSplitPreviewLineView" : {
+        "type" : "object",
+        "properties" : {
+          "amountVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "amountVnd", "partyId" ]
+      },
+      "AdminSplitPreviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "shares" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminSplitShareRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "shares" ]
+      },
+      "AdminSplitPreviewView" : {
+        "type" : "object",
+        "properties" : {
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminSplitPreviewLineView"
+            }
+          },
+          "pooledVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "lines", "pooledVnd" ]
+      },
+      "AdminSplitResolutionDetail" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "cap" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capApplies" : {
+            "type" : "boolean"
+          },
+          "daysUndecided" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "decision" : {
+            "$ref" : "#/components/schemas/AdminSplitDecisionView"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "evidenceReadable" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobContentGone" : {
+            "type" : "boolean"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "parties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminSplitPartyView"
+            }
+          },
+          "pooledVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "raisedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "raiserName" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "statements" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdminSplitStatementView"
+            }
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "WITHDRAWN", "DECIDED" ]
+          },
+          "undecidedLong" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "capApplies", "daysUndecided", "evidenceReadable", "id", "jobContentGone", "jobId", "milestoneNumber", "parties", "pooledVnd", "raisedAt", "statements", "status", "undecidedLong" ]
+      },
+      "AdminSplitResolutionRow" : {
+        "type" : "object",
+        "properties" : {
+          "assigned" : {
+            "type" : "boolean"
+          },
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "milestoneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "raisedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "WITHDRAWN", "DECIDED" ]
+          },
+          "undecidedLong" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "assigned", "assignedToMe", "id", "jobId", "milestoneNumber", "raisedAt", "status", "undecidedLong" ]
+      },
+      "AdminSplitResolutionTakenView" : {
+        "type" : "object",
+        "properties" : {
+          "assignedToMe" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "assignedToMe", "id" ]
+      },
+      "AdminSplitShareRequest" : {
+        "type" : "object",
+        "properties" : {
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "partyId", "percent" ]
+      },
+      "AdminSplitStatementView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "partyId", "submittedAt", "text" ]
       },
       "AdminStatementView" : {
         "type" : "object",
@@ -15853,6 +16590,9 @@
           "skillSuggestions" : {
             "$ref" : "#/components/schemas/Queue"
           },
+          "splitResolutions" : {
+            "$ref" : "#/components/schemas/Queue"
+          },
           "stalledEvents" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -15860,7 +16600,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "skillSuggestions", "stalledEvents", "teamIssues" ]
+        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "skillSuggestions", "splitResolutions", "stalledEvents", "teamIssues" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -18538,6 +19278,284 @@
         },
         "required" : [ "splitVersionNo" ]
       },
+      "SplitEvidenceChatView" : {
+        "type" : "object",
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "messages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitEvidenceMessageView"
+            }
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "messages", "to", "total" ]
+      },
+      "SplitEvidenceCommitView" : {
+        "type" : "object",
+        "properties" : {
+          "authorGithubId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "partyName" : {
+            "type" : "string"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sha" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "handoverId", "message", "round", "sha" ]
+      },
+      "SplitEvidenceHistoryView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actorName" : {
+            "type" : "string"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "comment" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "action", "at" ]
+      },
+      "SplitEvidenceLineView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "partyId", "percent" ]
+      },
+      "SplitEvidenceMessageView" : {
+        "type" : "object",
+        "properties" : {
+          "attachmentName" : {
+            "type" : "string"
+          },
+          "author" : {
+            "type" : "string"
+          },
+          "body" : {
+            "type" : "string"
+          },
+          "messageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sentAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "body", "messageId", "sentAt" ]
+      },
+      "SplitEvidencePairView" : {
+        "type" : "object",
+        "properties" : {
+          "firstCustomer" : {
+            "type" : "boolean"
+          },
+          "firstName" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "secondCustomer" : {
+            "type" : "boolean"
+          },
+          "secondName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "firstCustomer", "kind", "secondCustomer" ]
+      },
+      "SplitEvidencePartyView" : {
+        "type" : "object",
+        "properties" : {
+          "activeAtRelease" : {
+            "type" : "boolean"
+          },
+          "activeFrom" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "activeTo" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "mentor" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "wholeInterval" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "activeAtRelease", "mentor", "partyId", "wholeInterval" ]
+      },
+      "SplitEvidenceSnapshot" : {
+        "type" : "object",
+        "properties" : {
+          "commits" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitSnapshotCommit"
+            }
+          },
+          "crewChat" : {
+            "$ref" : "#/components/schemas/SplitSnapshotChat"
+          },
+          "personLinks" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "takenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitSnapshotVersion"
+            }
+          },
+          "workItems" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitSnapshotWorkItem"
+            }
+          }
+        },
+        "required" : [ "commits", "crewChat", "personLinks", "takenAt", "versions", "workItems" ]
+      },
+      "SplitEvidenceVersionView" : {
+        "type" : "object",
+        "properties" : {
+          "authorName" : {
+            "type" : "string"
+          },
+          "capPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "DEFAULT", "DECISION", "MENTOR_ONLY" ]
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitEvidenceLineView"
+            }
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "createdAt", "kind", "lines", "versionNo" ]
+      },
+      "SplitEvidenceVersionsView" : {
+        "type" : "object",
+        "properties" : {
+          "parties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitEvidencePartyView"
+            }
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitEvidenceVersionView"
+            }
+          }
+        },
+        "required" : [ "parties", "versions" ]
+      },
+      "SplitEvidenceWorkItemView" : {
+        "type" : "object",
+        "properties" : {
+          "assigneeName" : {
+            "type" : "string"
+          },
+          "history" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitEvidenceHistoryView"
+            }
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "workItemId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "history", "key", "status", "title", "workItemId" ]
+      },
       "SplitLineView" : {
         "type" : "object",
         "properties" : {
@@ -18645,6 +19663,135 @@
         },
         "required" : [ "lines", "pooledVnd" ]
       },
+      "SplitResolutionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "splitVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "reason", "splitVersionNo" ]
+      },
+      "SplitResolutionStatementRequest" : {
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "text" ]
+      },
+      "SplitResolutionStatementView" : {
+        "type" : "object",
+        "properties" : {
+          "mentor" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "mentor", "partyId", "submittedAt", "text" ]
+      },
+      "SplitResolutionView" : {
+        "type" : "object",
+        "properties" : {
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "raisedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "raiserName" : {
+            "type" : "string"
+          },
+          "raiserPartyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "reasoning" : {
+            "type" : "string"
+          },
+          "splitVersionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "statements" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitResolutionStatementView"
+            }
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "OPEN", "WITHDRAWN", "DECIDED" ]
+          },
+          "viewerIsRaiser" : {
+            "type" : "boolean"
+          },
+          "viewerMayState" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "id", "raisedAt", "raiserPartyId", "reason", "splitVersionNo", "statements", "status", "viewerIsRaiser", "viewerMayState" ]
+      },
+      "SplitResolutionWithdrawnView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmationDueAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "splitStatus" : {
+            "type" : "string",
+            "enum" : [ "AWAITING_DRAFT", "PROPOSED", "IN_RESOLUTION", "FINAL" ]
+          }
+        },
+        "required" : [ "splitStatus" ]
+      },
+      "SplitResolutionsView" : {
+        "type" : "object",
+        "properties" : {
+          "resolutions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitResolutionView"
+            }
+          },
+          "viewerMayRaise" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "resolutions", "viewerMayRaise" ]
+      },
       "SplitRulesView" : {
         "type" : "object",
         "properties" : {
@@ -18679,6 +19826,79 @@
           }
         },
         "required" : [ "partyId", "percent" ]
+      },
+      "SplitSnapshotChat" : {
+        "type" : "object",
+        "properties" : {
+          "lastMessageId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lastSentAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "messageCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "messageCount" ]
+      },
+      "SplitSnapshotCommit" : {
+        "type" : "object",
+        "properties" : {
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sha" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "handoverId", "sha" ]
+      },
+      "SplitSnapshotVersion" : {
+        "type" : "object",
+        "properties" : {
+          "confirmations" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "confirmations", "createdAt", "kind", "versionNo" ]
+      },
+      "SplitSnapshotWorkItem" : {
+        "type" : "object",
+        "properties" : {
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "workItemId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "number", "status", "version", "workItemId" ]
       },
       "SplitVersionRequest" : {
         "type" : "object",

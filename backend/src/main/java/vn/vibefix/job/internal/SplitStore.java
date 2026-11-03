@@ -17,6 +17,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.job.MilestoneSplitFinalized.Finality;
+import vn.vibefix.job.MilestoneSplits.CaseParty;
+import vn.vibefix.job.MilestoneSplits.EvidenceLine;
+import vn.vibefix.job.MilestoneSplits.EvidenceVersion;
 import vn.vibefix.job.MilestoneSplits.Status;
 import vn.vibefix.job.MilestoneSplits.VersionKind;
 
@@ -52,6 +55,10 @@ class SplitStore {
 	record Version(int number, VersionKind kind, @Nullable Integer capPercent, Instant createdAt) {
 	}
 
+	/** The Milestone's interval: {@code fundedAt} is empty on a split older than Story 22.3 whose Milestone had gone. */
+	record Interval(@Nullable Instant fundedAt, Instant releasedAt) {
+	}
+
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status, cap_applies, draft_due_at,
 			confirmation_round, confirmation_due_at, final_at, finality""";
@@ -65,6 +72,14 @@ class SplitStore {
 	Optional<Split> find(UUID splitId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.milestone_split WHERE id = :id")
 			.param("id", splitId)
+			.query(SplitStore::split)
+			.optional();
+	}
+
+	/** The Milestone's one split, if a release created it. */
+	Optional<Split> ofMilestone(UUID milestoneId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.milestone_split WHERE milestone_id = :milestone")
+			.param("milestone", milestoneId)
 			.query(SplitStore::split)
 			.optional();
 	}
@@ -98,6 +113,27 @@ class SplitStore {
 			.query((rs, n) -> new Party(rs.getObject("id", UUID.class), rs.getObject("party_account_id", UUID.class),
 					rs.getBoolean("is_mentor"), rs.getBoolean("whole_interval"), rs.getBoolean("active_at_release")))
 			.list();
+	}
+
+	/** Every party in the fixed order, with the active interval the release stored. */
+	List<CaseParty> caseParties(UUID splitId) {
+		return this.jdbc.sql("""
+				SELECT id, party_account_id, is_mentor, whole_interval, active_at_release, active_from, active_to
+				FROM job.milestone_split_party WHERE split_id = :split ORDER BY position
+				""")
+			.param("split", splitId)
+			.query((rs, n) -> new CaseParty(rs.getObject("id", UUID.class), rs.getObject("party_account_id", UUID.class),
+					rs.getBoolean("is_mentor"), rs.getBoolean("whole_interval"), rs.getBoolean("active_at_release"),
+					instant(rs.getTimestamp("active_from")), instant(rs.getTimestamp("active_to"))))
+			.list();
+	}
+
+	/** When the Milestone was funded and released, as the split stored them. */
+	Interval interval(UUID splitId) {
+		return this.jdbc.sql("SELECT funded_at, released_at FROM job.milestone_split WHERE id = :id")
+			.param("id", splitId)
+			.query((rs, n) -> new Interval(instant(rs.getTimestamp("funded_at")), rs.getTimestamp("released_at").toInstant()))
+			.single();
 	}
 
 	/** Every version, newest first. */
@@ -180,6 +216,45 @@ class SplitStore {
 			.update() > 0;
 	}
 
+	/** {@code IN_RESOLUTION}: nothing moves until a withdrawal or a decision (AD-29, AD-40). */
+	void hold(UUID splitId) {
+		this.jdbc.sql("UPDATE job.milestone_split SET status = 'IN_RESOLUTION' WHERE id = :id").param("id", splitId).update();
+	}
+
+	/** Every version, oldest first, with who saved it, each line and when its party confirmed it (AD-40). */
+	List<EvidenceVersion> evidence(UUID splitId) {
+		Map<Integer, List<EvidenceLine>> lines = new HashMap<>();
+		this.jdbc.sql("""
+				SELECT s.version_no, s.party_id, s.percent, c.confirmed_at
+				FROM job.milestone_split_share s JOIN job.milestone_split_party p ON p.id = s.party_id
+				LEFT JOIN job.milestone_split_confirmation c
+				  ON c.split_id = s.split_id AND c.version_no = s.version_no AND c.party_id = s.party_id
+				WHERE s.split_id = :split ORDER BY s.version_no, p.position
+				""").param("split", splitId).query(rs -> {
+			lines.computeIfAbsent(rs.getInt("version_no"), version -> new ArrayList<>())
+				.add(new EvidenceLine(rs.getObject("party_id", UUID.class), rs.getInt("percent"),
+						instant(rs.getTimestamp("confirmed_at"))));
+		});
+		return this.jdbc.sql("""
+				SELECT version_no, kind, author_account_id, cap_percent, created_at FROM job.milestone_split_version
+				WHERE split_id = :split ORDER BY version_no
+				""")
+			.param("split", splitId)
+			.query((rs, n) -> new EvidenceVersion(rs.getInt("version_no"), VersionKind.valueOf(rs.getString("kind")),
+					rs.getObject("author_account_id", UUID.class), rs.getObject("cap_percent", Integer.class),
+					rs.getTimestamp("created_at").toInstant(), lines.getOrDefault(rs.getInt("version_no"), List.of())))
+			.list();
+	}
+
+	/** The Customer a Job's row names, a bare one included; an erased one is nobody. */
+	Optional<UUID> customerOf(UUID jobId) {
+		return this.jdbc.sql("SELECT customer_account_id FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(UUID.class)
+			.optional()
+			.filter(customer -> !JobPersonalData.NOBODY.equals(customer));
+	}
+
 	/** The next round of confirmations: {@code PROPOSED}, with the due time the Job's copied days give. */
 	void startRound(UUID splitId, int round, Instant due) {
 		this.jdbc.sql("""
@@ -201,6 +276,14 @@ class SplitStore {
 			.single();
 	}
 
+	/** Whether the Job's row stands with its Product, and no retention run retired that Product's data since the Job began. */
+	boolean contentKept(UUID jobId) {
+		return this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job j WHERE j.id = :id AND " + Jobs.LIVE + """
+				 AND NOT EXISTS (SELECT 1 FROM job.product_retention r
+				    WHERE r.product_id = j.product_id AND r.retired_at >= j.created_at))
+				""").param("id", jobId).query(Boolean.class).single();
+	}
+
 	/** When the party's Crew row says they left, a lock included, while the row exists. */
 	Map<UUID, Instant> leftAt(UUID jobId, List<UUID> accounts) {
 		Map<UUID, Instant> left = new HashMap<>();
@@ -217,6 +300,10 @@ class SplitStore {
 			.list()
 			.forEach(entry -> left.put(entry.getKey(), entry.getValue()));
 		return left;
+	}
+
+	private static @Nullable Instant instant(@Nullable Timestamp at) {
+		return at == null ? null : at.toInstant();
 	}
 
 	private static Split split(ResultSet rs, int n) throws SQLException {

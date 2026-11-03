@@ -103,6 +103,15 @@ import vn.vibefix.support.TestPeople;
  * and the fourth's ({@code {splitId}}, with the parties {@code {mentorPartyId}}, {@code {activePartyId}} and
  * {@code {formerPartyId}}) is out for confirmation at version 1, the active party's line being {@code SPLIT_PART}. The Job
  * being frozen proves the split's commands ignore a freeze.
+ * <p>
+ * A fifth Milestone's split ({@code {resolutionSplitId}}) is under an open Split Resolution (Story 22.3,
+ * {@code {resolutionId}}), which {@link MatrixCaller#CREW_FORMER_PARTY} raised, with the {@code SPLIT_RESOLUTION_REASON} and
+ * {@link MatrixCaller#CREW_ACTIVE_PARTY}'s {@code SPLIT_STATEMENT}; {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} took it
+ * with its real grant ({@link AdminReadItem#forSplitResolution}), and reads a Story, a commit and the Crew Chat of that
+ * Milestone's interval, the {@code CREW_CHAT} canaries lying outside it. Its two members share a person-link signal whose HMAC
+ * is {@code PERSON_SIGNAL}, which the Package never shows. A sixth's ({@code {decidedSplitId}}) was decided
+ * ({@code {decidedResolutionId}}, the {@code SPLIT_RESOLUTION_ID}, with its {@code SPLIT_DECISION_REASONING}). Both stand beside
+ * {@code {splitId}}, which stays out for confirmation.
  */
 final class CrewJobWorld {
 
@@ -123,6 +132,9 @@ final class CrewJobWorld {
 
 	/** The fourth Milestone's price, accepted, its split out for confirmation: {@code SPLIT_PART} is 40 % of it. */
 	private static final long PROPOSED_PRICE = 3_086_420;
+
+	/** The price of the two Milestones whose splits came under a Split Resolution (Story 22.3). */
+	private static final long RESOLVED_PRICE = 2_000_000;
 
 	/** When the first Milestone was Funded, a day after the Crew signed. */
 	private static final Instant FUNDED = SIGNED.plus(Duration.ofDays(1));
@@ -165,6 +177,8 @@ final class CrewJobWorld {
 	private UUID teamIssueAdmin;
 
 	private UUID abuseAdmin;
+
+	private UUID resolutionAdmin;
 
 	CrewJobWorld(JdbcClient jdbc, SessionRepository<? extends Session> sessions, List<AdminReadGrants> grants,
 			StoredFiles files, PlatformTransactionManager transactionManager, ApplicationContext context) {
@@ -339,7 +353,7 @@ final class CrewJobWorld {
 				VALUES (:id, :job, 0, 'Bảng quản trị Supabase', 'Xem lỗi đặt bàn', :at)
 				""").param("id", access).param("job", job).param("at", Timestamp.from(SIGNED)).update();
 		world.put("accessId", access);
-		JobContent.board(this.jdbc, job, product, "VNM", 2);
+		JobContent.board(this.jdbc, job, product, "VNM", 3);
 		// The active member's Story, written after the windows ended: its title is the WORK_ITEM_TITLE canary.
 		UUID item = JobContent.workItem(this.jdbc, job, 1, value("WORK_ITEM_TITLE"), milestone, criterion,
 				MutableClock.DEFAULT_INSTANT);
@@ -488,6 +502,8 @@ final class CrewJobWorld {
 					.param("job", job).param("product", product).param("mentor", this.mentor).param("at", written)
 					.param("admin", this.abuseAdmin).param("grant", grant).update());
 		world.put("reportId", report);
+		openResolution(world, job, product, owner);
+		decidedResolution(world, job, product, owner);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
 		world.put("pageId", JobContent.page(this.jdbc, job, this.mentor, value("CREW_PAGE_TITLE"), value("CREW_PAGE"),
@@ -524,6 +540,7 @@ final class CrewJobWorld {
 			case ADMIN_TEAM_ISSUE_GRANT -> signedIn(this.teamIssueAdmin, Role.ADMINISTRATOR);
 			case ADMIN_DISPUTE_GRANT -> signedIn(this.disputeAdmin, Role.ADMINISTRATOR);
 			case ADMIN_ABUSE_REPORT_GRANT -> signedIn(this.abuseAdmin, Role.ADMINISTRATOR);
+			case ADMIN_SPLIT_RESOLUTION_GRANT -> signedIn(this.resolutionAdmin, Role.ADMINISTRATOR);
 			default -> Optional.empty();
 		};
 	}
@@ -607,6 +624,153 @@ final class CrewJobWorld {
 		world.put("mentorPartyId", split[1]);
 		world.put("activePartyId", split[2]);
 		world.put("formerPartyId", split[3]);
+	}
+
+	/** A Milestone accepted with its pool, for a split of its own: the money is the {@code SPLIT_*} fixtures' only. */
+	private UUID acceptedMilestone(UUID job, UUID product, UUID owner, int position, long price) {
+		UUID milestone = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
+				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, :position, :title, :price, DATE '2026-12-15', 2, :signed, 'ACCEPTED', :funded, 1,
+				    :submitted, :handover, :accepted)
+				""").param("id", milestone).param("job", job).param("position", position).param("title", "Giai đoạn " + (position + 1))
+			.param("price", price).param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
+			.param("submitted", Timestamp.from(ACCEPTED.minus(Duration.ofDays(1)))).param("handover", UUID.randomUUID())
+			.param("accepted", Timestamp.from(ACCEPTED)).update();
+		JobContent.fund(this.jdbc, job, product, milestone, owner, price, FUNDED);
+		return milestone;
+	}
+
+	/**
+	 * A fifth Milestone, accepted, its split out at 30/40/30 and held by the former party's open Split Resolution, which
+	 * {@link #resolutionAdmin} took (Story 22.3). The split's interval starts before the Crew Chat's first message and ends
+	 * before the {@code CREW_CHAT} canaries were written, so the evidence tab shows the one and none of the others.
+	 */
+	private void openResolution(MatrixWorld world, UUID job, UUID product, UUID owner) {
+		UUID milestone = acceptedMilestone(job, product, owner, 4, RESOLVED_PRICE);
+		JobContent.pool(this.jdbc, job, product, milestone, RESOLVED_PRICE, ACCEPTED);
+		UUID[] split = JobContent.proposedSplit(this.jdbc, job, product, milestone, 5, this.mentor, this.activeParty,
+				this.formerParty, 30, 40, 30, SIGNED, ACCEPTED, MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(3)));
+		this.jdbc.sql("UPDATE job.milestone_split SET status = 'IN_RESOLUTION' WHERE id = :id").param("id", split[0]).update();
+		UUID resolution = UUID.randomUUID();
+		insertResolution(resolution, split[0], job, product, milestone, 5, split[3], this.formerParty, value("SPLIT_RESOLUTION_REASON"));
+		this.jdbc.sql("""
+				INSERT INTO dispute.split_resolution_statement (resolution_id, party_id, account_id, text, submitted_at)
+				VALUES (:resolution, :party, :account, :text, :at)
+				""").param("resolution", resolution).param("party", split[2]).param("account", this.activeParty)
+			.param("text", value("SPLIT_STATEMENT")).param("at", Timestamp.from(WRITTEN)).update();
+		this.resolutionAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
+		world.put("resolutionStepUpCode", AdministratorTestSupport.code(enrol(this.resolutionAdmin, "phan-chia"),
+				MutableClock.DEFAULT_INSTANT));
+		grant(this.resolutionAdmin, job, AdminReadItem.forSplitResolution(split[0], List.of(this.mentor, this.activeParty, this.formerParty)),
+				resolution, grant -> this.jdbc
+					.sql("UPDATE dispute.split_resolution SET assigned_admin_id = :admin, assigned_at = :at, grant_id = :grant WHERE id = :id")
+					.param("admin", this.resolutionAdmin)
+					.param("at", Timestamp.from(WRITTEN))
+					.param("grant", grant)
+					.param("id", resolution)
+					.update());
+		world.put("resolutionId", resolution);
+		world.put("resolutionSplitId", split[0]);
+		world.put("resolutionMentorPartyId", split[1]);
+		world.put("resolutionActivePartyId", split[2]);
+		world.put("resolutionFormerPartyId", split[3]);
+		UUID item = JobContent.workItem(this.jdbc, job, 3, "Làm phần thanh toán", milestone, null, MutableClock.DEFAULT_INSTANT);
+		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :member WHERE id = :id")
+			.param("member", this.activeParty)
+			.param("id", item)
+			.update();
+		UUID handover = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
+				VALUES (:id, :job, :product, :milestone, 5, 'Giai đoạn 5', 1, :mentor, 'ACCEPTED', 3, :transition, :at, :at, :at, :owner)
+				""").param("id", handover).param("job", job).param("product", product).param("milestone", milestone)
+			.param("mentor", this.mentor).param("transition", UUID.randomUUID()).param("at", Timestamp.from(ACCEPTED))
+			.param("owner", owner).update();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_commit (handover_id, position, sha, message, author_github_id)
+				VALUES (:handover, 0, :sha, 'Sửa phần thanh toán',
+				    (SELECT github_user_id FROM identity.account WHERE id = :member))
+				""").param("handover", handover).param("sha", "a".repeat(40)).param("member", this.activeParty).update();
+		for (UUID holder : List.of(this.activeParty, this.formerParty)) {
+			this.jdbc.sql("""
+					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, :at)
+					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", value("PERSON_SIGNAL"))
+				.param("at", Timestamp.from(WRITTEN)).update();
+		}
+	}
+
+	/** A sixth Milestone, whose split an Administrator decided (Story 22.3): final, paid, its reasoning for its parties. */
+	private void decidedResolution(MatrixWorld world, UUID job, UUID product, UUID owner) {
+		UUID milestone = acceptedMilestone(job, product, owner, 5, RESOLVED_PRICE);
+		UUID pool = JobContent.pool(this.jdbc, job, product, milestone, RESOLVED_PRICE, ACCEPTED);
+		JobContent.poolReleased(this.jdbc, job, product, milestone, pool, RESOLVED_PRICE, ACCEPTED);
+		UUID[] split = JobContent.proposedSplit(this.jdbc, job, product, milestone, 6, this.mentor, this.activeParty,
+				this.formerParty, 30, 40, 30, ACCEPTED, MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(3)));
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split_version (split_id, version_no, kind, cap_percent, author_account_id, created_at)
+				VALUES (:split, 2, 'DECISION', 30, NULL, :at)
+				""").param("split", split[0]).param("at", Timestamp.from(WRITTEN)).update();
+		int[] percents = { 30, 40, 30 };
+		UUID[] accounts = { this.mentor, this.activeParty, this.formerParty };
+		UUID transition = UUID.randomUUID();
+		for (int i = 0; i < 3; i++) {
+			this.jdbc.sql("INSERT INTO job.milestone_split_share (split_id, version_no, party_id, percent) VALUES (:split, 2, :party, :percent)")
+				.param("split", split[0])
+				.param("party", split[i + 1])
+				.param("percent", percents[i])
+				.update();
+			JobContent.release(this.jdbc, "RELEASE", transition, job, product, milestone, accounts[i],
+					RESOLVED_PRICE * percents[i] / 100, percents[i], RESOLVED_PRICE, ACCEPTED);
+		}
+		this.jdbc.sql("""
+				UPDATE job.milestone_split SET status = 'FINAL', final_version_no = 2, final_at = :at, finality = 'DECISION' WHERE id = :id
+				""").param("at", Timestamp.from(WRITTEN)).param("id", split[0]).update();
+		UUID resolution = UUID.fromString(value("SPLIT_RESOLUTION_ID"));
+		insertResolution(resolution, split[0], job, product, milestone, 6, split[2], this.activeParty, "Phần chia chưa công bằng");
+		String amounts = """
+				{"pooledVnd":%d,"lines":[{"partyId":"%s","percent":30,"amountVnd":%d},{"partyId":"%s","percent":40,"amountVnd":%d},
+				 {"partyId":"%s","percent":30,"amountVnd":%d}]}
+				""".formatted(RESOLVED_PRICE, split[1], RESOLVED_PRICE * 30 / 100, split[2], RESOLVED_PRICE * 40 / 100, split[3],
+				RESOLVED_PRICE * 30 / 100);
+		String snapshot = """
+				{"takenAt":"%s","versions":[{"versionNo":1,"kind":"DRAFT","confirmations":0,"createdAt":"%s"}],"workItems":[],"commits":[],
+				 "crewChat":{"messageCount":0,"lastMessageId":null,"lastSentAt":null},"personLinks":0}
+				""".formatted(WRITTEN, ACCEPTED);
+		this.jdbc.sql("""
+				UPDATE dispute.split_resolution SET status = 'DECIDED', ended_at = :at, decision_version_no = 2,
+				    decision_reasoning = :reasoning, decision_amounts = CAST(:amounts AS JSONB), evidence_snapshot = CAST(:snapshot AS JSONB)
+				WHERE id = :id
+				""").param("at", Timestamp.from(WRITTEN)).param("reasoning", value("SPLIT_DECISION_REASONING"))
+			.param("amounts", amounts).param("snapshot", snapshot).param("id", resolution).update();
+		world.put("decidedSplitId", split[0]);
+		world.put("decidedResolutionId", resolution);
+	}
+
+	/** A Split Resolution raised on the fixed day; a suite that seeds several worlds keeps the first of a fixed ID. */
+	private void insertResolution(UUID id, UUID split, UUID job, UUID product, UUID milestone, int number, UUID raiserParty,
+			UUID raiser, String reason) {
+		this.jdbc.sql("""
+				INSERT INTO dispute.split_resolution (id, split_id, job_id, product_id, milestone_id, milestone_number, raiser_party_id,
+				    raiser_account_id, split_version_no, reason, status, raised_at, undecided_due_at)
+				VALUES (:id, :split, :job, :product, :milestone, :number, :party, :raiser, 1, :reason, 'OPEN', :raised, :due)
+				ON CONFLICT (id) DO NOTHING
+				""")
+			.param("id", id)
+			.param("split", split)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("number", number)
+			.param("party", raiserParty)
+			.param("raiser", raiser)
+			.param("reason", reason)
+			.param("raised", Timestamp.from(WRITTEN))
+			.param("due", Timestamp.from(WRITTEN.plus(Duration.ofDays(7))))
+			.update();
 	}
 
 	/**

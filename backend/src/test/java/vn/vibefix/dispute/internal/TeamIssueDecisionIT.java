@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -217,6 +218,29 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{" + outcome + ",\"reasoning\":\"Vy làm phần lớn việc\",\"stepUpCode\":\""
 					+ code + "\"}"));
+	}
+
+	/** Story 22.3 (AD-19, A-17): an Administrator linked to the Job's people does not take its issue, and another does. */
+	@Test
+	void anAdministratorLinkedToAnAccountOfTheJobCannotTakeTheIssueAndAnotherCan() throws Exception {
+		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
+		release();
+		answer(issue).andExpect(status().isOk());
+		choose(this.world.vy(), issue, "escalate").andExpect(status().isOk());
+		for (UUID holder : List.of(this.minh, this.world.lan())) {
+			this.jdbc.sql("""
+					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
+					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
+		}
+
+		take(this.minh, issue).andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.take_conflict_refused'")
+			.query(Long.class)
+			.single()).isOne();
+		take(this.ha.accountId(), issue).andExpect(status().isOk()).andExpect(jsonPath("$.assignedToMe").value(true));
 	}
 
 	private void release() {

@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.MilestoneSplitFinalized;
 import vn.vibefix.job.MilestoneSplits;
@@ -33,7 +34,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * POOL_RELEASED of the whole pool, so paid out does not change. Each payee gets {@value #RELEASED}, reached by the split
  * however long the Job's row has been gone. A final split with no unreversed pool, with parties other than
  * {@code job.splitPartiesOf} names, or whose parts do not sum to the pool writes nothing: it goes to FR-64's list and
- * alerts Administrators as a {@value SplitPoolRefusedOperation#TYPE} operation. A replay writes nothing. A party erased
+ * alerts Administrators as a {@value SplitPoolRefusedOperation#TYPE} operation, whose retry runs this again from the split's
+ * rows, past the check that the event was processed, and pays once the cause is fixed. A replay writes nothing. A party erased
  * after the split became final is still paid by the event's percentages, and is told nothing: the split no longer names
  * them (AD-24).
  */
@@ -76,22 +78,43 @@ class SplitPoolExecution {
 		if (!this.processedEvents.markProcessed("payment.SplitPoolExecution.onMilestoneSplitFinalized", event.eventId())) {
 			return;
 		}
+		execute(event).ifPresent(reason -> refuse(event, reason));
+	}
+
+	/**
+	 * FR-64's retry of a refused split: the executor again, from the split as {@code job} holds it now, in its own
+	 * transaction. A pool already reversed has been paid, so this writes nothing.
+	 * @param refused the reason it was refused for, which stands when {@code job} holds no final split for it to run on
+	 * @return the refusal's reason, if it is still refused
+	 */
+	@Transactional
+	Optional<String> reRun(UUID milestoneId, String refused) {
+		lockAccount(milestoneId);
+		if (paid(milestoneId)) {
+			return Optional.empty();
+		}
+		MilestoneSplitFinalized event = this.splits.finalSplitOf(milestoneId).orElse(null);
+		if (event == null) {
+			return Optional.of(refused);
+		}
+		return event.percentages().containsKey(null) ? Optional.of("PARTIES_DIFFER") : execute(event);
+	}
+
+	/** Writes the RELEASE entries and the reversal in the caller's transaction, or nothing and answers why. */
+	private Optional<String> execute(MilestoneSplitFinalized event) {
 		UUID productId = lockAccount(event.milestoneId()).orElse(null);
 		Pool pool = productId == null ? null : unreversedPool(event.milestoneId()).orElse(null);
 		if (pool == null) {
-			refuse(event, "NO_POOL");
-			return;
+			return Optional.of("NO_POOL");
 		}
 		List<SplitParty> parties = this.splits.splitPartiesOf(event.milestoneId());
 		Set<UUID> named = named(parties);
 		if (parties.size() != event.percentages().size() || !event.percentages().keySet().containsAll(named)) {
-			refuse(event, "PARTIES_DIFFER");
-			return;
+			return Optional.of("PARTIES_DIFFER");
 		}
 		Map<UUID, Long> parts = parts(event, pool);
 		if (parts == null) {
-			refuse(event, "PARTS_OFF");
-			return;
+			return Optional.of("PARTS_OFF");
 		}
 		parts.forEach((party, amount) -> release(event, productId, pool, party, amount));
 		reverse(event, productId, pool);
@@ -100,6 +123,15 @@ class SplitPoolExecution {
 				tell(event, party, amount);
 			}
 		});
+		return Optional.empty();
+	}
+
+	/** Whether the Milestone's pool was reversed already: its parts are out. */
+	private boolean paid(UUID milestoneId) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM payment.ledger_entry e JOIN payment.ledger_entry r ON r.reverses_entry_id = e.id
+				    WHERE e.milestone_id = :id AND e.entry_type = 'RELEASE_POOLED')
+				""").param("id", milestoneId).query(Boolean.class).single();
 	}
 
 	private Optional<UUID> lockAccount(UUID milestoneId) {

@@ -128,6 +128,58 @@ public interface MilestoneSplits {
 			List<VersionRead> earlier) {
 	}
 
+	/**
+	 * A party as a Split Resolution reads them: the release fixed all of it, the interval included, so it outlives the
+	 * Crew rows (AD-24, AD-40).
+	 * @param accountId empty once an erasure anonymized the person
+	 * @param activeFrom when they became active on the Crew, the Mentor's being the Milestone's funding; empty on a split
+	 * older than Story 22.3 whose row had gone
+	 * @param activeTo when that interval ended, at the release at the latest
+	 */
+	record CaseParty(UUID partyId, @Nullable UUID accountId, boolean mentor, boolean wholeInterval, boolean activeAtRelease,
+			@Nullable Instant activeFrom, @Nullable Instant activeTo) {
+	}
+
+	/**
+	 * A split as {@code dispute} reads it for a Split Resolution, from the split's own rows, so it works after J9, after J10
+	 * and on a bare row.
+	 * @param jobTitle the title while a row of the Job exists
+	 * @param customerId the Job's Customer while a row names one; never a party
+	 * @param mentorId the split's Mentor, empty once an erasure anonymized them
+	 * @param latestVersionNo 0 before any version
+	 * @param latestCap the cap stored on the latest version; empty when none applies (X5) or before any version
+	 * @param confirmationDueAt the current round's due time
+	 * @param pastDue {@code PROPOSED} and past that due time by the Clock (A-09)
+	 * @param fundedAt when the Milestone was funded; empty on a split older than Story 22.3 whose Milestone had gone
+	 */
+	record SplitCase(UUID splitId, UUID jobId, UUID productId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle,
+			@Nullable UUID customerId, @Nullable UUID mentorId, Status status, boolean capApplies, int latestVersionNo,
+			@Nullable Integer latestCap, @Nullable Instant confirmationDueAt, boolean pastDue, @Nullable Instant fundedAt,
+			Instant releasedAt, List<CaseParty> parties) {
+	}
+
+	/**
+	 * What a withdrawal did (AD-40, A-08).
+	 * @param status {@code PROPOSED} with a new round, or {@code FINAL} when the kept confirmations covered every party
+	 * but the Mentor
+	 * @param confirmationDueAt the new round's due time; empty when it became final
+	 */
+	record Resumed(Status status, @Nullable Instant confirmationDueAt) {
+	}
+
+	/** One party's line of a version as the Split Evidence Package shows it, with when they confirmed it. */
+	record EvidenceLine(UUID partyId, int percent, @Nullable Instant confirmedAt) {
+	}
+
+	/**
+	 * One version as the Split Evidence Package shows it.
+	 * @param authorId who saved it, the System for a {@code DEFAULT} one; empty too once an erasure anonymized them
+	 * @param capPercent the cap it was checked against
+	 */
+	record EvidenceVersion(int versionNo, VersionKind kind, @Nullable UUID authorId, @Nullable Integer capPercent,
+			Instant createdAt, List<EvidenceLine> lines) {
+	}
+
 	/** Whether a split of the Job is not {@code FINAL}. */
 	boolean hasOpenSplit(UUID jobId);
 
@@ -166,5 +218,75 @@ public interface MilestoneSplits {
 	 * party, {@code VALIDATION SPLIT_INVALID} for an invalid draft
 	 */
 	PreviewBasis previewBasis(UUID splitId, UUID mentorId, List<PercentLine> lines);
+
+	/** The split as a Split Resolution reads it, a bare row's included. */
+	Optional<SplitCase> caseOf(UUID splitId);
+
+	/**
+	 * {@code job.lockForSplit} (AD-4, AD-40): the Job row lock, raw so a bare row still locks. It writes nothing and changes
+	 * neither {@code Job.version} nor {@code crewVersion}. A Split Resolution's every write takes it first.
+	 * @return the Milestone's split as it stands under that lock
+	 */
+	Optional<SplitCase> lockForSplit(UUID jobId, UUID milestoneId);
+
+	/**
+	 * {@code job.holdSplit}, under {@link #lockForSplit}: the split is {@code IN_RESOLUTION}, so nobody edits or confirms, the
+	 * confirmation Deadline and its reminder end {@code OBSOLETE} by their own handlers, and {@code job.confirm_split}
+	 * closes. The pool stays where it is. Its caller read the Clock under the lock and checked the due time: a due time passing
+	 * since then does not undo that.
+	 * @throws IllegalStateException unless the split is {@code PROPOSED}
+	 */
+	void holdSplit(UUID milestoneId, UUID resolutionId);
+
+	/**
+	 * {@code job.resumeSplit}, under {@link #lockForSplit} (AD-40, A-08): {@code PROPOSED} with a new round and a full period,
+	 * the latest version keeping its confirmations and {@code job.confirm_split} reopening for those who have not given
+	 * theirs; or, when those cover every party but the Mentor, the version is final at once.
+	 * @throws IllegalStateException unless the split is {@code IN_RESOLUTION}
+	 */
+	Resumed resumeSplit(UUID milestoneId);
+
+	/**
+	 * The decision's percentages by AD-29's rules against the cap stored on the latest version, none under X5, without saving
+	 * them: for the Administrator's preview and the check before the step-up.
+	 * @throws vn.vibefix.shared.ApiException {@code VALIDATION SPLIT_INVALID}
+	 */
+	PreviewBasis decisionBasis(UUID splitId, List<PercentLine> lines);
+
+	/**
+	 * {@code job.decideSplit}, under {@link #lockForSplit} (AD-29, AD-40): saves the {@code DECISION} version as the
+	 * Administrator's, checked against the cap stored on the latest version, and makes it final, which publishes
+	 * {@link MilestoneSplitFinalized}. A refusal changes nothing.
+	 * @return the {@code DECISION} version's number
+	 * @throws vn.vibefix.shared.ApiException {@code VALIDATION SPLIT_INVALID}
+	 * @throws IllegalStateException unless the split is {@code IN_RESOLUTION}
+	 */
+	int decideSplit(UUID milestoneId, UUID resolutionId, UUID adminId, List<PercentLine> lines);
+
+	/**
+	 * Every version of the split, oldest first, with who saved it and who confirmed it when, for the identifiers a decision
+	 * record keeps. Not an Administrator's read: {@link #evidenceUnderGrant} is that.
+	 */
+	List<EvidenceVersion> versionsOf(UUID splitId);
+
+	/**
+	 * {@link #versionsOf} for an Administrator, under a grant naming this split, and audited {@code job.admin_read} (AD-8,
+	 * AD-20).
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} unless an open grant of theirs covers the split's versions
+	 */
+	List<EvidenceVersion> evidenceUnderGrant(UUID adminId, UUID splitId);
+
+	/**
+	 * Whether the Job's own content, which a Split Resolution's evidence reads, still stands (AD-24): its row is there, its
+	 * Product was not deleted, and no retention run retired it. A split not {@code FINAL} keeps its evidence either way; once
+	 * the split is final, what waited for it goes.
+	 */
+	boolean jobContentKept(UUID jobId);
+
+	/**
+	 * The Milestone's final split as {@link MilestoneSplitFinalized} carried it, for FR-64's retry of a refused one
+	 * ({@code payment.split_pool_refused}), with a new event ID; empty unless it is {@code FINAL} with its Mentor named.
+	 */
+	Optional<MilestoneSplitFinalized> finalSplitOf(UUID milestoneId);
 
 }

@@ -99,9 +99,12 @@ class AdministratorEnrolments implements Administrators {
 
 	private final SecureRandom random = new SecureRandom();
 
+	private final JdbcPersonSignals signals;
+
 	AdministratorEnrolments(JdbcClient jdbc, Accounts accounts, AdministratorCredentials credentials, StepUps stepUps,
 			TokenCipher cipher, Emails emails, Notifications notifications, AuditLog auditLog, IdGenerator ids,
-			Clock clock) {
+			Clock clock, JdbcPersonSignals signals) {
+		this.signals = signals;
 		this.jdbc = jdbc;
 		this.accounts = accounts;
 		this.credentials = credentials;
@@ -223,6 +226,7 @@ class AdministratorEnrolments implements Administrators {
 				.param("expires", Timestamp.from(now.plus(VALID)))
 				.update();
 		}
+		this.signals.record(account, JdbcPersonSignals.Source.ADMIN_EMAIL, email);
 		String by = this.credentials.identity(creator).map(AdministratorCredentials.Identity::displayName).orElse("");
 		this.emails.send(EmailRequest.withPrivateLink(ENROLMENT_EMAIL, this.ids.newId(), account, email,
 				EmailClass.TRANSACTIONAL, Map.of("by", by), LINK_PREFIX + token));

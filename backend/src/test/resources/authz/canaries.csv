@@ -39,6 +39,11 @@
 #   Job of that Mentor; only Administrator surfaces may ever show it.
 # - BID_PROOF_CAPTION and BID_PROOF_LINK are the proof of the Open post's bid (Story 21.2, AD-20): a file's caption
 #   and a link. Only the Bidder and the Job's Customer read them; no Administrator grant covers a bid's proof.
+# - SPLIT_RESOLUTION_ID, SPLIT_RESOLUTION_REASON, SPLIT_STATEMENT and SPLIT_DECISION_REASONING are the crew Job's Split
+#   Resolutions (Story 22.3, A-18): the reason of the one open on the Milestone held for it and a statement on it, and
+#   the ID and the reasoning of one an Administrator decided on another Milestone. The reason and the statement reach its
+#   parties and its assigned Administrator only, and the queue shows every Administrator a case's ID. The reasoning reaches
+#   its parties and, as the record of the decision (AD-24), every Administrator. The Customer reads none of them.
 # - CREW_LEFT_NOTE is the reason a member who is no caller gave when leaving the crew Job (Story 21.6, FR-82): only the
 #   Job's Mentor reads it, on JOB-9's Crew list. It reaches no notification, to-do, or other view, and its author's export
 #   is no caller's.
@@ -48,31 +53,31 @@
 #   covers a Crew Application.
 canary,value,visible_to,seeded_as
 CREW_SHARE,7316429,MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's part of a release under the Crew Terms in VND
-CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's account email
-CREW_NAME,Canary Crew Name 3b7d,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's shown name
-CREW_LINKEDIN,https://www.linkedin.com/in/canary-crew-5e8a1c,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's LinkedIn link
-WORK_ITEM_TITLE,Canary Story 7a2c40,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the title of the active member's Story (not the escalated issue's raiser's)
-WORK_ITEM_NOTE,canary-note-4b8e1d,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,a Work Item note
-ATTACHMENT,canary-attachment-2c6f0a.pdf,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,an Attachment's file name
+CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's account email
+CREW_NAME,Canary Crew Name 3b7d,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's shown name
+CREW_LINKEDIN,https://www.linkedin.com/in/canary-crew-5e8a1c,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's LinkedIn link
+WORK_ITEM_TITLE,Canary Story 7a2c40,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the title of the active member's Story (not the escalated issue's raiser's)
+WORK_ITEM_NOTE,canary-note-4b8e1d,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Work Item note
+ATTACHMENT,canary-attachment-2c6f0a.pdf,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,an Attachment's file name
 CREW_PAGE,canary-page-3e9f5a,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the body of a team-only Page of the crew Job
 CREW_PAGE_TITLE,canary-page-title-5b1e7c,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the title of that team-only Page
 CUSTOMER_PAGE,canary-customer-page-8f3d21,CUSTOMER MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the title and body of a Customer-visible Page of the crew Job written after the windows ended
 EARLY_PAGE,canary-early-page-2d9a64,MENTOR CREW_ACTIVE CREW_FORMER CROSS_ROLE ADMIN_DISPUTE_GRANT,the title and body of a team-only Page of the crew Job written inside the former member's window
-CREW_CHAT,canary-crew-chat-8d3b57,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew Chat message
-CREW_CHAT_UNREPORTED,canary-crew-chat-unreported-1e6c42,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_TEAM_ISSUE_GRANT,a Crew Chat message no Abuse Report names
+CREW_CHAT,canary-crew-chat-8d3b57,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_TEAM_ISSUE_GRANT ADMIN_SPLIT_RESOLUTION_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew Chat message
+CREW_CHAT_UNREPORTED,canary-crew-chat-unreported-1e6c42,MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_TEAM_ISSUE_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew Chat message no Abuse Report names
 JOB_CHAT,canary-job-chat-6a1f94,CUSTOMER MENTOR ADMIN_DISPUTE_GRANT,a crew-Job Job Chat message
 TEAM_ISSUE_ID,01923c4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f,MENTOR,the ID of a Team Issue another Crew member raised
 NOTIFICATION_PARAM,canary-notification-5e1a3b,SUBJECT,a parameter of another account's notification (SUBJECT is its recipient)
 TODO_PARAM,canary-todo-9a4c27,SUBJECT,a parameter of another account's to-do (SUBJECT is its recipient)
-CONTACT_EMAIL,canary.contact.4d8e@example.test,CUSTOMER MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the crew Job's Customer's contact email: their own and the Mentor's under the Job's contact grant (FR-3)
+CONTACT_EMAIL,canary.contact.4d8e@example.test,CUSTOMER MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the crew Job's Customer's contact email: their own and the Mentor's under the Job's contact grant (FR-3)
 SCHOOL_EMAIL,5c40015c40015c40015c40015c40015c40015c40015c40015c40015c40015c40,,the subject HMAC of another account's student verification; the school email itself is stored nowhere (AD-42)
 PERSON_SIGNAL,7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b7e1a9c4b,,the HMAC of a person-link signal two other accounts share; ADM-2 lists the pair by kind only (AD-19)
-STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the student name a Crew member chose to hide (FR-51)
-PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,a Crew member's private feedback about a Mentor
-SKILL_SUGGESTION,canary-skill-suggestion-4c1e9a,SUBJECT ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the name of another account's Skill suggestion (SUBJECT is its suggester)
-CROSS_CREW_NAME,Canary Cross Name 9c4e,MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the shown name of the second Job's Crew member
-CROSS_CREW_EMAIL,canary.cross.a41d@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the account email of the second Job's Crew member
-CROSS_LINKEDIN,https://www.linkedin.com/in/canary-cross-8b2d4f,MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT,the LinkedIn link of the second Job's Crew member
+STUDENT_HIDDEN_NAME,Canary Ten An 6e2f,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the student name a Crew member chose to hide (FR-51)
+PRIVATE_FEEDBACK,canary-private-feedback-61d7c3,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's private feedback about a Mentor
+SKILL_SUGGESTION,canary-skill-suggestion-4c1e9a,SUBJECT ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the name of another account's Skill suggestion (SUBJECT is its suggester)
+CROSS_CREW_NAME,Canary Cross Name 9c4e,MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the shown name of the second Job's Crew member
+CROSS_CREW_EMAIL,canary.cross.a41d@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the account email of the second Job's Crew member
+CROSS_LINKEDIN,https://www.linkedin.com/in/canary-cross-8b2d4f,MENTOR ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the LinkedIn link of the second Job's Crew member
 CROSS_CREW_CHAT,canary-cross-chat-2f7b18,MENTOR,a message of the second Job's Crew Chat
 CROSS_WORK_ITEM_NOTE,canary-cross-note-7e3c05,MENTOR,a Work Item note of the second Job
 CROSS_PAGE,canary-cross-page-5d1a8e,MENTOR,the body of a team-only Page of the second Job
@@ -86,3 +91,7 @@ SPLIT_POOL_REVERSAL,POOL_RELEASED,,the entry type of the reversal of a pool by i
 SPLIT_OPEN,AWAITING_DRAFT,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY,the status of a split waiting for its draft
 SPLIT_PART,1234568,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY,a party's VND line of a split out for confirmation
 CREW_LEFT_NOTE,canary-crew-left-note-7b2e41,MENTOR,the reason a member gave when leaving the crew Job
+SPLIT_RESOLUTION_ID,01923c4f-6b7c-7d8e-9f0a-2b3c4d5e6f70,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the ID of the Split Resolution an Administrator decided
+SPLIT_RESOLUTION_REASON,canary-split-resolution-reason-5a3e71,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMIN_SPLIT_RESOLUTION_GRANT,the reason of the open Split Resolution
+SPLIT_STATEMENT,canary-split-statement-2f8c64,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMIN_SPLIT_RESOLUTION_GRANT,a party's statement on the open Split Resolution
+SPLIT_DECISION_REASONING,canary-split-decision-reasoning-9d1b36,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the reasoning of the decided Split Resolution

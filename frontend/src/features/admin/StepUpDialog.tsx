@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
 import { Button } from '@/components/ui/button'
@@ -12,19 +12,21 @@ import { verificationMessage } from '@/features/identity/verificationMessages'
 /**
  * The Step-up dialog (SG-10, UX-DR42): a fresh code from the authenticator before a sensitive
  * command. `onConfirm` runs the command with the code; a wrong code keeps the dialog open with the
- * attempts left, and any other refusal shows its sentence.
+ * attempts left, and any other refusal shows its sentence. `summary` says what the code will confirm.
  */
 export function StepUpDialog({
   open,
   onOpenChange,
   confirmLabel,
   pending,
+  summary,
   onConfirm,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   confirmLabel?: string
   pending: boolean
+  summary?: ReactNode
   onConfirm: (code: string, refused: (error: unknown) => void) => void
 }) {
   const [code, setCode] = useState('')
@@ -70,6 +72,7 @@ export function StepUpDialog({
             {t('screen.admin.stepUp.title')}
           </Dialog.Title>
           <Dialog.Description className="text-body-sm">{t('screen.admin.stepUp.body')}</Dialog.Description>
+          {summary}
           <form noValidate onSubmit={submit} className="flex flex-col gap-4">
             <FormField id="stepUpCode" label={t('screen.admin.stepUp.code')} error={error}>
               <input

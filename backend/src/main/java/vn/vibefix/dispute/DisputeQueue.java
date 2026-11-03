@@ -23,4 +23,7 @@ public interface DisputeQueue {
 	/** The escalated Team Issues waiting for an Administrator (FR-79, AD-40), by escalation time, the oldest first. */
 	List<Waiting> teamIssuesEscalated();
 
+	/** The open Split Resolutions (FR-84, AD-40), by when they were raised, the oldest first. */
+	List<Waiting> splitResolutionsOpen();
+
 }

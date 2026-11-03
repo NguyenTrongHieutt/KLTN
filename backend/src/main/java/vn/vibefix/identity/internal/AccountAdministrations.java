@@ -176,7 +176,8 @@ class AccountAdministrations implements AccountAdministration {
 	/**
 	 * Every other account holding a signal of the same kind, key version, and HMAC (AD-19), as
 	 * {@code PersonSignals.sharesPersonSignal} compares them. An erased account's signals are kept 24
-	 * months, so it is listed, without a name. Moved here from the retired ADM-13 (Story 19.7).
+	 * months, so it is listed, without a name. An Administrator's own signal (A-17) lists nothing: ADM-2 has no page for
+	 * their account. Moved here from the retired ADM-13 (Story 19.7).
 	 */
 	@Override
 	@Transactional(readOnly = true)
@@ -190,7 +191,7 @@ class AccountAdministrations implements AccountAdministration {
 				           AND theirs.account_id <> mine.account_id
 				      WHERE mine.account_id = :id
 				      GROUP BY theirs.account_id) l
-				JOIN identity.account a ON a.id = l.account_id
+				JOIN identity.account a ON a.id = l.account_id AND a.kind = 'USER'
 				LEFT JOIN identity.profile p ON p.account_id = a.id
 				ORDER BY a.created_at, a.id
 				""")

@@ -61,6 +61,27 @@ enum DisputeReason {
 	STATEMENT_ALREADY_SENT,
 
 	/** The decision waits for the statement or the end of its period (FR-52). */
-	STATEMENT_PERIOD_OPEN
+	STATEMENT_PERIOD_OPEN,
+
+	/** The Mentor adds a statement; only the other parties ask for a Split Resolution (FR-84, AD-40). */
+	PARTY_ONLY,
+
+	/** A party raises one Split Resolution per Milestone (FR-84, AD-40). */
+	SPLIT_RESOLUTION_USED,
+
+	/** A Split Resolution is open on the Milestone: the other parties add a statement to it (FR-84, AD-40). */
+	SPLIT_IN_RESOLUTION,
+
+	/** The split is final, or past its due time and being finalized (FR-84, AD-29, A-09). */
+	SPLIT_FINAL,
+
+	/** Each party other than the raiser adds one statement (FR-84, AD-40). */
+	SPLIT_STATEMENT_USED,
+
+	/** The Split Resolution was withdrawn or decided (FR-84, AD-40). */
+	SPLIT_RESOLUTION_ENDED,
+
+	/** The Administrator shares a person-link signal with an account in the case; never says which (AD-19, A-17). */
+	CONFLICT_OF_INTEREST
 
 }

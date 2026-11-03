@@ -768,6 +768,25 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType DISPUTE_EXECUTION_FAILED = new NotificationType("dispute.execution_failed",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("step"));
 
+	/** FR-84, AD-40: a party asked an Administrator to decide a split; the Mentor, the other parties and Administrators learn it. */
+	static final NotificationType DISPUTE_SPLIT_RESOLUTION_REQUESTED = new NotificationType("dispute.split_resolution_requested",
+			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY, Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
+			"alert", Set.of("name", "n", "job"));
+
+	/** FR-84, A-08: the raiser withdrew; {next} says whether a new round started or the split became final. */
+	static final NotificationType DISPUTE_SPLIT_RESOLUTION_WITHDRAWN = new NotificationType("dispute.split_resolution_withdrawn",
+			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY, Audience.ADMIN), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info",
+			Set.of("n", "next"));
+
+	/** FR-84, AD-40: an Administrator decided the split; the Mentor and each party learn it, never the Customer. */
+	static final NotificationType DISPUTE_SPLIT_RESOLUTION_DECIDED = new NotificationType("dispute.split_resolution_decided",
+			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("n", "job"));
+
+	/** FR-84, AD-7: a Split Resolution stayed undecided for the Job's copied days. */
+	static final NotificationType DISPUTE_SPLIT_RESOLUTION_UNDECIDED = new NotificationType("dispute.split_resolution_undecided",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "days"));
+
 	/** FR-79, AD-40: a Crew member raised a Team Issue; only the Mentor learns it. */
 	static final NotificationType DISPUTE_TEAM_ISSUE_RAISED = new NotificationType("dispute.team_issue_raised",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("name", "job", "date"));
@@ -897,7 +916,9 @@ class NotificationTypes implements NotificationCatalog {
 				DELIVERY_FOLLOW_UP_DRAFTS_READY, JOB_CHANGE_REQUEST_PROPOSED, JOB_CHANGE_REQUEST_IMPACT_ADDED,
 				JOB_CHANGE_REQUEST_APPLIED, JOB_CHANGE_REQUEST_LAPSED, JOB_CANCELLATION_PROPOSED,
 				JOB_CANCELLATION_UNANSWERED, JOB_JOB_CANCELLED, JOB_AGREEMENT_DEADLINE_PASSED, JOB_STARTING_DEADLINE_PASSED,
-				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED, DISPUTE_TEAM_ISSUE_RAISED,
+				DISPUTE_DISPUTE_OPENED, DISPUTE_EXECUTION_FAILED, DISPUTE_DISPUTE_DECIDED, DISPUTE_SPLIT_RESOLUTION_REQUESTED,
+				DISPUTE_SPLIT_RESOLUTION_WITHDRAWN, DISPUTE_SPLIT_RESOLUTION_DECIDED, DISPUTE_SPLIT_RESOLUTION_UNDECIDED,
+				DISPUTE_TEAM_ISSUE_RAISED,
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
 				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED, ADMIN_ABUSE_REPORT_RESOLVED, IDENTITY_DELETION_REQUESTED,
 				ADMIN_SKILL_SUGGESTION_APPROVED, ADMIN_SKILL_SUGGESTION_DECLINED,

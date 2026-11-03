@@ -42,8 +42,11 @@ class AdministratorBootstrap {
 
 	private final Clock clock;
 
+	private final JdbcPersonSignals signals;
+
 	AdministratorBootstrap(JdbcClient jdbc, Accounts accounts, AdministratorCredentials credentials,
-			TokenCipher cipher, AuditLog auditLog, IdGenerator ids, Clock clock) {
+			TokenCipher cipher, AuditLog auditLog, IdGenerator ids, Clock clock, JdbcPersonSignals signals) {
+		this.signals = signals;
 		this.jdbc = jdbc;
 		this.accounts = accounts;
 		this.credentials = credentials;
@@ -85,6 +88,7 @@ class AdministratorBootstrap {
 		String encoded = Totp.base32(secret);
 		this.credentials.insert(id, email, name, AdminSignIns.PASSWORDS.encode(new String(password)),
 				this.cipher.seal(encoded, AdministratorCredentials.totpAssociatedData(id)), now);
+		this.signals.record(id, JdbcPersonSignals.Source.ADMIN_EMAIL, email);
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "identity.administrator_bootstrapped",
 				AuditObject.of("identity.account", id)));
 		return new Created(id, encoded, Totp.uri(email, secret));

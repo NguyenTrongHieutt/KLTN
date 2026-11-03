@@ -86,8 +86,12 @@ class NotificationAudiencesTest {
 		assertThat(type("payment.funds_released").audiences()).containsExactlyInAnyOrder(Audience.MENTOR, Audience.SPLIT_PARTY);
 		for (NotificationType type : this.catalog.notificationTypes()) {
 			if (type.audiences().contains(Audience.SPLIT_PARTY)) {
+				// AD-40: a Split Resolution's notices also reach the Administrators; nothing else does.
+				List<Audience> allowed = type.key().startsWith("dispute.split_resolution_")
+						? List.of(Audience.MENTOR, Audience.SPLIT_PARTY, Audience.ADMIN)
+						: List.of(Audience.MENTOR, Audience.SPLIT_PARTY);
 				assertThat(type.audiences()).as("%s reaches the split's parties and, at most, the Mentor", type.key())
-					.isSubsetOf(Audience.MENTOR, Audience.SPLIT_PARTY);
+					.isSubsetOf(allowed);
 			}
 		}
 		for (TodoType type : this.catalog.todoTypes()) {

@@ -3,6 +3,7 @@ package vn.vibefix.identity.internal;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,7 +36,10 @@ class JdbcPersonSignals implements PersonSignals {
 
 	enum Source {
 
-		GOOGLE_EMAIL("EMAIL"), GITHUB_EMAIL("EMAIL"), SCHOOL_EMAIL("EMAIL"), LINKEDIN("LINKEDIN");
+		GOOGLE_EMAIL("EMAIL"), GITHUB_EMAIL("EMAIL"), SCHOOL_EMAIL("EMAIL"), LINKEDIN("LINKEDIN"),
+
+		/** An Administrator's email, at creation (A-17): the kind {@code EMAIL}, since a match joins on the kind. */
+		ADMIN_EMAIL("EMAIL");
 
 		final String kind;
 
@@ -76,6 +80,26 @@ class JdbcPersonSignals implements PersonSignals {
 				      ON theirs.kind = mine.kind AND theirs.key_version = mine.key_version AND theirs.hmac = mine.hmac
 				    WHERE mine.account_id = :account AND theirs.account_id = :other)
 				""").param("account", accountId).param("other", otherAccountId).query(Boolean.class).single();
+	}
+
+	@Override
+	public List<SignalMatch> matchesAmong(Collection<UUID> accountIds) {
+		if (accountIds.isEmpty()) {
+			return List.of();
+		}
+		return this.jdbc.sql("""
+				SELECT DISTINCT mine.account_id AS account, theirs.account_id AS other, mine.kind
+				FROM identity.person_signal mine
+				JOIN identity.person_signal theirs
+				  ON theirs.kind = mine.kind AND theirs.key_version = mine.key_version AND theirs.hmac = mine.hmac
+				 AND mine.account_id < theirs.account_id
+				WHERE mine.account_id IN (:accounts) AND theirs.account_id IN (:accounts)
+				ORDER BY account, other, mine.kind
+				""")
+			.param("accounts", List.copyOf(accountIds))
+			.query((rs, n) -> new SignalMatch(rs.getObject("account", UUID.class), rs.getObject("other", UUID.class),
+					rs.getString("kind")))
+			.list();
 	}
 
 	/**

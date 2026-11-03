@@ -35,7 +35,10 @@
 # each of its rows answers like ANONYMOUS. CROSS_ROLE is an ACTIVE member of the crew Job and the
 # Customer of a second Job. Every row also runs the canary scan (authz/canaries.csv) for its caller, an amount
 # canary in its VND form too. CREW_ACTIVE_PARTY and CREW_FORMER_PARTY are members who are parties of the crew Job's
-# splits (Story 22.2): they run only the endpoints of a split, and {splitId} is the one out for confirmation.
+# splits (Story 22.2): they run only the endpoints of a split, and {splitId} is the one out for confirmation. On a Split
+# Resolution's endpoints (Story 22.3) {resolutionId} is the open one on another Milestone, which CREW_FORMER_PARTY raised and
+# ADMIN_SPLIT_RESOLUTION_GRANT took, and split=resolution or split=decided makes {splitId} that Milestone's split or the
+# split of one an Administrator decided.
 endpoint,caller,subject_state,body,expect,check
 
 # Which environment this is (shared): public.
@@ -3419,3 +3422,229 @@ POST /api/v1/splits/{splitId}/preview,CREW_ACTIVE,,split-preview.json,404 NOT_FO
 POST /api/v1/splits/{splitId}/preview,CREW_FORMER,,split-preview.json,404 NOT_FOUND
 POST /api/v1/splits/{splitId}/preview,CROSS_ROLE,,split-preview.json,404 NOT_FOUND
 POST /api/v1/splits/{splitId}/preview,ADMINISTRATOR,,split-preview.json,404 NOT_FOUND
+
+# JOB-10: a party other than the Mentor asks an Administrator to decide the split out for confirmation (FR-84, Story 22.3).
+POST /api/v1/splits/{splitId}/resolutions,ANONYMOUS,,split-resolution.json,401
+POST /api/v1/splits/{splitId}/resolutions,LOCKED,,split-resolution.json,401
+POST /api/v1/splits/{splitId}/resolutions,USER_UNVERIFIED,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,USER,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CUSTOMER,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,BIDDER,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CREW_ASSIGNED,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CREW_FORMER,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CROSS_ROLE,,split-resolution.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,MENTOR,,split-resolution.json,403 FORBIDDEN PARTY_ONLY
+POST /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE_PARTY,,split-resolution.json,201
+POST /api/v1/splits/{splitId}/resolutions,CREW_FORMER_PARTY,,split-resolution.json,201
+POST /api/v1/splits/{splitId}/resolutions,ADMINISTRATOR,,split-resolution.json,404 NOT_FOUND
+
+# JOB-10: every case of the Milestone, for its parties alone: {splitId} out for confirmation has none, split=resolution an open one, split=decided a decided one.
+GET /api/v1/splits/{splitId}/resolutions,ANONYMOUS,,,401
+GET /api/v1/splits/{splitId}/resolutions,LOCKED,,,401
+GET /api/v1/splits/{splitId}/resolutions,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,USER,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,BIDDER,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/splits/{splitId}/resolutions,MENTOR,,,200
+GET /api/v1/splits/{splitId}/resolutions,MENTOR,split=resolution,,200
+GET /api/v1/splits/{splitId}/resolutions,MENTOR,split=decided,,200
+GET /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE_PARTY,split=resolution,,200
+GET /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE_PARTY,split=decided,,200
+GET /api/v1/splits/{splitId}/resolutions,CREW_FORMER_PARTY,split=resolution,,200
+GET /api/v1/splits/{splitId}/resolutions,CREW_FORMER_PARTY,split=decided,,200
+GET /api/v1/splits/{splitId}/resolutions,ADMINISTRATOR,,,404 NOT_FOUND
+
+# JOB-10: each party but the raiser, the Mentor included, adds one statement to the open case: the former party raised it, and the active party has written theirs.
+POST /api/v1/split-resolutions/{resolutionId}/statements,ANONYMOUS,,split-resolution-statement.json,401
+POST /api/v1/split-resolutions/{resolutionId}/statements,LOCKED,,split-resolution-statement.json,401
+POST /api/v1/split-resolutions/{resolutionId}/statements,USER_UNVERIFIED,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,USER,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,CUSTOMER,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,BIDDER,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,CREW_ASSIGNED,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,CREW_ACTIVE,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,CREW_FORMER,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,CROSS_ROLE,,split-resolution-statement.json,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/statements,MENTOR,,split-resolution-statement.json,201
+POST /api/v1/split-resolutions/{resolutionId}/statements,CREW_ACTIVE_PARTY,,split-resolution-statement.json,422 GUARD_FAILED SPLIT_STATEMENT_USED
+POST /api/v1/split-resolutions/{resolutionId}/statements,CREW_FORMER_PARTY,,split-resolution-statement.json,422 GUARD_FAILED SPLIT_STATEMENT_USED
+POST /api/v1/split-resolutions/{resolutionId}/statements,ADMINISTRATOR,,split-resolution-statement.json,404 NOT_FOUND
+
+# JOB-10: the raiser withdraws before a decision; the case's own Administrator is told no, and one with no relation to it finds nothing (SG-31).
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,ANONYMOUS,,,401
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,LOCKED,,,401
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,USER_UNVERIFIED,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,USER,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,BIDDER,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CROSS_ROLE,,,404 NOT_FOUND
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,MENTOR,,,403 FORBIDDEN
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CREW_ACTIVE_PARTY,,,403 FORBIDDEN
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CREW_FORMER_PARTY,,,200
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,ADMIN_SPLIT_RESOLUTION_GRANT,,,403 FORBIDDEN
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
+
+# ADM-4 "Phân chia tiền" (UX-DR107): the queue, for every Administrator.
+GET /api/v1/admin/split-resolutions,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions,ADMINISTRATOR,,,200
+GET /api/v1/admin/split-resolutions,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+# One case: every Administrator sees it exists, and only its assignee its words (A-18). resolution=decided makes
+# {resolutionId} the decided case on another Milestone, whose record every Administrator reads (AD-24).
+GET /api/v1/admin/split-resolutions/{resolutionId},ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId},LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId},USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMINISTRATOR,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMINISTRATOR,resolution=decided,,200
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMIN_SPLIT_RESOLUTION_GRANT,resolution=decided,,200
+# "Nhận xử lý": another Administrator takes it over.
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,ANONYMOUS,,,401
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,LOCKED,,,401
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,USER_UNVERIFIED,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,USER,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,CUSTOMER,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,BIDDER,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,CREW_ASSIGNED,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,CREW_FORMER,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,CROSS_ROLE,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,MENTOR,,,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,ADMINISTRATOR,,,200
+POST /api/v1/admin/split-resolutions/{resolutionId}/take,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+# The VND lines through CrewSplit, for the assignee.
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,ANONYMOUS,,admin-split-preview.json,401
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,LOCKED,,admin-split-preview.json,401
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,USER_UNVERIFIED,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,USER,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CUSTOMER,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,BIDDER,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CREW_ASSIGNED,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CREW_ACTIVE,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CREW_FORMER,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CROSS_ROLE,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,MENTOR,,admin-split-preview.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,ADMINISTRATOR,,admin-split-preview.json,409 CONFLICT NOT_ASSIGNED
+POST /api/v1/admin/split-resolutions/{resolutionId}/preview,ADMIN_SPLIT_RESOLUTION_GRANT,,admin-split-preview.json,200
+# The assignee's decision under the step-up.
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,ANONYMOUS,,admin-split-decision.json,401
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,LOCKED,,admin-split-decision.json,401
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,USER_UNVERIFIED,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,USER,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,CUSTOMER,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,BIDDER,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,CREW_ASSIGNED,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,CREW_ACTIVE,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,CREW_FORMER,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,CROSS_ROLE,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,MENTOR,,admin-split-decision.json,404 NOT_FOUND
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,ADMINISTRATOR,,admin-split-decision.json,409 CONFLICT NOT_ASSIGNED
+POST /api/v1/admin/split-resolutions/{resolutionId}/decision,ADMIN_SPLIT_RESOLUTION_GRANT,,admin-split-decision.json,200
+# The Split Evidence Package, for the assignee only; a Dispute's grant reads no split version and no Crew Chat (A-20).
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+
+# The Split Resolution grant on every read of Job content (AD-20, A-20): the Crew Chat and the parties' Work Items, never the Job Chat.
+GET /api/v1/jobs/{jobId}/chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/work-items,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,item=raiser,,404 NOT_FOUND
+GET /api/v1/work-item-notes/{workItemNoteId},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/pages,ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions,ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
+GET /api/v1/pages/{pageId}/versions/{versionNo},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=chat,,200
+GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=attachment,,200
+GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=screenshot,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=proof,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=crew-proof,,404 NOT_FOUND

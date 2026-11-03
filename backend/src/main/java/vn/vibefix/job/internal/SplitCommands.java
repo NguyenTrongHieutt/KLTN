@@ -25,6 +25,7 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.job.MilestoneSplitFinalized.Finality;
 import vn.vibefix.job.MilestoneSplits.PercentLine;
+import vn.vibefix.job.MilestoneSplits.Resumed;
 import vn.vibefix.job.MilestoneSplits.Status;
 import vn.vibefix.job.MilestoneSplits.VersionKind;
 import vn.vibefix.job.internal.SplitStore.Party;
@@ -42,7 +43,8 @@ import vn.vibefix.timers.Deadlines;
  * Job row, raw so a bare row still locks, then reads the split again; none changes {@code Job.version} or
  * {@code crewVersion}, none goes through {@code JobLifecycle}, and none reads the freeze or the busy marker, so a Dispute
  * or a merge never pauses a split, and it carries on after J9, J10, or a Product's deletion. A locked party cannot act,
- * as the controller's gate refuses them, while the Deadlines still run.
+ * as the controller's gate refuses them, while the Deadlines still run. A Split Resolution, {@code dispute}'s, holds,
+ * resumes and decides a split through these commands, under the Job row lock it took first (AD-40).
  */
 @Component
 class SplitCommands {
@@ -275,7 +277,77 @@ class SplitCommands {
 	}
 
 	/**
-	 * Checks a draft by AD-29's rules, as a save does, against the cap read live.
+	 * {@code job.holdSplit}: a Split Resolution was raised, under the lock its caller took and past the due-time check it made
+	 * there, which this does not make again: the Clock may have passed the due time since. Nothing else moves: the round's
+	 * Deadline and reminder find the status changed and end {@code OBSOLETE}.
+	 */
+	@Transactional
+	void hold(UUID milestoneId, UUID resolutionId) {
+		Split split = ofMilestone(milestoneId);
+		if (split.status() != Status.PROPOSED) {
+			throw new IllegalStateException("Only a split out for confirmation is held");
+		}
+		this.store.hold(split.id());
+		this.notices.held(split);
+		this.auditLog.record(AuditEntry
+			.of(AuditActor.system(), "job.split_held", AuditObject.of("job.milestone_split", split.id()),
+					AuditObject.of("dispute.split_resolution", resolutionId))
+			.forJob(split.jobId()));
+	}
+
+	/**
+	 * {@code job.resumeSplit}: a withdrawal, under the lock its caller took (A-08). The latest version keeps its confirmations:
+	 * when they cover every party but the Mentor it is final at once, and otherwise a new full round starts for the same
+	 * version, with those who have not confirmed asked again.
+	 */
+	@Transactional
+	Resumed resume(UUID milestoneId) {
+		Split split = ofMilestone(milestoneId);
+		if (split.status() != Status.IN_RESOLUTION) {
+			throw new IllegalStateException("Only a split under a resolution resumes");
+		}
+		int versionNo = this.store.latest(split.id()).map(Version::number).orElseThrow();
+		Set<UUID> confirmed = new HashSet<>(this.store.confirmers(split.id(), versionNo));
+		List<Party> waiting = this.store.parties(split.id())
+			.stream()
+			.filter(party -> !party.mentor() && !confirmed.contains(party.id()))
+			.toList();
+		audit(AuditActor.system(), "job.split_resumed", split);
+		if (waiting.isEmpty()) {
+			this.finalization.makeFinal(split, versionNo, Finality.CONFIRMED);
+			return new Resumed(Status.FINAL, null);
+		}
+		Instant due = startRound(split, versionNo, this.clock.instant());
+		this.notices.askAgain(split, this.store.title(split.jobId()).orElse(""), waiting, due);
+		return new Resumed(Status.PROPOSED, due);
+	}
+
+	/**
+	 * {@code job.decideSplit}: the assigned Administrator's decision, under the lock its caller took. The {@code DECISION}
+	 * version is checked against the cap stored on the latest version, stores that cap, and is final when saved.
+	 * @throws ApiException {@code VALIDATION SPLIT_INVALID}, which changes nothing
+	 */
+	@Transactional
+	int decide(UUID milestoneId, UUID resolutionId, UUID adminId, List<PercentLine> lines) {
+		Split split = ofMilestone(milestoneId);
+		if (split.status() != Status.IN_RESOLUTION) {
+			throw new IllegalStateException("Only a split under a resolution is decided");
+		}
+		Version latest = this.store.latest(split.id()).orElseThrow();
+		Map<UUID, Integer> percents = validated(split, this.store.parties(split.id()), lines, latest.capPercent());
+		int versionNo = latest.number() + 1;
+		this.store.insertVersion(split.id(), versionNo, VersionKind.DECISION, latest.capPercent(), adminId, percents,
+				this.clock.instant());
+		this.auditLog.record(AuditEntry
+			.of(AuditActor.user(adminId), "job.split_decision_saved", AuditObject.of("job.milestone_split", split.id()),
+					AuditObject.of("dispute.split_resolution", resolutionId))
+			.forJob(split.jobId()));
+		this.finalization.makeFinal(split, versionNo, Finality.DECISION);
+		return versionNo;
+	}
+
+	/**
+	 * Checks a draft by AD-29's rules against {@code cap}: read live for a save, stored on the latest version for a decision.
 	 * @throws ApiException {@code VALIDATION SPLIT_INVALID} unless the parties are exactly the split's, the percentages
 	 * whole and summing to 100, the Mentor's within the cap when it applies, and, when it does, each member of the whole
 	 * Milestone above 0
@@ -327,6 +399,11 @@ class SplitCommands {
 					due.minus(REMINDER_BEFORE)));
 		}
 		return due;
+	}
+
+	private Split ofMilestone(UUID milestoneId) {
+		return this.store.ofMilestone(milestoneId)
+			.orElseThrow(() -> new IllegalStateException("The Milestone has no split: " + milestoneId));
 	}
 
 	/** The Job row, then the split as it stands under that lock (AD-4). */

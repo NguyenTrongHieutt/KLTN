@@ -7,7 +7,7 @@
  * ({@link vn.vibefix.shared.AdminReadGrants}), each read audited (AD-20, AD-8).
  * <p>
  * Public API: {@link vn.vibefix.chat.ChatEvidence}, how far the Job Chat reached, for a Dispute decision's
- * evidence snapshot (SG-27). The HTTP endpoints, the listener, the grants, the file read policy, and the
+ * evidence snapshot (SG-27), and the Crew Chat of a Milestone's interval, for a Split Evidence Package. The HTTP endpoints, the listener, the grants, the file read policy, and the
  * personal-data participant are wiring in {@code chat.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "scanning", "identity", "notification", "job" })

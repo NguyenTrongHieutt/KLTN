@@ -10,6 +10,11 @@
  * Mentor about their share of a Held Milestone, which holds the two parties' parts through {@code payment},
  * or about the Rating the Mentor gave them. They never freeze the Job, and the Customer never sees them.
  * <p>
+ * Split Resolutions (FR-84, AD-40): a party other than the Mentor asks an Administrator to decide a Milestone Split, which holds
+ * the whole Milestone's money in {@code job} and {@code payment} until it is withdrawn or decided, from the Split Evidence
+ * Package assembled from {@code job}, {@code work}, {@code delivery}, {@code chat} and {@code identity}. They never freeze the
+ * Job or read its state, carry on after it ends, and the Customer never sees them.
+ * <p>
  * Public API: {@link vn.vibefix.dispute.DisputeQueue}, the Disputes awaiting a decision for ADM-1. The
  * HTTP endpoints, the execution, and the personal-data participant are wiring in {@code dispute.internal}.
  */

@@ -1,0 +1,5 @@
+subject: Yêu cầu xem xét phân chia Giai đoạn {n} của {job} chưa có quyết định sau {days} ngày
+---
+Xin chào,
+
+Yêu cầu xem xét phân chia Giai đoạn {n} của công việc {job} đã chờ {days} ngày mà chưa có quyết định, nên tiền của cả giai đoạn vẫn đang được giữ. Mở thẻ "Phân chia tiền" trong mục Tranh chấp để xử lý.

@@ -85,9 +85,12 @@ class TeamIssueDecisions {
 
 	private final TransactionTemplate transactions;
 
+	private final TakeConflicts conflicts;
+
 	TeamIssueDecisions(JdbcClient jdbc, TeamIssues issues, TeamIssueEndings endings, TeamIssueAnswers answers,
 			TeamIssueLocks locks, List<AdminReadGrants> grants, AdministratorStepUp stepUp, AuditLog auditLog, IdGenerator ids,
-			Clock clock, PlatformTransactionManager transactionManager) {
+			Clock clock, PlatformTransactionManager transactionManager, TakeConflicts conflicts) {
+		this.conflicts = conflicts;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.jdbc = jdbc;
 		this.issues = issues;
@@ -104,7 +107,7 @@ class TeamIssueDecisions {
 	/**
 	 * "Nhận xử lý": the Administrator takes the issue, over another if need be.
 	 * @throws ApiException {@code NOT_FOUND} for an issue never escalated; {@code CONFLICT ALREADY_DECIDED}
-	 * once it ended
+	 * once it ended; {@code GUARD_FAILED CONFLICT_OF_INTEREST}
 	 */
 	@Transactional
 	void take(UUID issueId, UUID adminId) {
@@ -127,6 +130,8 @@ class TeamIssueDecisions {
 		if (adminId.equals(current.get("admin"))) {
 			return;
 		}
+		this.conflicts.refuseIfLinked(adminId, this.conflicts.involvedInJob(issue.jobId()), "dispute.team_issue", issueId,
+				issue.jobId());
 		Instant now = this.clock.instant();
 		UUID previous = (UUID) current.get("grant");
 		if (previous != null) {

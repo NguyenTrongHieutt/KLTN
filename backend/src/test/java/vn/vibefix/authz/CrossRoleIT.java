@@ -946,6 +946,24 @@ class CrossRoleIT extends IntegrationTest {
 					VALUES (:id, :job, :product, :customer, :mentor, 'OPEN', :at)
 					""").param("id", invitation).param("job", post).param("product", product)
 				.param("customer", customer).param("mentor", mentor).param("at", written).update();
+			// The first Milestone's split with a Split Resolution on it (Story 22.3): only its parties read the case, and only
+			// through this Job's split.
+			UUID splitParty = JobContent.member(jdbc, "Thành viên phân chia " + tag);
+			UUID[] split = JobContent.proposedSplit(jdbc, this.job, product, released, 1, mentor, coMember, splitParty, 30, 40, 30,
+					JobContent.SIGNED, MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(3)));
+			jdbc.sql("UPDATE job.milestone_split SET status = 'IN_RESOLUTION' WHERE id = :id").param("id", split[0]).update();
+			UUID resolution = UUID.randomUUID();
+			jdbc.sql("""
+					INSERT INTO dispute.split_resolution (id, split_id, job_id, product_id, milestone_id, milestone_number, raiser_party_id,
+					    raiser_account_id, split_version_no, reason, status, raised_at, undecided_due_at)
+					VALUES (:id, :split, :job, :product, :milestone, 1, :party, :raiser, 1, :reason, 'OPEN', :at, :at)
+					""").param("id", resolution).param("split", split[0]).param("job", this.job).param("product", product)
+				.param("milestone", released).param("party", split[2]).param("raiser", coMember)
+				.param("reason", "Phần chia chưa đúng " + tag).param("at", written).update();
+			this.values.put("splitId", split[0].toString());
+			this.values.put("resolutionId", resolution.toString());
+			this.objectIds.add(split[0].toString());
+			this.objectIds.add(resolution.toString());
 			this.values.put("jobId", this.job.toString());
 			this.values.put("boardId", this.job.toString());
 			this.values.put("postId", post.toString());

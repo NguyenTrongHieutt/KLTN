@@ -125,7 +125,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decide_2"];
+        post: operations["decide_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -141,7 +141,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["take_2"];
+        post: operations["take_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -333,7 +333,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decide_1"];
+        post: operations["decide_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -461,7 +461,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["take_1"];
+        post: operations["take_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -702,6 +702,166 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["decline_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/commits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["commits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewChat_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personLinks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["versions_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workItems_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/split-resolutions/{resolutionId}/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["take_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -957,7 +1117,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_4"];
+        post: operations["withdraw_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1517,7 +1677,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_3"];
+        post: operations["withdraw_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2509,7 +2669,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_2"];
+        post: operations["withdraw_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2541,7 +2701,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw_1"];
+        post: operations["withdraw_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2589,7 +2749,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["withdraw"];
+        post: operations["withdraw_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3508,6 +3668,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/split-resolutions/{resolutionId}/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/split-resolutions/{resolutionId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/splits/{splitId}/confirmations": {
         parameters: {
             query?: never;
@@ -3534,6 +3726,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/splits/{splitId}/resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resolutions"];
+        put?: never;
+        post: operations["raise_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4079,6 +4287,119 @@ export interface components {
             skillId?: string;
             status: string;
             suggesterName?: string;
+        };
+        AdminSplitDecisionLineView: {
+            /** Format: int64 */
+            amountVnd: number;
+            name?: string;
+            /** Format: uuid */
+            partyId: string;
+            /** Format: int32 */
+            percent: number;
+        };
+        AdminSplitDecisionRequest: {
+            reasoning: string;
+            shares: components["schemas"]["AdminSplitShareRequest"][];
+            stepUpCode: string;
+        };
+        AdminSplitDecisionView: {
+            /** Format: date-time */
+            decidedAt: string;
+            evidenceSnapshot: components["schemas"]["SplitEvidenceSnapshot"];
+            lines: components["schemas"]["AdminSplitDecisionLineView"][];
+            /** Format: int64 */
+            pooledVnd: number;
+            reasoning: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        AdminSplitPartyView: {
+            activeAtRelease: boolean;
+            mentor: boolean;
+            name?: string;
+            /** Format: uuid */
+            partyId: string;
+            wholeInterval: boolean;
+        };
+        AdminSplitPreviewLineView: {
+            /** Format: int64 */
+            amountVnd: number;
+            /** Format: uuid */
+            partyId: string;
+        };
+        AdminSplitPreviewRequest: {
+            shares: components["schemas"]["AdminSplitShareRequest"][];
+        };
+        AdminSplitPreviewView: {
+            lines: components["schemas"]["AdminSplitPreviewLineView"][];
+            /** Format: int64 */
+            pooledVnd: number;
+        };
+        AdminSplitResolutionDetail: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            /** Format: int32 */
+            cap?: number;
+            capApplies: boolean;
+            /** Format: int64 */
+            daysUndecided: number;
+            decision?: components["schemas"]["AdminSplitDecisionView"];
+            /** Format: date-time */
+            endedAt?: string;
+            evidenceReadable: boolean;
+            /** Format: uuid */
+            id: string;
+            jobContentGone: boolean;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle?: string;
+            /** Format: int32 */
+            milestoneNumber: number;
+            parties: components["schemas"]["AdminSplitPartyView"][];
+            /** Format: int64 */
+            pooledVnd: number;
+            /** Format: date-time */
+            raisedAt: string;
+            raiserName?: string;
+            reason?: string;
+            statements: components["schemas"]["AdminSplitStatementView"][];
+            /** @enum {string} */
+            status: "OPEN" | "WITHDRAWN" | "DECIDED";
+            undecidedLong: boolean;
+        };
+        AdminSplitResolutionRow: {
+            assigned: boolean;
+            assignedToMe: boolean;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            jobTitle?: string;
+            /** Format: int32 */
+            milestoneNumber: number;
+            /** Format: date-time */
+            raisedAt: string;
+            /** @enum {string} */
+            status: "OPEN" | "WITHDRAWN" | "DECIDED";
+            undecidedLong: boolean;
+        };
+        AdminSplitResolutionTakenView: {
+            assignedToMe: boolean;
+            /** Format: uuid */
+            id: string;
+        };
+        AdminSplitShareRequest: {
+            /** Format: uuid */
+            partyId: string;
+            percent: number;
+        };
+        AdminSplitStatementView: {
+            name?: string;
+            /** Format: uuid */
+            partyId: string;
+            /** Format: date-time */
+            submittedAt: string;
+            text: string;
         };
         AdminStatementView: {
             side: string;
@@ -6497,6 +6818,7 @@ export interface components {
             falsePositives: components["schemas"]["Queue"];
             lowFeedback: components["schemas"]["Queue"];
             skillSuggestions: components["schemas"]["Queue"];
+            splitResolutions: components["schemas"]["Queue"];
             stalledEvents: components["schemas"]["Queue"];
             teamIssues: components["schemas"]["Queue"];
         };
@@ -7459,6 +7781,106 @@ export interface components {
             /** Format: int32 */
             splitVersionNo: number;
         };
+        SplitEvidenceChatView: {
+            /** Format: date-time */
+            from?: string;
+            messages: components["schemas"]["SplitEvidenceMessageView"][];
+            /** Format: date-time */
+            to: string;
+            /** Format: int32 */
+            total: number;
+        };
+        SplitEvidenceCommitView: {
+            /** Format: int64 */
+            authorGithubId?: number;
+            /** Format: uuid */
+            handoverId: string;
+            message: string;
+            /** Format: uuid */
+            partyId?: string;
+            partyName?: string;
+            /** Format: int32 */
+            round: number;
+            sha: string;
+        };
+        SplitEvidenceHistoryView: {
+            action: string;
+            actorName?: string;
+            /** Format: date-time */
+            at: string;
+            comment?: string;
+        };
+        SplitEvidenceLineView: {
+            /** Format: date-time */
+            confirmedAt?: string;
+            /** Format: uuid */
+            partyId: string;
+            /** Format: int32 */
+            percent: number;
+        };
+        SplitEvidenceMessageView: {
+            attachmentName?: string;
+            author?: string;
+            body: string;
+            /** Format: uuid */
+            messageId: string;
+            /** Format: date-time */
+            sentAt: string;
+        };
+        SplitEvidencePairView: {
+            firstCustomer: boolean;
+            firstName?: string;
+            kind: string;
+            secondCustomer: boolean;
+            secondName?: string;
+        };
+        SplitEvidencePartyView: {
+            activeAtRelease: boolean;
+            /** Format: date-time */
+            activeFrom?: string;
+            /** Format: date-time */
+            activeTo?: string;
+            mentor: boolean;
+            name?: string;
+            /** Format: uuid */
+            partyId: string;
+            wholeInterval: boolean;
+        };
+        SplitEvidenceSnapshot: {
+            commits: components["schemas"]["SplitSnapshotCommit"][];
+            crewChat: components["schemas"]["SplitSnapshotChat"];
+            /** Format: int32 */
+            personLinks: number;
+            /** Format: date-time */
+            takenAt: string;
+            versions: components["schemas"]["SplitSnapshotVersion"][];
+            workItems: components["schemas"]["SplitSnapshotWorkItem"][];
+        };
+        SplitEvidenceVersionView: {
+            authorName?: string;
+            /** Format: int32 */
+            capPercent?: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            kind: "DRAFT" | "DEFAULT" | "DECISION" | "MENTOR_ONLY";
+            lines: components["schemas"]["SplitEvidenceLineView"][];
+            /** Format: int32 */
+            versionNo: number;
+        };
+        SplitEvidenceVersionsView: {
+            parties: components["schemas"]["SplitEvidencePartyView"][];
+            versions: components["schemas"]["SplitEvidenceVersionView"][];
+        };
+        SplitEvidenceWorkItemView: {
+            assigneeName?: string;
+            history: components["schemas"]["SplitEvidenceHistoryView"][];
+            key: string;
+            status: string;
+            title: string;
+            /** Format: uuid */
+            workItemId: string;
+        };
         SplitLineView: {
             /** Format: int64 */
             amountVnd: number;
@@ -7498,6 +7920,53 @@ export interface components {
             /** Format: int64 */
             pooledVnd: number;
         };
+        SplitResolutionRequest: {
+            reason: string;
+            /** Format: int32 */
+            splitVersionNo: number;
+        };
+        SplitResolutionStatementRequest: {
+            text: string;
+        };
+        SplitResolutionStatementView: {
+            mentor: boolean;
+            name?: string;
+            /** Format: uuid */
+            partyId: string;
+            /** Format: date-time */
+            submittedAt: string;
+            text: string;
+        };
+        SplitResolutionView: {
+            /** Format: date-time */
+            endedAt?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            raisedAt: string;
+            raiserName?: string;
+            /** Format: uuid */
+            raiserPartyId: string;
+            reason: string;
+            reasoning?: string;
+            /** Format: int32 */
+            splitVersionNo: number;
+            statements: components["schemas"]["SplitResolutionStatementView"][];
+            /** @enum {string} */
+            status: "OPEN" | "WITHDRAWN" | "DECIDED";
+            viewerIsRaiser: boolean;
+            viewerMayState: boolean;
+        };
+        SplitResolutionWithdrawnView: {
+            /** Format: date-time */
+            confirmationDueAt?: string;
+            /** @enum {string} */
+            splitStatus: "AWAITING_DRAFT" | "PROPOSED" | "IN_RESOLUTION" | "FINAL";
+        };
+        SplitResolutionsView: {
+            resolutions: components["schemas"]["SplitResolutionView"][];
+            viewerMayRaise: boolean;
+        };
         SplitRulesView: {
             /** Format: int32 */
             confirmationDays: number;
@@ -7512,6 +7981,37 @@ export interface components {
             /** Format: uuid */
             partyId: string;
             percent: number;
+        };
+        SplitSnapshotChat: {
+            /** Format: uuid */
+            lastMessageId?: string;
+            /** Format: date-time */
+            lastSentAt?: string;
+            /** Format: int32 */
+            messageCount: number;
+        };
+        SplitSnapshotCommit: {
+            /** Format: uuid */
+            handoverId: string;
+            sha: string;
+        };
+        SplitSnapshotVersion: {
+            /** Format: int32 */
+            confirmations: number;
+            /** Format: date-time */
+            createdAt: string;
+            kind: string;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        SplitSnapshotWorkItem: {
+            /** Format: int32 */
+            number: number;
+            status: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: uuid */
+            workItemId: string;
         };
         SplitVersionRequest: {
             shares: components["schemas"]["SplitShareRequest"][];
@@ -8090,7 +8590,7 @@ export interface operations {
             };
         };
     };
-    decide_2: {
+    decide_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -8116,7 +8616,7 @@ export interface operations {
             };
         };
     };
-    take_2: {
+    take_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -8469,7 +8969,7 @@ export interface operations {
             };
         };
     };
-    decide_1: {
+    decide_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -8651,7 +9151,7 @@ export interface operations {
             };
         };
     };
-    take_1: {
+    take_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -9063,6 +9563,234 @@ export interface operations {
             };
         };
     };
+    list_1: {
+        parameters: {
+            query?: {
+                undecided?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSplitResolutionRow"][];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSplitResolutionDetail"];
+                };
+            };
+        };
+    };
+    decide_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSplitDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSplitResolutionDetail"];
+                };
+            };
+        };
+    };
+    commits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitEvidenceCommitView"][];
+                };
+            };
+        };
+    };
+    crewChat_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitEvidenceChatView"];
+                };
+            };
+        };
+    };
+    personLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitEvidencePairView"][];
+                };
+            };
+        };
+    };
+    versions_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitEvidenceVersionsView"];
+                };
+            };
+        };
+    };
+    workItems_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitEvidenceWorkItemView"][];
+                };
+            };
+        };
+    };
+    preview_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSplitPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSplitPreviewView"];
+                };
+            };
+        };
+    };
+    take_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSplitResolutionTakenView"];
+                };
+            };
+        };
+    };
     statistics: {
         parameters: {
             query?: never;
@@ -9439,7 +10167,7 @@ export interface operations {
             };
         };
     };
-    withdraw_4: {
+    withdraw_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -10454,7 +11182,7 @@ export interface operations {
             };
         };
     };
-    withdraw_3: {
+    withdraw_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -12121,7 +12849,7 @@ export interface operations {
             };
         };
     };
-    withdraw_2: {
+    withdraw_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -12163,7 +12891,7 @@ export interface operations {
             };
         };
     };
-    withdraw_1: {
+    withdraw_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12225,7 +12953,7 @@ export interface operations {
             };
         };
     };
-    withdraw: {
+    withdraw_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -13774,6 +14502,54 @@ export interface operations {
             };
         };
     };
+    addStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitResolutionStatementRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitResolutionsView"];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitResolutionWithdrawnView"];
+                };
+            };
+        };
+    };
     confirm_1: {
         parameters: {
             query?: never;
@@ -13822,6 +14598,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SplitPreviewView"];
+                };
+            };
+        };
+    };
+    resolutions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                splitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitResolutionsView"];
+                };
+            };
+        };
+    };
+    raise_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                splitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitResolutionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitResolutionsView"];
                 };
             };
         };

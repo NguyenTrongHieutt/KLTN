@@ -95,6 +95,12 @@ public enum MatrixCaller {
 	/** An Administrator assigned to an Abuse Report, holding the grant on the one item it names. */
 	ADMIN_ABUSE_REPORT_GRANT,
 
+	/**
+	 * The Administrator who took the crew Job's open Split Resolution, holding its read grant: the split's versions, the Crew
+	 * Chat, and every party's Work Items ({@code forSplitResolution}, Story 22.3).
+	 */
+	ADMIN_SPLIT_RESOLUTION_GRANT,
+
 	/** The author of the harness's own record, for {@code AuthorizationHarnessIT} only; no matrix row uses it. */
 	AUTHOR
 

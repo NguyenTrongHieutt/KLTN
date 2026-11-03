@@ -335,6 +335,13 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/features/admin/AdminModerationPage')).AdminModerationPage }),
       },
       {
+        // ADM-4's "Phân chia tiền" (UX-DR107, Story 22.3): a static segment, so it outranks a Dispute's ID.
+        path: 'tranh-chap/phan-chia/:resolutionId?',
+        lazy: async () => ({
+          Component: (await import('@/features/admin/AdminSplitResolutionsPage')).AdminSplitResolutionsPage,
+        }),
+      },
+      {
         path: 'tranh-chap/:disputeId?',
         lazy: async () => ({ Component: (await import('@/features/admin/AdminDisputesPage')).AdminDisputesPage }),
       },

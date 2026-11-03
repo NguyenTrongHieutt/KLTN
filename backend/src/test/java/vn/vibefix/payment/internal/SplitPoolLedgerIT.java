@@ -49,6 +49,8 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.Releases;
+import vn.vibefix.operations.OperationRun;
+import vn.vibefix.operations.Outcome;
 import vn.vibefix.shared.ErasureOutcome;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.HeldCrewJob;
@@ -107,6 +109,9 @@ class SplitPoolLedgerIT extends IntegrationTest {
 
 	@Autowired
 	private OperationWorker worker;
+
+	@Autowired
+	private SplitPoolRefusedOperation refusedOperation;
 
 	@Autowired
 	private FailedOperations failed;
@@ -458,6 +463,78 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		refusedOnce("PARTS_OFF");
 	}
 
+	/** Story 22.3 (FR-64): a refused split has a way back; the failed list shows why, and a retry pays once it is fixed. */
+	@Test
+	void aRefusedSplitIsRetriedOnTheFailedListAndPaysOnceFixed() throws Exception {
+		accept();
+		UUID split = splitId();
+		Map<UUID, Integer> bad = percentages(30, 50, 30);
+		finalizeBySql(split, bad);
+		publish(event(split, bad));
+		refusedOnce("PARTS_OFF");
+		UUID operation = this.failed.findAll().getFirst().operationId();
+		assertThat(this.jdbc.sql("SELECT payload::text FROM operations.external_operation WHERE id = :id")
+			.param("id", operation)
+			.query(String.class)
+			.single()).as("no percentages in the payload").doesNotContain("percent").doesNotContain("\"30\"").doesNotContain(": 30");
+
+		assertThat(this.failed.retry(operation)).isTrue();
+		this.worker.runDue(Lane.VNPAY);
+		assertThat(this.failed.findAll()).extracting(FailedOperations.FailedOperation::errorCode)
+			.as("still refused, with its reason").containsExactly("PARTS_OFF");
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'POOL_RELEASED')")).isZero();
+
+		this.jdbc.sql("""
+				INSERT INTO job.milestone_split_version (split_id, version_no, kind, cap_percent, author_account_id, created_at)
+				VALUES (:split, 2, 'DRAFT', 30, :mentor, :now)
+				""").param("split", split).param("mentor", this.world.hung()).param("now", Timestamp.from(this.clock.instant())).update();
+		percentages(20, 40, 40).forEach((party, percent) -> this.jdbc.sql("""
+				INSERT INTO job.milestone_split_share (split_id, version_no, party_id, percent)
+				SELECT :split, 2, id, :percent FROM job.milestone_split_party WHERE split_id = :split AND party_account_id = :party
+				""").param("split", split).param("percent", percent).param("party", party).update());
+		this.jdbc.sql("UPDATE job.milestone_split SET final_version_no = 2 WHERE id = :split").param("split", split).update();
+
+		assertThat(this.failed.retry(operation)).isTrue();
+		this.worker.runDue(Lane.VNPAY);
+
+		assertThat(this.failed.findAll()).isEmpty();
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(3);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'")).isOne();
+		assertThat(this.ledger.releasedTotal(this.milestone)).isEqualTo(HeldCrewJob.PRICE);
+	}
+
+	/** Story 22.3 (FR-64): a split paid since it was refused is done: the re-run succeeds and writes nothing. */
+	@Test
+	void reRunningAfterPaymentSucceedsWithNoNewRows() throws Exception {
+		accept();
+		finalize(percentages(20, 40, 40));
+		await().atMost(Duration.ofSeconds(15)).until(() -> count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'") == 1);
+		awaitListeners();
+		long rows = count("SELECT count(*) FROM payment.ledger_entry");
+
+		assertThat(reRun("PARTS_OFF")).isInstanceOf(Outcome.Succeeded.class);
+
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(rows);
+	}
+
+	/** Story 22.3 (FR-64): with a party erased before it was ever paid, nobody can be named: the re-run writes nothing. */
+	@Test
+	void reRunningWithAPartyErasedIsRefusedAsPartiesDifferWithNoRows() throws Exception {
+		accept();
+		finalizeBySql(splitId(), percentages(20, 40, 40));
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = :now WHERE id = :id").param("now", now).param("id", this.world.job()).update();
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'JOB_ENDED', released_at = :now, window_end = :now WHERE job_id = :id
+				""").param("now", now).param("id", this.world.job()).update();
+		ErasureOutcome outcome = this.transactions.execute(status -> this.personalData.erase(this.world.minh()));
+		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
+
+		assertThat(reRun("PARTS_OFF")).isEqualTo(new Outcome.Transient("PARTIES_DIFFER"));
+
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'POOL_RELEASED')")).isZero();
+	}
+
 	@Test
 	void anAlertReachesAdministratorsThroughTheFailedQueue() throws Exception {
 		UUID administrator = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
@@ -785,6 +862,12 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		this.transactions.executeWithoutResult(status -> this.events.publishEvent(event));
 	}
 
+	/** {@code payment.split_pool_refused} run again, as FR-64's retry on ADM-7 runs it. */
+	private Outcome reRun(String reason) {
+		return this.refusedOperation.run(new OperationRun(UUID.randomUUID(), SplitPoolRefusedOperation.TYPE + ":" + this.milestone,
+				SplitPoolRefusedOperation.TYPE, 1, Map.of("milestoneId", this.milestone.toString(), "reason", reason), null));
+	}
+
 	private void refusedOnce(String reason) throws Exception {
 		awaitListeners();
 		assertThat(this.jdbc.sql("SELECT payload ->> 'reason' FROM operations.external_operation WHERE type = 'payment.split_pool_refused'")
@@ -792,7 +875,7 @@ class SplitPoolLedgerIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'POOL_RELEASED')")).isZero();
 		this.worker.runDue(Lane.VNPAY);
 		assertThat(this.failed.findAll()).extracting(FailedOperations.FailedOperation::type, FailedOperations.FailedOperation::errorCode)
-			.contains(org.assertj.core.groups.Tuple.tuple(SplitPoolRefusedOperation.TYPE, "SPLIT_POOL_REFUSED"));
+			.contains(org.assertj.core.groups.Tuple.tuple(SplitPoolRefusedOperation.TYPE, reason));
 	}
 
 	/** Lets the listeners of what was published finish: the registry holds a publication until its listener did. */

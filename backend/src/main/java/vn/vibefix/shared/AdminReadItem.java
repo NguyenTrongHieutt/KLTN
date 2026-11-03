@@ -1,6 +1,7 @@
 package vn.vibefix.shared;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -42,7 +43,7 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 
 	/**
 	 * A Dispute's grant: the Job Chat, Work Items with history, notes, the Attachment list, and
-	 * Pages; never the Crew Chat or Crew Terms.
+	 * Pages; never the Crew Chat, Crew Terms, or split versions.
 	 */
 	public static Set<AdminReadItem> forDispute() {
 		return Set.of(all(AdminReadScope.JOB_CHAT), all(AdminReadScope.WORK_ITEMS),
@@ -56,6 +57,19 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 	public static Set<AdminReadItem> forEscalatedTeamIssue(UUID raiserAccountId) {
 		return Set.of(all(AdminReadScope.CREW_CHAT), involving(AdminReadScope.WORK_ITEMS, raiserAccountId),
 				all(AdminReadScope.CREW_TERMS));
+	}
+
+	/**
+	 * A Split Resolution's grant (AD-20, AD-40): the Milestone's split versions, the Crew Chat, and every split party's
+	 * Work Item histories; never the Job Chat.
+	 * @param partyAccounts the split's parties who still have an account
+	 */
+	public static Set<AdminReadItem> forSplitResolution(UUID splitId, Collection<UUID> partyAccounts) {
+		Set<AdminReadItem> items = new HashSet<>();
+		items.add(one(AdminReadScope.SPLIT_VERSIONS, splitId));
+		items.add(all(AdminReadScope.CREW_CHAT));
+		partyAccounts.forEach(account -> items.add(involving(AdminReadScope.WORK_ITEMS, account)));
+		return Set.copyOf(items);
 	}
 
 	/** An Abuse Report's grant: the single item it names. */

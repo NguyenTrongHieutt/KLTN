@@ -10,14 +10,17 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -26,6 +29,7 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.MentorDirectory;
+import vn.vibefix.identity.PersonSignals;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -123,9 +127,16 @@ class AbuseReports {
 
 	private final MentorDirectory mentors;
 
+	private final PersonSignals signals;
+
+	private final TransactionTemplate own;
+
 	AbuseReports(JdbcClient jdbc, List<ReportableContent> reportables, List<AdminReadGrants> grants, ContentHiding hiding,
 			Notifications notifications, AuditLog auditLog, IdGenerator ids, Clock clock,
-			PlatformTransactionManager transactionManager, MentorDirectory mentors) {
+			PlatformTransactionManager transactionManager, MentorDirectory mentors, PersonSignals signals) {
+		this.signals = signals;
+		this.own = new TransactionTemplate(transactionManager);
+		this.own.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 		this.mentors = mentors;
 		this.jdbc = jdbc;
 		this.reportables = reportables;
@@ -233,7 +244,7 @@ class AbuseReports {
 	/**
 	 * "Nhận xử lý": the Administrator takes the report, over another if need be. For a chat message or a Work
 	 * Item note this opens a grant on that one item; the assignee taking it again changes nothing.
-	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT ALREADY_DECIDED}
+	 * @throws ApiException {@code NOT_FOUND}; {@code CONFLICT ALREADY_DECIDED}; {@code GUARD_FAILED CONFLICT_OF_INTEREST}
 	 */
 	@Transactional
 	Report take(UUID reportId, UUID administrator) {
@@ -244,6 +255,7 @@ class AbuseReports {
 		if (administrator.equals(report.assigneeId()) && (report.grantId() != null || !report.granted())) {
 			return report;
 		}
+		refuseIfLinked(report, administrator);
 		Instant now = this.clock.instant();
 		UUID previous = report.grantId();
 		if (previous != null) {
@@ -265,6 +277,23 @@ class AbuseReports {
 			.update();
 		audit(administrator, "admin.abuse_report_taken", report);
 		return find(reportId).orElseThrow();
+	}
+
+	/**
+	 * An Administrator who shares a person-link signal with the reporter or the reported account does not take the report, and
+	 * another does (AD-19, A-17): one question to {@code identity} per account, and the refusal names neither the account nor
+	 * the signal. The refusal rolls the take back, so its audit entry commits on its own.
+	 */
+	private void refuseIfLinked(Report report, UUID administrator) {
+		boolean linked = Stream.of(report.reporterId(), report.authorId(), "USER".equals(report.kind()) ? report.targetId() : null)
+			.filter(Objects::nonNull)
+			.distinct()
+			.anyMatch(account -> this.signals.sharesPersonSignal(administrator, account));
+		if (!linked) {
+			return;
+		}
+		this.own.executeWithoutResult(status -> audit(administrator, "admin.take_conflict_refused", report));
+		throw new ApiException(ErrorCode.GUARD_FAILED, AdminReason.CONFLICT_OF_INTEREST);
 	}
 
 	/**

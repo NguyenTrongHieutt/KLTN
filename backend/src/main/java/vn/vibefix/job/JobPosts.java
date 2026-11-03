@@ -71,6 +71,12 @@ public interface JobPosts {
 	/** Any Job by ID, whatever its state; empty for no such Job. */
 	Optional<JobPostState> post(UUID jobId);
 
+	/**
+	 * {@link #post} as a granted Administrator's read takes it (AD-24, AD-40): the bare row a Product's deletion leaves while a
+	 * split of the Job is open is found too, so a Split Resolution keeps its evidence. Every other reader treats it as gone.
+	 */
+	Optional<JobPostState> postUnderGrant(UUID jobId);
+
 	/** Every Job of a Product, whatever its state, newest first: the earlier Jobs FR-70 offers. */
 	List<JobPostState> productJobs(UUID productId);
 
