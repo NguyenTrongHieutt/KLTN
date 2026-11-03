@@ -219,6 +219,9 @@ function outcomeText(issue: TeamIssue) {
     return undefined
   }
   const ending = t(`screen.teamIssue.ending.${issue.ending as 'ACCEPTED' | 'LAPSED' | 'DECIDED' | 'MOOT'}`)
+  if (issue.ending === 'MOOT') {
+    return ending
+  }
   const outcome = t(issue.outcomeRatingRemoved ? 'screen.teamIssue.outcome.removed' : 'screen.teamIssue.outcome.kept')
   return `${ending} · ${outcome}`
 }

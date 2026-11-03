@@ -134,6 +134,26 @@ describe('JOB-1: the Mentor reads the Team Issues of the Job (AD-40)', () => {
     expect(screen.getByText('Điểm này chưa đúng với phần việc mình làm.')).toBeInTheDocument()
     expect(screen.getByText('Hãy trả lời trước 28/10')).toBeInTheDocument()
   })
+
+  it('reads how each ended issue came out, a moot one by its ending alone', async () => {
+    const ended = { phase: 'ENDED', endedAt: '2026-10-30T03:00:00Z' }
+    fakeBackend(signedInUser, {
+      'GET /api/v1/boards/j1/team-issues': () =>
+        json({
+          jobId: 'j1',
+          mentor: true,
+          issues: [
+            { ...issue, ...ended, id: 'i1', ending: 'MOOT', outcomeRatingRemoved: true },
+            { ...issue, ...ended, id: 'i2', ending: 'DECIDED', outcomeRatingRemoved: false },
+          ],
+        }),
+    })
+    renderWith(<JobTeamIssues jobId="j1" />)
+
+    expect(await screen.findByText('Kết thúc vì điểm đã được gỡ theo cách khác')).toBeInTheDocument()
+    expect(screen.queryByText(/Điểm đã được rút lại/)).toBeNull()
+    expect(screen.getByText('Kết thúc theo quyết định của quản trị viên · Điểm giữ nguyên')).toBeInTheDocument()
+  })
 })
 
 describe('Story 12.2: the Mentor answers once, the raiser accepts or escalates (AD-40)', () => {
