@@ -92,6 +92,10 @@ class AdministratorCreationIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT actor_account_id FROM audit.audit_entry WHERE action = 'identity.administrator_created'
 				""").query(UUID.class).single()).isEqualTo(this.ha);
+		assertThat(this.jdbc.sql("SELECT kind || ':' || source FROM identity.person_signal WHERE account_id = :id")
+			.param("id", quan).query(String.class).list())
+			.as("an Administrator's email is a person-link signal from their creation (Story 22.3, A-17)")
+			.containsExactly("EMAIL:ADMIN_EMAIL");
 
 		String token = enrolmentToken();
 		assertThat(this.jdbc.sql("SELECT payload::text FROM operations.external_operation").query(String.class).list())

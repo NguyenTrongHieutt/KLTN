@@ -353,7 +353,7 @@ final class CrewJobWorld {
 				VALUES (:id, :job, 0, 'Bảng quản trị Supabase', 'Xem lỗi đặt bàn', :at)
 				""").param("id", access).param("job", job).param("at", Timestamp.from(SIGNED)).update();
 		world.put("accessId", access);
-		JobContent.board(this.jdbc, job, product, "VNM", 2);
+		JobContent.board(this.jdbc, job, product, "VNM", 3);
 		// The active member's Story, written after the windows ended: its title is the WORK_ITEM_TITLE canary.
 		UUID item = JobContent.workItem(this.jdbc, job, 1, value("WORK_ITEM_TITLE"), milestone, criterion,
 				MutableClock.DEFAULT_INSTANT);

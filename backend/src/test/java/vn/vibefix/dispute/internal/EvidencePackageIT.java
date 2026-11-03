@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import vn.vibefix.authz.JobContent;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
@@ -201,6 +202,41 @@ class EvidencePackageIT extends IntegrationTest {
 				+ this.ha.accountId() + "'")).isEqualTo(6);
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'chat.admin_read' AND actor_account_id = '"
 				+ this.ha.accountId() + "'")).isOne();
+	}
+
+	/**
+	 * Story 22.3 (AD-20, AD-40): a Dispute and a Split Resolution on one Job lend each other nothing. Each assignee reads
+	 * what their own case's grant covers: the Job Chat and the Evidence Package, or the Crew Chat and the split's evidence.
+	 */
+	@Test
+	void aDisputeAndASplitResolutionOnOneJobLendEachOtherNoGrant() throws Exception {
+		UUID dispute = open();
+		UUID split = JobContent.proposedSplit(this.jdbc, this.world.job(), this.world.product(), this.world.milestone(), 1,
+				this.world.hung(), this.world.vy(), this.world.minh(), 30, 40, 30, this.clock.instant(),
+				this.clock.instant().plus(Duration.ofDays(3)))[0];
+		this.mvc.perform(post("/api/v1/splits/" + split + "/resolutions").with(as(this.world.vy(), null)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"splitVersionNo\":1,\"reason\":\"Phần của tôi quá ít\"}"))
+			.andExpect(status().isCreated());
+		UUID resolution = this.jdbc.sql("SELECT id FROM dispute.split_resolution").query(UUID.class).single();
+		String splitEvidence = "/api/v1/admin/split-resolutions/" + resolution + "/evidence/versions";
+		String crewChat = "/api/v1/boards/" + this.world.job() + "/crew-chat/messages";
+
+		this.mvc.perform(post("/api/v1/admin/split-resolutions/" + resolution + "/take").with(admin(this.ha.accountId())).with(csrf()))
+			.andExpect(status().isOk());
+		take(this.quan, dispute);
+
+		this.mvc.perform(get(splitEvidence).with(admin(this.ha.accountId()))).andExpect(status().isOk());
+		this.mvc.perform(get(crewChat).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Tin nhắn riêng của nhóm thực hiện.")));
+		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isNotFound());
+		this.mvc.perform(get(jobChat()).with(admin(this.ha.accountId()))).andExpect(status().isNotFound());
+
+		evidence(this.quan, dispute, "agreement").andExpect(status().isOk());
+		this.mvc.perform(get(jobChat()).with(admin(this.quan))).andExpect(status().isOk());
+		this.mvc.perform(get(splitEvidence).with(admin(this.quan))).andExpect(status().isNotFound());
+		this.mvc.perform(get(crewChat).with(admin(this.quan))).andExpect(status().isNotFound());
 	}
 
 	@Test

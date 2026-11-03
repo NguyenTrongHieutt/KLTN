@@ -94,6 +94,17 @@ class NotificationCatalogTest {
 		}
 	}
 
+	/** Story 22.3 (FR-84, AD-40): a Split Resolution has its four types, and no audience of theirs is the Customer. */
+	@Test
+	void aSplitResolutionNeverSpeaksToTheCustomer() {
+		assertThat(this.catalog.notificationTypes()).filteredOn(type -> type.key().startsWith("dispute.split_resolution"))
+			.extracting(NotificationType::key)
+			.containsExactlyInAnyOrder("dispute.split_resolution_requested", "dispute.split_resolution_withdrawn",
+					"dispute.split_resolution_decided", "dispute.split_resolution_undecided");
+		assertThat(this.catalog.notificationTypes()).filteredOn(type -> type.key().startsWith("dispute.split_resolution"))
+			.allSatisfy(type -> assertThat(type.audiences()).doesNotContain(Audience.CUSTOMER));
+	}
+
 	@Test
 	void theRegistryRefusesTwoEntriesWithOneKey() {
 		NotificationTypes twice = new NotificationTypes();
