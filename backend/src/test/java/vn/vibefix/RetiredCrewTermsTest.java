@@ -21,11 +21,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * SG-63, AD-23, AD-40 (Story 22.4): money moves only through the Milestone Splits, so nothing live names the Crew Terms,
- * the share holds, the {@code SHARE} subject of a Team Issue, or a retired reason, in {@code backend/src/main} outside its
- * Flyway history and in {@code frontend/src} outside its tests. Tests may name them: a migration test seeds them. SQL's
- * {@code FOR SHARE} is a row lock, and a word-bounded {@code SHARE} never matches a name such as the canary
- * {@code CREW_SHARE}. {@code MILESTONE_NOT_HELD} left {@code job}, {@code payment} and {@code dispute} only: {@code work}
- * and {@code delivery} guard unrelated commands with it.
+ * in English or as the copy's "điều khoản nhóm", the share holds, the {@code SHARE} subject of a Team Issue, or a retired
+ * reason, in {@code backend/src/main} outside its Flyway history and in {@code frontend/src} outside its tests. Tests may
+ * name them: a migration test seeds them. SQL's {@code FOR SHARE} and {@code FOR KEY SHARE} are row locks, and a
+ * word-bounded {@code SHARE} never matches a name such as the canary {@code CREW_SHARE}. {@code MILESTONE_NOT_HELD} left
+ * {@code job}, {@code payment} and {@code dispute} only: {@code work} and {@code delivery} guard unrelated commands with it.
  */
 class RetiredCrewTermsTest {
 
@@ -39,8 +39,9 @@ class RetiredCrewTermsTest {
 
 	/** What no live file may say, each with what it names. */
 	static final Map<String, Pattern> RETIRED = Map.of("the Crew Terms", Pattern.compile("crew.?terms", Pattern.CASE_INSENSITIVE),
+			"the Crew Terms, in Vietnamese", Pattern.compile("điều khoản nhóm", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE),
 			"the share holds", Pattern.compile("share.?hold|hold.?shares", Pattern.CASE_INSENSITIVE), "the SHARE subject",
-			Pattern.compile("(?<!FOR )\\bSHARE\\b"), "a retired reason",
+			Pattern.compile("(?<!FOR )(?<!KEY )\\bSHARE\\b"), "a retired reason",
 			Pattern.compile("\\b(?:SHARE_TRANSFER_TOO_LARGE|CREW_NOT_CONFIRMED|CREW_LOCKED|CREW_CHANGE_REQUIRED"
 					+ "|CREW_INACTIVE_PARTY|SHARES_INVALID|PAYEES)\\b"));
 
@@ -70,6 +71,7 @@ class RetiredCrewTermsTest {
 			assertThat(reasons.path(module).has("MILESTONE_NOT_HELD")).as("reason.%s", module).isFalse();
 		}
 		assertThat(reasons.path("work").has("MILESTONE_NOT_HELD")).isTrue();
+		assertThat(reasons.path("delivery").has("MILESTONE_NOT_HELD")).isTrue();
 	}
 
 	@Test
@@ -77,11 +79,12 @@ class RetiredCrewTermsTest {
 		Path file = Path.of("Example.java");
 		for (String text : List.of("the Crew Terms version", "crew_terms_version_no", "CrewTermsGrants", "crewTerms", "CREW_TERMS",
 				"payment.share_hold", "ShareHolds", "holdShares", "subject = 'SHARE'", "Subject.SHARE", "SHARE_TRANSFER_TOO_LARGE",
-				"CREW_INACTIVE_PARTY", "PAYEES")) {
+				"CREW_INACTIVE_PARTY", "PAYEES", "theo Điều khoản nhóm thực hiện")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
-		for (String text : List.of("SELECT id FROM job.job WHERE id = :id FOR SHARE", "CREW_SHARE", "NOT_SHAREABLE",
-				"Pages.Visibility.SHARED", "a share of the pool", "MILESTONE_NOT_HELD", "the Crew's terms of work")) {
+		for (String text : List.of("SELECT id FROM job.job WHERE id = :id FOR SHARE",
+				"SELECT id FROM job.job FOR KEY SHARE", "CREW_SHARE", "NOT_SHAREABLE", "Pages.Visibility.SHARED",
+				"a share of the pool", "MILESTONE_NOT_HELD", "the Crew's terms of work")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
 	}
