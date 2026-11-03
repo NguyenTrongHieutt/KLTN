@@ -2,4 +2,4 @@ subject: {name} gửi khiếu nại nội bộ cho {job}. Hãy trả lời trư�
 ---
 Xin chào,
 
-{name} gửi khiếu nại nội bộ cho công việc {job}, về phần chia một giai đoạn hoặc điểm bạn đã chấm. Hãy mở công việc trên vibefix và trả lời trước {date}. Khách hàng không thấy khiếu nại này.
+{name} gửi khiếu nại nội bộ cho công việc {job}, về điểm bạn đã chấm. Hãy mở công việc trên vibefix và trả lời trước {date}. Khách hàng không thấy khiếu nại này.

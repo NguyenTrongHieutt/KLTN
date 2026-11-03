@@ -69,7 +69,7 @@ function IssueList({ current }: { current?: string }) {
                   <span className="text-label font-semibold break-words">{row.jobTitle}</span>
                   <span className="text-caption text-muted-foreground">
                     {[
-                      t('screen.admin.teamIssues.subject.RATING'),
+                      t('screen.admin.teamIssues.subject'),
                       formatDayMonthTime(row.escalatedAt),
                       t(row.phase === 'ESCALATED' ? 'screen.admin.teamIssues.waiting' : 'screen.admin.teamIssues.decided'),
                       row.assignedToMe
@@ -109,7 +109,7 @@ function Detail({ data }: { data: AdminTeamIssue }) {
     <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 text-body-sm">
       <h2 className="text-h2 break-words">{data.jobTitle}</h2>
       <p className="text-caption text-muted-foreground">
-        {t('screen.admin.teamIssues.subject.RATING')} ·{' '}
+        {t('screen.admin.teamIssues.subject')} ·{' '}
         {t('screen.admin.teamIssues.people', { raiser: data.raiserName ?? '', mentor: data.mentorName ?? '' })} ·{' '}
         {t('screen.admin.teamIssues.escalatedAt', { time: formatDayMonthTime(data.escalatedAt) })}
       </p>

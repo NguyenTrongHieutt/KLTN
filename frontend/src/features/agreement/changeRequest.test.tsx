@@ -5,8 +5,10 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
+import { Toaster } from '@/components/Toaster'
 import { redirectTo } from '@/lib/redirect'
 import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
+import { ChangeRequestSection } from './ChangeRequestSection'
 
 vi.mock('@/lib/redirect', () => ({ redirectTo: vi.fn() }))
 
@@ -166,6 +168,7 @@ describe('JOB-6 full Change Requests (FR-36, Story 14.1)', () => {
     const more = within(section).getAllByText('Đổi tên, giá, tiêu chí hoặc bỏ giai đoạn')
     await user.click(more[more.length - 1])
     expect(within(section).getByText(/tăng giá cần thanh toán thêm/)).toBeInTheDocument()
+    expect(within(section).queryByText(/phần chia/i)).toBeNull()
     const price = within(section).getByLabelText('Giá giai đoạn 3 (đồng)')
     await user.clear(price)
     await user.type(price, '600000')
@@ -187,6 +190,30 @@ describe('JOB-6 full Change Requests (FR-36, Story 14.1)', () => {
     })
     expect(await within(section).findByText('Giai đoạn 3: giá từ 500.000 ₫ thành 600.000 ₫')).toBeInTheDocument()
     expect(within(section).getByText('Giai đoạn 3: thêm tiêu chí Có biểu đồ')).toBeInTheDocument()
+  })
+
+  it('tells the Mentor alone that shares are set per Milestone by its split (Story 22.4)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/change-requests': () => json(view({ audience: 'MENTOR' })),
+      'GET /api/v1/boards/j1/agreement-versions': () => json({ jobId: 'j1', versions: [] }),
+    })
+    const router = createMemoryRouter([{ path: '/', element: <ChangeRequestSection jobId="j1" /> }])
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <Toaster>
+          <RouterProvider router={router} />
+        </Toaster>
+      </QueryClientProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Đề nghị hạn mới' }))
+    expect(
+      screen.getByText(
+        'Phần chia của từng thành viên được đặt theo từng giai đoạn sau khi nghiệm thu, không nằm trong yêu cầu thay đổi.',
+      ),
+    ).toBeInTheDocument()
   })
 })
 
