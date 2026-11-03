@@ -4663,16 +4663,28 @@ export interface components {
             /** Format: int64 */
             baseAmountVnd: number;
             crew: components["schemas"]["CrewPartView"][];
+            /** Format: date-time */
+            finalAt?: string;
+            /** @enum {string} */
+            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
             /** Format: uuid */
             jobId: string;
+            jobLive: boolean;
             jobTitle: string;
+            /** Format: uuid */
+            milestoneId: string;
             milestoneTitle: string;
             /** Format: int32 */
             number: number;
+            pending: boolean;
             /** Format: date-time */
             releasedAt: string;
+            /** @enum {string} */
+            role?: "MENTOR" | "CREW";
             /** Format: int32 */
             splitVersionNo?: number;
+            /** @enum {string} */
+            status?: "AWAITING_DRAFT" | "PROPOSED" | "IN_RESOLUTION" | "FINAL";
             /** Format: int64 */
             yourPartVnd: number;
             /** Format: int32 */
@@ -5211,6 +5223,7 @@ export interface components {
         CrewPartView: {
             /** Format: int64 */
             amountVnd: number;
+            erased: boolean;
             name: string;
             /** Format: int32 */
             percent?: number;
@@ -6370,12 +6383,19 @@ export interface components {
             since: string;
         };
         MentorFundingMilestoneView: {
+            /** Format: date-time */
+            finalAt?: string;
+            /** @enum {string} */
+            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
             /** Format: int64 */
             fundedVnd: number;
             /** Format: uuid */
             milestoneId: string;
             /** Format: int32 */
             number: number;
+            paid: boolean;
+            /** Format: int64 */
+            pooledVnd?: number;
             /** Format: int64 */
             priceVnd: number;
             /** Format: int64 */
@@ -6383,6 +6403,8 @@ export interface components {
             /** Format: int64 */
             releasedTotalVnd: number;
             releases: components["schemas"]["MentorReleaseView"][];
+            /** @enum {string} */
+            splitStatus?: "AWAITING_DRAFT" | "PROPOSED" | "IN_RESOLUTION" | "FINAL";
             state: string;
             title: string;
             /** Format: int64 */
@@ -6449,6 +6471,7 @@ export interface components {
         MentorReleaseView: {
             /** Format: int64 */
             amountVnd: number;
+            erased: boolean;
             name: string;
             /** Format: int32 */
             percent?: number;

@@ -16,10 +16,13 @@
 # - SPLIT_POOL_ENTRY, SPLIT_POOL_REVERSAL and SPLIT_OPEN are the crew Job's money between a release and its final split
 #   (Story 22.1, AD-20): the entry types of the pooled release and of its reversal, and the status of a split still
 #   open, on a Milestone accepted and waiting for its draft. No response names the entry types, so no Customer surface
-#   can show how a released total is held, and JOB-10 (Story 22.2) opens the status to the split's Mentor and parties only.
+#   can show how a released total is held, and JOB-10 (Story 22.2), MEN-7's lines and the Mentor's JOB-7 (Story 22.5)
+#   open the status to the split's Mentor and parties only. A pooled amount is no canary: it equals the Customer's
+#   released total, and MEN-7 shows it to the open split's own parties.
 # - SPLIT_PART is one party's VND line on the crew Job's other split, out for confirmation (Story 22.2, X11): every party
-#   reads every line of a split they are a party of, a former member included, and nobody else reads any. The status
-#   PROPOSED is no canary, as other answers use that word (ClosureProposals).
+#   reads every line of a split they are a party of, a former member included, and nobody else reads any. MEN-7 never
+#   shows it, as a pending line holds the pool and no part (Story 22.5). The status PROPOSED is no canary, as other
+#   answers use that word (ClosureProposals).
 # - WORK_ITEM_NOTE, ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are written after the windows of
 #   LOCKED and CREW_FORMER end, so only the ACTIVE Crew reads them; CROSS_ROLE is an ACTIVE member too. So are the
 #   titles WORK_ITEM_TITLE (the active member's Story, which the Customer's screens never name, AD-39, and the

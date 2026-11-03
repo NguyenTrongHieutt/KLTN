@@ -49,8 +49,9 @@ import vn.vibefix.support.TestPeople;
  * is a member the lock released {@code LEFT} who is still locked. Both windows ended before the Job's later
  * content was written;</li>
  * <li>{@link MatrixCaller#CREW_ACTIVE_PARTY} and {@link MatrixCaller#CREW_FORMER_PARTY}, an {@code ACTIVE} member and
- * one released {@code LEFT} when the windows ended, the Mentor's only parties in the Job's two splits (Story 22.2);
- * the other members are no party of either, so being on the Crew opens no split;</li>
+ * one released {@code LEFT} when the windows ended, the Mentor's only parties in the Job's splits (Story 22.2), whose
+ * MEN-7 lists their own part of the decided one and the pools of the others as pending (Story 22.5); the other members
+ * are no party of any, so being on the Crew opens no split;</li>
  * <li>{@link MatrixCaller#CROSS_ROLE}, an {@code ACTIVE} member who is the Customer of a second Active Job, whose
  * Crew member (shown name, email, LinkedIn link), Crew Chat, Work Item note and Page are the {@code CROSS_*}
  * canaries;</li>

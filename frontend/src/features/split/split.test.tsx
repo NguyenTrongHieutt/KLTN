@@ -1006,6 +1006,8 @@ describe('The ways to JOB-10', () => {
         'href',
         '/cong-viec/j1/phan-chia',
       )
+      // Story 22.5: their own parts of the Job, beside it, outside what a former member loses.
+      expect(screen.getByRole('link', { name: 'Thanh toán' })).toHaveAttribute('href', '/cong-viec/j1/thanh-toan')
     })
   }
 
@@ -1018,6 +1020,7 @@ describe('The ways to JOB-10', () => {
 
     expect(await screen.findByRole('link', { name: 'Trao đổi nhóm' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Phân chia tiền' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Thanh toán' })).toBeNull()
   })
 })
 

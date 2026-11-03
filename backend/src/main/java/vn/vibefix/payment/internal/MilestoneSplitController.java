@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +32,7 @@ import vn.vibefix.job.MilestoneSplits.SplitRead;
 import vn.vibefix.job.MilestoneSplits.Status;
 import vn.vibefix.job.MilestoneSplits.VersionKind;
 import vn.vibefix.job.MilestoneSplits.VersionRead;
+import vn.vibefix.payment.internal.PaymentHistory.Pool;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -123,27 +123,19 @@ class MilestoneSplitController {
 			List<SplitVersionView> earlier) {
 	}
 
-	/** The Milestone's pool, and whether its final split reversed it. */
-	private record Pool(long amountVnd, boolean reversed) {
-	}
-
 	private static final UUID NOBODY = new UUID(0, 0);
 
 	private final MilestoneSplits splits;
 
 	private final PaymentHistory history;
 
-	private final JdbcClient jdbc;
-
 	private final ActiveAccount gate;
 
 	private final CurrentCaller callers;
 
-	MilestoneSplitController(MilestoneSplits splits, PaymentHistory history, JdbcClient jdbc, ActiveAccount gate,
-			CurrentCaller callers) {
+	MilestoneSplitController(MilestoneSplits splits, PaymentHistory history, ActiveAccount gate, CurrentCaller callers) {
 		this.splits = splits;
 		this.history = history;
-		this.jdbc = jdbc;
 		this.gate = gate;
 		this.callers = callers;
 	}
@@ -215,14 +207,9 @@ class MilestoneSplitController {
 		return new SplitVersionView(version.versionNo(), version.kind(), version.capPercent(), version.createdAt(), lines);
 	}
 
+	/** The Milestone's pool, read as MEN-7 and the Mentor's JOB-7 read theirs ({@link PaymentHistory#pools}). */
 	private Optional<Pool> pool(UUID milestoneId) {
-		return this.jdbc.sql("""
-				SELECT e.amount_vnd, EXISTS (SELECT 1 FROM payment.ledger_entry r WHERE r.reverses_entry_id = e.id) AS reversed
-				FROM payment.ledger_entry e WHERE e.milestone_id = :id AND e.entry_type = 'RELEASE_POOLED'
-				""")
-			.param("id", milestoneId)
-			.query((rs, n) -> new Pool(rs.getLong("amount_vnd"), rs.getBoolean("reversed")))
-			.optional();
+		return this.history.pool(milestoneId);
 	}
 
 	/** A person's unlocked account (AD-19): an Administrator holds no role in any Job, so it finds nothing (SG-31). */

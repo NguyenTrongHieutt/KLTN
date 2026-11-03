@@ -60,7 +60,7 @@ class JobMilestoneSplits implements MilestoneSplits {
 
 	private static final String STATE = """
 			SELECT s.id, s.milestone_id, s.milestone_number, s.mentor_account_id, s.status,
-			       greatest(s.draft_due_at, s.confirmation_due_at) AS latest_due_at, s.final_at AS final_since
+			       greatest(s.draft_due_at, s.confirmation_due_at) AS latest_due_at, s.final_at AS final_since, s.finality
 			FROM job.milestone_split s
 			""";
 
@@ -261,6 +261,29 @@ class JobMilestoneSplits implements MilestoneSplits {
 
 	@Override
 	@Transactional(readOnly = true)
+	public List<PartySplit> ofParty(UUID accountId) {
+		return this.jdbc.sql("SELECT s.id, s.job_id, s.milestone_id, s.milestone_number, p.is_mentor, s.status, s.finality,"
+				+ " s.final_at, s.released_at, s.draft_due_at, s.confirmation_due_at,"
+				+ " EXISTS (SELECT 1 FROM job.job j WHERE j.id = s.job_id AND j." + Jobs.LIVE + ") AS job_live"
+				+ " FROM job.milestone_split_party p JOIN job.milestone_split s ON s.id = p.split_id"
+				+ " WHERE p.party_account_id = :account ORDER BY s.released_at DESC, s.milestone_number DESC, s.id")
+			.param("account", accountId)
+			.query((rs, n) -> {
+				Timestamp finalAt = rs.getTimestamp("final_at");
+				Timestamp due = rs.getTimestamp("confirmation_due_at");
+				String finality = rs.getString("finality");
+				return new PartySplit(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
+						rs.getObject("milestone_id", UUID.class), rs.getInt("milestone_number"), rs.getBoolean("is_mentor"),
+						Status.valueOf(rs.getString("status")), finality == null ? null : Finality.valueOf(finality),
+						finalAt == null ? null : finalAt.toInstant(), rs.getTimestamp("released_at").toInstant(),
+						rs.getTimestamp("draft_due_at").toInstant(), due == null ? null : due.toInstant(),
+						rs.getBoolean("job_live"));
+			})
+			.list();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public List<SplitState> finalBefore(Instant cutoff) {
 		return this.jdbc.sql(STATE + "WHERE s.status = 'FINAL' AND s.final_at < :cutoff ORDER BY s.created_at, s.id")
 			.param("cutoff", Timestamp.from(cutoff))
@@ -451,10 +474,11 @@ class JobMilestoneSplits implements MilestoneSplits {
 
 	private static SplitState state(ResultSet rs, int n) throws SQLException {
 		Timestamp finalSince = rs.getTimestamp("final_since");
+		String finality = rs.getString("finality");
 		return new SplitState(rs.getObject("id", UUID.class), rs.getObject("milestone_id", UUID.class),
 				rs.getInt("milestone_number"), rs.getObject("mentor_account_id", UUID.class),
 				Status.valueOf(rs.getString("status")), rs.getTimestamp("latest_due_at").toInstant(),
-				finalSince == null ? null : finalSince.toInstant());
+				finalSince == null ? null : finalSince.toInstant(), finality == null ? null : Finality.valueOf(finality));
 	}
 
 }

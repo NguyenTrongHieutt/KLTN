@@ -59,14 +59,15 @@ public enum MatrixCaller {
 	CREW_FORMER,
 
 	/**
-	 * An {@code ACTIVE} member of the crew Job who is a party of its splits (Story 22.2): only on the endpoints of a split,
-	 * the one place being a party opens anything.
+	 * An {@code ACTIVE} member of the crew Job who is a party of its splits (Story 22.2): on the endpoints of a split, the
+	 * one place being a party opens anything, and on the payment reads where a party's own parts and pending pools show,
+	 * MEN-7 and CUS-10, beside JOB-7's two, which stay refused to them (Story 22.5).
 	 */
 	CREW_ACTIVE_PARTY,
 
 	/**
 	 * A former Crew member of the crew Job who is a party of its splits (Story 22.2): JOB-10 stays actionable for them,
-	 * though every other tab reads only up to their window's end.
+	 * and MEN-7 lists their parts (Story 22.5), though every other tab reads only up to their window's end.
 	 */
 	CREW_FORMER_PARTY,
 

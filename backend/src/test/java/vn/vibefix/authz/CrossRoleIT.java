@@ -360,6 +360,9 @@ class CrossRoleIT extends IntegrationTest {
 		assertThat(body(this.y, "/api/v1/balance")).as("Y's part of D's release").contains(d.ownSplit());
 		assertThat(body(this.z, "/api/v1/balance")).as("Z's part of E's release, earned in the window")
 			.contains(e.ownSplit());
+		// A split's status reaches its own parties on MEN-7 (Story 22.5): Y is C's split's Mentor, and X a party of none.
+		assertThat(body(this.y, "/api/v1/balance")).as("C's split, for its Mentor").contains("\"status\":\"IN_RESOLUTION\"");
+		assertThat(body(this.x, "/api/v1/balance")).as("no split of X's").doesNotContain("IN_RESOLUTION");
 	}
 
 	/**

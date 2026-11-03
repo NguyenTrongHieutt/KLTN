@@ -9,7 +9,9 @@ export type PaymentOrderSummary = components['schemas']['PaymentOrderView']
 export type PaymentOrder = components['schemas']['PaymentOrderDetailView']
 export type CustomerHistory = components['schemas']['CustomerHistoryView']
 export type Balance = components['schemas']['BalanceView']
+export type BalanceLine = components['schemas']['BalanceReleaseView']
 export type MentorJobFunding = components['schemas']['MentorJobFundingView']
+export type MentorFundingMilestone = components['schemas']['MentorFundingMilestoneView']
 
 const fundingKey = (jobId: string) => ['payment', 'funding', jobId] as const
 
@@ -83,7 +85,10 @@ export function usePaymentHistory() {
   return useQuery({ queryKey: ['payment', 'history'], queryFn: () => unwrap(apiClient.GET('/api/v1/payments/history')) })
 }
 
-/** MEN-7: the Balance and each release (FR-44). */
+/**
+ * MEN-7: the Balance and the caller's own lines, each with the role held in its split (FR-44, Story 22.5). "Lịch sử
+ * thanh toán" and a Crew member's JOB-7 read the same lines.
+ */
 export function useBalance() {
   return useQuery({ queryKey: ['payment', 'balance'], queryFn: () => unwrap(apiClient.GET('/api/v1/balance')) })
 }

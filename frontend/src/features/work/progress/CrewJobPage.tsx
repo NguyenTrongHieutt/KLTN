@@ -25,8 +25,9 @@ import { ProgressOverview } from './ProgressOverview'
  * Crew Chat, "Rời công việc" until Closing, the step tracker while the Job is Starting (UX-DR23), and the progress
  * overview with their own Work Items and N-12. A former member, one whose lock counted as leaving included, reads
  * JOB-H's banner and gets their post-Job duties instead, with no way to the handovers (AD-41). "Phân chia tiền"
- * (JOB-10) shows for a party of a split, active or former: only the party's own splits answer (Story 22.2). Anyone else,
- * a pick not yet signed included, sees the not-found screen.
+ * (JOB-10) shows for a party of a split, active or former: only the party's own splits answer (Story 22.2); beside
+ * it, "Thanh toán" (JOB-7) leads to their own parts of this Job (Story 22.5). Anyone else, a pick not yet signed
+ * included, sees the not-found screen.
  */
 export function CrewJobPage({ jobId }: { jobId: string }) {
   const crew = useCrewMe(jobId)
@@ -80,9 +81,14 @@ function Content({ me }: { me: CrewMe }) {
               {t('screen.crewChat.tab')}
             </Link>
             {splits.data && splits.data.length > 0 && (
-              <Link to={`/cong-viec/${jobId}/phan-chia`} className={tab}>
-                {t('screen.split.tab')}
-              </Link>
+              <>
+                <Link to={`/cong-viec/${jobId}/phan-chia`} className={tab}>
+                  {t('screen.split.tab')}
+                </Link>
+                <Link to={`/cong-viec/${jobId}/thanh-toan`} className={tab}>
+                  {t('screen.payment.tab')}
+                </Link>
+              </>
             )}
           </nav>
           {me.canLeave && <LeaveJob me={me} />}
