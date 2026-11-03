@@ -78,8 +78,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	@Override
 	public Set<String> tables() {
 		return Set.of("job.job", "job.job_screenshot", "job.agreement_draft", "job.milestone", "job.acceptance_criterion",
-				"job.external_access", "job.agreement_version", "job.crew_row", "job.crew_terms_version", "job.crew_terms_share",
-				"job.crew_terms_confirmation", "job.agreement_comment", "job.agreement_change_request", "job.agreement_approval",
+				"job.external_access", "job.agreement_version", "job.crew_row", "job.agreement_comment",
+				"job.agreement_change_request", "job.agreement_approval",
 				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
 				"job.external_access_identifier", "job.admin_read_grant", "job.milestone_split", "job.milestone_split_party",
 				"job.milestone_split_version", "job.milestone_split_share", "job.milestone_split_confirmation");
@@ -259,7 +259,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 
 	/**
 	 * NFR-10: the Job Post screenshots, the External Access identifiers, the Agreement comments, and the reasons members
-	 * gave when leaving go; the Job, its Milestones, its Agreement versions, the Crew Terms, and the Milestone Splits stay, as {@code payment} and
+	 * gave when leaving go; the Job, its Milestones, its Agreement versions, and the Milestone Splits stay, as {@code payment} and
 	 * {@code reputation} refer to them.
 	 */
 	@Override
@@ -307,8 +307,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.confirmed_agreement",
 				"job.agreement_approval", "job.acceptance_criterion", "job.milestone", "job.external_access_identifier",
 				"job.external_access",
-				"job.agreement_version", "job.agreement_draft", "job.crew_terms_confirmation", "job.crew_terms_share",
-				"job.crew_terms_version", "job.crew_row")) {
+				"job.agreement_version", "job.agreement_draft", "job.crew_row")) {
 			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (:jobs)".formatted(table)).param("jobs", jobs).update();
 		}
 		if (!open.isEmpty()) {

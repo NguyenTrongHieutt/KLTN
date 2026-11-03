@@ -74,9 +74,8 @@ class ReviewGateIT extends IntegrationTest {
 		this.job = WorkTestSupport.activeJob(this.jdbc, product, lan, this.hung, List.of(MILESTONE),
 				List.of(List.of(CRITERION, UUID.randomUUID())), this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Giai đoạn 1', 1500000, 2, now(), 'FUNDED', now(), 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', 1500000, 2, now(), 'FUNDED', now())
 				""").param("id", MILESTONE).param("job", this.job).update();
 		this.boards.seed(this.job, true);
 		this.vy = WorkTestSupport.student(this.jdbc, "Trần Thảo Vy");

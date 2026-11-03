@@ -135,6 +135,34 @@ class OversightIT extends IntegrationTest {
 			.andExpect(jsonPath("$.items[?(@.action == 'team.member_released')].system").value(true));
 	}
 
+	/**
+	 * Story 22.4 (AD-8, SG-63): the entries of the retired Crew Terms and share Team Issues stay in {@code audit}, and ADM-8
+	 * lists them as raw codes with their objects: an Administrator's old read of a Job's Crew Terms is found by the Job and
+	 * by the Administrator.
+	 */
+	@Test
+	void anOldCrewTermsReadAndAnOldShareIssueEntryStayListedAsTheirRawCodes() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		world();
+		UUID job = job("ACTIVE", false);
+		UUID issue = UUID.randomUUID();
+		this.transactions.executeWithoutResult(status -> {
+			this.auditLog.record(AuditEntry.of(AuditActor.user(ha.accountId()), "job.admin_read",
+					AuditObject.of("job.crew_terms_version", job)).forJob(job));
+			this.auditLog.record(AuditEntry.of(AuditActor.user(this.hung), "dispute.team_issue_answered",
+					AuditObject.of("dispute.team_issue", issue)).forJob(job));
+		});
+
+		this.mvc.perform(get("/api/v1/admin/audit").param("jobId", job.toString()).with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(2))
+			.andExpect(jsonPath("$.items[?(@.action == 'job.admin_read')].objects[0].type").value("job.crew_terms_version"))
+			.andExpect(jsonPath("$.items[?(@.action == 'dispute.team_issue_answered')].actorName").value("Đỗ Mạnh Hùng"));
+		this.mvc.perform(get("/api/v1/admin/audit").param("accountId", ha.accountId().toString()).with(admin(ha)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.action == 'job.admin_read')].objects[0].id").value(job.toString()));
+	}
+
 	private void world() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.jdbc.sql("""
@@ -183,8 +211,8 @@ class OversightIT extends IntegrationTest {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, overdue_since)
-				VALUES (:id, :job, 0, 'Sửa lỗi', 800000, DATE '2026-01-20', 2, :now, :state, :now, 1, :overdue)
+				    funded_at, overdue_since)
+				VALUES (:id, :job, 0, 'Sửa lỗi', 800000, DATE '2026-01-20', 2, :now, :state, :now, :overdue)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("job", job)

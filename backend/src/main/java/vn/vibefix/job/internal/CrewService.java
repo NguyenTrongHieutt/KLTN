@@ -7,7 +7,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,10 +36,9 @@ import vn.vibefix.shared.IdGenerator;
  * ({@link JobCrewPicks}), the person's signature makes it {@code ACTIVE}, and a row ends {@code RELEASED} as
  * {@code DECLINED}, {@code WITHDRAWN}, {@code LEFT} or {@code JOB_ENDED}. Every write runs under the Job row lock its
  * caller holds and increments {@code crew_version}; a write that changes the usernames the Customer sees, an
- * activation or the release of an active row, also increments {@code version}. Crew Terms are no longer written: J6
- * pins one in-force version giving the Mentor 100% ({@link #pinMentorOnly}), which M1 and the share holds read until
- * Story 22.4 retires it (C-3); a release splits by the Milestone's own split (Story 22.1). Nobody removes a member who
- * signed: they leave ({@link #leave}, Story 21.6), or a lock counts as leaving.
+ * activation or the release of an active row, also increments {@code version}. A release splits by the Milestone's own
+ * split (Story 22.1). Nobody removes a member who signed: they leave ({@link #leave}, Story 21.6), or a lock counts as
+ * leaving.
  */
 @Component
 class CrewService implements Crews {
@@ -266,41 +264,6 @@ class CrewService implements Crews {
 			.update();
 	}
 
-	/**
-	 * J6 (C-3, Story 21.5): Crew Terms are no longer written, so J6 brings one version into force that gives the Mentor
-	 * 100%: M1 pins it, and the share holds keep working until Story 22.4 retires them; a release no longer reads it
-	 * (Story 22.1). A version still pending from before is voided; a version already in force (a Job that started before)
-	 * is kept. Runs in J6's apply.
-	 * @return the version in force
-	 */
-	int pinMentorOnly(UUID jobId, UUID mentorId) {
-		Optional<Integer> inForce = inForce(jobId);
-		if (inForce.isPresent()) {
-			return inForce.get();
-		}
-		this.jdbc.sql("UPDATE job.crew_terms_version SET status = 'VOIDED' WHERE job_id = :job AND status = 'PENDING'")
-			.param("job", jobId)
-			.update();
-		int next = this.jdbc.sql("SELECT coalesce(max(version_no), 0) + 1 FROM job.crew_terms_version WHERE job_id = :job")
-			.param("job", jobId)
-			.query(Integer.class)
-			.single();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, :no, 'IN_FORCE', 100, :mentor, :now)
-				""")
-			.param("job", jobId)
-			.param("no", next)
-			.param("mentor", mentorId)
-			.param("now", Timestamp.from(this.clock.instant()))
-			.update();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, :no, :mentor, NULL, 100)
-				""").param("job", jobId).param("no", next).param("mentor", mentorId).update();
-		return next;
-	}
-
 	// ---- Reads ------------------------------------------------------------------------------
 
 	/**
@@ -460,35 +423,6 @@ class CrewService implements Crews {
 		return this.jdbc.sql("SELECT " + ROW_COLUMNS + " FROM job.crew_row WHERE id = :id")
 			.param("id", rowId)
 			.query(CrewService::mapRow)
-			.optional();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public Optional<ReleaseTerms> releaseTermsOf(UUID milestoneId) {
-		return this.jdbc.sql("SELECT job_id, crew_terms_version_no FROM job.milestone WHERE id = :id AND crew_terms_version_no IS NOT NULL")
-			.param("id", milestoneId)
-			.query((rs, n) -> {
-				UUID jobId = rs.getObject("job_id", UUID.class);
-				int no = rs.getInt("crew_terms_version_no");
-				Map<UUID, Integer> shares = new LinkedHashMap<>();
-				this.jdbc.sql("SELECT party_account_id, percent FROM job.crew_terms_share WHERE job_id = :job AND version_no = :no"
-						+ " ORDER BY crew_row_id NULLS FIRST, party_account_id")
-					.param("job", jobId)
-					.param("no", no)
-					.query(share -> {
-						shares.put(share.getObject("party_account_id", UUID.class), share.getInt("percent"));
-					});
-				return new ReleaseTerms(no, Map.copyOf(shares));
-			})
-			.optional();
-	}
-
-	/** The Crew Terms version in force, once J6 brought one into force. */
-	Optional<Integer> inForce(UUID jobId) {
-		return this.jdbc.sql("SELECT version_no FROM job.crew_terms_version WHERE job_id = :job AND status = 'IN_FORCE'")
-			.param("job", jobId)
-			.query(Integer.class)
 			.optional();
 	}
 

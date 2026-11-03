@@ -16,9 +16,9 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-79, AD-7, AD-40): the Team Issue's escalation period, non-pausable, its generation the
  * issue and phase {@code ESCALATION}. When it passes with the issue still in that phase, the issue ends
- * (ending 2) with the Mentor's answer as the outcome, or with nothing moved and the Rating kept when there
- * was no answer; an issue that was accepted or escalated meanwhile leaves it {@code OBSOLETE}. A refused
- * execution is queued for Administrators and the Deadline is done. Collaborators are looked up on use.
+ * (ending 2) with the Mentor's answer as the outcome, or with the Rating kept when there was no answer; an issue that
+ * was accepted or escalated meanwhile leaves it {@code OBSOLETE}, and so does an issue that no longer exists, whose
+ * to-dos it closes. Collaborators are looked up on use.
  */
 @Component
 class TeamIssueEscalationDeadline implements DeadlineHandler {
@@ -27,9 +27,12 @@ class TeamIssueEscalationDeadline implements DeadlineHandler {
 
 	static final DeadlineKind KIND = new DeadlineKind(KEY, false, true);
 
+	private final ObjectProvider<TeamIssues> issues;
+
 	private final ObjectProvider<TeamIssueEndings> endings;
 
-	TeamIssueEscalationDeadline(ObjectProvider<TeamIssueEndings> endings) {
+	TeamIssueEscalationDeadline(ObjectProvider<TeamIssues> issues, ObjectProvider<TeamIssueEndings> endings) {
+		this.issues = issues;
 		this.endings = endings;
 	}
 
@@ -44,11 +47,14 @@ class TeamIssueEscalationDeadline implements DeadlineHandler {
 		if (!deadline.generation().equals(generation)) {
 			return DeadlineOutcome.OBSOLETE;
 		}
+		TeamIssues issues = this.issues.getObject();
+		if (issues.find(deadline.subjectId()).isEmpty()) {
+			issues.closeTodosOfGone(deadline.subjectId());
+			return DeadlineOutcome.OBSOLETE;
+		}
 		Result result = this.endings.getObject()
-			.end(deadline.subjectId(), null, Ending.LAPSED,
-					issue -> issue.phase() != Phase.ESCALATION ? null
-							: new Outcome(issue.answerPoints() == null ? 0 : issue.answerPoints(),
-									issue.answerKind() == Answer.WITHDRAW_RATING));
+			.end(deadline.subjectId(), null, Ending.LAPSED, issue -> issue.phase() != Phase.ESCALATION ? null
+					: new Outcome(issue.answerKind() == Answer.WITHDRAW_RATING));
 		return result == Result.UNCHANGED ? DeadlineOutcome.OBSOLETE : DeadlineOutcome.FIRED;
 	}
 

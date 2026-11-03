@@ -8,9 +8,10 @@
 # Team Issue an Administrator took. file=upload, file=attachment, file=chat and file=screenshot make {fileId} one of
 # the crew Job's stored files (the Mentor's waiting handover upload, a Work Item attachment, a Crew Chat file, a
 # handover's screenshot) instead of the Open post's public screenshot, and item=raiser makes {workItemId} the
-# escalated issue's raiser's Story (MatrixRow.Binding). The crew Job is frozen by its open Dispute, as opening one
-# does, and has two Milestones under Crew Terms version 1: the first accepted and released to the Crew, the second
-# Funded, handed over, and held for the members' share Team Issues. {milestoneId} (the second), {paymentOrderId} (its
+# escalated issue's raiser's Story, and rating=former and rating=cross make {ratingId} the former or the cross-role
+# member's own Rating (MatrixRow.Binding). The crew Job is frozen by its open Dispute, as opening one
+# does, and has two Milestones: the first accepted and released to the Crew, the second
+# Funded and handed over. {milestoneId} (the second), {paymentOrderId} (its
 # paid funding order), {crewRowId} (the ACTIVE member's row) and {accessId} (an External Access item) are the crew
 # Job's. MatrixFilesTest keeps these rules: every endpoint has ANONYMOUS, USER_UNVERIFIED, USER, CUSTOMER and
 # ADMINISTRATOR rows, and a Job-scoped one (a Job, Board, Job Post, crew-Job object or stored file in its path or
@@ -1279,7 +1280,8 @@ POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},CROSS_ROLE,,revoca
 POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},ADMINISTRATOR,,revocation-confirm.json,404 NOT_FOUND
 # Ratings and private feedback after the Job (FR-49, FR-78, AD-20, AD-41): the Customer, the
 # Mentor, and every Crew member ever active read the Ratings; only the Customer and the Mentor rate,
-# only those Crew members give private feedback, and the fixture's Active Job has no Rating Window yet.
+# only those Crew members give private feedback, and the fixture Job's Rating Window has ended, the Crew's Ratings
+# published for its Team Issues (FR-79).
 GET /api/v1/boards/{boardId}/ratings,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/ratings,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/ratings,USER,,,404 NOT_FOUND
@@ -1297,8 +1299,8 @@ POST /api/v1/boards/{boardId}/ratings,ANONYMOUS,,rating.json,401
 POST /api/v1/boards/{boardId}/ratings,USER_UNVERIFIED,,rating.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/ratings,USER,,rating.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/ratings,LOCKED,,rating.json,401
-POST /api/v1/boards/{boardId}/ratings,CUSTOMER,,rating.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
-POST /api/v1/boards/{boardId}/ratings,MENTOR,,rating.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+POST /api/v1/boards/{boardId}/ratings,CUSTOMER,,rating.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/ratings,MENTOR,,rating.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
 POST /api/v1/boards/{boardId}/ratings,BIDDER,,rating.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/ratings,CREW_ASSIGNED,,rating.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/ratings,CREW_ACTIVE,,rating.json,403 FORBIDDEN NOT_A_RATER
@@ -1314,9 +1316,9 @@ POST /api/v1/boards/{boardId}/private-feedback,CUSTOMER,,private-feedback.json,4
 POST /api/v1/boards/{boardId}/private-feedback,MENTOR,,private-feedback.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/private-feedback,BIDDER,,private-feedback.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/private-feedback,CREW_ASSIGNED,,private-feedback.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
-POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
-POST /api/v1/boards/{boardId}/private-feedback,CROSS_ROLE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_NOT_OPEN
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CROSS_ROLE,,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
 POST /api/v1/boards/{boardId}/private-feedback,ADMINISTRATOR,,private-feedback.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/private-feedback,ADMIN_TEAM_ISSUE_GRANT,,private-feedback.json,404 NOT_FOUND
 # Portfolio Entries after the Job (FR-50, AD-19, AD-41): the Customer, the Mentor, and every Crew
@@ -1664,7 +1666,7 @@ POST /api/v1/boards/{boardId}/disputes,ADMIN_TEAM_ISSUE_GRANT,,dispute.json,404 
 # Administrator sees the Dispute, so its decision answers CONFLICT NOT_ASSIGNED, never FORBIDDEN (SG-31). The
 # fixture's {disputeId} is the crew Job's open Dispute, which ADMIN_DISPUTE_GRANT took: it reads its case and its
 # decision waits for the statements (STATEMENT_PERIOD_OPEN); its grant (AdminReadItem.forDispute) reads the Job
-# Chat's messages, the Work Items and the Pages, never the Crew Chat or the Crew Terms.
+# Chat's messages, the Work Items and the Pages, never the Crew Chat.
 GET /api/v1/admin/disputes,ANONYMOUS,,,401
 GET /api/v1/admin/disputes,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/admin/disputes,USER,,,404 NOT_FOUND
@@ -2789,11 +2791,10 @@ GET /api/v1/github/merge-app/setup,CUSTOMER,,,303
 GET /api/v1/github/merge-app/setup,CROSS_ROLE,,,303
 GET /api/v1/github/merge-app/setup,ADMINISTRATOR,,,303
 # Team Issues (FR-79, AD-40, AD-20): any unlocked user reads the STU-4 panel (Story 20.3), empty unless they
-# were ever active on a Crew; only a Crew member who was ever active raises one, here a share issue on the
-# held second Milestone, which the former and the cross-role member raise and the ACTIVE member, who raised one on
-# it already, may not (TEAM_ISSUE_ALREADY_RAISED). A running Job's Team Issues are share issues: only J9 opens
-# Ratings to contest. The Job's list is the Mentor's and, for their own issues,
-# such a Crew member's: the Customer finds nothing, so no Customer screen shows a Team Issue.
+# were ever active on a Crew; only a Crew member who was ever active raises one, about the Mentor's Rating of them:
+# the former and the cross-role member raise one about their own (rating=former, rating=cross), and the ACTIVE member,
+# who raised one about theirs already, may not (TEAM_ISSUE_ALREADY_RAISED). The Job's list is the Mentor's and, for
+# their own issues, such a Crew member's: the Customer finds nothing, so no Customer screen shows a Team Issue.
 GET /api/v1/team-issues,ANONYMOUS,,,401
 GET /api/v1/team-issues,USER_UNVERIFIED,,,200
 GET /api/v1/team-issues,USER,,,200
@@ -2813,8 +2814,8 @@ POST /api/v1/team-issues,MENTOR,,team-issue.json,404 NOT_FOUND
 POST /api/v1/team-issues,BIDDER,,team-issue.json,404 NOT_FOUND
 POST /api/v1/team-issues,CREW_ASSIGNED,,team-issue.json,404 NOT_FOUND
 POST /api/v1/team-issues,CREW_ACTIVE,,team-issue.json,409 CONFLICT TEAM_ISSUE_ALREADY_RAISED
-POST /api/v1/team-issues,CREW_FORMER,,team-issue.json,201
-POST /api/v1/team-issues,CROSS_ROLE,,team-issue.json,201
+POST /api/v1/team-issues,CREW_FORMER,rating=former,team-issue.json,201
+POST /api/v1/team-issues,CROSS_ROLE,rating=cross,team-issue.json,201
 POST /api/v1/team-issues,ADMINISTRATOR,,team-issue.json,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/team-issues,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/team-issues,USER_UNVERIFIED,,,404 NOT_FOUND
@@ -2872,9 +2873,9 @@ POST /api/v1/team-issues/{teamIssueId}/escalate,ADMINISTRATOR,,,404 NOT_FOUND
 # Story 12.3 (AD-20, AD-40): only Administrators read the escalated Team Issues. Their rows name the escalated
 # issue ADMIN_TEAM_ISSUE_GRANT took (teamIssue=escalated): every Administrator reads it and may take it over,
 # and only its assignee decides (CONFLICT NOT_ASSIGNED for the others): enrolled with TOTP, it passes the step-up
-# with the fixed clock's code ({teamIssueStepUpCode}) and decides the share; the fixture's own {teamIssueId} was never
-# escalated, so it is nobody's. That grant (the Crew Chat, the Crew Terms, the raiser's Work Items) reads the
-# crew Job's Crew Terms (job=crew); the Dispute and Abuse Report grants do not.
+# with the fixed clock's code ({teamIssueStepUpCode}) and keeps the Rating; the fixture's own {teamIssueId} was never
+# escalated, so it is nobody's. That grant reads the Crew Chat and the raiser's Work Items; the Rating itself is in
+# the case's detail, for its assignee.
 GET /api/v1/admin/team-issues,ANONYMOUS,,,401
 GET /api/v1/admin/team-issues,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/admin/team-issues,USER,,,404 NOT_FOUND
@@ -2921,22 +2922,6 @@ POST /api/v1/admin/team-issues/{teamIssueId}/decision,CREW_FORMER,,admin-team-is
 POST /api/v1/admin/team-issues/{teamIssueId}/decision,CROSS_ROLE,,admin-team-issue-decision.json,404 NOT_FOUND
 POST /api/v1/admin/team-issues/{teamIssueId}/decision,ADMINISTRATOR,teamIssue=escalated,admin-team-issue-decision.json,409 CONFLICT NOT_ASSIGNED
 POST /api/v1/admin/team-issues/{teamIssueId}/decision,ADMIN_TEAM_ISSUE_GRANT,teamIssue=escalated,admin-team-issue-decision.json,200
-GET /api/v1/admin/jobs/{jobId}/crew-terms,ANONYMOUS,,,401
-GET /api/v1/admin/jobs/{jobId}/crew-terms,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,USER,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,LOCKED,job=crew,,401
-GET /api/v1/admin/jobs/{jobId}/crew-terms,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,CUSTOMER,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,MENTOR,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,CREW_ACTIVE,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,CREW_FORMER,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,CROSS_ROLE,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMIN_DISPUTE_GRANT,job=crew,,404 NOT_FOUND
-GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMIN_TEAM_ISSUE_GRANT,job=crew,,200
-GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMIN_ABUSE_REPORT_GRANT,job=crew,,404 NOT_FOUND
 # The Crew Chat by the Job (Story 12.3): the same readers as by its ID, the Team Issue grant included.
 GET /api/v1/boards/{boardId}/crew-chat/messages,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/crew-chat/messages,USER_UNVERIFIED,,,404 NOT_FOUND
@@ -3634,7 +3619,6 @@ GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NO
 GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
-GET /api/v1/admin/jobs/{jobId}/crew-terms,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/work-items,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,item=raiser,,404 NOT_FOUND

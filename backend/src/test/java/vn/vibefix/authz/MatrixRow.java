@@ -34,7 +34,8 @@ import org.springframework.http.HttpMethod;
  * instead of the Customer's Draft; {@code job=post} makes it name the Open Job Post's Job, whose {@code {postId}} it
  * is and where {@code {applicationId}} lives; {@code teamIssue=escalated} makes {@code {teamIssueId}} name the
  * escalated Team Issue that {@code ADMIN_TEAM_ISSUE_GRANT} took, instead of the one waiting for the Mentor's
- * answer; {@code file=upload}, {@code file=attachment}, {@code file=chat} and {@code file=screenshot} make
+ * answer; {@code rating=former} and {@code rating=cross} make {@code {ratingId}} the Mentor's Rating of the crew Job's
+ * former or cross-role member instead of the active member's; {@code file=upload}, {@code file=attachment}, {@code file=chat} and {@code file=screenshot} make
  * {@code {fileId}} name one of the crew Job's stored files (the Mentor's screenshot upload waiting for the next
  * handover, a Work Item attachment, a Crew Chat attachment, a handover's screenshot) instead of the Open Job Post's
  * public screenshot; {@code file=proof} and {@code file=proof-upload} make it name the post's bid's proof file or the
@@ -100,6 +101,15 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 		/** {@code teamIssue=escalated}: {@code {teamIssueId}} names the escalated Team Issue an Administrator took. */
 		ESCALATED_TEAM_ISSUE("teamIssue", "escalated", "teamIssueId", "escalatedTeamIssueId"),
+
+		/**
+		 * {@code rating=former}: {@code {ratingId}} names the Mentor's Rating of the crew Job's former member, which only
+		 * that member contests (FR-79), instead of the active member's.
+		 */
+		FORMER_RATING("rating", "former", "ratingId", "formerRatingId"),
+
+		/** {@code rating=cross}: {@code {ratingId}} names the Mentor's Rating of the crew Job's cross-role member. */
+		CROSS_RATING("rating", "cross", "ratingId", "crossRatingId"),
 
 		/**
 		 * {@code file=upload}: {@code {fileId}} names the crew Job's Mentor's screenshot upload that waits for the next

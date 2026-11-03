@@ -24,22 +24,19 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
-import vn.vibefix.payment.Ledger;
-import vn.vibefix.payment.Releases;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Story 12.3 (FR-63, FR-79, AD-20, AD-40): an Administrator takes an escalated Team Issue, which pushes a
- * read grant for the Crew Chat, the raiser's Work Item histories, and the Crew Terms versions; another
- * taking it over ends the old grant at once. The assignee decides under the step-up, the decision is
- * executed exactly, and the grant ends 30 days after it.
+ * Story 12.3 (FR-63, FR-79, AD-20, AD-40): an Administrator takes an escalated Team Issue, which pushes a read grant for
+ * the Crew Chat and the raiser's Work Item histories; another taking it over ends the old grant at once. The assignee
+ * decides under the step-up whether the Rating stays, the decision is executed exactly, and the grant ends 30 days
+ * after it.
  */
 class TeamIssueDecisionIT extends IntegrationTest {
 
@@ -51,15 +48,6 @@ class TeamIssueDecisionIT extends IntegrationTest {
 
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
-
-	@Autowired
-	private TransactionTemplate transactions;
-
-	@Autowired
-	private Releases releases;
-
-	@Autowired
-	private Ledger ledger;
 
 	@Autowired
 	private ApplicationContext context;
@@ -84,13 +72,13 @@ class TeamIssueDecisionIT extends IntegrationTest {
 	}
 
 	@Test
-	void theAssigneeDecidesAShareFromTheEvidenceAndTheDecisionIsExecutedExactly() throws Exception {
+	void aTakeoverEndsTheOldGrantAndTheAssigneesDecisionKeepsTheRatingWithTheGrantFor30Days() throws Exception {
 		UUID chat = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO chat.chat (id, job_id, product_id, kind, opened_at) VALUES (:id, :job, :product, 'CREW', now())")
 			.param("id", chat).param("job", this.world.job()).param("product", this.world.product()).update();
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
+		UUID rating = this.world.rating(this.jdbc, this.world.vy(), this.clock.instant().minus(Duration.ofDays(1)));
+		UUID issue = raise(this.world.vy(), rating);
 		this.mvc.perform(get("/api/v1/admin/team-issues/" + issue).with(admin(this.ha.accountId()))).andExpect(status().isNotFound());
-		release();
 		answer(issue).andExpect(status().isOk());
 		choose(this.world.vy(), issue, "escalate").andExpect(status().isOk());
 
@@ -98,51 +86,50 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(issue.toString()))
 			.andExpect(jsonPath("$[0].phase").value("ESCALATED"))
-			.andExpect(jsonPath("$[0].assigned").value(false));
-		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.minh)))
-			.andExpect(status().isNotFound());
+			.andExpect(jsonPath("$[0].assigned").value(false))
+			.andExpect(jsonPath("$[0].subject").doesNotExist());
 		this.mvc.perform(get("/api/v1/crew-chats/" + chat + "/messages").with(admin(this.minh))).andExpect(status().isNotFound());
 
 		take(this.minh, issue).andExpect(status().isOk())
 			.andExpect(jsonPath("$.assignedToMe").value(true))
-			.andExpect(jsonPath("$.split.capPoints").value(20))
-			.andExpect(jsonPath("$.raiserName").value("Trần Thảo Vy"));
+			.andExpect(jsonPath("$.raiserName").value("Trần Thảo Vy"))
+			.andExpect(jsonPath("$.rating.stars").value(2))
+			.andExpect(jsonPath("$.split").doesNotExist());
 		for (String table : new String[] { "chat.admin_read_grant", "work.admin_read_grant", "job.admin_read_grant" }) {
 			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
 				.as(table).isOne();
+			assertThat(text("SELECT items::text FROM " + table + " WHERE reason_id = '" + issue + "'"))
+				.as("Story 22.4: the grant names no Crew Terms in %s", table)
+				.contains("CREW_CHAT", "WORK_ITEMS")
+				.doesNotContain("CREW_TERMS");
 		}
-		// Story 20.3: each party's role is their role in this Job (roleOf), never which directory describes them.
-		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.minh)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.versions[0].shares.length()").value(3))
-			.andExpect(jsonPath("$.versions[0].shares[?(@.role == 'MENTOR')].name").value("Đỗ Mạnh Hùng"))
-			.andExpect(jsonPath("$.versions[0].shares[?(@.name == 'Trần Thảo Vy')].role").value("STUDENT"))
-			.andExpect(jsonPath("$.versions[0].shares[?(@.name == 'Nguyễn Văn Minh')].role").value("STUDENT"));
 		this.mvc.perform(get("/api/v1/crew-chats/" + chat + "/messages").with(admin(this.minh))).andExpect(status().isOk());
-		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.admin_read'")).isOne();
 
 		take(this.ha.accountId(), issue).andExpect(status().isOk());
-		assertThat(count("SELECT count(*) FROM job.admin_read_grant WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
-			.as("Minh's grant ended, Hà's is open").isOne();
-		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.minh)))
-			.andExpect(status().isNotFound());
-		decide(this.minh, "000000", issue, "\"points\":10").andExpect(status().isConflict())
+		for (String table : new String[] { "chat.admin_read_grant", "work.admin_read_grant", "job.admin_read_grant" }) {
+			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
+				.as("Minh's grant ended in %s, Hà's is open", table).isOne();
+			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND admin_account_id = '"
+					+ this.minh + "' AND ends_at IS NOT NULL")).as(table).isOne();
+		}
+		this.mvc.perform(get("/api/v1/crew-chats/" + chat + "/messages").with(admin(this.minh))).andExpect(status().isNotFound());
+		decide(this.minh, "000000", issue, "\"removeRating\":false").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NOT_ASSIGNED"));
-		decide(this.ha, issue, "\"points\":25").andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("SHARE_TRANSFER_TOO_LARGE"))
-			.andExpect(jsonPath("$.cap").value(20));
+		decide(this.ha, issue, "\"points\":10").andExpect(status().isBadRequest());
 
-		decide(this.ha, issue, "\"points\":10").andExpect(status().isOk())
+		decide(this.ha, issue, "\"removeRating\":false").andExpect(status().isOk())
 			.andExpect(jsonPath("$.phase").value("ENDED"))
 			.andExpect(jsonPath("$.ending").value("DECIDED"))
-			.andExpect(jsonPath("$.decision.points").value(10))
+			.andExpect(jsonPath("$.decision.ratingRemoved").value(false))
+			.andExpect(jsonPath("$.decision.points").doesNotExist())
 			.andExpect(jsonPath("$.decision.reasoning").value("Vy làm phần lớn việc"));
-		assertThat(this.jdbc.sql("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")
-			.query(Long.class).single()).as("Story 22.1: an ending writes nothing to the ledger").isZero();
-		assertThat(this.ledger.releasedTotal(this.world.milestone())).isEqualTo(HeldCrewJob.PRICE);
+		assertThat(text("SELECT coalesce(hidden_reason, 'shown') FROM reputation.rating WHERE id = '" + rating + "'"))
+			.isEqualTo("shown");
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type <> 'FUND'")).as("no decision moves money")
+			.isZero();
 		assertThat(notices("dispute.team_issue_decided", this.world.vy())).isOne();
 		assertThat(notices("dispute.team_issue_decided", this.world.hung())).isOne();
-		decide(this.ha, issue, "\"points\":5").andExpect(status().isConflict())
+		decide(this.ha, issue, "\"removeRating\":true").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("ALREADY_DECIDED"));
 
 		Instant ends = this.jdbc.sql("SELECT ends_at FROM chat.admin_read_grant WHERE reason_id = :issue AND admin_account_id = :ha")
@@ -157,12 +144,8 @@ class TeamIssueDecisionIT extends IntegrationTest {
 	@Test
 	void aRatingIsRemovedByTheDecisionAndItsEvidenceIsReadOnlyByTheAssignee() throws Exception {
 		UUID rating = this.world.rating(this.jdbc, this.world.vy(), this.clock.instant().minus(Duration.ofDays(1)));
-		UUID issue = raise(this.world.vy(), "RATING", rating);
-		this.mvc.perform(post("/api/v1/boards/" + this.world.job() + "/team-issues/" + issue + "/answer")
-			.with(as(this.world.hung(), Role.MENTOR))
-			.with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"kind\":\"KEEP\"}")).andExpect(status().isOk());
+		UUID issue = raise(this.world.vy(), rating);
+		answer(issue).andExpect(status().isOk());
 		choose(this.world.vy(), issue, "escalate").andExpect(status().isOk());
 
 		take(this.ha.accountId(), issue).andExpect(status().isOk()).andExpect(jsonPath("$.rating.stars").value(2));
@@ -179,12 +162,33 @@ class TeamIssueDecisionIT extends IntegrationTest {
 		assertThat(text("SELECT ending FROM dispute.team_issue WHERE id = '" + issue + "'")).isEqualTo("DECIDED");
 	}
 
-	private UUID raise(UUID student, String subject, UUID target) throws Exception {
-		String field = "SHARE".equals(subject) ? "milestoneId" : "ratingId";
+	/** Story 22.3 (AD-19, A-17): an Administrator linked to the Job's people does not take its issue, and another does. */
+	@Test
+	void anAdministratorLinkedToAnAccountOfTheJobCannotTakeTheIssueAndAnotherCan() throws Exception {
+		UUID rating = this.world.rating(this.jdbc, this.world.vy(), this.clock.instant().minus(Duration.ofDays(1)));
+		UUID issue = raise(this.world.vy(), rating);
+		answer(issue).andExpect(status().isOk());
+		choose(this.world.vy(), issue, "escalate").andExpect(status().isOk());
+		for (UUID holder : List.of(this.minh, this.world.lan())) {
+			this.jdbc.sql("""
+					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
+					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
+					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
+		}
+
+		take(this.minh, issue).andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.take_conflict_refused'")
+			.query(Long.class)
+			.single()).isOne();
+		take(this.ha.accountId(), issue).andExpect(status().isOk()).andExpect(jsonPath("$.assignedToMe").value(true));
+	}
+
+	private UUID raise(UUID student, UUID rating) throws Exception {
 		String body = this.mvc.perform(post("/api/v1/team-issues").with(as(student, Role.STUDENT)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"jobId\":\"" + this.world.job() + "\",\"subject\":\"" + subject + "\",\"" + field + "\":\"" + target
-					+ "\",\"reason\":\"Chưa công bằng.\"}"))
+			.content("{\"jobId\":\"" + this.world.job() + "\",\"ratingId\":\"" + rating + "\",\"reason\":\"Chưa công bằng.\"}"))
 			.andExpect(status().isCreated())
 			.andReturn()
 			.getResponse()
@@ -218,34 +222,6 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{" + outcome + ",\"reasoning\":\"Vy làm phần lớn việc\",\"stepUpCode\":\""
 					+ code + "\"}"));
-	}
-
-	/** Story 22.3 (AD-19, A-17): an Administrator linked to the Job's people does not take its issue, and another does. */
-	@Test
-	void anAdministratorLinkedToAnAccountOfTheJobCannotTakeTheIssueAndAnotherCan() throws Exception {
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		release();
-		answer(issue).andExpect(status().isOk());
-		choose(this.world.vy(), issue, "escalate").andExpect(status().isOk());
-		for (UUID holder : List.of(this.minh, this.world.lan())) {
-			this.jdbc.sql("""
-					INSERT INTO identity.person_signal (id, account_id, kind, source, hmac, key_version, recorded_at)
-					VALUES (:id, :account, 'EMAIL', 'GOOGLE_EMAIL', :hmac, 1, now())
-					""").param("id", UUID.randomUUID()).param("account", holder).param("hmac", "ab".repeat(32)).update();
-		}
-
-		take(this.minh, issue).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
-			.andExpect(jsonPath("$.reason").value("CONFLICT_OF_INTEREST"));
-		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.take_conflict_refused'")
-			.query(Long.class)
-			.single()).isOne();
-		take(this.ha.accountId(), issue).andExpect(status().isOk()).andExpect(jsonPath("$.assignedToMe").value(true));
-	}
-
-	private void release() {
-		this.transactions.executeWithoutResult(
-				status -> this.releases.release(this.world.job(), this.world.milestone(), UUID.randomUUID()));
 	}
 
 	private long notices(String type, UUID account) {

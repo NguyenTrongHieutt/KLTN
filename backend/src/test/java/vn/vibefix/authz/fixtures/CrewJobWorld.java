@@ -56,15 +56,15 @@ import vn.vibefix.support.TestPeople;
  * canaries;</li>
  * <li>{@link MatrixCaller#ADMIN_DISPUTE_GRANT}, the Administrator who took this Job's open Dispute
  * ({@code {disputeId}}) with its real grant ({@link AdminReadItem#forDispute()});</li>
- * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, the Administrator who took an escalated Team Issue another
+ * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, the Administrator who took an escalated Rating Team Issue another
  * member raised, with its real grant ({@link AdminReadItem#forEscalatedTeamIssue});</li>
  * <li>{@link MatrixCaller#ADMIN_ABUSE_REPORT_GRANT}, the Administrator assigned to the active member's Abuse
  * Report ({@code {reportId}}) on the {@code CREW_CHAT} canary message ({@code {messageId}}), holding the grant on
  * that one message.</li>
  * </ul>
  * Two more {@code ACTIVE} members are no caller: the canary member, whose shown name, Google email, LinkedIn link,
- * released part ({@code CREW_SHARE}, under Crew Terms version 1) and not escalated Team Issue
- * ({@code TEAM_ISSUE_ID}) are the Crew canaries, and the member who escalated the Team Issue, who hides their
+ * released part ({@code CREW_SHARE}) and not escalated Team Issue ({@code TEAM_ISSUE_ID}) are the Crew canaries, and
+ * the member who escalated the Team Issue, who hides their
  * student name ({@code STUDENT_HIDDEN_NAME}), owns a Story of their own ({@code {raiserWorkItemId}}, which
  * {@code item=raiser} binds to {@code {workItemId}}), and has a published Portfolio Entry on the Mentor's earlier
  * Job, so their public profile is {@code {memberUsername}}'s, which {@code user=member} binds to {@code {username}}
@@ -72,11 +72,10 @@ import vn.vibefix.support.TestPeople;
  * the {@code JOB_CHAT} canary, which no Crew state reads, and the Mentor holds the contact grant on the Customer's
  * {@code CONTACT_EMAIL} (FR-3).
  * <p>
- * It also seeds the Job's confirmed Agreement, which the Job records as its version, with two Milestones pinned to
- * Crew Terms version 1: the first accepted and released to every party (the ledger's FUND, then its RELEASE
+ * It also seeds the Job's confirmed Agreement, which the Job records as its version, with two Milestones: the first
+ * accepted and released to every party (the ledger's FUND, then its pool, the pool's reversal and its RELEASE
  * entries), the second ({@code {milestoneId}}, {@code {crewMilestoneId}}) Funded by the Customer's paid order
- * ({@code {paymentOrderId}}) and handed over. The escalating member's escalated share Team Issue holds their part
- * of it, as {@code JdbcShareHolds} does, and the Customer's open Dispute about it froze the Job as
+ * ({@code {paymentOrderId}}) and handed over. The Customer's open Dispute about it froze the Job as
  * {@code Disputes.open} does ({@code job.job.frozen_at} and {@code timers.frozen_job}). {@code {crewRowId}} is the
  * active member's Crew row and {@code {accessId}} the Job's External Access item. The Job's Board
  * ({@code {boardId}}) holds the criterion's seeded Story ({@code {workItemId}}), which carries the Mentor's
@@ -89,13 +88,16 @@ import vn.vibefix.support.TestPeople;
  * ({@code CREW_CHAT_UNREPORTED}) and a file the Mentor sent after the windows ended ({@code file=chat}), the
  * handover has an attached screenshot ({@code file=screenshot}), and the Mentor has a screenshot upload waiting
  * for the next handover ({@code {handoverUploadId}}, which {@code file=upload} binds to {@code {fileId}}); every file
- * is stored through {@code files}. The Job also holds the active member's share Team Issue ({@code {teamIssueId}})
- * on the held Milestone, waiting for the Mentor's answer: a running Job has no Rating to contest, and the
- * Customer's open due-date Change Request ({@code {changeRequestId}}) without the Mentor's impact. The Mentor's
+ * is stored through {@code files}. The Job's Rating Window has ended with the Crew's Ratings published two days ago
+ * (FR-49): the Mentor rated the active member ({@code {ratingId}}), the former member ({@code {formerRatingId}}, which
+ * {@code rating=former} binds) and the cross-role member ({@code {crossRatingId}}, {@code rating=cross}), so each may
+ * contest their own (FR-79). The Job holds the active member's Team Issue ({@code {teamIssueId}}) about theirs, waiting
+ * for the Mentor's answer, and the Customer's open due-date Change Request ({@code {changeRequestId}}) without the
+ * Mentor's impact. The Mentor's
  * earlier Job of the Product, Closed with its Milestone released to the former member and the hiding member, holds
  * the former member's {@code PRIVATE_FEEDBACK} about the Mentor; the Customer's Assessment Job, whose Report was
- * accepted, holds the Mentor's drafted follow-up ({@code {followUpId}}). Every running Job has its selected bid,
- * its confirmed Agreement and its Crew Terms. The public profiles' {@code {username}} is the Mentor's. A row's
+ * accepted, holds the Mentor's drafted follow-up ({@code {followUpId}}). Every running Job has its selected bid
+ * and its confirmed Agreement. The public profiles' {@code {username}} is the Mentor's. A row's
  * {@code job=crew} makes {@code {jobId}} this Job ({@code {crewJobId}}), and {@code teamIssue=escalated} makes
  * {@code {teamIssueId}} the escalated issue ({@code {escalatedTeamIssueId}}).
  * <p>
@@ -233,7 +235,7 @@ final class CrewJobWorld {
 		this.active = JobContent.member(this.jdbc, "Sinh viên đang làm");
 		UUID activeRow = JobContent.crewRow(this.jdbc, job, this.active, "ACTIVE", null);
 		this.locked = JobContent.member(this.jdbc, "Sinh viên bị khóa");
-		UUID lockedRow = JobContent.crewRow(this.jdbc, job, this.locked, "LEFT", WINDOW_END);
+		JobContent.crewRow(this.jdbc, job, this.locked, "LEFT", WINDOW_END);
 		// A lock counts as leaving (Story 20.4): the account is locked when its window ended.
 		this.jdbc.sql("UPDATE identity.account SET locked_at = :at, lock_reason = 'Vi phạm quy tắc' WHERE id = :id")
 			.param("at", Timestamp.from(WINDOW_END))
@@ -241,7 +243,7 @@ final class CrewJobWorld {
 			.update();
 		// Released LEFT by a lock and unlocked since (deferred B16): an unlock brings nothing back.
 		this.former = JobContent.member(this.jdbc, "Sinh viên đã rời");
-		UUID formerRow = JobContent.crewRow(this.jdbc, job, this.former, "LEFT", WINDOW_END);
+		JobContent.crewRow(this.jdbc, job, this.former, "LEFT", WINDOW_END);
 		// A member who left with a reason (Story 21.6), no caller: only the Job's Mentor reads it (CREW_LEFT_NOTE).
 		UUID leaver = JobContent.member(this.jdbc, "Sinh viên đã rời có lý do");
 		this.jdbc.sql("UPDATE job.crew_row SET left_note = :note WHERE id = :row")
@@ -254,13 +256,13 @@ final class CrewJobWorld {
 		this.formerParty = JobContent.member(this.jdbc, "Thành viên đã rời trong phân chia");
 		JobContent.crewRow(this.jdbc, job, this.formerParty, "LEFT", WINDOW_END);
 		this.crossRole = JobContent.member(this.jdbc, "Sinh viên hai vai trò");
-		UUID crossRow = JobContent.crewRow(this.jdbc, job, this.crossRole, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, job, this.crossRole, "ACTIVE", null);
 		UUID canaryMember = JobContent.canaryMember(this.jdbc, value("CREW_NAME"), value("CREW_EMAIL"),
 				value("CREW_LINKEDIN"), null);
-		UUID canaryRow = JobContent.crewRow(this.jdbc, job, canaryMember, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, job, canaryMember, "ACTIVE", null);
 		// The member who hides their student name (FR-51, X9): their PUB-4 is {memberUsername}'s (review iteration 4).
 		UUID escalating = JobContent.hidingMember(this.jdbc, "Sinh viên nhờ quản trị viên", value("STUDENT_HIDDEN_NAME"));
-		UUID escalatingRow = JobContent.crewRow(this.jdbc, job, escalating, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, job, escalating, "ACTIVE", null);
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		JobContent.message(this.jdbc, chat, this.mentor, "Chào cả nhóm, mình bắt đầu nhé", SIGNED.plus(Duration.ofHours(1)));
 		UUID canaryMessage = JobContent.message(this.jdbc, chat, this.mentor, value("CREW_CHAT"), WRITTEN);
@@ -275,8 +277,8 @@ final class CrewJobWorld {
 		world.put("crewChatId", chat);
 		UUID jobChat = JobContent.chat(this.jdbc, job, product, "JOB");
 		JobContent.message(this.jdbc, jobChat, owner, value("JOB_CHAT"), WRITTEN);
-		// Two Milestones (FR-30, AD-41), both pinned to Crew Terms version 1: the first accepted and released, the
-		// second Funded and handed over, which the escalated share Team Issue holds and the open Dispute concerns.
+		// Two Milestones (FR-30, AD-41): the first accepted and released, the second Funded and handed over, which the
+		// open Dispute concerns.
 		UUID released = UUID.randomUUID();
 		UUID milestone = UUID.randomUUID();
 		UUID criterion = UUID.randomUUID();
@@ -312,20 +314,12 @@ final class CrewJobWorld {
 		// The Job records its confirmed version, as J5 does: its funding, and the Mentor's balance with the Crew's
 		// parts of the release (CREW_SHARE), read through it (review iteration 1: no canary no response can hold).
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :job").param("job", job).update();
-		JobContent.crewTerms(this.jdbc, job, this.mentor, SIGNED);
-		JobContent.share(this.jdbc, job, this.mentor, null, 30);
-		JobContent.share(this.jdbc, job, this.active, activeRow, 10);
-		JobContent.share(this.jdbc, job, this.crossRole, crossRow, 10);
-		JobContent.share(this.jdbc, job, canaryMember, canaryRow, 20);
-		JobContent.share(this.jdbc, job, escalating, escalatingRow, 10);
-		JobContent.share(this.jdbc, job, this.former, formerRow, 10);
-		JobContent.share(this.jdbc, job, this.locked, lockedRow, 10);
 		UUID handover = UUID.randomUUID();
 		UUID releasedHandover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, 0, 'Thiết lập đặt bàn', :price, DATE '2026-11-01', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 0, 'Thiết lập đặt bàn', :price, DATE '2026-11-01', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", released).param("job", job).param("price", RELEASED_BASE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -333,8 +327,8 @@ final class CrewJobWorld {
 			.param("accepted", Timestamp.from(ACCEPTED)).update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id)
-				VALUES (:id, :job, 1, 'Sửa lỗi trùng giờ', :price, DATE '2026-11-20', 2, :signed, 'SUBMITTED', :funded, 1,
+				    funded_at, submitted_at, handover_id)
+				VALUES (:id, :job, 1, 'Sửa lỗi trùng giờ', :price, DATE '2026-11-20', 2, :signed, 'SUBMITTED', :funded,
 				    :submitted, :handover)
 				""").param("id", milestone).param("job", job).param("price", HELD_PRICE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(ACCEPTED))
@@ -368,11 +362,12 @@ final class CrewJobWorld {
 		// A row's job=crew binds {jobId} to it (MatrixRow.Binding.CREW_JOB).
 		world.put("crewJobId", job);
 		world.put("crewMilestoneId", milestone);
-		UUID teamIssue = shareIssue(UUID.randomUUID(), job, product, this.active, milestone);
+		UUID activeRating = ratings(world, job, product, owner);
+		UUID teamIssue = ratingIssue(UUID.randomUUID(), job, product, this.active, activeRating);
 		world.put("teamIssueId", teamIssue);
 		// Another member's Team Issue, never escalated: its ID is for the Mentor only. A suite that seeds several
 		// worlds on one database keeps the first, since the canary is one fixed ID.
-		shareIssue(UUID.fromString(value("TEAM_ISSUE_ID")), job, product, canaryMember, milestone);
+		ratingIssue(UUID.fromString(value("TEAM_ISSUE_ID")), job, product, canaryMember, UUID.randomUUID());
 		world.put("workItemId", item);
 		// The escalated issue's raiser's own Story, which that issue's grant reads (forEscalatedTeamIssue, G8).
 		UUID raiserItem = JobContent.workItem(this.jdbc, job, 2, "Ghi phần việc đã làm", milestone, null,
@@ -479,7 +474,7 @@ final class CrewJobWorld {
 		// Enrolled with TOTP (ADM-11): its decision's step-up takes the code of the fixed clock's step.
 		world.put("teamIssueStepUpCode", AdministratorTestSupport.code(enrol(this.teamIssueAdmin, "van-de-nhom"),
 				MutableClock.DEFAULT_INSTANT));
-		UUID escalated = shareTeamIssue(job, product, escalating, milestone);
+		UUID escalated = escalatedIssue(job, product, escalating);
 		// A row's teamIssue=escalated binds {teamIssueId} to it (MatrixRow.Binding.ESCALATED_TEAM_ISSUE).
 		world.put("escalatedTeamIssueId", escalated);
 		grant(this.teamIssueAdmin, job, AdminReadItem.forEscalatedTeamIssue(escalating), escalated, grant -> this.jdbc
@@ -586,8 +581,8 @@ final class CrewJobWorld {
 		UUID pooled = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, 2, 'Báo cáo đặt bàn', :price, DATE '2026-12-01', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 2, 'Báo cáo đặt bàn', :price, DATE '2026-12-01', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", pooled).param("job", job).param("price", POOLED_PRICE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -606,8 +601,8 @@ final class CrewJobWorld {
 		UUID milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, 3, 'Giao diện đặt bàn', :price, DATE '2026-12-10', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 3, 'Giao diện đặt bàn', :price, DATE '2026-12-10', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", milestone).param("job", job).param("price", PROPOSED_PRICE)
 			.param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -631,8 +626,8 @@ final class CrewJobWorld {
 		UUID milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at)
-				VALUES (:id, :job, :position, :title, :price, DATE '2026-12-15', 2, :signed, 'ACCEPTED', :funded, 1,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, :position, :title, :price, DATE '2026-12-15', 2, :signed, 'ACCEPTED', :funded,
 				    :submitted, :handover, :accepted)
 				""").param("id", milestone).param("job", job).param("position", position).param("title", "Giai đoạn " + (position + 1))
 			.param("price", price).param("signed", Timestamp.from(SIGNED)).param("funded", Timestamp.from(FUNDED))
@@ -774,69 +769,88 @@ final class CrewJobWorld {
 	}
 
 	/**
-	 * The escalating member's share Team Issue on the held Milestone (FR-79, AD-40), answered and escalated: raised
-	 * while the Milestone was Funded, it holds the member's and the Mentor's parts as {@code payment.holdShares}
-	 * does, until it ends. Returns its ID.
+	 * The crew Job's Rating Window (FR-49), ended with the Crew's Ratings published two days before the fixed clock, so
+	 * each Rating may still be contested (FR-79): the Mentor rated the active member, the former member and the
+	 * cross-role member, none of them a canary. The canary member and the escalating member got none the Customer could
+	 * read. Returns the active member's Rating.
 	 */
-	private UUID shareTeamIssue(UUID job, UUID product, UUID raiser, UUID milestone) {
-		UUID id = UUID.randomUUID();
-		Instant raised = ACCEPTED.plus(Duration.ofDays(1));
+	private UUID ratings(MatrixWorld world, UUID job, UUID product, UUID owner) {
+		Instant published = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(2));
 		this.jdbc.sql("""
-				INSERT INTO dispute.team_issue (id, job_id, product_id, subject, milestone_id, milestone_number, raiser_account_id,
-				    mentor_account_id, reason, phase, answer_days, escalation_days, raised_at, answer_due_at, escalation_due_at,
-				    answer_kind, answered_at, escalated_at)
-				VALUES (:id, :job, :product, 'SHARE', :milestone, 2, :raiser, :mentor, 'Phần chia chưa đúng', 'ESCALATED', 5, 5,
-				    :raised, :due, :escalationDue, 'KEEP', :answered, :escalatedAt)
+				INSERT INTO reputation.rating_window (job_id, product_id, customer_account_id, mentor_account_id, job_title,
+				    opened_at, ends_at, pair_published_at, crew_published_at)
+				VALUES (:job, :product, :owner, :mentor, 'Việc nhóm ma trận', :opened, :published, :published, :published)
+				""").param("job", job).param("product", product).param("owner", owner).param("mentor", this.mentor)
+			.param("opened", Timestamp.from(published.minus(Duration.ofDays(14))))
+			.param("published", Timestamp.from(published))
+			.update();
+		UUID active = rating(job, this.active, published);
+		world.put("ratingId", active);
+		// A row's rating=former or rating=cross binds {ratingId} to the caller's own Rating (MatrixRow.Binding).
+		world.put("formerRatingId", rating(job, this.former, published));
+		world.put("crossRatingId", rating(job, this.crossRole, published));
+		return active;
+	}
+
+	/** The Mentor's Rating of {@code member} on the crew Job, given the day before it was published. */
+	private UUID rating(UUID job, UUID member, Instant published) {
+		UUID id = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating (id, job_id, kind, rater_account_id, ratee_account_id, stars, comment, created_at)
+				VALUES (:id, :job, 'MENTOR_TO_STUDENT', :mentor, :member, 2, 'Còn chậm', :at)
+				""").param("id", id).param("job", job).param("mentor", this.mentor).param("member", member)
+			.param("at", Timestamp.from(published.minus(Duration.ofDays(1))))
+			.update();
+		return id;
+	}
+
+	/**
+	 * The escalating member's Team Issue about a Rating (FR-79, AD-40), answered and escalated. Its Rating is none the
+	 * Customer reads, as the member hides their student name. Returns its ID.
+	 */
+	private UUID escalatedIssue(UUID job, UUID product, UUID raiser) {
+		UUID id = UUID.randomUUID();
+		Instant raised = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1));
+		this.jdbc.sql("""
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at, escalation_due_at, answer_kind, answered_at,
+				    escalated_at)
+				VALUES (:id, :job, :product, :rating, :raiser, :mentor, 'Điểm chưa đúng', 'ESCALATED', 5, 5, :raised, :due,
+				    :escalationDue, 'KEEP', :answered, :escalatedAt)
 				""")
 			.param("id", id)
 			.param("job", job)
 			.param("product", product)
-			.param("milestone", milestone)
+			.param("rating", UUID.randomUUID())
 			.param("raiser", raiser)
 			.param("mentor", this.mentor)
 			.param("raised", Timestamp.from(raised))
 			.param("due", Timestamp.from(raised.plus(Duration.ofDays(5))))
 			.param("escalationDue", Timestamp.from(raised.plus(Duration.ofDays(10))))
-			.param("answered", Timestamp.from(raised.plus(Duration.ofDays(2))))
-			.param("escalatedAt", Timestamp.from(raised.plus(Duration.ofDays(3))))
+			.param("answered", Timestamp.from(raised.plus(Duration.ofHours(2))))
+			.param("escalatedAt", Timestamp.from(raised.plus(Duration.ofHours(3))))
 			.update();
-		this.jdbc.sql("""
-				INSERT INTO payment.share_hold (team_issue_id, milestone_id, job_id, product_id, raiser_account_id, held_at)
-				VALUES (:issue, :milestone, :job, :product, :raiser, :at)
-				""").param("issue", id).param("milestone", milestone).param("job", job).param("product", product)
-			.param("raiser", raiser).param("at", Timestamp.from(raised)).update();
 		return id;
 	}
 
-	/**
-	 * A member's share Team Issue on the held Milestone, waiting for the Mentor's answer (FR-79, AD-40): a running Job
-	 * has no Rating yet, which only J9's window opens (review iteration 4, G9). Raising it held the shares, as
-	 * {@code payment.holdShares} does. Returns its ID.
-	 */
-	private UUID shareIssue(UUID id, UUID job, UUID product, UUID raiser, UUID milestone) {
+	/** A member's Team Issue about the Rating {@code rating}, waiting for the Mentor's answer (FR-79, AD-40). */
+	private UUID ratingIssue(UUID id, UUID job, UUID product, UUID raiser, UUID rating) {
 		Instant raised = MutableClock.DEFAULT_INSTANT;
 		this.jdbc.sql("""
-				INSERT INTO dispute.team_issue (id, job_id, product_id, subject, milestone_id, milestone_number, raiser_account_id,
-				    mentor_account_id, reason, phase, answer_days, escalation_days, raised_at, answer_due_at)
-				VALUES (:id, :job, :product, 'SHARE', :milestone, 2, :raiser, :mentor, 'Phần chia chưa đúng', 'ANSWER', 5, 5,
-				    :raised, :due)
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, :rating, :raiser, :mentor, 'Điểm chưa đúng', 'ANSWER', 5, 5, :raised, :due)
 				ON CONFLICT (id) DO NOTHING
 				""")
 			.param("id", id)
 			.param("job", job)
 			.param("product", product)
-			.param("milestone", milestone)
+			.param("rating", rating)
 			.param("raiser", raiser)
 			.param("mentor", this.mentor)
 			.param("raised", Timestamp.from(raised))
 			.param("due", Timestamp.from(raised.plus(Duration.ofDays(5))))
 			.update();
-		this.jdbc.sql("""
-				INSERT INTO payment.share_hold (team_issue_id, milestone_id, job_id, product_id, raiser_account_id, held_at)
-				VALUES (:issue, :milestone, :job, :product, :raiser, :at)
-				ON CONFLICT (team_issue_id) DO NOTHING
-				""").param("issue", id).param("milestone", milestone).param("job", job).param("product", product)
-			.param("raiser", raiser).param("at", Timestamp.from(raised)).update();
 		return id;
 	}
 
@@ -927,9 +941,8 @@ final class CrewJobWorld {
 
 	/**
 	 * The Mentor's earlier Job of the Customer's Product (review iteration 4, G9), Closed {@code ended}: J3 selected the
-	 * Mentor's bid, its Agreement's one Milestone was Funded, accepted and released under Crew Terms version 1 to the
-	 * Mentor and its two members, the former member and the member who hides their student name, and J9 ended their
-	 * rows. Returns its ID.
+	 * Mentor's bid, its Agreement's one Milestone was Funded, accepted and released to the Mentor and its two members,
+	 * the former member and the member who hides their student name, and J9 ended their rows. Returns its ID.
 	 */
 	private UUID endedJob(UUID product, UUID owner, UUID hiding, Instant ended) {
 		Instant signed = ended.minus(Duration.ofDays(20));
@@ -942,12 +955,8 @@ final class CrewJobWorld {
 		UUID milestone = UUID.randomUUID();
 		long price = 1_000_000;
 		JobContent.confirmedAgreement(this.jdbc, job, owner, this.mentor, false, milestone, "Sửa lỗi cũ", price, signed);
-		JobContent.crewTerms(this.jdbc, job, this.mentor, signed);
-		UUID formerRow = JobContent.crewRow(this.jdbc, job, this.former, "JOB_ENDED", ended, signed);
-		UUID hidingRow = JobContent.crewRow(this.jdbc, job, hiding, "JOB_ENDED", ended, signed);
-		JobContent.share(this.jdbc, job, this.mentor, null, 60);
-		JobContent.share(this.jdbc, job, this.former, formerRow, 20);
-		JobContent.share(this.jdbc, job, hiding, hidingRow, 20);
+		JobContent.crewRow(this.jdbc, job, this.former, "JOB_ENDED", ended, signed);
+		JobContent.crewRow(this.jdbc, job, hiding, "JOB_ENDED", ended, signed);
 		Instant funded = signed.plus(Duration.ofDays(1));
 		Instant accepted = ended.minus(Duration.ofDays(2));
 		UUID handover = UUID.randomUUID();
@@ -994,8 +1003,6 @@ final class CrewJobWorld {
 		long price = 600_000;
 		JobContent.confirmedAgreement(this.jdbc, job, owner, this.mentor, true, milestone, "Báo cáo đánh giá", price,
 				SIGNED);
-		JobContent.crewTerms(this.jdbc, job, this.mentor, SIGNED);
-		JobContent.share(this.jdbc, job, this.mentor, null, 100);
 		JobContent.board(this.jdbc, job, product, "DGA");
 		UUID report = JobContent.page(this.jdbc, job, this.mentor, "Báo cáo đánh giá",
 				"## Đánh giá\nỨng dụng chạy ổn.\n\n## Đề xuất\n1. Sửa lỗi hai khách đặt trùng bàn.\n",
@@ -1040,8 +1047,8 @@ final class CrewJobWorld {
 	/**
 	 * The second Active Job: the cross-role member's own Product, mentored by the Mentor, whose one Crew member,
 	 * Crew Chat message, and Work Item note are the {@code CROSS_*} canaries its Customer never reads. Like every
-	 * running Job, it has its selected bid, its confirmed Agreement, whose Milestone waits for funding, and Crew Terms
-	 * version 1 (review iteration 4, G9).
+	 * running Job, it has its selected bid and its confirmed Agreement, whose Milestone waits for funding (review
+	 * iteration 4, G9).
 	 */
 	private void secondJob() {
 		UUID product = JobContent.product(this.jdbc, this.crossRole, "Sản phẩm thứ hai");
@@ -1053,10 +1060,7 @@ final class CrewJobWorld {
 		JobContent.milestone(this.jdbc, job, milestone, 0, "Sửa lỗi thứ hai", 500_000, "PLANNED", null, null, null, SIGNED);
 		UUID member = JobContent.canaryMember(this.jdbc, value("CROSS_CREW_NAME"), value("CROSS_CREW_EMAIL"),
 				value("CROSS_LINKEDIN"), null);
-		UUID memberRow = JobContent.crewRow(this.jdbc, job, member, "ACTIVE", null);
-		JobContent.crewTerms(this.jdbc, job, this.mentor, SIGNED);
-		JobContent.share(this.jdbc, job, this.mentor, null, 60);
-		JobContent.share(this.jdbc, job, member, memberRow, 40);
+		JobContent.crewRow(this.jdbc, job, member, "ACTIVE", null);
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		JobContent.message(this.jdbc, chat, this.mentor, value("CROSS_CREW_CHAT"), WRITTEN);
 		JobContent.chat(this.jdbc, job, product, "JOB");

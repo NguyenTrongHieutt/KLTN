@@ -2,4 +2,4 @@ subject: Khiếu nại nội bộ của {job} đã được chuyển cho quản 
 ---
 Xin chào,
 
-Một khiếu nại nội bộ của công việc {job} đã được chuyển cho quản trị viên xem xét. Quản trị viên sẽ quyết định dựa trên điều khoản nhóm thực hiện, trao đổi nhóm và lịch sử công việc.
+Một khiếu nại nội bộ của công việc {job} đã được chuyển cho quản trị viên xem xét. Quản trị viên sẽ quyết định dựa trên trao đổi nhóm, lịch sử công việc và điểm đã chấm.

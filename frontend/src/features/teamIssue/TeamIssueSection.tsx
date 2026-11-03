@@ -1,10 +1,8 @@
 import { useId, useState, type ReactNode } from 'react'
 import { useToasts } from '@/components/toasts'
-import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
-import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import {
   useChooseTeamIssue,
@@ -13,16 +11,14 @@ import {
   type TeamIssue,
   type TeamIssuePanel,
   type TeamIssueRatingOption,
-  type TeamIssueShareOption,
 } from './teamIssueApi'
 
 /**
- * "Khiếu nại nội bộ" in "Việc tôi tham gia" on CUS-7 (FR-79, AD-40, UX-DR63): on each Job where the member was
- * ever active, they choose "Phần chia giai đoạn {n}" while that Milestone is Held, or "Điểm người hướng dẫn chấm tôi" within
- * 14 days of it becoming visible, write the reason, and send it to the Mentor; an option already used is
- * disabled with its reason. Their issues show with the period they are in; in the escalation period the
- * Mentor's answer shows with its preview, then "Chấp nhận" or "Nhờ quản trị viên xem xét". Nothing shows
- * without an option or an issue.
+ * "Khiếu nại nội bộ" in "Việc tôi tham gia" on CUS-7 (FR-79, AD-40, UX-DR63): on each Job where the member was ever
+ * active, they choose "Điểm người hướng dẫn chấm tôi" within 14 days of it becoming visible, write the reason, and send
+ * it to the Mentor; a Rating already contested is disabled with its reason. Their issues show with the period they are
+ * in; in the escalation period the Mentor's answer shows, then "Chấp nhận" or "Nhờ quản trị viên xem xét". Nothing
+ * shows without a Rating or an issue.
  */
 export function TeamIssueSection() {
   const panel = useTeamIssuePanel()
@@ -42,20 +38,13 @@ export function TeamIssueSection() {
   )
 }
 
-type Choice = { subject: 'SHARE'; option: TeamIssueShareOption } | { subject: 'RATING'; option: TeamIssueRatingOption }
-
 function JobCard({ job }: { job: TeamIssuePanel }) {
   const ids = useId()
   const toasts = useToasts()
   const raise = useRaiseTeamIssue()
   const [chosen, setChosen] = useState<string>()
   const [reason, setReason] = useState('')
-  const choices: Choice[] = [
-    ...job.shares.map((option) => ({ subject: 'SHARE' as const, option })),
-    ...job.ratings.map((option) => ({ subject: 'RATING' as const, option })),
-  ]
-  const key = (choice: Choice) => (choice.subject === 'SHARE' ? choice.option.milestoneId : choice.option.ratingId)
-  const choice = choices.find((found) => key(found) === chosen && found.option.refusal == null)
+  const choice = job.ratings.find((found) => found.ratingId === chosen && found.refusal == null)
   const ready = choice !== undefined && reason.trim().length > 0 && reason.length <= 2000
 
   const submit = () => {
@@ -63,13 +52,7 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
       return
     }
     raise.mutate(
-      {
-        jobId: job.jobId,
-        subject: choice.subject,
-        milestoneId: choice.subject === 'SHARE' ? choice.option.milestoneId : undefined,
-        ratingId: choice.subject === 'RATING' ? choice.option.ratingId : undefined,
-        reason: reason.trim(),
-      },
+      { jobId: job.jobId, ratingId: choice.ratingId, reason: reason.trim() },
       {
         onSuccess: () => {
           setChosen(undefined)
@@ -93,37 +76,32 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
         <ul className="flex flex-col gap-2">
           {job.issues.map((issue) => (
             <IssueLine key={issue.id} issue={issue} audience="crew">
-              {issue.phase === 'ESCALATION' && <Choice issue={issue} mentorName={job.mentorName} />}
+              {issue.phase === 'ESCALATION' && <Choice issue={issue} />}
             </IssueLine>
           ))}
         </ul>
       )}
-      {choices.length > 0 && (
+      {job.ratings.length > 0 && (
         <fieldset className="flex flex-col gap-2">
           <legend className="text-label font-semibold">{t('screen.teamIssue.choose')}</legend>
-          {choices.map((option) => (
-            <label key={key(option)} className="flex items-start gap-2 text-body-sm">
+          {job.ratings.map((option) => (
+            <label key={option.ratingId} className="flex items-start gap-2 text-body-sm">
               <input
                 type="radio"
-                name={`${ids}-subject`}
+                name={`${ids}-rating`}
                 className="mt-1"
-                value={key(option)}
-                checked={chosen === key(option)}
-                disabled={option.option.refusal != null || raise.isPending}
-                onChange={() => setChosen(key(option))}
+                value={option.ratingId}
+                checked={chosen === option.ratingId}
+                disabled={option.refusal != null || raise.isPending}
+                onChange={() => setChosen(option.ratingId)}
               />
               <span className="flex flex-col gap-0.5">
-                <span>
-                  {option.subject === 'SHARE'
-                    ? t('screen.teamIssue.share', { n: option.option.number })
-                    : t('screen.teamIssue.rating')}
-                </span>
-                {option.subject === 'RATING' && option.option.refusal == null && (
+                <span>{t('screen.teamIssue.rating')}</span>
+                {option.refusal == null ? (
                   <span className="text-caption text-muted-foreground">
-                    {t('screen.teamIssue.ratingLine', { n: option.option.stars, date: formatDayMonth(option.option.closesAt) })}
+                    {t('screen.teamIssue.ratingLine', { n: option.stars, date: formatDayMonth(option.closesAt) })}
                   </span>
-                )}
-                {option.option.refusal != null && (
+                ) : (
                   <span className="text-caption text-muted-foreground">{refusalText(option)}</span>
                 )}
               </span>
@@ -157,21 +135,18 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
   )
 }
 
-function refusalText(choice: Choice) {
-  const { refusal, endedAt } = choice.option
+function refusalText(option: TeamIssueRatingOption) {
+  const { refusal, endedAt } = option
   if (refusal === 'TEAM_ISSUE_ALREADY_RAISED' && endedAt) {
-    return t(choice.subject === 'SHARE' ? 'screen.teamIssue.raisedShare' : 'screen.teamIssue.raisedRating', {
-      date: formatDayMonth(endedAt),
-    })
+    return t('screen.teamIssue.raisedRating', { date: formatDayMonth(endedAt) })
   }
   return refusal === 'TEAM_ISSUE_ALREADY_RAISED' ? t('reason.dispute.TEAM_ISSUE_ALREADY_RAISED') : t('reason.dispute.TEAM_ISSUE_OPEN')
 }
 
-/** The raiser's choice in the escalation period: the answer and its preview, then accept or escalate. */
-function Choice({ issue, mentorName }: { issue: TeamIssue; mentorName: string }) {
+/** The raiser's choice in the escalation period: the answer, then accept or escalate. */
+function Choice({ issue }: { issue: TeamIssue }) {
   const toasts = useToasts()
   const choose = useChooseTeamIssue()
-  const preview = issue.answerPreview
   const due = issue.escalationDueAt ? formatDayMonth(issue.escalationDueAt) : ''
   const run = (choice: 'accept' | 'escalate') =>
     choose.mutate(
@@ -184,20 +159,6 @@ function Choice({ issue, mentorName }: { issue: TeamIssue; mentorName: string })
   return (
     <div className="flex flex-col gap-2 border-t border-border pt-2">
       {issue.answerKind == null && <p>{t('screen.teamIssue.choice.noAnswer')}</p>}
-      {issue.answerKind === 'TRANSFER' && preview && issue.split && (
-        <p>
-          {t('screen.teamIssue.choice.preview', {
-            amount: formatVnd(issue.split.basisVnd),
-            n: issue.milestoneNumber ?? 0,
-            raiserPct: preview.raiserPercent,
-            raiserVnd: formatVnd(preview.raiserVnd),
-            mentor: mentorName,
-            mentorPct: preview.mentorPercent,
-            mentorVnd: formatVnd(preview.mentorVnd),
-          })}{' '}
-          <TestTag />
-        </p>
-      )}
       <div className="flex flex-wrap gap-2">
         {issue.answerKind != null && (
           <Button type="button" size="compact" disabled={choose.isPending} onClick={() => run('accept')}>
@@ -225,10 +186,7 @@ export function IssueLine({
   audience: 'crew' | 'mentor'
   children?: ReactNode
 }) {
-  const subject =
-    issue.subject === 'SHARE'
-      ? t('screen.teamIssue.share', { n: issue.milestoneNumber ?? 0 })
-      : t('screen.teamIssue.rating')
+  const subject = t('screen.teamIssue.rating')
   const answer = answerText(issue)
   const outcome = outcomeText(issue)
   return (
@@ -240,9 +198,6 @@ export function IssueLine({
       {answer && <p>{answer}</p>}
       <p className="text-caption text-muted-foreground">{phaseText(issue, audience)}</p>
       {outcome && <p className="text-caption text-muted-foreground">{outcome}</p>}
-      {issue.subject === 'SHARE' && issue.phase !== 'ENDED' && (
-        <p className="text-caption text-muted-foreground">{t('screen.teamIssue.held')}</p>
-      )}
       {children}
     </li>
   )
@@ -251,9 +206,7 @@ export function IssueLine({
 function answerText(issue: TeamIssue) {
   switch (issue.answerKind) {
     case 'KEEP':
-      return t(issue.subject === 'SHARE' ? 'screen.teamIssue.answerText.keepShare' : 'screen.teamIssue.answerText.keepRating')
-    case 'TRANSFER':
-      return t('screen.teamIssue.answerText.transfer', { n: issue.answerPoints ?? 0 })
+      return t('screen.teamIssue.answerText.keepRating')
     case 'WITHDRAW_RATING':
       return t('screen.teamIssue.answerText.withdraw')
     default:
@@ -266,12 +219,10 @@ function outcomeText(issue: TeamIssue) {
     return undefined
   }
   const ending = t(`screen.teamIssue.ending.${issue.ending as 'ACCEPTED' | 'LAPSED' | 'DECIDED' | 'MOOT'}`)
-  const outcome =
-    issue.subject === 'SHARE'
-      ? issue.outcomePoints
-        ? t('screen.teamIssue.outcome.points', { n: issue.outcomePoints })
-        : t('screen.teamIssue.outcome.none')
-      : t(issue.outcomeRatingRemoved ? 'screen.teamIssue.outcome.removed' : 'screen.teamIssue.outcome.kept')
+  if (issue.ending === 'MOOT') {
+    return ending
+  }
+  const outcome = t(issue.outcomeRatingRemoved ? 'screen.teamIssue.outcome.removed' : 'screen.teamIssue.outcome.kept')
   return `${ending} · ${outcome}`
 }
 

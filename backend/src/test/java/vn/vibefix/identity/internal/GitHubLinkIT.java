@@ -515,16 +515,14 @@ class GitHubLinkIT extends IntegrationTest {
 				""").param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofDays(2))))
 			.param("end", Timestamp.from(this.clock.instant())).param("id", row).update();
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Giai đoạn 1', 800000, 2, :funded, 'FUNDED', :funded, 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', 800000, 2, :funded, 'FUNDED', :funded)
 				""").param("id", milestone).param("job", crewed)
 			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)))).update();
 		UUID second = UUID.randomUUID();
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 1, 'Giai đoạn 2', 800000, 2, :funded, 'FUNDED', :funded, 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 1, 'Giai đoạn 2', 800000, 2, :funded, 'FUNDED', :funded)
 				""").param("id", second).param("job", crewed)
 			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)))).update();
 		assertThat(blockerReasons()).as("two Milestones funded during the window, one Job").containsExactly("MILESTONE_PENDING");

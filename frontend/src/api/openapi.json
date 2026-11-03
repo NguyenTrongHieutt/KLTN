@@ -1157,33 +1157,6 @@
         "tags" : [ "admin-oversight-controller" ]
       }
     },
-    "/api/v1/admin/jobs/{jobId}/crew-terms" : {
-      "get" : {
-        "operationId" : "crewTerms",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CrewTermsEvidenceView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-crew-terms-controller" ]
-      }
-    },
     "/api/v1/admin/moderation" : {
       "get" : {
         "operationId" : "items",
@@ -9800,10 +9773,6 @@
             "type" : "string",
             "format" : "date-time"
           },
-          "points" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "ratingRemoved" : {
             "type" : "boolean"
           },
@@ -9818,10 +9787,6 @@
         "properties" : {
           "answerKind" : {
             "type" : "string"
-          },
-          "answerPoints" : {
-            "type" : "integer",
-            "format" : "int32"
           },
           "assigned" : {
             "type" : "boolean"
@@ -9857,10 +9822,6 @@
           "mentorName" : {
             "type" : "string"
           },
-          "milestoneNumber" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "phase" : {
             "type" : "string"
           },
@@ -9876,15 +9837,9 @@
           },
           "reason" : {
             "type" : "string"
-          },
-          "split" : {
-            "$ref" : "#/components/schemas/TeamIssueSplitView"
-          },
-          "subject" : {
-            "type" : "string"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "escalatedAt", "id", "jobId", "jobTitle", "phase", "raisedAt", "reason", "subject" ]
+        "required" : [ "assigned", "assignedToMe", "escalatedAt", "id", "jobId", "jobTitle", "phase", "raisedAt", "reason" ]
       },
       "AdminTeamIssueRow" : {
         "type" : "object",
@@ -9913,18 +9868,11 @@
           "jobTitle" : {
             "type" : "string"
           },
-          "milestoneNumber" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "phase" : {
-            "type" : "string"
-          },
-          "subject" : {
             "type" : "string"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "escalatedAt", "id", "jobId", "jobTitle", "phase", "subject" ]
+        "required" : [ "assigned", "assignedToMe", "escalatedAt", "id", "jobId", "jobTitle", "phase" ]
       },
       "AdministratorListItem" : {
         "type" : "object",
@@ -10249,13 +10197,7 @@
         "properties" : {
           "kind" : {
             "type" : "string",
-            "enum" : [ "KEEP", "TRANSFER", "WITHDRAW_RATING" ]
-          },
-          "points" : {
-            "type" : "integer",
-            "format" : "int32",
-            "maximum" : 100,
-            "minimum" : 1
+            "enum" : [ "KEEP", "WITHDRAW_RATING" ]
           }
         },
         "required" : [ "kind" ]
@@ -10620,12 +10562,6 @@
             "type" : "integer",
             "format" : "int64"
           },
-          "heldParts" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HeldPartView"
-            }
-          },
           "heldVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -10645,7 +10581,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "balanceVnd", "heldParts", "lines", "releases" ]
+        "required" : [ "balanceVnd", "lines", "releases" ]
       },
       "BidProofRequest" : {
         "type" : "object",
@@ -12199,65 +12135,6 @@
           }
         },
         "required" : [ "accountId", "name", "openItems", "state" ]
-      },
-      "CrewTermsEvidenceView" : {
-        "type" : "object",
-        "properties" : {
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "versions" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewTermsVersionEvidenceView"
-            }
-          }
-        },
-        "required" : [ "jobId", "versions" ]
-      },
-      "CrewTermsShareEvidenceView" : {
-        "type" : "object",
-        "properties" : {
-          "confirmedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "percent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "role" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "name", "percent", "role" ]
-      },
-      "CrewTermsVersionEvidenceView" : {
-        "type" : "object",
-        "properties" : {
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "shares" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewTermsShareEvidenceView"
-            }
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "createdAt", "shares", "status", "versionNo" ]
       },
       "CrewView" : {
         "type" : "object",
@@ -14595,34 +14472,6 @@
           }
         },
         "required" : [ "milestoneId", "number", "releasableVnd", "title" ]
-      },
-      "HeldPartView" : {
-        "type" : "object",
-        "properties" : {
-          "amountVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "heldAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "jobTitle" : {
-            "type" : "string"
-          },
-          "milestoneTitle" : {
-            "type" : "string"
-          },
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "amountVnd", "heldAt", "jobId", "jobTitle", "milestoneTitle", "number" ]
       },
       "HideRequest" : {
         "type" : "object",
@@ -17717,10 +17566,6 @@
             "type" : "string",
             "format" : "uuid"
           },
-          "milestoneId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
           "ratingId" : {
             "type" : "string",
             "format" : "uuid"
@@ -17729,13 +17574,9 @@
             "type" : "string",
             "maxLength" : 2000,
             "minLength" : 0
-          },
-          "subject" : {
-            "type" : "string",
-            "enum" : [ "SHARE", "RATING" ]
           }
         },
-        "required" : [ "jobId", "reason", "subject" ]
+        "required" : [ "jobId", "ratingId", "reason" ]
       },
       "RateeView" : {
         "type" : "object",
@@ -20119,12 +19960,6 @@
       "TeamIssueDecisionRequest" : {
         "type" : "object",
         "properties" : {
-          "points" : {
-            "type" : "integer",
-            "format" : "int32",
-            "maximum" : 100,
-            "minimum" : 0
-          },
           "reasoning" : {
             "type" : "string",
             "maxLength" : 4000,
@@ -20139,7 +19974,7 @@
             "pattern" : "^[0-9]{6}$"
           }
         },
-        "required" : [ "reasoning", "stepUpCode" ]
+        "required" : [ "reasoning", "removeRating", "stepUpCode" ]
       },
       "TeamIssuePanelView" : {
         "type" : "object",
@@ -20163,39 +19998,11 @@
               "$ref" : "#/components/schemas/TeamIssueRatingOptionView"
             }
           },
-          "shares" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TeamIssueShareOptionView"
-            }
-          },
           "title" : {
             "type" : "string"
           }
         },
-        "required" : [ "issues", "jobId", "mentorName", "ratings", "shares", "title" ]
-      },
-      "TeamIssuePreviewView" : {
-        "type" : "object",
-        "properties" : {
-          "mentorPercent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "mentorVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "raiserPercent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "raiserVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "mentorPercent", "mentorVnd", "raiserPercent", "raiserVnd" ]
+        "required" : [ "issues", "jobId", "mentorName", "ratings", "title" ]
       },
       "TeamIssueRatingOptionView" : {
         "type" : "object",
@@ -20226,59 +20033,6 @@
         },
         "required" : [ "closesAt", "ratingId", "stars", "visibleAt" ]
       },
-      "TeamIssueShareOptionView" : {
-        "type" : "object",
-        "properties" : {
-          "endedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "milestoneId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "refusal" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "milestoneId", "number", "title" ]
-      },
-      "TeamIssueSplitView" : {
-        "type" : "object",
-        "properties" : {
-          "basisVnd" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "capPoints" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "mentorPercent" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "others" : {
-            "type" : "array",
-            "items" : {
-              "type" : "integer",
-              "format" : "int32"
-            }
-          },
-          "raiserPercent" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "basisVnd", "mentorPercent", "others", "raiserPercent" ]
-      },
       "TeamIssueView" : {
         "type" : "object",
         "properties" : {
@@ -20288,13 +20042,6 @@
           },
           "answerKind" : {
             "type" : "string"
-          },
-          "answerPoints" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "answerPreview" : {
-            "$ref" : "#/components/schemas/TeamIssuePreviewView"
           },
           "answeredAt" : {
             "type" : "string",
@@ -20323,20 +20070,8 @@
             "type" : "string",
             "format" : "uuid"
           },
-          "milestoneId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "milestoneNumber" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "mine" : {
             "type" : "boolean"
-          },
-          "outcomePoints" : {
-            "type" : "integer",
-            "format" : "int32"
           },
           "outcomeRatingRemoved" : {
             "type" : "boolean"
@@ -20357,15 +20092,9 @@
           },
           "reason" : {
             "type" : "string"
-          },
-          "split" : {
-            "$ref" : "#/components/schemas/TeamIssueSplitView"
-          },
-          "subject" : {
-            "type" : "string"
           }
         },
-        "required" : [ "answerDueAt", "id", "jobId", "mine", "phase", "raisedAt", "reason", "subject" ]
+        "required" : [ "answerDueAt", "id", "jobId", "mine", "phase", "raisedAt", "ratingId", "reason" ]
       },
       "TestCardView" : {
         "type" : "object",

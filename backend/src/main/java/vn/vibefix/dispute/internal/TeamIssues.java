@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -26,11 +25,9 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.PersonDirectory;
-import vn.vibefix.job.Crews;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneFunding.FundingJob;
-import vn.vibefix.job.MilestoneFunding.FundingMilestone;
 import vn.vibefix.job.TeamIssueLocks;
 import vn.vibefix.job.TeamIssueLocks.TeamIssueJob;
 import vn.vibefix.notification.Audience;
@@ -39,8 +36,6 @@ import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
-import vn.vibefix.payment.Ledger;
-import vn.vibefix.payment.ShareHolds;
 import vn.vibefix.reputation.CrewRatings;
 import vn.vibefix.reputation.CrewRatings.CrewRating;
 import vn.vibefix.shared.ApiException;
@@ -50,12 +45,10 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * Team Issues (FR-79, AD-40, Tier 3): a Crew member who was ever active raises one with the Job's Mentor
- * about their share of a Held Milestone or the Rating the Mentor gave them. The raise is one transaction in
- * AD-4's lock order: the Job row ({@code job.lockForTeamIssue}), the Milestone's Team Issue rows, then the
- * hold {@code payment} takes under the ledger account lock, and a refused hold creates nothing. It opens the
- * non-pausable answer Deadline of the Job's copied period and tells the Mentor, never the Customer; it never
- * takes the busy marker or freezes the Job.
+ * Team Issues (FR-79, AD-40, Tier 3): a Crew member who was ever active raises one with the Job's Mentor about the
+ * Rating the Mentor gave them. The raise is one transaction in AD-4's lock order: the Job row
+ * ({@code job.lockForTeamIssue}), then the issue's own row. It opens the non-pausable answer Deadline of the Job's copied
+ * period and tells the Mentor, never the Customer; it never takes the busy marker, freezes the Job, or moves money.
  */
 @Component
 class TeamIssues {
@@ -76,19 +69,13 @@ class TeamIssues {
 
 	private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
 
-	private static final Set<String> HELD = Set.of("FUNDED", "REVISION_REQUESTED", "SUBMITTED");
-
-	enum Subject {
-		SHARE, RATING
-	}
-
 	enum Phase {
 		ANSWER, ESCALATION, ESCALATED, ENDED
 	}
 
 	/** The Mentor's one answer (AD-40). */
 	enum Answer {
-		KEEP, TRANSFER, WITHDRAW_RATING
+		KEEP, WITHDRAW_RATING
 	}
 
 	/** AD-40's four endings. */
@@ -96,25 +83,11 @@ class TeamIssues {
 		ACCEPTED, LAPSED, DECIDED, MOOT
 	}
 
-	/**
-	 * @param answerPoints the points the answer moves, 0 unless {@code TRANSFER}
-	 * @param outcomePoints the points the ending moved
-	 */
-	record TeamIssue(UUID id, UUID jobId, Subject subject, @Nullable UUID milestoneId, @Nullable Integer milestoneNumber,
-			@Nullable UUID ratingId, @Nullable UUID raiserId, @Nullable UUID mentorId, String reason, Phase phase,
-			Instant raisedAt, Instant answerDueAt, @Nullable Instant escalationDueAt, @Nullable Instant endedAt,
-			@Nullable Answer answerKind, @Nullable Integer answerPoints, @Nullable Instant answeredAt,
-			@Nullable Instant escalatedAt, @Nullable Ending ending, @Nullable Integer outcomePoints,
+	/** One Team Issue about the Rating {@code ratingId}. */
+	record TeamIssue(UUID id, UUID jobId, UUID ratingId, @Nullable UUID raiserId, @Nullable UUID mentorId, String reason,
+			Phase phase, Instant raisedAt, Instant answerDueAt, @Nullable Instant escalationDueAt, @Nullable Instant endedAt,
+			@Nullable Answer answerKind, @Nullable Instant answeredAt, @Nullable Instant escalatedAt, @Nullable Ending ending,
 			@Nullable Boolean outcomeRatingRemoved) {
-	}
-
-	/**
-	 * A Milestone the Student may raise their share of.
-	 * @param refusal why "Phần chia giai đoạn {n}" is disabled, if it is
-	 * @param endedAt when the earlier issue on it ended, for {@code TEAM_ISSUE_ALREADY_RAISED}
-	 */
-	record ShareOption(UUID milestoneId, int number, String title, @Nullable DisputeReason refusal,
-			@Nullable Instant endedAt) {
 	}
 
 	/** A Rating the Student may contest until {@code closesAt}. */
@@ -122,24 +95,17 @@ class TeamIssues {
 			@Nullable Instant endedAt) {
 	}
 
-	/** STU-4's Team Issue panel for one Job. */
-	record JobPanel(UUID jobId, String title, String mentorName, List<ShareOption> shares, List<RatingOption> ratings,
-			List<TeamIssue> issues) {
+	/** The Team Issue panel of one Job. */
+	record JobPanel(UUID jobId, String title, String mentorName, List<RatingOption> ratings, List<TeamIssue> issues) {
 	}
 
 	private final JdbcClient jdbc;
 
 	private final TeamIssueLocks locks;
 
-	private final Crews crews;
-
 	private final MilestoneFunding funding;
 
 	private final JobRules rules;
-
-	private final Ledger ledger;
-
-	private final ShareHolds holds;
 
 	private final CrewRatings ratings;
 
@@ -159,16 +125,13 @@ class TeamIssues {
 
 	private final Clock clock;
 
-	TeamIssues(JdbcClient jdbc, TeamIssueLocks locks, Crews crews, MilestoneFunding funding, JobRules rules, Ledger ledger,
-			ShareHolds holds, CrewRatings ratings, MentorDirectory mentors, PersonDirectory people, Deadlines deadlines,
-			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock) {
+	TeamIssues(JdbcClient jdbc, TeamIssueLocks locks, MilestoneFunding funding, JobRules rules, CrewRatings ratings,
+			MentorDirectory mentors, PersonDirectory people, Deadlines deadlines, Notifications notifications, Todos todos,
+			AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.locks = locks;
-		this.crews = crews;
 		this.funding = funding;
 		this.rules = rules;
-		this.ledger = ledger;
-		this.holds = holds;
 		this.ratings = ratings;
 		this.mentors = mentors;
 		this.people = people;
@@ -181,8 +144,8 @@ class TeamIssues {
 	}
 
 	/**
-	 * STU-4: per Job where the Student was ever active, what they may raise and their own issues; a Job
-	 * with none of these is left out.
+	 * The panel: per Job where the Student was ever active, the Ratings they may contest and their own issues; a Job
+	 * with neither is left out.
 	 */
 	@Transactional(readOnly = true)
 	List<JobPanel> panel(UUID studentId) {
@@ -201,22 +164,6 @@ class TeamIssues {
 				.query(TeamIssues::issue)
 				.list();
 			boolean open = issues.stream().anyMatch(issue -> issue.phase() != Phase.ENDED);
-			List<ShareOption> shares = new ArrayList<>();
-			for (FundingMilestone milestone : job.milestones()) {
-				boolean party = HELD.contains(milestone.state()) && this.crews.releaseTermsOf(milestone.milestoneId())
-					.map(terms -> terms.shares().containsKey(studentId))
-					.orElse(false);
-				if (!party || this.ledger.releasedTotal(milestone.milestoneId()) > 0) {
-					continue;
-				}
-				TeamIssue earlier = issues.stream()
-					.filter(issue -> milestone.milestoneId().equals(issue.milestoneId()))
-					.findFirst()
-					.orElse(null);
-				shares.add(new ShareOption(milestone.milestoneId(), milestone.number(), milestone.title(),
-						earlier != null ? DisputeReason.TEAM_ISSUE_ALREADY_RAISED : open ? DisputeReason.TEAM_ISSUE_OPEN : null,
-						earlier == null ? null : earlier.endedAt()));
-			}
 			List<RatingOption> options = new ArrayList<>();
 			for (CrewRating rating : received) {
 				if (!rating.jobId().equals(jobId)) {
@@ -234,7 +181,7 @@ class TeamIssues {
 						earlier != null ? DisputeReason.TEAM_ISSUE_ALREADY_RAISED : open ? DisputeReason.TEAM_ISSUE_OPEN : null,
 						earlier == null ? null : earlier.endedAt()));
 			}
-			if (shares.isEmpty() && options.isEmpty() && issues.isEmpty()) {
+			if (options.isEmpty() && issues.isEmpty()) {
 				continue;
 			}
 			String mentorName = this.mentors.cards(List.of(job.mentorId()))
@@ -242,20 +189,19 @@ class TeamIssues {
 				.findFirst()
 				.map(MentorDirectory.MentorCard::displayName)
 				.orElse("");
-			panels.add(new JobPanel(jobId, job.title(), mentorName, shares, options, issues));
+			panels.add(new JobPanel(jobId, job.title(), mentorName, options, issues));
 		}
 		return panels;
 	}
 
 	/**
-	 * Raises a Team Issue.
-	 * @param targetId the Milestone of a {@code SHARE} issue, the Rating of a {@code RATING} issue
-	 * @throws ApiException {@code NOT_FOUND} unless the Student was ever active on the Job and, for a
-	 * Rating, is its ratee; {@code VALIDATION}; {@code CONFLICT TEAM_ISSUE_ALREADY_RAISED} or
-	 * {@code TEAM_ISSUE_OPEN}; {@code GUARD_FAILED MILESTONE_NOT_HELD} or {@code TEAM_ISSUE_WINDOW_CLOSED}
+	 * Raises a Team Issue about the Rating {@code ratingId}.
+	 * @throws ApiException {@code NOT_FOUND} unless the Student was ever active on the Job and is the Rating's ratee;
+	 * {@code VALIDATION}; {@code CONFLICT TEAM_ISSUE_ALREADY_RAISED} or {@code TEAM_ISSUE_OPEN}; {@code GUARD_FAILED
+	 * TEAM_ISSUE_WINDOW_CLOSED}
 	 */
 	@Transactional
-	TeamIssue raise(UUID studentId, UUID jobId, Subject subject, UUID targetId, String reasonText) {
+	TeamIssue raise(UUID studentId, UUID jobId, UUID ratingId, String reasonText) {
 		if (!this.locks.crewJobsOf(studentId).contains(jobId)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
@@ -263,25 +209,14 @@ class TeamIssues {
 		if (reason.isEmpty() || reason.length() > 2000) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
-		CrewRating rating = subject == Subject.RATING ? this.ratings.find(targetId)
+		CrewRating rating = this.ratings.find(ratingId)
 			.filter(found -> found.studentId().equals(studentId) && found.jobId().equals(jobId))
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)) : null;
-		boolean share = subject == Subject.SHARE;
-		TeamIssueJob job = this.locks.lockForTeamIssue(jobId, share ? targetId : null, share)
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		TeamIssueJob job = this.locks.lockForTeamIssue(jobId)
 			.filter(found -> found.mentorId() != null)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (share) {
-			this.jdbc.sql("SELECT id FROM dispute.team_issue WHERE milestone_id = :milestone ORDER BY id FOR UPDATE")
-				.param("milestone", targetId)
-				.query(UUID.class)
-				.list();
-		}
-		boolean raised = this.jdbc.sql(share ? """
-				SELECT EXISTS (SELECT 1 FROM dispute.team_issue WHERE subject = 'SHARE' AND milestone_id = :target
-				                                                  AND raiser_account_id = :raiser)
-				""" : "SELECT EXISTS (SELECT 1 FROM dispute.team_issue WHERE subject = 'RATING' AND rating_id = :target)")
-			.param("target", targetId)
-			.param("raiser", studentId)
+		boolean raised = this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM dispute.team_issue WHERE rating_id = :rating)")
+			.param("rating", ratingId)
 			.query(Boolean.class)
 			.single();
 		if (raised) {
@@ -291,7 +226,7 @@ class TeamIssues {
 			throw new ApiException(ErrorCode.CONFLICT, DisputeReason.TEAM_ISSUE_OPEN);
 		}
 		Instant now = this.clock.instant();
-		if (rating != null && !now.isBefore(rating.visibleAt().plus(RATING_WINDOW))) {
+		if (!now.isBefore(rating.visibleAt().plus(RATING_WINDOW))) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, DisputeReason.TEAM_ISSUE_WINDOW_CLOSED);
 		}
 		int answerDays = this.rules.value(jobId, "TEAM_ISSUE_ANSWER_DAYS", DEFAULT_DAYS);
@@ -299,18 +234,15 @@ class TeamIssues {
 		Instant answerDue = now.plus(Duration.ofDays(answerDays));
 		UUID id = this.ids.newId();
 		this.jdbc.sql("""
-				INSERT INTO dispute.team_issue (id, job_id, product_id, subject, milestone_id, milestone_number, rating_id,
-				    raiser_account_id, mentor_account_id, reason, phase, answer_days, escalation_days, raised_at, answer_due_at)
-				VALUES (:id, :job, :product, :subject, :milestone, :number, :rating, :raiser, :mentor, :reason, 'ANSWER',
-				    :answerDays, :escalationDays, :now, :answerDue)
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, :rating, :raiser, :mentor, :reason, 'ANSWER', :answerDays, :escalationDays, :now,
+				    :answerDue)
 				""")
 			.param("id", id)
 			.param("job", jobId)
 			.param("product", job.productId())
-			.param("subject", subject.name())
-			.param("milestone", share ? targetId : null)
-			.param("number", share ? job.milestoneNumber() : null)
-			.param("rating", share ? null : targetId)
+			.param("rating", ratingId)
 			.param("raiser", studentId)
 			.param("mentor", job.mentorId())
 			.param("reason", reason)
@@ -319,9 +251,6 @@ class TeamIssues {
 			.param("now", Timestamp.from(now))
 			.param("answerDue", Timestamp.from(answerDue))
 			.update();
-		if (share) {
-			this.holds.holdShares(targetId, id, studentId);
-		}
 		this.deadlines.schedule(new DeadlineRequest(TeamIssueAnswerDeadline.KEY, id, generation(id, Phase.ANSWER), jobId,
 				answerDue));
 		String name = this.people.cards(List.of(studentId))
@@ -353,26 +282,21 @@ class TeamIssues {
 		return this.jdbc.sql("SELECT * FROM dispute.team_issue WHERE id = :id").param("id", id).query(TeamIssues::issue).optional();
 	}
 
-	/**
-	 * After {@code job.lockForTeamIssue}: the Milestone's Team Issue rows for a share issue, else its own row
-	 * (AD-4, AD-40), then the issue as it now is.
-	 */
-	Optional<TeamIssue> lockRows(TeamIssue issue) {
-		if (issue.milestoneId() != null) {
-			this.jdbc.sql("SELECT id FROM dispute.team_issue WHERE milestone_id = :milestone ORDER BY id FOR UPDATE")
-				.param("milestone", issue.milestoneId())
-				.query(UUID.class)
-				.list();
-		}
-		return lock(issue.id());
-	}
-
 	/** The issue under its row lock; the caller took the Job row lock first (AD-4). */
 	Optional<TeamIssue> lock(UUID id) {
 		return this.jdbc.sql("SELECT * FROM dispute.team_issue WHERE id = :id FOR UPDATE")
 			.param("id", id)
 			.query(TeamIssues::issue)
 			.optional();
+	}
+
+	/**
+	 * A Deadline of an issue that no longer exists (its row went with a retired share issue, or with its Product when the
+	 * Product was deleted) closes the issue's to-dos, which nothing else would close.
+	 */
+	void closeTodosOfGone(UUID issueId) {
+		this.todos.closeAll(ANSWER_TODO, issueId);
+		this.todos.closeAll(DECIDE_TODO, issueId);
 	}
 
 	private Optional<TeamIssue> openOf(UUID jobId, UUID raiserId) {
@@ -394,15 +318,13 @@ class TeamIssues {
 		String answer = rs.getString("answer_kind");
 		String ending = rs.getString("ending");
 		return new TeamIssue(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
-				Subject.valueOf(rs.getString("subject")), rs.getObject("milestone_id", UUID.class),
-				rs.getObject("milestone_number", Integer.class), rs.getObject("rating_id", UUID.class),
-				rs.getObject("raiser_account_id", UUID.class), rs.getObject("mentor_account_id", UUID.class),
-				rs.getString("reason"), Phase.valueOf(rs.getString("phase")), rs.getTimestamp("raised_at").toInstant(),
-				rs.getTimestamp("answer_due_at").toInstant(), escalation == null ? null : escalation.toInstant(),
-				ended == null ? null : ended.toInstant(), answer == null ? null : Answer.valueOf(answer),
-				rs.getObject("answer_points", Integer.class), answered == null ? null : answered.toInstant(),
+				rs.getObject("rating_id", UUID.class), rs.getObject("raiser_account_id", UUID.class),
+				rs.getObject("mentor_account_id", UUID.class), rs.getString("reason"), Phase.valueOf(rs.getString("phase")),
+				rs.getTimestamp("raised_at").toInstant(), rs.getTimestamp("answer_due_at").toInstant(),
+				escalation == null ? null : escalation.toInstant(), ended == null ? null : ended.toInstant(),
+				answer == null ? null : Answer.valueOf(answer), answered == null ? null : answered.toInstant(),
 				escalated == null ? null : escalated.toInstant(), ending == null ? null : Ending.valueOf(ending),
-				rs.getObject("outcome_points", Integer.class), rs.getObject("outcome_rating_removed", Boolean.class));
+				rs.getObject("outcome_rating_removed", Boolean.class));
 	}
 
 }

@@ -18,7 +18,7 @@ import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
 
 /**
- * SG-23's fourth hold case (AD-40), beside {@code payment}'s ledger check: a Team Issue, escalated or not,
+ * SG-23's Team Issue case (AD-40), beside {@code payment}'s ledger check: a Team Issue, escalated or not,
  * still open past its copied answer and escalation periods plus 7 days goes to the failed-operations queue
  * as a {@value TeamIssueOverdueOperation#TYPE} operation, once a day.
  */

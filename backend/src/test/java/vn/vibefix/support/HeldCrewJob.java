@@ -16,8 +16,8 @@ import vn.vibefix.identity.internal.Role;
 /**
  * An Active Job of Lan's Product whose Mentor Hùng runs it with Vy and Minh, both active from 3 days before
  * {@code now}, and whose one Milestone ({@link #milestone}) was Funded the day before {@code now} with {@link #PRICE}
- * paid in and pinned to Crew Terms version 1: Hùng 20%, Vy 40%, Minh 40% (AD-41). Team Issue tests (AD-40) and the
- * split tests (AD-29) start here; an M5 at {@code now} makes Vy and Minh parties of the whole Milestone.
+ * paid in (AD-41). Team Issue tests (AD-40) and the split tests (AD-29) start here; an M5 at {@code now} makes Vy and
+ * Minh parties of the whole Milestone.
  */
 public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product, UUID job, UUID milestone) {
 
@@ -66,17 +66,11 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 				""").param("job", job).param("content", content).param("owner", lan).param("mentor", hung).param("now", at)
 			.update();
 		jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Giai đoạn 1', :price, 2, now(), 'FUNDED', :funded, 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', :price, 2, now(), 'FUNDED', :funded)
 				""").param("id", milestone).param("job", job).param("price", PRICE)
 			.param("funded", Timestamp.from(now.minus(Duration.ofDays(1))))
 			.update();
-		jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 40, :mentor, now())
-				""").param("job", job).param("mentor", hung).update();
-		share(jdbc, job, hung, null, 20);
 		Instant signed = now.minus(Duration.ofDays(3));
 		for (UUID student : List.of(vy, minh)) {
 			UUID row = UUID.randomUUID();
@@ -85,7 +79,6 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 					VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 					""").param("id", row).param("job", job).param("student", student).param("signed", Timestamp.from(signed))
 				.update();
-			share(jdbc, job, student, row, 40);
 		}
 		jdbc.sql("""
 				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
@@ -163,13 +156,6 @@ public record HeldCrewJob(UUID lan, UUID hung, UUID vy, UUID minh, UUID product,
 
 	private static UUID student(JdbcClient jdbc, String name) {
 		return TestPeople.student(jdbc, name, true, List.of(TestPeople.REACT), "React", LocalDate.parse("2026-09-30"));
-	}
-
-	private static void share(JdbcClient jdbc, UUID job, UUID party, UUID row, int percent) {
-		jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :party, :row, :percent)
-				""").param("job", job).param("party", party).param("row", row).param("percent", percent).update();
 	}
 
 }

@@ -711,7 +711,7 @@ function ProposalForm({ jobId, data, onDone }: { jobId: string; data: ChangeRequ
           {t('screen.changeRequest.full.addMilestone')}
         </Button>
       </div>
-      <p className="text-caption text-muted-foreground">{t('screen.changeRequest.full.noShares')}</p>
+      {!customer && <p className="text-caption text-muted-foreground">{t('screen.changeRequest.full.noShares')}</p>}
       <label htmlFor={`${ids}-text`} className="text-label">
         {t(customer ? 'screen.changeRequest.description' : 'screen.changeRequest.impact')}
       </label>

@@ -1092,10 +1092,7 @@
         "tabSplits": "Phân chia tiền",
         "empty": "Chưa có khiếu nại nội bộ nào được chuyển cho quản trị viên.",
         "pick": "Chọn một khiếu nại để xem.",
-        "subject": {
-          "SHARE": "Phần chia giai đoạn {n}",
-          "RATING": "Điểm người hướng dẫn chấm"
-        },
+        "subject": "Điểm người hướng dẫn chấm",
         "waiting": "Chờ quyết định",
         "decided": "Đã kết thúc",
         "assigned": "Đã có người nhận",
@@ -1106,26 +1103,15 @@
         "answer": {
           "none": "Người hướng dẫn không trả lời trong thời hạn.",
           "KEEP": "Người hướng dẫn trả lời: giữ nguyên.",
-          "TRANSFER": "Người hướng dẫn đề nghị chuyển {n} điểm phần trăm.",
           "WITHDRAW_RATING": "Người hướng dẫn đề nghị rút lại điểm."
         },
         "take": "Nhận xử lý",
-        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm, lịch sử công việc của thành viên nhóm và các phiên bản điều khoản nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm, lịch sử công việc của thành viên nhóm và điểm bị khiếu nại, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "evidence": {
           "title": "Hồ sơ bằng chứng nội bộ",
-          "terms": "Điều khoản nhóm",
           "chat": "Trao đổi nhóm",
           "work": "Lịch sử công việc",
           "rating": "Điểm",
-          "version": "Phiên bản {n} · {status}",
-          "status": {
-            "PENDING": "Chờ xác nhận",
-            "IN_FORCE": "Đang áp dụng",
-            "SUPERSEDED": "Đã thay",
-            "VOIDED": "Đã hủy"
-          },
-          "share": "{name} · {pct}%",
-          "confirmed": "xác nhận {time}",
           "noMessages": "Chưa có tin nhắn.",
           "noItems": "Không có việc nào của thành viên nhóm này.",
           "stars": "{n} sao",
@@ -1133,17 +1119,12 @@
         },
         "decision": {
           "title": "Quyết định",
-          "points": "Số điểm phần trăm chuyển từ phần của người hướng dẫn cho thành viên nhóm",
-          "cap": "Tối đa {cap} điểm: người hướng dẫn có {pct}% ở giai đoạn này.",
-          "preview": "Trên {amount} THỬ NGHIỆM: người hướng dẫn {mentorPct}% · {mentorVnd}, thành viên nhóm {raiserPct}% · {raiserVnd}.",
           "keep": "Giữ điểm",
           "remove": "Gỡ điểm",
           "reasoning": "Lý do quyết định",
           "final": "Quyết định là cuối cùng và được thực hiện ngay; cả hai bên được báo kết quả.",
           "confirm": "Ghi quyết định",
           "decided": "Đã ghi quyết định.",
-          "outcomePoints": "Chuyển {n} điểm phần trăm cho thành viên nhóm",
-          "outcomeNone": "Giữ nguyên phần chia",
           "outcomeRemoved": "Gỡ điểm",
           "outcomeKept": "Giữ điểm",
           "at": "Quyết định lúc {time}"
@@ -2429,19 +2410,16 @@
     },
     "teamIssue": {
       "title": "Khiếu nại nội bộ",
-      "lead": "Khiếu nại với người hướng dẫn về phần chia một giai đoạn hoặc điểm người hướng dẫn chấm bạn. Khách hàng không thấy khiếu nại này.",
+      "lead": "Khiếu nại với người hướng dẫn về điểm người hướng dẫn chấm bạn. Khách hàng không thấy khiếu nại này.",
       "mentor": "Người hướng dẫn: {name}",
       "choose": "Bạn muốn khiếu nại về",
-      "share": "Phần chia giai đoạn {n}",
       "rating": "Điểm người hướng dẫn chấm tôi",
       "ratingLine": "{n} sao · khiếu nại được đến {date}",
-      "raisedShare": "Bạn đã khiếu nại phần chia giai đoạn này; khiếu nại kết thúc ngày {date}. Mỗi giai đoạn chỉ khiếu nại được một lần.",
       "raisedRating": "Bạn đã khiếu nại điểm này; khiếu nại kết thúc ngày {date}. Mỗi lần chấm điểm chỉ khiếu nại được một lần.",
       "reason": "Lý do",
       "reasonHint": "Viết rõ điều bạn thấy chưa công bằng. Người hướng dẫn đọc lý do này và trả lời trong 5 ngày.",
       "submit": "Gửi khiếu nại",
       "sent": "Đã gửi khiếu nại nội bộ cho người hướng dẫn.",
-      "held": "Phần tiền của hai bạn cho giai đoạn này được giữ lại cho đến khi có kết quả",
       "from": "{name} · {subject}",
       "jobLead": "Chỉ bạn và người gửi thấy các khiếu nại này; khách hàng không thấy.",
       "phase": {
@@ -2452,32 +2430,23 @@
         "ended": "Đã kết thúc ngày {date}"
       },
       "answer": {
-        "keepShare": "Giữ nguyên phần chia",
         "keepRating": "Giữ nguyên điểm",
-        "transfer": "Chuyển điểm phần trăm từ phần của tôi cho {name}",
         "withdraw": "Rút lại điểm",
-        "points": "Số điểm phần trăm",
-        "cap": "Tối đa {cap} điểm: phần của bạn ở Giai đoạn {n} là {pct}%.",
-        "overCap": "Số điểm chuyển vượt quá phần còn lại của người hướng dẫn ở giai đoạn này: tối đa {cap} điểm phần trăm.",
-        "preview": "Sau khi chuyển, trên {amount} THỬ NGHIỆM của Giai đoạn {n}: bạn {mentorPct}% · {mentorVnd}, {name} {raiserPct}% · {raiserVnd} THỬ NGHIỆM. Phần của những người khác không đổi.",
-        "once": "Bạn chỉ trả lời được một lần và không sửa được. Câu trả lời chưa chuyển tiền: {name} chấp nhận thì kết quả mới được áp dụng, hoặc nhờ quản trị viên xem xét; nếu {name} không chọn trong thời hạn, câu trả lời của bạn được áp dụng.",
+        "once": "Bạn chỉ trả lời được một lần và không sửa được. Câu trả lời chưa có hiệu lực ngay: {name} chấp nhận thì kết quả mới được áp dụng, hoặc nhờ quản trị viên xem xét; nếu {name} không chọn trong thời hạn, câu trả lời của bạn được áp dụng.",
         "submit": "Gửi câu trả lời",
         "confirmTitle": "Gửi câu trả lời này?",
         "sent": "Đã gửi câu trả lời."
       },
       "answerText": {
-        "keepShare": "Câu trả lời: giữ nguyên phần chia",
         "keepRating": "Câu trả lời: giữ nguyên điểm",
-        "transfer": "Câu trả lời: chuyển {n} điểm phần trăm từ phần của người hướng dẫn",
         "withdraw": "Câu trả lời: rút lại điểm"
       },
       "choice": {
-        "preview": "Nếu bạn chấp nhận, trên {amount} THỬ NGHIỆM của Giai đoạn {n}: bạn {raiserPct}% · {raiserVnd}, {mentor} {mentorPct}% · {mentorVnd} THỬ NGHIỆM.",
         "noAnswer": "Người hướng dẫn chưa trả lời trong thời hạn.",
         "accept": "Chấp nhận",
         "escalate": "Nhờ quản trị viên xem xét",
         "lapse": "Nếu bạn không chọn trước {date}, khiếu nại kết thúc và câu trả lời của người hướng dẫn được áp dụng.",
-        "lapseSilent": "Nếu bạn không chọn trước {date}, khiếu nại kết thúc và mọi thứ giữ nguyên.",
+        "lapseSilent": "Nếu bạn không chọn trước {date}, khiếu nại kết thúc và điểm giữ nguyên.",
         "accepted": "Đã chấp nhận câu trả lời.",
         "escalated": "Đã nhờ quản trị viên xem xét."
       },
@@ -2485,11 +2454,9 @@
         "ACCEPTED": "Kết thúc vì câu trả lời được chấp nhận",
         "LAPSED": "Kết thúc vì hết thời gian chọn",
         "DECIDED": "Kết thúc theo quyết định của quản trị viên",
-        "MOOT": "Kết thúc vì giai đoạn không còn tiền để chia hoặc điểm đã được gỡ"
+        "MOOT": "Kết thúc vì điểm đã được gỡ theo cách khác"
       },
       "outcome": {
-        "points": "Đã chuyển {n} điểm phần trăm",
-        "none": "Phần chia giữ nguyên",
         "removed": "Điểm đã được rút lại",
         "kept": "Điểm giữ nguyên"
       }
@@ -2606,12 +2573,9 @@
         "count": "Từ {n} lần chuyển tiền",
         "sentToCrew": "Đã chuyển cho nhóm thực hiện",
         "held": "Đang giữ chờ nghiệm thu",
-        "onHoldTitle": "Đang giữ",
-        "onHoldLead": "Phần tiền của bạn cho các giai đoạn này được giữ lại cho đến khi khiếu nại nội bộ có kết quả. Phần này chưa tính vào số dư.",
-        "onHoldLine": "{job} · Giai đoạn {n}",
         "releasesTitle": "Các lần chuyển tiền",
-        "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được chia theo điều khoản nhóm thực hiện của phiên bản đang áp dụng. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
-        "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, bạn nhận phần của mình theo điều khoản nhóm thực hiện.",
+        "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia và chuyển theo phân chia đã chốt của giai đoạn đó. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
+        "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia; phần của bạn về số dư khi phân chia đã chốt.",
         "empty": "Chưa có lần chuyển tiền nào. Tiền được chuyển khi khách hàng nghiệm thu một giai đoạn.",
         "job": "Công việc · giai đoạn",
         "date": "Ngày",
@@ -3340,7 +3304,7 @@
         "newRounds": "Số lần yêu cầu sửa",
         "dropMilestone": "Bỏ giai đoạn mới này",
         "addMilestone": "Thêm giai đoạn",
-        "noShares": "Đề nghị thay đổi không đổi phần chia của nhóm thực hiện; phần chia chỉ đổi qua điều khoản nhóm.",
+        "noShares": "Phần chia của từng thành viên được đặt theo từng giai đoạn sau khi nghiệm thu, không nằm trong yêu cầu thay đổi.",
         "scopeLine": "Phạm vi mới: {scope}",
         "removedLine": "Bỏ giai đoạn {n} · {title}",
         "titleLine": "Giai đoạn {n}: đổi tên từ {from} thành {to}",
@@ -3890,9 +3854,6 @@
     "crew": {
       "label": "Nhóm thực hiện",
       "hint": "Những thành viên cùng người hướng dẫn làm công việc này. Bạn chỉ thấy tên tài khoản GitHub của họ để cấp quyền khi cần."
-    },
-    "crewTerms": {
-      "label": "Điều khoản nhóm thực hiện"
     },
     "assignee": {
       "label": "Người thực hiện",
@@ -4685,9 +4646,6 @@
       }
     },
     "payment": {
-      "share_held": {
-        "title": "Phần tiền của bạn cho Giai đoạn {n} đang được giữ đến khi khiếu nại nội bộ có kết quả"
-      },
       "payment_received": {
         "title": "Đã nhận thanh toán thử nghiệm {amount} cho Giai đoạn {n} của {job}"
       },
@@ -4966,7 +4924,6 @@
       "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc.",
       "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc khóa bí mật. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
-      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày.",
       "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm.",
       "RECRUITMENT_UNAVAILABLE": "chỉ tuyển thành viên được khi công việc đang thống nhất, chuẩn bị bắt đầu hoặc đang thực hiện",
@@ -5025,8 +4982,7 @@
       "CHAT_READ_ONLY": "Cuộc trò chuyện này chỉ còn để xem."
     },
     "payment": {
-      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm",
-      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền."
+      "PAYMENT_NOT_CONFIGURED": "môi trường này chưa kết nối VNPay thử nghiệm"
     },
     "work": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn làm được việc này.",
@@ -5121,15 +5077,12 @@
       "ALREADY_DECIDED": "Tranh chấp này đã có quyết định.",
       "NOT_FAILED": "Chỉ thử lại được khi việc thực hiện bị lỗi.",
       "TEAM_ISSUE_OPEN": "Bạn đã có một khiếu nại nội bộ đang mở cho công việc này.",
-      "TEAM_ISSUE_ALREADY_RAISED": "Bạn đã khiếu nại mục này rồi. Mỗi giai đoạn và mỗi lần chấm điểm chỉ khiếu nại được một lần.",
+      "TEAM_ISSUE_ALREADY_RAISED": "Bạn đã khiếu nại điểm này rồi. Mỗi lần chấm điểm chỉ khiếu nại được một lần.",
       "TEAM_ISSUE_WINDOW_CLOSED": "Đã quá thời hạn gửi khiếu nại cho mục này.",
-      "MILESTONE_NOT_HELD": "Phần chia giai đoạn này không còn khiếu nại được: giai đoạn chưa được thanh toán hoặc đã chuyển tiền.",
       "ALREADY_ANSWERED": "Bạn đã trả lời khiếu nại này; câu trả lời không sửa được.",
       "ANSWER_PERIOD_ENDED": "Đã hết thời hạn trả lời khiếu nại này.",
       "ESCALATION_PERIOD_NOT_OPEN": "Khiếu nại này không còn ở bước chấp nhận hoặc nhờ quản trị viên.",
       "NO_ANSWER": "Người hướng dẫn chưa trả lời nên chưa có gì để chấp nhận.",
-      "SHARE_TRANSFER_TOO_LARGE": "Số điểm chuyển vượt quá phần còn lại của người hướng dẫn ở giai đoạn này.",
-      "ENDING_REFUSED": "Chưa thực hiện được kết quả này. Quản trị viên đã được báo để xử lý.",
       "NOT_THE_OTHER_SIDE": "Chỉ bên không mở tranh chấp mới gửi trình bày.",
       "STATEMENT_ALREADY_SENT": "Bạn đã gửi trình bày cho tranh chấp này.",
       "STATEMENT_PERIOD_OPEN": "Bên kia vẫn đang trong thời hạn trình bày.",

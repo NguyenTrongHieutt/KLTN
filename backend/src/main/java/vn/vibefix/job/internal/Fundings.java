@@ -143,7 +143,7 @@ class Fundings implements MilestoneFunding {
 		return milestones(jobId).stream()
 			.filter(milestone -> milestone.milestoneId().equals(milestoneId))
 			.findFirst()
-			.map(milestone -> new Funded(transition, milestone.number(), pin(milestoneId)));
+			.map(milestone -> new Funded(transition, milestone.number()));
 	}
 
 	/** AD-4: Milestone 1 of a Job in Agreement funds with J6 first, and an Assessment Job with J7 after. */
@@ -177,13 +177,6 @@ class Fundings implements MilestoneFunding {
 			.query((rs, n) -> new FundingMilestone(rs.getObject("id", UUID.class), rs.getInt("n"), rs.getString("title"),
 					rs.getLong("price"), rs.getString("state")))
 			.list();
-	}
-
-	private int pin(UUID milestoneId) {
-		return this.jdbc.sql("SELECT crew_terms_version_no FROM job.milestone WHERE id = :id")
-			.param("id", milestoneId)
-			.query(Integer.class)
-			.single();
 	}
 
 }

@@ -52,13 +52,8 @@ class PaymentHistory {
 			long yourPartVnd, @Nullable Integer yourPercent, @Nullable Integer splitVersionNo, List<Part> crew) {
 	}
 
-	/** One of the account's own held parts (AD-40): none since Story 22.1, until Story 22.5 replaces the list. */
-	record HeldPart(UUID jobId, String jobTitle, int number, String milestoneTitle, long amountVnd, Instant heldAt) {
-	}
-
 	/** MEN-7 or STU-7. */
-	record Balance(long balanceVnd, int releases, @Nullable Long sentToCrewVnd, @Nullable Long heldVnd, List<ReleaseLine> lines,
-			List<HeldPart> heldParts) {
+	record Balance(long balanceVnd, int releases, @Nullable Long sentToCrewVnd, @Nullable Long heldVnd, List<ReleaseLine> lines) {
 	}
 
 	private final JdbcClient jdbc;
@@ -175,14 +170,14 @@ class PaymentHistory {
 		long balance = own.stream().mapToLong(Release::amountVnd).sum();
 		List<FundingJob> mentoring = this.funding.ofMentor(accountId);
 		if (mentored.isEmpty() && mentoring.isEmpty()) {
-			return new Balance(balance, own.size(), null, null, lines, List.of());
+			return new Balance(balance, own.size(), null, null, lines);
 		}
 		long sent = lines.stream().flatMap(line -> line.crew().stream()).mapToLong(Part::amountVnd).sum();
 		long held = mentoring.stream()
 			.flatMap(job -> job.milestones().stream())
 			.mapToLong(milestone -> figures(milestone.milestoneId()).releasableVnd())
 			.sum();
-		return new Balance(balance, own.size(), sent, held, lines, List.of());
+		return new Balance(balance, own.size(), sent, held, lines);
 	}
 
 	/** The RELEASE entries of a Milestone with their version, for the Mentor's JOB-7. */

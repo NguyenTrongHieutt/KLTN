@@ -187,8 +187,8 @@ class OverdueIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", job).update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', 800000, :due, 2, :now, 'FUNDED', :now, 1)
+				    funded_at)
+				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', 800000, :due, 2, :now, 'FUNDED', :now)
 				""").param("id", this.milestone).param("job", job).param("due", DUE).param("now", now).update();
 		this.jdbc.sql("""
 				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)

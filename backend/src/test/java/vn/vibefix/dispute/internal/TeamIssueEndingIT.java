@@ -3,21 +3,18 @@ package vn.vibefix.dispute.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
@@ -32,19 +29,15 @@ import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
-import vn.vibefix.job.JobTransitioned;
-import vn.vibefix.payment.Ledger;
-import vn.vibefix.payment.Releases;
 import vn.vibefix.reputation.CrewRatings;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
- * Story 12.2 (FR-79, AD-40, AD-15, AD-5): the Mentor answers a Team Issue once, which moves no money; the
- * raiser accepts it or asks an Administrator; the escalation period lapses; or the issue becomes moot.
- * Every share ending executes through {@code payment.endHold}, before or after the release, so the parts
- * are whole VND summing to what was released and paid out never changes.
+ * Story 12.2 (FR-79, AD-40): the Mentor answers a Team Issue once, keeping the Rating or withdrawing it, which changes
+ * nothing yet; the raiser accepts it or asks an Administrator; the escalation period lapses; or the issue becomes moot.
+ * No ending moves money.
  */
 class TeamIssueEndingIT extends IntegrationTest {
 
@@ -61,12 +54,6 @@ class TeamIssueEndingIT extends IntegrationTest {
 	private TransactionTemplate transactions;
 
 	@Autowired
-	private Releases releases;
-
-	@Autowired
-	private Ledger ledger;
-
-	@Autowired
 	private DeadlinePoller poller;
 
 	@Autowired
@@ -76,96 +63,50 @@ class TeamIssueEndingIT extends IntegrationTest {
 	private CrewRatings ratings;
 
 	@Autowired
-	private ApplicationEventPublisher events;
-
-	@Autowired
 	private ApplicationContext context;
 
 	private HeldCrewJob world;
 
+	private UUID vyRating;
+
 	@BeforeEach
-	void aHeldMilestoneOfACrewOfThree() {
+	void aHeldMilestoneOfACrewOfThreeAndVysRating() {
 		this.world = HeldCrewJob.create(this.jdbc, this.clock.instant());
+		this.vyRating = this.world.rating(this.jdbc, this.world.vy(), this.clock.instant().minus(Duration.ofDays(1)));
 	}
 
 	@Test
-	void aTransferAcceptedBeforeTheReleaseIsRecordedAndTheReleaseIgnoresIt() throws Exception {
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/team-issues").with(as(this.world.hung(), Role.MENTOR)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.issues[0].split.basisVnd").value(HeldCrewJob.PRICE))
-			.andExpect(jsonPath("$.issues[0].split.mentorPercent").value(20))
-			.andExpect(jsonPath("$.issues[0].split.raiserPercent").value(40))
-			.andExpect(jsonPath("$.issues[0].split.capPoints").value(20))
-			.andExpect(jsonPath("$.issues[0].split.others[0]").value(40));
-
-		answer(issue, "TRANSFER", 25).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("SHARE_TRANSFER_TOO_LARGE"))
-			.andExpect(jsonPath("$.cap").value(20));
-		answer(issue, "WITHDRAW_RATING", null).andExpect(status().isBadRequest());
-		answer(issue, "TRANSFER", 10).andExpect(status().isOk())
+	void anAcceptedKeepEndsTheIssueWithTheRatingKeptAndAnAnswerIsGivenOnce() throws Exception {
+		UUID issue = raise(this.world.vy(), this.vyRating);
+		answer(issue, "TRANSFER").andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION"));
+		answer(issue, "KEEP").andExpect(status().isOk())
 			.andExpect(jsonPath("$.phase").value("ESCALATION"))
-			.andExpect(jsonPath("$.answerPreview.raiserPercent").value(50))
-			.andExpect(jsonPath("$.answerPreview.raiserVnd").value(500_000))
-			.andExpect(jsonPath("$.answerPreview.mentorVnd").value(100_000));
-		answer(issue, "KEEP", null).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("ALREADY_ANSWERED"));
+			.andExpect(jsonPath("$.answerKind").value("KEEP"))
+			.andExpect(jsonPath("$.answerPoints").doesNotExist());
+		answer(issue, "WITHDRAW_RATING").andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("ALREADY_ANSWERED"));
 		assertThat(notices("dispute.team_issue_answered", this.world.vy())).isOne();
 		assertThat(openTodos("dispute.decide_team_issue_answer", this.world.vy())).isOne();
 		assertThat(openTodos("dispute.answer_team_issue", this.world.hung())).isZero();
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type <> 'FUND'")).as("an answer moves no money")
-			.isZero();
 
 		choose(this.world.vy(), issue, "accept").andExpect(status().isOk())
 			.andExpect(jsonPath("$.phase").value("ENDED"))
 			.andExpect(jsonPath("$.ending").value("ACCEPTED"))
-			.andExpect(jsonPath("$.outcomePoints").value(10));
-		assertThat(count("SELECT transfer_points FROM payment.share_hold WHERE team_issue_id = '" + issue + "'")).isEqualTo(10);
+			.andExpect(jsonPath("$.outcomeRatingRemoved").value(false));
+		assertThat(text("SELECT coalesce(hidden_reason, 'shown') FROM reputation.rating WHERE id = '" + this.vyRating + "'"))
+			.isEqualTo("shown");
 		assertThat(notices("dispute.team_issue_decided", this.world.vy())).isOne();
 		assertThat(notices("dispute.team_issue_decided", this.world.hung())).isOne();
 		assertThat(openTodos("dispute.decide_team_issue_answer", this.world.vy())).isZero();
-
-		release();
-		assertThat(count("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE_POOLED'")).isEqualTo(HeldCrewJob.PRICE);
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE', 'RELEASE_HELD')")).isZero();
-	}
-
-	@Test
-	void anAcceptanceAfterTheReleaseWritesNothingToTheLedger() throws Exception {
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		release();
-		answer(issue, "TRANSFER", 10).andExpect(status().isOk());
-		choose(this.world.vy(), issue, "accept").andExpect(status().isOk());
-
-		assertThat(count("SELECT transfer_points FROM payment.share_hold WHERE team_issue_id = '" + issue + "'")).isEqualTo(10);
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")).isZero();
-		assertThat(this.ledger.releasedTotal(this.world.milestone())).as("paid out does not change").isEqualTo(HeldCrewJob.PRICE);
-		assertThat(this.ledger.releasable(this.world.milestone())).isZero();
-		assertThat(notices("payment.funds_released", this.world.vy())).isZero();
-	}
-
-	@Test
-	void twoShareIssuesShareTheCap() throws Exception {
-		UUID vyIssue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		UUID minhIssue = raise(this.world.minh(), "SHARE", this.world.milestone());
-		release();
-
-		answer(vyIssue, "TRANSFER", 15).andExpect(status().isOk());
-		answer(minhIssue, "TRANSFER", 6).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.cap").value(5));
-		answer(minhIssue, "TRANSFER", 5).andExpect(status().isOk());
-
-		choose(this.world.vy(), vyIssue, "accept").andExpect(status().isOk());
-		choose(this.world.minh(), minhIssue, "accept").andExpect(status().isOk());
-		assertThat(count("SELECT coalesce(sum(transfer_points), 0) FROM payment.share_hold")).isEqualTo(20);
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")).isZero();
-		assertThat(this.ledger.releasedTotal(this.world.milestone())).isEqualTo(HeldCrewJob.PRICE);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type <> 'FUND'")).as("no ending moves money")
+			.isZero();
 	}
 
 	@Test
 	void aSilentMentorLetsTheIssueLapse() throws Exception {
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		release();
+		UUID issue = raise(this.world.vy(), this.vyRating);
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
-		answer(issue, "KEEP", null).andExpect(status().isUnprocessableEntity())
+		answer(issue, "KEEP").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("ANSWER_PERIOD_ENDED"));
 		this.poller.runDue();
 		assertThat(text("SELECT phase FROM dispute.team_issue WHERE id = '" + issue + "'")).isEqualTo("ESCALATION");
@@ -176,15 +117,16 @@ class TeamIssueEndingIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
 		this.poller.runDue();
 		assertThat(text("SELECT ending FROM dispute.team_issue WHERE id = '" + issue + "'")).isEqualTo("LAPSED");
-		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type NOT IN ('FUND', 'RELEASE_POOLED')")).isZero();
+		assertThat(text("SELECT coalesce(hidden_reason, 'shown') FROM reputation.rating WHERE id = '" + this.vyRating + "'"))
+			.as("the Rating stays without an answer").isEqualTo("shown");
 		assertThat(openTodos("dispute.decide_team_issue_answer", this.world.vy())).isZero();
 	}
 
 	@Test
 	void anEscalatedIssueWaitsForAnAdministratorWithNoDeadline() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		answer(issue, "KEEP", null).andExpect(status().isOk());
+		UUID issue = raise(this.world.vy(), this.vyRating);
+		answer(issue, "KEEP").andExpect(status().isOk());
 		choose(this.world.vy(), issue, "escalate").andExpect(status().isOk()).andExpect(jsonPath("$.phase").value("ESCALATED"));
 		assertThat(notices("dispute.team_issue_escalated", this.world.hung())).isOne();
 		assertThat(notices("dispute.team_issue_escalated", ha.accountId())).isOne();
@@ -198,68 +140,29 @@ class TeamIssueEndingIT extends IntegrationTest {
 		assertThat(text("SELECT phase FROM dispute.team_issue WHERE id = '" + issue + "'")).isEqualTo("ESCALATED");
 		assertThat(text("SELECT status FROM timers.deadline WHERE kind = 'dispute.team_issue_escalation' AND subject_id = '"
 				+ issue + "'")).isEqualTo("OBSOLETE");
-		assertThat(count("SELECT count(*) FROM payment.share_hold WHERE team_issue_id = '" + issue + "' AND ended_at IS NULL"))
-			.as("the hold waits for the decision").isOne();
-	}
-
-	@Test
-	void aMilestoneCancelledWithoutAReleaseEndsTheShareIssueAsMoot() throws Exception {
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		this.jdbc.sql("UPDATE job.milestone SET state = 'CANCELLED' WHERE id = :id").param("id", this.world.milestone()).update();
-		this.transactions.executeWithoutResult(status -> this.events.publishEvent(new JobTransitioned(UUID.randomUUID(),
-				UUID.randomUUID(), this.world.job(), "M7", "SYSTEM", "FUNDED", "CANCELLED", 7, 1,
-				Map.of("milestoneId", this.world.milestone().toString()))));
-		await().atMost(Duration.ofSeconds(15))
-			.until(() -> "MOOT".equals(text("SELECT coalesce(ending, '') FROM dispute.team_issue WHERE id = '" + issue + "'")));
-		assertThat(count("SELECT transfer_points FROM payment.share_hold WHERE team_issue_id = '" + issue + "'")).isZero();
-		assertThat(notices("dispute.team_issue_decided", this.world.vy())).isOne();
 	}
 
 	@Test
 	void aWithdrawnRatingIsRemovedAndARemovalByAnotherPathEndsAnOpenRatingIssueAsMoot() throws Exception {
 		Instant published = this.clock.instant().minus(Duration.ofDays(1));
-		UUID vyRating = this.world.rating(this.jdbc, this.world.vy(), published);
 		UUID minhRating = this.world.rating(this.jdbc, this.world.minh(), published);
-		UUID vyIssue = raise(this.world.vy(), "RATING", vyRating);
-		answer(vyIssue, "TRANSFER", 5).andExpect(status().isBadRequest());
-		answer(vyIssue, "WITHDRAW_RATING", null).andExpect(status().isOk());
+		UUID vyIssue = raise(this.world.vy(), this.vyRating);
+		answer(vyIssue, "WITHDRAW_RATING").andExpect(status().isOk());
 		choose(this.world.vy(), vyIssue, "accept").andExpect(status().isOk())
 			.andExpect(jsonPath("$.outcomeRatingRemoved").value(true));
-		assertThat(text("SELECT hidden_reason FROM reputation.rating WHERE id = '" + vyRating + "'"))
+		assertThat(text("SELECT hidden_reason FROM reputation.rating WHERE id = '" + this.vyRating + "'"))
 			.isEqualTo(TeamIssueEndings.REMOVED_REASON);
 
-		UUID minhIssue = raise(this.world.minh(), "RATING", minhRating);
+		UUID minhIssue = raise(this.world.minh(), minhRating);
 		this.transactions.executeWithoutResult(status -> this.ratings.removeRating(minhRating, "Vi phạm quy tắc"));
 		await().atMost(Duration.ofSeconds(15))
 			.until(() -> "MOOT".equals(text("SELECT coalesce(ending, '') FROM dispute.team_issue WHERE id = '" + minhIssue + "'")));
 	}
 
-	@Test
-	void aRefusedExecutionLeavesTheIssueInItsPhaseAndQueuesTheEndingForAdministrators() throws Exception {
-		UUID issue = raise(this.world.vy(), "SHARE", this.world.milestone());
-		answer(issue, "TRANSFER", 10).andExpect(status().isOk());
-		// A transfer recorded behind the cap's back: the ending would move more than the Mentor's pinned share.
-		this.jdbc.sql("""
-				INSERT INTO payment.share_hold (team_issue_id, milestone_id, job_id, product_id, raiser_account_id, held_at,
-				    ended_at, transfer_points)
-				VALUES (:id, :milestone, :job, :product, :minh, now(), now(), 15)
-				""").param("id", UUID.randomUUID()).param("milestone", this.world.milestone()).param("job", this.world.job())
-			.param("product", this.world.product()).param("minh", this.world.minh()).update();
-
-		choose(this.world.vy(), issue, "accept").andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("ENDING_REFUSED"));
-		assertThat(text("SELECT phase FROM dispute.team_issue WHERE id = '" + issue + "'")).isEqualTo("ESCALATION");
-		assertThat(count("SELECT count(*) FROM payment.share_hold WHERE team_issue_id = '" + issue + "' AND ended_at IS NULL"))
-			.isOne();
-		assertThat(count("SELECT count(*) FROM operations.external_operation WHERE type = 'dispute.team_issue_ending'")).isOne();
-	}
-
-	private UUID raise(UUID student, String subject, UUID target) throws Exception {
-		String field = "SHARE".equals(subject) ? "milestoneId" : "ratingId";
+	private UUID raise(UUID student, UUID rating) throws Exception {
 		String body = this.mvc.perform(post("/api/v1/team-issues").with(as(student, Role.STUDENT)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"jobId\":\"" + this.world.job() + "\",\"subject\":\"" + subject + "\",\"" + field + "\":\"" + target
-					+ "\",\"reason\":\"Chưa công bằng.\"}"))
+			.content("{\"jobId\":\"" + this.world.job() + "\",\"ratingId\":\"" + rating + "\",\"reason\":\"Chưa công bằng.\"}"))
 			.andExpect(status().isCreated())
 			.andReturn()
 			.getResponse()
@@ -267,26 +170,16 @@ class TeamIssueEndingIT extends IntegrationTest {
 		return UUID.fromString(body.replaceAll("^\\{\"id\":\"([^\"]+)\".*", "$1"));
 	}
 
-	private ResultActions answer(UUID issue, String kind, Integer points) throws Exception {
+	private ResultActions answer(UUID issue, String kind) throws Exception {
 		return this.mvc.perform(post("/api/v1/boards/" + this.world.job() + "/team-issues/" + issue + "/answer")
 			.with(as(this.world.hung(), Role.MENTOR))
 			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"kind\":\"" + kind + "\"" + (points == null ? "" : ",\"points\":" + points) + "}"));
+			.content("{\"kind\":\"" + kind + "\"}"));
 	}
 
 	private ResultActions choose(UUID student, UUID issue, String choice) throws Exception {
 		return this.mvc.perform(post("/api/v1/team-issues/" + issue + "/" + choice).with(as(student, Role.STUDENT)).with(csrf()));
-	}
-
-	private void release() {
-		this.transactions.executeWithoutResult(
-				status -> this.releases.release(this.world.job(), this.world.milestone(), UUID.randomUUID()));
-	}
-
-	private long entry(String type, UUID party) {
-		return this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = :type AND party_account_id = :party")
-			.param("type", type).param("party", party).query(Long.class).single();
 	}
 
 	private long notices(String type, UUID account) {

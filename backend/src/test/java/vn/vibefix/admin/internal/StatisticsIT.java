@@ -224,8 +224,8 @@ class StatisticsIT extends IntegrationTest {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, submitted_at, handover_id, accepted_at, auto_accepted)
-				VALUES (:id, :job, 0, 'Đánh giá', 800000, DATE '2026-11-20', 2, :now, 'ACCEPTED', :now, 1, :submitted,
+				    funded_at, submitted_at, handover_id, accepted_at, auto_accepted)
+				VALUES (:id, :job, 0, 'Đánh giá', 800000, DATE '2026-11-20', 2, :now, 'ACCEPTED', :now, :submitted,
 				    :handover, :accepted, :automatic)
 				""").param("id", UUID.randomUUID()).param("job", job).param("now", now)
 			.param("submitted", Timestamp.from(submitted)).param("handover", UUID.randomUUID())

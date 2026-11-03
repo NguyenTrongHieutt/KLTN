@@ -317,8 +317,8 @@ class PortfolioIT extends IntegrationTest {
 		UUID milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, accepted_at)
-				VALUES (:id, :job, 0, 'Báo cáo đánh giá', 800000, DATE '2026-11-20', 2, :now, :state, :now, 1, :accepted)
+				    funded_at, accepted_at)
+				VALUES (:id, :job, 0, 'Báo cáo đánh giá', 800000, DATE '2026-11-20', 2, :now, :state, :now, :accepted)
 				""")
 			.param("id", milestone)
 			.param("job", job)

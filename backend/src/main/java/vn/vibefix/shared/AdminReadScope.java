@@ -24,9 +24,6 @@ public enum AdminReadScope {
 	/** Pages of the Documentation Space ({@code work}). */
 	PAGES,
 
-	/** Crew Terms versions ({@code job}). */
-	CREW_TERMS,
-
 	/** One Milestone Split's versions with their edits and confirmations ({@code job}): the split is the object. */
 	SPLIT_VERSIONS
 

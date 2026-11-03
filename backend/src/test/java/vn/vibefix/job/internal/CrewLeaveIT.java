@@ -471,8 +471,8 @@ class CrewLeaveIT extends IntegrationTest {
 		UUID second = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no, accepted_at)
-				VALUES (:id, :job, 1, 'Giai đoạn 2', 500000, 2, now(), 'ACCEPTED', now(), 1, now())
+				    accepted_at)
+				VALUES (:id, :job, 1, 'Giai đoạn 2', 500000, 2, now(), 'ACCEPTED', now(), now())
 				""").param("id", second).param("job", this.job).update();
 		UUID split = UUID.randomUUID();
 		this.jdbc.sql("""

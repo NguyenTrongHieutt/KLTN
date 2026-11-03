@@ -21,9 +21,8 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * M1 (FR-41): the verified payment of a Milestone's Payment Order makes it Funded. Its guards: no
  * other Held Milestone, the Job in Agreement (Milestone 1, after FR-17) or Active, and the Milestone
- * the first Planned one. It records when, and the Crew Terms version in force as the pin its release
- * uses (FR-42, AD-41); the Mentor and the active Crew are told, and its due date is watched (FR-48). It
- * only runs in a cascade, after J6 for Milestone 1.
+ * the first Planned one. It records when, which bounds the Milestone's split parties (FR-42, AD-41); the Mentor and
+ * the active Crew are told, and its due date is watched (FR-48). It only runs in a cascade, after J6 for Milestone 1.
  */
 @Component
 class M1Fund implements JobLifecycle.Step {
@@ -76,12 +75,8 @@ class M1Fund implements JobLifecycle.Step {
 	@Override
 	public void apply(Applying applying) {
 		UUID job = applying.job().id();
-		int pin = this.crews.inForce(job)
-			.orElseThrow(() -> new IllegalStateException("M1 on " + job + " found no Crew Terms version in force"));
 		applying.set("funded_at", applying.now());
-		applying.set("crew_terms_version_no", pin);
 		applying.fact("milestoneId", applying.milestoneId().toString());
-		applying.fact("crewTermsVersionNo", String.valueOf(pin));
 		applying.fact("paymentOrderId", String.valueOf(applying.input("paymentOrderId")));
 		applying.fact("number", String.valueOf(number(job, applying.milestoneId())));
 	}

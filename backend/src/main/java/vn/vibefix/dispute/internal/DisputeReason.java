@@ -30,7 +30,7 @@ enum DisputeReason {
 	/** The Crew member already has a Team Issue on the Job that has not ended (FR-79, AD-40). */
 	TEAM_ISSUE_OPEN,
 
-	/** One share Team Issue per Milestone and one per Rating, ended or not (FR-79, AD-40). */
+	/** One Team Issue per Rating, ended or not (FR-79, AD-40). */
 	TEAM_ISSUE_ALREADY_RAISED,
 
 	/** A Rating is contested within 14 days of becoming visible (FR-79). */
@@ -47,12 +47,6 @@ enum DisputeReason {
 
 	/** "Chấp nhận" needs the Mentor's answer (AD-40). */
 	NO_ANSWER,
-
-	/** The transfer passes the Mentor's pinned share less what is recorded or offered on the Milestone (AD-40). */
-	SHARE_TRANSFER_TOO_LARGE,
-
-	/** The ending could not be executed; Administrators retry it (AD-40, FR-64). */
-	ENDING_REFUSED,
 
 	/** Only the side that did not open the Dispute sends a statement; either side of a System one (FR-52). */
 	NOT_THE_OTHER_SIDE,

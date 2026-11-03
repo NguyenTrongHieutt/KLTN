@@ -240,9 +240,8 @@ class HandoverIT extends IntegrationTest {
 			.param("now", now).update();
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", this.job).update();
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', now(), 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', now())
 				""").param("id", this.milestone).param("job", this.job).update();
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)

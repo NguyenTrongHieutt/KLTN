@@ -41,7 +41,7 @@ class AdminReadGrantTest {
 			assertThat(this.dispute.permits(ADMIN, JOB, scope, ITEM, Set.of(), NOW)).as(scope.name()).isTrue();
 		}
 		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, ITEM, Set.of(), NOW)).isFalse();
-		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.CREW_TERMS, ITEM, Set.of(), NOW)).isFalse();
+		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW)).isFalse();
 	}
 
 	@Test
@@ -68,7 +68,10 @@ class AdminReadGrantTest {
 				DISPUTE);
 
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, ITEM, Set.of(), NOW)).isTrue();
-		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.CREW_TERMS, ITEM, Set.of(), NOW)).isTrue();
+		assertThat(teamIssue.items()).as("Story 22.4: no Crew Terms scope; the Rating is read through reputation")
+			.extracting(AdminReadItem::scope)
+			.containsExactlyInAnyOrder(AdminReadScope.CREW_CHAT, AdminReadScope.WORK_ITEMS);
+		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW)).isFalse();
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, ITEM, Set.of(RAISER, OTHER_ADMIN), NOW))
 			.isTrue();
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, ITEM, Set.of(OTHER_ADMIN), NOW)).isFalse();
@@ -87,7 +90,7 @@ class AdminReadGrantTest {
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, DISPUTE, Set.of(), NOW)).isTrue();
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(RAISER), NOW)).isTrue();
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(OTHER_ADMIN), NOW)).isFalse();
-		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.CREW_TERMS, AdminReadScope.PAGES,
+		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.PAGES,
 				AdminReadScope.WORK_ITEM_NOTES, AdminReadScope.ATTACHMENTS)) {
 			assertThat(resolution.permits(ADMIN, JOB, scope, ITEM, Set.of(RAISER), NOW)).as(scope.name()).isFalse();
 		}

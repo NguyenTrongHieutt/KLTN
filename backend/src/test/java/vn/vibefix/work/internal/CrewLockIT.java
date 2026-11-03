@@ -105,18 +105,8 @@ class CrewLockIT extends IntegrationTest {
 		UUID tung = WorkTestSupport.student(this.jdbc, "Lê Minh Tùng");
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1 WHERE id = :id").param("id", job).update();
 		heldMilestone(job, product, lan);
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 40, :mentor, now())
-				""").param("job", job).param("mentor", hung).update();
-		share(job, hung, null, 40);
-		int[] percents = { 30, 20, 10 };
-		List<UUID> crew = List.of(vy, minh, tung);
-		for (int index = 0; index < crew.size(); index++) {
-			WorkTestSupport.crewRow(this.jdbc, job, crew.get(index), "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
-			UUID row = this.jdbc.sql("SELECT id FROM job.crew_row WHERE member_account_id = :id").param("id", crew.get(index))
-				.query(UUID.class).single();
-			share(job, crew.get(index), row, percents[index]);
+		for (UUID member : List.of(vy, minh, tung)) {
+			WorkTestSupport.crewRow(this.jdbc, job, member, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
 		}
 		this.boards.seed(job, true);
 		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :minh WHERE job_id = :job").param("minh", minh)
@@ -395,9 +385,8 @@ class CrewLockIT extends IntegrationTest {
 
 	private void heldMilestone(UUID job, UUID product, UUID customer) {
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Giai đoạn 1', :price, 2, now(), 'FUNDED', now(), 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Giai đoạn 1', :price, 2, now(), 'FUNDED', now())
 				""").param("id", HELD).param("job", job).param("price", PRICE).update();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
@@ -419,13 +408,6 @@ class CrewLockIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("key", "FUND:" + UUID.randomUUID()).param("job", job)
 			.param("product", product).param("milestone", HELD).param("order", order).param("amount", PRICE)
 			.param("no", String.valueOf(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))).update();
-	}
-
-	private void share(UUID job, UUID party, UUID row, int percent) {
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :party, :row, :percent)
-				""").param("job", job).param("party", party).param("row", row).param("percent", percent).update();
 	}
 
 	private ResultActions reassign(UUID mentor, UUID item, UUID assignee) throws Exception {

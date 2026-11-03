@@ -564,22 +564,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/jobs/{jobId}/crew-terms": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["crewTerms"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/moderation": {
         parameters: {
             query?: never;
@@ -4410,15 +4394,11 @@ export interface components {
         AdminTeamIssueDecisionView: {
             /** Format: date-time */
             decidedAt: string;
-            /** Format: int32 */
-            points?: number;
             ratingRemoved?: boolean;
             reasoning: string;
         };
         AdminTeamIssueDetail: {
             answerKind?: string;
-            /** Format: int32 */
-            answerPoints?: number;
             assigned: boolean;
             assignedToMe: boolean;
             decision?: components["schemas"]["AdminTeamIssueDecisionView"];
@@ -4433,16 +4413,12 @@ export interface components {
             jobId: string;
             jobTitle: string;
             mentorName?: string;
-            /** Format: int32 */
-            milestoneNumber?: number;
             phase: string;
             /** Format: date-time */
             raisedAt: string;
             raiserName?: string;
             rating?: components["schemas"]["AdminRatingEvidenceView"];
             reason: string;
-            split?: components["schemas"]["TeamIssueSplitView"];
-            subject: string;
         };
         AdminTeamIssueRow: {
             assigned: boolean;
@@ -4455,10 +4431,7 @@ export interface components {
             /** Format: uuid */
             jobId: string;
             jobTitle: string;
-            /** Format: int32 */
-            milestoneNumber?: number;
             phase: string;
-            subject: string;
         };
         AdministratorListItem: {
             /** Format: date-time */
@@ -4576,9 +4549,7 @@ export interface components {
         };
         AnswerTeamIssueRequest: {
             /** @enum {string} */
-            kind: "KEEP" | "TRANSFER" | "WITHDRAW_RATING";
-            /** Format: int32 */
-            points?: number;
+            kind: "KEEP" | "WITHDRAW_RATING";
         };
         ApplicantCardView: {
             applicant: components["schemas"]["ApplicantView"];
@@ -4710,7 +4681,6 @@ export interface components {
         BalanceView: {
             /** Format: int64 */
             balanceVnd: number;
-            heldParts: components["schemas"]["HeldPartView"][];
             /** Format: int64 */
             heldVnd?: number;
             lines: components["schemas"]["BalanceReleaseView"][];
@@ -5257,27 +5227,6 @@ export interface components {
             name: string;
             openItems: components["schemas"]["OpenItemView"][];
             state: string;
-        };
-        CrewTermsEvidenceView: {
-            /** Format: uuid */
-            jobId: string;
-            versions: components["schemas"]["CrewTermsVersionEvidenceView"][];
-        };
-        CrewTermsShareEvidenceView: {
-            /** Format: date-time */
-            confirmedAt?: string;
-            name: string;
-            /** Format: int32 */
-            percent: number;
-            role: string;
-        };
-        CrewTermsVersionEvidenceView: {
-            /** Format: date-time */
-            createdAt: string;
-            shares: components["schemas"]["CrewTermsShareEvidenceView"][];
-            status: string;
-            /** Format: int32 */
-            versionNo: number;
         };
         CrewView: {
             /** Format: int64 */
@@ -6093,18 +6042,6 @@ export interface components {
             /** Format: int64 */
             releasableVnd: number;
             title: string;
-        };
-        HeldPartView: {
-            /** Format: int64 */
-            amountVnd: number;
-            /** Format: date-time */
-            heldAt: string;
-            /** Format: uuid */
-            jobId: string;
-            jobTitle: string;
-            milestoneTitle: string;
-            /** Format: int32 */
-            number: number;
         };
         HideRequest: {
             reason: string;
@@ -7221,12 +7158,8 @@ export interface components {
             /** Format: uuid */
             jobId: string;
             /** Format: uuid */
-            milestoneId?: string;
-            /** Format: uuid */
-            ratingId?: string;
+            ratingId: string;
             reason: string;
-            /** @enum {string} */
-            subject: "SHARE" | "RATING";
         };
         RateeView: {
             /** Format: uuid */
@@ -8091,10 +8024,8 @@ export interface components {
             text: string;
         };
         TeamIssueDecisionRequest: {
-            /** Format: int32 */
-            points?: number;
             reasoning: string;
-            removeRating?: boolean;
+            removeRating: boolean;
             stepUpCode: string;
         };
         TeamIssuePanelView: {
@@ -8103,18 +8034,7 @@ export interface components {
             jobId: string;
             mentorName: string;
             ratings: components["schemas"]["TeamIssueRatingOptionView"][];
-            shares: components["schemas"]["TeamIssueShareOptionView"][];
             title: string;
-        };
-        TeamIssuePreviewView: {
-            /** Format: int32 */
-            mentorPercent: number;
-            /** Format: int64 */
-            mentorVnd: number;
-            /** Format: int32 */
-            raiserPercent: number;
-            /** Format: int64 */
-            raiserVnd: number;
         };
         TeamIssueRatingOptionView: {
             /** Format: date-time */
@@ -8129,34 +8049,10 @@ export interface components {
             /** Format: date-time */
             visibleAt: string;
         };
-        TeamIssueShareOptionView: {
-            /** Format: date-time */
-            endedAt?: string;
-            /** Format: uuid */
-            milestoneId: string;
-            /** Format: int32 */
-            number: number;
-            refusal?: string;
-            title: string;
-        };
-        TeamIssueSplitView: {
-            /** Format: int64 */
-            basisVnd: number;
-            /** Format: int32 */
-            capPoints?: number;
-            /** Format: int32 */
-            mentorPercent: number;
-            others: number[];
-            /** Format: int32 */
-            raiserPercent: number;
-        };
         TeamIssueView: {
             /** Format: date-time */
             answerDueAt: string;
             answerKind?: string;
-            /** Format: int32 */
-            answerPoints?: number;
-            answerPreview?: components["schemas"]["TeamIssuePreviewView"];
             /** Format: date-time */
             answeredAt?: string;
             /** Format: date-time */
@@ -8170,23 +8066,15 @@ export interface components {
             id: string;
             /** Format: uuid */
             jobId: string;
-            /** Format: uuid */
-            milestoneId?: string;
-            /** Format: int32 */
-            milestoneNumber?: number;
             mine: boolean;
-            /** Format: int32 */
-            outcomePoints?: number;
             outcomeRatingRemoved?: boolean;
             phase: string;
             /** Format: date-time */
             raisedAt: string;
             raiserName?: string;
             /** Format: uuid */
-            ratingId?: string;
+            ratingId: string;
             reason: string;
-            split?: components["schemas"]["TeamIssueSplitView"];
-            subject: string;
         };
         TestCardView: {
             bank?: string;
@@ -9329,28 +9217,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OversightJobView"];
-                };
-            };
-        };
-    };
-    crewTerms: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CrewTermsEvidenceView"];
                 };
             };
         };

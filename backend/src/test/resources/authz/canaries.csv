@@ -10,8 +10,8 @@
 #   ATTACHMENT, CREW_CHAT, CREW_CHAT_UNREPORTED and CREW_PAGE are the Job's content. The Customer sees none of
 #   them (UX-DR108: the Crew appears to the Customer as GitHub usernames only); PUB-4's reputation endpoints (its two
 #   histories, and the histories in short) are exempt from the Customer's Crew-name scan (review 2026-10-27 A-06).
-# - CREW_SHARE is that member's Crew Terms share. A percentage cannot be unique, so fixtures seed it as
-#   the member's part of the Milestone's release in VND, which only the Mentor's balance lists. An amount is
+# - CREW_SHARE is that member's part of a Milestone's final split. A percentage cannot be unique, so fixtures seed it
+#   as the member's part of the Milestone's release in VND, which only the Mentor's balance lists. An amount is
 #   scanned as digits and in its VND form, 7.316.429 (MatrixRowRunner.forms, review iteration 4).
 # - SPLIT_POOL_ENTRY, SPLIT_POOL_REVERSAL and SPLIT_OPEN are the crew Job's money between a release and its final split
 #   (Story 22.1, AD-20): the entry types of the pooled release and of its reversal, and the status of a split still
@@ -26,13 +26,13 @@
 #   escalated Team Issue's grant does not read, being no Story of its raiser) and CREW_PAGE_TITLE (the team-only Page),
 #   and CUSTOMER_PAGE, a Customer-visible Page. EARLY_PAGE is a team-only Page written inside the windows, so the
 #   former member reads it: each Page filter is seen to keep something (review iteration 4).
-# - TEAM_ISSUE_ID is a share Team Issue another Crew member raised on the held Milestone, not escalated.
+# - TEAM_ISSUE_ID is a Team Issue another Crew member raised about a Rating, not escalated.
 # - JOB_CHAT is the crew Job's Job Chat, which no Crew state reads; nor does any Crew state read the
 #   crew Job's Customer's contact details (CONTACT_EMAIL), which only the Customer, the Job's Mentor under
 #   its contact grant (FR-3), and Administrators read.
 # - The CROSS_* canaries are the second Job's Crew data: CROSS_ROLE is its Customer and reads none.
 # - Administrators read Job content only under the grant whose scope covers it (AD-20): a Dispute
-#   grant reads no Crew Chat and no Crew Terms (AdminReadItem.forDispute), and an Abuse Report grant
+#   grant reads no Crew Chat (AdminReadItem.forDispute), and an Abuse Report grant
 #   reads only the reported message, CREW_CHAT, never CREW_CHAT_UNREPORTED, another message of the same
 #   Crew Chat that no report names (review iteration 3).
 # - PRIVATE_FEEDBACK is a Crew member's private feedback about the Job's Mentor (FR-78), on an ended
@@ -52,7 +52,7 @@
 #   applicant (CREW_APPLICANT) and the Job's Mentor read them; the Customer never does, and no Administrator grant
 #   covers a Crew Application.
 canary,value,visible_to,seeded_as
-CREW_SHARE,7316429,MENTOR ADMIN_TEAM_ISSUE_GRANT,another Crew member's part of a release under the Crew Terms in VND
+CREW_SHARE,7316429,MENTOR,another Crew member's part of a released Milestone in VND
 CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's account email
 CREW_NAME,Canary Crew Name 3b7d,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's shown name
 CREW_LINKEDIN,https://www.linkedin.com/in/canary-crew-5e8a1c,MENTOR CREW_ACTIVE CROSS_ROLE ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's LinkedIn link

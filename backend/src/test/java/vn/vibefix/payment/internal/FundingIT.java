@@ -52,7 +52,6 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewEmptied;
 import vn.vibefix.job.CrewMemberAdded;
-import vn.vibefix.job.Crews;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
@@ -96,9 +95,6 @@ class FundingIT extends IntegrationTest {
 	private PlatformTransactionManager transactions;
 
 	@Autowired
-	private Crews crews;
-
-	@Autowired
 	private PaymentOrders orders;
 
 	@Autowired
@@ -132,12 +128,9 @@ class FundingIT extends IntegrationTest {
 		registry.add("vibefix.payment.vnpay.return-url", () -> "http://localhost:5173/thanh-toan");
 	}
 
-	/**
-	 * Story 21.5 (C-3): Crew Terms are no longer written, so J6 brings into force one version giving the Mentor 100%,
-	 * which M1 pins until Story 22.1's Milestone Splits replace it.
-	 */
+	/** A paid Milestone 1 starts the Code Job (J6) and funds the Milestone (M1), which records when, and pins nothing. */
 	@Test
-	void aPaidMilestoneOneStartsTheCodeJobWithTheMentorOnlyPin() throws Exception {
+	void aPaidMilestoneOneStartsTheCodeJob() throws Exception {
 		confirmedAgreement("BUG_FIX");
 		UUID admin = administrator();
 		assertThat(openTodos("payment.fund_milestone", this.lan)).isOne();
@@ -174,14 +167,15 @@ class FundingIT extends IntegrationTest {
 		assertThat(orderStatus(orderId)).isEqualTo("PAID");
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("STARTING");
-		assertThat(this.jdbc.sql("SELECT state || ' ' || crew_terms_version_no FROM job.milestone WHERE id = :id")
-			.param("id", MILESTONE).query(String.class).single()).isEqualTo("FUNDED 1");
-		assertThat(this.jdbc.sql("SELECT status FROM job.crew_terms_version WHERE job_id = :job").param("job", this.job)
-			.query(String.class).single()).isEqualTo("IN_FORCE");
-		assertThat(this.crews.releaseTermsOf(MILESTONE)).hasValueSatisfying(terms -> {
-			assertThat(terms.versionNo()).isOne();
-			assertThat(terms.shares()).as("the Mentor-only pin").containsOnly(Map.entry(this.hung, 100));
-		});
+		assertThat(this.jdbc.sql("SELECT state || ' ' || (funded_at IS NOT NULL) FROM job.milestone WHERE id = :id")
+			.param("id", MILESTONE).query(String.class).single()).isEqualTo("FUNDED true");
+		assertThat(this.jdbc
+			.sql("SELECT DISTINCT serialized_event FROM platform.event_publication WHERE event_type LIKE '%JobTransitioned'")
+			.query(String.class)
+			.list()).as("J6's and M1's facts name no pin")
+			.anySatisfy(event -> assertThat(event).contains("\"transition\":\"J6\""))
+			.anySatisfy(event -> assertThat(event).contains("\"transition\":\"M1\"").contains("paymentOrderId"))
+			.allSatisfy(event -> assertThat(event).doesNotContain("crewTermsVersionNo"));
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'FUND' AND bucket = 'MILESTONE'"
 				+ " AND amount_vnd = 800000 AND milestone_id = '" + MILESTONE + "'")).isOne();
 		assertThat(notifications("payment.payment_received", this.lan)).isOne();

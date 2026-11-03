@@ -285,9 +285,8 @@ class AutoAcceptanceIT extends IntegrationTest {
 	}
 
 	/**
-	 * An Active Assessment Job with Milestone 1 Funded at 1,500,000 under Crew Terms version 1 (the Mentor
-	 * 70, Vy 30), its seeded Story approved and the Assessment Report written; the Job's copied rules are
-	 * the defaults (7 days, reminders on days 3 and 6).
+	 * An Active Assessment Job with Milestone 1 Funded at 1,500,000 after Vy signed, its seeded Story approved and the
+	 * Assessment Report written; the Job's copied rules are the defaults (7 days, reminders on days 3 and 6).
 	 */
 	private void world() throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
@@ -341,17 +340,8 @@ class AutoAcceptanceIT extends IntegrationTest {
 				""").param("id", row).param("job", this.job).param("student", this.vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
 		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_version (job_id, version_no, status, cap_percent, author_account_id, created_at)
-				VALUES (:job, 1, 'IN_FORCE', 100, :mentor, now())
-				""").param("job", this.job).param("mentor", this.hung).update();
-		this.jdbc.sql("""
-				INSERT INTO job.crew_terms_share (job_id, version_no, party_account_id, crew_row_id, percent)
-				VALUES (:job, 1, :mentor, NULL, 70), (:job, 1, :vy, :row, 30)
-				""").param("job", this.job).param("mentor", this.hung).param("vy", this.vy).param("row", row).update();
-		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at,
-				    crew_terms_version_no)
-				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', :funded, 1)
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, revision_rounds, created_at, state, funded_at)
+				VALUES (:id, :job, 0, 'Báo cáo', 1500000, 2, now(), 'FUNDED', :funded)
 				""").param("id", this.milestone).param("job", this.job)
 			.param("funded", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(1)))).update();
 		this.jdbc.sql("""

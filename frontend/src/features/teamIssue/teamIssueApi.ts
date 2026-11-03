@@ -5,14 +5,13 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type TeamIssuePanel = components['schemas']['TeamIssuePanelView']
 export type TeamIssue = components['schemas']['TeamIssueView']
-export type TeamIssueShareOption = components['schemas']['TeamIssueShareOptionView']
 export type TeamIssueRatingOption = components['schemas']['TeamIssueRatingOptionView']
 export type RaiseTeamIssue = components['schemas']['RaiseTeamIssueRequest']
 
 const PANEL_KEY = ['team-issues', 'panel'] as const
 const jobKey = (jobId: string) => ['team-issues', 'job', jobId] as const
 
-/** "Khiếu nại nội bộ" in "Việc tôi tham gia" (FR-79): per Job, what the member may raise and their issues. */
+/** "Khiếu nại nội bộ" in "Việc tôi tham gia" (FR-79): per Job, the Ratings the member may contest and their issues. */
 export function useTeamIssuePanel() {
   return useQuery({
     queryKey: PANEL_KEY,

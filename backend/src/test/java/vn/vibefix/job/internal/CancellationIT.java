@@ -202,8 +202,8 @@ class CancellationIT extends IntegrationTest {
 		boolean funded = !"PLANNED".equals(state);
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, crew_terms_version_no, accepted_at)
-				VALUES (:id, :job, :position, :title, :price, DATE '2026-11-20', 2, :now, :state, :funded, :terms, :accepted)
+				    funded_at, accepted_at)
+				VALUES (:id, :job, :position, :title, :price, DATE '2026-11-20', 2, :now, :state, :funded, :accepted)
 				""")
 			.param("id", id)
 			.param("job", job)
@@ -213,7 +213,6 @@ class CancellationIT extends IntegrationTest {
 			.param("now", now)
 			.param("state", state)
 			.param("funded", funded ? now : null)
-			.param("terms", funded ? 1 : null)
 			.param("accepted", "ACCEPTED".equals(state) ? now : null)
 			.update();
 	}

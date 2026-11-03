@@ -2,7 +2,6 @@ package vn.vibefix.job;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,8 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The Crew as every module reads it (AD-30, AD-41): policies decide on {@link #crewRelationship}, and
- * nobody reads the Crew rows or the Crew Terms otherwise. A pick, its end and a signature go through
- * {@link CrewPicks} (Story 21.5).
+ * nobody reads the Crew rows otherwise. A pick, its end and a signature go through {@link CrewPicks} (Story 21.5).
  */
 public interface Crews {
 
@@ -69,15 +67,5 @@ public interface Crews {
 
 	/** {@code job.runningCrewOf}: the Job where the Student has a row that is not {@code RELEASED}. */
 	Optional<UUID> runningCrewOf(UUID studentId);
-
-	/**
-	 * The Crew Terms version M1 pinned on the Milestone, with every party's share. No release reads it since Story
-	 * 22.1 (AD-15): only the share holds and the Team Issues do, until Story 22.4 retires them (C-3).
-	 */
-	record ReleaseTerms(int versionNo, Map<UUID, Integer> shares) {
-	}
-
-	/** The pinned Crew Terms of a funded Milestone; empty before M1. */
-	Optional<ReleaseTerms> releaseTermsOf(UUID milestoneId);
 
 }

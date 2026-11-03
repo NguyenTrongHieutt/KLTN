@@ -22,9 +22,7 @@ import vn.vibefix.shared.ErrorCode;
  * Agreement and the guard tagged FR-75 (R7, Story 21.5): at least one counted {@code ACTIVE} Crew row, an unlocked
  * member who signed, for every Job Type, read under the Job lock the cascade holds; a Code Job also takes the
  * Product's advisory lock and needs no other Code Job of the Product in Starting, Active, or Closing (AD-4, backed by
- * an index). Crew Terms are no longer written, so it brings into force one version that gives the Mentor 100%, which M1
- * pins (C-3, until Story 22.1's Milestone Splits), and for a Code Job tells everyone the repositories are being
- * prepared. It only runs in M1's cascade.
+ * an index), and for a Code Job tells everyone the repositories are being prepared. It only runs in M1's cascade.
  */
 @Component
 class J6Start implements JobLifecycle.Step {
@@ -80,11 +78,8 @@ class J6Start implements JobLifecycle.Step {
 
 	@Override
 	public void apply(Applying applying) {
-		Job job = applying.job();
-		applying.fact("crewTermsVersionNo",
-				String.valueOf(this.crews.pinMentorOnly(job.id(), Objects.requireNonNull(job.mentorId()))));
 		// Story 7.2: repo sets up a Code Job's repositories on J6.
-		applying.fact("code", String.valueOf(job.code()));
+		applying.fact("code", String.valueOf(applying.job().code()));
 	}
 
 	@Override

@@ -144,12 +144,14 @@ class SplitPartyRecipientsIT extends IntegrationTest {
 
 	private void send(HeldCrewJob world, UUID recipient, Audience audience, UUID milestone) {
 		new TransactionTemplate(this.transactionManager).executeWithoutResult(status -> this.notifications
-			.send(new NotificationRequest("payment.share_held", UUID.randomUUID(), List.of(new Recipient(recipient, audience)),
-					Map.of("n", "1"), "/so-du", world.job(), null, milestone)));
+			.send(new NotificationRequest("job.split_pending", UUID.randomUUID(), List.of(new Recipient(recipient, audience)),
+					Map.of("n", "1", "job", "Sửa lỗi đặt bàn", "date", "10/11"), "/cong-viec/" + world.job() + "/phan-chia",
+					world.job(), null, milestone)));
 	}
 
 	private long notices(UUID account) {
-		return this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type = 'payment.share_held' AND account_id = :id")
+		return this.jdbc
+			.sql("SELECT count(*) FROM notification.notification WHERE type = 'job.split_pending' AND account_id = :id")
 			.param("id", account)
 			.query(Long.class)
 			.single();
