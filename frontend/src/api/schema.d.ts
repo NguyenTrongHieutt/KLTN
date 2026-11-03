@@ -8025,7 +8025,7 @@ export interface components {
         };
         TeamIssueDecisionRequest: {
             reasoning: string;
-            removeRating?: boolean;
+            removeRating: boolean;
             stepUpCode: string;
         };
         TeamIssuePanelView: {

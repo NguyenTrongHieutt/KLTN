@@ -19974,7 +19974,7 @@
             "pattern" : "^[0-9]{6}$"
           }
         },
-        "required" : [ "reasoning", "stepUpCode" ]
+        "required" : [ "reasoning", "removeRating", "stepUpCode" ]
       },
       "TeamIssuePanelView" : {
         "type" : "object",

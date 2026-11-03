@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.dispute.internal.TeamIssueDecisions.Decision;
@@ -61,7 +62,7 @@ class AdminTeamIssueController {
 	}
 
 	/** The decision, after the step-up: whether the Rating is removed, which the decision requires. */
-	record TeamIssueDecisionRequest(@Nullable Boolean removeRating, @NotBlank @Size(max = 4000) String reasoning,
+	record TeamIssueDecisionRequest(@NotNull Boolean removeRating, @NotBlank @Size(max = 4000) String reasoning,
 			@NotBlank @Pattern(regexp = "^[0-9]{6}$") String stepUpCode) {
 	}
 
