@@ -291,8 +291,8 @@ class TeamIssues {
 	}
 
 	/**
-	 * A Deadline of an issue that no longer exists (its row went with a retired kind of issue) closes the issue's to-dos,
-	 * which nothing else would close.
+	 * A Deadline of an issue that no longer exists (its row went with a retired share issue, or with its Product when the
+	 * Product was deleted) closes the issue's to-dos, which nothing else would close.
 	 */
 	void closeTodosOfGone(UUID issueId) {
 		this.todos.closeAll(ANSWER_TODO, issueId);
