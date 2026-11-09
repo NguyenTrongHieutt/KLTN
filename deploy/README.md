@@ -15,6 +15,7 @@ compose.integrations.yaml  the dev GitHub Apps and VNPay merchant for the backen
 .env.example          the IDs compose.integrations.yaml reads from deploy/.env (ignored by git)
 postgres/initdb/      creates the roles and the database on an empty volume
 dev-secrets.sh        creates the local secret files in deploy/secrets/ (ignored by git)
+runner/               the Spike S6 workflows, which the probe writes to the runner repository (below)
 later/                the production shape and CI, parked until the dev environment works (below)
 ```
 
@@ -508,6 +509,191 @@ Exit code 0 means LinkedIn answered every call. 1 means a refusal, a `state` tha
 answer within 20 seconds, or a value no HTTP header allows. 2 means a wrong invocation, or a missing
 setting or secret file (with the usage). LinkedIn lists the app among your permitted services, where
 you can remove its access after the spike.
+
+## Spike S6: private repositories, with copies and scans in GitHub Actions
+
+Spike S6 tries the Free-plan design of 2026-11-08 before the correct-course rewrites AD-10, AD-11, and
+FR-18 to FR-21. In that design:
+
+- the Intermediary and Working Repositories are private copies;
+- a Source App reads the Customer's private Source Repository;
+- copies and scans run in GitHub Actions of one runner repository, so the backend never downloads code;
+- the Customer reads only the Intermediary Repository.
+
+The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub, as an owner of
+`vibefix-dev` and of the runner organization.
+
+- **Tokens.** Every token is minted for one check or one run, and revoked after it. The probe reads
+  GitHub's answer to each revocation: "token not revoked: HTTP n" fails the run. Tokens are narrowed by
+  numeric repository IDs, except those nothing can narrow, as in Spike S4:
+  - a repository's lookup by name for its ID (Metadata read);
+  - the creation of the Intermediary and Working Repositories (Administration write);
+  - the organization reads (Organization administration and Members read);
+  - the installations' repository listings (Metadata read).
+
+  A token sent to a workflow travels sealed with the runner's public key, and no token is ever printed.
+- **What the probe deletes.** Only each run's artifact and logs, and a failed delete fails the run.
+  Before a failed run's logs are deleted, the last 40 lines of its failed step are printed to stderr.
+- **What stays on GitHub.** The repositories, branches, and pull requests the probe creates; the
+  runner's workflow files and its release; and the runs themselves. Each run record keeps its dispatch
+  inputs: repository names, branches, SHAs, the sealed tokens, and `result_key`. Anyone who can read
+  the runner repository can read them. The probe never deletes a run; delete the runs by hand
+  (step 12).
+
+1. **Create the runner organization.** As yourself, create a Free organization, for example
+   `vibefix-runner-dev`, with one private repository, `vibefix-runner`. Tick "Add a README" so that `main`
+   exists: the probe dispatches every run on `main`, and refuses a runner whose default branch is
+   another one, or one that is public.
+   - Settings › Actions › General: keep Actions allowed. "Allow actions created by GitHub" is enough
+     (`actions/upload-artifact` and `actions/setup-java`, pinned by SHA in the workflows).
+   - Workflow permissions: "Read repository contents and packages permissions".
+   - `vibefix-dev` keeps Actions disabled: enabling them there would fail AD-11's read-back and block
+     every dev Job setup.
+2. **Register the Runner App.** Owned by `vibefix-runner-dev`, "Only on this account", with the webhook
+   off (untick Active):
+   - repository permissions: Actions, Contents, and Workflows **write**; Metadata **read**;
+   - no organization permission, no event.
+
+   Install it on `vibefix-runner-dev` with **Only select repositories** › `vibefix-runner`. Generate a
+   private key and save it as `deploy/secrets/github-runner-app-key.pem`, and note the App ID.
+3. **Register the Source App.** A public App ("Any account"), with the webhook off:
+   - repository permissions: Contents **read** and Metadata **read**, nothing else;
+   - no organization permission, no event.
+
+   Save its key as `deploy/secrets/github-source-app-key.pem`, and note the App ID. As the Customer (your
+   second account, outside `vibefix-dev`, with two-factor authentication on), create a private
+   repository with a few commits and a file under `.github/workflows/`. Then install the Source App on
+   that repository only.
+4. **Configure `vibefix-dev`** as AD-11 needs, as an owner. Part b's first check reads each setting back.
+   - Settings › Authentication security: require two-factor authentication.
+   - Settings › Member privileges: set the base permission to "No permission", and untick private
+     repositories under "Repository forking".
+   - Settings › Actions › General: disable Actions for all repositories.
+5. **Make the two key pairs, and the secret.** From the repository root:
+
+   ```sh
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out deploy/secrets/runner-key.pem
+   openssl pkey -in deploy/secrets/runner-key.pem -pubout -out deploy/secrets/runner-key.pub.pem
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out deploy/secrets/runner-result-key.pem
+   ```
+
+   - **`runner-key.pem` goes to GitHub only.** Paste the whole file as the Actions secret
+     `VIBEFIX_RUNNER_KEY` of `vibefix-runner` (Settings › Secrets and variables › Actions › New
+     repository secret). The workflows decrypt each token with it and mask it before any step uses it.
+     The backend reads only `runner-key.pub.pem`.
+   - **`runner-result-key.pem` never goes to GitHub.** The probe sends its public half as the dispatch
+     input `result_key`. `s6-scan` seals its result under it: AES-256-CTR, an HMAC-SHA256 over the IV
+     and the ciphertext, and both random keys wrapped with RSA-OAEP. Only the probe opens it, so the
+     scan artifact holds no readable Finding, not even for a reader of the runner repository. The run
+     record still shows the scan's inputs (the source's name, branch, and SHA). The copy results hold
+     no Finding and stay plain.
+6. **The scanner jar.** The scan runs the backend's own jar, `/app/vibefix-app.jar` in the image, so
+   rebuild the image from this branch first (`docker compose -f deploy/compose.yaml build backend`).
+   Part b uploads it to the runner's release `s6-scanner` as `vibefix-scanner-{first 12 hex digits of
+   its SHA-256}.jar`, once per build. An asset of that name is used again only when it is `uploaded`
+   and as large as the jar; otherwise check 3 fails, and you delete that asset by hand from the release.
+   `s6-scan` checks the SHA-256 before it starts the jar as the
+   sandbox worker (profile `sandbox`, `SECRET_SCAN` only, on `127.0.0.1`). The worker scans a local
+   mirror and never sees a token. The existing handler needs every scan limit, so the workflow sends
+   the seed limits.
+7. **Run part a: the Source App.** The probe starts the backend image under `cli`, like the other
+   probes. So the stack's `postgres` must be up, with its database already migrated by the stack, and
+   `--spring.flyway.enabled=false` keeps the probe from migrating your dev database.
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/github-source-app-key.pem:/run/secrets/github-source-app-key:ro backend --spring.flyway.enabled=false --vibefix.cli.command=spike-s6 --part=a --source=<Customer>/<private repository> --customer=<Customer> --source-app-id=<Source App ID> --source-app-key-file=/run/secrets/github-source-app-key
+   ```
+
+   It checks the registration (Contents and Metadata read, no event), the installation and its
+   selection (only `--source`), a Contents-read token narrowed to the source (`private=true`, the
+   default branch and its head), the Customer's `admin` permission (AD-13), and a ref creation, which
+   must be refused.
+8. **Run part b: the copies in Actions.** It needs the dev Platform App as for Spike S4, and every key
+   above, each mounted read-only, with `deploy/runner/`.
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/github-platform-app-key.pem:/run/secrets/github-platform-app-key:ro -v ./deploy/secrets/github-source-app-key.pem:/run/secrets/github-source-app-key:ro -v ./deploy/secrets/github-runner-app-key.pem:/run/secrets/github-runner-app-key:ro -v ./deploy/secrets/runner-key.pub.pem:/run/secrets/runner-key.pub.pem:ro -v ./deploy/secrets/runner-result-key.pem:/run/secrets/runner-result-key.pem:ro -v ./deploy/runner:/run/runner:ro backend --spring.flyway.enabled=false --vibefix.cli.command=spike-s6 --vibefix.github.platform-app.id=<App ID> --vibefix.github.platform-app.installation-id=<installation ID> --vibefix.github.platform-app.key-file=/run/secrets/github-platform-app-key --part=b --source=<Customer>/<private repository> --runner=vibefix-runner-dev/vibefix-runner --source-app-id=<Source App ID> --source-app-key-file=/run/secrets/github-source-app-key --runner-app-id=<Runner App ID> --runner-app-key-file=/run/secrets/github-runner-app-key --runner-public-key=/run/secrets/runner-key.pub.pem --workflows-dir=/run/runner --scanner-jar=/app/vibefix-app.jar --result-private-key=/run/secrets/runner-result-key.pem
+   ```
+
+   - **The checks.** It reads `vibefix-dev`'s settings, including `members_can_fork_private_repositories`.
+     It reads the Runner App's registration (exactly Actions, Contents, and Workflows write, Metadata
+     read, no event) and its installation (selected, the runner only). It writes `s6-copy.yml` and
+     `s6-scan.yml` to the runner's `.github/workflows/`, which must hold no other file. Only then does it
+     create `s6-{yyyyMMddHHmm}-intermediary` and `-working` (`--prefix`, letters, digits, and hyphens,
+     names them otherwise): private, with `allow_forking=false`, and their features off.
+   - **The copies** run only once those checks passed. It copies the source's head to the Intermediary
+     Repository, and that to the Working Repository, each in its own run, and reads each branch back at
+     the SHA.
+   - **The other checks.** It reads Actions as disabled on both repositories, and prints what Free
+     answers to a ruleset on the private Intermediary: an answer that names no plan fails. Then it runs
+     one scan, printed as counts only, with its billed minutes on a line of its own (what a PUSH scan
+     costs of Free's monthly minutes). The last line gives every run's duration and billed minutes, and
+     their totals.
+   - **Each run** prints which field of the dispatch answer carried its run ID, or that it was found by
+     its `run-name` after a 204. A dispatch answered 404 (GitHub may not know a workflow file just
+     written) is tried again up to 6 times. A run is polled every 10 seconds for up to 20 minutes (the job
+     stops itself at 15). Its artifact is fetched from the redirect without the Authorization header.
+     A run that did not end `COPIED` or `SCANNED` names the step it stopped at and prints that step's
+     last 40 lines to stderr. Then the artifact and the run's logs are deleted.
+   - **A run not completed after 20 minutes** is cancelled. The probe prints the cancel's status and the
+     run's address, and leaves its artifact and logs: delete them by hand from that page.
+   - **A billed minute** comes from the run's `timing.billable` when GitHub gives one, else from its jobs'
+     start and end times; each job is rounded up to the minute, and the line names the source.
+
+   Without `--scanner-jar` (and `--result-private-key`), the scan is skipped.
+9. **Run part c: the Customer and the handovers**, with part b's prefix.
+
+   ```sh
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -v ./deploy/secrets/github-platform-app-key.pem:/run/secrets/github-platform-app-key:ro -v ./deploy/secrets/github-runner-app-key.pem:/run/secrets/github-runner-app-key:ro -v ./deploy/secrets/runner-key.pub.pem:/run/secrets/runner-key.pub.pem:ro backend --spring.flyway.enabled=false --vibefix.cli.command=spike-s6 --vibefix.github.platform-app.id=<App ID> --vibefix.github.platform-app.installation-id=<installation ID> --vibefix.github.platform-app.key-file=/run/secrets/github-platform-app-key --part=c --prefix=<part b's prefix> --customer=<Customer> --runner=vibefix-runner-dev/vibefix-runner --runner-app-id=<Runner App ID> --runner-app-key-file=/run/secrets/github-runner-app-key --runner-public-key=/run/secrets/runner-key.pub.pem
+   ```
+
+   - **The first run** invites the Customer to the Intermediary Repository with `pull`, prints "accept,
+     then run again", and exits 0. Accept the invitation as the Customer
+     (`https://github.com/vibefix-dev/<prefix>-intermediary/invitations`).
+   - **The same command again** reads `read` back on the Intermediary Repository, and `none` or 404 on
+     the Working Repository. It then makes two Contents-API commits on the Working Repository's default
+     branch, H1 and H2, a child of H1, and copies each to `handover/<prefix>-1` and `-2` with a pull
+     request each.
+   - **Last,** it merges pull request 2 with `merge_method: merge` at H2, and prints pull request 1's
+     `state` and `merged`. If pull request 1 is still open, it closes it with a comment and reads the
+     close back.
+
+   Part c runs once per prefix: if `handover/<prefix>-1` exists, run part b again with a new prefix.
+10. **Check by hand as the Customer**, signed in as that account:
+    - the Intermediary Repository is visible, and "Download ZIP" and `git clone` both work;
+    - Fork is disabled;
+    - a push is refused;
+    - the Working Repository answers 404.
+
+    Then invite an account without two-factor authentication to the Intermediary Repository (Settings ›
+    Collaborators), and check that it cannot accept the invitation.
+11. **Record the Outcome** in Spike S6's spec, section "Outcome":
+    - each part's lines, and the field that carried the run ID;
+    - Free's answer to the ruleset;
+    - pull request 1's state after pull request 2 merged;
+    - the duration and billed minutes of each copy and of the scan;
+    - the manual checks.
+
+    The correct-course then rewrites AD-10, AD-11, and FR-18 to FR-21 from it.
+12. **Tear down** by hand once the Outcome is recorded. The probe deletes none of this:
+    - in `vibefix-dev`, the `s6-…-intermediary` and `s6-…-working` repositories;
+    - in `vibefix-runner`:
+      - the `s6-scanner` release and its `vibefix-scanner-….jar` assets;
+      - the two workflow files, `.github/workflows/s6-copy.yml` and `s6-scan.yml`;
+      - the Actions secret `VIBEFIX_RUNNER_KEY`;
+      - every run under Actions, whose inputs stay readable until the run is deleted, with the artifact
+        and logs of any run the probe cancelled;
+    - the Customer's installation of the Source App (the Customer's Settings › Applications);
+    - the Runner App and the Source App (Developer settings › GitHub Apps › Advanced › Delete), and
+      their keys, `deploy/secrets/github-runner-app-key.pem` and `github-source-app-key.pem`;
+    - the two key pairs: `deploy/secrets/runner-key.pem`, `runner-key.pub.pem`, and
+      `runner-result-key.pem`;
+    - any `s6-refused-…` branch that part a's ref check reported ACCEPTED on the Customer's repository.
+
+Exit code 0 means every check passed or was skipped, or part c is waiting for the invitation. 1 means
+a check failed, a token was not revoked, or the stack is not `dev`, whatever the arguments. 2 means a
+wrong invocation (with the usage), or a key file that cannot be read or holds no usable key (the probe
+names the file's role, never what it holds).
 
 ## Email locally
 

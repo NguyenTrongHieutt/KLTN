@@ -1,0 +1,167 @@
+# Spike S6: copies one commit from a private repository to another, inside GitHub Actions, so the
+# backend never downloads code. The probe `spike-s6` (backend, github.internal.SpikeS6Command) writes
+# this file to the runner repository's .github/workflows/ and dispatches it with two sealed tokens:
+# installation tokens encrypted with RSA-OAEP (SHA-256, MGF1-SHA-256) under the runner's public key,
+# which only the secret VIBEFIX_RUNNER_KEY decrypts. Every input reaches a script through env: only.
+# Git reads each token from a file through GIT_ASKPASS, never from a URL or an extra header.
+name: s6-copy
+run-name: s6-copy ${{ inputs.correlation }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      correlation:
+        description: The probe's correlation ID, also the artifact's name
+        required: true
+        type: string
+      source_repository:
+        description: owner/name of the repository copied from
+        required: true
+        type: string
+      source_branch:
+        description: The branch the commit must be on
+        required: true
+        type: string
+      sha:
+        description: The commit copied, 40 hex digits
+        required: true
+        type: string
+      target_repository:
+        description: owner/name of the repository copied to
+        required: true
+        type: string
+      target_branch:
+        description: The branch the commit is pushed to, without force
+        required: true
+        type: string
+      source_token:
+        description: Sealed read token for the source repository
+        required: true
+        type: string
+      target_token:
+        description: Sealed write token for the target repository
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  copy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check the inputs
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SHA: ${{ inputs.sha }}
+          TARGET_REPOSITORY: ${{ inputs.target_repository }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          SOURCE_TOKEN: ${{ inputs.source_token }}
+          TARGET_TOKEN: ${{ inputs.target_token }}
+        run: |
+          set -euo pipefail
+          echo inputs > "$RUNNER_TEMP/step"
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
+          branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          sha_re='^[0-9a-f]{40}$'
+          sealed_re='^[A-Za-z0-9+/]{340,2048}={0,2}$'
+          [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
+          for value in "$SOURCE_REPOSITORY" "$TARGET_REPOSITORY"; do
+            [[ "$value" =~ $repository_re && "$value" != */. && "$value" != */.. ]] || { echo "::error::a repository is not owner/name"; exit 1; }
+          done
+          for value in "$SOURCE_BRANCH" "$TARGET_BRANCH"; do
+            [[ "$value" =~ $branch_re && "$value" != *..* && "$value" != *//* && "$value" != */ && "$value" != *.lock ]] || { echo "::error::a branch name is refused"; exit 1; }
+          done
+          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          for value in "$SOURCE_TOKEN" "$TARGET_TOKEN"; do
+            [[ "$value" =~ $sealed_re ]] || { echo "::error::a sealed token is not base64"; exit 1; }
+          done
+
+      - name: Unseal the tokens
+        env:
+          RUNNER_KEY: ${{ secrets.VIBEFIX_RUNNER_KEY }}
+          SOURCE_TOKEN: ${{ inputs.source_token }}
+          TARGET_TOKEN: ${{ inputs.target_token }}
+        run: |
+          set -euo pipefail
+          echo unseal > "$RUNNER_TEMP/step"
+          umask 077
+          key="$RUNNER_TEMP/runner-key.pem"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$RUNNER_KEY" > "$key"
+          unseal() {
+            printf '%s' "$1" | base64 -d | openssl pkeyutl -decrypt -inkey "$key" \
+              -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256
+          }
+          source_plain="$(unseal "$SOURCE_TOKEN")"
+          echo "::add-mask::$source_plain"
+          target_plain="$(unseal "$TARGET_TOKEN")"
+          echo "::add-mask::$target_plain"
+          token_re='^[A-Za-z0-9_]{20,255}$'
+          [[ "$source_plain" =~ $token_re && "$target_plain" =~ $token_re ]] || { echo "::error::a sealed token did not unseal"; exit 1; }
+          printf '%s' "$source_plain" > "$RUNNER_TEMP/source-token"
+          printf '%s' "$target_plain" > "$RUNNER_TEMP/target-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+
+      - name: Copy the commit
+        env:
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SHA: ${{ inputs.sha }}
+          TARGET_REPOSITORY: ${{ inputs.target_repository }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          set -euo pipefail
+          echo fetch > "$RUNNER_TEMP/step"
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          repository="$RUNNER_TEMP/copy.git"
+          git init --quiet --bare "$repository"
+          git -C "$repository" config transfer.fsckObjects true
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/source-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "https://github.com/$SOURCE_REPOSITORY.git" "+refs/heads/$SOURCE_BRANCH:refs/heads/vibefix-source"
+          rm -f "$RUNNER_TEMP/source-token"
+          echo check > "$RUNNER_TEMP/step"
+          git -C "$repository" cat-file -e "$SHA^{commit}"
+          git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-source
+          echo push > "$RUNNER_TEMP/step"
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/target-token" git -C "$repository" -c credential.helper= push --quiet \
+            "https://github.com/$TARGET_REPOSITORY.git" "$SHA:refs/heads/$TARGET_BRANCH"
+          rm -f "$RUNNER_TEMP/target-token"
+
+      - name: Write the result
+        if: always()
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/source-token" "$RUNNER_TEMP/target-token" "$RUNNER_TEMP/runner-key.pem"
+          step="$(cat "$RUNNER_TEMP/step" 2>/dev/null || echo start)"
+          if [ "$JOB_STATUS" = success ]; then outcome=COPIED; else outcome=FAILED; fi
+          mkdir -p "$RUNNER_TEMP/result"
+          jq -n --arg correlation "$CORRELATION" --arg outcome "$outcome" --arg step "$step" \
+            '{correlation: $correlation, outcome: $outcome, step: $step}' > "$RUNNER_TEMP/result/result.json"
+
+      - name: Upload the result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: result-${{ inputs.correlation }}
+          path: ${{ runner.temp }}/result/result.json
+          retention-days: 1
+          if-no-files-found: error
