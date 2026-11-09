@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
@@ -40,6 +42,8 @@ class CodeHandovers {
 	record Check(@Nullable WorkingHead head, @Nullable String rangeStart, @Nullable Range range, List<SensitiveChange> sensitive,
 			List<String> problems) {
 	}
+
+	private static final Logger log = LoggerFactory.getLogger(CodeHandovers.class);
 
 	private final HandoverBranches branches;
 
@@ -88,10 +92,23 @@ class CodeHandovers {
 		if (range.commits().isEmpty()) {
 			problems.add(DeliveryReason.NO_NEW_COMMITS.name());
 		}
+		List<SensitiveChange> sensitive = this.sensitiveChanges.classify(range.paths());
 		if (range.paths().stream().anyMatch(SensitiveChanges::workflow)) {
 			problems.add(DeliveryReason.WORKFLOW_FILES_CHANGED.name());
 		}
-		return new Check(head, start, range, this.sensitiveChanges.classify(range.paths()), problems);
+		else {
+			// GitHub lists at most 300 changed files, so the folder's tree at both ends decides (AD-18).
+			try {
+				if (this.branches.pathChanged(jobId, start, head.headSha(), SensitiveChanges.WORKFLOWS_DIRECTORY)) {
+					problems.add(DeliveryReason.WORKFLOW_FILES_CHANGED.name());
+				}
+			}
+			catch (Unavailable unavailable) {
+				log.warn("The workflows folder of Job {} was not read", jobId, unavailable);
+				problems.add(DeliveryReason.REPOSITORY_UNREADABLE.name());
+			}
+		}
+		return new Check(head, start, range, sensitive, problems);
 	}
 
 	/**

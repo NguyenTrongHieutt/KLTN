@@ -15,6 +15,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +39,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import tools.jackson.databind.JsonNode;
 import vn.vibefix.dispute.internal.DisputeTestSupport;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
@@ -54,7 +56,8 @@ import vn.vibefix.timers.internal.DeadlinePoller;
 /**
  * Story 8.2 (FR-8, FR-23, FR-32, AD-11, AD-18, AD-33, NFR-3): a Code Job's handover covers the commits on
  * the Working Repository's default branch since the commit Setup copied. It needs them scanned by a push
- * scan, at least one of them, and no change under {@code .github/workflows/}. "Gửi bàn giao" pins the head
+ * scan, at least one of them, and no change under {@code .github/workflows/}, which the folder's tree at both
+ * ends shows even when GitHub's list of changed files stops at 300. "Gửi bàn giao" pins the head
  * on {@code handover/{id}} in the Intermediary Repository with the System's pull request, applies M2, and
  * records each commit with its author's GitHub ID and the Work Items it mentions, the Sensitive Changes,
  * and the Pages updated. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
@@ -300,6 +303,164 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).isZero();
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+		assertThat(graphql()).as("the list shows the change, so no GraphQL call").isEmpty();
+	}
+
+	/** GitHub's compare lists 300 files at most, so the folder's tree at both ends decides. */
+	@Test
+	void aWorkflowChangeHiddenBehind300ListedFilesIsRefusedAndNothingIsPinned() throws Exception {
+		Map<String, String> files = padding("pad");
+		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử", "hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+
+		int before = graphql().size();
+		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
+		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
+		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+	}
+
+	@Test
+	void afterAHandoverTheTreeIsComparedFromItsHandoverCommit() throws Exception {
+		UUID handover = handedOver();
+		String first = this.jdbc.sql("SELECT handover_commit FROM delivery.handover WHERE id = :id").param("id", handover)
+			.query(String.class).single();
+		Map<String, String> files = padding("pad");
+		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử", "hung@example.test");
+		preflight();
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
+			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
+		this.worker.runDue(Lane.SCAN);
+
+		int before = graphql().size();
+		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
+		List<GitHubStub.Seen> reads = graphql();
+		assertThat(reads).as("the list did not show it").hasSize(before + 1);
+		assertThat(reads.getLast().body().path("variables").path("base").asString()).isEqualTo(first);
+		handOver(version()).andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
+		assertThat(GITHUB.pullHeads.get(this.intermediary)).as("only the first handover is pinned").hasSize(1);
+	}
+
+	@Test
+	void noWorkflowsFolderAtEitherEndIsAllowed() throws Exception {
+		// Setup copied a commit without the folder.
+		startAt(GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", Map.of(), List.of(".github/workflows"),
+				"Bỏ thư mục cấu hình", "hung@example.test"));
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+
+		int before = graphql().size();
+		preflight().andExpect(jsonPath("$.problems").isEmpty());
+		assertThat(graphql()).hasSize(before + 1);
+		handOver(5).andExpect(status().isCreated());
+	}
+
+	@Test
+	void aWorkflowsFolderRemovedOrAddedBehind300ListedFilesIsRefused() throws Exception {
+		// Removed: the folder is at the range's start only.
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", padding("pad"), List.of(".github/workflows"), "Dọn dẹp",
+				"hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+		int before = graphql().size();
+		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
+		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
+
+		// Added: the folder is at the head only.
+		startAt(GITHUB.head(GitHubStub.ORGANIZATION, this.working, "main"));
+		Map<String, String> files = padding("pad again");
+		files.put(".github/workflows/ci.yml", "on: push\n");
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Thêm lại", "hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+		before = graphql().size();
+		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
+		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
+		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+	}
+
+	@Test
+	void theSameWorkflowsTreeIsAllowedAfterOneGraphQLReadThatCarriesVariablesOnly() throws Exception {
+		String start = GITHUB.head(GitHubStub.ORGANIZATION, this.working, "main");
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+
+		int before = graphql().size();
+		preflight().andExpect(jsonPath("$.problems").isEmpty());
+		List<GitHubStub.Seen> reads = graphql();
+		assertThat(reads).hasSize(before + 1);
+		JsonNode read = reads.getLast().body();
+		assertThat(read.path("query").asString()).doesNotContain(start, head, this.working, GitHubStub.ORGANIZATION, "\"");
+		assertThat(read.path("variables").path("owner").asString()).isEqualTo(GitHubStub.ORGANIZATION);
+		assertThat(read.path("variables").path("base").asString()).isEqualTo(start);
+		assertThat(read.path("variables").path("head").asString()).isEqualTo(head);
+		assertThat(read.path("variables").path("headEntry").asString()).isEqualTo(head + ":.github/workflows");
+		handOver(5).andExpect(status().isCreated()).andExpect(jsonPath("$.code.handoverCommit").value(head));
+	}
+
+	@Test
+	void whenGitHubCannotReadTheWorkflowsTreeTheRepositoryIsUnreadableAndNothingIsPinned() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		preflight();
+		this.worker.runDue(Lane.SCAN);
+
+		GITHUB.graphqlErrors.add(this.working);
+		try {
+			preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("REPOSITORY_UNREADABLE")));
+			handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("REPOSITORY_UNREADABLE"));
+		}
+		finally {
+			GITHUB.graphqlErrors.remove(this.working);
+		}
+		GITHUB.unavailable.add("POST /graphql");
+		try {
+			preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("REPOSITORY_UNREADABLE")));
+		}
+		finally {
+			GITHUB.unavailable.remove("POST /graphql");
+		}
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+		preflight().andExpect(jsonPath("$.problems").isEmpty());
+	}
+
+	/** 300 files whose paths sort before {@code .github}, so GitHub's compare lists them and stops. */
+	private static Map<String, String> padding(String content) {
+		Map<String, String> files = new LinkedHashMap<>();
+		for (int file = 0; file < 300; file++) {
+			files.put("-pad/%03d.txt".formatted(file), content + " " + file + "\n");
+		}
+		return files;
+	}
+
+	/** The range starts at {@code sha}, as if Setup had copied that commit. */
+	private void startAt(String sha) {
+		this.jdbc.sql("UPDATE repo.job_setup SET approved_sha = :sha WHERE job_id = :job").param("sha", sha).param("job", this.job)
+			.update();
+		this.jdbc.sql("UPDATE repo.branch_head SET sha = :sha WHERE job_id = :job AND ref = 'refs/heads/main'").param("sha", sha)
+			.param("job", this.job).update();
+	}
+
+	/** The GraphQL requests that read this Job's Working Repository, oldest first. */
+	private List<GitHubStub.Seen> graphql() {
+		return List.copyOf(GITHUB.seen)
+			.stream()
+			.filter(request -> request.path().equals("/graphql")
+					&& this.working.equals(request.body().path("variables").path("name").asString("")))
+			.toList();
 	}
 
 	@Test

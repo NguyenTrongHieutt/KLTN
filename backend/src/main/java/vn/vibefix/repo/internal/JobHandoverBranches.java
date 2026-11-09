@@ -115,6 +115,17 @@ class JobHandoverBranches implements HandoverBranches {
 	}
 
 	@Override
+	public boolean pathChanged(UUID jobId, String fromSha, String toSha, String path) {
+		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
+		try {
+			return !this.repositories.pathObjects(setup.working(), fromSha, toSha, path).same();
+		}
+		catch (GitHubException failed) {
+			throw new Unavailable(path + " of Job " + jobId + " was not read", failed);
+		}
+	}
+
+	@Override
 	public int pin(UUID jobId, UUID handoverId, String sha, String title) {
 		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
 		String branch = "handover/" + handoverId;

@@ -54,7 +54,10 @@ enum DeliveryReason {
 	/** No commit after the previous Handover Commit, or after the one Setup copied (FR-32). */
 	NO_NEW_COMMITS,
 
-	/** A commit of the handover changes a file under {@code .github/workflows/} (FR-32, AD-18, N-16). */
+	/**
+	 * The {@code .github/workflows} folder differs between the range's two ends: added, removed, or changed,
+	 * read from the list of changed files or from the folder's tree (FR-32, AD-18, N-16).
+	 */
 	WORKFLOW_FILES_CHANGED,
 
 	/** GitHub did not answer while the handover read or pinned the Working Repository; try again shortly. */

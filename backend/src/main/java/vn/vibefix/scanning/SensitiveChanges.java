@@ -12,8 +12,14 @@ import java.util.Objects;
  */
 public interface SensitiveChanges {
 
-	/** The folder a handover may not change (FR-32, AD-18). */
-	String WORKFLOWS = ".github/workflows/";
+	/**
+	 * The folder a handover may not change (FR-32, AD-18), as a path in the repository: a handover compares
+	 * its tree at both ends of the range, which no cut list of changed files can hide.
+	 */
+	String WORKFLOWS_DIRECTORY = ".github/workflows";
+
+	/** {@value #WORKFLOWS_DIRECTORY} as the prefix of the paths under it. */
+	String WORKFLOWS = WORKFLOWS_DIRECTORY + "/";
 
 	enum Kind {
 

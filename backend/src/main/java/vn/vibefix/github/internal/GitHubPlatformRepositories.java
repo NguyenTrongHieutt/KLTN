@@ -50,6 +50,22 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	/** GitHub expires a repository invitation 7 days after it is sent. */
 	static final Duration INVITATION_LIFETIME = Duration.ofDays(7);
 
+	/**
+	 * {@link #pathObjects}'s GraphQL query: both commits, and the object a path names at each, as
+	 * {@code <sha>:<path>}. Everything it reads arrives as a variable, so no SHA or repository name is ever
+	 * part of its text.
+	 */
+	static final String PATH_OBJECTS_QUERY = """
+			query($owner: String!, $name: String!, $base: String!, $head: String!, $baseEntry: String!, $headEntry: String!) {
+			  repository(owner: $owner, name: $name) {
+			    baseCommit: object(expression: $base) { oid }
+			    headCommit: object(expression: $head) { oid }
+			    basePath: object(expression: $baseEntry) { oid }
+			    headPath: object(expression: $headEntry) { oid }
+			  }
+			}
+			""";
+
 	private static final Map<String, Object> FEATURES_OFF = Map.of("has_wiki", false, "has_issues", false, "has_projects",
 			false, "has_discussions", false);
 
@@ -490,6 +506,41 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			boolean truncated = body.path("total_commits").asInt(commits.size()) > commits.size() || files.size() >= 300;
 			return new Comparison(commits, List.copyOf(files), truncated);
 		});
+	}
+
+	@Override
+	public PathObjects pathObjects(PlatformRepository repository, String baseSha, String headSha, String path) {
+		String fullName = repository.fullName();
+		int slash = fullName.indexOf('/');
+		Map<String, String> variables = Map.of("owner", fullName.substring(0, slash), "name", fullName.substring(slash + 1),
+				"base", baseSha, "head", headSha, "baseEntry", baseSha + ":" + path, "headEntry", headSha + ":" + path);
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
+			String what = "read " + path + " of " + fullName;
+			GitHubHttp.Answer answer = http().send("POST", "/graphql", token.value(),
+					Map.of("query", PATH_OBJECTS_QUERY, "variables", variables));
+			JsonNode body = require(answer, what);
+			JsonNode errors = body.path("errors");
+			if (errors.isArray() && !errors.isEmpty()) {
+				throw new GitHubException(answer.status(), "GitHub refused to " + what + ": "
+						+ errors.get(0).path("message").asString(""));
+			}
+			JsonNode found = body.path("data").path("repository");
+			if (!found.isObject()) {
+				throw new GitHubException(answer.status(), "GitHub showed no repository " + fullName);
+			}
+			for (String commit : List.of("baseCommit", "headCommit")) {
+				if (!found.path(commit).path("oid").isString()) {
+					throw new GitHubException(answer.status(), "GitHub does not know the " + commit + " of " + baseSha + "..."
+							+ headSha + " in " + fullName);
+				}
+			}
+			return new PathObjects(oid(found.path("basePath")), oid(found.path("headPath")));
+		});
+	}
+
+	private static @Nullable String oid(JsonNode object) {
+		JsonNode oid = object.path("oid");
+		return oid.isString() ? oid.asString() : null;
 	}
 
 	@Override
