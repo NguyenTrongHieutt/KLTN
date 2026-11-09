@@ -1,0 +1,231 @@
+# Spike S6: scans one branch of a private repository inside GitHub Actions, so the backend never
+# downloads code. The probe `spike-s6` (backend, github.internal.SpikeS6Command) writes this file to
+# the runner repository's .github/workflows/ and dispatches it with one sealed token (RSA-OAEP,
+# SHA-256, MGF1-SHA-256, decrypted only with the secret VIBEFIX_RUNNER_KEY). The branch is fetched
+# into a local mirror and the token file is deleted; then the backend jar from the release s6-scanner
+# runs as the sandbox worker (profile sandbox, SECRET_SCAN only, on 127.0.0.1) and scans the mirror's
+# history with the existing handler, which never sees a token. The result names Findings, so the
+# artifact holds it only sealed for the probe ({wrapped, iv, ciphertext, tag}, under result_key). Every
+# input reaches a script through env: only. Git reads the token from a file through GIT_ASKPASS, never
+# from a URL or an extra header.
+name: s6-scan
+run-name: s6-scan ${{ inputs.correlation }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      correlation:
+        description: The probe's correlation ID, also the artifact's name
+        required: true
+        type: string
+      repository:
+        description: owner/name of the repository scanned
+        required: true
+        type: string
+      branch:
+        description: The branch fetched and scanned
+        required: true
+        type: string
+      sha:
+        description: A commit that must be on the branch, 40 hex digits
+        required: true
+        type: string
+      token:
+        description: Sealed read token for the repository
+        required: true
+        type: string
+      scanner_sha256:
+        description: SHA-256 of the scanner jar; the asset is vibefix-scanner-{first 12 digits}.jar
+        required: true
+        type: string
+      result_key:
+        description: Base64 X.509 DER of the probe's result public key, which the result is sealed under
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check the inputs
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          REPOSITORY: ${{ inputs.repository }}
+          BRANCH: ${{ inputs.branch }}
+          SHA: ${{ inputs.sha }}
+          TOKEN: ${{ inputs.token }}
+          SCANNER_SHA256: ${{ inputs.scanner_sha256 }}
+          RESULT_KEY: ${{ inputs.result_key }}
+        run: |
+          set -euo pipefail
+          echo inputs > "$RUNNER_TEMP/step"
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
+          branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          sha_re='^[0-9a-f]{40}$'
+          sha256_re='^[0-9a-f]{64}$'
+          sealed_re='^[A-Za-z0-9+/]{340,2048}={0,2}$'
+          public_key_re='^[A-Za-z0-9+/]{400,2048}={0,2}$'
+          [[ "$RESULT_KEY" =~ $public_key_re ]] || { echo "::error::result_key is not a base64 public key"; exit 1; }
+          [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
+          [[ "$REPOSITORY" =~ $repository_re && "$REPOSITORY" != */. && "$REPOSITORY" != */.. ]] || { echo "::error::repository is not owner/name"; exit 1; }
+          [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::the branch name is refused"; exit 1; }
+          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          [[ "$SCANNER_SHA256" =~ $sha256_re ]] || { echo "::error::scanner_sha256 is not 64 hex digits"; exit 1; }
+          [[ "$TOKEN" =~ $sealed_re ]] || { echo "::error::the sealed token is not base64"; exit 1; }
+
+      - name: Unseal the token
+        env:
+          RUNNER_KEY: ${{ secrets.VIBEFIX_RUNNER_KEY }}
+          TOKEN: ${{ inputs.token }}
+        run: |
+          set -euo pipefail
+          echo unseal > "$RUNNER_TEMP/step"
+          umask 077
+          key="$RUNNER_TEMP/runner-key.pem"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$RUNNER_KEY" > "$key"
+          scan_token="$(printf '%s' "$TOKEN" | base64 -d | openssl pkeyutl -decrypt -inkey "$key" \
+            -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256)"
+          echo "::add-mask::$scan_token"
+          [[ "$scan_token" =~ ^[A-Za-z0-9_]{20,255}$ ]] || { echo "::error::the sealed token did not unseal"; exit 1; }
+          printf '%s' "$scan_token" > "$RUNNER_TEMP/scan-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+
+      - name: Fetch the branch into a mirror
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+          BRANCH: ${{ inputs.branch }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          echo fetch > "$RUNNER_TEMP/step"
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          mirror="$RUNNER_TEMP/mirror/$REPOSITORY.git"
+          mkdir -p "$(dirname "$mirror")"
+          git init --quiet --bare "$mirror"
+          git -C "$mirror" config transfer.fsckObjects true
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/scan-token" git -C "$mirror" -c credential.helper= fetch --quiet --no-tags \
+            "https://github.com/$REPOSITORY.git" "+refs/heads/$BRANCH:refs/heads/$BRANCH"
+          rm -f "$RUNNER_TEMP/scan-token" "$RUNNER_TEMP/askpass.sh"
+          echo check > "$RUNNER_TEMP/step"
+          git -C "$mirror" symbolic-ref HEAD "refs/heads/$BRANCH"
+          git -C "$mirror" cat-file -e "$SHA^{commit}"
+          git -C "$mirror" merge-base --is-ancestor "$SHA" "refs/heads/$BRANCH"
+
+      - name: Download the scanner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCANNER_SHA256: ${{ inputs.scanner_sha256 }}
+        run: |
+          set -euo pipefail
+          echo scanner > "$RUNNER_TEMP/step"
+          asset="vibefix-scanner-${SCANNER_SHA256:0:12}.jar"
+          mkdir -p "$RUNNER_TEMP/scanner"
+          gh release download s6-scanner --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$RUNNER_TEMP/scanner"
+          echo "$SCANNER_SHA256  $RUNNER_TEMP/scanner/$asset" | sha256sum --check --quiet
+          mv "$RUNNER_TEMP/scanner/$asset" "$RUNNER_TEMP/scanner/vibefix-scanner.jar"
+
+      - name: Set up Java
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Scan the mirror
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euo pipefail
+          echo scan > "$RUNNER_TEMP/step"
+          log="$RUNNER_TEMP/scanner.log"
+          java -jar "$RUNNER_TEMP/scanner/vibefix-scanner.jar" --spring.profiles.active=sandbox \
+            --vibefix.sandbox.worker.job-types=SECRET_SCAN "--vibefix.github.git-url=file://$RUNNER_TEMP/mirror" \
+            --server.address=127.0.0.1 --server.port=8080 > "$log" 2>&1 &
+          worker=$!
+          trap 'kill "$worker" 2>/dev/null || true' EXIT
+          ready=false
+          for _ in $(seq 1 90); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8080/actuator/health/liveness; then ready=true; break; fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then tail -n 40 "$log"; echo "::error::the scanner did not start"; exit 1; fi
+          # ScanLimits.read needs every limit: these are the seed limits (scanning.internal.ScanLimits.DEFAULT),
+          # which S6ScanJobTest checks against the worker.
+          job='{"type":"SECRET_SCAN","input":{"limits":{"transferBytes":314572800,"commits":50000,"blobs":200000,"decompressedBytes":1073741824,"blobBytes":1048576,"lineLength":4096,"timeoutSeconds":600}}}'
+          printf '%s' "$job" | jq --arg repository "$REPOSITORY" '.input.repository = $repository' > "$RUNNER_TEMP/scan-job.json"
+          if ! curl -fsS --max-time 660 -H 'Content-Type: application/json' --data "@$RUNNER_TEMP/scan-job.json" \
+            -o "$RUNNER_TEMP/scan-answer.json" http://127.0.0.1:8080/internal/sandbox/jobs; then
+            tail -n 40 "$log"
+            echo "::error::the scan job failed"
+            exit 1
+          fi
+          jq '.output' "$RUNNER_TEMP/scan-answer.json" > "$RUNNER_TEMP/scan-output.json"
+
+      - name: Write and seal the result
+        if: always()
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          JOB_STATUS: ${{ job.status }}
+          RESULT_KEY: ${{ inputs.result_key }}
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/scan-token" "$RUNNER_TEMP/askpass.sh" "$RUNNER_TEMP/runner-key.pem"
+          step="$(cat "$RUNNER_TEMP/step" 2>/dev/null || echo start)"
+          if [ "$JOB_STATUS" = success ]; then outcome=SCANNED; else outcome=FAILED; fi
+          output="$RUNNER_TEMP/scan-output.json"
+          if [ "$outcome" != SCANNED ] || [ ! -s "$output" ]; then echo null > "$output"; fi
+          umask 077
+          plain="$RUNNER_TEMP/plain"
+          trap 'rm -rf "$plain" "$output"' EXIT
+          mkdir -p "$plain" "$RUNNER_TEMP/result"
+          jq -n --arg correlation "$CORRELATION" --arg outcome "$outcome" --arg step "$step" --slurpfile output "$output" \
+            '{correlation: $correlation, outcome: $outcome, step: $step, output: $output[0]}' > "$plain/result.json"
+          # The result names Findings, so it leaves the runner sealed for the probe only: AES-256-CTR (openssl
+          # enc has no GCM), HMAC-SHA256 over the IV and the ciphertext, and both random keys wrapped with
+          # RSA-OAEP (SHA-256, MGF1-SHA-256) under the probe's result_key. The artifact holds nothing else.
+          printf '%s' "$RESULT_KEY" | base64 -d > "$plain/result-key.der"
+          openssl rand -out "$plain/aes.key" 32
+          openssl rand -out "$plain/mac.key" 32
+          openssl rand -out "$plain/iv.bin" 16
+          aes_key="$(od -An -v -tx1 "$plain/aes.key" | tr -d ' \n')"
+          mac_key="$(od -An -v -tx1 "$plain/mac.key" | tr -d ' \n')"
+          iv="$(od -An -v -tx1 "$plain/iv.bin" | tr -d ' \n')"
+          echo "::add-mask::$aes_key"
+          echo "::add-mask::$mac_key"
+          openssl enc -aes-256-ctr -K "$aes_key" -iv "$iv" -in "$plain/result.json" -out "$plain/ciphertext.bin"
+          cat "$plain/iv.bin" "$plain/ciphertext.bin" \
+            | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$mac_key" -binary > "$plain/tag.bin"
+          cat "$plain/aes.key" "$plain/mac.key" \
+            | openssl pkeyutl -encrypt -pubin -keyform DER -inkey "$plain/result-key.der" \
+              -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 > "$plain/wrapped.bin"
+          for part in wrapped iv ciphertext tag; do
+            base64 -w0 "$plain/$part.bin" > "$plain/$part.b64"
+          done
+          jq -n --rawfile wrapped "$plain/wrapped.b64" --rawfile iv "$plain/iv.b64" \
+            --rawfile ciphertext "$plain/ciphertext.b64" --rawfile tag "$plain/tag.b64" \
+            '{wrapped: $wrapped, iv: $iv, ciphertext: $ciphertext, tag: $tag}' > "$RUNNER_TEMP/result/result.json"
+
+      - name: Upload the result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: result-${{ inputs.correlation }}
+          path: ${{ runner.temp }}/result/result.json
+          retention-days: 1
+          if-no-files-found: error
