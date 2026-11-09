@@ -40,7 +40,8 @@ import tools.jackson.databind.JsonNode;
  * refuses a fork to a token narrowed by {@code repository_ids}, and leaves a pending invitation at
  * the permission it was sent with. It also answers an App's webhook reads: its deliveries, newest first
  * and paged by {@code cursor} in the {@code Link} header, their redelivery, and the webhook's
- * configuration.
+ * configuration. Its compare lists 300 files at most, as GitHub's does, and its {@code POST /graphql}
+ * answers {@code object(expression:)} reads of commits and paths.
  */
 public final class GitHubStub implements AutoCloseable {
 
@@ -263,13 +264,28 @@ public final class GitHubStub implements AutoCloseable {
 	 */
 	public String push(String owner, String name, String branch, String file, String content, String message,
 			String authorEmail) throws Exception {
+		return push(owner, name, branch, Map.of(file, content), List.of(), message, authorEmail);
+	}
+
+	/**
+	 * One new commit that writes every file of {@code files} (path to content; paths may lie in folders)
+	 * and removes every path of {@code removed}, a file or a whole folder, such as a push that changes
+	 * hundreds of files at once. Returns its SHA.
+	 */
+	public String push(String owner, String name, String branch, Map<String, String> files, List<String> removed,
+			String message, String authorEmail) throws Exception {
 		Path work = Files.createTempDirectory("stub-push-");
 		try (Git git = Git.cloneRepository().setURI(this.gitRoot.resolve(owner).resolve(name + ".git").toUri().toString())
 			.setDirectory(work.toFile()).setBranch(branch).call()) {
-			Path target = work.resolve(file);
-			Files.createDirectories(target.getParent());
-			Files.writeString(target, content);
+			for (Map.Entry<String, String> file : files.entrySet()) {
+				Path target = work.resolve(file.getKey());
+				Files.createDirectories(target.getParent());
+				Files.writeString(target, file.getValue());
+			}
 			git.add().addFilepattern(".").call();
+			for (String path : removed) {
+				git.rm().addFilepattern(path).call();
+			}
 			String author = authorEmail.substring(0, authorEmail.indexOf('@'));
 			RevCommit commit = git.commit().setMessage(message).setAuthor(author, authorEmail)
 				.setCommitter(author, authorEmail).call();
@@ -795,9 +811,13 @@ public final class GitHubStub implements AutoCloseable {
 								change.getChangeType() == DiffEntry.ChangeType.DELETE ? change.getOldPath() : change.getNewPath()));
 					}
 				}
+				// As GitHub does, the list stops at 300 files, in path order: what sorts later is not shown.
 				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("ahead_by", commits.size(), "total_commits",
-						commits.size(), "commits", commits, "files", files)));
+						commits.size(), "commits", commits, "files", files.subList(0, Math.min(files.size(), COMPARE_FILES)))));
 			}
+		}
+		else if (method.equals("POST") && path.equals("/graphql")) {
+			graphql(exchange, body);
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)").matcher(path)).matches()) {
 			Published repository = published(matcher.group(1), matcher.group(2));
@@ -805,6 +825,83 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		else {
 			send(exchange, 404, "{\"message\":\"Not Found\",\"path\":\"" + path + (query == null ? "" : "?" + query) + "\"}");
+		}
+	}
+
+	/** GitHub lists at most this many files of a compare, and says nothing of the rest. */
+	static final int COMPARE_FILES = 300;
+
+	/** Repositories, by name, whose GraphQL queries GitHub answers with {@code errors} and no data. */
+	public final java.util.Set<String> graphqlErrors = Collections.synchronizedSet(new java.util.HashSet<>());
+
+	private static final Pattern GRAPHQL_REPOSITORY = Pattern
+		.compile("repository\\(\\s*owner:\\s*\\$(\\w+)\\s*,\\s*name:\\s*\\$(\\w+)\\s*\\)");
+
+	private static final Pattern GRAPHQL_OBJECT = Pattern.compile("(\\w+)\\s*:\\s*object\\(\\s*expression:\\s*\\$(\\w+)\\s*\\)");
+
+	/**
+	 * {@code POST /graphql} for {@code repository(owner:, name:)} with aliased {@code object(expression:)}
+	 * fields, as GitHub answers it: each expression names a commit, or {@code <commit>:<path>}, resolved
+	 * through JGit to its {@code oid}, or {@code null} when there is no such object. Every value must arrive
+	 * as a variable: a query with a string literal in its text, or with a repository that is not
+	 * {@code repository(owner: $…, name: $…)}, is answered with {@code errors}, as is an unknown repository.
+	 */
+	private void graphql(HttpExchange exchange, JsonNode body) throws IOException {
+		String query = body.path("query").asString("");
+		JsonNode variables = body.path("variables");
+		Matcher repository = GRAPHQL_REPOSITORY.matcher(query);
+		if (query.contains("\"") || !repository.find()) {
+			send(exchange, 200, "{\"data\":null,\"errors\":[{\"message\":\"The stub reads values from variables only\"}]}");
+			return;
+		}
+		String owner = variables.path(repository.group(1)).asString("");
+		String name = variables.path(repository.group(2)).asString("");
+		if (this.graphqlErrors.contains(name)) {
+			send(exchange, 200, "{\"data\":null,\"errors\":[{\"message\":\"Something went wrong while executing your query.\"}]}");
+			return;
+		}
+		if (owner.isEmpty() || name.isEmpty() || !Files.isDirectory(this.gitRoot.resolve(owner).resolve(name + ".git"))) {
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("data", Collections.singletonMap("repository", null),
+					"errors", List.of(Map.of("type", "NOT_FOUND", "path", List.of("repository"), "message",
+							"Could not resolve to a Repository with the name '" + owner + "/" + name + "'.")))));
+			return;
+		}
+		Map<String, Object> objects = new LinkedHashMap<>();
+		try (Repository git = repository(owner, name)) {
+			Matcher object = GRAPHQL_OBJECT.matcher(query);
+			while (object.find()) {
+				String oid = objectId(git, variables.path(object.group(2)).asString(""));
+				objects.put(object.group(1), oid == null ? null : Map.of("oid", oid));
+			}
+		}
+		send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("data", Map.of("repository", objects))));
+	}
+
+	/** The object {@code expression} names, a commit or {@code <commit>:<path>}, or none. */
+	private static @org.jspecify.annotations.Nullable String objectId(Repository git, String expression) throws IOException {
+		int colon = expression.indexOf(':');
+		String revision = colon < 0 ? expression : expression.substring(0, colon);
+		org.eclipse.jgit.lib.ObjectId id;
+		try {
+			id = revision.isEmpty() ? null : git.resolve(revision);
+		}
+		catch (org.eclipse.jgit.errors.RevisionSyntaxException ex) {
+			return null;
+		}
+		if (id == null || !git.getObjectDatabase().has(id)) {
+			return null;
+		}
+		try (RevWalk walk = new RevWalk(git)) {
+			RevCommit commit = walk.parseCommit(id);
+			if (colon < 0) {
+				return commit.name();
+			}
+			try (TreeWalk entry = TreeWalk.forPath(git, expression.substring(colon + 1), commit.getTree())) {
+				return entry == null ? null : entry.getObjectId(0).name();
+			}
+		}
+		catch (org.eclipse.jgit.errors.IncorrectObjectTypeException ex) {
+			return null;
 		}
 	}
 

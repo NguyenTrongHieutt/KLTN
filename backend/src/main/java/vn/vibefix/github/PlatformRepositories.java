@@ -3,6 +3,7 @@ package vn.vibefix.github;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -169,6 +170,29 @@ public interface PlatformRepositories {
 
 	/** The commits and changed paths from {@code baseSha} to {@code headSha} of the repository. */
 	Comparison compare(PlatformRepository repository, String baseSha, String headSha);
+
+	/**
+	 * The object one path names at two commits (FR-32, AD-18): a file's blob or a folder's tree. Unlike
+	 * {@link Comparison#files()}, it has no length limit, so a change under the path cannot hide behind
+	 * 300 other files.
+	 * @param base the object's ID at the base commit, {@code null} when the path does not exist there
+	 * @param head the object's ID at the head commit, {@code null} when the path does not exist there
+	 */
+	record PathObjects(@Nullable String base, @Nullable String head) {
+
+		/** Whether the path is the same at both commits: absent from both, or the same object at each. */
+		public boolean same() {
+			return Objects.equals(this.base, this.head);
+		}
+
+	}
+
+	/**
+	 * What {@code path} names at {@code baseSha} and at {@code headSha}, read in one GraphQL query that
+	 * also reads both commits (contents read). A commit GitHub does not know, or a query GitHub answers
+	 * with errors, is a {@link GitHubException}.
+	 */
+	PathObjects pathObjects(PlatformRepository repository, String baseSha, String headSha, String path);
 
 	/** The repository's direct collaborators, lower-case login to role ({@code read}, {@code write}, and so on). */
 	Map<String, String> directCollaborators(PlatformRepository repository);

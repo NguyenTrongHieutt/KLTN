@@ -8,10 +8,10 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A Code Job's handover on GitHub (FR-32, AD-11, AD-18, AD-33), for {@code delivery}: the Working
- * Repository's default branch as GitHub shows it now, the commits and paths of a handover's range, and
- * the pin of a Handover Commit to {@code handover/{handoverId}} in the Intermediary Repository with the
- * System's pull request. Each method reads or writes GitHub, so callers run it outside any transaction;
- * GitHub not answering is {@link Unavailable}.
+ * Repository's default branch as GitHub shows it now, the commits and paths of a handover's range,
+ * whether a path changed over it, and the pin of a Handover Commit to {@code handover/{handoverId}} in the
+ * Intermediary Repository with the System's pull request. Each method reads or writes GitHub, so callers
+ * run it outside any transaction; GitHub not answering is {@link Unavailable}.
  */
 public interface HandoverBranches {
 
@@ -57,6 +57,14 @@ public interface HandoverBranches {
 	}
 
 	Range range(UUID jobId, String fromSha, String toSha);
+
+	/**
+	 * Whether {@code path}, a file or a folder of the Working Repository, differs from {@code fromSha} to
+	 * {@code toSha}: present at only one of them, or a different object at each. It compares the whole
+	 * object, so no cut list of changed paths can hide a change under it (FR-32, AD-18); a path present at
+	 * neither commit is unchanged.
+	 */
+	boolean pathChanged(UUID jobId, String fromSha, String toSha, String path);
 
 	/**
 	 * Pushes {@code sha} of the Working default branch to {@code handover/{handoverId}} in the
