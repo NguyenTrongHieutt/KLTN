@@ -5,16 +5,18 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
 import java.security.MessageDigest;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -22,35 +24,50 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import javax.crypto.Cipher;
-
 import org.jspecify.annotations.Nullable;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ObjectNode;
+import vn.vibefix.github.GitHubApps.App;
 
 /**
- * Spike S6's stand-in for GitHub, on loopback: three Apps (Platform, Source, Runner), each told apart by
- * its JWT's issuer and installed where the design puts it; installation tokens checked against the
- * installation, their {@code repository_ids} and their permissions; private repositories with branches
- * as lists of commits; the runner's workflow dispatches, runs, artifacts behind a redirect to "blob
- * storage", timings, and deletions; releases; invitations; and pull requests. A dispatched run does its
- * work at once: it unseals its inputs with the runner's private key, as the workflow does, and copies
- * or scans only what the unsealed tokens may reach; a scan's result is uploaded sealed under the
- * dispatch's {@code result_key}, as {@code s6-scan} does. It records every request, every token, every
- * revocation, every uploaded result, and the order of runs completing and tokens being revoked.
+ * Spike S6's stand-in for GitHub (the revision of 2026-11-10), on loopback: the Platform App and the
+ * Source App, each told apart by its JWT's issuer and installed where the design puts it; installation
+ * tokens checked against the installation, their {@code repository_ids} and their permissions;
+ * repositories with branches as lists of commits and a tree per commit; the organization's Actions
+ * policy; workflow dispatches, runs, jobs, timings, logs behind a redirect, and their deletion;
+ * invitations; and pull requests. It is also the OIDC issuer: it publishes a key set and signs each run's
+ * ID token with a test key.
+ * <p>
+ * A dispatched run does its work at once, as the published workflow would: it signs its ID token (with
+ * the {@link Flaw} a test asks for), posts it to the run's {@code exchange_url}, and with the token it is
+ * given copies only what that token reaches, never pushing with force. A Customer's run reads and writes
+ * its own repository as its {@code GITHUB_TOKEN} would. Every request, token, revocation, exchange answer,
+ * ID token, and the order of runs completing and tokens being revoked are recorded.
  */
 final class SpikeS6Stub implements AutoCloseable {
 
@@ -60,23 +77,66 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	static final long SOURCE_APP = 2222;
 
-	static final long RUNNER_APP = 3333;
-
 	static final long PLATFORM_INSTALLATION = 7;
 
 	static final long SOURCE_INSTALLATION = 21;
 
-	static final long RUNNER_INSTALLATION = 31;
+	static final String PLATFORM_SLUG = "vibefix-dev-platform";
+
+	static final String SOURCE_SLUG = "vibefix-dev-source";
 
 	/** The Customer's private Source Repository. */
 	static final String SOURCE = "lan-shop/quan-may-private";
 
-	static final String RUNNER = "vibefix-runner-dev/vibefix-runner";
+	static final String RUNNER_NAME = "vibefix-runner";
+
+	static final String RUNNER = ORGANIZATION + "/" + RUNNER_NAME;
 
 	/** The Customer, admin of {@link #SOURCE}. */
 	static final String CUSTOMER = "lan-shop";
 
+	static final String CUSTOMER_PATH = ".github/workflows/" + SpikeS6Command.CUSTOMER_WORKFLOW;
+
 	static final String FREE_RULESET = "Upgrade to GitHub Pro or make this repository public to enable this feature.";
+
+	static final String KEY_ID = "s6-stub-key";
+
+	/** The lines of a failed step's log: line 1 to 60, a masked token and the refusal last. */
+	static final int LOG_LINES = 60;
+
+	/** How a run's ID token, or the run GitHub shows, differs from a genuine one. */
+	enum Flaw {
+
+		NONE,
+
+		/** Signed by a key the key set does not publish, under the same key ID. */
+		SIGNATURE,
+
+		/** Issued for another audience. */
+		AUDIENCE,
+
+		/** Expired ten minutes ago. */
+		EXPIRED,
+
+		/** Issued by another issuer. */
+		ISSUER,
+
+		/** The run's job ran on a self-hosted runner. */
+		SELF_HOSTED,
+
+		/** The run was triggered by someone other than the dispatching App. */
+		FOREIGN_ACTOR,
+
+		/** The run's title holds no correlation. */
+		FOREIGN_TITLE,
+
+		/** The run names a correlation the probe never dispatched. */
+		UNKNOWN_CORRELATION,
+
+		/** The run exchanges its ID token a second time. */
+		REPLAY
+
+	}
 
 	/** One request as GitHub would have received it. */
 	record Seen(String method, String path, @Nullable String query, @Nullable String authorization, JsonNode body) {
@@ -84,6 +144,10 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	/** What a token was minted for. */
 	record Grant(long installation, Set<Long> repositoryIds, Map<String, String> permissions) {
+	}
+
+	/** What one run's call to the exchange was answered. */
+	record Exchanged(long runId, String correlation, int status, @Nullable String reason, @Nullable String token) {
 	}
 
 	final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
@@ -98,18 +162,25 @@ final class SpikeS6Stub implements AutoCloseable {
 	/** {@code completed <run>} and {@code revoked <token>}, in the order they happened. */
 	final List<String> events = Collections.synchronizedList(new ArrayList<>());
 
-	/** The dispatch bodies, as the runner received them. */
+	/** The dispatch bodies, as the repositories received them. */
 	final List<JsonNode> dispatches = Collections.synchronizedList(new ArrayList<>());
 
-	/** The Authorization header of each blob-storage request, {@code none} when there was none. */
-	final List<String> blobAuthorizations = Collections.synchronizedList(new ArrayList<>());
+	/** Each answer the runs got from the exchange. */
+	final List<Exchanged> exchanged = Collections.synchronizedList(new ArrayList<>());
 
-	final List<Long> deletedArtifacts = Collections.synchronizedList(new ArrayList<>());
+	/** Every ID token the runs were given. */
+	final List<String> idTokens = Collections.synchronizedList(new ArrayList<>());
+
+	/** The Authorization header of each logs-storage request, {@code none} when there was none. */
+	final List<String> logAuthorizations = Collections.synchronizedList(new ArrayList<>());
 
 	final List<Long> deletedLogs = Collections.synchronizedList(new ArrayList<>());
 
 	/** Pull request comments, as {@code owner/name#number}. */
 	final List<String> comments = Collections.synchronizedList(new ArrayList<>());
+
+	/** The runs cancelled through {@code POST …/actions/runs/{id}/cancel}. */
+	final List<Long> cancelled = Collections.synchronizedList(new ArrayList<>());
 
 	/** 200 with the run's ID when the dispatch asks for {@code return_run_details}; 204 for GitHub's old answer. */
 	volatile int dispatchStatus = 200;
@@ -119,20 +190,11 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	volatile boolean neverCompletes;
 
-	/** A copy run fails at this step ({@code fetch}, {@code check}, {@code push}). */
+	/** A run fails at this step ({@code fetch}, {@code check}, {@code push}) after its exchange. */
 	volatile @Nullable String failAtStep;
 
 	/** Whether GitHub marks an open pull request merged once a merge brings its head commit in. */
 	volatile boolean containedPullsMarkedMerged;
-
-	/** The scan's envelope arrives with a changed tag. */
-	volatile boolean corruptScanTag;
-
-	/** Each run's {@code result.json} as uploaded: plain for a copy, the envelope for a scan. */
-	final List<String> uploadedResults = Collections.synchronizedList(new ArrayList<>());
-
-	/** The scan's envelope arrives with a plaintext {@code output} beside its four fields. */
-	volatile boolean plaintextBesideEnvelope;
 
 	/** How many dispatches answer 404 first, as GitHub does for a workflow file it does not know yet. */
 	volatile int dispatchNotFound;
@@ -142,12 +204,6 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	/** What {@code DELETE /installation/token} answers. */
 	volatile int revocationStatus = 204;
-
-	/** What {@code DELETE …/actions/artifacts/{id}} answers. */
-	volatile int artifactDeleteStatus = 204;
-
-	/** Another {@code upload_url} for the release, such as a foreign host. */
-	volatile @Nullable String uploadUrl;
 
 	/** What a ruleset on a private repository is answered with, status and message. */
 	volatile int rulesetStatus = 403;
@@ -159,18 +215,45 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	volatile boolean timingWithoutBillable;
 
-	/** The runs cancelled through {@code POST …/actions/runs/{id}/cancel}. */
-	final List<Long> cancelled = Collections.synchronizedList(new ArrayList<>());
+	/** How the next runs' ID tokens are spoiled. */
+	volatile Flaw flaw = Flaw.NONE;
 
-	/** The Authorization header of each logs-storage request, {@code none} when there was none. */
-	final List<String> logAuthorizations = Collections.synchronizedList(new ArrayList<>());
+	/** The organization's Actions policy: {@code none}, {@code all}, or {@code selected}. */
+	volatile String actionsEnabled = "selected";
 
-	/** The lines of a failed copy step's log: line 1 to 60, the last naming the refusal. */
-	static final int LOG_LINES = 60;
+	/** The repositories {@code selected} lets run Actions, by name. */
+	final List<String> actionsRepositories = Collections.synchronizedList(new ArrayList<>(List.of(RUNNER_NAME)));
 
-	private final PrivateKey runnerKey;
+	/** Whether the Platform App holds Actions write, as it must with a runner. */
+	volatile boolean platformActions = true;
+
+	/** Whether the Platform App's and the Source App's installations accepted Actions write; until then they lack it. */
+	volatile boolean platformAccepted = true;
+
+	volatile boolean sourceAccepted = true;
+
+	/** The organization's {@code allowed_actions}. */
+	volatile String actionsAllowed = "local_only";
+
+	/** What {@code DELETE …/actions/runs/{id}/logs} answers. */
+	volatile int logsDeleteStatus = 204;
+
+	/** A repository whose branch reads ({@code GET …/git/ref/heads/…}) answer 502. */
+	volatile @Nullable String refReadsFail;
+
+	/** A value a failed step's log shows in clear, as a workflow that forgot to mask it would. */
+	volatile @Nullable String logLeak;
+
+	/** The issuer's clock: the probe's tests run at 2026-11-09T03:00:00Z. */
+	volatile Instant now = Instant.parse("2026-11-09T03:00:00Z");
+
+	private final RSAKey key = TestKeys.jwk(KEY_ID);
 
 	private final HttpServer server;
+
+	private final ExecutorService executor;
+
+	private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
 	private final AtomicLong ids = new AtomicLong(5000);
 
@@ -178,11 +261,12 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	private final Map<String, Repo> repositories = Collections.synchronizedMap(new LinkedHashMap<>());
 
+	/** Each commit's files, by path. */
+	private final Map<String, Map<String, String>> trees = Collections.synchronizedMap(new LinkedHashMap<>());
+
 	private final Map<Long, Run> runs = Collections.synchronizedMap(new LinkedHashMap<>());
 
-	private final Map<Long, Artifact> artifacts = Collections.synchronizedMap(new LinkedHashMap<>());
-
-	/** A repository: its branches as commit lists (head last), files, people, pull requests, and releases. */
+	/** A repository: its branches as commit lists (head last), people, and pull requests. */
 	static final class Repo {
 
 		final long id;
@@ -195,15 +279,11 @@ final class SpikeS6Stub implements AutoCloseable {
 
 		final Map<String, List<String>> branches = Collections.synchronizedMap(new LinkedHashMap<>());
 
-		final Map<String, String> files = Collections.synchronizedMap(new LinkedHashMap<>());
-
 		final Map<String, String> collaborators = Collections.synchronizedMap(new LinkedHashMap<>());
 
 		final Map<String, String> invitations = Collections.synchronizedMap(new LinkedHashMap<>());
 
 		final Map<Integer, Pull> pulls = Collections.synchronizedMap(new LinkedHashMap<>());
-
-		final Map<String, Release> releases = Collections.synchronizedMap(new LinkedHashMap<>());
 
 		Repo(long id, String fullName, boolean privateRepository) {
 			this.id = id;
@@ -233,25 +313,23 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	}
 
-	static final class Release {
-
-		final long id;
-
-		final List<Map<String, Object>> assets = Collections.synchronizedList(new ArrayList<>());
-
-		Release(long id) {
-			this.id = id;
-		}
-
-	}
-
 	private static final class Run {
 
 		final long id;
 
+		final Repo repo;
+
 		final String workflow;
 
-		final String title;
+		final String ref;
+
+		final String headSha;
+
+		final JsonNode inputs;
+
+		volatile String title;
+
+		volatile String actor;
 
 		volatile int polls;
 
@@ -259,27 +337,42 @@ final class SpikeS6Stub implements AutoCloseable {
 
 		volatile String conclusion = "success";
 
-		final List<String> unsealed = new ArrayList<>();
+		volatile @Nullable String failedStep;
 
-		Run(long id, String workflow, String correlation) {
+		Run(long id, Repo repo, String workflow, String ref, String headSha, JsonNode inputs, String title, String actor) {
 			this.id = id;
+			this.repo = repo;
 			this.workflow = workflow;
-			this.title = workflow.replace(".yml", "") + " " + correlation;
+			this.ref = ref;
+			this.headSha = headSha;
+			this.inputs = inputs;
+			this.title = title;
+			this.actor = actor;
+		}
+
+		boolean customer() {
+			return this.workflow.equals(SpikeS6Command.CUSTOMER_WORKFLOW);
 		}
 
 	}
 
-	private record Artifact(long id, long runId, String name, byte[] zip) {
-	}
-
-	SpikeS6Stub(PrivateKey runnerKey) throws IOException {
-		this.runnerKey = runnerKey;
+	/** @param customerWorkflow what the Customer added as {@code .github/workflows/vibefix.yml} */
+	SpikeS6Stub(String customerWorkflow) throws IOException {
 		Repo source = add(SOURCE, 9001, true);
-		source.branches.put("main", new ArrayList<>(List.of(commit(), commit())));
+		String first = commit(Map.of("README.md", "# Quán Mây\n"));
+		String second = commit(Map.of("README.md", "# Quán Mây\n", CUSTOMER_PATH, customerWorkflow.replace("\r\n", "\n")));
+		source.branches.put("main", new ArrayList<>(List.of(first, second)));
 		source.collaborators.put(CUSTOMER, "admin");
 		Repo runner = add(RUNNER, 9002, true);
-		runner.branches.put("main", new ArrayList<>(List.of(commit())));
+		runner.branches.put("main", new ArrayList<>(List.of(commit(Map.of("README.md", "# vibefix-runner\n")))));
+		this.executor = Executors.newCachedThreadPool(runnable -> {
+			Thread thread = new Thread(runnable, "spike-s6-stub");
+			thread.setDaemon(true);
+			return thread;
+		});
 		this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+		// A run's work asks the exchange, which reads the run back here: requests are served in parallel.
+		this.server.setExecutor(this.executor);
 		this.server.createContext("/", this::handle);
 		this.server.start();
 	}
@@ -288,9 +381,19 @@ final class SpikeS6Stub implements AutoCloseable {
 		return URI.create("http://127.0.0.1:" + this.server.getAddress().getPort());
 	}
 
+	/** The issuer the ID tokens name. */
+	String issuer() {
+		return apiUrl().toString();
+	}
+
+	URI jwks() {
+		return URI.create(apiUrl() + "/.well-known/jwks");
+	}
+
 	@Override
 	public void close() {
 		this.server.stop(0);
+		this.executor.shutdownNow();
 	}
 
 	Repo repository(String fullName) {
@@ -301,6 +404,33 @@ final class SpikeS6Stub implements AutoCloseable {
 		Repo repo = repository(fullName);
 		List<String> list = repo == null ? null : repo.branches.get(branch);
 		return list == null || list.isEmpty() ? null : list.getLast();
+	}
+
+	/** A file at the head of a branch, or {@code null}. */
+	@Nullable String file(String fullName, String branch, String path) {
+		String head = head(fullName, branch);
+		Map<String, String> tree = head == null ? null : this.trees.get(head);
+		return tree == null ? null : tree.get(path);
+	}
+
+	/** A branch of the source, one commit past {@code main}, whose {@code vibefix.yml} is {@code content}. */
+	void tamper(String branch, String content) {
+		Repo source = repository(SOURCE);
+		List<String> main = source.branches.get("main");
+		Map<String, String> tree = new LinkedHashMap<>(this.trees.get(main.getLast()));
+		tree.put(CUSTOMER_PATH, content);
+		List<String> tampered = new ArrayList<>(main);
+		tampered.add(commit(tree));
+		source.branches.put(branch, tampered);
+	}
+
+	/** Commits one file on a branch, as a person would. */
+	void commitFile(String fullName, String branch, String path, String content) {
+		Repo repo = repository(fullName);
+		List<String> list = repo.branches.computeIfAbsent(branch, name -> new ArrayList<>());
+		Map<String, String> tree = new LinkedHashMap<>(list.isEmpty() ? Map.of() : this.trees.get(list.getLast()));
+		tree.put(path, content);
+		list.add(commit(tree));
 	}
 
 	/** The invitee accepts every pending invitation: a collaborator with the invitation's permission. */
@@ -315,13 +445,13 @@ final class SpikeS6Stub implements AutoCloseable {
 		}
 	}
 
-	/** The run IDs, with the tokens each one unsealed. */
-	Map<Long, List<String>> unsealedByRun() {
-		Map<Long, List<String>> unsealed = new LinkedHashMap<>();
+	/** Each run's ID, with the repository it ran in. */
+	Map<Long, String> runRepositories() {
+		Map<Long, String> found = new LinkedHashMap<>();
 		synchronized (this.runs) {
-			this.runs.forEach((id, run) -> unsealed.put(id, List.copyOf(run.unsealed)));
+			this.runs.forEach((id, run) -> found.put(id, run.repo.fullName));
 		}
-		return unsealed;
+		return found;
 	}
 
 	private Repo add(String fullName, long id, boolean privateRepository) {
@@ -330,11 +460,13 @@ final class SpikeS6Stub implements AutoCloseable {
 		return repo;
 	}
 
-	private String commit() {
+	private String commit(Map<String, String> tree) {
 		try {
-			return HexFormat.of()
+			String sha = HexFormat.of()
 				.formatHex(MessageDigest.getInstance("SHA-1")
 					.digest(("commit-" + this.commits.incrementAndGet()).getBytes(StandardCharsets.UTF_8)));
+			this.trees.put(sha, Map.copyOf(tree));
+			return sha;
 		}
 		catch (GeneralSecurityException ex) {
 			throw new IllegalStateException(ex);
@@ -348,7 +480,7 @@ final class SpikeS6Stub implements AutoCloseable {
 		byte[] raw = exchange.getRequestBody().readAllBytes();
 		JsonNode body;
 		try {
-			body = raw.length == 0 || path.startsWith("/uploads/") ? GitHubHttp.JSON.createObjectNode() : GitHubHttp.JSON.readTree(raw);
+			body = raw.length == 0 ? GitHubHttp.JSON.createObjectNode() : GitHubHttp.JSON.readTree(raw);
 		}
 		catch (RuntimeException ex) {
 			body = GitHubHttp.JSON.createObjectNode();
@@ -356,26 +488,26 @@ final class SpikeS6Stub implements AutoCloseable {
 		Seen request = new Seen(method, path, query, exchange.getRequestHeaders().getFirst("Authorization"), body);
 		this.seen.add(request);
 		try {
-			route(exchange, request, raw);
+			route(exchange, request);
 		}
 		catch (Exception ex) {
 			send(exchange, 500, Map.of("message", ex.getClass().getSimpleName()));
 		}
 	}
 
-	private void route(HttpExchange exchange, Seen request, byte[] raw) throws Exception {
+	private void route(HttpExchange exchange, Seen request) throws Exception {
 		String method = request.method();
 		String path = request.path();
 		JsonNode body = request.body();
 		Matcher matcher;
-		if (path.startsWith("/blob/")) {
-			this.blobAuthorizations.add(request.authorization() == null ? "none" : request.authorization());
-			Artifact artifact = this.artifacts.get(Long.parseLong(path.substring("/blob/".length())));
-			if (artifact == null || request.query() == null || !request.query().contains("sig=")) {
-				send(exchange, 403, Map.of("message", "AuthenticationFailed"));
-				return;
+		if (method.equals("GET") && path.equals("/.well-known/jwks")) {
+			byte[] bytes = new JWKSet(this.key.toPublicJWK()).toString().getBytes(StandardCharsets.UTF_8);
+			exchange.getResponseHeaders().add("Content-Type", "application/json");
+			exchange.sendResponseHeaders(200, bytes.length);
+			try (OutputStream out = exchange.getResponseBody()) {
+				out.write(bytes);
 			}
-			sendBytes(exchange, artifact.zip());
+			exchange.close();
 		}
 		else if (path.startsWith("/blob-logs/")) {
 			this.logAuthorizations.add(request.authorization() == null ? "none" : request.authorization());
@@ -400,36 +532,20 @@ final class SpikeS6Stub implements AutoCloseable {
 				return;
 			}
 			send(exchange, 200, map("id", installation, "account", Map.of("login", repo.fullName.split("/")[0]),
-					"repository_selection", installation == PLATFORM_INSTALLATION ? "all" : "selected"));
+					"repository_selection", installation == PLATFORM_INSTALLATION ? "all" : "selected", "permissions",
+					ceiling(installation)));
 		}
-		else if (method.equals("POST") && (matcher = match("/app/installations/(\\d+)/access_tokens", path)) != null) {
+		else if (method.equals("GET") && (matcher = match("/app/installations/(\\d+)", path)) != null) {
 			long installation = Long.parseLong(matcher.group(1));
 			if (appOf(installation) == 0 || appOf(installation) != issuer(request)) {
 				send(exchange, 404, Map.of("message", "Not Found"));
 				return;
 			}
-			Set<Long> ids = new HashSet<>();
-			body.path("repository_ids").forEach(id -> ids.add(id.asLong()));
-			for (long id : ids) {
-				if (this.repositories.values().stream().noneMatch(repo -> repo.id == id && installationCovers(installation, repo))) {
-					send(exchange, 422, Map.of("message", "There is at least one repository that does not exist or is not accessible to the parent installation."));
-					return;
-				}
-			}
-			Map<String, String> permissions = new LinkedHashMap<>();
-			body.path("permissions").properties().forEach(entry -> permissions.put(entry.getKey(), entry.getValue().asString()));
-			Map<String, String> ceiling = ceiling(installation);
-			for (Map.Entry<String, String> wanted : permissions.entrySet()) {
-				String granted = ceiling.get(wanted.getKey());
-				if (granted == null || (wanted.getValue().equals("write") && !granted.equals("write"))) {
-					send(exchange, 422, Map.of("message", "The permissions requested are not granted to this installation."));
-					return;
-				}
-			}
-			String token = "ghs_" + "s6stub" + this.tokens.size() + "_" + installation + "_k3y";
-			this.tokens.add(token);
-			this.grants.put(token, new Grant(installation, Set.copyOf(ids), Map.copyOf(permissions)));
-			send(exchange, 201, Map.of("token", token, "expires_at", "2026-11-09T04:00:00Z"));
+			send(exchange, 200, map("id", installation, "repository_selection",
+					installation == PLATFORM_INSTALLATION ? "all" : "selected", "permissions", ceiling(installation)));
+		}
+		else if (method.equals("POST") && (matcher = match("/app/installations/(\\d+)/access_tokens", path)) != null) {
+			mint(exchange, request, Long.parseLong(matcher.group(1)));
 		}
 		else if (method.equals("DELETE") && path.equals("/installation/token")) {
 			String token = bearer(request);
@@ -437,10 +553,12 @@ final class SpikeS6Stub implements AutoCloseable {
 				send(exchange, this.revocationStatus, Map.of("message", "Server Error"));
 				return;
 			}
-			if (token != null) {
-				this.revoked.add(token);
-				this.events.add("revoked " + token);
+			if (token == null || !this.grants.containsKey(token) || this.revoked.contains(token)) {
+				send(exchange, 401, Map.of("message", "Bad credentials"));
+				return;
 			}
+			this.revoked.add(token);
+			this.events.add("revoked " + token);
 			send(exchange, 204, null);
 		}
 		else if (method.equals("GET") && path.equals("/installation/repositories")) {
@@ -471,7 +589,28 @@ final class SpikeS6Stub implements AutoCloseable {
 			if (refuse(exchange, request, null, "organization_administration", "read")) {
 				return;
 			}
-			send(exchange, 200, Map.of("enabled_repositories", "none"));
+			send(exchange, 200, map("enabled_repositories", this.actionsEnabled, "allowed_actions", this.actionsAllowed));
+		}
+		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/actions/permissions/workflow")) {
+			if (refuse(exchange, request, null, "organization_administration", "read")) {
+				return;
+			}
+			send(exchange, 200, map("default_workflow_permissions", "read", "can_approve_pull_request_reviews", false));
+		}
+		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/actions/permissions/repositories")) {
+			if (refuse(exchange, request, null, "organization_administration", "read")) {
+				return;
+			}
+			List<Map<String, Object>> listed = new ArrayList<>();
+			List<String> names;
+			synchronized (this.actionsRepositories) {
+				names = List.copyOf(this.actionsRepositories);
+			}
+			for (String name : names) {
+				Repo repo = repository(ORGANIZATION + "/" + name);
+				listed.add(map("id", repo == null ? 0 : repo.id, "name", name, "full_name", ORGANIZATION + "/" + name));
+			}
+			send(exchange, 200, map("total_count", listed.size(), "repositories", listed));
 		}
 		else if (method.equals("POST") && path.equals("/orgs/" + ORGANIZATION + "/repos")) {
 			Grant grant = grant(request);
@@ -491,24 +630,7 @@ final class SpikeS6Stub implements AutoCloseable {
 			send(exchange, 201, describe(repo));
 		}
 		else if ((matcher = match("/repos/([^/]+/[^/]+)/(.+)", path)) != null && repository(matcher.group(1)) != null) {
-			repositoryRoute(exchange, request, repository(matcher.group(1)), matcher.group(2), raw);
-		}
-		else if ((matcher = match("/uploads/repos/([^/]+/[^/]+)/releases/(\\d+)/assets", path)) != null) {
-			Repo repo = repository(matcher.group(1));
-			if (repo == null || refuse(exchange, request, repo, "contents", "write")) {
-				return;
-			}
-			long releaseId = Long.parseLong(matcher.group(2));
-			Release release = repo.releases.values().stream().filter(found -> found.id == releaseId).findFirst().orElse(null);
-			String name = request.query() == null ? "" : request.query().replaceFirst("^name=", "");
-			if (release == null || name.isEmpty()) {
-				send(exchange, 404, Map.of("message", "Not Found"));
-				return;
-			}
-			Map<String, Object> asset = map("id", this.ids.incrementAndGet(), "name", name, "size", raw.length, "state",
-					"uploaded");
-			release.assets.add(asset);
-			send(exchange, 201, asset);
+			repositoryRoute(exchange, request, repository(matcher.group(1)), matcher.group(2));
 		}
 		else if (method.equals("GET") && (matcher = match("/repos/([^/]+/[^/]+)", path)) != null) {
 			Repo repo = repository(matcher.group(1));
@@ -525,12 +647,49 @@ final class SpikeS6Stub implements AutoCloseable {
 		}
 	}
 
-	private void repositoryRoute(HttpExchange exchange, Seen request, Repo repo, String rest, byte[] raw) throws Exception {
+	private void mint(HttpExchange exchange, Seen request, long installation) throws IOException {
+		if (appOf(installation) == 0 || appOf(installation) != issuer(request)) {
+			send(exchange, 404, Map.of("message", "Not Found"));
+			return;
+		}
+		Set<Long> ids = new HashSet<>();
+		request.body().path("repository_ids").forEach(id -> ids.add(id.asLong()));
+		for (long id : ids) {
+			if (this.repositories.values().stream().noneMatch(repo -> repo.id == id && installationCovers(installation, repo))) {
+				send(exchange, 422, Map.of("message",
+						"There is at least one repository that does not exist or is not accessible to the parent installation."));
+				return;
+			}
+		}
+		Map<String, String> permissions = new LinkedHashMap<>();
+		request.body().path("permissions").properties().forEach(entry -> permissions.put(entry.getKey(), entry.getValue().asString()));
+		Map<String, String> ceiling = ceiling(installation);
+		for (Map.Entry<String, String> wanted : permissions.entrySet()) {
+			String granted = ceiling.get(wanted.getKey());
+			if (granted == null || (wanted.getValue().equals("write") && !granted.equals("write"))) {
+				send(exchange, 422, Map.of("message", "The permissions requested are not granted to this installation."));
+				return;
+			}
+		}
+		String token;
+		synchronized (this.tokens) {
+			token = "ghs_" + "s6stub" + this.tokens.size() + "x" + installation + "k3y";
+			this.tokens.add(token);
+		}
+		this.grants.put(token, new Grant(installation, Set.copyOf(ids), Map.copyOf(permissions)));
+		send(exchange, 201, Map.of("token", token, "expires_at", "2026-11-09T04:00:00Z"));
+	}
+
+	private void repositoryRoute(HttpExchange exchange, Seen request, Repo repo, String rest) throws Exception {
 		String method = request.method();
 		JsonNode body = request.body();
 		Matcher matcher;
 		if (method.equals("GET") && (matcher = match("git/ref/heads/(.+)", rest)) != null) {
 			if (refuse(exchange, request, repo, "contents", "read")) {
+				return;
+			}
+			if (repo.fullName.equalsIgnoreCase(String.valueOf(this.refReadsFail))) {
+				send(exchange, 502, Map.of("message", "Server Error"));
 				return;
 			}
 			if (repo.branches.isEmpty()) {
@@ -591,7 +750,7 @@ final class SpikeS6Stub implements AutoCloseable {
 			if (refuse(exchange, request, repo, "administration", "read")) {
 				return;
 			}
-			send(exchange, 200, Map.of("enabled", repo.fullName.equalsIgnoreCase(RUNNER)));
+			send(exchange, 200, Map.of("enabled", actionsAllowed(repo)));
 		}
 		else if (method.equals("POST") && rest.equals("rulesets")) {
 			if (refuse(exchange, request, repo, "administration", "write")) {
@@ -602,21 +761,6 @@ final class SpikeS6Stub implements AutoCloseable {
 		}
 		else if ((matcher = match("contents/(.+)", rest)) != null) {
 			contents(exchange, request, repo, matcher.group(1));
-		}
-		else if (method.equals("GET") && (matcher = match("releases/tags/([^/]+)", rest)) != null) {
-			if (refuse(exchange, request, repo, "contents", "read")) {
-				return;
-			}
-			Release release = repo.releases.get(matcher.group(1));
-			send(exchange, release == null ? 404 : 200, release == null ? Map.of("message", "Not Found") : release(repo, release));
-		}
-		else if (method.equals("POST") && rest.equals("releases")) {
-			if (refuse(exchange, request, repo, "contents", "write")) {
-				return;
-			}
-			Release release = new Release(this.ids.incrementAndGet());
-			repo.releases.put(body.path("tag_name").asString(), release);
-			send(exchange, 201, release(repo, release));
 		}
 		else if (rest.startsWith("actions/")) {
 			actions(exchange, request, repo, rest.substring("actions/".length()));
@@ -655,7 +799,7 @@ final class SpikeS6Stub implements AutoCloseable {
 					base.add(commit);
 				}
 			}
-			String merge = commit();
+			String merge = commit(this.trees.getOrDefault(head.getLast(), Map.of()));
 			base.add(merge);
 			pull.merged = true;
 			pull.state = "closed";
@@ -698,91 +842,68 @@ final class SpikeS6Stub implements AutoCloseable {
 		}
 	}
 
+	/** {@code GET} a file or a folder at {@code ?ref=} (a branch or a commit), or {@code PUT} a file on a branch. */
 	private void contents(HttpExchange exchange, Seen request, Repo repo, String file) throws IOException {
-		boolean workflow = file.startsWith(".github/workflows/");
 		if (request.method().equals("GET")) {
 			if (refuse(exchange, request, repo, "contents", "read")) {
 				return;
 			}
-			String content = repo.files.get(file);
+			String ref = parameter(request.query(), "ref");
+			Map<String, String> tree = tree(repo, ref == null ? repo.defaultBranch : ref);
+			if (tree == null) {
+				send(exchange, 404, Map.of("message", "No commit found for the ref " + ref));
+				return;
+			}
+			String content = tree.get(file);
 			if (content == null) {
-				// A directory lists its files, as GitHub answers with an array.
+				// A folder lists its files, as GitHub answers with an array.
 				List<Map<String, Object>> listed = new ArrayList<>();
-				synchronized (repo.files) {
-					repo.files.keySet().stream().filter(path -> path.startsWith(file + "/"))
-						.forEach(path -> listed.add(map("name", path.substring(file.length() + 1), "path", path, "type", "file")));
+				for (String path : new TreeSet<>(tree.keySet())) {
+					if (path.startsWith(file + "/") && !path.substring(file.length() + 1).contains("/")) {
+						listed.add(map("name", path.substring(file.length() + 1), "path", path, "type", "file"));
+					}
 				}
 				send(exchange, listed.isEmpty() ? 404 : 200, listed.isEmpty() ? Map.of("message", "Not Found") : listed);
 				return;
 			}
-			send(exchange, 200, Map.of("path", file, "sha", sha(content), "encoding", "base64", "content",
+			send(exchange, 200, Map.of("path", file, "sha", blobSha(content), "encoding", "base64", "content",
 					Base64.getMimeEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8))));
 			return;
 		}
+		boolean workflow = file.startsWith(".github/workflows/");
 		if (refuse(exchange, request, repo, "contents", "write") || (workflow && refuse(exchange, request, repo, "workflows", "write"))) {
-			return;
-		}
-		String existing = repo.files.get(file);
-		if (existing != null && !sha(existing).equals(request.body().path("sha").asString(""))) {
-			send(exchange, 422, Map.of("message", "Invalid request.\n\n\"sha\" wasn't supplied."));
 			return;
 		}
 		String branch = request.body().path("branch").asString(repo.defaultBranch);
 		List<String> list = repo.branches.computeIfAbsent(branch, name -> new ArrayList<>());
 		String parent = list.isEmpty() ? null : list.getLast();
-		String commit = commit();
-		list.add(commit);
+		Map<String, String> tree = new LinkedHashMap<>(parent == null ? Map.of() : this.trees.get(parent));
+		String existing = tree.get(file);
+		if (existing != null && !blobSha(existing).equals(request.body().path("sha").asString(""))) {
+			send(exchange, 422, Map.of("message", "Invalid request.\n\n\"sha\" wasn't supplied."));
+			return;
+		}
 		String content = new String(Base64.getMimeDecoder().decode(request.body().path("content").asString("")), StandardCharsets.UTF_8);
-		repo.files.put(file, content);
-		send(exchange, existing == null ? 201 : 200, map("content", Map.of("path", file, "sha", sha(content)), "commit",
+		tree.put(file, content);
+		String commit = commit(tree);
+		list.add(commit);
+		send(exchange, existing == null ? 201 : 200, map("content", Map.of("path", file, "sha", blobSha(content)), "commit",
 				map("sha", commit, "parents", parent == null ? List.of() : List.of(Map.of("sha", parent)))));
+	}
+
+	private @Nullable Map<String, String> tree(Repo repo, String ref) {
+		if (ref.matches("[0-9a-f]{40}")) {
+			return this.trees.get(ref);
+		}
+		List<String> branch = repo.branches.get(ref);
+		return branch == null || branch.isEmpty() ? null : this.trees.get(branch.getLast());
 	}
 
 	private void actions(HttpExchange exchange, Seen request, Repo repo, String rest) throws Exception {
 		String method = request.method();
 		Matcher matcher;
 		if (method.equals("POST") && (matcher = match("workflows/([^/]+)/dispatches", rest)) != null) {
-			if (refuse(exchange, request, repo, "actions", "write")) {
-				return;
-			}
-			String workflow = matcher.group(1);
-			String file = repo.files.get(".github/workflows/" + workflow);
-			if (file == null || this.dispatchNotFound > 0) {
-				this.dispatchNotFound = Math.max(0, this.dispatchNotFound - 1);
-				send(exchange, 404, Map.of("message", "Not Found"));
-				return;
-			}
-			if (!SpikeS6Command.DISPATCH_REF.equals(request.body().path("ref").asString(""))) {
-				send(exchange, 422, Map.of("message", "No ref found"));
-				return;
-			}
-			if (this.refuseReturnRunDetails && request.body().has("return_run_details")) {
-				send(exchange, 422, Map.of("message", "Invalid request.\n\n\"return_run_details\" is not a permitted key."));
-				return;
-			}
-			JsonNode inputs = request.body().path("inputs");
-			String refused = unexpectedInputs(file, inputs);
-			if (refused != null) {
-				send(exchange, 422, Map.of("message", refused));
-				return;
-			}
-			this.dispatches.add(request.body());
-			Run run = new Run(this.ids.incrementAndGet(), workflow, inputs.path("correlation").asString(""));
-			this.runs.put(run.id, run);
-			ObjectNode result = work(run, inputs);
-			JsonNode uploaded = workflow.equals(SpikeS6Command.SCAN_WORKFLOW) ? seal(result, inputs.path("result_key").asString(""))
-					: result;
-			this.uploadedResults.add(uploaded.toString());
-			long artifactId = this.ids.incrementAndGet();
-			this.artifacts.put(artifactId, new Artifact(artifactId, run.id, "result-" + inputs.path("correlation").asString(""),
-					zip(uploaded)));
-			if (this.dispatchStatus == 200 && request.body().path("return_run_details").asBoolean(false)) {
-				send(exchange, 200, Map.of("workflow_run_id", run.id, "run_url", apiUrl() + "/repos/" + repo.fullName
-						+ "/actions/runs/" + run.id, "html_url", "https://github.com/" + repo.fullName + "/actions/runs/" + run.id));
-			}
-			else {
-				send(exchange, 204, null);
-			}
+			dispatch(exchange, request, repo, matcher.group(1));
 		}
 		else if (method.equals("GET") && (matcher = match("workflows/([^/]+)/runs", rest)) != null) {
 			if (refuse(exchange, request, repo, "actions", "read")) {
@@ -792,7 +913,7 @@ final class SpikeS6Stub implements AutoCloseable {
 			List<Map<String, Object>> listed = new ArrayList<>();
 			synchronized (this.runs) {
 				for (Run run : this.runs.values()) {
-					if (run.workflow.equals(workflow)) {
+					if (run.repo == repo && run.workflow.equals(workflow)) {
 						listed.add(0, map("id", run.id, "name", workflow.replace(".yml", ""), "display_title", run.title,
 								"event", "workflow_dispatch", "status", status(run, false)));
 					}
@@ -804,14 +925,16 @@ final class SpikeS6Stub implements AutoCloseable {
 			if (refuse(exchange, request, repo, "actions", "read")) {
 				return;
 			}
-			Run run = this.runs.get(Long.parseLong(matcher.group(1)));
+			Run run = run(repo, matcher.group(1));
 			if (run == null) {
 				send(exchange, 404, Map.of("message", "Not Found"));
 				return;
 			}
 			String status = status(run, true);
-			send(exchange, 200, map("id", run.id, "display_title", run.title, "status", status, "conclusion",
-					status.equals("completed") ? run.conclusion : null, "html_url",
+			send(exchange, 200, map("id", run.id, "name", run.workflow.replace(".yml", ""), "display_title", run.title, "path",
+					".github/workflows/" + run.workflow, "head_branch", run.ref, "head_sha", run.headSha, "event",
+					"workflow_dispatch", "triggering_actor", Map.of("login", run.actor), "actor", Map.of("login", run.actor),
+					"status", status, "conclusion", status.equals("completed") ? run.conclusion : null, "html_url",
 					"https://github.com/" + repo.fullName + "/actions/runs/" + run.id, "run_started_at", "2026-11-09T03:00:00Z",
 					"updated_at", "2026-11-09T03:00:42Z"));
 		}
@@ -826,30 +949,23 @@ final class SpikeS6Stub implements AutoCloseable {
 			if (refuse(exchange, request, repo, "actions", "read")) {
 				return;
 			}
-			Run run = this.runs.get(Long.parseLong(matcher.group(1)));
+			Run run = run(repo, matcher.group(1));
 			if (run == null) {
 				send(exchange, 404, Map.of("message", "Not Found"));
 				return;
 			}
-			boolean copy = run.workflow.equals(SpikeS6Command.COPY_WORKFLOW);
-			boolean failed = "failure".equals(run.conclusion);
-			List<String> names = copy
-					? List.of("Set up job", "Check the inputs", "Unseal the tokens", "Copy the commit", "Write the result",
-							"Upload the result")
-					: List.of("Set up job", "Check the inputs", "Unseal the token", "Fetch the branch into a mirror",
-							"Download the scanner", "Set up Java", "Scan the mirror", "Write and seal the result",
-							"Upload the result");
-			int failing = copy ? 4 : 7;
+			List<String> names = steps(run);
+			int failing = failingStep(run);
 			List<Map<String, Object>> steps = new ArrayList<>();
 			for (int i = 0; i < names.size(); i++) {
-				steps.add(map("number", i + 1, "name", names.get(i), "conclusion",
-						failed && i + 1 == failing ? "failure" : failed && i + 1 > failing && i + 1 < names.size() - 1 ? "skipped"
-								: "success"));
+				int number = i + 1;
+				steps.add(map("number", number, "name", names.get(i), "conclusion", failing == 0 || number < failing ? "success"
+						: number == failing ? "failure" : number < names.size() - 1 ? "skipped" : "success"));
 			}
 			// The job takes 65 seconds: Free bills it as two minutes.
-			send(exchange, 200, map("total_count", 1, "jobs", List.of(map("id", run.id + 1, "name", copy ? "copy" : "scan",
-					"started_at", "2026-11-09T03:00:00Z", "completed_at", "2026-11-09T03:01:05Z", "conclusion", run.conclusion,
-					"steps", steps))));
+			send(exchange, 200, map("total_count", 1, "jobs", List.of(map("id", run.id + 1, "name", run.customer() ? "vibefix"
+					: "copy", "started_at", "2026-11-09T03:00:00Z", "completed_at", "2026-11-09T03:01:05Z", "conclusion",
+					run.conclusion, "steps", steps))));
 		}
 		else if (method.equals("GET") && (matcher = match("runs/(\\d+)/logs", rest)) != null) {
 			if (refuse(exchange, request, repo, "actions", "read")) {
@@ -860,34 +976,14 @@ final class SpikeS6Stub implements AutoCloseable {
 			exchange.sendResponseHeaders(302, -1);
 			exchange.close();
 		}
-		else if (method.equals("GET") && (matcher = match("runs/(\\d+)/artifacts", rest)) != null) {
-			if (refuse(exchange, request, repo, "actions", "read")) {
-				return;
-			}
-			long runId = Long.parseLong(matcher.group(1));
-			List<Map<String, Object>> listed = new ArrayList<>();
-			synchronized (this.artifacts) {
-				for (Artifact artifact : this.artifacts.values()) {
-					if (artifact != null && artifact.runId() == runId && this.runs.get(runId).completed) {
-						listed.add(map("id", artifact.id(), "name", artifact.name(), "size_in_bytes", artifact.zip().length,
-								"archive_download_url", apiUrl() + "/repos/" + repo.fullName + "/actions/artifacts/" + artifact.id() + "/zip",
-								"expired", false));
-					}
-				}
-			}
-			send(exchange, 200, map("total_count", listed.size(), "artifacts", listed));
-		}
 		else if (method.equals("GET") && (matcher = match("runs/(\\d+)/timing", rest)) != null) {
 			if (refuse(exchange, request, repo, "actions", "read")) {
 				return;
 			}
 			long duration = 10_000 + Long.parseLong(matcher.group(1)) % 1000;
-			Run run = this.runs.get(Long.parseLong(matcher.group(1)));
-			// A scan's job takes just over a minute, so Free bills it as two.
-			long billed = run != null && run.workflow.equals(SpikeS6Command.SCAN_WORKFLOW) ? 61_000 : duration;
 			Map<String, Object> timing = new LinkedHashMap<>();
-			timing.put("billable", this.timingWithoutBillable ? Map.of() : Map.of("UBUNTU", map("total_ms", billed, "jobs", 1,
-					"job_runs", List.of(Map.of("job_id", 1, "duration_ms", billed)))));
+			timing.put("billable", this.timingWithoutBillable ? Map.of() : Map.of("UBUNTU", map("total_ms", duration, "jobs", 1,
+					"job_runs", List.of(Map.of("job_id", 1, "duration_ms", duration)))));
 			if (!this.timingWithoutDuration) {
 				timing.put("run_duration_ms", duration);
 			}
@@ -897,33 +993,11 @@ final class SpikeS6Stub implements AutoCloseable {
 			if (refuse(exchange, request, repo, "actions", "write")) {
 				return;
 			}
+			if (this.logsDeleteStatus != 204) {
+				send(exchange, this.logsDeleteStatus, Map.of("message", "Resource not accessible by integration"));
+				return;
+			}
 			this.deletedLogs.add(Long.parseLong(matcher.group(1)));
-			send(exchange, 204, null);
-		}
-		else if (method.equals("GET") && (matcher = match("artifacts/(\\d+)/zip", rest)) != null) {
-			if (refuse(exchange, request, repo, "actions", "read")) {
-				return;
-			}
-			long id = Long.parseLong(matcher.group(1));
-			if (this.artifacts.get(id) == null) {
-				send(exchange, 404, Map.of("message", "Not Found"));
-				return;
-			}
-			exchange.getResponseHeaders().add("Location", apiUrl() + "/blob/" + id + "?sv=2026-11-09&sig=stub" + "signature");
-			exchange.sendResponseHeaders(302, -1);
-			exchange.close();
-		}
-		else if (method.equals("DELETE") && (matcher = match("artifacts/(\\d+)", rest)) != null) {
-			if (refuse(exchange, request, repo, "actions", "write")) {
-				return;
-			}
-			long id = Long.parseLong(matcher.group(1));
-			if (this.artifactDeleteStatus != 204) {
-				send(exchange, this.artifactDeleteStatus, Map.of("message", "Forbidden"));
-				return;
-			}
-			this.artifacts.remove(id);
-			this.deletedArtifacts.add(id);
 			send(exchange, 204, null);
 		}
 		else {
@@ -931,87 +1005,247 @@ final class SpikeS6Stub implements AutoCloseable {
 		}
 	}
 
-	/** What the workflow would do with its inputs: unseal, then copy or scan only what the tokens reach. */
-	private ObjectNode work(Run run, JsonNode inputs) throws GeneralSecurityException {
-		ObjectNode result = GitHubHttp.JSON.createObjectNode();
-		result.put("correlation", inputs.path("correlation").asString(""));
-		if (run.workflow.equals(SpikeS6Command.COPY_WORKFLOW)) {
-			String sourceToken = unseal(inputs.path("source_token").asString(""));
-			String targetToken = unseal(inputs.path("target_token").asString(""));
-			run.unsealed.add(sourceToken);
-			run.unsealed.add(targetToken);
-			Repo source = repository(inputs.path("source_repository").asString(""));
-			Repo target = repository(inputs.path("target_repository").asString(""));
-			List<String> branch = source == null ? null : source.branches.get(inputs.path("source_branch").asString(""));
-			String sha = inputs.path("sha").asString("");
-			String step;
-			if (branch == null || !allows(sourceToken, source, "contents", "read") || "fetch".equals(this.failAtStep)) {
-				step = "fetch";
+	private void dispatch(HttpExchange exchange, Seen request, Repo repo, String workflow) throws Exception {
+		if (refuse(exchange, request, repo, "actions", "write")) {
+			return;
+		}
+		String ref = request.body().path("ref").asString("");
+		List<String> branch = repo.branches.get(ref);
+		if (branch == null || branch.isEmpty()) {
+			send(exchange, 422, Map.of("message", "No ref found for: " + ref));
+			return;
+		}
+		String file = this.trees.get(branch.getLast()).get(".github/workflows/" + workflow);
+		if (file == null || this.dispatchNotFound > 0) {
+			this.dispatchNotFound = Math.max(0, this.dispatchNotFound - 1);
+			send(exchange, 404, Map.of("message", "Not Found"));
+			return;
+		}
+		if (!actionsAllowed(repo)) {
+			send(exchange, 403, Map.of("message", "Actions has been disabled for this repository."));
+			return;
+		}
+		if (this.refuseReturnRunDetails && request.body().has("return_run_details")) {
+			send(exchange, 422, Map.of("message", "Invalid request.\n\n\"return_run_details\" is not a permitted key."));
+			return;
+		}
+		JsonNode inputs = request.body().path("inputs");
+		Map<String, Object> workflowFile = yaml(file);
+		String refused = unexpectedInputs(workflowFile, inputs);
+		if (refused != null) {
+			send(exchange, 422, Map.of("message", refused));
+			return;
+		}
+		this.dispatches.add(request.body());
+		String actor = slug(grant(request).installation()) + "[bot]";
+		Run run = new Run(this.ids.incrementAndGet(), repo, workflow, ref, branch.getLast(), inputs,
+				runName(workflowFile, inputs), actor);
+		this.runs.put(run.id, run);
+		work(run);
+		if (this.dispatchStatus == 200 && request.body().path("return_run_details").asBoolean(false)) {
+			send(exchange, 200, Map.of("workflow_run_id", run.id, "run_url", apiUrl() + "/repos/" + repo.fullName
+					+ "/actions/runs/" + run.id, "html_url", "https://github.com/" + repo.fullName + "/actions/runs/" + run.id));
+		}
+		else {
+			send(exchange, 204, null);
+		}
+	}
+
+	/** What the published workflow does: its ID token exchanged, then only what the token reaches copied. */
+	private void work(Run run) {
+		Flaw flaw = this.flaw;
+		if (flaw == Flaw.FOREIGN_ACTOR) {
+			run.actor = "mallory";
+		}
+		if (flaw == Flaw.FOREIGN_TITLE) {
+			run.title = run.workflow.replace(".yml", "") + " without its correlation";
+		}
+		String idToken = idToken(run, flaw);
+		this.idTokens.add(idToken);
+		String correlation = flaw == Flaw.UNKNOWN_CORRELATION ? "copy-00000000deadbeef" : input(run, "correlation");
+		Exchanged answer = exchange(run, idToken, correlation);
+		this.exchanged.add(answer);
+		if (flaw == Flaw.REPLAY && answer.status() == 200) {
+			this.exchanged.add(exchange(run, idToken, correlation));
+		}
+		if (answer.status() != 200 || answer.token() == null) {
+			fail(run, "exchange");
+			return;
+		}
+		String failAt = this.failAtStep;
+		if (failAt != null) {
+			fail(run, failAt);
+			return;
+		}
+		String step = run.customer() ? customer(run, answer.token()) : copy(run, answer.token());
+		if (step != null) {
+			fail(run, step);
+		}
+	}
+
+	/** {@code vibefix.yml}: the step a run stopped at, or {@code null} when it copied. */
+	private @Nullable String customer(Run run, String token) {
+		String sha = input(run, "sha");
+		String branch = input(run, "branch");
+		Repo intermediary = repository(input(run, "intermediary"));
+		if ("copy".equals(input(run, "operation"))) {
+			// Its own repository, read with its GITHUB_TOKEN.
+			List<String> commits = run.repo.branches.get(run.ref);
+			if (commits == null || !commits.contains(sha)) {
+				return "check";
 			}
-			else if (!branch.contains(sha) || "check".equals(this.failAtStep)) {
-				step = "check";
-			}
-			else if (target == null || !allows(targetToken, target, "contents", "write") || "push".equals(this.failAtStep)) {
-				step = "push";
-			}
-			else {
-				String targetBranch = inputs.path("target_branch").asString("");
-				if (target.branches.isEmpty()) {
-					target.defaultBranch = targetBranch;
+			List<String> copied = new ArrayList<>(commits.subList(0, commits.indexOf(sha) + 1));
+			Repo working = repository(input(run, "working"));
+			for (Repo target : new Repo[] { intermediary, working }) {
+				if (target == null || !allows(token, target, "contents", "write") || !fastForward(target, branch, copied)) {
+					return "push";
 				}
-				target.branches.put(targetBranch, new ArrayList<>(branch.subList(0, branch.indexOf(sha) + 1)));
-				return finish(run, result, "COPIED", "push", null);
+				push(target, branch, copied);
 			}
-			return finish(run, result, "FAILED", step, null);
+			return null;
 		}
-		String token = unseal(inputs.path("token").asString(""));
-		run.unsealed.add(token);
-		Repo repo = repository(inputs.path("repository").asString(""));
-		List<String> branch = repo == null ? null : repo.branches.get(inputs.path("branch").asString(""));
-		if (branch == null || !allows(token, repo, "contents", "read") || !branch.contains(inputs.path("sha").asString(""))) {
-			return finish(run, result, "FAILED", "fetch", null);
+		if (intermediary == null || !allows(token, intermediary, "contents", "read")) {
+			return "fetch";
 		}
-		ObjectNode output = GitHubHttp.JSON.createObjectNode();
-		output.put("commits", branch.size());
-		output.put("scannedBlobs", 7);
-		output.put("unscannedCount", 0);
-		output.putArray("unscanned");
-		var found = output.putArray("found");
-		found.addObject().put("category", "CREDENTIAL").put("ruleId", "aws-access-key").put("type", "AWS")
-			.put("path", "config/secret-path.env").put("commit", branch.getFirst()).put("masked", "AKIA************")
-			.put("hash", "h1");
-		found.addObject().put("category", "PERSONAL_DATA").put("ruleId", "vn-phone").put("type", "PHONE")
-			.put("path", "data/customer-list.csv").put("commit", branch.getFirst()).put("masked", "09********")
-			.put("hash", "h2");
-		output.put("defaultBranch", inputs.path("branch").asString(""));
-		output.put("defaultBranchSha", branch.getLast());
-		return finish(run, result, "SCANNED", "scan", output);
+		List<String> commits = intermediary.branches.get(intermediary.defaultBranch);
+		if (commits == null || !commits.contains(sha)) {
+			return "check";
+		}
+		if (run.repo.branches.containsKey(branch)) {
+			return "push";
+		}
+		// The new branch here, pushed with its GITHUB_TOKEN.
+		run.repo.branches.put(branch, new ArrayList<>(commits.subList(0, commits.indexOf(sha) + 1)));
+		return null;
 	}
 
-	/** The scan's result as s6-scan uploads it: sealed under the dispatch's {@code result_key}, nothing else. */
-	private JsonNode seal(JsonNode result, String resultKey) throws GeneralSecurityException {
-		PublicKey key = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(resultKey)));
-		Map<String, String> envelope = new LinkedHashMap<>(
-				RunnerSealTest.envelope(key, GitHubHttp.JSON.writeValueAsBytes(result)));
-		if (this.corruptScanTag) {
-			byte[] tag = Base64.getDecoder().decode(envelope.get("tag"));
-			tag[0] ^= 1;
-			envelope.put("tag", Base64.getEncoder().encodeToString(tag));
+	/** {@code s6-copy.yml}: the step a run stopped at, or {@code null} when it copied. */
+	private @Nullable String copy(Run run, String token) {
+		Repo source = repository(input(run, "source_repository"));
+		Repo target = repository(input(run, "target_repository"));
+		List<String> commits = source == null ? null : source.branches.get(input(run, "source_branch"));
+		String sha = input(run, "sha");
+		String branch = input(run, "target_branch");
+		if (commits == null || !allows(token, source, "contents", "read")) {
+			return "fetch";
 		}
-		ObjectNode sealed = GitHubHttp.JSON.valueToTree(envelope);
-		if (this.plaintextBesideEnvelope) {
-			sealed.set("output", result.path("output"));
+		if (!commits.contains(sha)) {
+			return "check";
 		}
-		return sealed;
+		List<String> copied = new ArrayList<>(commits.subList(0, commits.indexOf(sha) + 1));
+		if (target == null || !allows(token, target, "contents", "write") || !fastForward(target, branch, copied)) {
+			return "push";
+		}
+		push(target, branch, copied);
+		return null;
 	}
 
-	/**
-	 * Why GitHub would refuse these inputs for the workflow file the probe wrote: a key it does not declare,
-	 * or a required one missing; {@code null} when they fit.
-	 */
+	/** A push without force: a new branch, or one whose head the pushed history holds. */
+	private static boolean fastForward(Repo target, String branch, List<String> commits) {
+		List<String> existing = target.branches.get(branch);
+		return existing == null || existing.isEmpty() || commits.contains(existing.getLast());
+	}
+
+	private static void push(Repo target, String branch, List<String> commits) {
+		if (target.branches.isEmpty()) {
+			target.defaultBranch = branch;
+		}
+		target.branches.put(branch, new ArrayList<>(commits));
+	}
+
+	private static void fail(Run run, String step) {
+		run.conclusion = "failure";
+		run.failedStep = step;
+	}
+
+	/** The run's ID token, as GitHub Actions signs it for {@code audience=vibefix}, spoiled as {@code flaw} says. */
+	private String idToken(Run run, Flaw flaw) {
+		Instant now = this.now;
+		String ref = "refs/heads/" + run.ref;
+		String workflowRef = run.repo.fullName + "/.github/workflows/" + run.workflow + "@" + ref;
+		JWTClaimsSet claims = new JWTClaimsSet.Builder().issuer(flaw == Flaw.ISSUER ? "https://token.example.test" : issuer())
+			.audience(flaw == Flaw.AUDIENCE ? "sts.amazonaws.com" : OidcExchange.AUDIENCE)
+			.subject("repo:" + run.repo.fullName + ":ref:" + ref)
+			.jwtID(UUID.randomUUID().toString())
+			.issueTime(Date.from(flaw == Flaw.EXPIRED ? now.minus(Duration.ofMinutes(20)) : now.minusSeconds(5)))
+			.notBeforeTime(Date.from(flaw == Flaw.EXPIRED ? now.minus(Duration.ofMinutes(20)) : now.minusSeconds(5)))
+			.expirationTime(Date.from(flaw == Flaw.EXPIRED ? now.minus(Duration.ofMinutes(10)) : now.plus(Duration.ofMinutes(5))))
+			.claim("repository", run.repo.fullName)
+			.claim("repository_id", String.valueOf(run.repo.id))
+			.claim("repository_owner", run.repo.fullName.split("/")[0])
+			.claim("ref", ref)
+			.claim("ref_type", "branch")
+			.claim("sha", run.headSha)
+			.claim("workflow_sha", run.headSha)
+			.claim("workflow_ref", workflowRef)
+			.claim("job_workflow_ref", workflowRef)
+			.claim("event_name", "workflow_dispatch")
+			.claim("run_id", String.valueOf(run.id))
+			.claim("run_attempt", "1")
+			.claim("runner_environment", flaw == Flaw.SELF_HOSTED ? "self-hosted" : "github-hosted")
+			.claim("actor", run.actor)
+			.build();
+		SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY_ID).type(JOSEObjectType.JWT).build(),
+				claims);
+		try {
+			jwt.sign(new RSASSASigner(flaw == Flaw.SIGNATURE ? TestKeys.foreignJwk(KEY_ID) : this.key));
+		}
+		catch (JOSEException ex) {
+			throw new IllegalStateException(ex);
+		}
+		return jwt.serialize();
+	}
+
+	/** The workflow's {@code POST $EXCHANGE_URL/exchange}. */
+	private Exchanged exchange(Run run, String idToken, String correlation) {
+		String url = input(run, "exchange_url") + OidcExchange.PATH;
+		try {
+			HttpResponse<String> response = this.client.send(HttpRequest.newBuilder(URI.create(url))
+				.timeout(Duration.ofSeconds(30))
+				.header("Content-Type", "application/json")
+				.POST(HttpRequest.BodyPublishers
+					.ofString(GitHubHttp.JSON.writeValueAsString(Map.of("id_token", idToken, "correlation", correlation))))
+				.build(), HttpResponse.BodyHandlers.ofString());
+			JsonNode answer = GitHubHttp.JSON.readTree(response.body());
+			return new Exchanged(run.id, correlation, response.statusCode(),
+					answer.path("reason").isString() ? answer.path("reason").stringValue() : null,
+					answer.path("token").isString() ? answer.path("token").stringValue() : null);
+		}
+		catch (IOException | RuntimeException ex) {
+			return new Exchanged(run.id, correlation, 0, "unreachable", null);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			return new Exchanged(run.id, correlation, 0, "interrupted", null);
+		}
+	}
+
+	private static String input(Run run, String name) {
+		return run.inputs.path(name).asString("");
+	}
+
+	private static List<String> steps(Run run) {
+		return run.customer()
+				? List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit", "Bring the Final Merge back",
+						"Remove the credentials", "Complete job")
+				: List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit", "Remove the credentials",
+						"Complete job");
+	}
+
+	/** The failed step's number, or 0 for a run that succeeded. */
+	private static int failingStep(Run run) {
+		if (run.failedStep == null) {
+			return 0;
+		}
+		if (run.failedStep.equals("exchange")) {
+			return 3;
+		}
+		return run.customer() && "final-merge".equals(input(run, "operation")) ? 5 : 4;
+	}
+
+	/** Why GitHub would refuse these inputs: a key the workflow does not declare, a required one missing, or a choice not offered. */
 	@SuppressWarnings("unchecked")
-	private static @Nullable String unexpectedInputs(String workflowFile, JsonNode inputs) {
-		Map<Object, Object> workflow = (Map<Object, Object>) new Yaml(new SafeConstructor(new LoaderOptions())).load(workflowFile);
+	private static @Nullable String unexpectedInputs(Map<String, Object> workflow, JsonNode inputs) {
 		Object on = workflow.containsKey("on") ? workflow.get("on") : workflow.get(Boolean.TRUE);
 		Map<String, Map<String, Object>> declared = (Map<String, Map<String, Object>>) ((Map<String, Object>) ((Map<String, Object>) on)
 			.get("workflow_dispatch")).get("inputs");
@@ -1028,22 +1262,44 @@ final class SpikeS6Stub implements AutoCloseable {
 			if (Boolean.TRUE.equals(input.getValue().get("required")) && !inputs.has(input.getKey())) {
 				return "Required input '" + input.getKey() + "' not provided";
 			}
+			if ("choice".equals(input.getValue().get("type")) && inputs.has(input.getKey())
+					&& !((List<Object>) input.getValue().get("options")).contains(inputs.path(input.getKey()).asString(""))) {
+				return "Provided value for input '" + input.getKey() + "' is not one of its options";
+			}
 		}
 		return null;
 	}
 
+	/** The workflow's {@code run-name} with its inputs put in, as GitHub shows a run's title. */
+	private static String runName(Map<String, Object> workflow, JsonNode inputs) {
+		Matcher input = Pattern.compile("\\$\\{\\{\\s*inputs\\.([a-z_]+)\\s*\\}\\}").matcher(String.valueOf(workflow.get("run-name")));
+		StringBuilder title = new StringBuilder();
+		while (input.find()) {
+			input.appendReplacement(title, Matcher.quoteReplacement(inputs.path(input.group(1)).asString("")));
+		}
+		input.appendTail(title);
+		return title.toString();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Map<String, Object> yaml(String file) {
+		return (Map<String, Object>) new Yaml(new SafeConstructor(new LoaderOptions())).load(file);
+	}
+
 	/**
 	 * The run's logs as GitHub zips them: the whole job's log at the top, and one file per step under the
-	 * job's folder. The failed copy step's log has {@value #LOG_LINES} lines, a masked token among them.
+	 * job's folder. The failed step's log has {@value #LOG_LINES} lines, a masked token among them.
 	 */
-	private static byte[] logs(Run run) throws IOException {
-		boolean copy = run.workflow.equals(SpikeS6Command.COPY_WORKFLOW);
-		String job = copy ? "copy" : "scan";
+	private byte[] logs(Run run) throws IOException {
+		String job = run.customer() ? "vibefix" : "copy";
+		int failing = failingStep(run) == 0 ? 4 : failingStep(run);
+		String leak = this.logLeak;
 		StringBuilder step = new StringBuilder();
 		for (int line = 1; line <= LOG_LINES; line++) {
 			step.append("2026-11-09T03:00:").append(String.format(Locale.ROOT, "%02d", line % 60)).append(".0000000Z ")
-				.append(line == LOG_LINES - 1 ? "fatal: could not push with token ***" : line == LOG_LINES
-						? "error: failed to push some refs (log line " + line + ")" : "log line " + line)
+				.append(line == LOG_LINES - 2 && leak != null ? "remote: credential " + leak + " refused"
+						: line == LOG_LINES - 1 ? "fatal: could not push with token ***"
+								: line == LOG_LINES ? "error: failed to push some refs (log line " + line + ")" : "log line " + line)
 				.append('\n');
 		}
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -1054,21 +1310,11 @@ final class SpikeS6Stub implements AutoCloseable {
 			zip.putNextEntry(new ZipEntry(job + "/1_Set up job.txt"));
 			zip.write("Set up job\n".getBytes(StandardCharsets.UTF_8));
 			zip.closeEntry();
-			zip.putNextEntry(new ZipEntry(job + "/" + (copy ? "4_Copy the commit.txt" : "7_Scan the mirror.txt")));
+			zip.putNextEntry(new ZipEntry(job + "/" + failing + "_" + steps(run).get(failing - 1) + ".txt"));
 			zip.write(step.toString().getBytes(StandardCharsets.UTF_8));
 			zip.closeEntry();
 		}
 		return bytes.toByteArray();
-	}
-
-	private static ObjectNode finish(Run run, ObjectNode result, String outcome, String step, @Nullable JsonNode output) {
-		result.put("outcome", outcome);
-		result.put("step", step);
-		if (output != null) {
-			result.set("output", output);
-		}
-		run.conclusion = outcome.equals("FAILED") ? "failure" : "success";
-		return result;
 	}
 
 	private String status(Run run, boolean poll) {
@@ -1082,10 +1328,21 @@ final class SpikeS6Stub implements AutoCloseable {
 		return run.completed ? "completed" : "queued";
 	}
 
-	private String unseal(String sealed) throws GeneralSecurityException {
-		Cipher cipher = Cipher.getInstance(RunnerSeal.TRANSFORMATION);
-		cipher.init(Cipher.DECRYPT_MODE, this.runnerKey, RunnerSeal.OAEP);
-		return new String(cipher.doFinal(Base64.getDecoder().decode(sealed)), StandardCharsets.UTF_8);
+	private @Nullable Run run(Repo repo, String id) {
+		Run run = this.runs.get(Long.parseLong(id));
+		return run == null || run.repo != repo ? null : run;
+	}
+
+	/** Whether the organization's policy lets the repository run Actions; one outside the organization may. */
+	private boolean actionsAllowed(Repo repo) {
+		if (!repo.fullName.startsWith(ORGANIZATION + "/")) {
+			return true;
+		}
+		return switch (this.actionsEnabled) {
+			case "all" -> true;
+			case "selected" -> this.actionsRepositories.stream().anyMatch(name -> repo.fullName.equalsIgnoreCase(ORGANIZATION + "/" + name));
+			default -> false;
+		};
 	}
 
 	private boolean allows(String token, Repo repo, String permission, String level) {
@@ -1155,12 +1412,15 @@ final class SpikeS6Stub implements AutoCloseable {
 	}
 
 	private static long appOf(long installation) {
-		return installation == PLATFORM_INSTALLATION ? PLATFORM_APP : installation == SOURCE_INSTALLATION ? SOURCE_APP
-				: installation == RUNNER_INSTALLATION ? RUNNER_APP : 0;
+		return installation == PLATFORM_INSTALLATION ? PLATFORM_APP : installation == SOURCE_INSTALLATION ? SOURCE_APP : 0;
+	}
+
+	private static String slug(long installation) {
+		return installation == SOURCE_INSTALLATION ? SOURCE_SLUG : PLATFORM_SLUG;
 	}
 
 	private static long installationOf(long app, Repo repo) {
-		for (long installation : List.of(PLATFORM_INSTALLATION, SOURCE_INSTALLATION, RUNNER_INSTALLATION)) {
+		for (long installation : List.of(PLATFORM_INSTALLATION, SOURCE_INSTALLATION)) {
 			if (appOf(installation) == app && installationCovers(installation, repo)) {
 				return installation;
 			}
@@ -1170,27 +1430,35 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	private static boolean installationCovers(long installation, Repo repo) {
 		return installation == PLATFORM_INSTALLATION ? repo.fullName.startsWith(ORGANIZATION + "/")
-				: installation == SOURCE_INSTALLATION ? repo.fullName.equalsIgnoreCase(SOURCE)
-						: installation == RUNNER_INSTALLATION && repo.fullName.equalsIgnoreCase(RUNNER);
+				: installation == SOURCE_INSTALLATION && repo.fullName.equalsIgnoreCase(SOURCE);
 	}
 
-	/** The installation's permissions, as the App's registration grants them. */
-	private static Map<String, String> ceiling(long installation) {
-		return installation == SOURCE_INSTALLATION ? Map.of("contents", "read", "metadata", "read")
-				: installation == RUNNER_INSTALLATION ? Map.of("actions", "write", "contents", "write", "workflows", "write",
-						"metadata", "read")
-						: AppExpectations.PLATFORM_PERMISSIONS;
+	/** The installation's permissions: what it accepted of the App's registration, and so what its tokens may hold. */
+	private Map<String, String> ceiling(long installation) {
+		Map<String, String> registered = registered(installation);
+		boolean accepted = installation == SOURCE_INSTALLATION ? this.sourceAccepted : this.platformAccepted;
+		if (accepted) {
+			return registered;
+		}
+		Map<String, String> without = new LinkedHashMap<>(registered);
+		without.remove("actions");
+		return without;
 	}
 
-	private static Map<String, Object> registration(long app) {
+	/** The App's registration, as {@code GET /app} shows it. */
+	private Map<String, String> registered(long installation) {
+		if (installation == SOURCE_INSTALLATION) {
+			return SpikeS6Command.SOURCE_APP_PERMISSIONS;
+		}
+		return AppExpectations.permissions(App.PLATFORM, this.platformActions);
+	}
+
+	private Map<String, Object> registration(long app) {
 		if (app == SOURCE_APP) {
-			return map("slug", "vibefix-dev-source", "permissions", Map.of("contents", "read", "metadata", "read"), "events",
-					List.of());
+			return map("slug", SOURCE_SLUG, "permissions", registered(SOURCE_INSTALLATION), "events", List.of());
 		}
-		if (app == RUNNER_APP) {
-			return map("slug", "vibefix-runner-dev", "permissions", ceiling(RUNNER_INSTALLATION), "events", List.of());
-		}
-		return map("slug", "vibefix-dev-platform", "permissions", AppExpectations.PLATFORM_PERMISSIONS, "events", List.of("push"));
+		return map("slug", PLATFORM_SLUG, "permissions", registered(PLATFORM_INSTALLATION), "events",
+				List.copyOf(new TreeSet<>(AppExpectations.PLATFORM_EVENTS)));
 	}
 
 	private Map<String, Object> describe(Repo repo) {
@@ -1201,30 +1469,29 @@ final class SpikeS6Stub implements AutoCloseable {
 				"allow_forking", !repo.privateRepository);
 	}
 
-	private Map<String, Object> release(Repo repo, Release release) {
-		String upload = this.uploadUrl;
-		return map("id", release.id, "tag_name", SpikeS6Command.RELEASE, "upload_url", upload != null ? upload
-				: apiUrl() + "/uploads/repos/" + repo.fullName + "/releases/" + release.id + "/assets{?name,label}", "assets",
-				List.copyOf(release.assets));
-	}
-
-	private static String sha(String content) {
+	/** {@code git hash-object}: what GitHub reports as a file's {@code sha}. */
+	static String blobSha(String content) {
 		try {
-			return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(content.getBytes(StandardCharsets.UTF_8)));
+			byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+			MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+			sha1.update(("blob " + bytes.length + "\0").getBytes(StandardCharsets.US_ASCII));
+			return HexFormat.of().formatHex(sha1.digest(bytes));
 		}
 		catch (GeneralSecurityException ex) {
 			throw new IllegalStateException(ex);
 		}
 	}
 
-	private static byte[] zip(JsonNode result) throws IOException {
-		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
-			zip.putNextEntry(new ZipEntry("result.json"));
-			zip.write(GitHubHttp.JSON.writeValueAsBytes(result));
-			zip.closeEntry();
+	private static @Nullable String parameter(@Nullable String query, String name) {
+		if (query == null) {
+			return null;
 		}
-		return bytes.toByteArray();
+		for (String pair : query.split("&")) {
+			if (pair.startsWith(name + "=")) {
+				return pair.substring(name.length() + 1);
+			}
+		}
+		return null;
 	}
 
 	private static @Nullable Matcher match(String regex, String path) {

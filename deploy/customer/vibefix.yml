@@ -1,0 +1,196 @@
+# vibefix: the one workflow a Customer adds to the Source Repository, unchanged, as
+# .github/workflows/vibefix.yml on the default branch. Only vibefix's Source App dispatches it.
+#
+#   copy         copies an approved commit of this repository's default branch to the Job's private
+#                Intermediary and Working Repositories (J7), so vibefix never downloads the code;
+#   final-merge  brings the Job's Final Merge back from the Intermediary Repository as a new vibefix/
+#                branch here, so vibefix never writes to this repository itself.
+#
+# The run holds no secret. It asks GitHub Actions for an OIDC ID token with the audience vibefix and
+# exchanges it at vibefix for a token narrowed to the Job's repositories. vibefix lends that token only
+# to a run of this exact file (its blob) on the default branch, dispatched by the Source App, and
+# revokes it when the run ends. The ID token and the token are masked before anything else runs.
+# Inputs reach the scripts through env: only and are checked first; git reads each credential from a
+# file through GIT_ASKPASS, never pushes with force, and reads every branch it pushes back.
+#
+# Spike S6: exchange_url names the probe's exchange (a cloudflared quick tunnel in dev); a released
+# file would name vibefix's own host instead.
+name: vibefix
+run-name: vibefix ${{ inputs.operation }} ${{ inputs.correlation }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: copy (J7) or final-merge
+        required: true
+        type: choice
+        options:
+          - copy
+          - final-merge
+      correlation:
+        description: vibefix's correlation ID for this run
+        required: true
+        type: string
+      exchange_url:
+        description: Where the ID token is exchanged, an https origin (Spike S6)
+        required: true
+        type: string
+      sha:
+        description: The commit copied (copy) or brought back (final-merge), 40 hex digits
+        required: true
+        type: string
+      branch:
+        description: The branch pushed to without force; for final-merge a new vibefix/ branch here
+        required: true
+        type: string
+      intermediary:
+        description: owner/name of the Job's Intermediary Repository
+        required: true
+        type: string
+      working:
+        description: owner/name of the Job's Working Repository (copy only)
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  vibefix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check the inputs
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          operation_re='^(copy|final-merge)$'
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          url_re='^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$'
+          sha_re='^[0-9a-f]{40}$'
+          branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
+          [[ "$OPERATION" =~ $operation_re ]] || { echo "::error::operation is copy or final-merge"; exit 1; }
+          [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
+          [[ "$EXCHANGE_URL" =~ $url_re ]] || { echo "::error::exchange_url is not an https origin"; exit 1; }
+          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::branch is refused"; exit 1; }
+          [[ "$INTERMEDIARY" =~ $repository_re && "$INTERMEDIARY" != */. && "$INTERMEDIARY" != */.. ]] || { echo "::error::intermediary is not owner/name"; exit 1; }
+          if [ "$OPERATION" = copy ]; then
+            [[ "$WORKING" =~ $repository_re && "$WORKING" != */. && "$WORKING" != */.. ]] || { echo "::error::working is not owner/name"; exit 1; }
+          else
+            [ -z "$WORKING" ] || { echo "::error::final-merge takes no working repository"; exit 1; }
+            [[ "$BRANCH" == vibefix/* ]] || { echo "::error::final-merge pushes a new vibefix/ branch only"; exit 1; }
+          fi
+
+      - name: Exchange the ID token
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'Authorization: bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" > "$RUNNER_TEMP/oidc-header"
+          id_token="$(curl -sS --fail --max-time 30 -H @"$RUNNER_TEMP/oidc-header" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix" | jq -r '.value // empty')"
+          rm -f "$RUNNER_TEMP/oidc-header"
+          echo "::add-mask::$id_token"
+          [ -n "$id_token" ] || { echo "::error::GitHub gave no ID token"; exit 1; }
+          ID_TOKEN="$id_token" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}' > "$RUNNER_TEMP/exchange.json"
+          unset id_token
+          status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/exchanged.json" -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/exchange")"
+          rm -f "$RUNNER_TEMP/exchange.json"
+          if [ "$status" != 200 ]; then
+            reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/exchanged.json" 2>/dev/null || echo -)"
+            rm -f "$RUNNER_TEMP/exchanged.json"
+            echo "::error::the exchange refused the ID token: HTTP $status $reason"
+            exit 1
+          fi
+          token="$(jq -r '.token // empty' "$RUNNER_TEMP/exchanged.json")"
+          rm -f "$RUNNER_TEMP/exchanged.json"
+          echo "::add-mask::$token"
+          token_re='^[A-Za-z0-9_]{20,255}$'
+          [[ "$token" =~ $token_re ]] || { echo "::error::the exchange answered no token"; exit 1; }
+          printf '%s' "$token" > "$RUNNER_TEMP/vibefix-token"
+          unset token
+          printf '%s' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+
+      - name: Copy the commit
+        if: inputs.operation == 'copy'
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          repository="$RUNNER_TEMP/copy.git"
+          git init --quiet --bare "$repository"
+          git -C "$repository" config transfer.fsckObjects true
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "+$GITHUB_REF:refs/heads/vibefix-source"
+          git -C "$repository" cat-file -e "$SHA^{commit}"
+          git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-source
+          for target in "$INTERMEDIARY" "$WORKING"; do
+            VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= push --quiet \
+              "$GITHUB_SERVER_URL/$target.git" "$SHA:refs/heads/$BRANCH"
+            head="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= ls-remote \
+              "$GITHUB_SERVER_URL/$target.git" "refs/heads/$BRANCH" | cut -f1)"
+            [ "$head" = "$SHA" ] || { echo "::error::$target reads back another commit on $BRANCH"; exit 1; }
+          done
+
+      - name: Bring the Final Merge back
+        if: inputs.operation == 'final-merge'
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          here="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          repository="$RUNNER_TEMP/final.git"
+          git init --quiet --bare "$repository"
+          git -C "$repository" config transfer.fsckObjects true
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "$GITHUB_SERVER_URL/$INTERMEDIARY.git" "+HEAD:refs/heads/vibefix-intermediary"
+          git -C "$repository" cat-file -e "$SHA^{commit}"
+          git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-intermediary
+          existing="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= ls-remote \
+            "$here" "refs/heads/$BRANCH")"
+          [ -z "$existing" ] || { echo "::error::$BRANCH exists here already"; exit 1; }
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= push --quiet \
+            "$here" "$SHA:refs/heads/$BRANCH"
+          head="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= ls-remote \
+            "$here" "refs/heads/$BRANCH" | cut -f1)"
+          [ "$head" = "$SHA" ] || { echo "::error::$BRANCH reads back another commit"; exit 1; }
+
+      - name: Remove the credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/vibefix-token" "$RUNNER_TEMP/github-token" "$RUNNER_TEMP/askpass.sh" \
+            "$RUNNER_TEMP/oidc-header" "$RUNNER_TEMP/exchange.json" "$RUNNER_TEMP/exchanged.json"

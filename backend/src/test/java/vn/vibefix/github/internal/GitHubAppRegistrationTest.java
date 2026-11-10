@@ -21,7 +21,8 @@ import vn.vibefix.github.internal.GitHubProperties.AppProperties;
  * {@code VIBEFIX_DEV_MERGE_APP_ID}, and {@code VIBEFIX_DEV_MERGE_APP_KEY_FILE} (deploy/README.md,
  * "Spike S4"). GitHub leaves the global events out of {@code GET /app} even when the App subscribes to
  * them, so they are accepted when they appear and the {@code meta} subscription is checked on the App's
- * settings page.
+ * settings page. With {@code VIBEFIX_GITHUB_RUNNER_REPOSITORY} set, as the dev stack reads it (Spike S6
+ * revision), the Platform App holds Actions write too.
  */
 @Tag("vibefix-dev")
 class GitHubAppRegistrationTest {
@@ -29,8 +30,11 @@ class GitHubAppRegistrationTest {
 	@Test
 	void thePlatformAppHasExactlyAd10sPermissionsAndEvents() {
 		Registration registration = client("PLATFORM").registration(App.PLATFORM);
+		String runner = System.getenv("VIBEFIX_GITHUB_RUNNER_REPOSITORY");
 
-		assertThat(AppExpectations.differences(App.PLATFORM, registration)).as("the Platform App against AD-10").isEmpty();
+		assertThat(AppExpectations.differences(App.PLATFORM, registration, runner != null && !runner.isBlank()))
+			.as("the Platform App against AD-10")
+			.isEmpty();
 	}
 
 	@Test

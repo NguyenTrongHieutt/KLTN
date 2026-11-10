@@ -20,146 +20,174 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * Spike S6: the runner workflows in {@code deploy/runner/} hold the rules the spike runs under. Every
- * action is pinned by commit SHA; inputs reach scripts only through {@code env:}; the tokens are
- * unsealed with OAEP SHA-256/MGF1-SHA-256 and masked before the first {@code git}; the job is bounded
- * and reads contents only; and the result is uploaded for one day, even after a failure.
+ * Spike S6 revision: the Customer's {@code deploy/customer/vibefix.yml} and the runner's
+ * {@code deploy/runner/s6-copy.yml} hold the rules the design runs under. Steps run scripts only, with no
+ * action; every input reaches a script through {@code env:} only and is checked by a regular expression
+ * first; each run asks for an ID token with the audience {@code vibefix}, exchanges it, and masks both
+ * the ID token and the token before the first {@code git}; git reads the token from a file through
+ * {@code GIT_ASKPASS}, never pushes with force, and reads every branch it pushes back; the job runs on
+ * {@code ubuntu-24.04} for at most 15 minutes, with only the permissions it needs, holds no secret, and
+ * uploads nothing.
  */
 class RunnerWorkflowsTest {
 
-	private static final Path RUNNER = Path.of("..", "deploy", "runner");
+	private static final String CUSTOMER = "customer/vibefix.yml";
 
-	private static final Pattern PINNED = Pattern.compile("[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40}");
+	private static final String RUNNER = "runner/s6-copy.yml";
+
+	private static final Path DEPLOY = Path.of("..", "deploy");
 
 	/** A {@code git} command: at the start of a line or after a separator, not inside a word like GIT_ASKPASS. */
 	private static final Pattern GIT = Pattern.compile("(?m)(^|[\\s;&|(])git\\s");
 
-	@ParameterizedTest
-	@ValueSource(strings = { SpikeS6Command.COPY_WORKFLOW, SpikeS6Command.SCAN_WORKFLOW })
-	void everyActionIsPinnedAndNoInputReachesAScriptDirectly(String file) throws IOException {
-		String text = Files.readString(RUNNER.resolve(file), StandardCharsets.UTF_8);
-		Map<String, Object> workflow = load(text);
-		List<Map<String, Object>> steps = steps(workflow);
+	/** A push refspec that forces: {@code +sha:refs/…}. */
+	private static final Pattern FORCED_REFSPEC = Pattern.compile("push[^\\n]*\\n?[^\\n]*\"\\+");
 
-		List<String> uses = new ArrayList<>();
-		for (Map<String, Object> step : steps) {
-			if (step.get("uses") instanceof String action) {
-				uses.add(action);
-			}
-		}
-		assertThat(uses).isNotEmpty().allSatisfy(action -> assertThat(action).matches(PINNED));
-		assertThat(uses).contains("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
-		if (file.equals(SpikeS6Command.SCAN_WORKFLOW)) {
-			assertThat(uses).contains("actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78");
-		}
-		for (String script : scripts(steps)) {
-			assertThat(script).doesNotContain("${{ inputs.", "github.event.inputs", "${{");
-		}
-		assertThat(text).doesNotContain("extraheader", "x-access-token:", "x-access-token@");
+	@ParameterizedTest
+	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void stepsRunScriptsOnlyAndNoInputReachesAScriptDirectly(String file) throws IOException {
+		String text = text(file);
+		List<Map<String, Object>> steps = steps(load(text));
+
+		assertThat(steps).isNotEmpty().allSatisfy(step -> {
+			assertThat(step).as(String.valueOf(step.get("name"))).doesNotContainKey("uses").containsKey("run");
+			assertThat(String.valueOf(step.get("run"))).doesNotContain("${{", "github.event.inputs");
+		});
+		assertThat(text).doesNotContain("uses:", "extraheader", "x-access-token:", "x-access-token@", "secrets.",
+				"VIBEFIX_RUNNER_KEY");
 		assertThat(text).doesNotContainPattern("https://[^/\\s\"']*@");
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { SpikeS6Command.COPY_WORKFLOW, SpikeS6Command.SCAN_WORKFLOW })
-	void theTokensAreUnsealedAndMaskedBeforeTheFirstGit(String file) throws IOException {
-		List<Map<String, Object>> steps = steps(load(Files.readString(RUNNER.resolve(file), StandardCharsets.UTF_8)));
-		String scripts = String.join("\n", scripts(steps));
+	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void everyInputIsCheckedByARegularExpressionBeforeAnythingElse(String file) throws IOException {
+		Map<String, Object> workflow = load(text(file));
+		Map<String, Object> first = steps(workflow).getFirst();
+		Map<String, Object> env = asMap(first.get("env"));
+		String script = String.valueOf(first.get("run"));
 
-		int mask = scripts.indexOf("::add-mask::");
-		Matcher git = GIT.matcher(scripts);
-		assertThat(git.find()).as("the workflow runs git").isTrue();
-		assertThat(mask).as("::add-mask:: precedes the first git").isNotNegative().isLessThan(git.start());
-		assertThat(scripts).contains("openssl pkeyutl -decrypt", "rsa_padding_mode:oaep", "rsa_oaep_md:sha256",
-				"rsa_mgf1_md:sha256", "GIT_ASKPASS", "transfer.fsckObjects true", "--no-tags");
-		assertThat(scripts).doesNotContain("--force", "push -f", "--mirror", "\"+$SHA");
-		Map<String, Object> unseal = steps.stream()
-			.filter(step -> String.valueOf(step.get("run")).contains("openssl pkeyutl"))
-			.findFirst()
-			.orElseThrow();
-		assertThat(asMap(unseal.get("env"))).containsEntry("RUNNER_KEY", "${{ secrets.VIBEFIX_RUNNER_KEY }}");
+		assertThat(inputs(workflow).keySet()).contains("exchange_url").allSatisfy(input -> assertThat(env)
+			.as("the first step takes " + input).containsValue("${{ inputs." + input + " }}"));
+		for (String variable : env.keySet()) {
+			assertThat(script).as(variable + " is checked").contains("\"$" + variable + "\"");
+		}
+		assertThat(script).startsWith("set -euo pipefail").contains("=~", "exit 1");
+		assertThat(script).contains("url_re='^https://");
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { SpikeS6Command.COPY_WORKFLOW, SpikeS6Command.SCAN_WORKFLOW })
-	void theRunIsBoundedReadsContentsOnlyAndAlwaysUploadsItsResult(String file) throws IOException {
-		Map<String, Object> workflow = load(Files.readString(RUNNER.resolve(file), StandardCharsets.UTF_8));
+	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void theIdTokenAndTheTokenAreMaskedBeforeTheFirstGit(String file) throws IOException {
+		List<Map<String, Object>> steps = steps(load(text(file)));
+		String scripts = String.join("\n", scripts(steps));
 
-		assertThat(workflow.get("permissions")).isEqualTo(Map.of("contents", "read"));
+		Matcher git = GIT.matcher(scripts);
+		assertThat(git.find()).as("the workflow runs git").isTrue();
+		for (String mask : List.of("::add-mask::$id_token", "::add-mask::$token")) {
+			assertThat(scripts.indexOf(mask)).as(mask + " precedes the first git").isNotNegative().isLessThan(git.start());
+		}
+		assertThat(scripts).contains("\"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix\"",
+				"-H @\"$RUNNER_TEMP/oidc-header\"", "ID_TOKEN=\"$id_token\" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}'",
+				"\"$EXCHANGE_URL/exchange\"", "umask 077");
+		assertThat(scripts).as("the ID token never goes on a command line").doesNotContain("--arg id_token");
+		assertThat(scripts.indexOf("::add-mask::$id_token")).as("the ID token is masked before it is sent")
+			.isLessThan(scripts.indexOf("\"$EXCHANGE_URL/exchange\""));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void gitReadsTheTokenFromAFileNeverForcesAndReadsBackWhatItPushed(String file) throws IOException {
+		String scripts = String.join("\n", scripts(steps(load(text(file)))));
+
+		assertThat(scripts).contains("GIT_ASKPASS=\"$RUNNER_TEMP/askpass.sh\"", "cat \"$VIBEFIX_TOKEN_FILE\"",
+				"printf '%s' \"$token\" > \"$RUNNER_TEMP/vibefix-token\"", "transfer.fsckObjects true", "--no-tags",
+				"merge-base --is-ancestor \"$SHA\"", "credential.helper= push", "ls-remote");
+		assertThat(scripts).doesNotContain("--force", "push -f", "--mirror", "\"+$SHA", "credential.helper store");
+		assertThat(scripts).doesNotContainPattern(FORCED_REFSPEC);
+		assertThat(count(scripts, "credential.helper= push")).as("each push is read back")
+			.isEqualTo(count(scripts, "| cut -f1)\""));
+	}
+
+	@Test
+	void theCustomersFinalMergePushesOnlyANewVibefixBranch() throws IOException {
+		List<Map<String, Object>> steps = steps(load(text(CUSTOMER)));
+		String check = String.valueOf(steps.getFirst().get("run"));
+		Map<String, Object> finalMerge = steps.stream()
+			.filter(step -> "inputs.operation == 'final-merge'".equals(step.get("if")))
+			.findFirst()
+			.orElseThrow();
+		String script = String.valueOf(finalMerge.get("run"));
+
+		assertThat(check).contains("[[ \"$BRANCH\" == vibefix/* ]]", "[ -z \"$WORKING\" ]");
+		assertThat(script).contains("+HEAD:refs/heads/vibefix-intermediary", "[ -z \"$existing\" ]",
+				"VIBEFIX_TOKEN_FILE=\"$RUNNER_TEMP/github-token\"");
+		assertThat(script.indexOf("[ -z \"$existing\" ]")).as("the branch must be new before the push")
+			.isLessThan(script.indexOf("credential.helper= push"));
+		assertThat(steps.stream().filter(step -> "inputs.operation == 'copy'".equals(step.get("if")))).hasSize(1);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void theJobIsBoundedWithOnlyThePermissionsItNeeds(String file) throws IOException {
+		Map<String, Object> workflow = load(text(file));
+
+		assertThat(workflow.get("permissions")).isEqualTo(file.equals(CUSTOMER)
+				? Map.of("contents", "write", "id-token", "write") : Map.of("contents", "read", "id-token", "write"));
 		assertThat(String.valueOf(workflow.get("run-name"))).contains("${{ inputs.correlation }}");
-		// YAML 1.1 reads the key "on" as true.
-		Object on = workflow.containsKey("on") ? workflow.get("on") : workflow.get(Boolean.TRUE);
-		assertThat(on).isInstanceOf(Map.class);
-		assertThat(asMap(on)).containsOnlyKeys("workflow_dispatch");
+		assertThat(on(workflow)).containsOnlyKeys("workflow_dispatch");
 		Map<?, ?> jobs = (Map<?, ?>) workflow.get("jobs");
 		assertThat(jobs).hasSize(1);
 		Map<?, ?> job = (Map<?, ?>) jobs.values().iterator().next();
 		assertThat(job.get("runs-on")).isEqualTo("ubuntu-24.04");
 		assertThat(job.get("timeout-minutes")).isEqualTo(15);
-
-		List<Map<String, Object>> steps = steps(workflow);
-		Map<String, Object> first = steps.getFirst();
-		assertThat(String.valueOf(first.get("run"))).as("the first step checks the inputs").contains("=~");
-		Map<String, Object> result = steps.get(steps.size() - 2);
-		assertThat(result.get("if")).isEqualTo("always()");
-		assertThat(String.valueOf(result.get("run"))).contains("result.json", "correlation", "outcome", "step");
-		Map<String, Object> upload = steps.getLast();
-		assertThat(upload.get("if")).isEqualTo("always()");
-		assertThat(String.valueOf(upload.get("uses"))).startsWith("actions/upload-artifact@");
-		Map<?, ?> with = (Map<?, ?>) upload.get("with");
-		assertThat(with.get("name")).isEqualTo("result-${{ inputs.correlation }}");
-		assertThat(with.get("retention-days")).isEqualTo(1);
-		assertThat(String.valueOf(with.get("path"))).endsWith("/result.json");
+		assertThat(asMap(job)).doesNotContainKey("permissions");
+		Map<String, Object> last = steps(workflow).getLast();
+		assertThat(last.get("if")).isEqualTo("always()");
+		assertThat(String.valueOf(last.get("run"))).contains("rm -f", "vibefix-token", "askpass.sh");
+		assertThat(text(file)).doesNotContain("artifact", "result.json");
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { SpikeS6Command.COPY_WORKFLOW, SpikeS6Command.SCAN_WORKFLOW })
+	@ValueSource(strings = { CUSTOMER, RUNNER })
 	void everyInputTheProbeSendsIsDeclared(String file) throws IOException {
-		Map<String, Object> workflow = load(Files.readString(RUNNER.resolve(file), StandardCharsets.UTF_8));
-		Object on = workflow.containsKey("on") ? workflow.get("on") : workflow.get(Boolean.TRUE);
-		Map<String, Object> inputs = asMap(asMap(asMap(on).get("workflow_dispatch")).get("inputs"));
+		Map<String, Object> inputs = inputs(load(text(file)));
 
-		List<String> expected = file.equals(SpikeS6Command.COPY_WORKFLOW)
-				? List.of("correlation", "source_repository", "source_branch", "sha", "target_repository", "target_branch",
-						"source_token", "target_token")
-				: List.of("correlation", "repository", "branch", "sha", "token", "scanner_sha256", "result_key");
-		assertThat(inputs.keySet()).containsExactlyInAnyOrderElementsOf(expected);
-		for (Object input : inputs.values()) {
-			assertThat(((Map<?, ?>) input).get("required")).isEqualTo(true);
-			assertThat(((Map<?, ?>) input).get("type")).isEqualTo("string");
-		}
+		List<String> expected = file.equals(CUSTOMER)
+				? List.of("operation", "correlation", "exchange_url", "sha", "branch", "intermediary", "working")
+				: List.of("correlation", "exchange_url", "source_repository", "source_branch", "sha", "target_repository",
+						"target_branch");
+		assertThat(inputs.keySet()).containsExactlyElementsOf(expected);
+		inputs.forEach((name, input) -> {
+			Map<String, Object> declared = asMap(input);
+			if (name.equals("operation")) {
+				assertThat(declared).containsEntry("type", "choice").containsEntry("required", true)
+					.containsEntry("options", List.of("copy", "final-merge"));
+			}
+			else if (name.equals("working")) {
+				assertThat(declared).containsEntry("type", "string").containsEntry("required", false).containsEntry("default", "");
+			}
+			else {
+				assertThat(declared).as(name).containsEntry("type", "string").containsEntry("required", true);
+			}
+		});
 	}
 
-	@Test
-	void theScanResultLeavesTheRunnerOnlySealed() throws IOException {
-		List<Map<String, Object>> steps = steps(
-				load(Files.readString(RUNNER.resolve(SpikeS6Command.SCAN_WORKFLOW), StandardCharsets.UTF_8)));
-		Map<String, Object> seal = steps.get(steps.size() - 2);
-		String script = String.valueOf(seal.get("run"));
-
-		assertThat(asMap(seal.get("env"))).containsEntry("RESULT_KEY", "${{ inputs.result_key }}");
-		// The commands RunnerSealTest runs against RunnerSeal.Opener.
-		assertThat(script).contains("openssl rand -out \"$plain/aes.key\" 32", "openssl rand -out \"$plain/mac.key\" 32",
-				"openssl rand -out \"$plain/iv.bin\" 16",
-				"openssl enc -aes-256-ctr -K \"$aes_key\" -iv \"$iv\" -in \"$plain/result.json\" -out \"$plain/ciphertext.bin\"",
-				"cat \"$plain/iv.bin\" \"$plain/ciphertext.bin\"",
-				"openssl dgst -sha256 -mac HMAC -macopt \"hexkey:$mac_key\" -binary",
-				"cat \"$plain/aes.key\" \"$plain/mac.key\"",
-				"openssl pkeyutl -encrypt -pubin -keyform DER -inkey \"$plain/result-key.der\"",
-				"-pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256",
-				"'{wrapped: $wrapped, iv: $iv, ciphertext: $ciphertext, tag: $tag}' > \"$RUNNER_TEMP/result/result.json\"",
-				"::add-mask::$aes_key", "::add-mask::$mac_key", "rm -rf \"$plain\"");
-		assertThat(script.indexOf("::add-mask::$aes_key")).as("the keys are masked before openssl enc uses them")
-			.isLessThan(script.indexOf("openssl enc"));
-		assertThat(script).as("the plain result is written apart from what is uploaded")
-			.contains("> \"$plain/result.json\"")
-			.doesNotContain("output: $output[0]}' > \"$RUNNER_TEMP/result/result.json\"");
-		Map<String, Object> upload = steps.getLast();
-		assertThat(asMap(upload.get("with")).get("path")).isEqualTo("${{ runner.temp }}/result/result.json");
+	private static String text(String file) throws IOException {
+		return Files.readString(DEPLOY.resolve(file), StandardCharsets.UTF_8);
 	}
 
 	@SuppressWarnings("unchecked")
 	private static Map<String, Object> load(String text) {
 		return (Map<String, Object>) new Yaml(new SafeConstructor(new LoaderOptions())).load(text);
+	}
+
+	/** YAML 1.1 reads the key {@code on} as {@code true}. */
+	private static Map<String, Object> on(Map<String, Object> workflow) {
+		return asMap(workflow.containsKey("on") ? workflow.get("on") : workflow.get(Boolean.TRUE));
+	}
+
+	private static Map<String, Object> inputs(Map<String, Object> workflow) {
+		return asMap(asMap(on(workflow).get("workflow_dispatch")).get("inputs"));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -180,6 +208,14 @@ class RunnerWorkflowsTest {
 			}
 		}
 		return scripts;
+	}
+
+	private static int count(String text, String part) {
+		int count = 0;
+		for (int at = text.indexOf(part); at >= 0; at = text.indexOf(part, at + part.length())) {
+			count++;
+		}
+		return count;
 	}
 
 	@SuppressWarnings("unchecked")

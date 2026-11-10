@@ -48,7 +48,10 @@ public interface PlatformRepositories {
 	/** Turns Wiki, Issues, Projects, and Discussions off, as a fork may not inherit it. */
 	void turnFeaturesOff(PlatformRepository repository);
 
-	/** How the organization differs from AD-11's settings (2FA required, Actions disabled, base permission none). */
+	/**
+	 * How the organization differs from AD-11's settings (2FA required, base permission none, and Actions
+	 * disabled; with {@code vibefix.github.runner-repository} set, Actions on that repository only).
+	 */
 	List<String> organizationDifferences();
 
 	/** Creates AD-11's two rulesets on the Intermediary Repository, except those that exist by name. */

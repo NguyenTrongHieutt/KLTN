@@ -88,7 +88,7 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 					+ PASSWORD_VARIABLE + ". Also: --vibefix.cli.command=" + SpikeS1Command.COMMAND
 					+ " --github-login=<Customer> --repo=<owner/name>, " + SPIKE_S4 + " (deploy/README.md, \"Spike S4\"), "
 					+ SPIKE_S2 + " (\"Spike S2\"), " + SpikeS5Command.COMMAND + " (\"Spike S5\"), and " + SPIKE_S6
-					+ " (\"Spike S6\"), dev only.");
+					+ " (\"Spike S6\": copies on the Customer's Actions and the runner's, tokens through OIDC), dev only.");
 			this.exitCode = 2;
 			return;
 		}

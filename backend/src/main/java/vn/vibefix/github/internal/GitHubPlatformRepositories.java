@@ -20,6 +20,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 import vn.vibefix.github.GitHubApps.App;
+import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubApps.Unnarrowed;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.PlatformRepositories;
@@ -194,12 +195,71 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 				differences.add("base permission is " + org.path("default_repository_permission").asString("absent")
 						+ " instead of none");
 			}
-			if (!"none".equals(actions.path("enabled_repositories").asString(""))) {
-				differences.add("GitHub Actions are enabled for " + actions.path("enabled_repositories").asString("absent")
-						+ " repositories");
+			String runner = this.apps.properties().runnerRepository();
+			if (runner == null) {
+				if (!"none".equals(actions.path("enabled_repositories").asString(""))) {
+					differences.add("GitHub Actions are enabled for " + actions.path("enabled_repositories").asString("absent")
+							+ " repositories");
+				}
+			}
+			else {
+				differences.addAll(runnerDifferences(runner, actions, token));
 			}
 			return differences;
 		});
+	}
+
+	/**
+	 * With a runner repository configured (Spike S6 revision), Actions run on that one repository only:
+	 * "Selected repositories", listing it alone ({@code GET /orgs/{org}/actions/permissions/repositories}),
+	 * with the organization's own actions only ({@code allowed_actions} {@code local_only}). Workflows
+	 * get read tokens by default and may not approve pull requests
+	 * ({@code GET /orgs/{org}/actions/permissions/workflow}).
+	 */
+	private List<String> runnerDifferences(String runner, JsonNode actions, InstallationToken token) {
+		List<String> differences = new ArrayList<>();
+		String enabled = actions.path("enabled_repositories").asString("");
+		if ("none".equals(enabled)) {
+			differences.add("GitHub Actions are enabled for no repository instead of the runner " + runner + " only");
+		}
+		else if (!"selected".equals(enabled)) {
+			differences.add("GitHub Actions are enabled for " + (enabled.isEmpty() ? "absent" : enabled)
+					+ " repositories instead of the runner " + runner + " only");
+		}
+		else {
+			JsonNode selected = require(http().send("GET",
+					"/orgs/" + organization() + "/actions/permissions/repositories?per_page=100", token.value(), null),
+					"read the repositories that may run GitHub Actions");
+			List<String> names = new ArrayList<>();
+			for (JsonNode repository : selected.path("repositories")) {
+				names.add(repository.path("name").asString(""));
+			}
+			JsonNode total = selected.path("total_count");
+			boolean onlyTheRunner = names.size() == 1 && names.getFirst().equalsIgnoreCase(runner)
+					&& (total.isMissingNode() || total.asLong(-1) == 1);
+			if (!onlyTheRunner) {
+				differences.add("GitHub Actions are enabled for " + (names.isEmpty() ? "no repository" : String.join(", ", names))
+						+ " instead of the runner " + runner + " only");
+			}
+		}
+		String allowed = actions.path("allowed_actions").asString("");
+		if (!"local_only".equals(allowed)) {
+			differences.add("GitHub Actions allow " + (allowed.isEmpty() ? "absent" : allowed)
+					+ " actions instead of the organization's own only (local_only)");
+		}
+		JsonNode workflow = require(http().send("GET", "/orgs/" + organization() + "/actions/permissions/workflow",
+				token.value(), null), "read the organization's default workflow permissions");
+		String permissions = workflow.path("default_workflow_permissions").asString("");
+		if (!"read".equals(permissions)) {
+			differences.add("the default workflow permissions are " + (permissions.isEmpty() ? "absent" : permissions)
+					+ " instead of read");
+		}
+		JsonNode approve = workflow.path("can_approve_pull_request_reviews");
+		if (!approve.isBoolean() || approve.asBoolean()) {
+			differences.add("workflows may approve pull requests (can_approve_pull_request_reviews="
+					+ (approve.isMissingNode() ? "absent" : approve.asString()) + ") instead of never");
+		}
+		return differences;
 	}
 
 	@Override

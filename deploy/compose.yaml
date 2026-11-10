@@ -56,6 +56,9 @@ services:
       VIBEFIX_EMAIL_SMTP_HOST: mailpit
       # AD-21: the files volume below.
       VIBEFIX_FILES_ROOT: /var/lib/vibefix/files
+      # Spike S6 revision: the one repository of vibefix-dev that may run GitHub Actions, by name
+      # (deploy/.env). Empty by default, so Actions stay disabled for every repository, as before.
+      VIBEFIX_GITHUB_RUNNER_REPOSITORY: ${VIBEFIX_GITHUB_RUNNER_REPOSITORY:-}
     secrets:
       - db-app-password
       - db-migrator-password

@@ -2,6 +2,7 @@ package vn.vibefix.github.internal;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -16,10 +17,17 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  * @param organization the platform organization (AD-25)
  * @param webhookUrl where both Apps' webhooks must point ({@code https://…/webhooks}); the daily
  * configuration check compares it when set
+ * @param runnerRepository the one repository of the organization that may run GitHub Actions, by name
+ * (Spike S6 revision, 2026-11-10): when set, AD-11's read-back wants the organization's Actions on
+ * that repository only, and AD-10's Platform App holds Actions write to dispatch it; unset (or blank),
+ * Actions stay disabled for every repository, as before
  */
 @ConfigurationProperties("vibefix.github")
 record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-		@Nullable AppProperties mergeApp, @Nullable URI webhookUrl) {
+		@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository) {
+
+	/** A repository name, as GitHub allows it inside an organization. */
+	private static final Pattern REPOSITORY_NAME = Pattern.compile("[A-Za-z0-9._-]{1,100}");
 
 	/**
 	 * @param id the App ID
@@ -48,11 +56,25 @@ record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @
 		if (gitUrl == null) {
 			gitUrl = URI.create("https://github.com");
 		}
+		if (runnerRepository != null && runnerRepository.isBlank()) {
+			// deploy/compose.yaml passes an empty value when no runner is set.
+			runnerRepository = null;
+		}
+		if (runnerRepository != null && (!REPOSITORY_NAME.matcher(runnerRepository).matches() || runnerRepository.equals(".")
+				|| runnerRepository.equals(".."))) {
+			throw new IllegalArgumentException(
+					"vibefix.github.runner-repository is a repository name inside the organization, without its owner");
+		}
+	}
+
+	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
+			@Nullable AppProperties mergeApp, @Nullable URI webhookUrl) {
+		this(apiUrl, gitUrl, organization, platformApp, mergeApp, webhookUrl, null);
 	}
 
 	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
 			@Nullable AppProperties mergeApp) {
-		this(apiUrl, gitUrl, organization, platformApp, mergeApp, null);
+		this(apiUrl, gitUrl, organization, platformApp, mergeApp, null, null);
 	}
 
 }
