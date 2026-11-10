@@ -7,11 +7,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -27,7 +30,9 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * the ID token and the token before the first {@code git}; git reads the token from a file through
  * {@code GIT_ASKPASS}, never pushes with force, and reads every branch it pushes back; the job runs on
  * {@code ubuntu-24.04} for at most 15 minutes, with only the permissions it needs, holds no secret, and
- * uploads nothing.
+ * uploads nothing. The Customer's {@code scan} takes only its operation and correlation, skips the
+ * exchange, runs a pinned gitleaks verified by its sha256 over the default branch's whole history with
+ * gitleaks' default rules and the Secret Scan's three Vietnamese rules, and logs only its count.
  */
 class RunnerWorkflowsTest {
 
@@ -36,6 +41,9 @@ class RunnerWorkflowsTest {
 	private static final String RUNNER = "runner/s6-copy.yml";
 
 	private static final Path DEPLOY = Path.of("..", "deploy");
+
+	/** The Secret Scan's rules, which the Customer's gitleaks scan ports three of. */
+	private static final Path RULES = Path.of("src", "main", "resources", "scanning", "rules.yaml");
 
 	/** A {@code git} command: at the start of a line or after a separator, not inside a word like GIT_ASKPASS. */
 	private static final Pattern GIT = Pattern.compile("(?m)(^|[\\s;&|(])git\\s");
@@ -130,20 +138,36 @@ class RunnerWorkflowsTest {
 	@ValueSource(strings = { CUSTOMER, RUNNER })
 	void theJobIsBoundedWithOnlyThePermissionsItNeeds(String file) throws IOException {
 		Map<String, Object> workflow = load(text(file));
+		Map<String, Object> jobs = asMap(workflow.get("jobs"));
 
-		assertThat(workflow.get("permissions")).isEqualTo(file.equals(CUSTOMER)
-				? Map.of("contents", "write", "id-token", "write") : Map.of("contents", "read", "id-token", "write"));
 		assertThat(String.valueOf(workflow.get("run-name"))).contains("${{ inputs.correlation }}");
 		assertThat(on(workflow)).containsOnlyKeys("workflow_dispatch");
-		Map<?, ?> jobs = (Map<?, ?>) workflow.get("jobs");
-		assertThat(jobs).hasSize(1);
-		Map<?, ?> job = (Map<?, ?>) jobs.values().iterator().next();
-		assertThat(job.get("runs-on")).isEqualTo("ubuntu-24.04");
-		assertThat(job.get("timeout-minutes")).isEqualTo(15);
-		assertThat(asMap(job)).doesNotContainKey("permissions");
-		Map<String, Object> last = steps(workflow).getLast();
-		assertThat(last.get("if")).isEqualTo("always()");
-		assertThat(String.valueOf(last.get("run"))).contains("rm -f", "vibefix-token", "askpass.sh");
+		if (file.equals(CUSTOMER)) {
+			// Nothing by default: the copy job may write and ask for an ID token, the scan job may only read.
+			assertThat(workflow.get("permissions")).isEqualTo(Map.of());
+			assertThat(jobs).containsOnlyKeys("vibefix", "scan");
+			assertThat(asMap(jobs.get("vibefix")))
+				.containsEntry("if", "inputs.operation == 'copy' || inputs.operation == 'final-merge'")
+				.containsEntry("permissions", Map.of("contents", "write", "id-token", "write"));
+			assertThat(asMap(jobs.get("scan"))).containsEntry("if", "inputs.operation == 'scan'")
+				.containsEntry("permissions", Map.of("contents", "read"));
+		}
+		else {
+			assertThat(workflow.get("permissions")).isEqualTo(Map.of("contents", "read", "id-token", "write"));
+			assertThat(jobs).hasSize(1);
+			assertThat(asMap(jobs.values().iterator().next())).doesNotContainKey("permissions");
+		}
+		jobs.forEach((name, value) -> {
+			Map<String, Object> job = asMap(value);
+			assertThat(job.get("runs-on")).as(name).isEqualTo("ubuntu-24.04");
+			assertThat(job.get("timeout-minutes")).as(name).isEqualTo(15);
+			Map<String, Object> last = jobSteps(job).getLast();
+			assertThat(last.get("if")).as(name).isEqualTo("always()");
+			assertThat(String.valueOf(last.get("run"))).as(name).contains("rm -f", "askpass.sh");
+			if (!name.equals("scan")) {
+				assertThat(String.valueOf(last.get("run"))).as(name).contains("vibefix-token");
+			}
+		});
 		assertThat(text(file)).doesNotContain("artifact", "result.json");
 	}
 
@@ -156,20 +180,224 @@ class RunnerWorkflowsTest {
 				? List.of("operation", "correlation", "exchange_url", "sha", "branch", "intermediary", "working")
 				: List.of("correlation", "exchange_url", "source_repository", "source_branch", "sha", "target_repository",
 						"target_branch");
+		// A scan needs only its operation, and a Customer may start one by hand: the other inputs are optional,
+		// and each job checks them.
+		Set<String> optional = file.equals(CUSTOMER)
+				? Set.of("correlation", "exchange_url", "sha", "branch", "intermediary", "working") : Set.of();
 		assertThat(inputs.keySet()).containsExactlyElementsOf(expected);
 		inputs.forEach((name, input) -> {
 			Map<String, Object> declared = asMap(input);
 			if (name.equals("operation")) {
 				assertThat(declared).containsEntry("type", "choice").containsEntry("required", true)
-					.containsEntry("options", List.of("copy", "final-merge"));
+					.containsEntry("options", List.of("copy", "final-merge", "scan"));
 			}
-			else if (name.equals("working")) {
-				assertThat(declared).containsEntry("type", "string").containsEntry("required", false).containsEntry("default", "");
+			else if (optional.contains(name)) {
+				assertThat(declared).as(name).containsEntry("type", "string").containsEntry("required", false)
+					.containsEntry("default", "");
 			}
 			else {
 				assertThat(declared).as(name).containsEntry("type", "string").containsEntry("required", true);
 			}
 		});
+	}
+
+	@Test
+	void eachCustomerJobChecksEveryInputFirst() throws IOException {
+		Map<String, Object> workflow = load(text(CUSTOMER));
+		Map<String, Object> jobs = asMap(workflow.get("jobs"));
+
+		jobs.forEach((name, job) -> {
+			Map<String, Object> first = jobSteps(asMap(job)).getFirst();
+			Map<String, Object> env = asMap(first.get("env"));
+			String script = String.valueOf(first.get("run"));
+			assertThat(first.get("name")).as(name).isEqualTo("Check the inputs");
+			assertThat(inputs(workflow).keySet()).allSatisfy(input -> assertThat(env).as(name + " takes " + input)
+				.containsValue("${{ inputs." + input + " }}"));
+			for (String variable : env.keySet()) {
+				assertThat(script).as(name + " checks " + variable).contains("\"$" + variable + "\"");
+			}
+			assertThat(script).as(name).startsWith("set -euo pipefail").contains("exit 1");
+		});
+		String copy = String.valueOf(jobSteps(asMap(jobs.get("vibefix"))).getFirst().get("run"));
+		assertThat(copy).as("copy and final-merge need every input, as before").contains(
+				"operation_re='^(copy|final-merge)$'", "[[ \"$CORRELATION\" =~ $correlation_re ]] || {",
+				"[[ \"$EXCHANGE_URL\" =~ $url_re ]] || {", "[[ \"$SHA\" =~ $sha_re ]] || {", "[[ \"$BRANCH\" =~ $branch_re",
+				"[[ \"$INTERMEDIARY\" =~ $repository_re", "[[ \"$WORKING\" =~ $repository_re", "[ -z \"$WORKING\" ] || {",
+				"[[ \"$BRANCH\" == vibefix/* ]]")
+			.doesNotContain("scan");
+		String scan = String.valueOf(jobSteps(asMap(jobs.get("scan"))).getFirst().get("run"));
+		assertThat(scan).as("a scan takes its operation, an empty or valid correlation, and every copy input empty").contains(
+				"[ \"$OPERATION\" = scan ] || {",
+				"[ -z \"$CORRELATION\" ] || [[ \"$CORRELATION\" =~ $correlation_re ]] || {",
+				"for empty in \"$EXCHANGE_URL\" \"$SHA\" \"$BRANCH\" \"$INTERMEDIARY\" \"$WORKING\"; do", "[ -z \"$empty\" ] || {");
+	}
+
+	@Test
+	void theScanRunsInAJobOfItsOwnWithNoVibefixToken() throws IOException {
+		Map<String, Object> workflow = load(text(CUSTOMER));
+		Map<String, Object> exchange = step(jobSteps(asMap(asMap(workflow.get("jobs")).get("vibefix"))),
+				"Exchange the ID token");
+		List<Map<String, Object>> scan = scanSteps();
+
+		assertThat(exchange.get("if")).isEqualTo("inputs.operation == 'copy' || inputs.operation == 'final-merge'");
+		assertThat(steps(workflow)).as("only the copy job's exchange asks for an ID token")
+			.filteredOn(step -> String.valueOf(step.get("run")).contains("ACTIONS_ID_TOKEN_REQUEST"))
+			.containsExactly(exchange);
+		assertThat(scan).extracting(step -> step.get("name"))
+			.containsExactly("Check the inputs", "Download gitleaks", "Scan with gitleaks", "Remove the credentials");
+		for (Map<String, Object> step : scan) {
+			assertThat(String.valueOf(step.get("run"))).as(String.valueOf(step.get("name")))
+				.doesNotContain("ACTIONS_ID_TOKEN_REQUEST", "/exchange", "vibefix-token");
+			if (!"Check the inputs".equals(step.get("name")) && step.get("env") != null) {
+				assertThat(asMap(step.get("env")).values()).as("no input reaches " + step.get("name"))
+					.noneMatch(value -> String.valueOf(value).contains("inputs."));
+			}
+		}
+		String script = String.valueOf(step(scan, "Scan with gitleaks").get("run"));
+		int gitleaks = script.indexOf("/gitleaks/gitleaks\" git ");
+		assertThat(script.indexOf("unset GITHUB_TOKEN\n")).as("gitleaks runs without the token").isNotNegative()
+			.isLessThan(gitleaks);
+		assertThat(script.indexOf("rm -f \"$RUNNER_TEMP/github-token\"")).as("the token file is gone before gitleaks runs")
+			.isNotNegative()
+			.isLessThan(gitleaks);
+	}
+
+	@Test
+	void theScanRunsAPinnedGitleaksVerifiedBeforeItIsExtracted() throws IOException {
+		Map<String, Object> download = step(scanSteps(), "Download gitleaks");
+		Map<String, Object> env = asMap(download.get("env"));
+		String script = String.valueOf(download.get("run"));
+
+		assertThat(env).containsEntry("GITLEAKS_URL",
+				"https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz");
+		assertThat(String.valueOf(env.get("GITLEAKS_SHA256"))).as("a pinned sha256").matches("[0-9a-f]{64}");
+		assertThat(text(CUSTOMER)).as("a comment names the release's checksums file")
+			.contains("# https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt");
+		assertThat(script).startsWith("set -euo pipefail")
+			.contains("curl -sS --fail", "\"$GITLEAKS_URL\"", "\"$GITLEAKS_SHA256\"");
+		assertThat(count(script, "tar -x")).isOne();
+		assertThat(script.indexOf("| sha256sum -c ")).as("verified before it is extracted").isNotNegative()
+			.isLessThan(script.indexOf("tar -x"));
+	}
+
+	@Test
+	void theScanReadsTheDefaultBranchsWholeHistoryRedactedAndLogsOnlyTheCount() throws IOException {
+		Map<String, Object> scan = step(scanSteps(), "Scan with gitleaks");
+		String script = String.valueOf(scan.get("run"));
+		String countEcho = "echo \"" + SpikeS6Command.COUNT_PREFIX + " head=$head findings=$count\"";
+		int countLine = script.indexOf(countEcho);
+		int fail = script.indexOf("fail() {\n");
+		String failure = script.substring(fail, script.indexOf("\n}\n", fail));
+
+		assertThat(asMap(scan.get("env"))).containsOnly(Map.entry("GITHUB_TOKEN", "${{ github.token }}"),
+				Map.entry("DEFAULT_BRANCH", "${{ github.event.repository.default_branch }}"));
+		assertThat(script).startsWith("set -euo pipefail")
+			.contains("if [ -z \"$DEFAULT_BRANCH\" ] || ! git check-ref-format --branch \"$DEFAULT_BRANCH\" > /dev/null 2>&1; then",
+					"fetch --quiet --no-tags", "VIBEFIX_TOKEN_FILE=\"$RUNNER_TEMP/github-token\"",
+					"\"+refs/heads/$DEFAULT_BRANCH:refs/heads/vibefix-scan\"", "2> \"$RUNNER_TEMP/fetch.log\" || fetched=$?",
+					"fail \"the fetch of the default branch failed (git exit $fetched)\" \"$RUNNER_TEMP/fetch.log\"",
+					"head=\"$(git -C \"$repository\" rev-parse --verify --quiet 'refs/heads/vibefix-scan^{commit}'")
+			.as("a read-only fetch, which takes a legacy history; and git, not a regular expression, judges the name")
+			.doesNotContain("transfer.fsckObjects", "branch_re", "--depth", "--shallow", "--log-opts");
+		assertThat(script).contains("--config \"$RUNNER_TEMP/gitleaks.toml\" --redact --ignore-gitleaks-allow",
+				"--report-format json", "--exit-code 42", "\nstatus=0\n", "> \"$RUNNER_TEMP/gitleaks.log\" 2>&1 || status=$?",
+				"[ \"$status\" != 0 ] && [ \"$status\" != 42 ]", "[ -s \"$RUNNER_TEMP/gitleaks.log\" ]");
+		assertThat(failure).as("a failure's reason goes to the summary, and one ::error:: line to the log")
+			.contains(">> \"$GITHUB_STEP_SUMMARY\"", "tail -n 20 \"$2\" | jq -Rr '@html'", "echo \"::error::$1;");
+		assertThat(count(script, "tail ")).as("no tool output is tailed to the log").isOne();
+		assertThat(script.lines().map(String::strip).filter(line -> line.startsWith("echo ")))
+			.as("the log gets ::error:: lines and the count line only")
+			.allSatisfy(line -> assertThat(line.startsWith("echo \"::error::") || line.equals(countEcho)).as(line).isTrue());
+		assertThat(script).as("the summary names the commit, and each finding's rule, file, short commit and line")
+			.contains(">> \"$GITHUB_STEP_SUMMARY\"", "\\(env.HEAD_SHA)", "\\(.RuleID | cell)", "\\(.File | cell)",
+					"\\(.Commit[0:7] | cell)", "\\(.StartLine | cell)", "| Rule | File | Commit | Line |")
+			.doesNotContain("Secret", "Match");
+		assertThat(count(script, SpikeS6Command.COUNT_PREFIX)).as("one count line").isOne();
+		assertThat(countLine).isPositive();
+		for (String before : List.of("fail \"the gitleaks scan failed", "fail \"the gitleaks report cannot be read\"",
+				"fail \"the gitleaks exit code and its report disagree\"", "' \"$RUNNER_TEMP/gitleaks.json\" >> \"$GITHUB_STEP_SUMMARY\"")) {
+			assertThat(script.indexOf(before)).as(before + " comes before the count line").isNotNegative()
+				.isLessThan(countLine);
+		}
+		assertThat(script.indexOf("[ \"$count\" = 0 ] || {")).as("findings fail the run after the count line")
+			.isGreaterThan(countLine);
+	}
+
+	@Test
+	void theScanRulesExtendGitleaksDefaultsWithTheSecretScansVietnameseRules() throws IOException {
+		String script = String.valueOf(step(scanSteps(), "Scan with gitleaks").get("run"));
+		int start = script.indexOf("<<'RULES'\n");
+		String toml = script.substring(start + "<<'RULES'\n".length(), script.indexOf("\nRULES\n", start));
+		Map<String, Object> rulesYaml = asMap(new Yaml(new SafeConstructor(new LoaderOptions()))
+			.load(Files.readString(RULES, StandardCharsets.UTF_8)));
+		// gitleaks reads keywords per changed hunk, where MoMo's and ZaloPay's names are often missing: their
+		// ported rules keep none, a deliberate difference from rules.yaml. VNPay's pattern holds its keywords.
+		Set<String> keywordsDropped = Set.of("momo-secret-key", "zalopay-key");
+
+		assertThat(toml).contains("[extend]\nuseDefault = true\n");
+		Map<String, Ported> ported = new LinkedHashMap<>();
+		for (String block : toml.split("\\[\\[rules\\]\\]\n")) {
+			Matcher id = Pattern.compile("(?m)^id = \"([^\"]+)\"$").matcher(block);
+			if (!id.find()) {
+				continue;
+			}
+			Matcher regex = Pattern.compile("(?m)^regex = '''(.+)'''$").matcher(block);
+			Matcher group = Pattern.compile("(?m)^secretGroup = (\\d+)$").matcher(block);
+			Matcher allowlist = Pattern
+				.compile("(?m)^\\[\\[rules\\.allowlists\\]\\]\nregexTarget = \"secret\"\nregexes = \\['''(.+)'''\\]$")
+				.matcher(block);
+			assertThat(regex.find() && group.find() && allowlist.find()).as(block).isTrue();
+			Matcher keywords = Pattern.compile("(?m)^keywords = \\[(.*)\\]$").matcher(block);
+			List<String> words = null;
+			if (keywords.find()) {
+				words = new ArrayList<>();
+				Matcher word = Pattern.compile("\"([^\"]*)\"").matcher(keywords.group(1));
+				while (word.find()) {
+					words.add(word.group(1));
+				}
+			}
+			ported.put(id.group(1), new Ported(regex.group(1), group.group(1), words, allowlist.group(1)));
+		}
+		assertThat(ported).containsOnlyKeys("vnpay-hash-secret", "momo-secret-key", "zalopay-key");
+		for (Object rule : (List<?>) rulesYaml.get("rules")) {
+			Map<String, Object> source = asMap(rule);
+			String id = String.valueOf(source.get("id"));
+			Ported port = ported.remove(id);
+			if (port == null) {
+				continue;
+			}
+			assertThat(port.pattern()).as(id + "'s pattern").isEqualTo(source.get("pattern"));
+			assertThat(port.group()).as("the one capturing group: the credential").isEqualTo("1");
+			assertThat(Pattern.compile(String.valueOf(source.get("pattern"))).matcher("").groupCount()).isOne();
+			assertThat(port.placeholders()).as(id + " skips the Secret Scan's placeholders").isEqualTo(rulesYaml.get("placeholders"));
+			if (keywordsDropped.contains(id)) {
+				assertThat(port.keywords()).as(id + " keeps no keyword").isNull();
+				assertThat((List<?>) source.get("keywords")).as(id + " has keywords in rules.yaml").isNotEmpty();
+			}
+			else {
+				assertThat(port.keywords()).as(id + "'s keywords").isEqualTo(source.get("keywords"));
+			}
+			assertThat(source).as("no part of the rule is left behind").containsOnlyKeys("id", "type", "keywords", "pattern");
+		}
+		assertThat(ported).as("every ported rule is in rules.yaml").isEmpty();
+	}
+
+	/** One rule of the scan's gitleaks config: its pattern, capture group, keywords if any, and placeholders. */
+	private record Ported(String pattern, String group, @Nullable List<String> keywords, String placeholders) {
+	}
+
+	private static Map<String, Object> step(List<Map<String, Object>> steps, String name) {
+		return steps.stream().filter(step -> name.equals(step.get("name"))).findFirst().orElseThrow();
+	}
+
+	/** The steps of the Customer's scan job. */
+	private static List<Map<String, Object>> scanSteps() throws IOException {
+		return jobSteps(asMap(asMap(load(text(CUSTOMER)).get("jobs")).get("scan")));
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<Map<String, Object>> jobSteps(Map<String, Object> job) {
+		return (List<Map<String, Object>>) job.get("steps");
 	}
 
 	private static String text(String file) throws IOException {

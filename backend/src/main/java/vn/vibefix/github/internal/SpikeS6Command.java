@@ -39,6 +39,7 @@ import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -82,7 +83,11 @@ import vn.vibefix.github.PlatformRepositories;
  * {@value #COPY_WORKFLOW}, written here); the Source App and the Customer's file; two private
  * repositories; the J7 copy on the Customer's Actions and its run verified; Actions disabled on both
  * new repositories; one ruleset on the private Intermediary; with {@code --tampered-ref}, a run of a
- * changed {@code vibefix.yml} refused a token; and every run's duration and billed minutes;</li>
+ * changed {@code vibefix.yml} refused a token; every run's duration and billed minutes; and with
+ * {@code --scan}, the optional gitleaks scan on the Customer's Actions ({@code operation=scan}, in a job
+ * that may only read and holds no id-token permission), its run read back as the published file, and
+ * of its logs only the count line {@value #COUNT_PREFIX}{@code  head=<sha> findings=<n>}: the Customer's
+ * own run's report, not evidence the platform checked;</li>
  * <li>{@code c}: the Customer invited to the Intermediary with {@code pull} (a pending invitation stops
  * the run: "accept, then run again", exit 0), the permissions read back, two Contents-API commits on the
  * Working Repository each copied by the runner to {@code handover/{prefix}-n} with a pull request, the
@@ -100,8 +105,9 @@ import vn.vibefix.github.PlatformRepositories;
  * <b>Runs.</b> A run is dispatched with {@code return_run_details} (a 404 is retried while GitHub learns a
  * workflow file just written), found by its {@code run-name} after a 204, and polled every 10 s for up to
  * 20 minutes (the job's own limit is 15); one not completed then is cancelled. A run that did not
- * succeed has its failed step's last lines printed to stderr. The runner's run logs are deleted after
- * that; a Customer's run logs stay in the Customer's repository.
+ * succeed has its failed step's last lines printed to stderr, except a scan: its logs are searched for
+ * the count line only and never printed, so no finding's file, rule or value reaches the probe. The
+ * runner's run logs are deleted after that; a Customer's run logs stay in the Customer's repository.
  * <p>
  * Exit code 0 when every check is {@code OK} or {@code SKIPPED} (or the invitation is pending), 1 for a
  * {@code FAIL}, a token not revoked, or a refusal (any stack other than {@code dev} whatever the
@@ -141,6 +147,20 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 
 	/** What the Final Merge gets: the Intermediary Repository, contents read. */
 	static final Map<String, String> FINAL_MERGE_PERMISSIONS = Map.of("contents", "read");
+
+	/** Part b's check 12, run with {@code --scan}: a name that fits the printed column. */
+	static final String SCAN_CHECK = "gitleaks on Customer's Actions";
+
+	/** What a scan run's log holds once, followed by {@code " head=<sha> findings=<n>"}. */
+	static final String COUNT_PREFIX = "VIBEFIX_SCAN";
+
+	/** The count line as GitHub's logs show it: the line's timestamp, then the scan's own {@code echo}. */
+	private static final Pattern COUNT_LINE = Pattern
+		.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z " + Pattern.quote(COUNT_PREFIX)
+				+ "(?: head=(\\S{0,80}))? findings=(0|[1-9][0-9]{0,8})");
+
+	/** What a log file may start with. */
+	private static final String BOM = String.valueOf((char) 0xFEFF);
 
 	private static final int MAX_LOG_BYTES = 16 * 1024 * 1024;
 
@@ -224,10 +244,14 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 	private record Repo(String fullName, long id, String defaultBranch, boolean privateRepository) {
 	}
 
-	/** The arguments of one part; those another part needs are left out. */
+	/**
+	 * The arguments of one part; those another part needs are left out.
+	 * @param scan whether part b runs the gitleaks scan ({@code --scan})
+	 */
 	private record Invocation(String part, @Nullable String source, @Nullable String customer, @Nullable String prefix,
 			@Nullable Long sourceAppId, @Nullable Path sourceAppKey, @Nullable Path customerWorkflow,
-			@Nullable Path workflowsDir, @Nullable String exchangeUrl, int exchangePort, @Nullable String tamperedRef) {
+			@Nullable Path workflowsDir, @Nullable String exchangeUrl, int exchangePort, @Nullable String tamperedRef,
+			boolean scan) {
 	}
 
 	/**
@@ -255,6 +279,29 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 
 		String path() {
 			return ".github/workflows/" + this.workflow;
+		}
+
+	}
+
+	/** A run's first failed step: its job, and the step's number and name. */
+	private record FailedStep(String job, int number, String name) {
+	}
+
+	/**
+	 * What a scan run's logs give: its one count of findings and the head it names, or -1 with why there is
+	 * none.
+	 * @param incomplete whether another read of the logs may still find the line
+	 * @param failedStep for a run that did not succeed, its failed step or why it is not known
+	 */
+	private record Count(int findings, @Nullable String head, @Nullable String problem, boolean incomplete,
+			@Nullable String failedStep) {
+
+		static Count missing(String problem, boolean incomplete, @Nullable String failedStep) {
+			return new Count(-1, null, problem, incomplete, failedStep);
+		}
+
+		boolean found() {
+			return this.findings >= 0;
 		}
 
 	}
@@ -728,6 +775,10 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 						() -> tampered(inputs, exchange, invocation.exchangeUrl(), invocation.tamperedRef(), state))
 						: skipped(10, "tampered workflow refused"));
 		record(checks, durations(11, state));
+		// The scan needs only the Customer's side: it creates nothing and holds no token.
+		record(checks, !invocation.scan() ? new Check(12, SCAN_CHECK, Outcome.SKIPPED, 0, "no --scan")
+				: customer.outcome() == Outcome.OK ? check(12, SCAN_CHECK, () -> scan(inputs, exchange, state))
+						: skipped(12, SCAN_CHECK));
 	}
 
 	/** AD-11's settings through PlatformRepositories (the runner set), and whether members may fork private repositories. */
@@ -1080,6 +1131,161 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 				: new Check(number, "run durations and billed minutes", Outcome.OK, 0, state.timings.describe());
 	}
 
+	/**
+	 * The gitleaks scan on the Customer's Actions: the Source App dispatches {@code operation=scan} on the
+	 * default branch, where the workflow's scan job may only read and holds no id-token permission, and the
+	 * probe waits as for the other runs. The exchange expects nothing for it. The run is read back as the
+	 * Customer's file: its {@code path}, and the blob at its {@code head_sha} against the published file.
+	 * OK when those hold and the run's logs hold one count line, naming a 40-hex head, whose count agrees
+	 * with the conclusion: success at 0, failure above 0. That count is the Customer's own run's report, not
+	 * evidence the platform checked. The probe never reads the run's summary and prints no line of its
+	 * logs, which stay in the Customer's repository.
+	 */
+	private Check scan(Inputs inputs, OidcExchange exchange, State state) {
+		Installed source = state.source;
+		Actions where = customerActions(inputs, state);
+		String correlation = correlation("scan");
+		Map<String, String> workflowInputs = new LinkedHashMap<>();
+		workflowInputs.put("operation", "scan");
+		workflowInputs.put("correlation", correlation);
+		Ran ran = withRepository(where, Map.of("actions", "write"),
+				token -> dispatchAndWait(where, where.defaultBranch(), correlation, workflowInputs, exchange, token, false));
+		if (ran.problem() != null) {
+			return new Check(12, SCAN_CHECK, Outcome.FAIL, ran.status(), ran.how() + ", no exchange expected, " + ran.problem());
+		}
+		// The run as the Customer's file: its path, and its blob where the run read it.
+		String path = ran.run().path("path").asString("-");
+		String headSha = ran.run().path("head_sha").asString("");
+		GitHubHttp.Answer file = SHA.matcher(headSha).matches() ? withApp(source, Set.of(source.repositoryId()),
+				Map.of("contents", "read"), token -> customerFileAt(source, headSha, token)) : null;
+		String blob = file == null ? "" : file.body().path("sha").asString("");
+		boolean genuine = where.path().equals(path) && file != null && file.status() == 200
+				&& inputs.customerBlob().equals(blob);
+		Count count = scanCount(where, ran);
+		String head = count.head();
+		boolean headed = head != null && SHA.matcher(head).matches();
+		boolean agrees = count.found() && headed
+				&& (count.findings() == 0 ? "success".equals(ran.conclusion()) : "failure".equals(ran.conclusion()));
+		StringBuilder detail = new StringBuilder(ran.how()).append(", run ")
+			.append(ran.runId())
+			.append(" conclusion=")
+			.append(ran.conclusion())
+			.append(" findings=")
+			.append(count.found() ? String.valueOf(count.findings()) : "-")
+			.append(" head=")
+			.append(head == null || head.isEmpty() ? "-" : shortSha(head))
+			.append(", read back path=")
+			.append(path)
+			.append(" head_sha=")
+			.append(shortSha(headSha))
+			.append(" blob=")
+			.append(shortSha(blob))
+			.append(genuine ? ", the published file's"
+					: !where.path().equals(path) ? " (expected " + where.path() + ")"
+							: file == null ? " (a head_sha that is not 40 hex digits)"
+									: file.status() != 200 ? " (the file at head_sha answered HTTP " + file.status() + ")"
+											: " while the published file's is " + shortSha(inputs.customerBlob()))
+			.append(", no exchange expected, ")
+			.append(ran.durationMs() >= 0 ? ran.durationMs() + " ms" : "? ms")
+			.append(" billed=")
+			.append(ran.billed().minutes() >= 0 ? ran.billed().minutes() + " min" : "? min")
+			.append(" (")
+			.append(ran.billed().from())
+			.append("), logs kept (a Customer's run)");
+		if (count.failedStep() != null) {
+			detail.append(", ").append(count.failedStep());
+		}
+		if (!count.found()) {
+			detail.append(", ").append(count.problem());
+		}
+		else if (!headed) {
+			detail.append(", a count line whose head is missing or not 40 hex digits");
+		}
+		else if (!agrees) {
+			detail.append(", a conclusion that does not match the count (success at 0, failure above 0)");
+		}
+		return new Check(12, SCAN_CHECK, genuine && agrees ? Outcome.OK : Outcome.FAIL, ran.status(), detail.toString());
+	}
+
+	/**
+	 * The scan run's count from its logs, read with a Source App token narrowed to the source, Actions read,
+	 * and read once more after a poll while they hold no count line (GitHub may still be writing them); for
+	 * a run that did not succeed, also its failed step. No line is printed.
+	 */
+	private Count scanCount(Actions where, Ran ran) {
+		String actions = "/repos/" + where.repository() + "/actions";
+		return withRepository(where, Map.of("actions", "read"), token -> {
+			String failed = null;
+			if (!"success".equals(ran.conclusion())) {
+				GitHubHttp.Answer jobs = http().send("GET", actions + "/runs/" + ran.runId() + "/jobs?per_page=100",
+						token.value(), null);
+				FailedStep step = jobs.ok() ? failedStep(jobs.body()) : null;
+				failed = !jobs.ok() ? "jobs unreadable: HTTP " + jobs.status()
+						: step == null ? "no failed step named" : "failed at step " + step.number() + " (" + step.name() + ")";
+			}
+			Count count = logsCount(actions, ran.runId(), token, failed);
+			if (count.incomplete()) {
+				sleep(this.waits.runPoll());
+				count = logsCount(actions, ran.runId(), token, failed);
+			}
+			return count;
+		});
+	}
+
+	private Count logsCount(String actions, long runId, InstallationToken token, @Nullable String failed) {
+		byte[] zip;
+		try {
+			zip = download(actions + "/runs/" + runId + "/logs", token, MAX_LOG_BYTES, "the run's logs");
+		}
+		catch (GitHubException ex) {
+			return Count.missing("its logs could not be read: " + ex.getMessage(), true, failed);
+		}
+		return count(zip, failed);
+	}
+
+	/**
+	 * The one count line in a scan run's logs: lines split on LF only, each starting with GitHub's
+	 * timestamp. GitHub's zip holds the whole job's log and each step's, so the line may appear in two
+	 * files; no file may hold it twice, and every file must agree.
+	 */
+	private static Count count(byte[] zip, @Nullable String failed) {
+		Set<String> found = new TreeSet<>();
+		boolean repeated = false;
+		boolean read = false;
+		try (ZipInputStream entries = new ZipInputStream(new ByteArrayInputStream(zip))) {
+			for (ZipEntry entry = entries.getNextEntry(); entry != null; entry = entries.getNextEntry()) {
+				if (entry.isDirectory()) {
+					continue;
+				}
+				read = true;
+				int inEntry = 0;
+				for (String line : new String(entries.readNBytes(MAX_LOG_BYTES), StandardCharsets.UTF_8).split("\n", -1)) {
+					String text = line.startsWith(BOM) ? line.substring(BOM.length()) : line;
+					Matcher matcher = COUNT_LINE.matcher(text.endsWith("\r") ? text.substring(0, text.length() - 1) : text);
+					if (matcher.matches()) {
+						found.add((matcher.group(1) == null ? "" : matcher.group(1)) + " " + matcher.group(2));
+						inEntry++;
+					}
+				}
+				repeated |= inEntry > 1;
+			}
+		}
+		catch (IOException ex) {
+			return Count.missing("its logs are not a zip", true, failed);
+		}
+		if (!read) {
+			return Count.missing("its logs hold no file", true, failed);
+		}
+		if (found.isEmpty()) {
+			return Count.missing("no " + COUNT_PREFIX + " line in the run's logs", true, failed);
+		}
+		if (repeated || found.size() > 1) {
+			return Count.missing("more than one " + COUNT_PREFIX + " line in the run's logs", false, failed);
+		}
+		String[] line = found.iterator().next().split(" ", 2);
+		return new Count(Integer.parseInt(line[1]), line[0].isEmpty() ? null : line[0], null, false, failed);
+	}
+
 	// Part c: the Customer, the handovers on the runner, and the Final Merge on the Customer's Actions.
 
 	/** @return whether the run stopped for the Customer to accept the invitation */
@@ -1396,7 +1602,7 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		try {
 			int unmatched = exchange.unmatched();
 			Ran ran = withRepository(where, Map.of("actions", "write"),
-					token -> dispatchAndWait(where, ref, correlation, inputs, exchange, token));
+					token -> dispatchAndWait(where, ref, correlation, inputs, exchange, token, true));
 			return ran.withUnmatched(exchange.unmatched() - unmatched);
 		}
 		finally {
@@ -1404,8 +1610,9 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		}
 	}
 
+	/** @param printFailure whether a run that did not succeed has its failed step's last lines printed (never a scan's) */
 	private Ran dispatchAndWait(Actions where, String ref, String correlation, Map<String, String> inputs,
-			OidcExchange exchange, InstallationToken token) {
+			OidcExchange exchange, InstallationToken token, boolean printFailure) {
 		String actions = "/repos/" + where.repository() + "/actions";
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("ref", ref);
@@ -1469,7 +1676,7 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		JsonNode timing = http().send("GET", actions + "/runs/" + runId + "/timing", token.value(), null).body();
 		long duration = duration(timing, run);
 		Billed billed = billed(timing.path("billable"), jobs);
-		if (!"success".equals(conclusion)) {
+		if (printFailure && !"success".equals(conclusion)) {
 			printFailedStep(actions, runId, jobs, token);
 		}
 		int logsDeleted = where.deletesLogs() ? deleteLogs(actions, runId, token) : Ran.KEPT;
@@ -1638,19 +1845,10 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 	 * mask; anything that still looks like a token or a JWT is cut from the lines as well.
 	 */
 	private void printFailedStep(String actions, long runId, JsonNode jobs, InstallationToken token) {
-		String job = null;
-		int step = 0;
-		String stepName = "?";
-		search: for (JsonNode candidate : jobs.path("jobs")) {
-			for (JsonNode s : candidate.path("steps")) {
-				if ("failure".equals(s.path("conclusion").asString(""))) {
-					job = candidate.path("name").asString("");
-					step = s.path("number").asInt(0);
-					stepName = s.path("name").asString("?");
-					break search;
-				}
-			}
-		}
+		FailedStep failed = failedStep(jobs);
+		String job = failed == null ? null : failed.job();
+		int step = failed == null ? 0 : failed.number();
+		String stepName = failed == null ? "?" : failed.name();
 		byte[] zip;
 		try {
 			zip = download(actions + "/runs/" + runId + "/logs", token, MAX_LOG_BYTES, "the run's logs");
@@ -1701,6 +1899,19 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		for (String line : tail) {
 			this.err.println("  | " + SECRET.matcher(line).replaceAll("<redacted>"));
 		}
+	}
+
+	/** The first step of the run's jobs whose conclusion is {@code failure}, or {@code null}. */
+	private static @Nullable FailedStep failedStep(JsonNode jobs) {
+		for (JsonNode job : jobs.path("jobs")) {
+			for (JsonNode step : job.path("steps")) {
+				if ("failure".equals(step.path("conclusion").asString(""))) {
+					return new FailedStep(job.path("name").asString(""), step.path("number").asInt(0),
+							step.path("name").asString("?"));
+				}
+			}
+		}
+		return null;
 	}
 
 	/** GitHub may still be writing a finished run's logs: one more try after a poll. */
@@ -1932,6 +2143,12 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 				return null;
 			}
 		}
+		// --scan is a flag of part b, with no value.
+		List<String> scanValues = args.getOptionValues("scan");
+		boolean scan = scanValues != null;
+		if (scan && !scanValues.isEmpty()) {
+			return null;
+		}
 		String part = single(args, "part");
 		String source = single(args, "source");
 		String customer = single(args, "customer");
@@ -1949,17 +2166,18 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		boolean sourceArguments = repository(source) && sourceAppId != null && sourceAppKey != null && customerWorkflow != null;
 		boolean exchangeArguments = workflowsDir != null && exchangeUrl != null && port > 0;
 		return switch (part) {
-			case "a" -> sourceArguments && matches(LOGIN, customer)
-					? new Invocation(part, source, customer, null, sourceAppId, sourceAppKey, customerWorkflow, null, null, 0, null)
+			case "a" -> sourceArguments && matches(LOGIN, customer) && !scan
+					? new Invocation(part, source, customer, null, sourceAppId, sourceAppKey, customerWorkflow, null, null, 0, null,
+							false)
 					: null;
 			case "b" -> sourceArguments && exchangeArguments && (prefix == null || matches(NAME, prefix))
 					&& (tamperedRef == null || branch(tamperedRef))
 							? new Invocation(part, source, null, prefix, sourceAppId, sourceAppKey, customerWorkflow, workflowsDir,
-									exchangeUrl, port, tamperedRef)
+									exchangeUrl, port, tamperedRef, scan)
 							: null;
-			case "c" -> sourceArguments && exchangeArguments && matches(NAME, prefix) && matches(LOGIN, customer)
+			case "c" -> sourceArguments && exchangeArguments && matches(NAME, prefix) && matches(LOGIN, customer) && !scan
 					? new Invocation(part, source, customer, prefix, sourceAppId, sourceAppKey, customerWorkflow, workflowsDir,
-							exchangeUrl, port, null)
+							exchangeUrl, port, null, false)
 					: null;
 			default -> null;
 		};
@@ -2025,11 +2243,13 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		String exchange = " --workflows-dir=<deploy/runner> --exchange-url=<https://…> [--exchange-port=" + OidcExchange.DEFAULT_PORT
 				+ "]";
 		this.err.println("Usage: " + run + " --part=a --customer=<login>" + source);
-		this.err.println("   or: " + run + " --part=b" + source + exchange + " [--prefix=<name>] [--tampered-ref=<branch>]");
+		this.err.println("   or: " + run + " --part=b" + source + exchange + " [--prefix=<name>] [--tampered-ref=<branch>]"
+				+ " [--scan]");
 		this.err.println("   or: " + run + " --part=c --prefix=<part b's prefix> --customer=<login>" + source + exchange);
 		this.err.println("   (parts b and c use the Platform App, vibefix.github.platform-app.id, installation-id, key-file,"
 				+ " and the runner, vibefix.github.runner-repository; a prefix is letters, digits, and hyphens, starting"
-				+ " with a letter or a digit)");
+				+ " with a letter or a digit; --scan, part b only and with no value, adds check 12, the gitleaks scan on"
+				+ " the Customer's Actions)");
 	}
 
 	/** @throws IllegalArgumentException for a file that cannot be read or holds no usable key; never quoting it */

@@ -66,8 +66,11 @@ import vn.vibefix.github.GitHubApps.App;
  * A dispatched run does its work at once, as the published workflow would: it signs its ID token (with
  * the {@link Flaw} a test asks for), posts it to the run's {@code exchange_url}, and with the token it is
  * given copies only what that token reaches, never pushing with force. A Customer's run reads and writes
- * its own repository as its {@code GITHUB_TOKEN} would. Every request, token, revocation, exchange answer,
- * ID token, and the order of runs completing and tokens being revoked are recorded.
+ * its own repository as its {@code GITHUB_TOKEN} would. Whether a run exchanges at all is read from the
+ * dispatched file's own {@code if:} on its exchange step: a {@code vibefix.yml} scan skips it, asks for no
+ * ID token, and logs its count of findings ({@link #scanFindings}) or, with {@link #scanLineMissing},
+ * stops at the download without one. Every request, token, revocation, exchange answer, ID token, and the
+ * order of runs completing and tokens being revoked are recorded.
  */
 final class SpikeS6Stub implements AutoCloseable {
 
@@ -103,6 +106,11 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	/** The lines of a failed step's log: line 1 to 60, a masked token and the refusal last. */
 	static final int LOG_LINES = 60;
+
+	/** The file and rule of the finding a scan's log names, as a workflow printing gitleaks' own output would. */
+	static final String FINDING_FILE = "config/payment.properties";
+
+	static final String FINDING_RULE = "vnpay-hash-secret";
 
 	/** How a run's ID token, or the run GitHub shows, differs from a genuine one. */
 	enum Flaw {
@@ -181,6 +189,40 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	/** The runs cancelled through {@code POST …/actions/runs/{id}/cancel}. */
 	final List<Long> cancelled = Collections.synchronizedList(new ArrayList<>());
+
+	/** The runs of {@code vibefix.yml} dispatched with {@code operation=scan}. */
+	final List<Long> scans = Collections.synchronizedList(new ArrayList<>());
+
+	/** How many findings a scan's gitleaks reports: the run succeeds at 0 and fails above it. */
+	volatile int scanFindings;
+
+	/** A scan that fails before its count line, as one whose gitleaks download does not match its sha256. */
+	volatile boolean scanLineMissing;
+
+	/** A conclusion a scan ends with whatever its count, as a workflow that forgot to fail or failed late would. */
+	volatile @Nullable String scanConclusion;
+
+	/** How the count line shows in a scan's logs. */
+	enum CountLines {
+
+		/** Once in the whole job's log and once in the scan step's, with the same head and count. */
+		ONCE,
+
+		/** Twice, the same, in the scan step's log. */
+		TWICE_IN_ONE_FILE,
+
+		/** {@code findings=0} in the whole job's log and {@code findings=3} in the scan step's. */
+		ZERO_AND_THREE
+
+	}
+
+	volatile CountLines countLines = CountLines.ONCE;
+
+	/** How many reads of a scan's logs come before its count line is written, as while GitHub still writes them. */
+	volatile int scanLogsWithoutLine;
+
+	/** A {@code vibefix.yml} pushed on the default branch just before a scan starts, so the run reads that file. */
+	volatile @Nullable String pushedBeforeScan;
 
 	/** 200 with the run's ID when the dispatch asks for {@code return_run_details}; 204 for GitHub's old answer. */
 	volatile int dispatchStatus = 200;
@@ -327,6 +369,9 @@ final class SpikeS6Stub implements AutoCloseable {
 
 		final JsonNode inputs;
 
+		/** Whether the workflow's "Exchange the ID token" step runs for these inputs, as its {@code if:} says. */
+		final boolean exchanges;
+
 		volatile String title;
 
 		volatile String actor;
@@ -339,19 +384,31 @@ final class SpikeS6Stub implements AutoCloseable {
 
 		volatile @Nullable String failedStep;
 
-		Run(long id, Repo repo, String workflow, String ref, String headSha, JsonNode inputs, String title, String actor) {
+		/** A scan's count of findings, once its log holds the count line; else -1. */
+		volatile int findings = -1;
+
+		/** How often its logs were read. */
+		final AtomicLong logReads = new AtomicLong();
+
+		Run(long id, Repo repo, String workflow, String ref, String headSha, JsonNode inputs, boolean exchanges, String title,
+				String actor) {
 			this.id = id;
 			this.repo = repo;
 			this.workflow = workflow;
 			this.ref = ref;
 			this.headSha = headSha;
 			this.inputs = inputs;
+			this.exchanges = exchanges;
 			this.title = title;
 			this.actor = actor;
 		}
 
 		boolean customer() {
 			return this.workflow.equals(SpikeS6Command.CUSTOMER_WORKFLOW);
+		}
+
+		boolean scan() {
+			return customer() && "scan".equals(input(this, "operation"));
 		}
 
 	}
@@ -962,10 +1019,14 @@ final class SpikeS6Stub implements AutoCloseable {
 				steps.add(map("number", number, "name", names.get(i), "conclusion", failing == 0 || number < failing ? "success"
 						: number == failing ? "failure" : number < names.size() - 1 ? "skipped" : "success"));
 			}
-			// The job takes 65 seconds: Free bills it as two minutes.
-			send(exchange, 200, map("total_count", 1, "jobs", List.of(map("id", run.id + 1, "name", run.customer() ? "vibefix"
-					: "copy", "started_at", "2026-11-09T03:00:00Z", "completed_at", "2026-11-09T03:01:05Z", "conclusion",
-					run.conclusion, "steps", steps))));
+			// The job takes 65 seconds: Free bills it as two minutes. A scan's run also lists the copy job, skipped.
+			List<Map<String, Object>> jobs = new ArrayList<>();
+			if (job(run).equals("scan")) {
+				jobs.add(map("id", run.id + 2, "name", "vibefix", "conclusion", "skipped", "steps", List.of()));
+			}
+			jobs.add(map("id", run.id + 1, "name", job(run), "started_at", "2026-11-09T03:00:00Z", "completed_at",
+					"2026-11-09T03:01:05Z", "conclusion", run.conclusion, "steps", steps));
+			send(exchange, 200, map("total_count", jobs.size(), "jobs", jobs));
 		}
 		else if (method.equals("GET") && (matcher = match("runs/(\\d+)/logs", rest)) != null) {
 			if (refuse(exchange, request, repo, "actions", "read")) {
@@ -1015,6 +1076,12 @@ final class SpikeS6Stub implements AutoCloseable {
 			send(exchange, 422, Map.of("message", "No ref found for: " + ref));
 			return;
 		}
+		String pushed = this.pushedBeforeScan;
+		if (pushed != null && workflow.equals(SpikeS6Command.CUSTOMER_WORKFLOW)
+				&& "scan".equals(request.body().path("inputs").path("operation").asString(""))) {
+			// Someone pushes a changed vibefix.yml just before the scan starts: the run reads that one.
+			commitFile(repo.fullName, ref, CUSTOMER_PATH, pushed);
+		}
 		String file = this.trees.get(branch.getLast()).get(".github/workflows/" + workflow);
 		if (file == null || this.dispatchNotFound > 0) {
 			this.dispatchNotFound = Math.max(0, this.dispatchNotFound - 1);
@@ -1039,7 +1106,7 @@ final class SpikeS6Stub implements AutoCloseable {
 		this.dispatches.add(request.body());
 		String actor = slug(grant(request).installation()) + "[bot]";
 		Run run = new Run(this.ids.incrementAndGet(), repo, workflow, ref, branch.getLast(), inputs,
-				runName(workflowFile, inputs), actor);
+				exchangeRuns(workflowFile, inputs), runName(workflowFile, inputs), actor);
 		this.runs.put(run.id, run);
 		work(run);
 		if (this.dispatchStatus == 200 && request.body().path("return_run_details").asBoolean(false)) {
@@ -1053,12 +1120,25 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	/** What the published workflow does: its ID token exchanged, then only what the token reaches copied. */
 	private void work(Run run) {
+		if (run.scan()) {
+			this.scans.add(run.id);
+		}
 		Flaw flaw = this.flaw;
 		if (flaw == Flaw.FOREIGN_ACTOR) {
 			run.actor = "mallory";
 		}
 		if (flaw == Flaw.FOREIGN_TITLE) {
 			run.title = run.workflow.replace(".yml", "") + " without its correlation";
+		}
+		if (!run.exchanges) {
+			// The workflow skips its exchange: the run asks for no ID token and holds no vibefix token.
+			if (run.scan()) {
+				scan(run);
+			}
+			else {
+				fail(run, "push");
+			}
+			return;
 		}
 		String idToken = idToken(run, flaw);
 		this.idTokens.add(idToken);
@@ -1117,6 +1197,32 @@ final class SpikeS6Stub implements AutoCloseable {
 		// The new branch here, pushed with its GITHUB_TOKEN.
 		run.repo.branches.put(branch, new ArrayList<>(commits.subList(0, commits.indexOf(sha) + 1)));
 		return null;
+	}
+
+	/**
+	 * {@code vibefix.yml}'s scan, on its own repository with its {@code GITHUB_TOKEN}: without its count
+	 * line, it fails at the download; with findings, it fails at the scan after the count line.
+	 */
+	private void scan(Run run) {
+		if (this.scanLineMissing) {
+			fail(run, "download");
+		}
+		else {
+			run.findings = this.scanFindings;
+			if (run.findings > 0) {
+				fail(run, "scan");
+			}
+		}
+		String conclusion = this.scanConclusion;
+		if (conclusion != null) {
+			run.conclusion = conclusion;
+			if (conclusion.equals("success")) {
+				run.failedStep = null;
+			}
+			else if (run.failedStep == null) {
+				run.failedStep = "scan";
+			}
+		}
 	}
 
 	/** {@code s6-copy.yml}: the step a run stopped at, or {@code null} when it copied. */
@@ -1224,23 +1330,73 @@ final class SpikeS6Stub implements AutoCloseable {
 		return run.inputs.path(name).asString("");
 	}
 
+	/** The job a run's work happens in: {@code vibefix.yml}'s scan job for a scan that exchanges nothing. */
+	private static String job(Run run) {
+		if (!run.customer()) {
+			return "copy";
+		}
+		return run.scan() && !run.exchanges ? "scan" : "vibefix";
+	}
+
 	private static List<String> steps(Run run) {
-		return run.customer()
-				? List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit", "Bring the Final Merge back",
-						"Remove the credentials", "Complete job")
-				: List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit", "Remove the credentials",
-						"Complete job");
+		return switch (job(run)) {
+			case "vibefix" -> List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit",
+					"Bring the Final Merge back", "Remove the credentials", "Complete job");
+			case "scan" -> List.of("Set up job", "Check the inputs", "Download gitleaks", "Scan with gitleaks",
+					"Remove the credentials", "Complete job");
+			default -> List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit",
+					"Remove the credentials", "Complete job");
+		};
 	}
 
 	/** The failed step's number, or 0 for a run that succeeded. */
 	private static int failingStep(Run run) {
-		if (run.failedStep == null) {
+		String failed = run.failedStep;
+		if (failed == null) {
 			return 0;
 		}
-		if (run.failedStep.equals("exchange")) {
-			return 3;
+		return switch (failed) {
+			case "exchange" -> 3;
+			case "download" -> 3;
+			case "scan" -> 4;
+			default -> run.customer() && "final-merge".equals(input(run, "operation")) ? 5 : 4;
+		};
+	}
+
+	/** Whether the workflow's "Exchange the ID token" step runs for these inputs: its job's {@code if:} and its own. */
+	@SuppressWarnings("unchecked")
+	private static boolean exchangeRuns(Map<String, Object> workflow, JsonNode inputs) {
+		for (Object job : ((Map<String, Object>) workflow.get("jobs")).values()) {
+			Map<String, Object> declared = (Map<String, Object>) job;
+			for (Map<String, Object> step : (List<Map<String, Object>>) declared.get("steps")) {
+				if ("Exchange the ID token".equals(step.get("name"))) {
+					return runs(declared.get("if"), inputs) && runs(step.get("if"), inputs);
+				}
+			}
 		}
-		return run.customer() && "final-merge".equals(input(run, "operation")) ? 5 : 4;
+		throw new IllegalStateException("The workflow has no step named Exchange the ID token");
+	}
+
+	/**
+	 * A job's or a step's {@code if:} as the published workflows write it: none, or comparisons of
+	 * {@code inputs.operation} with a quoted name, joined by {@code ||}. Anything else stops the stand-in.
+	 */
+	private static boolean runs(@Nullable Object condition, JsonNode inputs) {
+		if (condition == null) {
+			return true;
+		}
+		String operation = inputs.path("operation").asString("");
+		Pattern comparison = Pattern.compile("\\s*inputs\\.operation\\s*(==|!=)\\s*'([a-z-]+)'\\s*");
+		for (String part : String.valueOf(condition).split("\\|\\|")) {
+			Matcher matcher = comparison.matcher(part);
+			if (!matcher.matches()) {
+				throw new IllegalStateException("An if: the stand-in cannot read: " + condition);
+			}
+			if (matcher.group(1).equals("==") == operation.equals(matcher.group(2))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Why GitHub would refuse these inputs: a key the workflow does not declare, a required one missing, or a choice not offered. */
@@ -1291,6 +1447,9 @@ final class SpikeS6Stub implements AutoCloseable {
 	 * job's folder. The failed step's log has {@value #LOG_LINES} lines, a masked token among them.
 	 */
 	private byte[] logs(Run run) throws IOException {
+		if (run.scan()) {
+			return scanLogs(run);
+		}
 		String job = run.customer() ? "vibefix" : "copy";
 		int failing = failingStep(run) == 0 ? 4 : failingStep(run);
 		String leak = this.logLeak;
@@ -1311,6 +1470,75 @@ final class SpikeS6Stub implements AutoCloseable {
 			zip.write("Set up job\n".getBytes(StandardCharsets.UTF_8));
 			zip.closeEntry();
 			zip.putNextEntry(new ZipEntry(job + "/" + failing + "_" + steps(run).get(failing - 1) + ".txt"));
+			zip.write(step.toString().getBytes(StandardCharsets.UTF_8));
+			zip.closeEntry();
+		}
+		return bytes.toByteArray();
+	}
+
+	/**
+	 * A scan's logs: the whole job's log and the last step it ran, both holding that step's lines, as
+	 * {@link #countLines} says. The scan step shows lines no count may be read from (the script's own
+	 * echo, one without GitHub's timestamp, and one behind a bare CR), a line naming a finding's file and
+	 * rule (as a workflow printing gitleaks' own output would, so the tests can see the probe prints none
+	 * of it), and the count line with the run's head, once the first {@link #scanLogsWithoutLine} reads are
+	 * past. A scan without its count line stops at the download.
+	 */
+	private byte[] scanLogs(Run run) throws IOException {
+		String job = job(run);
+		int last = failingStep(run) == 0 ? 4 : failingStep(run);
+		String at = "2026-11-09T03:00:41.0000000Z ";
+		String escape = String.valueOf((char) 0x1B);
+		String count = SpikeS6Command.COUNT_PREFIX + " head=" + run.headSha + " findings=";
+		boolean written = run.logReads.incrementAndGet() > this.scanLogsWithoutLine;
+		CountLines lines = this.countLines;
+		StringBuilder step = new StringBuilder(String.valueOf((char) 0xFEFF)).append(at)
+			.append("##[group]Run set -euo pipefail\n")
+			.append(at)
+			.append(escape)
+			.append("[36;1mecho \"")
+			.append(SpikeS6Command.COUNT_PREFIX)
+			.append(" head=$head findings=$count\"")
+			.append(escape)
+			.append("[0m\n")
+			.append(at)
+			.append("##[endgroup]\n")
+			.append(count)
+			.append("98\n")
+			.append(at)
+			.append("progress\r")
+			.append(at)
+			.append(count)
+			.append("99\n");
+		if (run.findings >= 0 && written) {
+			if (run.findings > 0) {
+				step.append(at).append("Finding: ").append(FINDING_RULE).append(" in ").append(FINDING_FILE).append('\n');
+			}
+			step.append(at).append(count).append(run.findings).append('\n');
+			if (lines == CountLines.TWICE_IN_ONE_FILE) {
+				step.append(at).append(count).append(run.findings).append('\n');
+			}
+			if (run.findings > 0) {
+				step.append(at).append("##[error]gitleaks found ").append(run.findings).append(" finding(s)\n");
+			}
+		}
+		else if ("download".equals(run.failedStep)) {
+			step.append(at).append("##[error]the gitleaks download does not match its pinned sha256\n");
+		}
+		else if (run.findings < 0) {
+			step.append(at).append("##[error]the run stopped before its scan\n");
+		}
+		String whole = lines == CountLines.ZERO_AND_THREE
+				? step.toString().replace(at + count + run.findings + "\n", at + count + "0\n") : step.toString();
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+			zip.putNextEntry(new ZipEntry("0_" + job + ".txt"));
+			zip.write(("the whole job's log\n" + whole).getBytes(StandardCharsets.UTF_8));
+			zip.closeEntry();
+			zip.putNextEntry(new ZipEntry(job + "/1_Set up job.txt"));
+			zip.write("Set up job\n".getBytes(StandardCharsets.UTF_8));
+			zip.closeEntry();
+			zip.putNextEntry(new ZipEntry(job + "/" + last + "_" + steps(run).get(last - 1) + ".txt"));
 			zip.write(step.toString().getBytes(StandardCharsets.UTF_8));
 			zip.closeEntry();
 		}
