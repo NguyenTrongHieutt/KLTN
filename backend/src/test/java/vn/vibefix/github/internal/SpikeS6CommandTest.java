@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.mock.env.MockEnvironment;
@@ -44,8 +45,9 @@ import vn.vibefix.github.internal.SpikeS6Stub.Grant;
  * token, a self-hosted runner, a foreign run, or a changed workflow on another ref gets none, and nothing
  * moves; every other token is narrowed and revoked, and a revocation GitHub refuses fails the run; the
  * runner's run logs are deleted and a Customer's stay; part c waits for the invitation, hands over twice
- * on the runner, and brings the Final Merge back on the Customer's Actions; and no token or ID token is
- * ever printed.
+ * on the runner, and brings the Final Merge back on the Customer's Actions; with {@code --scan}, part b's
+ * gitleaks scan never reaches the exchange and is OK only when its one count line agrees with its
+ * conclusion, printing that count and nothing of a finding; and no token or ID token is ever printed.
  */
 class SpikeS6CommandTest {
 
@@ -131,8 +133,14 @@ class SpikeS6CommandTest {
 		assertThat(run("dev,cli", twice.toArray(String[]::new))).as("a prefix given twice").isEqualTo(2);
 		assertThat(run("dev,cli", without(partC("s6-x"), "--prefix="))).as("part c needs part b's prefix").isEqualTo(2);
 		assertThat(run("dev,cli", without(partC("s6-x"), "--source="))).as("part c needs the source").isEqualTo(2);
+		List<String> scanWithAValue = new ArrayList<>(List.of(partB("s6-x", null)));
+		scanWithAValue.add("--scan=yes");
+		assertThat(run("dev,cli", scanWithAValue.toArray(String[]::new))).as("--scan takes no value").isEqualTo(2);
+		assertThat(run("dev,cli", withScan(partA()))).as("--scan is part b's").isEqualTo(2);
+		assertThat(run("dev,cli", withScan(partC("s6-x")))).as("--scan is part b's").isEqualTo(2);
 
-		assertThat(errors()).contains("--part=a", "--part=b", "--part=c", "--exchange-url=", "--customer-workflow=");
+		assertThat(errors()).contains("--part=a", "--part=b", "--part=c", "--exchange-url=", "--customer-workflow=",
+				"[--scan]");
 		assertThat(this.github.seen).isEmpty();
 	}
 
@@ -246,6 +254,8 @@ class SpikeS6CommandTest {
 				"Spike S6 part b: every check passed or was skipped");
 		assertThat(output.lines().filter(line -> line.contains(" FAIL "))).isEmpty();
 		assertTheTotalsAddUp(line(output, "run durations and billed minutes"), 1);
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).contains("SKIPPED", "no --scan");
+		assertThat(this.github.scans).as("no scan without --scan").isEmpty();
 		assertThat(errors()).as("no run failed, so no log is printed").doesNotContain("did not succeed");
 		assertThat(this.github.file(SpikeS6Stub.RUNNER, "main", ".github/workflows/s6-copy.yml"))
 			.isEqualTo(Files.readString(RUNNER_WORKFLOWS.resolve("s6-copy.yml"), StandardCharsets.UTF_8).replace("\r\n", "\n"));
@@ -306,6 +316,206 @@ class SpikeS6CommandTest {
 		assertThat(line(output(), "tampered workflow refused")).contains(" FAIL ", "no token issued: the exchange refused [blob]",
 				"vibefix-dev/s6-unread-intermediary main=unreadable", "a head could not be read")
 			.doesNotContain("unchanged");
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aCleanScanRunsOnTheCustomersActionsWithNoTokenAndCountsZero() throws Exception {
+		int exit = run("dev,cli", withScan(partB("s6-clean", null)));
+
+		String output = output();
+		assertThat(exit).as(output + errors()).isZero();
+		long scan = onlyScan();
+		String head = this.github.head(SpikeS6Stub.SOURCE, "main");
+		assertThat(SpikeS6Command.SCAN_CHECK).as("the name fits the printed column").hasSizeLessThanOrEqualTo(34);
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).startsWith("[12] " + "%-34s".formatted(SpikeS6Command.SCAN_CHECK) + " OK ")
+			.contains("run ID in field workflow_run_id, run " + scan + " conclusion=success findings=0 head=" + shortSha(head)
+					+ ", read back path=.github/workflows/vibefix.yml head_sha=" + shortSha(head) + " blob="
+					+ shortSha(publishedBlob()) + ", the published file's, no exchange expected, " + (10_000 + scan % 1000)
+					+ " ms billed=1 min (timing.billable), logs kept (a Customer's run)")
+			.doesNotContain("failed at", "refused");
+		assertThat(output).contains("Spike S6 part b: every check passed or was skipped");
+		assertThat(this.github.dispatches).hasSize(2);
+		JsonNode dispatch = this.github.dispatches.getLast();
+		assertThat(dispatch.path("ref").asString()).isEqualTo("main");
+		List<String> inputs = new ArrayList<>();
+		dispatch.path("inputs").properties().forEach(input -> inputs.add(input.getKey()));
+		assertThat(inputs).as("a scan sends no copy input").containsExactly("operation", "correlation");
+		assertThat(dispatch.path("inputs").path("operation").asString()).isEqualTo("scan");
+		assertThat(logReads(scan)).as("the logs, read once").isOne();
+		assertTheScanNeverReachedTheExchangeAndKeptItsLogs(scan);
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aScanWithFindingsFailsItsRunAndTheCheckPrintsOnlyTheirCount() throws Exception {
+		this.github.scanFindings = 3;
+
+		int exit = run("dev,cli", withScan(partB("s6-found", null)));
+
+		String output = output();
+		assertThat(exit).as(output + errors()).isZero();
+		long scan = onlyScan();
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).contains(" OK ",
+				"run " + scan + " conclusion=failure findings=3 head=" + shortSha(this.github.head(SpikeS6Stub.SOURCE, "main")),
+				", the published file's, no exchange expected,", "billed=1 min", "failed at step 4 (Scan with gitleaks)");
+		assertThat(output + errors()).as("no finding's file or rule, and no line of the scan's logs")
+			.doesNotContain(SpikeS6Stub.FINDING_FILE, SpikeS6Stub.FINDING_RULE, "did not succeed", "gitleaks found", "  | ");
+		assertTheScanNeverReachedTheExchangeAndKeptItsLogs(scan);
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aScanWithoutItsCountLineFails() throws Exception {
+		// A gitleaks download whose sha256 differs stops the run before the scan, with no count line.
+		this.github.scanLineMissing = true;
+
+		int exit = run("dev,cli", withScan(partB("s6-nocount", null)));
+
+		String output = output();
+		assertThat(exit).as(output).isOne();
+		long scan = onlyScan();
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).contains(" FAIL ",
+				"run " + scan + " conclusion=failure findings=- head=-, read back", ", no exchange expected,",
+				"failed at step 3 (Download gitleaks), no VIBEFIX_SCAN line in the run's logs");
+		assertThat(output.lines().filter(line -> line.contains(" FAIL "))).as("only the scan failed").hasSize(1);
+		assertThat(errors()).as("no line of the scan's logs").doesNotContain("did not succeed", "checksum");
+		assertThat(logReads(scan)).as("read once more after a poll").isEqualTo(2);
+		assertTheScanNeverReachedTheExchangeAndKeptItsLogs(scan);
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@ParameterizedTest(name = "the count line written after {0} read(s): {1}")
+	@CsvSource({ "1, OK", "2, FAIL" })
+	void aScanWhoseLogsLackTheCountLineIsReadOnceMoreAfterAPoll(int readsWithoutLine, String outcome) throws Exception {
+		this.github.scanLogsWithoutLine = readsWithoutLine;
+
+		int exit = run("dev,cli", withScan(partB("s6-late", null)));
+
+		assertThat(exit).as(output()).isEqualTo(outcome.equals("OK") ? 0 : 1);
+		long scan = onlyScan();
+		assertThat(line(output(), SpikeS6Command.SCAN_CHECK)).contains(" " + outcome + " ", outcome.equals("OK")
+				? "conclusion=success findings=0 head=" + shortSha(this.github.head(SpikeS6Stub.SOURCE, "main"))
+				: "no VIBEFIX_SCAN line in the run's logs");
+		assertThat(logReads(scan)).as("read once more after a poll, and no more").isEqualTo(2);
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = SpikeS6Stub.CountLines.class, names = { "TWICE_IN_ONE_FILE", "ZERO_AND_THREE" })
+	void aScanWhoseLogsHoldMoreThanOneCountLineFails(SpikeS6Stub.CountLines lines) throws Exception {
+		this.github.countLines = lines;
+		this.github.scanFindings = 3;
+
+		int exit = run("dev,cli", withScan(partB("s6-repeat", null)));
+
+		assertThat(exit).as(output()).isOne();
+		long scan = onlyScan();
+		assertThat(line(output(), SpikeS6Command.SCAN_CHECK)).contains(" FAIL ", "findings=- head=-",
+				"more than one VIBEFIX_SCAN line in the run's logs");
+		assertThat(logReads(scan)).as("a definite answer: no second read").isOne();
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aScanRunOfAnotherVibefixYmlFails() throws Exception {
+		// A changed vibefix.yml pushed after check 3 and before the scan: its run is not the published file's.
+		String changed = Files.readString(CUSTOMER_WORKFLOW, StandardCharsets.UTF_8).replace("\r\n", "\n")
+				+ "# changed after check 3\n";
+		this.github.pushedBeforeScan = changed;
+
+		int exit = run("dev,cli", withScan(partB("s6-pushed", null)));
+
+		String output = output();
+		assertThat(exit).as(output).isOne();
+		String head = this.github.head(SpikeS6Stub.SOURCE, "main");
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).contains(" FAIL ",
+				"conclusion=success findings=0 head=" + shortSha(head) + ", read back path=.github/workflows/vibefix.yml head_sha="
+						+ shortSha(head) + " blob=" + shortSha(OidcExchange.blobSha(changed)) + " while the published file's is "
+						+ shortSha(publishedBlob()));
+		assertThat(output.lines().filter(line -> line.contains(" FAIL "))).as("only the scan failed").hasSize(1);
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@ParameterizedTest(name = "findings={0} with conclusion {1}")
+	@CsvSource({ "0, failure", "2, success" })
+	void aScanWhoseConclusionDisagreesWithItsCountFails(int findings, String conclusion) throws Exception {
+		this.github.scanFindings = findings;
+		this.github.scanConclusion = conclusion;
+
+		int exit = run("dev,cli", withScan(partB("s6-odd", null)));
+
+		assertThat(exit).as(output()).isOne();
+		assertThat(line(output(), SpikeS6Command.SCAN_CHECK)).contains(" FAIL ",
+				"conclusion=" + conclusion + " findings=" + findings,
+				"a conclusion that does not match the count (success at 0, failure above 0)");
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aScanWaitsForTheCustomersSide() throws Exception {
+		this.github.sourceAccepted = false;
+
+		int exit = run("dev,cli", withScan(partB("s6-wait", null)));
+
+		assertThat(exit).as(output()).isOne();
+		assertThat(line(output(), SpikeS6Command.SCAN_CHECK)).contains("SKIPPED", "an earlier check failed");
+		assertThat(this.github.dispatches).isEmpty();
+		assertThat(this.github.scans).isEmpty();
+	}
+
+	@Test
+	void aScanNeedsOnlyTheCustomersSide() throws Exception {
+		// The organization lets every repository run Actions: check 1 fails, nothing is created, and the scan runs.
+		this.github.actionsEnabled = "all";
+
+		int exit = run("dev,cli", withScan(partB("s6-only", null)));
+
+		String output = output();
+		assertThat(exit).as(output).isOne();
+		assertThat(line(output, "organization settings")).contains(" FAIL ");
+		assertThat(line(output, "Source App and customer file")).contains(" OK ");
+		assertThat(line(output, "J7 copy on Customer's Actions")).contains("SKIPPED");
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).contains(" OK ", "conclusion=success findings=0 head=");
+		assertThat(this.github.dispatches).singleElement()
+			.satisfies(dispatch -> assertThat(dispatch.path("inputs").path("operation").asString()).isEqualTo("scan"));
+		assertThat(this.github.idTokens).isEmpty();
+		assertThat(this.github.exchanged).isEmpty();
+		assertThat(this.github.repository("vibefix-dev/s6-only-intermediary")).as("nothing is created").isNull();
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aScanWhoseWorkflowRunsTheExchangeStepGetsNoTokenAndFails() throws Exception {
+		// A vibefix.yml whose copy job and exchange step run for every operation, added as the published file:
+		// the stand-in reads both if:s from the file (not the scripts), so this scan asks for an ID token, which
+		// no scan of the published file does.
+		String published = Files.readString(CUSTOMER_WORKFLOW, StandardCharsets.UTF_8).replace("\r\n", "\n");
+		String exchanging = published
+			.replaceAll("(?m)^ +if: inputs\\.operation == 'copy' \\|\\| inputs\\.operation == 'final-merge'\n", "");
+		assertThat(published.split("== 'copy' \\|\\|", -1)).as("the copy job's if: and the exchange step's").hasSize(3);
+		assertThat(exchanging).as("both gone").doesNotContain("== 'copy' ||");
+		Path file = Files.writeString(this.directory.resolve("exchanging-vibefix.yml"), exchanging);
+		this.github.commitFile(SpikeS6Stub.SOURCE, "main", SpikeS6Stub.CUSTOMER_PATH, exchanging);
+
+		int exit = run("dev,cli", withScan(replace(partB("s6-asks", null), "--customer-workflow=", file.toString())));
+
+		String output = output();
+		assertThat(exit).as(output).isOne();
+		long scan = onlyScan();
+		assertThat(line(output, "J7 copy on Customer's Actions")).contains(" OK ");
+		assertThat(line(output, SpikeS6Command.SCAN_CHECK)).contains(" FAIL ", "conclusion=failure findings=- head=-",
+				"failed at step 3 (Exchange the ID token), no VIBEFIX_SCAN line in the run's logs");
+		assertThat(this.github.idTokens).as("the J7 copy's and the scan's").hasSize(2);
+		// With no exchange_url, the scan's post reaches no exchange, and it is issued nothing.
+		assertThat(this.github.exchanged.stream().filter(answer -> answer.runId() == scan)).singleElement()
+			.satisfies(answer -> {
+				assertThat(answer.status()).isNotEqualTo(200);
+				assertThat(answer.token()).isNull();
+			});
+		assertThat(grantsOf(SpikeS6Stub.PLATFORM_INSTALLATION))
+			.filteredOn(grant -> grant.permissions().equals(COPY) && grant.repositoryIds().size() == 2)
+			.hasSize(1);
 		assertEveryTokenRevokedAndNeverPrinted();
 	}
 
@@ -777,6 +987,42 @@ class SpikeS6CommandTest {
 		assertThat(output).doesNotContain("sig=stubsignature");
 	}
 
+	/**
+	 * The scan run asked for no ID token and never reached the exchange, so no Platform token was minted for
+	 * it; the probe read its logs with a Source App token narrowed to the source, Actions read, and left them.
+	 */
+	private void assertTheScanNeverReachedTheExchangeAndKeptItsLogs(long scan) {
+		assertThat(this.github.exchanged).as("the scan never reached the exchange").noneMatch(answer -> answer.runId() == scan);
+		assertThat(this.github.idTokens).as("only the J7 copy asked for an ID token").hasSize(1);
+		assertThat(grantsOf(SpikeS6Stub.PLATFORM_INSTALLATION)).as("one Platform token with write on two repositories: the J7 copy's")
+			.filteredOn(grant -> grant.permissions().equals(COPY) && grant.repositoryIds().size() == 2)
+			.hasSize(1);
+		String logs = "/repos/" + SpikeS6Stub.SOURCE + "/actions/runs/" + scan + "/logs";
+		List<SpikeS6Stub.Seen> reads = this.github.seen.stream()
+			.filter(request -> request.method().equals("GET") && request.path().equals(logs))
+			.toList();
+		Grant actionsRead = new Grant(SpikeS6Stub.SOURCE_INSTALLATION, Set.of(this.github.repository(SpikeS6Stub.SOURCE).id),
+				Map.of("actions", "read"));
+		assertThat(reads).as("the logs were read").isNotEmpty().allSatisfy(request -> assertThat(
+				this.github.grants.get(request.authorization().substring("Bearer ".length()))).isEqualTo(actionsRead));
+		assertThat(this.github.logAuthorizations).as("the logs' storage never sees a token").containsOnly("none");
+		assertThat(this.github.seen).as("the Customer's logs are never deleted")
+			.noneMatch(request -> request.method().equals("DELETE") && request.path().endsWith("/logs"));
+		assertThat(this.github.deletedLogs).isEmpty();
+	}
+
+	/** How often the probe read the run's logs. */
+	private long logReads(long run) {
+		String logs = "/repos/" + SpikeS6Stub.SOURCE + "/actions/runs/" + run + "/logs";
+		return this.github.seen.stream().filter(request -> request.method().equals("GET") && request.path().equals(logs)).count();
+	}
+
+	private long onlyScan() {
+		assertThat(this.github.scans).hasSize(1);
+		assertThat(this.github.runRepositories()).containsEntry(this.github.scans.getFirst(), SpikeS6Stub.SOURCE);
+		return this.github.scans.getFirst();
+	}
+
 	private long onlyRun(String repository) {
 		List<Long> runs = this.github.runRepositories().entrySet().stream()
 			.filter(run -> run.getValue().equals(repository))
@@ -842,6 +1088,12 @@ class SpikeS6CommandTest {
 			port = free.getLocalPort();
 		}
 		return List.of("--exchange-url=http://127.0.0.1:" + port, "--exchange-port=" + port);
+	}
+
+	private static String[] withScan(String[] args) {
+		List<String> scan = new ArrayList<>(List.of(args));
+		scan.add("--scan");
+		return scan.toArray(String[]::new);
 	}
 
 	private static String[] replace(String[] args, String option, String value) {

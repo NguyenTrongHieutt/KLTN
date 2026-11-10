@@ -532,7 +532,33 @@ what a scan costs in Actions minutes is dropped with the scan. In this design:
   Runner App and no second organization;
 - no workflow holds a secret. Each run asks GitHub Actions for an OIDC ID token with the audience
   `vibefix`, and exchanges it at vibefix for a Platform App token narrowed to its repositories. During
-  the spike the probe serves that exchange itself, reached through a cloudflared quick tunnel.
+  the spike the probe serves that exchange itself, reached through a cloudflared quick tunnel;
+- the same `vibefix.yml` offers the Customer an optional `scan` operation, to help with the J7
+  self-confirmation that secrets and personal data are removed or revoked. The Source App may dispatch
+  it, and the Customer may start it from the repository's Actions tab, with every other input empty
+  (the correlation too). It runs in a job of its own, `scan`, whose permissions are `contents: read`
+  and nothing else: no `id-token`, so it can get no vibefix token, and the copy job (`vibefix`, with
+  `contents: write` and `id-token: write`) is skipped. The job:
+  - downloads the gitleaks CLI v8.30.1 `linux_x64` tarball and checks it against the sha256 pinned in
+    the file, copied from the release's official checksums file, before extracting it;
+  - fetches the default branch's whole history with the run's own `GITHUB_TOKEN`, without the object
+    check the copy uses, so a legacy history is still read; `git check-ref-format --branch` judges the
+    branch name;
+  - scans it with gitleaks' default rules plus `vnpay-hash-secret`, `momo-secret-key` and `zalopay-key`,
+    ported from `backend/src/main/resources/scanning/rules.yaml` with their patterns and capture group
+    and its `placeholders` filter on the value. VNPay keeps its keywords; MoMo and ZaloPay keep none,
+    because gitleaks reads keywords per changed hunk, where the provider's name is often missing.
+    `--redact` keeps values out, and `--ignore-gitleaks-allow` keeps `gitleaks:allow` comments from
+    silencing a finding;
+  - writes the run's summary: the commit scanned, and each finding's rule, file, short commit and line,
+    never its value. Its log holds `::error::` lines and one count line,
+    `VIBEFIX_SCAN head=<sha> findings=<n>`, and no output of git or gitleaks: a failed scan's reason
+    (git's or gitleaks' last lines) goes to the summary. The run fails when n > 0, and when the scan
+    itself fails, which prints no count line.
+
+  The scan gates nothing: the Customer still confirms at J7 by themselves, and vibefix handles only the
+  head and n, never a finding's file, rule or value. n is the Customer's own run's report, not evidence
+  the platform checked: the Customer's repository and its Actions are theirs.
 
 The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub, as an owner of
 `vibefix-dev` and with a second account as the Customer.
@@ -569,7 +595,8 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
   lookup by name for its ID, the creation of the two repositories, the organization reads, and the
   installations' repository listings.
 - **What the probe deletes.** Only the runner's run logs, after it has printed the last 40 lines of a
-  failed step to stderr. A Customer's run logs stay in the Customer's repository.
+  failed step to stderr. A Customer's run logs stay in the Customer's repository. A scan run's logs are
+  only searched for the count line: no line of them is printed, even when the run fails.
 - **What stays on GitHub.** The repositories, branches, and pull requests the probe creates; the
   runner's workflow file; the runs themselves, whose inputs (repository names, branches, SHAs, the
   exchange's address) anyone who can read that repository can read. No input carries a token.
@@ -608,7 +635,9 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
    - add `deploy/customer/vibefix.yml` unchanged as `.github/workflows/vibefix.yml` on its default branch;
    - install the Source App on that repository only;
    - for the tampered check, create a branch, for example `tampered`, whose `vibefix.yml` differs by one
-     added comment line.
+     added comment line;
+   - for the scan (`--scan`, optional), nothing yet: part b runs with `--scan` once before and once
+     after a made-up VNPay value is committed (step 8).
 6. **Open the tunnel.** Install cloudflared (`winget install --id Cloudflare.cloudflared`) and run, in a
    terminal of its own:
 
@@ -659,8 +688,37 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
      ruleset on the private Intermediary (an answer that names no plan fails). With `--tampered-ref`, the
      same dispatch on that branch must be refused a token, with both repositories read back unchanged
      (a head that cannot be read fails the check). Its changed file is refused as `blob`; `ref` passes
-     too, for a branch whose file is the published one. Without `--tampered-ref`, the check is skipped. The last line gives every run's duration and billed
-     minutes, and their totals.
+     too, for a branch whose file is the published one. Without `--tampered-ref`, the check is skipped.
+     Check 11 gives the duration and billed minutes of every copy run, and their totals.
+   - **The gitleaks scan (check 12, "gitleaks on Customer's Actions"), with `--scan`** added to the
+     command above (a flag, part b only).
+     - **When.** After check 3 passed, whatever checks 1 and 2 answered: the scan creates nothing. The
+       Source App dispatches `vibefix.yml` with `operation=scan` and a correlation on the default branch,
+       with no other input, and the probe waits as for the other runs. The exchange expects nothing for
+       it.
+     - **What it reads.** The run as the Customer's file: its `path` must be
+       `.github/workflows/vibefix.yml`, and the file's blob at its `head_sha` the published file's, as
+       check 3 and the exchange compare it. Then the run's logs, with a Source App token narrowed to the
+       source (Actions read), for the one `VIBEFIX_SCAN head=<sha> findings=<n>` line: it must start
+       with GitHub's timestamp, appear at most once in each file of the logs, and agree across them. A
+       log with no such line is read once more after a poll, since GitHub may still be writing it.
+     - **What it prints.** The conclusion, n, the head scanned, the run's `path`, `head_sha` and blob,
+       the duration and the billed minutes, and the failed step for a run that did not succeed.
+     - **OK** when the run is the published file's, the line is there once with a 40-hex head, and the
+       conclusion matches n: success at 0, failure above 0 (a Customer whose history holds a finding sees
+       a failed run, and the check still passes). It fails otherwise, for example when the gitleaks
+       download does not match its sha256 or the scan itself fails. Without `--scan`, check 12 is skipped
+       and nothing is dispatched.
+     - **Time and minutes.** The scan shares the job's 15-minute limit and the probe's 20-minute wait.
+       It bills the Customer's minutes, which are free on a public repository. It is not in check 11's
+       totals: check 12 prints its own duration and billed minutes.
+     - **Twice.** Run part b with `--scan` once as the repository is, and record check 12's line
+       (`findings=0` on a clean history, conclusion success). Then, as the Customer, commit on the default
+       branch a made-up VNPay value, a line `vnp_HashSecret=` followed by 20 letters and digits of your
+       own (not a placeholder such as `xxxx…` or `0000…`), and remove it in a later commit: the scan
+       reads the whole history, so it still finds it. Run part b with `--scan` again, with a new
+       `--prefix`, and record check 12's line once more (`findings=1` or more, conclusion failure, the
+       check OK).
    - **Each run** prints which field of the dispatch answer carried its run ID, or that it was found by
      its `run-name` after a 204. A dispatch answered 404 is tried again up to 6 times. A run is polled
      every 10 seconds for up to 20 minutes (the job stops itself at 15); one not completed then is
@@ -697,6 +755,12 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
     - Fork is disabled, a push is refused, and the Working Repository answers 404;
     - the Actions tab of the Customer's repository shows the `vibefix` runs, their logs show `***` where
       a token was, and the tampered run failed at "Exchange the ID token";
+    - each scan run (with `--scan`) ran the `scan` job only, the `vibefix` job skipped; its summary names
+      the commit scanned and lists each finding's rule, file, short commit and line with no value; its
+      "Scan with gitleaks" log holds the one `VIBEFIX_SCAN head=<sha> findings=<n>` line, `::error::`
+      lines, and nothing of git or gitleaks;
+    - started by hand from the Actions tab (`operation` scan, every other input empty), a scan runs the
+      same way;
     - `vibefix/final-<prefix>` is a branch of the Customer's repository.
 
     Then invite an account without two-factor authentication to the Intermediary Repository (Settings ›
@@ -706,6 +770,8 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
     - the tampered run's reason code, and Free's answer to the ruleset;
     - pull request 1's state after pull request 2 merged;
     - the duration and billed minutes of each run, and whose minutes they were;
+    - with `--scan`, both check-12 lines, before and after the made-up VNPay value: the conclusion, n,
+      the head, the duration and the billed minutes;
     - the manual checks.
 
     The correct-course then rewrites AD-10, AD-11, and FR-18 to FR-21 from it, and, with scanning
@@ -715,7 +781,8 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
       runner's Actions;
     - in the Customer's repository, the `vibefix/final-…` and `tampered` branches, the `vibefix` runs, and
       `.github/workflows/vibefix.yml`, and the Customer's installation of the Source App (the Customer's
-      Settings › Applications);
+      Settings › Applications); a made-up key committed for the scan stays in that history, so delete
+      the repository itself if it was made for the spike;
     - any `s6-refused-…` branch that part a's ref check reported ACCEPTED on the Customer's repository;
     - the Source App (Developer settings › GitHub Apps › Advanced › Delete) and its key,
       `deploy/secrets/github-source-app-key.pem`;
