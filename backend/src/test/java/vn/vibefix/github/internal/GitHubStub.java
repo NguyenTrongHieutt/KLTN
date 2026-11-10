@@ -114,6 +114,20 @@ public final class GitHubStub implements AutoCloseable {
 	/** {@code GET /app/installations/{id}}'s repository selection. */
 	public volatile String repositorySelection = "all";
 
+	/** The organization's Actions policy, {@code enabled_repositories}: {@code none}, {@code all}, or {@code selected}. */
+	public volatile String actionsEnabled = "none";
+
+	/** The repositories {@code selected} lets run Actions, by name. */
+	public final List<String> actionsRepositories = Collections.synchronizedList(new ArrayList<>());
+
+	/** The organization's {@code allowed_actions}: {@code local_only}, {@code all}, or {@code selected}. */
+	public volatile String actionsAllowed = "local_only";
+
+	/** {@code GET /orgs/{org}/actions/permissions/workflow}: the default token permissions, and pull request approvals. */
+	public volatile String defaultWorkflowPermissions = "read";
+
+	public volatile boolean workflowsApprovePullRequests;
+
 	/** Repositories whose Issues are on, as {@code GET /repos/{org}/{name}} shows them. */
 	public final java.util.Set<String> issuesOn = Collections.synchronizedSet(new java.util.HashSet<>());
 
@@ -549,7 +563,22 @@ public final class GitHubStub implements AutoCloseable {
 					+ "\",\"two_factor_requirement_enabled\":true,\"default_repository_permission\":\"none\"}");
 		}
 		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/actions/permissions")) {
-			send(exchange, 200, "{\"enabled_repositories\":\"none\"}");
+			send(exchange, 200, "{\"enabled_repositories\":\"" + this.actionsEnabled + "\",\"allowed_actions\":\""
+					+ this.actionsAllowed + "\"}");
+		}
+		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/actions/permissions/workflow")) {
+			send(exchange, 200, "{\"default_workflow_permissions\":\"" + this.defaultWorkflowPermissions
+					+ "\",\"can_approve_pull_request_reviews\":" + this.workflowsApprovePullRequests + "}");
+		}
+		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/actions/permissions/repositories")) {
+			List<Map<String, Object>> listed = new ArrayList<>();
+			synchronized (this.actionsRepositories) {
+				for (String name : this.actionsRepositories) {
+					listed.add(Map.of("id", this.repositories.getOrDefault(name, 0L), "name", name, "full_name",
+							ORGANIZATION + "/" + name));
+				}
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", listed.size(), "repositories", listed)));
 		}
 		else if (method.equals("POST") && path.equals("/orgs/" + ORGANIZATION + "/repos")) {
 			String name = body.path("name").asString();

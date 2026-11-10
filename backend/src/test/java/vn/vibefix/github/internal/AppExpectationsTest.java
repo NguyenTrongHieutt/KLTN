@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,30 @@ class AppExpectationsTest {
 			.hasSize(2)
 			.anySatisfy(difference -> assertThat(difference).startsWith("permissions: ").contains("issues=write"))
 			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of []"));
+	}
+
+	@Test
+	void withARunnerThePlatformAppHoldsActionsWriteAndOnlyThen() {
+		Map<String, String> withActions = new HashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
+		withActions.put("actions", "write");
+		Registration dispatching = new Registration("vibefix-dev-platform", withActions, AppExpectations.PLATFORM_EVENTS);
+
+		assertThat(AppExpectations.permissions(App.PLATFORM, true)).isEqualTo(withActions);
+		assertThat(AppExpectations.permissions(App.PLATFORM, false)).isEqualTo(AppExpectations.PLATFORM_PERMISSIONS);
+		assertThat(AppExpectations.permissions(App.MERGE, true)).as("the Merge App never dispatches")
+			.isEqualTo(AppExpectations.MERGE_PERMISSIONS);
+		assertThat(AppExpectations.differences(App.PLATFORM, dispatching, true)).isEmpty();
+		assertThat(AppExpectations.differences(App.PLATFORM, platform(AppExpectations.PLATFORM_EVENTS), true)).singleElement()
+			.asString()
+			.startsWith("permissions: ")
+			.endsWith("instead of " + new TreeMap<>(withActions));
+		assertThat(AppExpectations.differences(App.PLATFORM, dispatching)).as("without a runner, Actions write is a difference")
+			.singleElement()
+			.asString()
+			.contains("actions=write");
+		assertThat(AppExpectations.differences(App.MERGE,
+				new Registration("vibefix-dev-merge", AppExpectations.MERGE_PERMISSIONS, Set.of()), true))
+			.isEmpty();
 	}
 
 	private static Registration platform(Set<String> events) {

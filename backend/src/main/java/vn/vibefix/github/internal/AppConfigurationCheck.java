@@ -69,7 +69,8 @@ class AppConfigurationCheck {
 	List<String> check(App app) {
 		List<String> differences = new ArrayList<>();
 		try {
-			differences.addAll(AppExpectations.differences(app, this.apps.registration(app)));
+			differences.addAll(AppExpectations.differences(app, this.apps.registration(app),
+					this.apps.properties().runnerRepository() != null));
 		}
 		catch (GitHubException refused) {
 			differences.add("GET /app: HTTP " + refused.status());
