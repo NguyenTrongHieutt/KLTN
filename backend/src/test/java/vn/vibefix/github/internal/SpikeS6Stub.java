@@ -238,6 +238,15 @@ final class SpikeS6Stub implements AutoCloseable {
 	/** Whether GitHub marks an open pull request merged once a merge brings its head commit in. */
 	volatile boolean containedPullsMarkedMerged;
 
+	/**
+	 * Whether opening a pull request on a private repository needs a token that also reads contents, the 422
+	 * {@code PullRequest.head invalid} answer otherwise: what the S6 run of 2026-11-11 suggested.
+	 */
+	volatile boolean pullsNeedContents;
+
+	/** How many requests to open a pull request answer 422 first, whatever their token holds. */
+	final AtomicLong pullsRefused = new AtomicLong();
+
 	/** How many dispatches answer 404 first, as GitHub does for a workflow file it does not know yet. */
 	volatile int dispatchNotFound;
 
@@ -830,6 +839,15 @@ final class SpikeS6Stub implements AutoCloseable {
 			}
 			String head = body.path("head").asString();
 			String base = body.path("base").asString();
+			String token = bearer(request);
+			boolean blind = this.pullsNeedContents && repo.privateRepository
+					&& (token == null || !allows(token, repo, "contents", "read"));
+			if (this.pullsRefused.getAndUpdate(left -> Math.max(0, left - 1)) > 0 || blind) {
+				send(exchange, 422, map("message", "Validation Failed", "errors",
+						List.of(map("resource", "PullRequest", "field", "head", "code", "invalid")), "documentation_url",
+						"https://docs.github.com/rest/pulls/pulls#create-a-pull-request"));
+				return;
+			}
 			if (!repo.branches.containsKey(head) || !repo.branches.containsKey(base)) {
 				send(exchange, 422, Map.of("message", "Validation Failed"));
 				return;

@@ -1466,22 +1466,45 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 			return new Check(number, name, Outcome.FAIL, ran.status(), ran.describe() + ", read back " + intermediary.fullName()
 					+ " " + branch + "=" + shortSha(head) + " instead of " + shortSha(sha));
 		}
-		String copied = ran.describe() + ", read back " + intermediary.fullName() + " " + branch + "=" + shortSha(head);
-		return withPlatform(Set.of(intermediary.id()), Map.of("pull_requests", "write"), token -> {
-			GitHubHttp.Answer opened = http().send("POST", "/repos/" + intermediary.fullName() + "/pulls", token.value(),
-					Map.of("title", "Spike S6: handover " + handover, "head", branch, "base", intermediary.defaultBranch(), "body",
-							"Spike S6, part c: handover " + handover + " of " + working.fullName() + " at " + sha + "."));
-			int pull = opened.body().path("number").asInt(0);
-			if (handover == 1) {
-				state.pull1 = pull;
+		StringBuilder detail = new StringBuilder(ran.describe()).append(", read back ")
+			.append(intermediary.fullName())
+			.append(' ')
+			.append(branch)
+			.append('=')
+			.append(shortSha(head));
+		Map<String, Object> request = Map.of("title", "Spike S6: handover " + handover, "head", branch, "base",
+				intermediary.defaultBranch(), "body",
+				"Spike S6, part c: handover " + handover + " of " + working.fullName() + " at " + sha + ".");
+		// GitHub documents pull_requests write alone for this, as vibefix's own handover asks. The S6 run of
+		// 2026-11-11 had it answer 422 on a private Intermediary, so a 422 is asked again as it was, telling a late
+		// branch apart, then with contents read added, telling a token that cannot see the branch apart.
+		GitHubHttp.Answer opened = openPull(intermediary, Map.of("pull_requests", "write"), request);
+		if (opened.status() == 422) {
+			detail.append(", pull_requests write alone: HTTP 422 ").append(message(opened));
+			sleep(this.waits.findPoll());
+			opened = openPull(intermediary, Map.of("pull_requests", "write"), request);
+			detail.append(", again after ").append(this.waits.findPoll().toMillis()).append(" ms: HTTP ").append(opened.status());
+			if (opened.status() == 422) {
+				detail.append(' ').append(message(opened));
+				opened = openPull(intermediary, Map.of("contents", "read", "pull_requests", "write"), request);
+				detail.append(", with contents read added: HTTP ").append(opened.status());
 			}
-			else {
-				state.pull2 = pull;
-			}
-			boolean ok = opened.status() == 201 && pull > 0;
-			return new Check(number, name, ok ? Outcome.OK : Outcome.FAIL, opened.status(),
-					copied + (ok ? ", pull request #" + pull : ", pull request refused: " + message(opened)));
-		});
+		}
+		int pull = opened.body().path("number").asInt(0);
+		if (handover == 1) {
+			state.pull1 = pull;
+		}
+		else {
+			state.pull2 = pull;
+		}
+		boolean ok = opened.status() == 201 && pull > 0;
+		detail.append(ok ? ", pull request #" + pull : ", pull request refused: " + message(opened));
+		return new Check(number, name, ok ? Outcome.OK : Outcome.FAIL, opened.status(), detail.toString());
+	}
+
+	private GitHubHttp.Answer openPull(Repo intermediary, Map<String, String> permissions, Map<String, Object> request) {
+		return withPlatform(Set.of(intermediary.id()), permissions,
+				token -> http().send("POST", "/repos/" + intermediary.fullName() + "/pulls", token.value(), request));
 	}
 
 	private Check merge(State state) {
@@ -2395,8 +2418,24 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		}
 	}
 
+	/** GitHub's message, with what its {@code errors} name: a 422 says little without them. */
 	private static String message(GitHubHttp.Answer answer) {
-		return answer.body().path("message").asString("");
+		String message = answer.body().path("message").asString("");
+		List<String> errors = new ArrayList<>();
+		for (JsonNode error : answer.body().path("errors")) {
+			if (errors.size() == 5) {
+				break;
+			}
+			String text = error.isObject() ? error.path("message").asString("") : error.asString("");
+			if (text.isEmpty() && error.isObject()) {
+				text = (error.path("resource").asString("") + "." + error.path("field").asString("") + " "
+						+ error.path("code").asString("")).strip();
+			}
+			if (!text.isEmpty()) {
+				errors.add(text.length() > 200 ? text.substring(0, 200) : text);
+			}
+		}
+		return errors.isEmpty() ? message : message + " " + errors;
 	}
 
 	private static String fieldNames(JsonNode body) {
