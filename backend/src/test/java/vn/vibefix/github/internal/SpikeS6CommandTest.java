@@ -933,6 +933,74 @@ class SpikeS6CommandTest {
 		assertThat(this.github.comments).isEmpty();
 	}
 
+	@Test
+	void aPullRequestRefusedToAPullRequestsOnlyTokenIsOpenedWithContentsReadAdded() throws Exception {
+		this.github.pullsNeedContents = true;
+		assertThat(run("dev,cli", partB("s6-blind", null))).isZero();
+		assertThat(run("dev,cli", partC("s6-blind"))).isZero();
+		this.github.accept(SpikeS6Stub.CUSTOMER);
+		this.out.reset();
+
+		int exit = run("dev,cli", partC("s6-blind"));
+
+		String output = output();
+		assertThat(exit).as(output + errors()).isZero();
+		for (int n = 1; n <= 2; n++) {
+			assertThat(line(output, "copy H" + n + " to handover, pull request")).contains(" OK ",
+					"pull_requests write alone: HTTP 422 Validation Failed [PullRequest.head invalid], again after 5 ms:"
+							+ " HTTP 422 Validation Failed [PullRequest.head invalid], with contents read added: HTTP 201,"
+							+ " pull request #" + n);
+		}
+		assertThat(output).contains("Spike S6 part c: every check passed or was skipped");
+		SpikeS6Stub.Repo intermediary = this.github.repository("vibefix-dev/s6-blind-intermediary");
+		assertThat(this.github.grants.values()).contains(new Grant(SpikeS6Stub.PLATFORM_INSTALLATION,
+				Set.of(intermediary.id), Map.of("contents", "read", "pull_requests", "write")));
+		assertThat(intermediary.pulls.get(2).merged).isTrue();
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
+	@Test
+	void aPullRequestRefusedOnceIsOpenedOnTheSecondTryAsItWas() throws Exception {
+		assertThat(run("dev,cli", partB("s6-late", null))).isZero();
+		assertThat(run("dev,cli", partC("s6-late"))).isZero();
+		this.github.accept(SpikeS6Stub.CUSTOMER);
+		this.github.pullsRefused.set(1);
+		this.out.reset();
+
+		int exit = run("dev,cli", partC("s6-late"));
+
+		String output = output();
+		assertThat(exit).as(output + errors()).isZero();
+		assertThat(line(output, "copy H1 to handover, pull request")).contains(" OK ",
+				"pull_requests write alone: HTTP 422 Validation Failed [PullRequest.head invalid], again after 5 ms: HTTP 201,"
+						+ " pull request #1")
+			.doesNotContain("contents read added");
+		assertThat(line(output, "copy H2 to handover, pull request")).contains(" OK ", ", pull request #2")
+			.doesNotContain("HTTP 422");
+		SpikeS6Stub.Repo intermediary = this.github.repository("vibefix-dev/s6-late-intermediary");
+		assertThat(this.github.grants.values()).doesNotContain(new Grant(SpikeS6Stub.PLATFORM_INSTALLATION,
+				Set.of(intermediary.id), Map.of("contents", "read", "pull_requests", "write")));
+	}
+
+	@Test
+	void aPullRequestRefusedThriceFailsTheHandoverWithEachAnswer() throws Exception {
+		assertThat(run("dev,cli", partB("s6-shut", null))).isZero();
+		assertThat(run("dev,cli", partC("s6-shut"))).isZero();
+		this.github.accept(SpikeS6Stub.CUSTOMER);
+		this.github.pullsRefused.set(3);
+		this.out.reset();
+
+		int exit = run("dev,cli", partC("s6-shut"));
+
+		assertThat(exit).as(output()).isOne();
+		assertThat(line(output(), "copy H1 to handover, pull request")).contains(" FAIL ", "HTTP 422",
+				"pull_requests write alone: HTTP 422 Validation Failed [PullRequest.head invalid], again after 5 ms: HTTP 422"
+						+ " Validation Failed [PullRequest.head invalid], with contents read added: HTTP 422, pull request refused:"
+						+ " Validation Failed [PullRequest.head invalid]");
+		assertThat(line(output(), "commit H2, a child of H1")).contains("SKIPPED");
+		assertEveryTokenRevokedAndNeverPrinted();
+	}
+
 	/**
 	 * The {@code n}th token the exchange issued is narrowed as expected ({@code null}: to the J7 copy's two
 	 * repositories), and each one was revoked only after its run completed.
