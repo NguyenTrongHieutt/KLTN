@@ -168,9 +168,12 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 	private static final Pattern PLAN_REFUSAL = Pattern.compile("upgrade|\\bpro\\b|\\bteam\\b|private repositor",
 			Pattern.CASE_INSENSITIVE);
 
-	/** What a printed log line must not show: an installation or user token, or a JWT. */
+	/**
+	 * What a printed log line must not show: an installation or user token, or a JWT. Installation tokens
+	 * read {@code ghs_<App ID>_<JWT>} since GitHub's 2026 rollout, so a token runs on through dots and dashes.
+	 */
 	private static final Pattern SECRET = Pattern
-		.compile("gh[pousr]_[A-Za-z0-9_]{16,}|eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*");
+		.compile("gh[pousr]_[A-Za-z0-9_.-]{16,}|eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*");
 
 	private static final Pattern REPOSITORY = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}");
 

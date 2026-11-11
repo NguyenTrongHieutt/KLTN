@@ -21,7 +21,7 @@ class PersonalDataMatcherTest {
 
 	@Test
 	void theThresholdsAreConfigurationAndThePatternsCompile() {
-		assertThat(ScanRules.load().version()).isEqualTo(3);
+		assertThat(ScanRules.load().version()).isEqualTo(4);
 		assertThat(RULES.phones()).isEqualTo(10);
 		assertThat(RULES.emails()).isEqualTo(10);
 		assertThat(RULES.dataFileValues()).isEqualTo(2);

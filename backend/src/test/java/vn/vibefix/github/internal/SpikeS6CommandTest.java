@@ -636,13 +636,18 @@ class SpikeS6CommandTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "an installation token", "a JWT" })
+	@ValueSource(strings = { "an installation token", "a stateless installation token", "a JWT" })
 	void aFailedRunPrintsItsFailedStepsLastLinesWithAnythingTokenLikeCutOut(String kind) throws Exception {
 		this.github.failAtStep = "push";
-		// Built at run time, as fake credentials.
-		String leak = kind.equals("a JWT")
-				? String.join(".", "eyJ" + "hbGciOiJSUzI1NiJ9", "eyJ" + "zdWIiOiJyZXBvIn0", "c2lnbmF0" + "dXJlX18")
-				: String.join("", "ghs", "_", "leaked", "q".repeat(30));
+		// Built at run time, as fake credentials. The stateless one is GitHub's format since 2026:
+		// ghs_<App ID>_<JWT>, about 520 characters, its JWT's parts joined by dots and holding dashes.
+		String leak = switch (kind) {
+			case "a JWT" -> String.join(".", "eyJ" + "hbGciOiJSUzI1NiJ9", "eyJ" + "zdWIiOiJyZXBvIn0", "c2lnbmF0" + "dXJlX18");
+			case "a stateless installation token" -> String.join("", "ghs", "_", "5699338", "_",
+					String.join(".", "eyJ" + "hbGciOiJSUzI1NiJ9", "eyJ" + "zdWIiOiJyZXBvIn0" + "B".repeat(400),
+							"c2lnbmF0" + "dXJl-X18" + "z".repeat(60)));
+			default -> String.join("", "ghs", "_", "leaked", "q".repeat(30));
+		};
 		this.github.logLeak = leak;
 
 		int exit = run("dev,cli", partB("s6-fail", null));
@@ -658,6 +663,11 @@ class SpikeS6CommandTest {
 		assertThat(tail.getFirst()).endsWith(" log line " + (SpikeS6Stub.LOG_LINES - SpikeS6Command.LOG_LINES + 1));
 		assertThat(tail.getLast()).endsWith("error: failed to push some refs (log line " + SpikeS6Stub.LOG_LINES + ")");
 		assertThat(errors).contains("remote: credential <redacted> refused").doesNotContain(leak);
+		for (String part : leak.split("[._-]")) {
+			if (part.length() >= 12) {
+				assertThat(errors).as("no part of the token is left over").doesNotContain(part);
+			}
+		}
 		assertThat(this.github.logAuthorizations).as("the logs' storage never sees the token").containsExactly("none");
 		assertThat(this.github.deletedLogs).as("a Customer's run logs stay, even after a failure").isEmpty();
 		assertEveryTokenRevokedAndNeverPrinted();

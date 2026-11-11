@@ -11,7 +11,7 @@
 #
 # Rules run in order and a file's text is claimed once: a later rule never reports a value an earlier
 # rule already found, so specific providers come first and the generic rules last.
-version: 3
+version: 4
 source: >-
   Written for vibefix from each provider's published credential format (2026-10-19). Not copied from
   gitleaks: its MIT-licensed rules can be merged in later with their licence notice and source commit.
@@ -70,6 +70,10 @@ rules:
     type: Mã ứng dụng GitHub
     keywords: [ghu_, ghs_]
     pattern: '\b((?:ghu|ghs)_[A-Za-z0-9]{36})\b'
+  - id: github-app-token-stateless
+    type: Mã ứng dụng GitHub
+    keywords: [ghs_]
+    pattern: '\b(ghs_[0-9]{1,12}_[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})'
   - id: github-refresh-token
     type: Mã làm mới GitHub
     keywords: [ghr_]
