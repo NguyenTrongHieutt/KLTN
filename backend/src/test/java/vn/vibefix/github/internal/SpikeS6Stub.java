@@ -730,7 +730,9 @@ final class SpikeS6Stub implements AutoCloseable {
 		}
 		String token;
 		synchronized (this.tokens) {
-			token = "ghs_" + "s6stub" + this.tokens.size() + "x" + installation + "k3y";
+			// GitHub's stateless format since 2026: ghs_<App ID>_<JWT>, about 520 characters with dots and dashes.
+			token = "ghs_" + installation + "_" + "eyJ" + "hbGciOiJSUzI1NiJ9." + "eyJ" + "zNnN0dWIi" + this.tokens.size()
+					+ "A".repeat(400) + "." + "s6stub-" + "k3y_".repeat(20);
 			this.tokens.add(token);
 		}
 		this.grants.put(token, new Grant(installation, Set.copyOf(ids), Map.copyOf(permissions)));

@@ -144,8 +144,13 @@ jobs:
           token="$(jq -r '.token // empty' "$RUNNER_TEMP/exchanged.json")"
           rm -f "$RUNNER_TEMP/exchanged.json"
           echo "::add-mask::$token"
-          token_re='^[A-Za-z0-9_]{20,255}$'
-          [[ "$token" =~ $token_re ]] || { echo "::error::the exchange answered no token"; exit 1; }
+          # Installation tokens are opaque: since GitHub's 2026 rollout they read ghs_<App ID>_<JWT>, about
+          # 520 characters with dots and dashes. Only characters safe in a file and a header are taken.
+          token_re='^[A-Za-z0-9_.-]{20,}$'
+          if ! [[ "$token" =~ $token_re ]] || (( ${#token} > 4096 )); then
+            echo "::error::the exchange answered no token"
+            exit 1
+          fi
           printf '%s' "$token" > "$RUNNER_TEMP/vibefix-token"
           unset token
           printf '%s' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-token"
@@ -297,10 +302,12 @@ jobs:
           head="$(git -C "$repository" rev-parse --verify --quiet 'refs/heads/vibefix-scan^{commit}' || true)"
           sha_re='^[0-9a-f]{40}$'
           [[ "$head" =~ $sha_re ]] || fail "the fetched default branch names no commit"
-          # gitleaks' default rules, and the three Vietnamese payment rules of
-          # backend/src/main/resources/scanning/rules.yaml: the same patterns and capture group, and its
-          # placeholders filter on the value. VNPay keeps its keywords; MoMo and ZaloPay keep none, since
-          # gitleaks reads keywords per changed hunk, where the provider's name is often missing.
+          # gitleaks' default rules, plus four rules of backend/src/main/resources/scanning/rules.yaml: the
+          # three Vietnamese payment rules, and GitHub App installation tokens in the stateless format of
+          # 2026 (ghs_<App ID>_<JWT>), which gitleaks 8.30.1's default rule misses. Same patterns and capture
+          # group, and its placeholders filter on the value. VNPay and GitHub keep their keywords; MoMo and
+          # ZaloPay keep none, since gitleaks reads keywords per changed hunk, where the provider's name is
+          # often missing.
           cat > "$RUNNER_TEMP/gitleaks.toml" <<'RULES'
           title = "vibefix"
 
@@ -333,6 +340,17 @@ jobs:
           description = "ZaloPay key"
           regex = '''(?i)(?:zalo(?:pay)?[_.-]?)?key[12]["']?\s*[:=]\s*["']?([A-Za-z0-9]{32})\b'''
           secretGroup = 1
+
+          [[rules.allowlists]]
+          regexTarget = "secret"
+          regexes = ['''(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$''']
+
+          [[rules]]
+          id = "github-app-token-stateless"
+          description = "GitHub App installation token, stateless format"
+          regex = '''\b(ghs_[0-9]{1,12}_[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})'''
+          secretGroup = 1
+          keywords = ["ghs_"]
 
           [[rules.allowlists]]
           regexTarget = "secret"

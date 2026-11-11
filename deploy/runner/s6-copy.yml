@@ -111,8 +111,13 @@ jobs:
           token="$(jq -r '.token // empty' "$RUNNER_TEMP/exchanged.json")"
           rm -f "$RUNNER_TEMP/exchanged.json"
           echo "::add-mask::$token"
-          token_re='^[A-Za-z0-9_]{20,255}$'
-          [[ "$token" =~ $token_re ]] || { echo "::error::the exchange answered no token"; exit 1; }
+          # Installation tokens are opaque: since GitHub's 2026 rollout they read ghs_<App ID>_<JWT>, about
+          # 520 characters with dots and dashes. Only characters safe in a file and a header are taken.
+          token_re='^[A-Za-z0-9_.-]{20,}$'
+          if ! [[ "$token" =~ $token_re ]] || (( ${#token} > 4096 )); then
+            echo "::error::the exchange answered no token"
+            exit 1
+          fi
           printf '%s' "$token" > "$RUNNER_TEMP/vibefix-token"
           unset token
           cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'

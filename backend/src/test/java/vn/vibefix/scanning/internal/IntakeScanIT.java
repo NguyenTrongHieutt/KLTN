@@ -146,7 +146,7 @@ class IntakeScanIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT status || ' ' || found_count || ' ' || new_findings || ' ' || unscanned_count || ' ' || rules_version
 				FROM scanning.scan_run WHERE id = :id
-				""").param("id", run).query(String.class).single()).isEqualTo("SUCCEEDED 3 3 1 3");
+				""").param("id", run).query(String.class).single()).isEqualTo("SUCCEEDED 3 3 1 4");
 		assertThat(this.jdbc.sql("""
 				SELECT rule_id || ' ' || masked_preview || ' ' || file_path FROM scanning.finding WHERE product_id = :p
 				ORDER BY rule_id

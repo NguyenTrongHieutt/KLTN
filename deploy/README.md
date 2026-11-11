@@ -609,7 +609,9 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
      (step 2), and "Allow vibefix-dev actions and reusable workflows" (`allowed_actions=local_only`): the
      workflows use none. Under "Workflow permissions", keep "Read repository contents and packages
      permissions", and leave "Allow GitHub Actions to create and approve pull requests" unticked.
-   - Set `VIBEFIX_GITHUB_RUNNER_REPOSITORY=vibefix-runner` in `deploy/.env`, and restart the stack. With
+   - Set `VIBEFIX_GITHUB_RUNNER_REPOSITORY=vibefix-runner` in `deploy/.env`, and restart the stack with
+     both files (`docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build
+     --wait`): `compose.yaml` alone recreates the backend without the Platform App, Merge App and VNPay. With
      it, the dev stack's Job setup and platform guard expect exactly these Actions settings, and the
      daily check expects the Platform App to hold Actions write. Without it, they report both as
      differences. The probe's commands below read it from `deploy/.env` too, as the stack does.
@@ -652,6 +654,10 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
    clear. Both are short-lived: an ID token lasts minutes, and an issued token is narrowed to the spike's
    repositories and revoked when its run ends. A released design would end TLS at vibefix's own host.
 7. **Run part a: the Source App.** The probe starts the backend image under `cli`, like the other probes.
+   Run the probe commands from PowerShell, not Git Bash: Git Bash rewrites the arguments that start with
+   `/` (`/run/secrets/...` becomes `C:/Program Files/Git/run/secrets/...`, and a `-v` mount gains `;`), so
+   the probe finds no key; in Git Bash, prefix the command with `MSYS_NO_PATHCONV=1`. PowerShell 5.1 passes
+   them unchanged, `dev,cli` included (2026-11-11).
    So the stack's `postgres` must be up, with its database already migrated by the stack, and
    `--spring.flyway.enabled=false` keeps the probe from migrating your dev database.
 

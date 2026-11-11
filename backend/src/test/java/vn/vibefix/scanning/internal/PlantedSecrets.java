@@ -32,6 +32,11 @@ final class PlantedSecrets {
 				v -> "const client = new Octokit({ auth: '" + v + "' })\n");
 		put(planted, "github-oauth", "notes/oauth.txt", "gho" + "_" + alnum(36, 4), v -> "token " + v + "\n");
 		put(planted, "github-app-token", "ci/app.yml", "ghs" + "_" + alnum(36, 5), v -> "installation: " + v + "\n");
+		// GitHub's stateless format since 2026: ghs_<App ID>_<JWT>, about 520 characters with dots and dashes.
+		put(planted, "github-app-token-stateless", "ci/stateless.yml",
+				"ghs" + "_" + "5408194" + "_" + "eyJ" + alnum(30, 60) + "." + "eyJ" + alnum(380, 61) + "." + alnum(40, 62) + "-"
+						+ alnum(45, 63),
+				v -> "installation: " + v + "\n");
 		put(planted, "github-refresh-token", "ci/refresh.yml", "ghr" + "_" + alnum(76, 6), v -> "refresh: " + v + "\n");
 		String keyBody = alnum(64, 7) + "\\n" + alnum(64, 8) + "\\n" + alnum(40, 9);
 		put(planted, "gcp-service-account", "firebase-admin.json",

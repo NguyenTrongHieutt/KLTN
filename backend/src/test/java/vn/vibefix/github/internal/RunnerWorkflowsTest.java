@@ -104,6 +104,31 @@ class RunnerWorkflowsTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void theTokenCheckTakesGitHubsStatelessInstallationTokens(String file) throws IOException {
+		String script = String.valueOf(step(steps(load(text(file))), "Exchange the ID token").get("run"));
+		Matcher check = Pattern.compile("(?m)^token_re='([^']+)'$").matcher(script);
+		assertThat(check.find()).as("the exchange step checks the token it is given").isTrue();
+		Pattern tokenRe = Pattern.compile(check.group(1));
+		// Built at run time, as fake credentials. GitHub's format since its 2026 rollout is ghs_<App ID>_<JWT>,
+		// about 520 characters, the JWT's parts joined by dots and holding dashes and underscores.
+		String stateless = String.join("", "ghs", "_", "5408194", "_", String.join(".", "eyJ" + "hbGciOiJSUzI1NiJ9",
+				"eyJ" + "pc3MiOi" + "C".repeat(380), "Zm9v-YmFy_" + "s".repeat(76)));
+		String legacy = String.join("", "ghs", "_", "L".repeat(36));
+
+		assertThat(stateless.length()).isBetween(500, 4096);
+		assertThat(tokenRe.matcher(stateless).matches()).as("a stateless installation token").isTrue();
+		assertThat(tokenRe.matcher(legacy).matches()).as("a legacy installation token").isTrue();
+		for (String unsafe : List.of("", "ghs_short", legacy + " x", legacy + "'", legacy + "$(id)", legacy + "/x",
+				legacy + "\nx", legacy + "\"")) {
+			assertThat(tokenRe.matcher(unsafe).matches()).as("refused: [%s]", unsafe).isFalse();
+		}
+		assertThat(script).as("the length is bounded apart, since a regular expression's count may be capped at 255")
+			.contains("if ! [[ \"$token\" =~ $token_re ]] || (( ${#token} > 4096 )); then")
+			.doesNotContain("{20,255}");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { CUSTOMER, RUNNER })
 	void gitReadsTheTokenFromAFileNeverForcesAndReadsBackWhatItPushed(String file) throws IOException {
 		String scripts = String.join("\n", scripts(steps(load(text(file)))));
 
@@ -324,7 +349,7 @@ class RunnerWorkflowsTest {
 	}
 
 	@Test
-	void theScanRulesExtendGitleaksDefaultsWithTheSecretScansVietnameseRules() throws IOException {
+	void theScanRulesExtendGitleaksDefaultsWithTheSecretScansVietnameseAndStatelessTokenRules() throws IOException {
 		String script = String.valueOf(step(scanSteps(), "Scan with gitleaks").get("run"));
 		int start = script.indexOf("<<'RULES'\n");
 		String toml = script.substring(start + "<<'RULES'\n".length(), script.indexOf("\nRULES\n", start));
@@ -358,7 +383,10 @@ class RunnerWorkflowsTest {
 			}
 			ported.put(id.group(1), new Ported(regex.group(1), group.group(1), words, allowlist.group(1)));
 		}
-		assertThat(ported).containsOnlyKeys("vnpay-hash-secret", "momo-secret-key", "zalopay-key");
+		// gitleaks 8.30.1's default github-app-token rule reads only the legacy 36-character token, so the
+		// stateless format of 2026 (ghs_<App ID>_<JWT>) is ported from rules.yaml too.
+		assertThat(ported).containsOnlyKeys("vnpay-hash-secret", "momo-secret-key", "zalopay-key",
+				"github-app-token-stateless");
 		for (Object rule : (List<?>) rulesYaml.get("rules")) {
 			Map<String, Object> source = asMap(rule);
 			String id = String.valueOf(source.get("id"));
