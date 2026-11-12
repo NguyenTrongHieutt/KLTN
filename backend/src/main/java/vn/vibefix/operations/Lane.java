@@ -12,9 +12,6 @@ public enum Lane {
 	/** Every other GitHub call: 4 at a time, 30 s. */
 	GITHUB_SHORT,
 
-	/** Scans: 2 at a time, push scans before intake scans. */
-	SCAN,
-
 	/** Email over SMTP: 2 at a time (AD-27, AD-34). */
 	EMAIL,
 

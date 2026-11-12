@@ -26,7 +26,6 @@ const post = {
   productName: 'Shop Gốm Bát Tràng',
   productDescription: 'Cửa hàng gốm.',
   productTools: ['LOVABLE'],
-  productOpenFindings: 0,
   problem: 'Đơn không hiện.',
   jobTypes: ['BUG_FIX'],
   skills: [],

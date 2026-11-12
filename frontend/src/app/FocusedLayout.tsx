@@ -9,7 +9,7 @@ import { RequireSignedIn } from './RequireSignedIn'
 import { useFocusHeadingOnNavigate } from './useFocusHeadingOnNavigate'
 
 /**
- * A focused task route (UX-DR8), such as CUS-3 and CUS-5: signed in, but without the navigation, so
+ * A focused task route (UX-DR8), such as CUS-3: signed in, but without the navigation, so
  * the task is all there is; "Đóng" goes back to where the task belongs, which may depend on the
  * route's parameters.
  */

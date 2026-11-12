@@ -35,10 +35,11 @@ function administrator(idleIn = 30, absoluteIn = 480): Session {
   }
 }
 
-const overview = (failed = 1, stalled = 0) => () =>
+const overview = (failed = 1, stalled = 0, executions = 0) => () =>
   json({
     failedOperations: { count: failed, ...(failed ? { oldestAt: '2026-10-16T01:00:00Z' } : {}) },
     stalledEvents: { count: stalled, ...(stalled ? { oldestAt: '2026-10-16T04:20:00Z' } : {}) },
+    failedExecutions: { count: executions },
   })
 
 const refusal = (status: number, code: string, reason: string, headers: Record<string, string> = {}) =>
@@ -77,6 +78,8 @@ describe('PUB-6 Administrator sign-in (FR-2, AD-19)', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri'))
     expect(await screen.findByRole('heading', { level: 1, name: 'Tổng quan' })).toBeInTheDocument()
+    expect(await screen.findByText('Thao tác lỗi')).toBeInTheDocument()
+    expect(screen.queryByText(/lần thực hiện phân xử bị lỗi/)).toBeNull()
     const request = seen.find((entry) => entry.url.endsWith('/api/v1/admin/sign-in'))!
     expect(await request.clone().json()).toEqual({
       email: 'ha.phuong@vibefix.vn',
@@ -132,7 +135,7 @@ describe('PUB-6 Administrator sign-in (FR-2, AD-19)', () => {
 describe('the Admin shell (UX-DR13, SG-10)', () => {
   it('lists the built destinations, ADM-1 counts, and the alert list', async () => {
     fakeBackend(administrator(), {
-      'GET /api/v1/admin/overview': overview(1, 3),
+      'GET /api/v1/admin/overview': overview(1, 3, 2),
       'GET /api/v1/notifications': () =>
         json({
           items: [
@@ -160,6 +163,10 @@ describe('the Admin shell (UX-DR13, SG-10)', () => {
     expect(within(sidebar).queryByRole('link', { name: /Người hướng dẫn/ })).not.toBeInTheDocument()
     expect(within(sidebar).queryByRole('link', { name: /Thẻ sinh viên/ })).not.toBeInTheDocument()
     expect(await screen.findByText('Thao tác lỗi')).toBeInTheDocument()
+    // Failed Dispute executions are counted on the failed-operations card, which leads to ADM-7 (FR-54, FR-64).
+    const card = screen.getByText('2 lần thực hiện phân xử bị lỗi').closest('a')
+    expect(card).toHaveAttribute('href', '/quan-tri/thao-tac-loi')
+    expect(card).toHaveTextContent('Thao tác lỗi')
     expect(screen.queryByText(/chờ duyệt/)).not.toBeInTheDocument()
     expect(screen.getByText('Cũ nhất: 16/10')).toBeInTheDocument()
     expect(await screen.findByText('Đăng nhập quản trị bị tạm khóa 15 phút: tuan@vibefix.vn (5 lần thử sai)')).toBeInTheDocument()

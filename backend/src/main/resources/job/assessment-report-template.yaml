@@ -1,8 +1,9 @@
 # FR-10: the Assessment Report template. An Assessment Job's Agreement has exactly this one Milestone,
 # and its Acceptance Criteria are these sections; the Mentor drafts only the price and the due date.
 # The "what is missing" section is the checklist of typical AI-code flaws, each marked checked, found,
-# or not applicable. Plain Vietnamese for the Customer (UX-DR8).
-version: 1
+# or not applicable. Plain Vietnamese for the Customer (UX-DR8). Version 2 (Story 23.1): vibefix scans no
+# code, so no criterion asks for the open Findings of a scan.
+version: 2
 milestone: Báo cáo đánh giá
 criteria:
   - statement: Báo cáo mô tả hiện trạng ứng dụng bằng lời dễ hiểu
@@ -23,11 +24,6 @@ criteria:
          dữ liệu cá nhân và rủi ro theo luật bảo vệ dữ liệu cá nhân; xử lý lỗi; kiểm thử; tốc độ khi nhiều
          người dùng; sao lưu và khôi phục; triển khai và vận hành.
       3. Với mục có vấn đề, xem có giải thích vì sao.
-  - statement: Báo cáo nêu các vấn đề còn mở từ lần kiểm tra khóa bí mật và dữ liệu cá nhân
-    steps: |-
-      1. Mở phần "Vấn đề còn mở từ kiểm tra".
-      2. So với danh sách vấn đề của sản phẩm trên vibefix: mỗi vấn đề còn mở đều được nhắc tới.
-      3. Kiểm tra mỗi vấn đề có cách xử lý đề nghị.
   - statement: Báo cáo có danh sách đề xuất xếp theo thứ tự ưu tiên
     steps: |-
       1. Mở phần "Đề xuất".

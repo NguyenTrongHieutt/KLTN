@@ -6,8 +6,8 @@ import java.util.Map;
 import vn.vibefix.scanning.internal.ScanRules.PersonalKind;
 
 /**
- * SM-7's planted personal data (addendum §B6): one text file for each pattern, keyed by its path,
- * with the kinds the Personal-Data Check must report. Every person and number is invented.
+ * The rules' planted personal data (addendum §B6, FR-47): one text for each pattern, keyed by its path,
+ * with the kinds the personal-data rules must report. Every person and number is invented.
  */
 final class PlantedPersonalData {
 

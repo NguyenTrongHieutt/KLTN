@@ -10,7 +10,7 @@ import { useDeleteProduct, type Product } from './productApi'
 
 /**
  * CUS-4 "Xóa sản phẩm" (FR-7, UX-DR41): a destructive Confirmation dialog lists what is deleted
- * before anything happens; the Product's scans, Findings, and to-dos go with it, and the repository
+ * before anything happens; the Product's information and acknowledgments go with it, and the repository
  * on GitHub is not touched. A Product a running Job pins is refused.
  */
 export function DeleteProduct({ product }: { product: Product }) {
@@ -53,7 +53,7 @@ export function DeleteProduct({ product }: { product: Product }) {
                 {t('screen.product.detail.deleteTitle', { product: product.name })}
               </Dialog.Title>
               <Dialog.Close
-                aria-label={t('screen.product.finding.close')}
+                aria-label={t('screen.shared.close')}
                 className="rounded-md p-1 text-muted-foreground hover:bg-muted"
               >
                 <X aria-hidden="true" className="size-5" />
@@ -63,8 +63,6 @@ export function DeleteProduct({ product }: { product: Product }) {
               <p className="text-label font-semibold">{t('screen.product.detail.deleteWhat')}</p>
               <ul className="flex list-disc flex-col gap-1 pl-5 text-body-sm">
                 <li>{t('screen.product.detail.deleteInfo')}</li>
-                <li>{t('screen.product.detail.deleteScans')}</li>
-                <li>{t('screen.product.detail.deleteTodos')}</li>
               </ul>
               <p className="text-body-sm text-muted-foreground">{t('screen.product.detail.deleteGithub')}</p>
             </div>

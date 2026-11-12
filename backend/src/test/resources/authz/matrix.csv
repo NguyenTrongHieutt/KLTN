@@ -318,62 +318,6 @@ DELETE /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
 DELETE /api/v1/products/{productId},CREW_ACTIVE,,,404 NOT_FOUND
 DELETE /api/v1/products/{productId},CROSS_ROLE,,,404 NOT_FOUND
 DELETE /api/v1/products/{productId},ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings,ANONYMOUS,,,401
-GET /api/v1/products/{productId}/findings,USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings,USER,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings,CUSTOMER,,,200
-GET /api/v1/products/{productId}/findings,MENTOR,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings,CREW_ACTIVE,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings,CROSS_ROLE,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings,ADMINISTRATOR,,,200
-GET /api/v1/products/{productId}/findings/{findingId},ANONYMOUS,,,401
-GET /api/v1/products/{productId}/findings/{findingId},USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings/{findingId},USER,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings/{findingId},CUSTOMER,,,200
-GET /api/v1/products/{productId}/findings/{findingId},MENTOR,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings/{findingId},CREW_ACTIVE,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings/{findingId},CROSS_ROLE,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/findings/{findingId},ADMINISTRATOR,,,200
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,ANONYMOUS,,,401
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,USER_UNVERIFIED,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,USER,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,CUSTOMER,,,200
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,MENTOR,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,CREW_ACTIVE,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,CROSS_ROLE,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/rotation,ADMINISTRATOR,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/clean-repository,ANONYMOUS,,product-clean-repository.json,401
-POST /api/v1/products/{productId}/clean-repository,USER_UNVERIFIED,,product-clean-repository.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/clean-repository,USER,,product-clean-repository.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/clean-repository,CUSTOMER,,product-clean-repository.json,422 GUARD_FAILED NO_PERSONAL_DATA_FINDING
-POST /api/v1/products/{productId}/clean-repository,MENTOR,,product-clean-repository.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/clean-repository,CREW_ACTIVE,,product-clean-repository.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/clean-repository,CROSS_ROLE,,product-clean-repository.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/clean-repository,ADMINISTRATOR,,product-clean-repository.json,404 NOT_FOUND
-GET /api/v1/products/{productId}/scans,ANONYMOUS,,,401
-GET /api/v1/products/{productId}/scans,USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/scans,USER,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/scans,CUSTOMER,,,200
-GET /api/v1/products/{productId}/scans,MENTOR,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/scans,CREW_ACTIVE,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/scans,CROSS_ROLE,,,404 NOT_FOUND
-GET /api/v1/products/{productId}/scans,ADMINISTRATOR,,,200
-POST /api/v1/products/{productId}/scans,ANONYMOUS,,,401
-POST /api/v1/products/{productId}/scans,USER_UNVERIFIED,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/scans,USER,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/scans,CUSTOMER,,,202
-POST /api/v1/products/{productId}/scans,MENTOR,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/scans,CREW_ACTIVE,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/scans,CROSS_ROLE,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/scans,ADMINISTRATOR,,,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,ANONYMOUS,,product-false-positive.json,401
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,USER_UNVERIFIED,,product-false-positive.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,USER,,product-false-positive.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,CUSTOMER,,product-false-positive.json,200
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,MENTOR,,product-false-positive.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,CREW_ACTIVE,,product-false-positive.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,CROSS_ROLE,,product-false-positive.json,404 NOT_FOUND
-POST /api/v1/products/{productId}/findings/{findingId}/false-positive,ADMINISTRATOR,,product-false-positive.json,404 NOT_FOUND
 # Student verification (identity, FR-5, AD-42, Story 19.4): every person's account has its own, whatever
 # role it holds; an Administrator has none. Another account's live verification is keyed by the
 # SCHOOL_EMAIL canary as its subject HMAC, which no answer may hold. The confirm rows' callers have no
@@ -1890,14 +1834,6 @@ POST /api/v1/admin/failures/operations/{operationId}/retry,USER,,admin-step-up.j
 POST /api/v1/admin/failures/operations/{operationId}/retry,CUSTOMER,,admin-step-up.json,404 NOT_FOUND
 POST /api/v1/admin/failures/operations/{operationId}/retry,CROSS_ROLE,,admin-step-up.json,404 NOT_FOUND
 POST /api/v1/admin/failures/operations/{operationId}/retry,ADMINISTRATOR,,admin-step-up.json,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,ANONYMOUS,,,401
-POST /api/v1/admin/failures/findings/{findingId}/reopen,USER_UNVERIFIED,,,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,USER,,,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,CUSTOMER,,,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,MENTOR,,,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,CREW_ACTIVE,,,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,CROSS_ROLE,,,404 NOT_FOUND
-POST /api/v1/admin/failures/findings/{findingId}/reopen,ADMINISTRATOR,,,409 CONFLICT NOT_A_FALSE_POSITIVE
 GET /api/v1/admin/statistics,ANONYMOUS,,,401
 GET /api/v1/admin/statistics,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/admin/statistics,USER,,,404 NOT_FOUND
@@ -2690,34 +2626,6 @@ GET /api/v1/jobs/{jobId}/busy,CREW_ACTIVE,job=crew,,200
 GET /api/v1/jobs/{jobId}/busy,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/busy,CROSS_ROLE,job=crew,,200
 GET /api/v1/jobs/{jobId}/busy,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-
-# Story 7.4 (FR-8, UX-DR31): the Job's Findings; nobody reads a Draft's, and the crew Job's Customer, Mentor and
-# ACTIVE members read its (job=crew).
-GET /api/v1/jobs/{jobId}/findings,ANONYMOUS,,,401
-GET /api/v1/jobs/{jobId}/findings,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/findings,USER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/findings,LOCKED,job=crew,,401
-GET /api/v1/jobs/{jobId}/findings,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/findings,CUSTOMER,job=crew,,200
-GET /api/v1/jobs/{jobId}/findings,MENTOR,job=crew,,200
-GET /api/v1/jobs/{jobId}/findings,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/findings,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/findings,CREW_ACTIVE,job=crew,,200
-GET /api/v1/jobs/{jobId}/findings,CREW_FORMER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/findings,CROSS_ROLE,job=crew,,200
-GET /api/v1/jobs/{jobId}/findings,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,ANONYMOUS,,,401
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,USER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,LOCKED,job=crew,,401
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CUSTOMER,job=crew,,200
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,MENTOR,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,BIDDER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CREW_ACTIVE,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CREW_FORMER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,CROSS_ROLE,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/findings/{findingId}/rotation,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 
 # Story 7.6 (FR-20): the Drift Warning; nobody reads a Draft's, and the crew Job's Customer, Mentor and ACTIVE
 # members read its (job=crew). The Final Merge waits for a closure proposal or Closing, which the crew Job's held

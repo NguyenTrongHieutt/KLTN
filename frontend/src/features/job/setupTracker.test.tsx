@@ -46,12 +46,14 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
     const user = userEvent.setup()
     const seen = fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>
-        json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: 'INTAKE_FINDING_OPEN', openFindings: 2, canRetry: true })),
+        json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: 'NO_ADMIN_PERMISSION', canRetry: true })),
       'POST /api/v1/jobs/j1/setup/retry': () => json(setup('RUNNING', ['CURRENT', 'PENDING', 'PENDING'])),
     })
     renderTracker()
 
-    expect(await screen.findByText('Còn 2 vấn đề bảo mật chưa xử lý ở dự án gốc. Hãy xử lý rồi bấm Thử lại.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.'),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Thử lại' }))
 
     expect(await screen.findByText('Bạn không cần làm gì.')).toBeInTheDocument()

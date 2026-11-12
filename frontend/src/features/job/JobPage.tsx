@@ -8,7 +8,6 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { useProduct } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { personPath } from '@/features/identity/personText'
 import { t, type MessageKey } from '@/i18n/t'
@@ -285,9 +284,6 @@ function JobPost({ job }: { job: Job }) {
 }
 
 function Aside({ job, lapsesAt }: { job: Job; lapsesAt: string }) {
-  const product = useProduct(job.productId)
-  const findings = product.data?.openFindings ?? 0
-  const assessment = job.jobTypes.includes('ASSESSMENT')
   return (
     <aside className="flex flex-col gap-4">
       <section aria-labelledby="job-upcoming" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
@@ -308,13 +304,6 @@ function Aside({ job, lapsesAt }: { job: Job; lapsesAt: string }) {
         <Link to={`/san-pham/${job.productId}`} className="break-words text-primary underline-offset-4 hover:underline">
           {job.productName}
         </Link>
-        {findings > 0 && (
-          <p className="text-muted-foreground">
-            {t(assessment ? 'screen.job.detail.productFindingsAssessment' : 'screen.job.detail.productFindings', {
-              n: findings,
-            })}
-          </p>
-        )}
       </section>
     </aside>
   )
@@ -350,7 +339,7 @@ function Withdraw({ job }: { job: Job }) {
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.job.detail.withdrawTitle')}</Dialog.Title>
               <Dialog.Close
-                aria-label={t('screen.product.finding.close')}
+                aria-label={t('screen.shared.close')}
                 className="rounded-md p-1 text-muted-foreground hover:bg-muted"
               >
                 <X aria-hidden="true" className="size-5" />
@@ -398,7 +387,7 @@ function CancelSelection({ job }: { job: Job }) {
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.matching.selecting.cancelTitle')}</Dialog.Title>
               <Dialog.Close
-                aria-label={t('screen.product.finding.close')}
+                aria-label={t('screen.shared.close')}
                 className="rounded-md p-1 text-muted-foreground hover:bg-muted"
               >
                 <X aria-hidden="true" className="size-5" />

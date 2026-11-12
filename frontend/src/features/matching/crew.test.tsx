@@ -115,7 +115,6 @@ const post = (overrides: object = {}) => ({
   productName: 'Sổ đặt bàn Quán Mây',
   productDescription: 'Đặt bàn cho quán.',
   productTools: ['LOVABLE'],
-  productOpenFindings: 0,
   problem: 'Đơn đặt bàn bị trùng.',
   jobTypes: ['BUG_FIX'],
   skills: [],

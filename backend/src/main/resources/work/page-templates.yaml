@@ -1,12 +1,12 @@
 # FR-30: the Page templates of the Documentation Space, each with its default title and a Markdown
 # skeleton in plain Vietnamese (UX-DR8). A Page created from one keeps the template as its badge, and a
-# blank body takes the skeleton. The Assessment Report carries FR-10's six sections, "Những gì còn
-# thiếu" as the nine-item checklist marked Đã kiểm tra, Phát hiện, or Không áp dụng; {openFindings} is
-# replaced at creation with the Product's open Findings from scanning (type, file, masked value only,
-# FR-8); its recommendations are numbered so follow-up Jobs can cite them (FR-11). It is offered only
+# blank body takes the skeleton. The Assessment Report carries FR-10's sections, "Những gì còn thiếu"
+# as the nine-item checklist marked Đã kiểm tra, Phát hiện, or Không áp dụng, with nothing pre-filled
+# (vibefix scans no code, Story 23.1); its recommendations are numbered so follow-up Jobs can cite them
+# (FR-11). It is offered only
 # on an Assessment Job, once, and is always customer-visible (FR-31). The N-12 notice is shown by the
 # SPA, never written into the report.
-version: 2
+version: 3
 templates:
   ASSESSMENT_REPORT:
     title: Báo cáo đánh giá
@@ -34,12 +34,6 @@ templates:
       - Tốc độ khi nhiều người dùng:
       - Sao lưu và khôi phục:
       - Triển khai và vận hành:
-
-      ## Vấn đề còn mở từ kiểm tra
-
-      Các vấn đề còn mở từ lần kiểm tra khóa bí mật và dữ liệu cá nhân của sản phẩm, mỗi vấn đề với cách xử lý đề nghị.
-
-      {openFindings}
 
       ## Đề xuất
 

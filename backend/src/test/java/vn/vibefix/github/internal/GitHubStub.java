@@ -845,6 +845,15 @@ public final class GitHubStub implements AutoCloseable {
 						commits.size(), "commits", commits, "files", files.subList(0, Math.min(files.size(), COMPARE_FILES)))));
 			}
 		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/git/ref/heads/(.+)").matcher(path)).matches()) {
+			// A branch's ref, as J7 reads the Source Repository's default branch before the copy.
+			String head = Files.isDirectory(this.gitRoot.resolve(matcher.group(1)).resolve(matcher.group(2) + ".git"))
+					? head(matcher.group(1), matcher.group(2), matcher.group(3)) : null;
+			send(exchange, head == null ? 404 : 200, head == null ? "{\"message\":\"Not Found\"}"
+					: "{\"ref\":\"refs/heads/" + matcher.group(3) + "\",\"object\":{\"type\":\"commit\",\"sha\":\"" + head
+							+ "\"}}");
+		}
 		else if (method.equals("POST") && path.equals("/graphql")) {
 			graphql(exchange, body);
 		}

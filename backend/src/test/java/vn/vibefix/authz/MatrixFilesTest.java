@@ -243,7 +243,7 @@ class MatrixFilesTest {
 			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER);
 
 	/** The Product's placeholders: the crew Job works on that Product, so its Mentor and Crew run them (B5, E6). */
-	static final Set<String> PRODUCT_PLACEHOLDERS = Set.of("productId", "findingId");
+	static final Set<String> PRODUCT_PLACEHOLDERS = Set.of("productId");
 
 	static final Set<MatrixCaller> ON_THE_PRODUCT = EnumSet.of(MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE);
 
@@ -710,12 +710,12 @@ class MatrixFilesTest {
 				GET /api/v1/balance,CREW_ACTIVE,,,200
 				GET /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
 				GET /api/v1/products/{productId},CREW_ACTIVE,,,404 NOT_FOUND
-				POST /api/v1/admin/failures/findings/{findingId}/reopen,MENTOR,,,404 NOT_FOUND
+				DELETE /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
 				""");
 		assertThat(callerViolations(rows, JOB_LISTS::contains, IN_THE_CREW_JOB))
 			.containsExactly("GET /api/v1/balance has no row for [CREW_ASSIGNED, CREW_FORMER]");
 		assertThat(callerViolations(rows, MatrixFilesTest::onTheProduct, ON_THE_PRODUCT))
-			.containsExactly("POST /api/v1/admin/failures/findings/{findingId}/reopen has no row for [CREW_ACTIVE]");
+			.containsExactly("DELETE /api/v1/products/{productId} has no row for [CREW_ACTIVE]");
 	}
 
 	@Test

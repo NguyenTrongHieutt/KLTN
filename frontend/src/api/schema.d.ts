@@ -500,22 +500,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/failures/findings/{findingId}/reopen": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["reopen"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/failures/operations/{operationId}/retry": {
         parameters: {
             query?: never;
@@ -2340,38 +2324,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/jobs/{jobId}/findings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["findings_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/jobs/{jobId}/findings/{findingId}/rotation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["rotated"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/jobs/{jobId}/funding": {
         parameters: {
             query?: never;
@@ -3407,102 +3359,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/products/{productId}/clean-repository": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["requestCleanRepository"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/products/{productId}/findings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["findings"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/products/{productId}/findings/{findingId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["finding"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/products/{productId}/findings/{findingId}/false-positive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["markFalsePositive"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/products/{productId}/findings/{findingId}/rotation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["confirmRotation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/products/{productId}/scans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["scans"];
-        put?: never;
-        post: operations["rescan"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4986,22 +4842,6 @@ export interface components {
             done: boolean;
             text: string;
         };
-        CleanRepositoryRequest: {
-            url: string;
-        };
-        CleanRepositoryView: {
-            /** Format: date-time */
-            decidedAt?: string;
-            /** Format: uuid */
-            id: string;
-            reason?: string;
-            repositoryFullName: string;
-            /** Format: date-time */
-            requestedAt: string;
-            scan?: components["schemas"]["ScanView"];
-            /** @enum {string} */
-            status: "PENDING" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
-        };
         ClosureCommandRequest: {
             /** Format: int64 */
             version: number;
@@ -5679,25 +5519,8 @@ export interface components {
         };
         FailuresView: {
             executions: components["schemas"]["FailedExecutionView"][];
-            falsePositives: components["schemas"]["FalsePositiveView"][];
             operations: components["schemas"]["FailedOperationView"][];
             stalledEvents: components["schemas"]["StalledEventView"][];
-        };
-        FalsePositiveRequest: {
-            reason: string;
-        };
-        FalsePositiveView: {
-            filePath: string;
-            /** Format: uuid */
-            findingId: string;
-            /** Format: date-time */
-            markedAt: string;
-            markedByName?: string;
-            /** Format: uuid */
-            productId: string;
-            productName: string;
-            reason: string;
-            ruleType: string;
         };
         FeedbackView: {
             average: number;
@@ -5722,37 +5545,6 @@ export interface components {
             requestWaiting: boolean;
             status: string;
             zip?: components["schemas"]["ZipView"];
-        };
-        FindingDetailView: {
-            canResolve: boolean;
-            cleanRepository?: components["schemas"]["CleanRepositoryView"];
-            finding: components["schemas"]["FindingView"];
-            productName: string;
-            tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
-        };
-        FindingView: {
-            /** @enum {string} */
-            category: "CREDENTIAL" | "PERSONAL_DATA";
-            commit: string;
-            /** Format: date-time */
-            committedAt: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            maskedPreview: string;
-            /** Format: int32 */
-            matchCount?: number;
-            path: string;
-            /** @enum {string} */
-            resolution?: "ROTATED" | "CLEAN_REPOSITORY" | "FALSE_POSITIVE";
-            resolutionReason?: string;
-            /** Format: date-time */
-            resolvedAt?: string;
-            ruleId: string;
-            /** @enum {string} */
-            status: "OPEN" | "RESOLVED" | "FALSE_POSITIVE";
-            type: string;
         };
         FitMetricsView: {
             /** Format: int32 */
@@ -6178,18 +5970,6 @@ export interface components {
             skillIds: string[];
             title: string;
         };
-        JobFindingView: {
-            canRotate: boolean;
-            category: string;
-            commit: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            id: string;
-            maskedPreview: string;
-            path: string;
-            type: string;
-        };
         JobFundingView: {
             configured: boolean;
             /** Format: uuid */
@@ -6260,8 +6040,6 @@ export interface components {
             /** Format: uuid */
             productId: string;
             productName: string;
-            /** Format: int32 */
-            productOpenFindings: number;
             productTools: string[];
             recruitment?: components["schemas"]["PostRecruitmentView"];
             screenshots: components["schemas"]["ScreenshotView"][];
@@ -6775,7 +6553,6 @@ export interface components {
             disputes: components["schemas"]["Queue"];
             failedExecutions: components["schemas"]["Queue"];
             failedOperations: components["schemas"]["Queue"];
-            falsePositives: components["schemas"]["Queue"];
             lowFeedback: components["schemas"]["Queue"];
             skillSuggestions: components["schemas"]["Queue"];
             splitResolutions: components["schemas"]["Queue"];
@@ -7089,14 +6866,9 @@ export interface components {
             /** Format: int32 */
             jobs: number;
             name: string;
-            /** Format: int32 */
-            openFindings: number;
             repositoryFullName: string;
             repositoryOwnerType: string;
             repositoryUrl: string;
-            scan?: components["schemas"]["ScanView"];
-            /** @enum {string} */
-            scanState: "AWAITING_SCAN" | "SCANNING" | "NOT_FINISHED" | "FINDINGS" | "CLEAN";
             tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
         };
         ProfileRequest: {
@@ -7465,23 +7237,6 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
         };
-        ScanView: {
-            /** Format: date-time */
-            finishedAt?: string;
-            /** Format: int32 */
-            found?: number;
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            purpose: "INTAKE" | "CLEAN_REPOSITORY" | "RESCAN" | "J7" | "PUSH";
-            /** Format: date-time */
-            requestedAt: string;
-            /** @enum {string} */
-            status: "PENDING" | "RUNNING" | "RETRYING" | "SUCCEEDED" | "FAILED";
-            unscanned: components["schemas"]["UnscannedFile"][];
-            /** Format: int32 */
-            unscannedCount: number;
-        };
         SchoolEmailRequest: {
             /** Format: email */
             email: string;
@@ -7568,8 +7323,6 @@ export interface components {
             /** Format: uuid */
             jobId: string;
             jobState: string;
-            /** Format: int32 */
-            openFindings?: number;
             people: components["schemas"]["SetupPersonView"][];
             status: string;
             steps: components["schemas"]["SetupStepView"][];
@@ -8147,12 +7900,6 @@ export interface components {
         UnreadCount: {
             /** Format: int64 */
             count: number;
-        };
-        UnscannedFile: {
-            path: string;
-            reason: string;
-            /** Format: int64 */
-            sizeBytes: number;
         };
         UserDetailView: {
             /** Format: date-time */
@@ -9135,28 +8882,6 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FailuresView"];
-                };
-            };
-        };
-    };
-    reopen: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                findingId: string;
-            };
             cookie?: never;
         };
         requestBody?: never;
@@ -12240,51 +11965,6 @@ export interface operations {
             };
         };
     };
-    findings_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobFindingView"][];
-                };
-            };
-        };
-    };
-    rotated: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-                findingId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobFindingView"][];
-                };
-            };
-        };
-    };
     jobFunding: {
         parameters: {
             query?: never;
@@ -13989,171 +13669,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    requestCleanRepository: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CleanRepositoryRequest"];
-            };
-        };
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CleanRepositoryView"];
-                };
-            };
-        };
-    };
-    findings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FindingView"][];
-                };
-            };
-        };
-    };
-    finding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-                findingId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FindingDetailView"];
-                };
-            };
-        };
-    };
-    markFalsePositive: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-                findingId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FalsePositiveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FindingView"];
-                };
-            };
-        };
-    };
-    confirmRotation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-                findingId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FindingView"];
-                };
-            };
-        };
-    };
-    scans: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScanView"][];
-                };
-            };
-        };
-    };
-    rescan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                productId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScanView"];
-                };
             };
         };
     };

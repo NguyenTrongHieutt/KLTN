@@ -12,6 +12,15 @@ describe('the N-10 notice version (NFR-9)', () => {
   })
 })
 
+describe('the N-1, N-1b, and N-2 notice version (FR-7, NFR-9)', () => {
+  it('is the same where CUS-3 shows it and where the backend requires it at registration', () => {
+    const yaml = readFileSync(path.resolve(import.meta.dirname, '../../../../backend/src/main/resources/application.yaml'), 'utf8')
+    const required = /\n {2}product:\n(?: {4}#.*\n)* {4}notice-version:\s*"([^"]+)"/.exec(yaml)?.[1]
+
+    expect(required).toBe(vi.notice.product.version)
+  })
+})
+
 describe('the N-24 notice version (FR-80, NFR-9)', () => {
   it('is the same where the GitHub link shows it and where the backend requires it at the start', () => {
     const notices = readFileSync(

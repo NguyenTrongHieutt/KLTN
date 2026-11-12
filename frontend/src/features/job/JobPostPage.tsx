@@ -288,11 +288,6 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
               })}
             </p>
             <p className="break-words whitespace-pre-line text-muted-foreground">{post.productDescription}</p>
-            <p className="text-muted-foreground">
-              {post.productOpenFindings > 0
-                ? t('screen.jobPost.detail.scanFindings', { n: post.productOpenFindings })
-                : t('screen.jobPost.detail.scanClean')}
-            </p>
           </section>
         </aside>
       </div>

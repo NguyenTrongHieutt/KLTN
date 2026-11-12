@@ -445,8 +445,6 @@
         "onlyOneAction": "Tạo quản trị viên",
         "lowFeedback": "Đánh giá kín thấp",
         "lowFeedbackNote": "Người hướng dẫn trung bình dưới 3 sao trên ít nhất 3 đánh giá",
-        "falsePositives": "Cảnh báo nhầm",
-        "falsePositivesNote": "Vấn đề bảo mật bị đánh dấu là cảnh báo nhầm",
         "failedExecutions": "{n} lần thực hiện phân xử bị lỗi",
         "teamIssues": "Khiếu nại nội bộ chờ quản trị viên",
         "splitResolutions": "Yêu cầu xem xét phân chia đang mở",
@@ -911,10 +909,6 @@
         "openDispute": "Mở tranh chấp",
         "stalled": "Sự kiện bị kẹt",
         "stalledLine": "{listener} · {attempts} lần thử",
-        "falsePositives": "Cảnh báo nhầm",
-        "reasonLine": "Lý do: {reason}",
-        "reopen": "Mở lại",
-        "reopened": "Đã mở lại vấn đề.",
         "empty": "Không có mục nào."
       },
       "statistics": {
@@ -1286,13 +1280,8 @@
       "lead": "Ứng dụng bạn đã làm bằng công cụ AI và đăng ký trên vibefix.",
       "register": "Đăng ký sản phẩm",
       "empty": "Chưa có sản phẩm nào.",
-      "emptyHint": "Đăng ký ứng dụng bạn đã làm bằng công cụ AI để vibefix kiểm tra và tìm người hướng dẫn.",
+      "emptyHint": "Đăng ký ứng dụng bạn đã làm bằng công cụ AI để tìm người hướng dẫn.",
       "listLabel": "Sản phẩm của bạn",
-      "stateAWAITING_SCAN": "Chờ kiểm tra",
-      "stateSCANNING": "Đang kiểm tra",
-      "stateNOT_FINISHED": "Chưa kiểm tra xong",
-      "stateFINDINGS": "Còn {n} vấn đề cần xử lý",
-      "stateCLEAN": "Không phát hiện vấn đề",
       "source": "Dự án gốc: {name}",
       "registeredOn": "Đăng ký {date}",
       "noJobs": "Chưa có công việc",
@@ -1313,7 +1302,7 @@
         "helpHeading": "Đưa mã từ {tool} lên GitHub",
         "helpLead": "vibefix làm việc với kho mã GitHub công khai mà công cụ của bạn đồng bộ tới.",
         "helpLink": "Mở hướng dẫn của {tool}",
-        "step1Next": "Bước 2: gắn kho mã GitHub · Bước 3: tên, mô tả và bản chạy thử · Bước 4: xác nhận các lưu ý, rồi vibefix bắt đầu kiểm tra.",
+        "step1Next": "Bước 2: gắn kho mã GitHub · Bước 3: tên, mô tả và bản chạy thử · Bước 4: xác nhận các lưu ý, rồi đăng ký sản phẩm.",
         "step2Heading": "Gắn dự án gốc trên GitHub",
         "step2Lead": "Dán đường dẫn kho mã mà công cụ của bạn đang đồng bộ. vibefix kiểm tra ngay khi bạn dán.",
         "urlLabel": "Đường dẫn kho mã trên GitHub",
@@ -1334,7 +1323,7 @@
         "makePublic": "Trên GitHub, mở Settings của kho mã, kéo xuống \"Danger Zone\" và chọn \"Change visibility\" thành Public, rồi dán lại đường dẫn.",
         "makePublicLink": "Xem cách làm",
         "continueWhenPassed": "Tiếp tục khi mọi mục kiểm tra đều đạt.",
-        "step2Next": "Bước 3: tên, mô tả và đường dẫn bản chạy thử · Bước 4: xác nhận các lưu ý, rồi vibefix bắt đầu kiểm tra khóa bí mật.",
+        "step2Next": "Bước 3: tên, mô tả và đường dẫn bản chạy thử · Bước 4: xác nhận các lưu ý, rồi đăng ký sản phẩm.",
         "step3Heading": "Giới thiệu sản phẩm",
         "step3Lead": "Những thông tin này hiện trong tin công việc bạn đăng sau này.",
         "name": "Tên sản phẩm",
@@ -1345,10 +1334,10 @@
         "demoWarning": "Trang này nằm ngoài vibefix ({domain}). Đừng nhập mật khẩu GitHub hoặc vibefix ở đó.",
         "step4Heading": "Xác nhận các lưu ý",
         "step4Lead": "Đọc và đánh dấu từng mục. vibefix lưu phiên bản của lưu ý cùng sản phẩm.",
-        "afterHeading": "Sau khi bấm \"Bắt đầu kiểm tra\"",
-        "afterBody": "vibefix sẽ đọc toàn bộ lịch sử mã để tìm khóa bí mật và dữ liệu cá nhân của khách hàng bạn.",
-        "tickAll": "Đánh dấu đủ 3 mục để bắt đầu.",
-        "submit": "Bắt đầu kiểm tra",
+        "afterHeading": "Sau khi bấm \"Đăng ký sản phẩm\"",
+        "afterBody": "Sản phẩm được đăng ký ngay, và bạn đăng được công việc cho nó. vibefix không quét mã của bạn.",
+        "tickAll": "Đánh dấu đủ 3 mục để đăng ký.",
+        "submit": "Đăng ký sản phẩm",
         "submitting": "Đang đăng ký…",
         "registered": "Đã đăng ký {name}."
       },
@@ -1374,234 +1363,25 @@
         "CODEX": "Codex làm việc trên kho mã GitHub của bạn. Hãy kiểm tra kho mã đó đang ở chế độ Public.",
         "OTHER": "vibefix cần mã nguồn trên một kho mã GitHub công khai. Đưa mã của bạn lên GitHub ở chế độ Public rồi quay lại."
       },
-      "finding": {
-        "title": "Vấn đề phát hiện",
-        "back": "Quay lại {product}",
-        "heading": "Vấn đề phát hiện",
-        "open": "Chưa xử lý",
-        "resolved": "Đã xử lý",
-        "leadCredential": "vibefix tìm thấy một khóa bí mật trong lịch sử mã của bạn.",
-        "leadPersonal": "vibefix tìm thấy dữ liệu cá nhân của khách hàng bạn trong lịch sử mã.",
-        "whyTitle": "Vì sao cần xử lý",
-        "whyCredential": "Dự án gốc là công khai, nên ai cũng có thể lấy khóa này để đọc hoặc sửa dữ liệu khách hàng của bạn. Xóa tệp không đủ, vì khóa vẫn nằm trong lịch sử.",
-        "whyPersonal": "Dự án gốc là công khai, nên ai cũng đọc được tên, email và số điện thoại này. Xóa tệp không đủ, vì dữ liệu vẫn nằm trong lịch sử mã.",
-        "howCredential": "Cách xử lý: đổi khóa",
-        "howPersonal": "Cách xử lý: đăng ký kho mã sạch",
-        "stepOpenPage": "Mở trang quản lý khóa của {provider}:",
-        "stepOpenLink": "Mở trang khóa API của {provider}",
-        "stepPaste": "Trong {tool}, dán khóa mới vào phần cài đặt bí mật, không dán vào mã.",
-        "stepReturn": "Quay lại đây và bấm \"Tôi đã đổi khóa\".",
-        "anyTool": "công cụ của bạn",
-        "personalSteps": {
-          "remove": "Xóa tệp {path} trong {tool}, hoặc thay bằng dữ liệu giả.",
-          "newRepository": "Tạo một kho mã mới trên GitHub và cho {tool} đồng bộ tới đó. Kho mã mới không mang lịch sử cũ.",
-          "register": "Đăng ký kho mã sạch thay cho dự án gốc. vibefix kiểm tra lại từ đầu.",
-          "oldRepository": "Xóa hoặc chuyển kho mã cũ về riêng tư."
-        },
-        "clean": {
-          "open": "Đăng ký kho mã sạch",
-          "heading": "Đăng ký kho mã sạch",
-          "lead": "Kho mã sạch là một kho mã GitHub mới, công khai, chứa mã hiện tại của bạn nhưng không có dữ liệu cá nhân và không mang lịch sử cũ. vibefix kiểm tra kho mã này như lúc đăng ký, rồi đọc toàn bộ lịch sử của nó.",
-          "urlLabel": "Đường dẫn kho mã sạch trên GitHub",
-          "urlHelper": "Ví dụ: https://github.com/ten-cua-ban/ten-du-an-moi",
-          "submit": "Kiểm tra và đăng ký",
-          "submitting": "Đang kiểm tra…",
-          "cancel": "Để sau",
-          "scanning": "Đang kiểm tra kho mã sạch {name}… thường mất vài phút. Bạn có thể rời trang; vibefix sẽ báo khi xong.",
-          "notFinished": "Chưa kiểm tra xong kho mã sạch {name}. vibefix sẽ thử lại; bạn chưa cần làm gì.",
-          "rejectedTitle": "Kho mã {name} vẫn còn dữ liệu cá nhân, nên dự án gốc chưa đổi.",
-          "rejectedBody": "Hãy xóa dữ liệu khỏi mã, tạo một kho mã mới không mang lịch sử cũ, rồi đăng ký lại.",
-          "linkedTitle": "Kho mã {name} vừa được đăng ký cho sản phẩm khác, nên dự án gốc chưa đổi.",
-          "accepted": "Đã thay dự án gốc bằng kho mã sạch {name}."
-        },
-        "rotate": "Tôi đã đổi khóa",
-        "falseCredential": "Không phải khóa thật",
-        "falsePersonal": "Không phải dữ liệu thật",
-        "fpTitleCredential": "Đây không phải khóa thật?",
-        "fpTitlePersonal": "Đây không phải dữ liệu thật?",
-        "fpCautionCredential": "Chỉ chọn khi bạn chắc đây là khóa mẫu hoặc khóa đã bỏ từ lâu. Nếu không chắc, hãy đổi khóa.",
-        "fpCautionPersonal": "Chỉ chọn khi bạn chắc đây là dữ liệu mẫu hoặc dữ liệu giả, không phải của khách hàng thật. Nếu không chắc, hãy đăng ký kho mã sạch.",
-        "fpReason": "Lý do (bắt buộc)",
-        "fpReasonHelper": "Quản trị viên vibefix có thể xem lại lý do và mở lại vấn đề.",
-        "fpReasonRequired": "Hãy viết lý do.",
-        "fpWhatCredential": "Vấn đề được đánh dấu không phải khóa thật và ghi vào nhật ký hệ thống, kèm lý do của bạn.",
-        "fpWhatPersonal": "Vấn đề được đánh dấu không phải dữ liệu thật và ghi vào nhật ký hệ thống, kèm lý do của bạn.",
-        "fpJobs": "Bạn đặt được công việc sửa mã cho sản phẩm này.",
-        "fpReopen": "Nếu quản trị viên mở lại vấn đề, bạn nhận thông báo và cần xử lý trước khi công việc mới bắt đầu.",
-        "fpConfirmCredential": "Xác nhận không phải khóa thật",
-        "fpConfirmPersonal": "Xác nhận không phải dữ liệu thật",
-        "fpMarked": "Bạn đã đánh dấu lúc {time}: {reason}",
-        "fpToast": "Đã đánh dấu.",
-        "keptCredential": "vibefix không lưu giá trị khóa, chỉ hiện vài ký tự đầu và cuối để bạn nhận ra.",
-        "keptPersonal": "vibefix không lưu dữ liệu tìm thấy, chỉ hiện vài ký tự để bạn nhận ra.",
-        "rotatedAt": "Bạn đã xác nhận đổi khóa lúc {time}.",
-        "rotatedToast": "Đã đánh dấu đã xử lý.",
-        "confirmTitle": "Xác nhận bạn đã đổi khóa?",
-        "confirmWhat": "Điều sẽ xảy ra",
-        "confirmResolved": "Vấn đề được đánh dấu đã xử lý và ghi vào nhật ký hệ thống.",
-        "confirmHistory": "Khóa cũ vẫn nằm trong lịch sử mã, nhưng không còn dùng được.",
-        "confirmJobs": "Bạn có thể đặt công việc sửa mã cho sản phẩm này.",
-        "confirmBack": "Quay lại",
-        "close": "Đóng",
-        "guidance": {
-          "github": {
-            "provider": "GitHub",
-            "step": "Xóa mã cũ, rồi tạo mã mới nếu bạn vẫn cần dùng."
-          },
-          "supabase": {
-            "provider": "Supabase",
-            "step": "Bấm \"Tạo khóa mới\", rồi vô hiệu khóa cũ."
-          },
-          "supabaseJwt": {
-            "provider": "Supabase",
-            "step": "Tạo khóa ký mới. Người dùng của bạn sẽ phải đăng nhập lại."
-          },
-          "googleKey": {
-            "provider": "Google Cloud",
-            "step": "Tạo khóa API mới, rồi xóa khóa cũ."
-          },
-          "googleServiceAccount": {
-            "provider": "Google Cloud",
-            "step": "Mở tài khoản dịch vụ, tạo khóa mới, rồi xóa khóa cũ."
-          },
-          "aws": {
-            "provider": "AWS",
-            "step": "Tạo khóa truy cập mới, rồi vô hiệu và xóa khóa cũ."
-          },
-          "stripe": {
-            "provider": "Stripe",
-            "step": "Bấm \"Roll key\" cạnh khóa này để đổi khóa; khóa cũ hết tác dụng."
-          },
-          "vnpay": {
-            "provider": "VNPay",
-            "step": "Liên hệ VNPay để được cấp mã bí mật mới cho cửa hàng của bạn."
-          },
-          "momo": {
-            "provider": "MoMo",
-            "step": "Liên hệ MoMo để được cấp khóa bí mật mới cho cửa hàng của bạn."
-          },
-          "zalopay": {
-            "provider": "ZaloPay",
-            "step": "Liên hệ ZaloPay để được cấp khóa mới cho cửa hàng của bạn."
-          },
-          "openai": {
-            "provider": "OpenAI",
-            "step": "Tạo khóa mới, rồi xóa khóa cũ."
-          },
-          "anthropic": {
-            "provider": "Anthropic",
-            "step": "Tạo khóa mới, rồi xóa khóa cũ."
-          },
-          "sendgrid": {
-            "provider": "SendGrid",
-            "step": "Tạo khóa mới, rồi xóa khóa cũ."
-          },
-          "resend": {
-            "provider": "Resend",
-            "step": "Tạo khóa mới, rồi xóa khóa cũ."
-          },
-          "twilio": {
-            "provider": "Twilio",
-            "step": "Tạo khóa mới rồi xóa khóa cũ; với mã xác thực tài khoản, chọn đổi mã."
-          },
-          "vercel": {
-            "provider": "Vercel",
-            "step": "Xóa mã cũ, rồi tạo mã mới nếu bạn vẫn cần dùng."
-          },
-          "netlify": {
-            "provider": "Netlify",
-            "step": "Xóa mã cũ, rồi tạo mã mới nếu bạn vẫn cần dùng."
-          },
-          "database": {
-            "where": "Mở trang quản lý cơ sở dữ liệu nơi bạn thuê, ví dụ Supabase.",
-            "step": "Đặt mật khẩu mới cho cơ sở dữ liệu."
-          },
-          "privateKey": {
-            "where": "Tìm nơi đang dùng khóa riêng tư này: máy chủ, GitHub, hoặc dịch vụ triển khai.",
-            "step": "Tạo cặp khóa mới, thay khóa cũ ở những nơi đó, rồi xóa khóa cũ."
-          },
-          "jwtSecret": {
-            "where": "Tìm nơi máy chủ của bạn đọc chuỗi bí mật này.",
-            "step": "Tạo chuỗi bí mật mới. Người dùng của bạn sẽ phải đăng nhập lại."
-          },
-          "envSecret": {
-            "where": "Tìm dịch vụ đã cấp giá trị này.",
-            "step": "Đổi giá trị ở dịch vụ đó, rồi vô hiệu giá trị cũ."
-          }
-        }
-      },
       "detail": {
         "breadcrumb": "Sản phẩm",
         "openSource": "Mở dự án gốc",
-        "awaitingTitle": "Chờ kiểm tra",
-        "awaitingBody": "vibefix sẽ kiểm tra lịch sử mã của sản phẩm này để tìm khóa bí mật và dữ liệu cá nhân trước khi mở các loại công việc sửa mã.",
         "info": "Thông tin",
         "madeWith": "Làm bằng:",
         "demo": "Bản chạy:",
         "registered": "Đăng ký:",
         "forkOf": "Sao từ:",
         "noDemo": "Chưa có",
-        "scanBusy": "Đang kiểm tra lịch sử mã… thường mất vài phút. Bạn có thể rời trang; vibefix sẽ báo khi xong.",
-        "scanNotFinished": "Chưa kiểm tra xong. vibefix sẽ thử lại; bạn chưa cần làm gì.",
-        "scanNotFinishedBody": "Công việc sửa mã chưa bắt đầu được cho đến khi kiểm tra xong.",
-        "findingsHeading": "Vấn đề phát hiện",
-        "findingsPending": "Kết quả hiện ở đây khi kiểm tra xong.",
-        "findingsOpen": "Còn {n} vấn đề cần xử lý trước khi sửa mã.",
-        "findingsOpenBody": "Bạn vẫn đặt được công việc đánh giá; báo cáo sẽ liệt kê vấn đề này.",
-        "findingsList": "Vấn đề cần xử lý",
-        "findingFile": "Tệp",
-        "findingCommit": "lần lưu",
-        "findingMasked": "Giá trị đã che:",
-        "findingSamples": "Ví dụ đã che:",
-        "findingLines": "{n} dòng",
-        "findingOpen": "Chưa xử lý",
-        "findingHowTo": "Xem cách xử lý",
-        "findingDetails": "Xem chi tiết",
-        "findingResolved": "Đã xử lý {date}",
-        "findingFalseCredential": "Không phải khóa thật",
-        "findingFalsePersonal": "Không phải dữ liệu thật",
         "deleteHeading": "Xóa sản phẩm",
         "deleteBody": "Chỉ xóa được khi không còn công việc đang thực hiện. Dự án gốc trên GitHub không bị ảnh hưởng.",
         "delete": "Xóa sản phẩm",
         "deleteTitle": "Xóa {product}?",
         "deleteWhat": "Những gì sẽ bị xóa",
         "deleteInfo": "Thông tin sản phẩm và các lưu ý bạn đã xác nhận",
-        "deleteScans": "Kết quả kiểm tra và các vấn đề phát hiện",
-        "deleteTodos": "Việc cần làm về sản phẩm này",
         "deleteGithub": "Dự án gốc trên GitHub không bị ảnh hưởng.",
         "deleteBack": "Quay lại",
         "deleted": "Đã xóa {product}.",
-        "postJob": "Đăng công việc",
-        "postJobWait": "Đăng công việc khi kiểm tra xong.",
-        "rescan": "Kiểm tra lại",
-        "rescanBusy": "Đợi lần kiểm tra này xong rồi mới kiểm tra lại được.",
-        "rescanStarted": "vibefix đang kiểm tra lại sản phẩm này.",
-        "historyHeading": "Lịch sử kiểm tra",
-        "historyDate": "Ngày",
-        "historyChecks": "Kiểm tra",
-        "historyResult": "Kết quả",
-        "historyNote": "Ghi chú",
-        "historyBoth": "Khóa bí mật, dữ liệu cá nhân",
-        "resultClean": "Không có vấn đề",
-        "resultFound": "{n} vấn đề",
-        "resultRunning": "Đang kiểm tra",
-        "resultNotFinished": "Chưa xong · sẽ thử lại",
-        "purposeINTAKE": "Lần đầu đăng ký",
-        "purposeRESCAN": "Kiểm tra lại theo yêu cầu",
-        "purposeCLEAN_REPOSITORY": "Kho mã sạch",
-        "purposeJ7": "Kiểm tra lại trước khi bắt đầu công việc",
-        "clean": "Không phát hiện vấn đề nào ở lần kiểm tra gần nhất.",
-        "unscannedHeading": "Tệp chưa kiểm tra được",
-        "unscannedSize": "{size} · lớn hơn giới hạn kiểm tra",
-        "unscannedNotExtracted": "{size} · chưa đọc được loại tệp này",
-        "unscannedMore": "Và {n} tệp khác chưa kiểm tra được.",
-        "unscannedHint": "Tệp lớn hơn giới hạn, bảng tính và tệp cơ sở dữ liệu được ghi là \"chưa kiểm tra được\". Nếu tệp có thể chứa dữ liệu khách hàng, hãy xóa nó khỏi dự án gốc.",
-        "checksLabel": "Kết quả từng loại kiểm tra",
-        "checkSecretsClean": "Không phát hiện khóa bí mật",
-        "checkPersonalClean": "Không phát hiện dữ liệu cá nhân",
-        "checkIssues": "{n} vấn đề",
-        "limits": "Kiểm tra tự động, không dùng AI, và không thể phát hiện mọi thứ.",
-        "unscannedUnreadable": "{size} · không đọc được tệp"
+        "postJob": "Đăng công việc"
       }
     },
     "job": {
@@ -1650,7 +1430,6 @@
         "ownInvitedHint": "Bật xác thực hai lớp trên GitHub trước (nếu chưa bật), rồi chấp nhận lời mời. Khi chưa bật, GitHub làm mờ nút chấp nhận.",
         "enableTwoFactor": "Bật xác thực hai lớp",
         "githubDomain": "(github.com)",
-        "blockedINTAKE_FINDING_OPEN": "Còn {n} vấn đề bảo mật chưa xử lý ở dự án gốc. Hãy xử lý rồi bấm Thử lại.",
         "blockedSOURCE_NOT_PUBLIC": "Dự án gốc không còn công khai. Hãy để kho mã ở chế độ công khai rồi bấm Thử lại.",
         "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.",
         "blockedRELINK_GITHUB": "vibefix cần bạn liên kết lại GitHub để kiểm tra dự án gốc. Hãy liên kết lại trong mục Xác minh rồi bấm Thử lại.",
@@ -1706,9 +1485,6 @@
         "jobTypes": "Loại công việc",
         "notSure": "Chưa rõ — đánh giá trước",
         "notSureHint": "vibefix đặt công việc đánh giá: nhóm đọc mã, dùng thử ứng dụng rồi viết báo cáo, sau đó bạn mới đặt việc sửa.",
-        "openFindings": "Còn {n} vấn đề cần xử lý · bạn vẫn đặt được công việc đánh giá",
-        "openFindingsBody": "Các loại công việc sửa mã mở khi bạn xử lý các vấn đề vibefix phát hiện.",
-        "openFindingsLink": "Xử lý vấn đề",
         "skillsLabel": "Kỹ năng cần có (không bắt buộc)",
         "skillsHint": "vibefix đoán từ mã nguồn và công cụ AI bạn dùng. Bỏ những kỹ năng không đúng, hoặc để trống nếu bạn không chắc.",
         "skillsCount": "{n}/10 kỹ năng. Mỗi kỹ năng có một câu giải thích ngắn.",
@@ -1738,7 +1514,6 @@
         "publishTitle": "Đăng tin công việc?",
         "publishBack": "Quay lại",
         "publishMissing": "Để đăng tin, hãy trả lời: {fields}.",
-        "publishFindings": "Chưa thể đăng tin: còn {n} vấn đề bảo mật chưa xử lý.",
         "missingProblem": "Điều gì đang chưa đúng",
         "missingExpected": "Bạn muốn nó hoạt động thế nào",
         "missingAppUsers": "Ai dùng ứng dụng này",
@@ -1775,8 +1550,6 @@
         "upcoming": "Hạn sắp tới",
         "lapses": "Tin hết hạn",
         "product": "Sản phẩm",
-        "productFindings": "Còn {n} vấn đề cần xử lý",
-        "productFindingsAssessment": "Còn {n} vấn đề cần xử lý · không ảnh hưởng công việc đánh giá",
         "tabs": "Công việc",
         "overview": "Tổng quan",
         "withdraw": "Rút tin",
@@ -1874,8 +1647,6 @@
         "customerJoined": "Tham gia từ {month}",
         "product": "Về sản phẩm",
         "builtWith": "{product}, làm bằng {tools}.",
-        "scanClean": "Kiểm tra khóa bí mật: không còn vấn đề nào mở.",
-        "scanFindings": "Kiểm tra khóa bí mật: còn {n} vấn đề khách hàng đang xử lý.",
         "crewHeading": "Xin vào nhóm",
         "crewMentor": "Người hướng dẫn: {name}",
         "slotsLeft": "Còn {n} chỗ",
@@ -2858,12 +2629,6 @@
       "cancelledRefunded": "Đã hủy · đã hoàn tiền"
     },
     "progress": {
-      "findings": {
-        "title": "{n} vấn đề bảo mật trong mã của công việc",
-        "lead": "Bàn giao tiếp theo chờ đến khi các vấn đề này được xử lý.",
-        "where": "{path} · commit {commit}",
-        "rotated": "Đã đổi khóa"
-      },
       "milestones": "Các giai đoạn",
       "milestone": "Giai đoạn {n} · {title}",
       "bar": "Tiến độ giai đoạn {n}",
@@ -3002,7 +2767,7 @@
         "pull": "Yêu cầu hợp nhất #{n} trong kho trung gian",
         "unattributed": "{n} lần lưu không gắn với tài khoản GitHub nào.",
         "truncated": "GitHub chỉ liệt kê một phần các lần lưu và tệp đã đổi.",
-        "formCommits": "Sẽ bàn giao {n} lần lưu thay đổi mới, đã quét bảo mật.",
+        "formCommits": "Sẽ bàn giao {n} lần lưu thay đổi mới.",
         "formSensitiveLead": "Khách hàng sẽ thấy các tệp dưới đây cùng lời giải thích."
       },
       "preview": {
@@ -3841,11 +3606,11 @@
       "cancel": "Để sau"
     },
     "product": {
-      "version": "1.0",
-      "versionLine": "Lưu ý khi đăng ký sản phẩm · phiên bản {version} · 19/10/2026",
+      "version": "1.1",
+      "versionLine": "Lưu ý khi đăng ký sản phẩm · phiên bản {version} · 12/11/2026",
       "public": "Tôi hiểu dự án gốc của tôi là công khai, và mọi kho mã vibefix tạo từ nó cũng công khai: ai cũng xem được mã.",
       "copy": "Tôi là chủ sở hữu mã nguồn này hoặc có quyền cho phép người khác dùng nó. Chỉ để thực hiện các công việc tôi đặt cho sản phẩm này, tôi cho phép vibefix: sao chép dự án gốc vào kho mã của vibefix trên GitHub, để người hướng dẫn tôi chọn và nhóm thực hiện của họ chỉnh sửa bản sao, lưu một bản nén mã cuối cùng, và đưa mã vào dự án gốc chỉ khi tôi cho phép. Quyền này không chuyển quyền sở hữu mã và kết thúc khi vibefix xóa các bản sao.",
-      "detection": "Tôi hiểu việc kiểm tra khóa bí mật và dữ liệu cá nhân không thể phát hiện mọi thứ."
+      "detection": "Tôi hiểu vibefix không quét mã. Trước khi công việc bắt đầu, tôi tự đổi hoặc thu hồi mọi khóa bí mật và gỡ dữ liệu cá nhân của khách hàng tôi khỏi toàn bộ lịch sử dự án gốc."
     },
     "proofConfidentiality": "Tệp và liên kết bạn đính kèm chỉ {who} của công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai."
   },
@@ -3883,22 +3648,6 @@
       "label": "dự án gốc",
       "labelTeam": "Source Repository (kho gốc)",
       "hint": "Nơi lưu mã nguồn ứng dụng của bạn trên GitHub. Lovable và các công cụ AI tự cập nhật vào đây."
-    },
-    "secretScan": {
-      "label": "Kiểm tra khóa bí mật",
-      "hint": "vibefix tự tìm trong toàn bộ lịch sử mã những mật khẩu và khóa truy cập bị lộ. Không dùng AI."
-    },
-    "personalDataCheck": {
-      "label": "Kiểm tra dữ liệu cá nhân",
-      "hint": "vibefix tự tìm số điện thoại, email, số CCCD của người dùng bị lưu trong mã. Không dùng AI."
-    },
-    "finding": {
-      "label": "Vấn đề phát hiện",
-      "hint": "Một khóa bí mật hoặc dữ liệu cá nhân mà lần kiểm tra tìm thấy."
-    },
-    "intakeFinding": {
-      "label": "Vấn đề cần xử lý trước khi sửa mã",
-      "hint": "Phải xử lý xong trước khi bắt đầu công việc sửa mã. Công việc đánh giá vẫn đặt được."
     },
     "codeJob": {
       "label": "Công việc sửa mã",
@@ -4271,10 +4020,6 @@
       "link_github": "Liên kết tài khoản GitHub",
       "relink_github": "Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
     },
-    "scanning": {
-      "resolve_intake_finding": "Xử lý vấn đề bảo mật ở {product}",
-      "resolve_work_finding": "Xử lý vấn đề bảo mật trong mã của {job}"
-    },
     "matching": {
       "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
       "sign_nda": "Ký cam kết bảo mật cho {job}",
@@ -4411,20 +4156,6 @@
       },
       "deletion_requested": {
         "title": "{name} yêu cầu xóa tài khoản"
-      }
-    },
-    "scanning": {
-      "intake_scan_clean": {
-        "title": "Kiểm tra {product} xong: không phát hiện vấn đề"
-      },
-      "finding_opened": {
-        "title": "Phát hiện {type} trong {product}"
-      },
-      "finding_reopened": {
-        "title": "Vấn đề bảo mật trong {product} được mở lại: {type}"
-      },
-      "push_scan_delayed": {
-        "title": "Kiểm tra bảo mật mã của {job} đang chậm hơn 10 phút"
       }
     },
     "job": {
@@ -4862,11 +4593,6 @@
       "CATEGORY_NAME_TAKEN": "Đã có nhóm kỹ năng mang tên này.",
       "CATEGORY_HAS_ACTIVE_SKILLS": "Nhóm này còn kỹ năng đang dùng; hãy ngừng dùng chúng trước."
     },
-    "scanning": {
-      "FINDING_CLOSED": "Vấn đề này đã được xử lý.",
-      "NOT_A_CREDENTIAL": "Vấn đề này là dữ liệu cá nhân, không phải khóa bí mật. Hãy làm theo hướng dẫn đăng ký kho mã sạch.",
-      "NOT_A_FALSE_POSITIVE": "Vấn đề này không ở trạng thái cảnh báo nhầm."
-    },
     "product": {
       "NOT_GITHUB": "Đường dẫn này không phải kho mã GitHub.",
       "REPO_NOT_FOUND": "Không tìm thấy kho mã này trên GitHub. Hãy kiểm tra đường dẫn; nếu kho mã đang riêng tư, hãy chuyển nó sang công khai.",
@@ -4875,22 +4601,17 @@
       "REPO_ALREADY_LINKED": "Kho mã này đã được đăng ký cho một sản phẩm khác.",
       "REPO_UNSUPPORTED_CONTENT": "Kho mã lưu tệp lớn ở nơi khác hoặc chứa kho mã con, vibefix chưa hỗ trợ.",
       "PRODUCT_HAS_ACTIVE_JOB": "Không thể xóa sản phẩm khi còn công việc đang thực hiện.",
-      "SCAN_IN_PROGRESS": "vibefix đang kiểm tra sản phẩm này. Hãy đợi lần kiểm tra xong.",
-      "SCAN_LIMIT": "Mỗi sản phẩm được kiểm tra lại tối đa 5 lần mỗi ngày. Bạn kiểm tra lại được sau {time}.",
-      "NO_PERSONAL_DATA_FINDING": "Sản phẩm này không còn vấn đề dữ liệu cá nhân nào cần thay kho mã.",
       "REPO_TOO_LARGE": "Kho mã lớn hơn giới hạn 250 MB.",
       "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
-      "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi bắt đầu.",
+      "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi đăng ký. Nếu bạn đã đánh dấu đủ, hãy tải lại trang: các lưu ý vừa được cập nhật.",
       "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai.",
       "RELINK_GITHUB": "vibefix chưa đọc được kho mã của bạn trên GitHub. Hãy liên kết lại GitHub để kiểm tra."
     },
     "job": {
       "ASSESSMENT_ALONE": "Công việc đánh giá không đi cùng loại công việc khác.",
-      "OPEN_FINDINGS": "Sản phẩm còn vấn đề cần xử lý, nên lúc này chỉ đặt được công việc đánh giá.",
       "JOB_NOT_DRAFT": "Công việc này đã được đăng, không sửa ở đây được nữa.",
       "JOB_FILE_QUOTA": "Ảnh chụp màn hình của một công việc tối đa 200 MB.",
       "JOB_INCOMPLETE": "còn câu hỏi chưa trả lời, hoặc chưa chọn loại công việc, ngân sách hay ngày mong muốn xong sau hôm nay",
-      "INTAKE_FINDING_OPEN": "còn vấn đề bảo mật chưa xử lý",
       "STATE_CHANGED": "công việc vừa đổi trạng thái",
       "JOB_FROZEN": "công việc đang tạm dừng vì có tranh chấp",
       "MENTOR_NOT_AVAILABLE": "người hướng dẫn này hiện không nhận việc",
@@ -5036,8 +4757,6 @@
       "FOLLOW_UPS_SUBMITTED": "Các công việc tiếp theo đã được gửi cho khách hàng.",
       "NO_FOLLOW_UPS": "Hãy soạn ít nhất một công việc tiếp theo trước khi gửi.",
       "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua.",
-      "FINDING_OPEN": "Mã của công việc còn vấn đề bảo mật chưa xử lý.",
-      "COMMITS_NOT_SCANNED": "Các thay đổi mới đang được quét bảo mật. Hãy thử lại sau ít phút.",
       "NO_NEW_COMMITS": "Chưa có thay đổi mới nào được lưu vào kho làm việc kể từ lần bàn giao trước.",
       "WORKFLOW_FILES_CHANGED": "Không thể bàn giao: có thay đổi trong thư mục .github/workflows. Hãy đặt tệp cấu hình tự động đề xuất ở thư mục khác, kèm hướng dẫn để khách hàng tự thêm.",
       "REPOSITORY_UNREADABLE": "Chưa đọc được kho làm việc trên GitHub. Hãy thử lại sau ít phút.",

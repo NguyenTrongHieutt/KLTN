@@ -16,19 +16,19 @@ import vn.vibefix.scanning.internal.ScanRules.PersonalData;
 import vn.vibefix.scanning.internal.ScanRules.PersonalKind;
 
 /**
- * The Personal-Data Check on one file's text (FR-65, addendum §B6). It counts distinct Vietnamese
- * phone numbers and email addresses, citizen IDs in a data context, and, in a data file
- * ({@code .sql}, {@code .csv}, {@code .tsv}, {@code .json}), columns named for personal data. A file
- * is a hit past the thresholds of {@link PersonalData}; the hit carries its kinds, the lines holding
- * a personal value, and two masked samples. Raw values stay inside the scan.
+ * The personal-data rules of {@code rules.yaml} on one text (FR-47, addendum §B6). It counts distinct
+ * Vietnamese phone numbers and email addresses, citizen IDs in a data context, and, in a data file
+ * ({@code .sql}, {@code .csv}, {@code .tsv}, {@code .json}), columns named for personal data. A text is a
+ * hit past the thresholds of {@link PersonalData}; the hit carries its kinds, the lines holding a personal
+ * value, and two masked samples. Raw values stay inside the check.
  */
 final class PersonalDataMatcher {
 
-	/** A file holding personal data. */
+	/** A text holding personal data. */
 	record Hit(Set<PersonalKind> kinds, int lines, List<String> samples, String hash) {
 	}
 
-	/** The rule ID every personal-data Finding carries; its fingerprint is per file path. */
+	/** The rule ID of a personal-data hit; its hash is per path. */
 	static final String RULE_ID = "personal-data";
 
 	static final int SAMPLES = 2;
@@ -54,28 +54,6 @@ final class PersonalDataMatcher {
 		}
 		boolean dataFile = this.rules.dataFiles().matcher(path).find();
 		return hit(path, text, dataFile, dataFile ? columns(path, text) : Columns.NONE);
-	}
-
-	/**
-	 * A spreadsheet's or a database's tables, extracted (Story 16.3): one hit for the file, read as a data file
-	 * whose columns are every table's header and whose lines are the rows.
-	 */
-	Optional<Hit> findInTables(String path, List<DataFileTables.Table> tables) {
-		boolean personal = false;
-		boolean citizenId = false;
-		boolean rows = false;
-		StringBuilder text = new StringBuilder();
-		for (DataFileTables.Table table : tables) {
-			for (String name : table.header()) {
-				personal |= this.rules.columns().matcher(name.strip()).matches();
-				citizenId |= this.rules.citizenIdColumns().matcher(name.strip()).matches();
-			}
-			rows |= !table.rows().isEmpty();
-			for (List<String> row : table.rows()) {
-				text.append(String.join(",", row)).append('\n');
-			}
-		}
-		return hit(path, text.toString(), true, new Columns(personal, citizenId, rows));
 	}
 
 	private Optional<Hit> hit(String path, String text, boolean dataFile, Columns columns) {

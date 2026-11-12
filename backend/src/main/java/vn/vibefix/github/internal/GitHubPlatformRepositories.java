@@ -708,6 +708,20 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
+	public String sourceHead(String fullName, String branch) {
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
+			// The branch's ref alone: never a tag of the same name, and no commit body with its files.
+			JsonNode ref = require(http().send("GET", "/repos/" + fullName + "/git/ref/heads/" + branch, token.value(), null),
+					"read the head of " + fullName);
+			String sha = ref.path("object").path("sha").asString("");
+			if (!sha.matches("[0-9a-f]{40}")) {
+				throw new GitHubException(0, "The head of " + fullName + " was not a commit SHA");
+			}
+			return sha;
+		});
+	}
+
+	@Override
 	public List<String> commitsSince(String fullName, String baseSha, String branch) {
 		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
 			GitHubHttp.Answer answer = http().send("GET", "/repos/" + fullName + "/compare/" + baseSha + "..." + branch,

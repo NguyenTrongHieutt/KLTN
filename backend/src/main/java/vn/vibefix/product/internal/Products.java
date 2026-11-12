@@ -31,10 +31,6 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.identity.GitHubLinks;
 import vn.vibefix.product.ProductDeleted;
-import vn.vibefix.scanning.ScanPurpose;
-import vn.vibefix.scanning.ScanTarget;
-import vn.vibefix.scanning.Scans;
-import vn.vibefix.scanning.ShaRange;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -43,8 +39,8 @@ import vn.vibefix.shared.RateLimitedException;
 
 /**
  * A Customer's Products (FR-7): registration after every repository check and the three
- * acknowledgments, at most 5 a day (AD-34), which requests the intake scan in the same transaction
- * (FR-8, AD-18); the list; one Product's detail; and its deletion while no Job pins it (AD-24).
+ * acknowledgments, at most 5 a day (AD-34), with no scan (vibefix scans no code, Story 23.1); the list; one
+ * Product's detail; and its deletion while no Job pins it (AD-24).
  */
 @Component
 class Products {
@@ -60,11 +56,9 @@ class Products {
 	 * {@code vibefix.product.*}.
 	 * @param noticeVersion the version of N-1, N-1b, and N-2 a registration must acknowledge
 	 * @param perDay registrations a Customer may make per Vietnam day (AD-34 seed limit)
-	 * @param rescansPerDay on-demand scans per Product per Vietnam day: re-scans and clean-repository
-	 * candidates (FR-8 seed limit)
 	 */
 	@ConfigurationProperties("vibefix.product")
-	record ProductProperties(String noticeVersion, int perDay, int rescansPerDay) {
+	record ProductProperties(String noticeVersion, int perDay) {
 
 		ProductProperties {
 			if (noticeVersion == null || noticeVersion.isBlank()) {
@@ -72,9 +66,6 @@ class Products {
 			}
 			if (perDay < 1) {
 				perDay = 5;
-			}
-			if (rescansPerDay < 1) {
-				rescansPerDay = 5;
 			}
 		}
 
@@ -105,8 +96,6 @@ class Products {
 
 	private final AuditLog auditLog;
 
-	private final Scans scans;
-
 	private final PersonalData personalData;
 
 	private final ApplicationEventPublisher events;
@@ -117,7 +106,7 @@ class Products {
 
 	private final GitHubLinks gitHubLinks;
 
-	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog, Scans scans,
+	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog,
 			PersonalData personalData, ApplicationEventPublisher events, IdGenerator ids, Clock clock,
 			GitHubLinks gitHubLinks) {
 		this.gitHubLinks = gitHubLinks;
@@ -125,7 +114,6 @@ class Products {
 		this.checks = checks;
 		this.properties = properties;
 		this.auditLog = auditLog;
-		this.scans = scans;
 		this.personalData = personalData;
 		this.events = events;
 		this.ids = ids;
@@ -185,8 +173,6 @@ class Products {
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(customerId), "product.registered",
 				AuditObject.of("product.product", id)));
-		this.scans.requestScan(new ScanTarget(id, customerId, registration.name().strip(), repository.fullName(),
-				repository.id()), ShaRange.wholeHistory(), ScanPurpose.INTAKE);
 		return id;
 	}
 

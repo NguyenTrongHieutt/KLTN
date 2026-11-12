@@ -6,8 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * SM-7's planted credentials: one realistic, fake instance of every §B6 type, each in the file and
- * line it would leak from, keyed by the rule that must find it. Every value is built at run time
+ * The rules' planted credentials (FR-47): one realistic, fake instance of every §B6 type, each in the
+ * file and line it would leak from, keyed by the rule that must find it. Every value is built at run time
  * from a fixed alphabet, so no credential-shaped literal sits in this source (the pre-commit
  * gitleaks hook scans it). None of them is a real credential.
  */

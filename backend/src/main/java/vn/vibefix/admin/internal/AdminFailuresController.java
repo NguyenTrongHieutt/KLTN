@@ -1,10 +1,7 @@
 package vn.vibefix.admin.internal;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,11 +24,8 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.dispute.DisputeQueue;
-import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.identity.AdministratorStepUp;
 import vn.vibefix.operations.FailedOperations;
-import vn.vibefix.scanning.FalsePositive;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
@@ -41,8 +35,8 @@ import vn.vibefix.shared.StalledEventPublications;
 
 /**
  * ADM-7 (FR-64, AD-6, AD-9, AD-31, SG-10): one queue of what failed for good, the failed operations
- * (retried behind the step-up), the failed Dispute executions (retried on ADM-4), the stalled event
- * publications, and the false positives (reopened). Each retry and reopen is audited.
+ * (retried behind the step-up), the failed Dispute executions (retried on ADM-4), and the stalled event
+ * publications. Each retry is audited.
  */
 @RestController
 @Access(Gate.ADMINISTRATOR)
@@ -58,28 +52,18 @@ class AdminFailuresController {
 	record StalledEventView(UUID id, String eventType, String listenerId, int attempts, Instant stalledAt) {
 	}
 
-	record FalsePositiveView(UUID findingId, UUID productId, String productName, String ruleType, String filePath,
-			String reason, @Nullable String markedByName, Instant markedAt) {
-	}
-
 	record FailuresView(List<FailedOperationView> operations, List<FailedExecutionView> executions,
-			List<StalledEventView> stalledEvents, List<FalsePositiveView> falsePositives) {
+			List<StalledEventView> stalledEvents) {
 	}
 
 	record RetryRequest(@NotBlank @Pattern(regexp = "^[0-9]{6}$") String stepUpCode) {
 	}
-
-	static final int FALSE_POSITIVES = 100;
 
 	private final FailedOperations operations;
 
 	private final DisputeQueue disputes;
 
 	private final StalledEventPublications stalled;
-
-	private final Scans scans;
-
-	private final AccountAdministration accounts;
 
 	private final AdministratorStepUp stepUp;
 
@@ -90,13 +74,10 @@ class AdminFailuresController {
 	private final TransactionTemplate transactions;
 
 	AdminFailuresController(FailedOperations operations, DisputeQueue disputes, StalledEventPublications stalled,
-			Scans scans, AccountAdministration accounts, AdministratorStepUp stepUp, AuditLog auditLog,
-			CurrentCaller callers, TransactionTemplate transactions) {
+			AdministratorStepUp stepUp, AuditLog auditLog, CurrentCaller callers, TransactionTemplate transactions) {
 		this.operations = operations;
 		this.disputes = disputes;
 		this.stalled = stalled;
-		this.scans = scans;
-		this.accounts = accounts;
 		this.stepUp = stepUp;
 		this.auditLog = auditLog;
 		this.callers = callers;
@@ -105,14 +86,6 @@ class AdminFailuresController {
 
 	@GetMapping("/api/v1/admin/failures")
 	FailuresView failures() {
-		List<FalsePositive> falsePositives = this.scans.falsePositives(FALSE_POSITIVES);
-		Set<UUID> markers = new HashSet<>();
-		falsePositives.forEach(item -> {
-			if (item.markedBy() != null) {
-				markers.add(item.markedBy());
-			}
-		});
-		Map<UUID, String> names = this.accounts.names(markers);
 		return new FailuresView(
 				this.operations.findAll()
 					.stream()
@@ -128,11 +101,6 @@ class AdminFailuresController {
 					.stream()
 					.map(publication -> new StalledEventView(publication.publicationId(), publication.eventType(),
 							publication.listenerId(), publication.attempts(), publication.stalledAt()))
-					.toList(),
-				falsePositives.stream()
-					.map(item -> new FalsePositiveView(item.findingId(), item.productId(), item.productName(), item.ruleType(),
-							item.filePath(), item.reason(), item.markedBy() == null ? null : names.get(item.markedBy()),
-							item.markedAt()))
 					.toList());
 	}
 
@@ -166,13 +134,6 @@ class AdminFailuresController {
 		if (outcome instanceof ApiException refusal) {
 			throw refusal;
 		}
-		return failures();
-	}
-
-	/** @throws ApiException {@code NOT_FOUND}; {@code CONFLICT NOT_A_FALSE_POSITIVE} */
-	@PostMapping("/api/v1/admin/failures/findings/{findingId}/reopen")
-	FailuresView reopen(@PathVariable UUID findingId) {
-		this.scans.reopen(findingId, this.callers.get().requireAccountId());
 		return failures();
 	}
 

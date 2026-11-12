@@ -422,7 +422,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     renderAt('/cong-viec/j1/ban-giao/tao')
 
     expect(await screen.findByText(/Không thể bàn giao: có thay đổi trong thư mục \.github\/workflows/)).toBeInTheDocument()
-    expect(screen.getByText('Sẽ bàn giao 2 lần lưu thay đổi mới, đã quét bảo mật.')).toBeInTheDocument()
+    expect(screen.getByText('Sẽ bàn giao 2 lần lưu thay đổi mới.')).toBeInTheDocument()
     expect(screen.getByText('Dockerfile')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeDisabled()
   })

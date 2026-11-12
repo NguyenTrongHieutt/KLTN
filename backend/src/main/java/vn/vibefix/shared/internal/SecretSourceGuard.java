@@ -36,8 +36,7 @@ class SecretSourceGuard implements InitializingBean {
 	 */
 	static final Set<String> SECRET_PROPERTIES = Set.of("spring.datasource.password",
 			"spring.datasource.hikari.password", "spring.flyway.password", "db-app-password", "db-migrator-password",
-			"github-oauth-client-secret", "google-oauth-client-secret", "linkedin-client-secret", "smtp-password",
-			"scanning-fingerprint-key");
+			"github-oauth-client-secret", "google-oauth-client-secret", "linkedin-client-secret", "smtp-password");
 
 	/**
 	 * Secrets that come in numbered versions, matched against the property names of the process

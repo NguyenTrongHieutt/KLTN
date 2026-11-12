@@ -18,9 +18,9 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * {@code scanning/rules.yaml} compiled with RE2/J (AD-18, SG-13): its version, the placeholder values
- * that are never credentials, the credential rules in their order, and the Personal-Data Check
- * (FR-65). Loading fails on any pattern that does not compile, a rule that lacks its capturing group
- * or repeats an ID, or a missing threshold, so a broken rule set never scans.
+ * that are never credentials, the credential rules in their order, and the personal-data rules. Loading
+ * fails on any pattern that does not compile, a rule that lacks its capturing group or repeats an ID, or a
+ * missing threshold, so a broken rule set never checks a text (FR-47).
  */
 record ScanRules(int version, Pattern placeholders, List<Rule> rules, PersonalData personalData) {
 
@@ -49,22 +49,21 @@ record ScanRules(int version, Pattern placeholders, List<Rule> rules, PersonalDa
 
 	}
 
-	/** The kinds of personal data a Finding names, in the order its type lists them. */
+	/** The kinds of personal data a hit names, in the order its label lists them. */
 	enum PersonalKind {
 		CITIZEN_ID, EMAIL, PHONE, DATA_COLUMNS
 	}
 
 	/**
-	 * The Personal-Data Check (FR-65, addendum §B6); see {@code rules.yaml} for each field.
+	 * The personal-data rules (addendum §B6); see {@code rules.yaml} for each field.
 	 * @param labels the Customer's word for each kind but {@code DATA_COLUMNS}, then {@code suffix} and
 	 * {@code dataFile}
 	 */
 	record PersonalData(int phones, int emails, int dataFileValues, Pattern phone, Pattern email,
 			Pattern ignoredEmails, Pattern citizenIdInContext, Pattern citizenId, Pattern dataFiles, Pattern columns,
-			Pattern citizenIdColumns, Pattern exemptFiles, Pattern extracted, Pattern notExtracted,
-			Map<String, String> labels) {
+			Pattern citizenIdColumns, Pattern exemptFiles, Map<String, String> labels) {
 
-		/** The type a personal-data Finding shows, for example "Email và số điện thoại khách hàng". */
+		/** The plain name of a hit's kinds, for example "Email và số điện thoại khách hàng". */
 		String label(Set<PersonalKind> kinds) {
 			List<String> words = java.util.stream.Stream.of(PersonalKind.CITIZEN_ID, PersonalKind.EMAIL, PersonalKind.PHONE)
 				.filter(kinds::contains)
@@ -147,7 +146,7 @@ record ScanRules(int version, Pattern placeholders, List<Rule> rules, PersonalDa
 				threshold(thresholds, "dataFileValues"), pattern(data, "phone"), pattern(data, "email"),
 				pattern(data, "ignoredEmails"), pattern(data, "citizenIdInContext"), pattern(data, "citizenId"),
 				pattern(data, "dataFiles"), pattern(data, "columns"), pattern(data, "citizenIdColumns"),
-				pattern(data, "exemptFiles"), pattern(data, "extracted"), pattern(data, "notExtracted"), Map.copyOf(words));
+				pattern(data, "exemptFiles"), Map.copyOf(words));
 	}
 
 	private static int threshold(Map<?, ?> thresholds, String key) {

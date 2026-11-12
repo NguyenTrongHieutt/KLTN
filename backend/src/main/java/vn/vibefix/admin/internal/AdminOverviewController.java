@@ -13,8 +13,6 @@ import vn.vibefix.dispute.DisputeQueue;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.reputation.PrivateFeedback;
-import vn.vibefix.scanning.FalsePositive;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.StalledEventPublications;
@@ -44,13 +42,11 @@ class AdminOverviewController {
 	 * @param disputes Disputes awaiting a decision (FR-54, ADM-4)
 	 * @param lowFeedback Mentors averaging below 3 over at least 3 private feedbacks (FR-78, ADM-2)
 	 * @param failedExecutions Dispute executions that failed (FR-54, FR-64, ADM-7)
-	 * @param falsePositives Findings marked as false positives (FR-64, ADM-7)
 	 * @param skillSuggestions Skill suggestions waiting for a decision (FR-73, ADM-12)
 	 * @param splitResolutions the Split Resolutions still open (FR-84, UX-DR110)
 	 */
 	record OverviewView(Queue failedOperations, Queue stalledEvents, long activeAdministrators, Queue disputes,
-			Queue lowFeedback, Queue failedExecutions, Queue falsePositives, Queue teamIssues, Queue skillSuggestions,
-			Queue splitResolutions) {
+			Queue lowFeedback, Queue failedExecutions, Queue teamIssues, Queue skillSuggestions, Queue splitResolutions) {
 	}
 
 	private final FailedOperations failedOperations;
@@ -63,17 +59,14 @@ class AdminOverviewController {
 
 	private final PrivateFeedback privateFeedback;
 
-	private final Scans scans;
-
 	private final SuggestedSkills skillSuggestions;
 
 	AdminOverviewController(FailedOperations failedOperations, StalledEventPublications stalledEvents,
-			Administrators administrators, DisputeQueue disputes, PrivateFeedback privateFeedback, Scans scans,
+			Administrators administrators, DisputeQueue disputes, PrivateFeedback privateFeedback,
 			SuggestedSkills skillSuggestions) {
 		this.skillSuggestions = skillSuggestions;
 		this.disputes = disputes;
 		this.privateFeedback = privateFeedback;
-		this.scans = scans;
 		this.failedOperations = failedOperations;
 		this.stalledEvents = stalledEvents;
 		this.administrators = administrators;
@@ -87,7 +80,6 @@ class AdminOverviewController {
 				Queue.of(this.disputes.awaiting(), DisputeQueue.Waiting::openedAt),
 				new Queue(this.privateFeedback.belowThreshold().size(), null),
 				Queue.of(this.disputes.executionsFailed(), DisputeQueue.FailedExecution::failedAt),
-				Queue.of(this.scans.falsePositives(AdminFailuresController.FALSE_POSITIVES), FalsePositive::markedAt),
 				Queue.of(this.disputes.teamIssuesEscalated(), DisputeQueue.Waiting::openedAt),
 				Queue.of(this.skillSuggestions.open(), SuggestedSkills.Suggestion::createdAt),
 				Queue.of(this.disputes.splitResolutionsOpen(), DisputeQueue.Waiting::openedAt));

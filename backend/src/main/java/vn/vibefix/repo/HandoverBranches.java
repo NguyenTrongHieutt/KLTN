@@ -18,15 +18,11 @@ public interface HandoverBranches {
 	/**
 	 * The Working Repository's default branch now.
 	 * @param startSha the commit Setup copied, where the Job's first handover range starts
-	 * @param scanned whether a completed push scan covers the head (the copied commit was scanned at J7)
 	 */
-	record WorkingHead(String headSha, String startSha, String branch, boolean scanned) {
+	record WorkingHead(String headSha, String startSha, String branch) {
 	}
 
-	/**
-	 * The head read back from GitHub; a head that moved requests its push scan (FR-8), so it is not
-	 * scanned yet. Empty for a Job without a done Setup.
-	 */
+	/** The head read back from GitHub. Empty for a Job without a done Setup. */
 	Optional<WorkingHead> working(UUID jobId);
 
 	/**

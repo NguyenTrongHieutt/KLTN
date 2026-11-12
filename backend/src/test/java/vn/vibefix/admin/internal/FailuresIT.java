@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,8 +30,8 @@ import vn.vibefix.support.IntegrationTest;
 
 /**
  * ADM-7 (FR-64, AD-6, SG-10): the failed operation with its Job, retried once behind the step-up from its
- * first attempt with a read-back first; and the false positive, reopened as an open Finding that hands its
- * resolver the to-do and the notice back. Both are audited and counted on ADM-1.
+ * first attempt with a read-back first, audited and counted on ADM-1. vibefix scans no code (Story 23.1), so
+ * the queue holds no false positive.
  */
 class FailuresIT extends IntegrationTest {
 
@@ -73,30 +72,15 @@ class FailuresIT extends IntegrationTest {
 	}
 
 	@Test
-	void aFalsePositiveIsReopenedForItsResolver() throws Exception {
+	void noFindingIsQueuedOrReopenedAnyMore() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.jdbc.sql("""
-				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
-				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
-				""").param("id", lan).update();
-		UUID finding = falsePositive(lan);
-		this.mvc.perform(get("/api/v1/admin/failures").with(admin(ha)))
-			.andExpect(jsonPath("$.falsePositives[0].findingId").value(finding.toString()))
-			.andExpect(jsonPath("$.falsePositives[0].reason").value("Khóa thử nghiệm"))
-			.andExpect(jsonPath("$.falsePositives[0].markedByName").value("Nguyễn Thị Lan"));
-		this.mvc.perform(get("/api/v1/admin/overview").with(admin(ha))).andExpect(jsonPath("$.falsePositives.count").value(1));
-
-		reopen(ha, finding).andExpect(status().isOk()).andExpect(jsonPath("$.falsePositives").isEmpty());
-		assertThat(text("SELECT status || ':' || (resolution IS NULL) FROM scanning.finding WHERE id = '" + finding + "'"))
-			.isEqualTo("OPEN:true");
-		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'scanning.finding_reopened' AND account_id = '"
-				+ lan + "'")).isEqualTo(1);
-		assertThat(count("""
-				SELECT count(*) FROM notification.todo WHERE todo_key = 'scanning.resolve_intake_finding' AND closed_at IS NULL
-				  AND account_id = '""" + lan + "'")).isEqualTo(1);
-		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'scanning.finding_reopened'")).isEqualTo(1);
-		reopen(ha, finding).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("NOT_A_FALSE_POSITIVE"));
+		// vibefix scans no code (Story 23.1): ADM-7 has no false positives and ADM-1 counts none.
+		this.mvc.perform(get("/api/v1/admin/failures").with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.falsePositives").doesNotExist());
+		this.mvc.perform(get("/api/v1/admin/overview").with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.falsePositives").doesNotExist());
+		this.mvc.perform(post("/api/v1/admin/failures/findings/" + UUID.randomUUID() + "/reopen").with(admin(ha)).with(csrf()))
+			.andExpect(status().isNotFound());
 	}
 
 	private UUID failedOperation(UUID job) {
@@ -116,47 +100,10 @@ class FailuresIT extends IntegrationTest {
 		return id;
 	}
 
-	private UUID falsePositive(UUID customer) {
-		UUID run = UUID.randomUUID();
-		UUID product = UUID.randomUUID();
-		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("""
-				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
-				    repository_github_id, purpose, status, requested_at, finished_at)
-				VALUES (:id, :product, :customer, 'Sổ đặt bàn', 'lan/so-dat-ban', :github, 'INTAKE', 'SUCCEEDED', :now, :now)
-				""").param("id", run).param("product", product).param("customer", customer)
-			.param("github", ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)).param("now", now).update();
-		UUID finding = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO scanning.finding (id, product_id, scan_run_id, rule_id, rule_type, file_path, commit_sha, committed_at,
-				    masked_preview, fingerprint, status, created_at, resolution, resolution_reason, resolved_by_account_id,
-				    resolved_at, category)
-				VALUES (:id, :product, :run, 'generic-api-key', 'Khóa API', 'src/config.ts', :sha, :now, 'abcd••••••••1234',
-				    :fingerprint, 'FALSE_POSITIVE', :now, 'FALSE_POSITIVE', 'Khóa thử nghiệm', :customer, :now, 'CREDENTIAL')
-				""")
-			.param("id", finding)
-			.param("product", product)
-			.param("run", run)
-			.param("sha", "a".repeat(40))
-			.param("fingerprint", "b".repeat(64))
-			.param("customer", customer)
-			.param("now", now)
-			.update();
-		this.jdbc.sql("INSERT INTO scanning.finding_resolver (finding_id, account_id) VALUES (:finding, :customer)")
-			.param("finding", finding)
-			.param("customer", customer)
-			.update();
-		return finding;
-	}
-
 	private ResultActions retry(Administrator ha, UUID operation, String code) throws Exception {
 		return this.mvc.perform(post("/api/v1/admin/failures/operations/" + operation + "/retry").with(admin(ha)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"stepUpCode\":\"" + code + "\"}"));
-	}
-
-	private ResultActions reopen(Administrator ha, UUID finding) throws Exception {
-		return this.mvc.perform(post("/api/v1/admin/failures/findings/" + finding + "/reopen").with(admin(ha)).with(csrf()));
 	}
 
 	private long count(String sql) {

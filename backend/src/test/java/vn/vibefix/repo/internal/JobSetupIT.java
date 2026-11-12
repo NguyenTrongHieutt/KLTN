@@ -46,15 +46,14 @@ import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.repo.internal.JobSetups.Setup;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.support.IntegrationTest;
 
 /**
  * Story 7.2 (FR-18, AD-5, AD-11, AD-28): J6 of a Code Job sets up its repositories under the busy marker.
- * The Source Repository is read again with the Customer's token and scanned again (purpose {@code J7});
- * the Intermediary Repository gets exactly the commit that scan approved, the Working Repository is its
- * fork, and AD-11's rulesets are read back before the marker clears. A Finding, a private repository,
- * or lost admin rights block the start until the Customer fixes it and taps "Thử lại". Then (Story 7.3)
+ * The Source Repository is read again with the Customer's token and its default branch's head through the
+ * GitHub API (vibefix scans no code, Story 23.1); the Intermediary Repository gets exactly that commit, the
+ * Working Repository is its fork, and AD-11's rulesets are read back before the marker clears. A private
+ * repository or lost admin rights block the start until the Customer fixes it and taps "Thử lại". Then (Story 7.3)
  * the Mentor and the active Crew are invited with read; once each accepted with two-factor authentication
  * on, Verify raises them to write, reads it back, and only then applies J7. J8, J10, a locked account, or a
  * Crew change revokes access, read back (Story 7.7); 30 days after the end the final ZIP is stored and both
@@ -92,7 +91,7 @@ class JobSetupIT extends IntegrationTest {
 	private OperationWorker worker;
 
 	@Autowired
-	private Scans scans;
+	private vn.vibefix.operations.FailedOperations failedOperations;
 
 	@Autowired
 	private MockMvc mvc;
@@ -553,63 +552,25 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	@Test
-	void aPushIsScannedAndItsCredentialGoesToTheMentorWhoConfirmsTheRotation() throws Exception {
+	void aPushMovesTheRecordedHeadAndRequestsNoScan() throws Exception {
 		j6();
 		run();
 		String working = JobSetups.workingName(this.job);
-		this.pushScans.sweep();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).as("the copy itself is not scanned again").isZero();
-		// A fake credential, built at run time.
-		String key = "sk" + "_live_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
-		GITHUB.push(GitHubStub.ORGANIZATION, working, "main", "pay.js", "const stripe = require('stripe')('" + key + "')\n");
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, working, "main", "README.md", "# Quán Mây v2\n");
 		long repository = GITHUB.organizationRepositoryId(working);
 
 		this.pushScans.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
 				vn.vibefix.github.GitHubApps.App.PLATFORM, "push", null, 7L, List.of(repository), 1L, null));
-		UUID run = this.jdbc.sql("SELECT scan_run_id FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
-			.query(UUID.class).single();
-		assertThat(this.jdbc.sql("SELECT purpose FROM scanning.scan_run WHERE id = :id").param("id", run).query(String.class)
-			.single()).isEqualTo("PUSH");
-		this.worker.runDue(Lane.SCAN);
-		awaitListeners();
+		this.pushScans.sweep();
 
-		UUID finding = this.jdbc.sql("SELECT id FROM scanning.finding WHERE scan_run_id = :run").param("run", run)
-			.query(UUID.class).single();
-		assertThat(this.scans.mayResolve(finding, this.mentor)).as("the Mentor resolves a pushed credential").isTrue();
-		assertThat(this.scans.mayResolve(finding, this.customer)).isFalse();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'scanning.resolve_work_finding'")
-			.query(Long.class).single()).isOne();
-		assertThat(notices("scanning.finding_opened")).as("the Customer, the Mentor, and the Crew").isEqualTo(3);
+		// vibefix scans no code (Story 23.1): the head is recorded until Story 23.2, and nothing else is requested.
+		assertThat(this.jdbc.sql("SELECT sha FROM repo.branch_head WHERE repository_github_id = :id AND ref = 'refs/heads/main'")
+			.param("id", repository).query(String.class).single()).isEqualTo(head);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM timers.deadline WHERE kind = 'repo.push_scan_delay'")
+			.query(Long.class).single()).isZero();
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/findings").with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].type").value("Khóa bí mật Stripe"))
-			.andExpect(jsonPath("$[0].canRotate").value(false))
-			.andExpect(jsonPath("$[0].maskedPreview").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(key))));
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/findings/" + finding + "/rotation").with(as(this.mentor, Role.MENTOR))
-			.with(csrf()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$").isEmpty());
-		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'scanning.resolve_work_finding' AND closed_at IS NULL")
-			.query(Long.class).single()).as("resolution closes the to-do").isZero();
-	}
-
-	@Test
-	void aPushScanWaitingMoreThanTenMinutesAlertsTheAdministrators() throws Exception {
-		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		j6();
-		run();
-		String working = JobSetups.workingName(this.job);
-		GITHUB.push(GitHubStub.ORGANIZATION, working, "main", "README.md", "# Quán Mây v2\n");
-
-		this.pushScans.sweep();
-		this.clock.advance(PushScans.DELAY.plusMinutes(1));
-		this.deadlines.runDue();
-
-		assertThat(notices("scanning.push_scan_delayed")).isOne();
-		this.pushScans.sweep();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).as("unchanged heads request nothing").isOne();
+			.andExpect(status().isNotFound());
 		awaitListeners();
 	}
 
@@ -1180,7 +1141,7 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	@Test
-	void aCleanSourceIsCopiedAtTheApprovedCommitForkedAndProtectedUnderTheBusyMarker() throws Exception {
+	void theSourcesHeadIsCopiedForkedAndProtectedUnderTheBusyMarker() throws Exception {
 		String head = GITHUB.head("lan-dev", this.source.substring("lan-dev/".length()), "main");
 
 		j6();
@@ -1195,9 +1156,12 @@ class JobSetupIT extends IntegrationTest {
 
 		Setup done = this.setups.latest(this.job).orElseThrow();
 		assertThat(done.status()).isEqualTo("DONE");
-		assertThat(done.approvedSha()).as("the J7 scan approved the head").isEqualTo(head);
-		assertThat(this.jdbc.sql("SELECT purpose FROM scanning.scan_run WHERE id = :id").param("id", done.scanRunId())
-			.query(String.class).single()).isEqualTo("J7");
+		assertThat(done.approvedSha()).as("the default branch's head, read through the GitHub API").isEqualTo(head);
+		assertThat(done.sourceFullName()).isEqualTo(this.source);
+		assertThat(done.defaultBranch()).isEqualTo("main");
+		assertThat(GITHUB.seen).as("the head is read through the GitHub API, with no scan")
+			.anyMatch(request -> request.method().equals("GET")
+					&& request.path().equals("/repos/" + this.source + "/git/ref/heads/main"));
 		String intermediary = JobSetups.intermediaryName(this.job);
 		String working = JobSetups.workingName(this.job);
 		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, intermediary, "main")).as("a copy with the commit IDs kept")
@@ -1224,51 +1188,139 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	@Test
-	void anOpenFindingBlocksTheStartUntilTheCustomerResolvesItAndTriesAgain() throws Exception {
-		UUID finding = openFinding();
+	void aGitHubFailureReadingTheHeadIsRetriedAndTheNextAttemptCopies() throws Exception {
+		String prefix = "GET /repos/" + this.source + "/git/ref/heads/";
+		GITHUB.unavailable.add(prefix);
+		try {
+			j6();
+			this.worker.runDue(Lane.GITHUB_LONG);
 
-		j6();
-		run();
+			Setup waiting = this.setups.latest(this.job).orElseThrow();
+			assertThat(waiting.status()).isEqualTo("RUNNING");
+			assertThat(waiting.checkedAt()).as("step 1 is not done").isNull();
+			assertThat(this.jdbc.sql("""
+					SELECT status || ':' || error_code FROM operations.external_operation WHERE type = 'repo.job_setup'
+					""").query(String.class).single()).isEqualTo("PENDING:GITHUB_HTTP_502");
+			assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
+		}
+		finally {
+			GITHUB.unavailable.remove(prefix);
+		}
+		this.clock.advance(JobSetupOperation.POLICY.delayAfter(1).plusSeconds(1));
+		this.worker.runDue(Lane.GITHUB_LONG);
 
-		Setup blocked = this.setups.latest(this.job).orElseThrow();
-		assertThat(blocked.status()).isEqualTo("BLOCKED");
-		assertThat(blocked.block()).isEqualTo(JobSetups.Block.INTAKE_FINDING_OPEN);
-		assertThat(blocked.openFindings()).isOne();
-		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
-		assertThat(this.jdbc.sql("""
-				SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked' ORDER BY account_id
-				""").query(String.class).list()).hasSize(2).containsOnly("còn 1 vấn đề bảo mật chưa xử lý");
-		assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
-			.andExpect(jsonPath("$.steps[0].state").value("BLOCKED"))
-			.andExpect(jsonPath("$.blockedReason").value("INTAKE_FINDING_OPEN"))
-			.andExpect(jsonPath("$.canRetry").value(false));
-
-		this.scans.confirmRotation(this.product, finding, this.customer);
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/setup/retry").with(as(this.customer, Role.CUSTOMER))
-			.with(csrf()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("RUNNING"));
-		run();
-
-		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+		Setup done = this.setups.latest(this.job).orElseThrow();
+		assertThat(done.status()).isEqualTo("DONE");
+		assertThat(done.approvedSha()).isEqualTo(GITHUB.head("lan-dev", this.source.substring("lan-dev/".length()), "main"));
 	}
 
 	@Test
-	void aPrivateSourceBlocksBeforeAnyScan() throws Exception {
+	void aPrivateSourceBlocksBeforeAnyCopyUntilTheCustomerMakesItPublicAndTriesAgain() throws Exception {
 		String name = this.source.substring("lan-dev/".length());
 		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
 			.query(Long.class).single();
-		GITHUB.publish("lan-dev", name, id, CustomerTokens.githubUserId(this.jdbc, this.customer), false, false);
+		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		GITHUB.publish("lan-dev", name, id, owner, false, false);
 
 		j6();
 		this.worker.runDue(Lane.GITHUB_LONG);
 
 		Setup blocked = this.setups.latest(this.job).orElseThrow();
 		assertThat(blocked.block()).isEqualTo(JobSetups.Block.SOURCE_NOT_PUBLIC);
-		assertThat(blocked.scanRunId()).isNull();
+		assertThat(blocked.approvedSha()).as("no head was read").isNull();
 		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.job_setup'")
 			.query(String.class).single()).isEqualTo("ABORTED");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the block releases the marker").isEmpty();
+		assertThat(this.jdbc.sql("SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked'")
+			.query(String.class).list()).as("the Customer and the Mentor, each with the reason").hasSize(2)
+			.containsOnly("dự án gốc không còn công khai");
+		assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("BLOCKED"))
+			.andExpect(jsonPath("$.steps[0].state").value("BLOCKED"))
+			.andExpect(jsonPath("$.blockedReason").value("SOURCE_NOT_PUBLIC"))
+			.andExpect(jsonPath("$.canRetry").value(true));
+
+		GITHUB.publish("lan-dev", name, id, owner, true, false);
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/setup/retry").with(as(this.customer, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("RUNNING"));
+		run();
+
+		Setup done = this.setups.latest(this.job).orElseThrow();
+		assertThat(done.id()).as("a new attempt").isNotEqualTo(blocked.id());
+		assertThat(done.status()).isEqualTo("DONE");
+		assertThat(done.approvedSha()).isEqualTo(GITHUB.head("lan-dev", name, "main"));
+		awaitListeners();
+	}
+
+	@Test
+	void aFailedAttemptRetriedFromAdm7ChecksTheSourceAgainAndCopies() throws Exception {
+		// The shape Story 23.1's migration leaves a Setup in that an open Intake Finding blocked: FAILED before step 1
+		// ended, with its operation FAILED in ADM-7's queue.
+		Setup failed = failedOnTheHeadRead();
+
+		assertThat(this.failedOperations.retry(operationOf(failed))).isTrue();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		Setup done = this.setups.latest(this.job).orElseThrow();
+		assertThat(done.id()).as("the same attempt, resumed").isEqualTo(failed.id());
+		assertThat(done.status()).isEqualTo("DONE");
+		assertThat(done.approvedSha()).isEqualTo(GITHUB.head("lan-dev", this.source.substring("lan-dev/".length()), "main"));
+		awaitListeners();
+	}
+
+	@Test
+	void aFailedAttemptAnotherReplacedNeverRunsAgain() throws Exception {
+		Setup failed = failedOnTheHeadRead();
+		// The attempt the Customer started after a block ("Thử lại"), which Story 23.1's migration leaves beside the
+		// old one.
+		this.clock.advance(Duration.ofMinutes(1));
+		this.jdbc.sql("""
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, blocked_reason, started_at, finished_at)
+				VALUES (:id, :job, :product, 'BLOCKED', 'SOURCE_NOT_PUBLIC', :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("product", this.product)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+
+		assertThat(this.failedOperations.retry(operationOf(failed))).isTrue();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(this.setups.find(failed.id()).orElseThrow().status()).isEqualTo("FAILED");
+		assertThat(this.jdbc.sql("SELECT status || ':' || error_code FROM operations.external_operation WHERE id = :id")
+			.param("id", operationOf(failed)).query(String.class).single()).isEqualTo("OBSOLETE:SETUP_REPLACED");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
+		assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
+		awaitListeners();
+	}
+
+	/** J6, then every attempt fails reading the Source's head, so the attempt ends FAILED with step 1 not done. */
+	private Setup failedOnTheHeadRead() {
+		String prefix = "GET /repos/" + this.source + "/git/ref/heads/";
+		GITHUB.unavailable.add(prefix);
+		try {
+			j6();
+			for (int attempt = 1; attempt <= JobSetupOperation.POLICY.maxAttempts(); attempt++) {
+				this.worker.runDue(Lane.GITHUB_LONG);
+				this.clock.advance(JobSetupOperation.POLICY.delayAfter(attempt).plusSeconds(1));
+			}
+			awaitListeners();
+		}
+		finally {
+			GITHUB.unavailable.remove(prefix);
+		}
+		Setup failed = this.setups.latest(this.job).orElseThrow();
+		assertThat(failed.status()).isEqualTo("FAILED");
+		assertThat(failed.checkedAt()).isNull();
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the failure releases the marker").isEmpty();
+		return failed;
+	}
+
+	private UUID operationOf(Setup setup) {
+		return this.jdbc.sql("SELECT id FROM operations.external_operation WHERE operation_key = :key")
+			.param("key", JobSetups.OPERATION + ":" + setup.id())
+			.query(UUID.class)
+			.single();
 	}
 
 	/** J6's event, as {@code job} publishes it in M1's cascade. */
@@ -1289,33 +1341,9 @@ class JobSetupIT extends IntegrationTest {
 				"AGREEMENT", "STARTING", 3, 1, Map.of("code", "true")));
 	}
 
-	/** Setup asks for the J7 scan and waits; the scan runs; Setup goes on. */
+	/** Setup runs to its end in one attempt: it waits for no scan. */
 	private void run() {
 		this.worker.runDue(Lane.GITHUB_LONG);
-		this.worker.runDue(Lane.SCAN);
-		this.clock.advance(JobSetupOperation.SCAN_WAIT.plusSeconds(1));
-		this.worker.runDue(Lane.GITHUB_LONG);
-	}
-
-	private UUID openFinding() {
-		UUID run = UUID.randomUUID();
-		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("""
-				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
-				    repository_github_id, purpose, status, rules_version, found_count, new_findings, requested_at, finished_at)
-				VALUES (:id, :product, :owner, 'Sổ đặt bàn Quán Mây', :name, 1, 'INTAKE', 'SUCCEEDED', 2, 1, 1, :now, :now)
-				""").param("id", run).param("product", this.product).param("owner", this.customer).param("name", this.source)
-			.param("now", now).update();
-		UUID finding = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
-				    commit_sha, committed_at, masked_preview, fingerprint, status, created_at)
-				VALUES (:id, :product, :run, 'CREDENTIAL', 'stripe-secret-key', 'Khóa bí mật Stripe', 'server/pay.js',
-				    repeat('a', 40), :now, 'sk_l••••••••Q7mZ', repeat('c', 64), 'OPEN', :now)
-				""").param("id", finding).param("product", this.product).param("run", run).param("now", now).update();
-		this.jdbc.sql("INSERT INTO scanning.finding_resolver (finding_id, account_id) VALUES (:f, :a)")
-			.param("f", finding).param("a", this.customer).update();
-		return finding;
 	}
 
 	private long notices(String type) {

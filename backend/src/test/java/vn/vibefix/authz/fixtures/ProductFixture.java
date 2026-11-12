@@ -35,9 +35,9 @@ import vn.vibefix.support.TestFiles;
 import vn.vibefix.support.TestPeople;
 
 /**
- * Products and their Jobs (FR-7, FR-8, FR-9, AD-20): a registered Product ({@code {productId}}) of
- * {@link MatrixCaller#CUSTOMER}, the Customer of every fixture Job, with one open credential Finding of its intake
- * scan ({@code {findingId}}) that the Customer resolves, one Draft Job ({@code {jobId}}) holding a screenshot
+ * Products and their Jobs (FR-7, FR-9, AD-20): a registered Product ({@code {productId}}) of
+ * {@link MatrixCaller#CUSTOMER}, the Customer of every fixture Job (vibefix scans no code, Story 23.1, so it has no
+ * Finding), one Draft Job ({@code {jobId}}) holding a screenshot
  * ({@code {screenshotId}}), and one Open Job Post ({@code {postId}}) with the open bid ({@code {applicationId}}) of
  * {@link MatrixCaller#BIDDER}, a Mentor with a profile, whom the Customer invited before the bid. The bid carries proof
  * (Story 21.2): a stored file ({@code file=proof}) captioned with the {@code BID_PROOF_CAPTION} canary and the link
@@ -101,26 +101,6 @@ public class ProductFixture implements MatrixFixture {
 		// ADM-6 hides this Product (FR-60).
 		world.put("kind", "PRODUCT");
 		world.put("contentId", product);
-		UUID run = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
-				    repository_github_id, purpose, status, rules_version, found_count, new_findings, requested_at,
-				    finished_at)
-				VALUES (:id, :product, :owner, 'Sản phẩm ma trận', 'matrix/product', 1, 'INTAKE', 'SUCCEEDED', 2, 1, 1,
-				    :now, :now)
-				""").param("id", run).param("product", product).param("owner", this.owner).param("now", now).update();
-		UUID finding = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
-				    commit_sha, committed_at, masked_preview, fingerprint, status, created_at)
-				VALUES (:id, :product, :run, 'CREDENTIAL', 'stripe-secret-key', 'Khóa bí mật Stripe', 'server/pay.js',
-				    repeat('a', 40), :now, 'sk_l••••••••Q7mZ', repeat('b', 64), 'OPEN', :now)
-				""").param("id", finding).param("product", product).param("run", run).param("now", now).update();
-		this.jdbc.sql("INSERT INTO scanning.finding_resolver (finding_id, account_id) VALUES (:f, :a)")
-			.param("f", finding)
-			.param("a", this.owner)
-			.update();
-		world.put("findingId", finding);
 		// ADM-7 retries a failed operation (FR-64); none exists in the world, so a random ID.
 		world.put("operationId", UUID.randomUUID());
 		UUID job = UUID.randomUUID();

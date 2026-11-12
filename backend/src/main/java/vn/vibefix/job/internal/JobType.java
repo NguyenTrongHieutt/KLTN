@@ -5,7 +5,7 @@ enum JobType {
 
 	ASSESSMENT, BUG_FIX, NEW_FEATURE, MODIFICATION, IMPROVEMENT, SECURITY_TESTING, DEPLOYMENT_OPERATIONS, DOCUMENTATION;
 
-	/** A Code Job Type: every type but Assessment (FR-8: blocked while an Intake Finding is open). */
+	/** A Code Job Type: every type but Assessment. */
 	boolean code() {
 		return this != ASSESSMENT;
 	}

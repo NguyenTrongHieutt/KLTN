@@ -43,7 +43,6 @@ const overview = {
   disputes: { count: 0 },
   lowFeedback: { count: 0 },
   failedExecutions: { count: 0 },
-  falsePositives: { count: 0 },
 }
 
 const categories = [

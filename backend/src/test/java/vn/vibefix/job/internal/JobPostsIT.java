@@ -192,7 +192,7 @@ class JobPostsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.productName").value("Sổ đặt bàn Quán Mây"))
 			.andExpect(jsonPath("$.productDescription").value("Đặt bàn cho quán."))
 			.andExpect(jsonPath("$.productTools[0]").value("LOVABLE"))
-			.andExpect(jsonPath("$.productOpenFindings").value(0))
+			.andExpect(jsonPath("$.productOpenFindings").doesNotExist())
 			.andExpect(jsonPath("$.expected").value("Khách trả tiền cọc khi đặt bàn."))
 			.andExpect(jsonPath("$.skills[0].name").value("React"))
 			.andExpect(jsonPath("$.skills[0].hint").isNotEmpty())

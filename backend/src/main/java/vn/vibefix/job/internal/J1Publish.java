@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.settings.Rule;
 import vn.vibefix.settings.Settings;
 import vn.vibefix.shared.ApiException;
@@ -23,10 +22,9 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * J1 (FR-9): the Customer publishes a complete Draft as an Open Job Post. A Code Job waits until the
- * Product has no open Intake Finding; an Assessment Job publishes with open Findings (FR-8). The FR-61
- * rule values and the selection period are copied onto the Job, so a later settings change never
- * alters it (AD-7), and the selection lapse is scheduled for the end of the period.
+ * J1 (FR-9): the Customer publishes a complete Draft as an Open Job Post. The FR-61 rule values and the
+ * selection period are copied onto the Job, so a later settings change never alters it (AD-7), and the
+ * selection lapse is scheduled for the end of the period.
  */
 @Component
 class J1Publish implements JobLifecycle.Step {
@@ -36,14 +34,11 @@ class J1Publish implements JobLifecycle.Step {
 
 	static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
-	private final Scans scans;
-
 	private final Settings settings;
 
 	private final Deadlines deadlines;
 
-	J1Publish(Scans scans, Settings settings, Deadlines deadlines) {
-		this.scans = scans;
+	J1Publish(Settings settings, Deadlines deadlines) {
 		this.settings = settings;
 		this.deadlines = deadlines;
 	}
@@ -55,8 +50,7 @@ class J1Publish implements JobLifecycle.Step {
 
 	/**
 	 * @throws ApiException {@code NOT_FOUND} for anyone but the Job's Customer; {@code GUARD_FAILED
-	 * JOB_INCOMPLETE} with the {@code missing} answers; {@code GUARD_FAILED INTAKE_FINDING_OPEN} with
-	 * the open {@code count}
+	 * JOB_INCOMPLETE} with the {@code missing} answers
 	 */
 	@Override
 	public void check(Applying applying) {
@@ -67,12 +61,6 @@ class J1Publish implements JobLifecycle.Step {
 		List<String> missing = missing(job, LocalDate.ofInstant(applying.now(), VIETNAM));
 		if (!missing.isEmpty()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.JOB_INCOMPLETE, Map.of("missing", missing));
-		}
-		if (job.code()) {
-			int open = this.scans.openFindingCounts(List.of(job.productId())).getOrDefault(job.productId(), 0);
-			if (open > 0) {
-				throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.INTAKE_FINDING_OPEN, Map.of("count", open));
-			}
 		}
 	}
 

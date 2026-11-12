@@ -139,31 +139,32 @@ class ProductRegistrationIT extends IntegrationTest {
 	void registrationRecordsTheProductItsAcknowledgmentsAndAnAudit() throws Exception {
 		repository("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 38_000, null, "");
 
-		String body = register("https://github.com/lan-nguyen/shop-gom", "1.0").andExpect(status().isCreated())
+		String body = register("https://github.com/lan-nguyen/shop-gom", "1.1").andExpect(status().isCreated())
 			.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 		UUID id = UUID.fromString(com.jayway.jsonpath.JsonPath.read(body, "$.id"));
 
 		assertThat(this.jdbc.sql("""
-				SELECT repository_github_id = 4001 AND public_notice_version = '1.0' AND copy_permission_version = '1.0'
-				       AND detection_notice_version = '1.0' AND ai_tools = ARRAY['LOVABLE']
+				SELECT repository_github_id = 4001 AND public_notice_version = '1.1' AND copy_permission_version = '1.1'
+				       AND detection_notice_version = '1.1' AND ai_tools = ARRAY['LOVABLE']
 				FROM product.product WHERE id = :id
 				""").param("id", id).query(Boolean.class).single()).isTrue();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'product.registered'")
 			.query(Long.class).single()).isOne();
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM scanning.scan_run r JOIN operations.external_operation o
-				    ON o.operation_key = 'scanning.scan:' || r.id
-				WHERE r.product_id = :id AND r.status = 'PENDING' AND r.purpose = 'INTAKE'
-				    AND r.repository_full_name = 'lan-nguyen/shop-gom' AND o.lane = 'SCAN'
-				""").param("id", id).query(Long.class).single()).as("the intake scan, requested with the Product").isOne();
+		// vibefix scans no code (Story 23.1): registration starts no operation, and no scan state shows.
+		assertThat(this.jdbc.sql("SELECT count(*) FROM operations.external_operation").query(Long.class).single())
+			.as("no scan is requested with the Product").isZero();
 		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$[0].name").value("Shop Gốm Bát Tràng"))
-			.andExpect(jsonPath("$[0].scanState").value("SCANNING"))
-			.andExpect(jsonPath("$[0].scan.status").value("PENDING"))
+			.andExpect(jsonPath("$[0].scanState").doesNotExist())
+			.andExpect(jsonPath("$[0].scan").doesNotExist())
+			.andExpect(jsonPath("$[0].openFindings").doesNotExist())
 			.andExpect(jsonPath("$[0].repositoryUrl").value("https://github.com/lan-nguyen/shop-gom"));
 		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.tools[0]").value("LOVABLE"));
+			.andExpect(jsonPath("$.tools[0]").value("LOVABLE"))
+			.andExpect(jsonPath("$.scanState").doesNotExist());
+		this.mvc.perform(get("/api/v1/products/" + id + "/findings").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
 
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/products/" + id).with(as(other, Role.CUSTOMER))).andExpect(status().isNotFound());
@@ -172,13 +173,13 @@ class ProductRegistrationIT extends IntegrationTest {
 	@Test
 	void aRepositoryLinkedAlreadyIsRefusedEvenUnderANewName() throws Exception {
 		repository("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 38_000, null, "");
-		register("https://github.com/lan-nguyen/shop-gom", "1.0").andExpect(status().isCreated());
+		register("https://github.com/lan-nguyen/shop-gom", "1.1").andExpect(status().isCreated());
 		REPOSITORIES.remove("/repos/lan-nguyen/shop-gom");
 		repository("lan-nguyen/gom-shop", 4001, this.lanGithubId, "User", false, 38_000, null, "");
 
 		check("https://github.com/lan-nguyen/gom-shop").andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
-		register("https://github.com/lan-nguyen/gom-shop", "1.0").andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
+		register("https://github.com/lan-nguyen/gom-shop", "1.1").andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
 	}
 
 	@Test
@@ -187,9 +188,9 @@ class ProductRegistrationIT extends IntegrationTest {
 
 		register("https://github.com/lan-nguyen/shop-gom", null).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
-		register("https://github.com/lan-nguyen/shop-gom", "0.9").andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
+		// 1.0 still spoke of a scan (Story 23.1): acknowledging it no longer registers.
+		register("https://github.com/lan-nguyen/shop-gom", "1.0").andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
 		assertThat(this.jdbc.sql("SELECT count(*) FROM product.product").query(Long.class).single()).isZero();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM scanning.scan_run").query(Long.class).single()).isZero();
 	}
 
 	@Test
@@ -198,13 +199,13 @@ class ProductRegistrationIT extends IntegrationTest {
 			repository("lan-nguyen/app-" + i, 5000 + i, this.lanGithubId, "User", false, 10, null, "");
 		}
 		for (int i = 1; i <= 5; i++) {
-			register("https://github.com/lan-nguyen/app-" + i, "1.0").andExpect(status().isCreated());
+			register("https://github.com/lan-nguyen/app-" + i, "1.1").andExpect(status().isCreated());
 		}
-		register("https://github.com/lan-nguyen/app-6", "1.0").andExpect(status().isTooManyRequests())
+		register("https://github.com/lan-nguyen/app-6", "1.1").andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.reason").value("PRODUCT_LIMIT"));
 
 		this.clock.advance(Duration.ofDays(1));
-		register("https://github.com/lan-nguyen/app-6", "1.0").andExpect(status().isCreated());
+		register("https://github.com/lan-nguyen/app-6", "1.1").andExpect(status().isCreated());
 	}
 
 	@Test
@@ -216,7 +217,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		repository("minh-tran/quan-ca-phe", 4101, CustomerTokens.githubUserId(this.jdbc, minh), "User", false, 1_000, null,
 				"");
 		check(as(minh, null), "https://github.com/minh-tran/quan-ca-phe").andExpect(status().isOk());
-		register(as(minh, null), "https://github.com/minh-tran/quan-ca-phe", "1.0").andExpect(status().isCreated());
+		register(as(minh, null), "https://github.com/minh-tran/quan-ca-phe", "1.1").andExpect(status().isCreated());
 		this.mvc.perform(get("/api/v1/products").with(as(minh, null))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(1))
 			.andExpect(jsonPath("$[0].repositoryUrl").value("https://github.com/minh-tran/quan-ca-phe"));
@@ -226,7 +227,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		UUID unlinked = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-chua-lien-ket", "3.1");
 		check(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
-		register(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe", "1.0").andExpect(status().isForbidden())
+		register(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe", "1.1").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
 		this.mvc.perform(get("/api/v1/products").with(as(unlinked, null))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(0));

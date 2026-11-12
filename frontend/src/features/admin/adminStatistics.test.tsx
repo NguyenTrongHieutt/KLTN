@@ -42,7 +42,6 @@ const overview = {
   disputes: { count: 0 },
   lowFeedback: { count: 0 },
   failedExecutions: { count: 0 },
-  falsePositives: { count: 0 },
 }
 
 describe('ADM-9 statistics (FR-62)', () => {

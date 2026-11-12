@@ -111,12 +111,12 @@ vibefix:
     support-email: hotro@vibefix.vn
     # AD-34: sign-in attempts per client address and minute.
     sign-in-limit-per-minute: 20
-  # FR-7, AD-34: CUS-3's acknowledgments (N-1, N-1b, N-2) and the daily registration limit.
+  # FR-7, AD-34: CUS-3's acknowledgments (N-1, N-1b, N-2) and the daily registration limit. The SPA shows the same
+  # version (frontend/src/i18n/vi.json notice.product.version).
+  # 1.1 (Story 23.1): N-2 no longer speaks of a scan, since vibefix scans no code.
   product:
-    notice-version: "1.0"
+    notice-version: "1.1"
     per-day: 5
-    # FR-8 seed limit: re-scans and clean-repository candidates per Product per Vietnam day.
-    rescans-per-day: 5
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com
@@ -168,8 +168,8 @@ vibefix:
     # AD-11, AD-12: how often the grants still to settle are read back from GitHub (invitations accepted,
     # two-factor authentication, drifted members); a member webhook reads a Job's grants at once.
     grant-sweep: PT10M
-    # FR-8, AD-12: how often each Working Repository's branch and tag heads are read back, so a missed
-    # push webhook is caught; any new or moved head requests a push scan.
+    # AD-12: how often each Working Repository's branch and tag heads are read back, so a missed push
+    # webhook is caught (Story 23.2 retires it).
     push-sweep: PT10M
     # FR-19, AD-12: how often the organization, the installation, and every running Job's repositories are
     # read back against what vibefix expects; foreign pull requests are closed on the way.
@@ -209,10 +209,6 @@ vibefix:
       github-short:
         concurrency: 4
         timeout: 30s
-      scan:
-        concurrency: 2
-        # The scan job stops itself after 10 minutes (Seed limits); the lease covers recording it too.
-        timeout: 12m
       email:
         concurrency: 2
         # Longer than a slow SMTP exchange (a 10 s connect, then several replies of up to 30 s each),
