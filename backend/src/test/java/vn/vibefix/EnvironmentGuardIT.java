@@ -176,6 +176,19 @@ class EnvironmentGuardIT {
 			.hasMessageContaining("dev GitHub organization");
 	}
 
+	/** Story 23.4 (AD-25, AD-44): the dev stack's exchange tunnel, and any ID token issuer but GitHub Actions'. */
+	@Test
+	void prodRefusesTheDevExchangeTunnelAndAStandInIssuerBeforeMigrating() throws Exception {
+		String db = database.createScratchDatabase();
+
+		assertThatThrownBy(() -> start(db, "prod", "--vibefix.github.exchange.public-url=https://words.trycloudflare.com"))
+			.rootCause()
+			.hasMessageContaining("vibefix.github.exchange.public-url");
+		assertThatThrownBy(() -> start(db, "prod", "--vibefix.github.exchange.issuer=http://127.0.0.1:4000")).rootCause()
+			.hasMessageContaining("vibefix.github.exchange.issuer");
+		assertThat(tableExists(db, "platform.flyway_schema_history")).isFalse();
+	}
+
 	@Test
 	void secretGivenAsASystemPropertyIsRefusedBeforeMigrating() throws Exception {
 		String db = database.createScratchDatabase();

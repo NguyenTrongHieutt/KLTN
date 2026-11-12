@@ -50,6 +50,9 @@ class SecurityConfiguration {
 
 	static final String SESSION_COOKIE = "VIBEFIX_SESSION";
 
+	/** AD-44's Actions token exchange in {@code github} (Story 23.4), which no session or CSRF token reaches. */
+	static final String ACTIONS_EXCHANGE = "/github/actions/exchange";
+
 	/**
 	 * The session cookie (AD-19): {@code HttpOnly}, {@code Secure} (browsers accept it on
 	 * http://localhost, which they treat as secure), and {@code SameSite=Lax}. Declared here, not as
@@ -71,8 +74,9 @@ class SecurityConfiguration {
 			SecurityContextRepository contexts, IdentityProperties properties, Clock clock) throws Exception {
 		http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
 			.securityContext(context -> context.securityContextRepository(contexts))
-			// AD-12: GitHub's webhooks carry no session; their HMAC signature proves the sender.
-			.csrf(csrf -> csrf.spa().ignoringRequestMatchers("/webhooks"))
+			// AD-12: GitHub's webhooks carry no session; their HMAC signature proves the sender. AD-44: an Actions
+			// run carries none either; its OIDC ID token proves it.
+			.csrf(csrf -> csrf.spa().ignoringRequestMatchers("/webhooks", ACTIONS_EXCHANGE))
 			.headers(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)

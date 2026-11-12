@@ -21,15 +21,16 @@ import vn.vibefix.shared.Access;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * AD-20, SM-5: every vibefix handler lives under {@code /api} or {@code /webhooks}, where the gate
- * guards it; each declares its {@link Access} gate and an explicit HTTP method and has at least one
- * row in {@code authz/matrix.csv}; and every row names a handler that exists. The one exception is
- * GitHub's return from linking ({@link #LINK_CALLBACK}, Story 19.2), a browser redirect that is no
- * API: it acts only for the signed-in session that started the link, with its one-time {@code state}.
+ * AD-20, SM-5: every vibefix handler lives under {@code /api}, {@code /webhooks} or {@code /github/actions/}
+ * (the Actions token exchange, Story 23.4), where the gate guards it; each declares its {@link Access} gate
+ * and an explicit HTTP method and has at least one row in {@code authz/matrix.csv}; and every row names a
+ * handler that exists. The one exception is GitHub's return from linking ({@link #LINK_CALLBACK}, Story 19.2),
+ * a browser redirect that is no API: it acts only for the signed-in session that started the link, with its
+ * one-time {@code state}.
  */
 class MatrixCoverageIT extends IntegrationTest {
 
-	static final List<String> GATED_PREFIXES = List.of("/api/", "/webhooks/");
+	static final List<String> GATED_PREFIXES = List.of("/api/", "/webhooks/", "/github/actions/");
 
 	/** AD-12's one endpoint for both Apps' webhooks. */
 	static final String WEBHOOKS = "/webhooks";
@@ -52,7 +53,7 @@ class MatrixCoverageIT extends IntegrationTest {
 				if (!pattern.equals(WEBHOOKS) && GATED_PREFIXES.stream().noneMatch(pattern::startsWith)) {
 					if (ours && !pattern.equals(LINK_CALLBACK)) {
 						violations.add(handler.getShortLogMessage() + " (" + pattern
-								+ ") is outside /api and /webhooks, where no gate guards it");
+								+ ") is outside /api, /webhooks and /github/actions, where no gate guards it");
 					}
 					continue;
 				}

@@ -1,0 +1,6 @@
+subject: vibefix từ chối cấp token cho một lần chạy GitHub Actions ({operation}, mã {correlation}): {reason}
+---
+Xin chào,
+
+Một lần chạy GitHub Actions ({operation}) đã gửi ID token hợp lệ của GitHub, nhưng không qua bước kiểm tra "{reason}", nên vibefix không cấp token cho nó.
+Lần chạy này có thể là một bản workflow bị sửa, một lần chạy không do vibefix khởi động, hoặc một lần gửi lại. Hãy tìm mã {correlation} trong nhật ký kiểm toán trên trang quản trị của vibefix.

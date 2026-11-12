@@ -134,6 +134,22 @@ vibefix:
     # AD-12, SG-18 (Vietnam time): failed deliveries are redelivered, then each App is compared with AD-10.
     redelivery-cron: "0 0 4 * * *"
     configuration-check-cron: "0 10 4 * * *"
+    # AD-44, AD-45 (Story 23.4): the Actions token exchange, POST /github/actions/exchange. A run of a
+    # published workflow trades its OIDC ID token there for one token narrowed to its correlation's grant.
+    exchange:
+      # The published files whose runs may exchange: each one's path, its blob (git hash-object with CRLF
+      # read as LF), and an optional last day, ends-on (Vietnam time), once a newer version replaces it.
+      # AcceptedBlobsTest proves the files in deploy/ are listed; a changed file adds its new blob here.
+      accepted-blobs:
+        - path: .github/workflows/vibefix.yml
+          blob: f43450a98033fc5adaf1a6efa64fafd2627bd111
+        - path: .github/workflows/s6-copy.yml
+          blob: 82e83caca2379c6d4a1c716e41b1348429dbcf2c
+      # The dev stack serves the exchange on this port too, alone, while public-url names its cloudflared
+      # quick tunnel (VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL in deploy/.env). The prod profile refuses public-url.
+      dev-port: 8098
+      # How often issued tokens are checked for revocation: a run's end, or 15 minutes after issue.
+      revocation-poll: PT30S
     # AD-10: the sign-in OAuth App's endpoints; its client ID and secret are secret files.
     oauth:
       authorization-uri: https://github.com/login/oauth/authorize

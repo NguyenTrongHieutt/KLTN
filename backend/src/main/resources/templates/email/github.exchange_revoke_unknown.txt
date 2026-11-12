@@ -1,0 +1,6 @@
+subject: Không chắc token GitHub Actions ({operation}, mã {correlation}) đã được thu hồi sau khi vibefix khởi động lại
+---
+Xin chào,
+
+vibefix đã khởi động lại khi một lần chạy GitHub Actions ({operation}) còn giữ token do vibefix cấp. Token chỉ được giữ trong bộ nhớ, nên không còn cách thu hồi sớm.
+GitHub tự hết hạn token này trong vòng một giờ. Hãy tìm mã {correlation} trong nhật ký kiểm toán trên trang quản trị của vibefix.

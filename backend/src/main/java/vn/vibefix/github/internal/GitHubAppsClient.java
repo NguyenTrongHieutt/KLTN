@@ -91,7 +91,16 @@ class GitHubAppsClient implements GitHubApps {
 
 	@Override
 	public void revoke(InstallationToken token) {
-		this.http.send("DELETE", "/installation/token", token.value(), null);
+		revokeStatus(token);
+	}
+
+	/**
+	 * Revokes the token and answers GitHub's status: 204 when it is revoked now, 401 when GitHub no longer
+	 * knows it (revoked or expired already), 0 without an answer. The Actions exchange's poller reads it, since a
+	 * token it could not revoke is tried again.
+	 */
+	int revokeStatus(InstallationToken token) {
+		return this.http.send("DELETE", "/installation/token", token.value(), null).status();
 	}
 
 	@Override

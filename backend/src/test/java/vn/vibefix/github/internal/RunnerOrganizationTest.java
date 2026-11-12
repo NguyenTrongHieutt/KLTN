@@ -140,19 +140,25 @@ class RunnerOrganizationTest {
 
 		assertThat(repositories(RUNNER).runnerDifferences()).isEmpty();
 		assertThat(this.github.seen).as("its workflows are read with a token narrowed to it with contents read")
-			.anyMatch(request -> request.path().equals("/repos/vibefix-dev/vibefix-runner/contents/.github/workflows"));
+			.anyMatch(request -> request.path().equals("/repos/vibefix-dev/vibefix-runner/contents/.github/workflows"))
+			.as("and its copy workflow's blob (Story 23.4)")
+			.anyMatch(request -> request.path().equals("/repos/vibefix-dev/vibefix-runner/contents/.github/workflows/s6-copy.yml"));
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "public", "another workflow", "no workflow", "a collaborator", "an invitation", "missing" })
+	@ValueSource(strings = { "public", "another workflow", "no workflow", "a changed workflow", "a collaborator",
+			"an invitation", "missing" })
 	void aRunnerThatDriftsIsADifference(String drift) throws Exception {
 		this.github.runner(RUNNER);
+		String changed = GitHubStub.published(GitHubStub.RUNNER_WORKFLOW) + "# changed\n";
 		switch (drift) {
 			case "public" -> this.github.setting(RUNNER, "private", false);
 			case "another workflow" -> this.github.push(GitHubStub.ORGANIZATION, RUNNER, "main", ".github/workflows/ci.yml",
 					"on: push\n");
 			case "no workflow" -> this.github.push(GitHubStub.ORGANIZATION, RUNNER, "main", Map.of("README.md", "# runner\n"),
 					List.of(".github"), "No workflow", "ops@example.test");
+			case "a changed workflow" -> this.github.push(GitHubStub.ORGANIZATION, RUNNER, "main",
+					".github/workflows/s6-copy.yml", changed);
 			case "a collaborator" -> this.github.addCollaborator(RUNNER, "mallory", "write");
 			case "an invitation" -> this.github.addInvitation(RUNNER, "eve", "read");
 			default -> {
@@ -166,6 +172,9 @@ class RunnerOrganizationTest {
 			case "another workflow" -> "the runner vibefix-dev/vibefix-runner holds [ci.yml, s6-copy.yml] in .github/workflows"
 					+ " instead of [s6-copy.yml] only";
 			case "no workflow" -> "the runner vibefix-dev/vibefix-runner holds [] in .github/workflows instead of [s6-copy.yml] only";
+			// Story 23.4, the deferred runner check: the copy workflow must be an accepted blob.
+			case "a changed workflow" -> "the runner vibefix-dev/vibefix-runner's .github/workflows/s6-copy.yml is blob "
+					+ AcceptedWorkflows.blobSha(changed) + ", which vibefix.github.exchange.accepted-blobs does not accept";
 			case "a collaborator" -> "the runner vibefix-dev/vibefix-runner has collaborators [mallory]";
 			case "an invitation" -> "the runner vibefix-dev/vibefix-runner has invitations for [eve]";
 			default -> "the runner vibefix-dev/vibefix-runner-gone does not exist";
@@ -201,10 +210,20 @@ class RunnerOrganizationTest {
 		}, clock);
 	}
 
+	/** The properties, accepting the published runner workflow as {@code application.yaml} does (Story 23.4). */
 	private GitHubProperties properties(@Nullable String runner) {
+		String published;
+		try {
+			published = AcceptedWorkflows.blobSha(GitHubStub.published(GitHubStub.RUNNER_WORKFLOW));
+		}
+		catch (java.io.IOException ex) {
+			throw new IllegalStateException(ex);
+		}
 		return new GitHubProperties(this.github == null ? URI.create("https://api.github.com") : this.github.apiUrl(),
 				this.github == null ? null : this.github.gitUrl(), GitHubStub.ORGANIZATION,
-				new AppProperties(123456L, GitHubStub.INSTALLATION, this.key), null, null, runner);
+				new AppProperties(123456L, GitHubStub.INSTALLATION, this.key), null, null, runner,
+				new GitHubProperties.Exchange(List.of(new GitHubProperties.AcceptedBlob(".github/workflows/s6-copy.yml", published,
+						null)), null, null, null));
 	}
 
 }

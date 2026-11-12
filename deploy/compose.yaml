@@ -1,7 +1,8 @@
 # vibefix, local development stack: four services, each published on localhost only.
 #
 #   postgres  PostgreSQL 18                                  127.0.0.1:5432
-#   backend   vibefix-app (Spring Boot, profile dev)         127.0.0.1:8080
+#   backend   vibefix-app (Spring Boot, profile dev)         127.0.0.1:8080, and 127.0.0.1:8098 for the
+#                                                            Actions exchange's tunnel, when it is set
 #   frontend  Vite dev server on frontend/ (hot reload)      127.0.0.1:5173, /api proxied to backend
 #   mailpit   catches every email the backend sends          127.0.0.1:8025 (web), 127.0.0.1:1025 (SMTP)
 #
@@ -59,6 +60,10 @@ services:
       # Spike S6 revision: the one repository of vibefix-dev that may run GitHub Actions, by name
       # (deploy/.env). Empty by default, so Actions stay disabled for every repository, as before.
       VIBEFIX_GITHUB_RUNNER_REPOSITORY: ${VIBEFIX_GITHUB_RUNNER_REPOSITORY:-}
+      # Story 23.4: the cloudflared quick tunnel to the Actions exchange (deploy/.env), an https origin. While
+      # it is set, the backend also serves POST /github/actions/exchange alone on port 8098, published below,
+      # where the tunnel points. Empty by default: nothing can be dispatched, and 8098 stays closed.
+      VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL: ${VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL:-}
     secrets:
       - db-app-password
       - db-migrator-password
@@ -79,6 +84,9 @@ services:
       - files:/var/lib/vibefix/files
     ports:
       - "127.0.0.1:8080:8080"
+      # The Actions exchange alone, for the cloudflared quick tunnel (deploy/README.md, "Actions exchange on
+      # the dev stack"); the backend answers 404 to anything else on this port.
+      - "127.0.0.1:8098:8098"
     depends_on:
       postgres:
         condition: service_healthy

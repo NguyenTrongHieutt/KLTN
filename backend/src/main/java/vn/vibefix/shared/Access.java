@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * Declares the {@link Gate} of a controller method, or of every method of a controller. Access is
- * denied by default (AD-20): a handler under {@code /api} or {@code /webhooks} without this
+ * denied by default (AD-20): a handler under {@code /api}, {@code /webhooks} or {@code /github/actions} without this
  * annotation answers {@code 404 NOT_FOUND} to everyone, and {@code MatrixCoverageIT} fails the
  * build.
  */

@@ -342,8 +342,10 @@ collaborators and invitations instead. JOB-H shows the three steps.
 **The runner is required.** Set `VIBEFIX_GITHUB_RUNNER_REPOSITORY=vibefix-runner` in `deploy/.env` and keep
 `vibefix-dev/vibefix-runner` as Spike S6 left it: private, holding only `.github/workflows/s6-copy.yml` on
 `main`, with no collaborator or invitation, and the only repository the organization's Actions policy
-("Selected repositories") lists. Unset or drifted, every new Setup waits 15 minutes and looks again, and the
-10-minute sweep alerts Administrators with `github.platform_drift`.
+("Selected repositories") lists. Since Story 23.4 that file must also be an accepted blob
+(`vibefix.github.exchange.accepted-blobs`): copy `deploy/runner/s6-copy.yml` there unchanged whenever it
+changes, as Spike S6's part b does. Unset or drifted, every new Setup waits 15 minutes and looks again, and
+the 10-minute sweep alerts Administrators with `github.platform_drift`.
 
 On the dev stack this needs the Platform App configured for the backend, as for Spike S4:
 `vibefix.github.platform-app.id`, `installation-id`, and `key-file`, with the key mounted read-only from
@@ -370,6 +372,55 @@ App is configured.
   `sha` on `handover/{id}`: a 409 there voids the handover (M3) and alerts Administrators, and M3 or a
   revision (M4) closes the older pull request with a comment and "(lần n)" in its title, keeping its
   branch. vibefix scans no code: the Mentor keeps the team's secrets out.
+
+## Actions exchange on the dev stack (Story 23.4)
+
+GitHub Actions runs get their token from the backend's exchange, `POST /github/actions/exchange` (AD-44).
+Before each dispatch the backend checks the target's workflow file on its default branch against
+`vibefix.github.exchange.accepted-blobs` and records a correlation (a random UUID, in the run's title). The
+run trades its OIDC ID token once for a Platform App token narrowed to the correlation's repositories, and a
+30-second poller revokes it when the run completes, or 15 minutes after issue. A refusal after the ID token is
+verified is audited and alerts Administrators (`github.exchange_refused`). Tokens live only in memory: a
+backend restarted while one is out marks it `REVOKE_UNKNOWN` and alerts once, and GitHub expires it within
+the hour.
+
+GitHub's runners reach the dev stack through a cloudflared quick tunnel, which ends TLS at Cloudflare, so
+the short-lived tokens pass through it. The tunnel points at port 8098, where the backend serves the
+exchange and answers 404 to anything else, never at 8080.
+
+1. **First, replace the runner's workflow.** Story 23.4 changed both published workflows (they post to
+   `/github/actions/exchange`), so their blobs changed. On `vibefix-dev/vibefix-runner`, replace
+   `.github/workflows/s6-copy.yml` on `main` with `deploy/runner/s6-copy.yml`, unchanged (in PowerShell,
+   `Get-Content deploy/runner/s6-copy.yml -Raw | Set-Clipboard`, then edit the file on GitHub, Ctrl+A, Ctrl+V,
+   commit to `main`; Spike S6's part b also writes it). Until then the 10-minute sweep alerts
+   `github.platform_drift` for the runner's `s6-copy.yml` blob, new Setups wait, and `runner-dispatch` is
+   refused with `WORKFLOW_MISMATCH`: both are expected. The Customer's copy of `vibefix.yml` in `s6-source` is
+   stale the same way (it posts to the spike's old `/exchange`), so replace it there too before a Customer's
+   run uses this exchange.
+2. Start the tunnel in its own window, and keep it running:
+   ```
+   cloudflared tunnel --no-autoupdate --url http://localhost:8098
+   ```
+   It prints `https://<words>.trycloudflare.com`, a new one each start.
+3. Put it in `deploy/.env` as `VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL=https://<words>.trycloudflare.com` (no path),
+   and recreate the backend so it reads it (PowerShell, in `D:\KLTN\vibefix`):
+   ```
+   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait backend
+   ```
+   Only the `dev` profile uses it; `prod` refuses to start with it set.
+4. Dispatch a handover copy on the runner with `runner-dispatch`, naming two repositories of `vibefix-dev`
+   without their owner, for example a Job's Working and Intermediary Repositories:
+   ```
+   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli backend --spring.flyway.enabled=false --vibefix.cli.command=runner-dispatch --source=<working> --source-branch=main --sha=<commit on it> --target=<intermediary> --target-branch=handover/<name>
+   ```
+   It records the correlation, dispatches `s6-copy.yml`, prints the correlation and the run, and exits. The
+   running backend exchanges the run's ID token and revokes the token once the run completes; the Audit
+   Log shows `github.exchange_issued` and `github.exchange_revoked`. Exit code 1 means refused (not `dev`, no
+   runner, a repository not found, the runner's `s6-copy.yml` not accepted, or GitHub's refusal), 2 a wrong
+   invocation.
+
+Spike S6's probe still serves its own exchange on 8099 for its parts b and c: it answers the published
+workflows' new path, `/github/actions/exchange`, too.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

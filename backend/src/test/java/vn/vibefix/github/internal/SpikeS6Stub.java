@@ -1322,9 +1322,9 @@ final class SpikeS6Stub implements AutoCloseable {
 		return jwt.serialize();
 	}
 
-	/** The workflow's {@code POST $EXCHANGE_URL/exchange}. */
+	/** The published workflow's {@code POST $EXCHANGE_URL/github/actions/exchange}, which the probe serves too. */
 	private Exchanged exchange(Run run, String idToken, String correlation) {
-		String url = input(run, "exchange_url") + OidcExchange.PATH;
+		String url = input(run, "exchange_url") + OidcExchange.PRODUCTION_PATH;
 		try {
 			HttpResponse<String> response = this.client.send(HttpRequest.newBuilder(URI.create(url))
 				.timeout(Duration.ofSeconds(30))
