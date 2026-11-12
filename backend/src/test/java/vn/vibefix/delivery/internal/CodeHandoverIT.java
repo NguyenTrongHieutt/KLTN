@@ -54,11 +54,12 @@ import vn.vibefix.timers.Deadlines;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
- * Story 8.2 (FR-8, FR-23, FR-32, AD-11, AD-18, AD-33, NFR-3): a Code Job's handover covers the commits on
- * the Working Repository's default branch since the commit Setup copied. It needs them scanned by a push
- * scan, at least one of them, and no change under {@code .github/workflows/}, which the folder's tree at both
- * ends shows even when GitHub's list of changed files stops at 300. "Gửi bàn giao" pins the head
- * on {@code handover/{id}} in the Intermediary Repository with the System's pull request, applies M2, and
+ * Story 8.2 (FR-23, FR-32, AD-11, AD-18, AD-33, NFR-3): a Code Job's handover covers the commits on the
+ * Working Repository's default branch since the commit Setup copied. It needs at least one of them, and no
+ * change under {@code .github/workflows/}, which the folder's tree at both ends shows even when GitHub's list
+ * of changed files stops at 300; vibefix scans no code (Story 23.1), so nothing waits for a scan. "Gửi bàn
+ * giao" pins the head on {@code handover/{id}} in the Intermediary Repository with the System's pull request,
+ * applies M2, and
  * records each commit with its author's GitHub ID and the Work Items it mentions, the Sensitive Changes,
  * and the Pages updated. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
  * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). A push
@@ -221,7 +222,7 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("now", now).update();
 		page("Hướng dẫn dùng", "CUSTOMER");
 		page("Ghi chú nhóm", "TEAM");
-		// The repositories as Setup left them: the copy and its fork, at the commit the J7 scan approved.
+		// The repositories as Setup left them: the copy and its fork, at the commit Setup approved.
 		this.intermediary = "job-" + id + "-intermediary";
 		this.working = "job-" + id + "-working";
 		long intermediaryId = GITHUB.platformRepository(this.intermediary, "lan-dev", source);
@@ -245,7 +246,7 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	@Test
-	void theHeadIsScannedPinnedAndHandedOverWithItsCommitsSensitiveChangesAndPages() throws Exception {
+	void theHeadIsPinnedAndHandedOverWithItsCommitsSensitiveChangesAndPages() throws Exception {
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("NO_NEW_COMMITS")));
 		// NFR-3: a commit message is text, wherever it shows.
 		String message = "SDB-1 Chặn đặt trùng bàn <img src=x onerror=alert(1)>";
@@ -254,8 +255,6 @@ class CodeHandoverIT extends IntegrationTest {
 		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "package.json", "{\"name\":\"quan-may\"}\n",
 				"Thêm thư viện nhắc lịch", "unknown@example.test");
 
-		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("COMMITS_NOT_SCANNED")));
-		this.worker.runDue(Lane.SCAN);
 		preflight().andExpect(jsonPath("$.problems").isEmpty())
 			.andExpect(jsonPath("$.commitCount").value(2))
 			.andExpect(jsonPath("$.sensitiveChanges[0].path").value("package.json"))
@@ -296,7 +295,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", ".github/workflows/ci.yml", "on: [push, pull_request]\n",
 				"Chạy kiểm thử", "hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
 		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
@@ -313,7 +311,6 @@ class CodeHandoverIT extends IntegrationTest {
 		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử", "hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 
 		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
@@ -335,7 +332,6 @@ class CodeHandoverIT extends IntegrationTest {
 		preflight();
 		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
 			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
-		this.worker.runDue(Lane.SCAN);
 
 		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
@@ -355,7 +351,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 
 		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").isEmpty());
@@ -369,7 +364,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", padding("pad"), List.of(".github/workflows"), "Dọn dẹp",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
 		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
@@ -380,7 +374,6 @@ class CodeHandoverIT extends IntegrationTest {
 		files.put(".github/workflows/ci.yml", "on: push\n");
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Thêm lại", "hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 		before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
 		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
@@ -394,7 +387,6 @@ class CodeHandoverIT extends IntegrationTest {
 		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
 				"Sửa lỗi", "hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 
 		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").isEmpty());
@@ -414,7 +406,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 
 		GITHUB.graphqlErrors.add(this.working);
 		try {
@@ -468,7 +459,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 
 		handOver(4).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE"));
 
@@ -484,7 +474,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight().andExpect(jsonPath("$.previewRequired").value(true));
-		this.worker.runDue(Lane.SCAN);
 
 		handOverWith("").andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("PREVIEW_REQUIRED"));
 		handOverWith(",\"previewUrl\":\"http://so-dat-ban.vercel.app\"").andExpect(status().isBadRequest());
@@ -559,7 +548,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		UUID handover = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
 		long version = this.jdbc.sql("SELECT version FROM job.job WHERE id = :id").param("id", this.job).query(Long.class).single();
@@ -593,7 +581,6 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		UUID handover = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
 		this.voids.sweep();
@@ -760,12 +747,11 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("id", handover).query().singleRow();
 	}
 
-	/** The handover of one scanned commit. */
+	/** The handover of one commit. */
 	private UUID handedOver() throws Exception {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight();
-		this.worker.runDue(Lane.SCAN);
 		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		return UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
 	}

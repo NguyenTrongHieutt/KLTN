@@ -107,7 +107,9 @@ class TransitionTableTest {
 			assertThat(transition.trigger()).as("the trigger of %s", transition).isNotBlank();
 		}
 		assertThat(untagged).isEmpty();
-		assertThat(Transition.J1.guards()).extracting(Transition.Guard::fr).contains("FR-8");
+		// vibefix scans no code (Story 23.1): J1 has no Intake Finding guard, and M2 no "scans clean".
+		assertThat(Transition.J1.guards()).extracting(Transition.Guard::fr).containsExactly("FR-9");
+		assertThat(Transition.M2.guards()).extracting(Transition.Guard::fr).containsExactly("FR-32");
 		assertThat(Transition.J3.guards()).extracting(Transition.Guard::fr).contains("FR-13");
 		assertThat(Transition.J4.guards()).extracting(Transition.Guard::fr).contains("FR-15");
 		assertThat(Transition.J6.guards()).extracting(Transition.Guard::fr).contains("FR-75");

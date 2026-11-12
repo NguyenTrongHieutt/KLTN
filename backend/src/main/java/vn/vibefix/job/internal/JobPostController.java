@@ -40,7 +40,6 @@ import vn.vibefix.job.internal.MentorCapacity.Capacity;
 import vn.vibefix.job.internal.MentorCapacity.Reason;
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.product.ProductDirectory.ProductInfo;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -105,7 +104,7 @@ class JobPostController {
 	 * @param lapsesAt when the Job Post lapses, while Open
 	 */
 	record JobPostView(UUID id, UUID productId, String title, String productName, String productDescription,
-			List<String> productTools, int productOpenFindings, @Nullable String problem, @Nullable String expected,
+			List<String> productTools, @Nullable String problem, @Nullable String expected,
 			@Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes, List<JobPostSkillView> skills,
 			@Nullable Budget budget, @Nullable LocalDate deadline, Instant openedAt, @Nullable Instant lapsesAt,
 			List<ScreenshotView> screenshots, @Nullable JobPhase phase, JobNeed need, @Nullable PostMentorView mentor,
@@ -126,8 +125,6 @@ class JobPostController {
 
 	private final ProductDirectory products;
 
-	private final Scans scans;
-
 	private final GitHubGate gitHub;
 
 	private final SearchWindow searches;
@@ -141,14 +138,13 @@ class JobPostController {
 	private final Clock clock;
 
 	JobPostController(JobPostQueries posts, Jobs jobs, MentorCapacity capacity, Catalog catalog,
-			ProductDirectory products, Scans scans, GitHubGate gitHub, SearchWindow searches, CurrentCaller callers,
+			ProductDirectory products, GitHubGate gitHub, SearchWindow searches, CurrentCaller callers,
 			CustomerNames customers, MentorDirectory mentors, Clock clock) {
 		this.posts = posts;
 		this.jobs = jobs;
 		this.capacity = capacity;
 		this.catalog = catalog;
 		this.products = products;
-		this.scans = scans;
 		this.gitHub = gitHub;
 		this.searches = searches;
 		this.callers = callers;
@@ -223,9 +219,8 @@ class JobPostController {
 			Skill skill = skills.get(job.skillIds().get(i));
 			shown.add(new JobPostSkillView(job.skillIds().get(i), job.skillNames().get(i), skill == null ? "" : skill.hint()));
 		}
-		int findings = this.scans.openFindingCounts(List.of(product.id())).getOrDefault(product.id(), 0);
 		return new JobPostView(job.id(), product.id(), job.title(), product.name(), product.description(), product.tools(),
-				findings, job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), shown, job.budget(),
+				job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), shown, job.budget(),
 				job.deadline(), post.openedAt(), job.state() == JobState.OPEN ? job.lapsesAt() : null,
 				this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
 				this.posts.phases(List.of(post)).get(job.id()), post.need(),

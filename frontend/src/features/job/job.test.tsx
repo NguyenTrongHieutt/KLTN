@@ -18,7 +18,7 @@ function renderAt(path: string) {
   return router
 }
 
-const product = (openFindings = 0) => ({
+const product = () => ({
   id: 'p1',
   name: 'Sổ đặt bàn Quán Mây',
   description: 'Đặt bàn cho quán.',
@@ -27,9 +27,6 @@ const product = (openFindings = 0) => ({
   repositoryUrl: 'https://github.com/lan/so-dat-ban',
   repositoryOwnerType: 'User',
   createdAt: '2026-10-16T03:00:00Z',
-  scanState: openFindings > 0 ? 'FINDINGS' : 'CLEAN',
-  scan: { id: 's1', purpose: 'INTAKE', status: 'SUCCEEDED', requestedAt: '2026-10-16T03:00:00Z', unscannedCount: 0, unscanned: [] },
-  openFindings,
   jobs: 0,
 })
 
@@ -286,19 +283,19 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     expect(screen.getByRole('checkbox', { name: /Chỉnh sửa/ })).toBeChecked()
   })
 
-  it('disables every Code Job Type while the Product has open Findings', { timeout: 15_000 }, async () => {
+  it('offers every Job Type, as no scan gates a Code Job (Story 23.1)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/products/p1': () => json(product(1)),
+      'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/products/p1/skill-suggestions': () => json([]),
       'GET /api/v1/catalog': catalog,
     })
     renderAt('/san-pham/p1/cong-viec-moi')
 
-    expect(await screen.findByText('Còn 1 vấn đề cần xử lý · bạn vẫn đặt được công việc đánh giá')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /Tính năng mới/ })).toBeDisabled()
+    expect(await screen.findByRole('checkbox', { name: /Tính năng mới/ })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: /Sửa lỗi/ })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: /^Đánh giá/ })).toBeEnabled()
-    expect(screen.getByRole('link', { name: 'Xử lý vấn đề' })).toHaveAttribute('href', '/san-pham/p1')
+    expect(screen.queryByText(/vấn đề cần xử lý/)).toBeNull()
   })
 
   it('uploads screenshots to a saved Draft and repeats the personal-data reminder', { timeout: 15_000 }, async () => {
@@ -411,26 +408,6 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(seen.some((request) => request.method !== 'GET')).toBe(false)
-  })
-
-  it('says how many security problems block a Code Job', { timeout: 15_000 }, async () => {
-    const user = userEvent.setup()
-    fakeBackend(signedInUser, {
-      ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/jobs/j1': () => json(complete),
-      'GET /api/v1/products/p1': () => json(product()),
-      'GET /api/v1/catalog': catalog,
-      'PUT /api/v1/jobs/j1': () => json(complete),
-      'POST /api/v1/jobs/j1/publish': () =>
-        json({ status: 422, code: 'GUARD_FAILED', reason: 'INTAKE_FINDING_OPEN', count: 2 }, 422),
-    })
-    renderAt('/cong-viec/j1/sua')
-
-    await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đăng tin' }))
-
-    expect((await screen.findAllByText('Chưa thể đăng tin: còn 2 vấn đề bảo mật chưa xử lý.')).length).toBeGreaterThan(0)
-    expect(screen.getByRole('heading', { level: 1, name: 'Sửa công việc' })).toBeInTheDocument()
   })
 
   it('says GitHub must be linked first and links to ACC-2 (FR-80)', { timeout: 15_000 }, async () => {

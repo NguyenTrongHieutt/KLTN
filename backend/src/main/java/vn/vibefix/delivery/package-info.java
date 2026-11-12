@@ -10,8 +10,8 @@
  * transaction (AD-5), or asks for a revision within the Revision Rounds (FR-33, FR-34); left undecided,
  * it is reminded twice and then accepted automatically by a pausable Deadline (FR-35, AD-7).
  * <p>
- * A Code Job's handover (Story 8.2) needs its commits since the previous Handover Commit scanned and
- * clean, at least one of them, and no change under {@code .github/workflows/}; {@code repo} pins the
+ * A Code Job's handover (Story 8.2) needs at least one commit since the previous Handover Commit, and no
+ * change under {@code .github/workflows/}; vibefix scans no code (Story 23.1). {@code repo} pins the
  * Handover Commit on {@code handover/{handoverId}} with the System's pull request before M2, and the
  * Delivery Report lists the Sensitive Changes, the Pages updated, and the commits (AD-11, AD-33).
  * <p>

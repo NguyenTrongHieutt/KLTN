@@ -64,8 +64,7 @@ replaces them, after which the volume must be deleted too (`down --volumes`). Ne
 file: `secrets/` is in `.gitignore`.
 
 After pulling a change that adds a secret (Story 1.16 added `identity-person-signal-key-1`, the key
-of the person-link signals; Story 2.3 added `scanning-fingerprint-key`, the key of the Finding
-fingerprints; Story 19.1 added `google-oauth-client-id` and `google-oauth-client-secret`), run
+of the person-link signals; Story 19.1 added `google-oauth-client-id` and `google-oauth-client-secret`), run
 `deploy/dev-secrets.sh` again: it creates only the missing files, and the stack needs every
 mounted file to exist, even an empty one.
 
@@ -329,9 +328,10 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
 ## Code Job setup on the dev stack (Story 7.2)
 
 When Milestone 1 of a Code Job is paid, vibefix sets up its repositories under the Job's busy marker.
-It checks the Source Repository again with the Customer's token and scans it again. Then it copies the
-approved commit into `job-…-intermediary` in `vibefix-dev`, forks that into `job-…-working`, and reads
-the organization settings and both rulesets back. JOB-H shows the three steps.
+It checks the Source Repository again with the Customer's token and reads its default branch's head
+through the GitHub API (vibefix scans no code, Story 23.1). Then it copies that commit into
+`job-…-intermediary` in `vibefix-dev`, forks that into `job-…-working`, and reads the organization
+settings and both rulesets back. JOB-H shows the three steps.
 
 On the dev stack this needs the Platform App configured for the backend, as for Spike S4:
 `vibefix.github.platform-app.id`, `installation-id`, and `key-file`, with the key mounted read-only from
@@ -340,8 +340,8 @@ every attempt fails with `GITHUB_UNAVAILABLE`. After the retries, the
 operation waits in ADM-7's failed queue (Thao tác lỗi), and an Administrator retries it there once the
 App is configured.
 
-- **A block** (a new Finding, a private repository, lost admin rights, or a missing sign-in) stops the
-  start and tells the Customer and the Mentor why. The Customer fixes it and taps "Thử lại" on JOB-H.
+- **A block** (a private repository, lost admin rights, or a missing sign-in) stops the start and tells
+  the Customer and the Mentor why. The Customer fixes it and taps "Thử lại" on JOB-H.
 - **The copies are public repositories** in the organization. Delete them by hand after a dev run.
 - **Invitations follow (Story 7.3).** The Mentor and each active Crew member are invited to the Working
   Repository with read. Each accepts on GitHub, with two-factor authentication on. vibefix reads
@@ -350,10 +350,9 @@ App is configured.
   Job Active.
 - **A `vibefix-dev` member** is added by GitHub without an invitation. Administrators are alerted;
   remove the person from the organization.
-- **Pushes to the Working Repository are scanned (Story 7.4).** A `push` webhook, or the 10-minute
-  sweep (`vibefix.repo.push-sweep`), reads the branch and tag heads back. Any change scans the
-  repository again. A credential goes to the Mentor ("Đã đổi khóa" on the Job's page) and personal
-  data to the Customer. While a Finding is open, the next handover waits.
+- **Pushes to the Working Repository are not scanned (Story 23.1).** A `push` webhook, or the 10-minute
+  sweep (`vibefix.repo.push-sweep`), reads the branch and tag heads back and records them, until Story
+  23.2 retires the head tracking. vibefix scans no code: the Mentor keeps the team's secrets out.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

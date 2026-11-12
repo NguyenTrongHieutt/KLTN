@@ -130,25 +130,22 @@ class JobLifecycleIT extends IntegrationTest {
 	}
 
 	@Test
-	void aCodeJobWaitsForItsIntakeFindingsAndAnIncompleteDraftIsNotPublished() throws Exception {
+	void aCodeJobPublishesWithNoIntakeFindingGuardAndAnIncompleteDraftIsNotPublished() throws Exception {
 		UUID code = draft("[\"BUG_FIX\"]", "\"UNDER_2M\"", "\"2026-11-15\"");
 		UUID assessment = draft("[\"ASSESSMENT\"]", "\"UNDER_2M\"", "\"2026-11-15\"");
 		UUID incomplete = draft("[]", "null", "\"2026-01-05\"");
-		openFinding(this.product);
 
-		publish(code).andExpect(status().is(422))
-			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
-			.andExpect(jsonPath("$.reason").value("INTAKE_FINDING_OPEN"))
-			.andExpect(jsonPath("$.count").value(1));
+		// vibefix scans no code (Story 23.1): J1 has no Intake Finding guard for a Code Job.
+		publish(code).andExpect(status().isOk()).andExpect(jsonPath("$.state").value("OPEN"));
 		publish(assessment).andExpect(status().isOk()).andExpect(jsonPath("$.state").value("OPEN"));
 		publish(incomplete).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("JOB_INCOMPLETE"))
 			.andExpect(jsonPath("$.missing[0]").value("jobTypes"))
 			.andExpect(jsonPath("$.missing[1]").value("budget"))
 			.andExpect(jsonPath("$.missing[2]").value("deadline"));
-		assertThat(state(code)).isEqualTo("DRAFT");
+		assertThat(state(incomplete)).isEqualTo("DRAFT");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j1'")
-			.query(Long.class).single()).as("a refusal writes nothing").isOne();
+			.query(Long.class).single()).as("the two publishes only: a refusal writes nothing").isEqualTo(2);
 
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(post("/api/v1/jobs/" + assessment + "/withdraw").with(as(other)).with(csrf()))
@@ -278,22 +275,6 @@ class JobLifecycleIT extends IntegrationTest {
 			.param("now", now)
 			.update();
 		return id;
-	}
-
-	private void openFinding(UUID productId) {
-		UUID run = UUID.randomUUID();
-		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
-		this.jdbc.sql("""
-				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
-				    repository_github_id, purpose, status, rules_version, found_count, new_findings, requested_at, finished_at)
-				VALUES (:id, :product, :owner, 'Sổ', 'lan/so-dat-ban', 1, 'INTAKE', 'SUCCEEDED', 2, 1, 1, :now, :now)
-				""").param("id", run).param("product", productId).param("owner", this.lan).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
-				    commit_sha, committed_at, masked_preview, fingerprint, status, created_at)
-				VALUES (:id, :product, :run, 'CREDENTIAL', 'stripe-secret-key', 'Khóa bí mật Stripe', 'pay.js',
-				    repeat('a', 40), :now, 'sk_l••••••••Q7mZ', repeat('c', 64), 'OPEN', :now)
-				""").param("id", UUID.randomUUID()).param("product", productId).param("run", run).param("now", now).update();
 	}
 
 	private RequestPostProcessor as(UUID account) {

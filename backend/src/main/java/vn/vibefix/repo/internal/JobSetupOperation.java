@@ -25,18 +25,15 @@ import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.ProductSources.SourceCheck;
 import vn.vibefix.repo.internal.JobSetups.Block;
 import vn.vibefix.repo.internal.JobSetups.Setup;
-import vn.vibefix.scanning.ScanStatus;
-import vn.vibefix.scanning.ScanSummary;
-import vn.vibefix.scanning.Scans;
 
 /**
  * {@value JobSetups#OPERATION} (FR-18, AD-5, AD-11, AD-28): Setup as a precondition External Operation in
  * the GitHub-long lane. Each attempt resumes at the first unfinished step, and each step finds what an
  * earlier attempt created before it creates anything:
  * <ol>
- * <li>"Kiểm tra lại dự án gốc": the Source Repository read again with the Customer's token (AD-13), then a
- * {@code J7} scan, waited for without counting attempts; any open Finding, or a check that fails, blocks
- * the start.</li>
+ * <li>"Kiểm tra lại dự án gốc": the Source Repository read again with the Customer's token (AD-13); a check
+ * that fails blocks the start. The default branch's head, read through the GitHub API, becomes the approved
+ * commit (vibefix scans no code; Story 23.6 replaces it with the Customer's self-confirmed SHA).</li>
  * <li>"Tạo kho trung gian": the public Intermediary Repository, then the copy of exactly the approved
  * commit in the sandbox.</li>
  * <li>"Tạo kho làm việc": the fork inside the organization with its features off, the organization read
@@ -50,9 +47,6 @@ class JobSetupOperation implements OperationHandler {
 
 	static final OperationPolicy POLICY = new OperationPolicy(6, Duration.ofMinutes(1));
 
-	/** How long a running J7 scan is waited for before the next look; not an attempt. */
-	static final Duration SCAN_WAIT = Duration.ofSeconds(30);
-
 	/** How long a frozen Job's Setup waits before it looks again (AD-28). */
 	static final Duration FROZEN_WAIT = Duration.ofMinutes(15);
 
@@ -65,18 +59,15 @@ class JobSetupOperation implements OperationHandler {
 
 	private final ObjectProvider<ProductSources> sourcesProvider;
 
-	private final ObjectProvider<Scans> scansProvider;
-
 	private final ObjectProvider<PlatformRepositories> repositoriesProvider;
 
 	private final Clock clock;
 
 	JobSetupOperation(ObjectProvider<JobSetups> setups, ObjectProvider<JobBusy> busy, ObjectProvider<ProductSources> sources,
-			ObjectProvider<Scans> scans, ObjectProvider<PlatformRepositories> repositories, Clock clock) {
+			ObjectProvider<PlatformRepositories> repositories, Clock clock) {
 		this.setupsProvider = setups;
 		this.busyProvider = busy;
 		this.sourcesProvider = sources;
-		this.scansProvider = scans;
 		this.repositoriesProvider = repositories;
 		this.clock = clock;
 	}
@@ -111,6 +102,11 @@ class JobSetupOperation implements OperationHandler {
 				return new Outcome.Obsolete("SETUP_BLOCKED");
 			}
 			case "FAILED" -> {
+				// Only the Job's latest attempt runs again: an older one (Story 23.1's migration left some FAILED
+				// beside the attempt that replaced them) would copy into the Job's repositories a second time.
+				if (!setups().latest(setup.jobId()).map(Setup::id).filter(setup.id()::equals).isPresent()) {
+					return new Outcome.Obsolete("SETUP_REPLACED");
+				}
 				if (!setups().resume(setup)) {
 					return new Outcome.Obsolete("JOB_NOT_STARTING");
 				}
@@ -128,9 +124,9 @@ class JobSetupOperation implements OperationHandler {
 		}
 		try {
 			if (setup.checkedAt() == null) {
-				Outcome waiting = check(setup);
-				if (waiting != null) {
-					return waiting;
+				Outcome blocked = check(setup);
+				if (blocked != null) {
+					return blocked;
 				}
 				setup = setups().find(id).orElseThrow();
 			}
@@ -148,38 +144,20 @@ class JobSetupOperation implements OperationHandler {
 	}
 
 	/**
-	 * Step 1. @return the outcome that ends this attempt (a block, or a wait for the scan), or {@code null}
-	 * once the step is done
+	 * Step 1: the Source Repository checked again, then its default branch's head read through the GitHub
+	 * API and recorded as the approved commit. A GitHub failure is a {@link GitHubException}, which the
+	 * lane retries.
+	 * @return the block that ends this attempt, or {@code null} once the step is done
 	 */
 	private Outcome check(Setup setup) {
 		SourceCheck source = sources().check(setup.productId());
 		if (source.block() != null) {
 			Block block = Block.valueOf(source.block().name());
-			setups().block(setup, block, null);
+			setups().block(setup, block);
 			return new Outcome.Aborted(block.name());
 		}
-		if (setup.scanRunId() == null) {
-			setups().requestScan(setup, source);
-			return new Outcome.Deferred(this.clock.instant().plus(SCAN_WAIT));
-		}
-		ScanSummary scan = scans().run(setup.scanRunId()).orElse(null);
-		if (scan == null || scan.status() == ScanStatus.FAILED) {
-			setups().forgetScan(setup);
-			return new Outcome.Transient("SCAN_FAILED");
-		}
-		if (scan.status() != ScanStatus.SUCCEEDED) {
-			return new Outcome.Deferred(this.clock.instant().plus(SCAN_WAIT));
-		}
-		int open = scans().openFindings(setup.productId()).size();
-		if (open > 0) {
-			setups().block(setup, Block.INTAKE_FINDING_OPEN, open);
-			return new Outcome.Aborted(Block.INTAKE_FINDING_OPEN.name());
-		}
-		if (scan.defaultBranch() == null || scan.defaultBranchSha() == null) {
-			setups().forgetScan(setup);
-			return new Outcome.Transient("SCAN_WITHOUT_HEAD");
-		}
-		setups().checked(setup, scan.defaultBranch(), scan.defaultBranchSha());
+		String head = repositories().sourceHead(source.repositoryFullName(), source.defaultBranch());
+		setups().checked(setup, source.repositoryFullName(), source.defaultBranch(), head);
 		return null;
 	}
 
@@ -230,10 +208,6 @@ class JobSetupOperation implements OperationHandler {
 
 	private ProductSources sources() {
 		return this.sourcesProvider.getObject();
-	}
-
-	private Scans scans() {
-		return this.scansProvider.getObject();
 	}
 
 	private PlatformRepositories repositories() {

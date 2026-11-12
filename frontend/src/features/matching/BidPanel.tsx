@@ -99,7 +99,7 @@ function BidState({ application }: { application: Application }) {
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.matching.applied.withdrawTitle')}</Dialog.Title>
               <Dialog.Close
-                aria-label={t('screen.product.finding.close')}
+                aria-label={t('screen.shared.close')}
                 className="rounded-md p-1 text-muted-foreground hover:bg-muted"
               >
                 <X aria-hidden="true" className="size-5" />

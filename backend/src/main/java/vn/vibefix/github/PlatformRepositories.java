@@ -222,6 +222,12 @@ public interface PlatformRepositories {
 	/** The public repository with this ID, or none when it is gone or private to a public read. */
 	Optional<SourceRepository> source(long githubId);
 
+	/**
+	 * The commit SHA {@code branch} of the public Source Repository {@code fullName} points at now
+	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}): J7 copies it until Story 23.6's self-confirmation.
+	 */
+	String sourceHead(String fullName, String branch);
+
 	/** The commits on {@code branch} after {@code baseSha}, oldest first, at most 250 (FR-20, FR-53). */
 	List<String> commitsSince(String fullName, String baseSha, String branch);
 

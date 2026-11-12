@@ -508,7 +508,6 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
             proof: [],
           },
         ]),
-      'GET /api/v1/products/p1': () => json({ id: 'p1', openFindings: 0 }),
     })
     renderAt('/cong-viec/j1')
 

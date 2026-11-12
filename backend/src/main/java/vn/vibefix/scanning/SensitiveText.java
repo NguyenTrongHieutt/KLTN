@@ -3,8 +3,8 @@ package vn.vibefix.scanning;
 import java.util.List;
 
 /**
- * FR-47's check of text about to be sent (AD-18): the same {@code scanning/rules.yaml} rules as the
- * Secret Scan, with no AI, on at most {@link #MAX_LENGTH} characters. The Job Chat and the Crew Chat
+ * FR-47's check of text about to be sent (AD-18): the {@code scanning/rules.yaml} rules, with no AI, on
+ * at most {@link #MAX_LENGTH} characters. The Job Chat and the Crew Chat
  * warn before sending what it finds; the raw values never leave the check.
  */
 public interface SensitiveText {
@@ -26,7 +26,7 @@ public interface SensitiveText {
 	 * One finding.
 	 * @param type the rule's type for a credential, for example "Khóa Supabase"; the kind of value for
 	 * personal data
-	 * @param masked the value as FR-8 masks it
+	 * @param masked the value as FR-47 masks it
 	 */
 	record Match(Kind kind, String type, String masked) {
 	}

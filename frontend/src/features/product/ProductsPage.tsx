@@ -8,12 +8,11 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { useProducts, type Product } from './productApi'
-import { ScanStateBadge } from './ScanStateBadge'
 
 /**
- * CUS-2 (`/san-pham`, FR-7, FR-8, UX-DR66): the user's own Products, with no role needed (Story 20.3),
- * each with its scan state and open Findings, its Source Repository, and its Jobs; with none, the empty
- * state and "Đăng ký sản phẩm". Job counts come with Story 3.1.
+ * CUS-2 (`/san-pham`, FR-7, UX-DR66): the user's own Products, with no role needed (Story 20.3), each with
+ * its Source Repository and its Jobs; with none, the empty state and "Đăng ký sản phẩm". vibefix scans no
+ * code, so no scan state is shown. Job counts come with Story 3.1.
  */
 export function ProductsPage() {
   usePageTitle(t('screen.product.title'))
@@ -61,12 +60,9 @@ function ProductList() {
 function ProductCard({ product }: { product: Product }) {
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link to={`/san-pham/${product.id}`} className="text-h3 break-words text-primary underline-offset-4 hover:underline">
-          {product.name}
-        </Link>
-        <ScanStateBadge product={product} />
-      </div>
+      <Link to={`/san-pham/${product.id}`} className="w-fit text-h3 break-words text-primary underline-offset-4 hover:underline">
+        {product.name}
+      </Link>
       <p className="text-body-sm break-words text-muted-foreground">{product.description}</p>
       <p className="text-caption text-muted-foreground">
         {t('screen.product.source', { name: product.repositoryFullName })} {t('screen.product.domain', { domain: 'github.com' })}

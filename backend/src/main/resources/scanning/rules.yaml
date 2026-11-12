@@ -1,10 +1,10 @@
-# AD-18, SG-13: the rules of the Secret Scan, owned and versioned by scanning (FR-8). One file for
-# every scan purpose; raising `version` marks the Findings a later rule set produces. Every pattern is
-# RE2/J syntax (linear time, no look-around, repetition counts up to 1000) and holds exactly one
-# capturing group: the credential itself, which is masked and fingerprinted, never stored.
+# AD-18, SG-13: the rules of the FR-47 text checks and of closed-Job chat redaction, owned and versioned
+# by scanning. vibefix scans no code (Story 23.1): these rules check text people are about to send, never
+# a repository. Every pattern is RE2/J syntax (linear time, no look-around, repetition counts up to 1000)
+# and holds exactly one capturing group: the credential itself, which is masked, never stored.
 #
-# Per rule: `id` (stable, stored with each Finding), `type` (the plain Vietnamese name the Customer
-# reads), `keywords` (lower-case; the rule runs only on a file containing one, none means always),
+# Per rule: `id` (stable), `type` (the plain Vietnamese name the sender reads), `keywords` (lower-case;
+# the rule runs only on a text containing one, none means always),
 # `paths` (only files whose path matches), `exclude` (a match containing this is not a credential),
 # and `check` (a test of the value itself: `jwt-service-role` decodes a JWT and keeps only Supabase's
 # service_role, so the public anon key is never flagged).
@@ -15,11 +15,10 @@ version: 4
 source: >-
   Written for vibefix from each provider's published credential format (2026-10-19). Not copied from
   gitleaks: its MIT-licensed rules can be merged in later with their licence notice and source commit.
-# FR-65, addendum §B6: the Personal-Data Check, run on every text file the Secret Scan reads, in the
-# same scan run. A file is a hit with a citizen ID in context, with `phones` or `emails` distinct
-# values, or, for a data file, with a personal-data column holding `dataFileValues` personal values.
-# The thresholds are placeholders until OQ5 settles them (before the first real Job). One Finding per
-# file; its type is composed from the kinds found, and only masked samples leave the scan.
+# Addendum §B6: the personal-data rules, checked with the credential rules on each text. A text is a hit
+# with a citizen ID in context, with `phones` or `emails` distinct values, or, for a data file, with a
+# personal-data column holding `dataFileValues` personal values. The thresholds are placeholders until
+# OQ5 settles them (before the first real Job). Only masked values leave the check.
 personalData:
   thresholds:
     phones: 10
@@ -39,11 +38,6 @@ personalData:
   citizenIdColumns: '(?i)^(?:[a-z0-9]+[_ ])*(?:cccd|cmnd|citizen[_ ]?id|national[_ ]?id|id[_ ]?card)$'
   # Dependency manifests and lockfiles name maintainers, never end users.
   exemptFiles: '(?:^|/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|composer\.json|composer\.lock|Gemfile\.lock|poetry\.lock|Cargo\.lock)$'
-  # Story 16.3, SG-12: .xlsx workbooks and SQLite files are extracted to tables in the scan job and checked as
-  # data files; the Tier 3 fallback moves them back to notExtracted.
-  extracted: '(?i)\.(?:xlsx|sqlite|sqlite3|db)$'
-  # Spreadsheets and databases whose extraction is off: listed as "chưa kiểm tra được" (FR-65 Tier 3).
-  notExtracted: '(?i)\.(?:xls|ods)$'
   # The type the Customer reads: the kinds found, in this order, then the suffix.
   labels:
     CITIZEN_ID: số căn cước

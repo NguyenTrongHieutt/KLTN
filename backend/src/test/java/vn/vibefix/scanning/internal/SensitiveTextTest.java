@@ -12,10 +12,23 @@ import vn.vibefix.scanning.SensitiveText.Kind;
 import vn.vibefix.scanning.SensitiveText.Result;
 import vn.vibefix.scanning.internal.PlantedSecrets.Planted;
 
-/** FR-47: chat text checked with the Secret Scan's rules, masked in place, within the length cap. */
+/** FR-47: chat text checked with the {@code rules.yaml} rules, masked in place, within the length cap. */
 class SensitiveTextTest {
 
 	private final SensitiveText check = new SensitiveTextCheck();
+
+	@Test
+	void anInstallationTokenOfEitherFormIsFoundAndMasked() {
+		// Story 23.1 keeps the rules for FR-47 although vibefix scans no code: both ghs_ forms still warn.
+		for (String rule : java.util.List.of("github-app-token", "github-app-token-stateless")) {
+			Planted token = PlantedSecrets.all().get(rule);
+
+			Result result = this.check.check("Token cài đặt: " + token.value());
+
+			assertThat(result.count(Kind.CREDENTIAL)).as(rule).isOne();
+			assertThat(result.maskedText()).as(rule).startsWith("Token cài đặt: ").doesNotContain(token.value());
+		}
+	}
 
 	@Test
 	void aCredentialIsFoundAndMaskedWhereItSits() {

@@ -1023,33 +1023,6 @@
         "tags" : [ "admin-failures-controller" ]
       }
     },
-    "/api/v1/admin/failures/findings/{findingId}/reopen" : {
-      "post" : {
-        "operationId" : "reopen",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "findingId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/FailuresView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-failures-controller" ]
-      }
-    },
     "/api/v1/admin/failures/operations/{operationId}/retry" : {
       "post" : {
         "operationId" : "retry_1",
@@ -5116,74 +5089,6 @@
         "tags" : [ "final-merge-controller" ]
       }
     },
-    "/api/v1/jobs/{jobId}/findings" : {
-      "get" : {
-        "operationId" : "findings_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/JobFindingView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "job-finding-controller" ]
-      }
-    },
-    "/api/v1/jobs/{jobId}/findings/{findingId}/rotation" : {
-      "post" : {
-        "operationId" : "rotated",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "findingId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/JobFindingView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "job-finding-controller" ]
-      }
-    },
     "/api/v1/jobs/{jobId}/funding" : {
       "get" : {
         "operationId" : "jobFunding",
@@ -7497,243 +7402,6 @@
               }
             },
             "description" : "OK"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/clean-repository" : {
-      "post" : {
-        "operationId" : "requestCleanRepository",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CleanRepositoryRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "202" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CleanRepositoryView"
-                }
-              }
-            },
-            "description" : "Accepted"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/findings" : {
-      "get" : {
-        "operationId" : "findings",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/FindingView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/findings/{findingId}" : {
-      "get" : {
-        "operationId" : "finding",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "findingId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/FindingDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/findings/{findingId}/false-positive" : {
-      "post" : {
-        "operationId" : "markFalsePositive",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "findingId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/FalsePositiveRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/FindingView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/findings/{findingId}/rotation" : {
-      "post" : {
-        "operationId" : "confirmRotation",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "findingId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/FindingView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/scans" : {
-      "get" : {
-        "operationId" : "scans",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/ScanView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-controller" ]
-      },
-      "post" : {
-        "operationId" : "rescan",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "202" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ScanView"
-                }
-              }
-            },
-            "description" : "Accepted"
           }
         },
         "tags" : [ "product-controller" ]
@@ -11442,48 +11110,6 @@
         },
         "required" : [ "done", "text" ]
       },
-      "CleanRepositoryRequest" : {
-        "type" : "object",
-        "properties" : {
-          "url" : {
-            "type" : "string",
-            "maxLength" : 300,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "url" ]
-      },
-      "CleanRepositoryView" : {
-        "type" : "object",
-        "properties" : {
-          "decidedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "reason" : {
-            "type" : "string"
-          },
-          "repositoryFullName" : {
-            "type" : "string"
-          },
-          "requestedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "scan" : {
-            "$ref" : "#/components/schemas/ScanView"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "ACCEPTED", "REJECTED", "SUPERSEDED" ]
-          }
-        },
-        "required" : [ "id", "repositoryFullName", "requestedAt", "status" ]
-      },
       "ClosureCommandRequest" : {
         "type" : "object",
         "properties" : {
@@ -13385,12 +13011,6 @@
               "$ref" : "#/components/schemas/FailedExecutionView"
             }
           },
-          "falsePositives" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/FalsePositiveView"
-            }
-          },
           "operations" : {
             "type" : "array",
             "items" : {
@@ -13404,51 +13024,7 @@
             }
           }
         },
-        "required" : [ "executions", "falsePositives", "operations", "stalledEvents" ]
-      },
-      "FalsePositiveRequest" : {
-        "type" : "object",
-        "properties" : {
-          "reason" : {
-            "type" : "string",
-            "maxLength" : 500,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "reason" ]
-      },
-      "FalsePositiveView" : {
-        "type" : "object",
-        "properties" : {
-          "filePath" : {
-            "type" : "string"
-          },
-          "findingId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "markedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "markedByName" : {
-            "type" : "string"
-          },
-          "productId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "productName" : {
-            "type" : "string"
-          },
-          "reason" : {
-            "type" : "string"
-          },
-          "ruleType" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "filePath", "findingId", "markedAt", "productId", "productName", "reason", "ruleType" ]
+        "required" : [ "executions", "operations", "stalledEvents" ]
       },
       "FeedbackView" : {
         "type" : "object",
@@ -13516,87 +13092,6 @@
           }
         },
         "required" : [ "id", "owner", "productId", "repository", "requestRefused", "requestWaiting", "status" ]
-      },
-      "FindingDetailView" : {
-        "type" : "object",
-        "properties" : {
-          "canResolve" : {
-            "type" : "boolean"
-          },
-          "cleanRepository" : {
-            "$ref" : "#/components/schemas/CleanRepositoryView"
-          },
-          "finding" : {
-            "$ref" : "#/components/schemas/FindingView"
-          },
-          "productName" : {
-            "type" : "string"
-          },
-          "tools" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string",
-              "enum" : [ "LOVABLE", "BOLT", "REPLIT", "V0", "BASE44", "CURSOR", "CLAUDE_CODE", "CODEX", "OTHER" ]
-            }
-          }
-        },
-        "required" : [ "canResolve", "finding", "productName", "tools" ]
-      },
-      "FindingView" : {
-        "type" : "object",
-        "properties" : {
-          "category" : {
-            "type" : "string",
-            "enum" : [ "CREDENTIAL", "PERSONAL_DATA" ]
-          },
-          "commit" : {
-            "type" : "string"
-          },
-          "committedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "maskedPreview" : {
-            "type" : "string"
-          },
-          "matchCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "path" : {
-            "type" : "string"
-          },
-          "resolution" : {
-            "type" : "string",
-            "enum" : [ "ROTATED", "CLEAN_REPOSITORY", "FALSE_POSITIVE" ]
-          },
-          "resolutionReason" : {
-            "type" : "string"
-          },
-          "resolvedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "ruleId" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "OPEN", "RESOLVED", "FALSE_POSITIVE" ]
-          },
-          "type" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "category", "commit", "committedAt", "createdAt", "id", "maskedPreview", "path", "ruleId", "status", "type" ]
       },
       "FitMetricsView" : {
         "type" : "object",
@@ -14858,38 +14353,6 @@
         },
         "required" : [ "jobTypes", "skillIds", "title" ]
       },
-      "JobFindingView" : {
-        "type" : "object",
-        "properties" : {
-          "canRotate" : {
-            "type" : "boolean"
-          },
-          "category" : {
-            "type" : "string"
-          },
-          "commit" : {
-            "type" : "string"
-          },
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "maskedPreview" : {
-            "type" : "string"
-          },
-          "path" : {
-            "type" : "string"
-          },
-          "type" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "canRotate", "category", "commit", "createdAt", "id", "maskedPreview", "path", "type" ]
-      },
       "JobFundingView" : {
         "type" : "object",
         "properties" : {
@@ -15081,10 +14544,6 @@
           "productName" : {
             "type" : "string"
           },
-          "productOpenFindings" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "productTools" : {
             "type" : "array",
             "items" : {
@@ -15110,7 +14569,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "jobTypes", "need", "openedAt", "productDescription", "productId", "productName", "productOpenFindings", "productTools", "screenshots", "skills", "title" ]
+        "required" : [ "id", "jobTypes", "need", "openedAt", "productDescription", "productId", "productName", "productTools", "screenshots", "skills", "title" ]
       },
       "JobProgressView" : {
         "type" : "object",
@@ -16481,9 +15940,6 @@
           "failedOperations" : {
             "$ref" : "#/components/schemas/Queue"
           },
-          "falsePositives" : {
-            "$ref" : "#/components/schemas/Queue"
-          },
           "lowFeedback" : {
             "$ref" : "#/components/schemas/Queue"
           },
@@ -16500,7 +15956,7 @@
             "$ref" : "#/components/schemas/Queue"
           }
         },
-        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "falsePositives", "lowFeedback", "skillSuggestions", "splitResolutions", "stalledEvents", "teamIssues" ]
+        "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "lowFeedback", "skillSuggestions", "splitResolutions", "stalledEvents", "teamIssues" ]
       },
       "PageLinkView" : {
         "type" : "object",
@@ -17327,10 +16783,6 @@
           "name" : {
             "type" : "string"
           },
-          "openFindings" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "repositoryFullName" : {
             "type" : "string"
           },
@@ -17340,13 +16792,6 @@
           "repositoryUrl" : {
             "type" : "string"
           },
-          "scan" : {
-            "$ref" : "#/components/schemas/ScanView"
-          },
-          "scanState" : {
-            "type" : "string",
-            "enum" : [ "AWAITING_SCAN", "SCANNING", "NOT_FINISHED", "FINDINGS", "CLEAN" ]
-          },
           "tools" : {
             "type" : "array",
             "items" : {
@@ -17355,7 +16800,7 @@
             }
           }
         },
-        "required" : [ "createdAt", "description", "id", "jobs", "name", "openFindings", "repositoryFullName", "repositoryOwnerType", "repositoryUrl", "scanState", "tools" ]
+        "required" : [ "createdAt", "description", "id", "jobs", "name", "repositoryFullName", "repositoryOwnerType", "repositoryUrl", "tools" ]
       },
       "ProfileRequest" : {
         "type" : "object",
@@ -18434,46 +17879,6 @@
         },
         "required" : [ "confirmationDueAt", "status", "versionNo" ]
       },
-      "ScanView" : {
-        "type" : "object",
-        "properties" : {
-          "finishedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "found" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "purpose" : {
-            "type" : "string",
-            "enum" : [ "INTAKE", "CLEAN_REPOSITORY", "RESCAN", "J7", "PUSH" ]
-          },
-          "requestedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "RUNNING", "RETRYING", "SUCCEEDED", "FAILED" ]
-          },
-          "unscanned" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/UnscannedFile"
-            }
-          },
-          "unscannedCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "id", "purpose", "requestedAt", "status", "unscanned", "unscannedCount" ]
-      },
       "SchoolEmailRequest" : {
         "type" : "object",
         "properties" : {
@@ -18713,10 +18118,6 @@
           },
           "jobState" : {
             "type" : "string"
-          },
-          "openFindings" : {
-            "type" : "integer",
-            "format" : "int32"
           },
           "people" : {
             "type" : "array",
@@ -20269,22 +19670,6 @@
           }
         },
         "required" : [ "count" ]
-      },
-      "UnscannedFile" : {
-        "type" : "object",
-        "properties" : {
-          "path" : {
-            "type" : "string"
-          },
-          "reason" : {
-            "type" : "string"
-          },
-          "sizeBytes" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "path", "reason", "sizeBytes" ]
       },
       "UserDetailView" : {
         "type" : "object",

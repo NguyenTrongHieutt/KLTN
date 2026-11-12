@@ -24,10 +24,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType IDENTITY_LINK_GITHUB = new TodoType("identity.link_github", Set.of(Audience.SUBJECT), 1,
 			Set.of());
 
-	/** An Intake Finding to resolve (FR-8, FR-65): its Customer, until it is resolved or marked a false positive. */
-	static final TodoType SCANNING_RESOLVE_INTAKE_FINDING = new TodoType("scanning.resolve_intake_finding",
-			Set.of(Audience.SUBJECT), 2, Set.of("product"));
-
 	/** An unverified Student; opened at sign-up as a Student or when verification expires (FR-5). */
 	/** The Customer's Job has open Applications to choose from (FR-15, UX-DR15). */
 	static final TodoType MATCHING_CHOOSE_ASSIGNEE = new TodoType("matching.choose_assignee", Set.of(Audience.CUSTOMER),
@@ -35,10 +31,6 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** The selected Mentor signs the NDA within the FR-15 period (UX-DR15). */
 	static final TodoType MATCHING_SIGN_NDA = new TodoType("matching.sign_nda", Set.of(Audience.MENTOR), 2, Set.of("job"));
-
-	/** Resolve a Finding in the Job's pushed code (FR-8): the Mentor for a credential, the Customer for personal data. */
-	static final TodoType SCANNING_RESOLVE_WORK_FINDING = new TodoType("scanning.resolve_work_finding",
-			Set.of(Audience.MENTOR, Audience.CUSTOMER), 1, Set.of("job"));
 
 	/** Re-confirm a renamed or transferred Source Repository (FR-20): the Customer. */
 	static final TodoType REPO_RECONFIRM_SOURCE = new TodoType("repo.reconfirm_source", Set.of(Audience.CUSTOMER), 2,
@@ -164,15 +156,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType ACCOUNT_LOCKED = new NotificationType("identity.account_locked",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.TRANSACTIONAL, "alert", Set.of("reason"));
 
-	/** An intake scan found no credential (FR-8): the Customer, in-app. */
-	static final NotificationType SCANNING_INTAKE_SCAN_CLEAN = new NotificationType("scanning.intake_scan_clean",
-			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("product"));
-
-	/** A scan opened a Finding (FR-8): whoever must act on it, by email too; intake Findings go to the Customer. */
-	static final NotificationType SCANNING_FINDING_OPENED = new NotificationType("scanning.finding_opened",
-			Set.of(Audience.SUBJECT, Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
-			EmailClass.TRANSACTIONAL, "alert", Set.of("type", "product"));
-
 	/** A platform repository's event by someone neither the System nor granted there (FR-19, AD-12): every Administrator. */
 	static final NotificationType GITHUB_UNEXPECTED_ACTOR = new NotificationType("github.unexpected_actor",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("login", "repository"));
@@ -189,14 +172,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_DRIFT_DETECTED = new NotificationType("repo.drift_detected",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("job"));
-
-	/** A push scan waited more than 10 minutes (FR-8, the 15-minute target): every Administrator. */
-	static final NotificationType SCANNING_PUSH_SCAN_DELAYED = new NotificationType("scanning.push_scan_delayed",
-			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
-
-	/** FR-64: an Administrator reopened a false positive; its resolvers act on it again. */
-	static final NotificationType SCANNING_FINDING_REOPENED = new NotificationType("scanning.finding_reopened",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("type", "product"));
 
 	/** An Open Job Post's selection period lapsed and it returned to Draft (FR-9): the Customer. */
 	static final NotificationType JOB_POST_LAPSED = new NotificationType("job.job_post_lapsed",
@@ -881,13 +856,12 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
-				SCANNING_PUSH_SCAN_DELAYED, REPO_DRIFT_DETECTED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
+				REPO_DRIFT_DETECTED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED,
-				SCANNING_INTAKE_SCAN_CLEAN, SCANNING_FINDING_OPENED, SCANNING_FINDING_REOPENED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
@@ -923,8 +897,7 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(IDENTITY_LINK_GITHUB, IDENTITY_RELINK_GITHUB_TODO,
-				SCANNING_RESOLVE_INTAKE_FINDING,
-				REPO_ACCEPT_GITHUB_INVITATION, SCANNING_RESOLVE_WORK_FINDING, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
+				REPO_ACCEPT_GITHUB_INVITATION, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,

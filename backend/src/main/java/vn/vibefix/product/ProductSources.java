@@ -25,7 +25,7 @@ public interface ProductSources {
 	}
 
 	/**
-	 * What the check found, with what a scan of the repository needs.
+	 * What the check found, with the Source Repository as the Product registered it.
 	 * @param block why it may not be copied, or none
 	 * @param defaultBranch the branch GitHub names as default, as read now
 	 */

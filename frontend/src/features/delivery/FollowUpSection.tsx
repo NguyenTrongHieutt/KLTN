@@ -309,7 +309,7 @@ function CustomerPart({ jobId, data }: { jobId: string; data: FollowUps }) {
   // Opening runs CUS-6's save, so its refusals carry job's reasons.
   const fail = (failure: Error) => {
     const reason = failure instanceof ApiError ? failure.problem.reason : undefined
-    const module = reason === 'OPEN_FINDINGS' || reason === 'ASSESSMENT_ALONE' ? 'job' : 'delivery'
+    const module = reason === 'ASSESSMENT_ALONE' ? 'job' : 'delivery'
     setError(problemMessage(failure, { module }).text)
   }
   return (

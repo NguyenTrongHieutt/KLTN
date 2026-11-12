@@ -36,15 +36,14 @@ import vn.vibefix.files.StoredFiles;
 import vn.vibefix.job.JobUploads;
 import vn.vibefix.product.ProductDirectory;
 import vn.vibefix.product.ProductDirectory.ProductInfo;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
  * A Customer's Jobs (FR-9): Drafts with the guided answers, Job Types, Skills, budget range, deadline,
- * and screenshots. Assessment never combines with another Job Type, and no Code Job Type is taken
- * while the Product has an open Intake Finding (FR-8). Only the Job's Customer reads or edits it.
+ * and screenshots. Assessment never combines with another Job Type. Only the Job's Customer reads or
+ * edits it.
  */
 @Component
 class Jobs {
@@ -99,8 +98,6 @@ class Jobs {
 
 	private final ProductDirectory products;
 
-	private final Scans scans;
-
 	private final Catalog catalog;
 
 	private final StoredFiles files;
@@ -111,11 +108,10 @@ class Jobs {
 
 	private final Clock clock;
 
-	Jobs(JdbcClient jdbc, ProductDirectory products, Scans scans, Catalog catalog, StoredFiles files, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+	Jobs(JdbcClient jdbc, ProductDirectory products, Catalog catalog, StoredFiles files, AuditLog auditLog, IdGenerator ids,
+			Clock clock) {
 		this.jdbc = jdbc;
 		this.products = products;
-		this.scans = scans;
 		this.catalog = catalog;
 		this.files = files;
 		this.auditLog = auditLog;
@@ -132,7 +128,7 @@ class Jobs {
 		ProductInfo product = this.products.find(productId)
 			.filter(found -> found.customerId().equals(customerId))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		check(product.id(), draft, List.of());
+		check(draft, List.of());
 		UUID id = this.ids.newId();
 		Instant now = this.clock.instant();
 		List<Skill> skills = this.catalog.byIds(draft.skillIds());
@@ -161,7 +157,7 @@ class Jobs {
 	@Transactional
 	void update(UUID customerId, UUID jobId, Draft draft) {
 		Job job = lockDraft(customerId, jobId);
-		check(job.productId(), draft, job.skillIds());
+		check(draft, job.skillIds());
 		List<Skill> skills = this.catalog.byIds(draft.skillIds());
 		this.jdbc.sql("""
 				UPDATE job.job
@@ -177,16 +173,12 @@ class Jobs {
 	}
 
 	/**
-	 * Refuses a Draft that breaks a rule: Assessment with another type, a Code Job Type while an Intake
-	 * Finding is open, more than 10 Skills, or an added Skill that is inactive.
+	 * Refuses a Draft that breaks a rule: Assessment with another type, more than 10 Skills, or an added
+	 * Skill that is inactive.
 	 */
-	private void check(UUID productId, Draft draft, List<UUID> kept) {
+	private void check(Draft draft, List<UUID> kept) {
 		if (draft.jobTypes().contains(JobType.ASSESSMENT) && draft.jobTypes().size() > 1) {
 			throw new ApiException(ErrorCode.VALIDATION, JobReason.ASSESSMENT_ALONE);
-		}
-		boolean code = draft.jobTypes().stream().anyMatch(JobType::code);
-		if (code && this.scans.openFindingCounts(List.of(productId)).getOrDefault(productId, 0) > 0) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.OPEN_FINDINGS);
 		}
 		Set<UUID> chosen = new LinkedHashSet<>(draft.skillIds());
 		this.catalog.requireAtMost(chosen.size(), MAX_SKILLS);

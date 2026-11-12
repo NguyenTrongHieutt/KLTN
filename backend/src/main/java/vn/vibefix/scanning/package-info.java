@@ -1,18 +1,17 @@
 /**
- * Layer 4 (AD-3, AD-18): the Secret Scan (FR-8). A scan is requested in the transaction of the change
- * that causes it ({@link vn.vibefix.scanning.Scans#requestScan}), runs as an External Operation in the
- * scan lane, and reads the repository's history inside the sandbox (AD-32) with the RE2/J rules of
- * {@code scanning/rules.yaml}. Findings keep a masked preview and an HMAC fingerprint, never the
- * credential; a completed run publishes {@link vn.vibefix.scanning.ScanCompleted} and notifies the
- * Customer. Each Finding has resolvers (the Customer for an Intake Finding), a resolve to-do, and an
- * audited resolution. No AI is involved and no repository content leaves the platform.
- * <p>
- * The same rules check chat text before it is sent ({@link vn.vibefix.scanning.SensitiveText}, FR-47).
- * <p>
- * Public API: {@link vn.vibefix.scanning.Scans} and its records, and {@link vn.vibefix.scanning.SensitiveText}. The operation, the sandbox job, and
- * the stores are wiring in {@code scanning.internal}.
+ * Layer 4 (AD-3, AD-18 "Rules for text checks and Sensitive Changes"): the deterministic rules of
+ * {@code scanning/rules.yaml}, with no AI. vibefix scans no code (Story 23.1): the Customer confirms at
+ * J7 that their history is clean, and the Mentor keeps the team's secrets out.
+ * <ul>
+ * <li>{@link vn.vibefix.scanning.SensitiveText} checks text about to be sent (FR-47): the Job Chat, the
+ * Crew Chat, Pages, Work Items, notes, and text Attachments warn before sending what it finds, and a
+ * closed Job's chats are redacted with it. The rules match GitHub's stateless {@code ghs_} tokens.</li>
+ * <li>{@link vn.vibefix.scanning.SensitiveChanges} classifies the paths a handover or the Final Merge
+ * changes (AD-33), and names the {@code .github/workflows/} folder a handover may not change.</li>
+ * </ul>
+ * Public API: those two interfaces. The rules and their matchers are wiring in {@code scanning.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "operations", "notification" })
+@ApplicationModule(allowedDependencies = { "shared" })
 package vn.vibefix.scanning;
 
 import org.springframework.modulith.ApplicationModule;

@@ -127,9 +127,8 @@ class JobIT extends IntegrationTest {
 			.query(UUID.class).list();
 		create(draft("Quá nhiều kỹ năng", "[]", eleven, null, null)).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("SKILL_LIMIT"));
-		openFinding(this.product);
-		create(draft("Sửa lỗi", "[\"BUG_FIX\"]", List.of(), null, null)).andExpect(status().is(422))
-			.andExpect(jsonPath("$.reason").value("OPEN_FINDINGS"));
+		// vibefix scans no code (Story 23.1): no Code Job Type waits for an Intake Finding.
+		create(draft("Sửa lỗi", "[\"BUG_FIX\"]", List.of(), null, null)).andExpect(status().isCreated());
 		create(draft("Đánh giá trước", "[\"ASSESSMENT\"]", List.of(), null, null)).andExpect(status().isCreated());
 		UUID someoneElses = product(IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null));
 		this.mvc.perform(post("/api/v1/jobs").with(as(this.lan)).with(csrf())
@@ -245,22 +244,6 @@ class JobIT extends IntegrationTest {
 			.param("now", now)
 			.update();
 		return id;
-	}
-
-	private void openFinding(UUID productId) {
-		UUID run = UUID.randomUUID();
-		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
-		this.jdbc.sql("""
-				INSERT INTO scanning.scan_run (id, product_id, customer_account_id, product_name, repository_full_name,
-				    repository_github_id, purpose, status, rules_version, found_count, new_findings, requested_at, finished_at)
-				VALUES (:id, :product, :owner, 'Sổ', 'lan/so-dat-ban', 1, 'INTAKE', 'SUCCEEDED', 2, 1, 1, :now, :now)
-				""").param("id", run).param("product", productId).param("owner", this.lan).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO scanning.finding (id, product_id, scan_run_id, category, rule_id, rule_type, file_path,
-				    commit_sha, committed_at, masked_preview, fingerprint, status, created_at)
-				VALUES (:id, :product, :run, 'CREDENTIAL', 'stripe-secret-key', 'Khóa bí mật Stripe', 'pay.js',
-				    repeat('a', 40), :now, 'sk_l••••••••Q7mZ', repeat('c', 64), 'OPEN', :now)
-				""").param("id", UUID.randomUUID()).param("product", productId).param("run", run).param("now", now).update();
 	}
 
 	private static byte[] png() throws Exception {

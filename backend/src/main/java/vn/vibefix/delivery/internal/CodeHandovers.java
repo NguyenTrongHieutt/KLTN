@@ -24,7 +24,7 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * A Code Job's handover on GitHub (FR-8, FR-32, AD-11, AD-18), outside any transaction: the Working
+ * A Code Job's handover on GitHub (FR-32, AD-11, AD-18), outside any transaction: the Working
  * Repository's head read back, its range from the previous Handover Commit (or the commit Setup copied),
  * and the checks it must pass. "Gửi bàn giao" checks again on the live head, pins that commit through
  * {@code repo}, and only then lets {@link Handovers#record} apply M2; if that fails, the pull request is
@@ -77,9 +77,6 @@ class CodeHandovers {
 		String start = this.handovers.lastHandoverCommit(jobId).orElse(head.startSha());
 		if (head.headSha().equals(start)) {
 			return new Check(head, start, null, List.of(), List.of(DeliveryReason.NO_NEW_COMMITS.name()));
-		}
-		if (!head.scanned()) {
-			problems.add(DeliveryReason.COMMITS_NOT_SCANNED.name());
 		}
 		Range range;
 		try {

@@ -12,7 +12,6 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
-import { problemMessage } from '@/lib/problemMessage'
 import { OVERVIEW_QUERY_KEY } from './adminApi'
 import { StepUpDialog } from './StepUpDialog'
 
@@ -23,8 +22,8 @@ const FAILURES_QUERY_KEY = ['admin', 'failures'] as const
 /**
  * ADM-7 (`/quan-tri/thao-tac-loi`, FR-64, AD-6, AD-9, SG-10): what failed for good, in one place. A failed
  * operation is retried behind the step-up from its first attempt, reading back first so no effect repeats;
- * a failed Dispute execution is retried on ADM-4; stalled event publications are listed; a false positive
- * can be reopened, which blocks again what an open Finding blocks.
+ * a failed Dispute execution is retried on ADM-4; stalled event publications are listed. vibefix scans no
+ * code (2026-11-12), so there is no false-positive queue.
  */
 export function AdminFailuresPage() {
   usePageTitle(t('screen.admin.failures.title'))
@@ -47,7 +46,6 @@ function Queues({ failures }: { failures: Failures }) {
   const toasts = useToasts()
   const queryClient = useQueryClient()
   const [retrying, setRetrying] = useState<string>()
-  const [error, setError] = useState<string>()
   const settle = (saved: Failures) => {
     queryClient.setQueryData(FAILURES_QUERY_KEY, saved)
     void queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY })
@@ -66,24 +64,8 @@ function Queues({ failures }: { failures: Failures }) {
       toasts.success(t('screen.admin.failures.retried'))
     },
   })
-  const reopen = useMutation({
-    mutationFn: (findingId: string) =>
-      unwrap(apiClient.POST('/api/v1/admin/failures/findings/{findingId}/reopen', { params: { path: { findingId } } })),
-    onSuccess: (saved) => {
-      settle(saved)
-      setError(undefined)
-      toasts.success(t('screen.admin.failures.reopened'))
-    },
-    onError: (failure) => setError(problemMessage(failure, { module: 'scanning' }).text),
-  })
-
   return (
     <div className="flex flex-col gap-5">
-      {error && (
-        <p role="alert" className="text-body-sm text-destructive">
-          {error}
-        </p>
-      )}
       <Section title={t('screen.admin.failures.operations')} empty={failures.operations.length === 0}>
         {failures.operations.map((operation) => (
           <li key={operation.id} className="flex flex-wrap items-start justify-between gap-3 p-4 text-body-sm">
@@ -131,25 +113,6 @@ function Queues({ failures }: { failures: Failures }) {
               {t('screen.admin.failures.stalledLine', { listener: event.listenerId, attempts: event.attempts })} ·{' '}
               {formatDayMonthTime(event.stalledAt)}
             </span>
-          </li>
-        ))}
-      </Section>
-      <Section title={t('screen.admin.failures.falsePositives')} empty={failures.falsePositives.length === 0}>
-        {failures.falsePositives.map((item) => (
-          <li key={item.findingId} className="flex flex-wrap items-start justify-between gap-3 p-4 text-body-sm">
-            <div className="flex min-w-0 grow flex-col gap-0.5">
-              <span className="text-label">
-                {item.ruleType} · {item.productName}
-              </span>
-              <span className="font-mono text-caption break-all">{item.filePath}</span>
-              <span className="break-words">{t('screen.admin.failures.reasonLine', { reason: item.reason })}</span>
-              <span className="text-caption text-muted-foreground">
-                {[item.markedByName, formatDayMonthTime(item.markedAt)].filter(Boolean).join(' · ')}
-              </span>
-            </div>
-            <Button type="button" variant="secondary" size="compact" disabled={reopen.isPending} onClick={() => reopen.mutate(item.findingId)}>
-              {t('screen.admin.failures.reopen')}
-            </Button>
           </li>
         ))}
       </Section>

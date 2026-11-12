@@ -282,7 +282,6 @@ describe('MEN-3 with an invitation (FR-14)', () => {
     productName: 'Shop Gốm Bát Tràng',
     productDescription: 'Cửa hàng gốm.',
     productTools: ['LOVABLE'],
-    productOpenFindings: 0,
     problem: 'Đơn không hiện.',
     jobTypes: ['BUG_FIX'],
     skills: [],

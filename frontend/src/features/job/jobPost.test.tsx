@@ -76,7 +76,6 @@ const post = {
   productName: 'Shop Gốm Bát Tràng',
   productDescription: 'Cửa hàng gốm bán online.',
   productTools: ['LOVABLE'],
-  productOpenFindings: 0,
   problem: 'Khách đặt nhưng đơn không hiện.',
   expected: 'Mỗi đơn hiện ngay trong danh sách.',
   appUsers: 'Khách mua trên điện thoại.',
@@ -324,7 +323,8 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     expect(screen.getByText('Thư viện dựng giao diện web.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /danh-sach-don.png/ })).toHaveAttribute('href', '/api/v1/files/f1')
     expect(screen.getByText('Shop Gốm Bát Tràng, làm bằng Lovable.')).toBeInTheDocument()
-    expect(screen.getByText('Kiểm tra khóa bí mật: không còn vấn đề nào mở.')).toBeInTheDocument()
+    // Story 23.1: vibefix scans no code, so the Job Post says nothing of scans.
+    expect(screen.queryByText(/Kiểm tra khóa bí mật/)).toBeNull()
     expect(await screen.findByText('Chưa có lượt chấm sao')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 2, name: 'Chào giá làm người hướng dẫn' })).toBeInTheDocument()
     // Story 21.1 retires the Team card and the free-Student banner.

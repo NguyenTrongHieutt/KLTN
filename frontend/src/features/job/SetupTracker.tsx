@@ -87,7 +87,7 @@ function Steps({ setup }: { setup: Setup }) {
         setup.canRetry ? (
           <div className="flex flex-col gap-2">
             <p className="text-body-sm">
-              {t(`screen.job.setup.blocked${setup.blockedReason ?? 'Other'}` as MessageKey, { n: setup.openFindings ?? 0 })}
+              {t(`screen.job.setup.blocked${setup.blockedReason ?? 'Other'}` as MessageKey)}
             </p>
             <Button className="w-fit" disabled={retry.isPending} onClick={() => retry.mutate()}>
               {t('screen.job.setup.retry')}

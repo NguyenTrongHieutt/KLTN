@@ -59,11 +59,10 @@ class JobSetupController {
 	 * @param status {@code NONE} before any Setup, else the latest attempt's {@code RUNNING}, {@code DONE},
 	 * {@code BLOCKED}, or {@code FAILED}
 	 * @param blockedReason the plain reason of a block
-	 * @param openFindings for {@code INTAKE_FINDING_OPEN}, how many
 	 * @param canRetry the viewer is the Customer and may start a new attempt
 	 */
 	record SetupView(UUID jobId, String jobState, String status, List<SetupStepView> steps, @Nullable String blockedReason,
-			@Nullable Integer openFindings, boolean canRetry, List<SetupPersonView> people) {
+			boolean canRetry, List<SetupPersonView> people) {
 	}
 
 	private final JobSetups setups;
@@ -134,7 +133,7 @@ class JobSetupController {
 			for (Step step : Step.values()) {
 				pending.add(new SetupStepView(step.name(), "PENDING"));
 			}
-			return new SetupView(job.jobId(), job.state(), "NONE", pending, null, null, false, List.of());
+			return new SetupView(job.jobId(), job.state(), "NONE", pending, null, false, List.of());
 		}
 		// A revoked grant is nobody's access any more (Story 7.7): it neither shows nor holds the Invite step.
 		List<Grant> grants = this.grants.ofJob(job.jobId())
@@ -168,7 +167,7 @@ class JobSetupController {
 		}
 		boolean canRetry = customer(job, caller) && "BLOCKED".equals(setup.status()) && "STARTING".equals(job.state());
 		return new SetupView(job.jobId(), job.state(), setup.status(), steps,
-				setup.block() == null ? null : setup.block().name(), setup.openFindings(), canRetry, people(job, grants, caller));
+				setup.block() == null ? null : setup.block().name(), canRetry, people(job, grants, caller));
 	}
 
 	/** UX-DR23: the Customer sees the Mentor's name and the Crew's GitHub usernames only. */

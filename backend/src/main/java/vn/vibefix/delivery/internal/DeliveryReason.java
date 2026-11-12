@@ -45,12 +45,6 @@ enum DeliveryReason {
 	/** The follow-up is not waiting for the Customer: still a draft, or already opened or discarded. */
 	FOLLOW_UP_NOT_AWAITING,
 
-	/** The Product's scans have an open Finding, which blocks a code handover (FR-8, AD-18). */
-	FINDING_OPEN,
-
-	/** The Working Repository's head is not yet covered by a completed push scan (FR-8, FR-32). */
-	COMMITS_NOT_SCANNED,
-
 	/** No commit after the previous Handover Commit, or after the one Setup copied (FR-32). */
 	NO_NEW_COMMITS,
 

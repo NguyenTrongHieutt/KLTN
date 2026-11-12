@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { FileText, Info, TriangleAlert, X } from 'lucide-react'
+import { FileText, TriangleAlert, X } from 'lucide-react'
 import { useId, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -68,9 +68,9 @@ interface FormValues {
 /**
  * CUS-6 (`/san-pham/{productId}/cong-viec-moi`, `/cong-viec/{jobId}/sua`, FR-9, UX-DR66): the guided
  * questions with their examples, the Job Types or "Chưa rõ — đánh giá trước", the Skills suggested
- * from the repository and the AI tools, the budget range, the deadline, and screenshots. While the
- * Product has an open Finding only the Assessment can be chosen. "Lưu nháp" keeps a Draft; "Đăng tin"
- * saves it, shows N-3, and publishes it as a Job Post (J1), landing on JOB-1.
+ * from the repository and the AI tools, the budget range, the deadline, and screenshots. Every Job Type
+ * can be chosen (no scan gates it, 2026-11-12). "Lưu nháp" keeps a Draft; "Đăng tin" saves it, shows
+ * N-3, and publishes it as a Job Post (J1), landing on JOB-1.
  */
 export function JobFormPage() {
   const { productId, jobId } = useParams()
@@ -185,7 +185,6 @@ function JobForm({
   const toasts = useToasts()
   const navigate = useNavigate()
   const ids = useId()
-  const findings = product.openFindings
   const assessment = values.jobTypes.includes('ASSESSMENT')
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }))
@@ -238,9 +237,7 @@ function JobForm({
     } catch (error) {
       setConfirming(false)
       const problem = error instanceof ApiError ? error.problem : undefined
-      if (problem?.reason === 'INTAKE_FINDING_OPEN') {
-        toasts.error(t('screen.job.form.publishFindings', { n: problem.count ?? findings }))
-      } else if (problem?.reason === 'JOB_INCOMPLETE') {
+      if (problem?.reason === 'JOB_INCOMPLETE') {
         setMissing(problem.missing ?? [])
       } else {
         const message = problemMessage(error, { module: 'job', action: t('screen.job.form.publishAction') })
@@ -314,23 +311,9 @@ function JobForm({
 
         <fieldset className="flex flex-col gap-2.5">
           <legend className="mb-1 text-label font-semibold">{t('screen.job.form.jobTypes')}</legend>
-          {findings > 0 && (
-            <div id={`${ids}-findings`} role="note" className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4">
-              <Info aria-hidden="true" className="size-5 shrink-0 text-destructive" />
-              <div className="flex flex-col gap-0.5">
-                <p className="text-label font-semibold">{t('screen.job.form.openFindings', { n: findings })}</p>
-                <p className="text-body-sm">
-                  {t('screen.job.form.openFindingsBody')}{' '}
-                  <Link to={`/san-pham/${product.id}`} className="text-primary underline-offset-4 hover:underline">
-                    {t('screen.job.form.openFindingsLink')}
-                  </Link>
-                </p>
-              </div>
-            </div>
-          )}
           <div className="grid gap-2 sm:grid-cols-3">
             {JOB_TYPES.map((type) => {
-              const disabled = type !== 'ASSESSMENT' && (findings > 0 || assessment)
+              const disabled = type !== 'ASSESSMENT' && assessment
               return (
                 <label
                   key={type}
@@ -345,7 +328,6 @@ function JobForm({
                     className="mt-1"
                     checked={values.jobTypes.includes(type)}
                     disabled={disabled}
-                    aria-describedby={disabled && findings > 0 ? `${ids}-findings` : undefined}
                     onChange={(event) => toggleType(type, event.target.checked)}
                   />
                   <TermHint term={`jobType${type}`} />
@@ -461,7 +443,7 @@ function JobForm({
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.job.form.publishTitle')}</Dialog.Title>
               <Dialog.Close
-                aria-label={t('screen.product.finding.close')}
+                aria-label={t('screen.shared.close')}
                 className="rounded-md p-1 text-muted-foreground hover:bg-muted"
               >
                 <X aria-hidden="true" className="size-5" />

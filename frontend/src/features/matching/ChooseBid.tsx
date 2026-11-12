@@ -54,7 +54,7 @@ export function ChooseDialog({
         <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(560px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2 break-words">{t('screen.matching.choose.title', { mentor })}</Dialog.Title>
-            <Dialog.Close aria-label={t('screen.product.finding.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+            <Dialog.Close aria-label={t('screen.shared.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
               <X aria-hidden="true" className="size-5" />
             </Dialog.Close>
           </div>

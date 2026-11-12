@@ -34,11 +34,6 @@ import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationCompleted;
 import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.operations.OperationStatus;
-import vn.vibefix.product.ProductSources.SourceCheck;
-import vn.vibefix.scanning.ScanPurpose;
-import vn.vibefix.scanning.ScanTarget;
-import vn.vibefix.scanning.Scans;
-import vn.vibefix.scanning.ShaRange;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -68,14 +63,14 @@ class JobSetups {
 	/** Why a Setup stopped on something the Customer can fix (FR-18). */
 	enum Block {
 
-		INTAKE_FINDING_OPEN, SOURCE_NOT_PUBLIC, NO_ADMIN_PERMISSION, RELINK_GITHUB
+		SOURCE_NOT_PUBLIC, NO_ADMIN_PERMISSION, RELINK_GITHUB
 
 	}
 
 	/** One attempt, as its row holds it. */
-	record Setup(UUID id, UUID jobId, UUID productId, String status, @Nullable Block block, @Nullable Integer openFindings,
-			@Nullable UUID scanRunId, @Nullable String sourceFullName, @Nullable String defaultBranch,
-			@Nullable String approvedSha, @Nullable Long intermediaryId, @Nullable String intermediaryName,
+	record Setup(UUID id, UUID jobId, UUID productId, String status, @Nullable Block block,
+			@Nullable String sourceFullName, @Nullable String defaultBranch, @Nullable String approvedSha,
+			@Nullable Long intermediaryId, @Nullable String intermediaryName,
 			@Nullable Long workingId, @Nullable String workingName, @Nullable Instant checkedAt,
 			@Nullable Instant intermediaryAt, @Nullable Instant workingAt, Instant startedAt, @Nullable Instant finishedAt) {
 
@@ -105,8 +100,8 @@ class JobSetups {
 			Block.RELINK_GITHUB, "khách hàng cần liên kết lại GitHub để vibefix kiểm tra dự án gốc");
 
 	private static final String COLUMNS = """
-			id, job_id, product_id, status, blocked_reason, open_findings, scan_run_id, source_full_name, default_branch,
-			approved_sha, intermediary_github_id, intermediary_name, working_github_id, working_name, checked_at,
+			id, job_id, product_id, status, blocked_reason, source_full_name, default_branch, approved_sha,
+			intermediary_github_id, intermediary_name, working_github_id, working_name, checked_at,
 			intermediary_at, working_at, started_at, finished_at
 			""";
 
@@ -115,8 +110,6 @@ class JobSetups {
 	private final JobBusy busy;
 
 	private final ExternalOperations operations;
-
-	private final Scans scans;
 
 	private final Notifications notifications;
 
@@ -133,7 +126,7 @@ class JobSetups {
 
 	private final ObjectProvider<PushScans> pushScans;
 
-	JobSetups(JdbcClient jdbc, JobBusy busy, ExternalOperations operations, Scans scans, Notifications notifications,
+	JobSetups(JdbcClient jdbc, JobBusy busy, ExternalOperations operations, Notifications notifications,
 			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock, ObjectProvider<JobGrants> grants,
 			ObjectProvider<PushScans> pushScans) {
 		this.grants = grants;
@@ -141,7 +134,6 @@ class JobSetups {
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.operations = operations;
-		this.scans = scans;
 		this.notifications = notifications;
 		this.auditLog = auditLog;
 		this.processedEvents = processedEvents;
@@ -250,32 +242,18 @@ class JobSetups {
 		return true;
 	}
 
-	/** Step 1: the J7 scan is requested once per attempt, in its own transaction. */
+	/**
+	 * Step 1 done: the Source Repository as read now, and its default branch's head, which is all that is ever
+	 * copied (until Story 23.6, the head read through the GitHub API; vibefix scans no code).
+	 */
 	@Transactional
-	UUID requestScan(Setup setup, SourceCheck source) {
-		UUID run = this.scans.requestScan(new ScanTarget(source.productId(), source.customerId(), source.productName(),
-				source.repositoryFullName(), source.repositoryGithubId()), ShaRange.wholeHistory(), ScanPurpose.J7);
-		this.jdbc.sql("UPDATE repo.job_setup SET scan_run_id = :run, source_full_name = :source WHERE id = :id")
-			.param("run", run)
-			.param("source", source.repositoryFullName())
-			.param("id", setup.id())
-			.update();
-		return run;
-	}
-
-	/** A failed scan is asked for again on the next attempt. */
-	@Transactional
-	void forgetScan(Setup setup) {
-		this.jdbc.sql("UPDATE repo.job_setup SET scan_run_id = NULL WHERE id = :id").param("id", setup.id()).update();
-	}
-
-	/** Step 1 done: the commit the J7 scan approved, which is all that is ever copied. */
-	@Transactional
-	void checked(Setup setup, String defaultBranch, String sha) {
+	void checked(Setup setup, String sourceFullName, String defaultBranch, String sha) {
 		this.jdbc.sql("""
-				UPDATE repo.job_setup SET default_branch = :branch, approved_sha = :sha, checked_at = :now WHERE id = :id
-				""").param("branch", defaultBranch).param("sha", sha).param("now", Timestamp.from(this.clock.instant()))
-			.param("id", setup.id()).update();
+				UPDATE repo.job_setup
+				SET source_full_name = :source, default_branch = :branch, approved_sha = :sha, checked_at = :now
+				WHERE id = :id
+				""").param("source", sourceFullName).param("branch", defaultBranch).param("sha", sha)
+			.param("now", Timestamp.from(this.clock.instant())).param("id", setup.id()).update();
 		audit("repo.setup_source_checked", setup.id(), setup.jobId());
 	}
 
@@ -330,12 +308,12 @@ class JobSetups {
 	 * marker is released, and the Customer and the Mentor are told why.
 	 */
 	@Transactional
-	void block(Setup setup, Block block, @Nullable Integer openFindings) {
+	void block(Setup setup, Block block) {
 		int updated = this.jdbc.sql("""
-				UPDATE repo.job_setup SET status = 'BLOCKED', blocked_reason = :reason, open_findings = :findings, finished_at = :now
+				UPDATE repo.job_setup SET status = 'BLOCKED', blocked_reason = :reason, finished_at = :now
 				WHERE id = :id AND status = 'RUNNING'
-				""").param("reason", block.name()).param("findings", openFindings)
-			.param("now", Timestamp.from(this.clock.instant())).param("id", setup.id()).update();
+				""").param("reason", block.name()).param("now", Timestamp.from(this.clock.instant())).param("id", setup.id())
+			.update();
 		if (updated == 0) {
 			return;
 		}
@@ -346,8 +324,7 @@ class JobSetups {
 		if (job.mentorId() != null) {
 			recipients.add(new Recipient(job.mentorId(), Audience.MENTOR));
 		}
-		String reason = block == Block.INTAKE_FINDING_OPEN ? "còn " + openFindings + " vấn đề bảo mật chưa xử lý"
-				: REASONS.get(block);
+		String reason = REASONS.get(block);
 		this.notifications.send(new NotificationRequest(START_BLOCKED, setup.id(), recipients,
 				Map.of("job", job.title(), "reason", reason), "/cong-viec/" + job.jobId(), job.jobId(), null));
 	}
@@ -397,7 +374,6 @@ class JobSetups {
 		String block = rs.getString("blocked_reason");
 		return new Setup(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getString("status"), block == null ? null : Block.valueOf(block),
-				rs.getObject("open_findings", Integer.class), rs.getObject("scan_run_id", UUID.class),
 				rs.getString("source_full_name"), rs.getString("default_branch"), rs.getString("approved_sha"),
 				rs.getObject("intermediary_github_id", Long.class), rs.getString("intermediary_name"),
 				rs.getObject("working_github_id", Long.class), rs.getString("working_name"), instant(rs, "checked_at"),

@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
@@ -14,7 +13,7 @@ import vn.vibefix.scanning.internal.PlantedSecrets.Planted;
 import vn.vibefix.scanning.internal.ScanRules.Rule;
 import vn.vibefix.scanning.internal.SecretMatcher.Match;
 
-/** AD-18, SG-13, FR-8: the rules compile with RE2/J, each finds its §B6 type, and nothing raw escapes. */
+/** AD-18, SG-13, FR-47: the rules compile with RE2/J, each finds its §B6 type, and nothing raw escapes. */
 class ScanRulesTest {
 
 	private static final ScanRules RULES = ScanRules.load();
@@ -93,30 +92,6 @@ class ScanRulesTest {
 			int shown = SecretMatcher.mask(value).length() - SecretMatcher.BULLETS.length();
 			assertThat(shown).as("length %d", length).isLessThanOrEqualTo(Math.min(8, length / 4));
 		}
-	}
-
-	@Test
-	void aCredentialDeepInsideAVeryLongLineIsStillFound() {
-		Planted google = PlantedSecrets.all().get("gcp-api-key");
-		String line = "x".repeat(10_000) + "apiKey:\"" + google.value() + "\"" + "y".repeat(10_000);
-
-		String pieces = HistoryScanner.pieces(line, 4096);
-
-		assertThat(pieces.lines()).allSatisfy(piece -> assertThat(piece.length()).isLessThanOrEqualTo(4096));
-		List<Match> matches = MATCHER.find("dist/app.js", pieces);
-		assertThat(matches).isNotEmpty().extracting(Match::ruleId).containsOnly("gcp-api-key");
-		assertThat(matches).extracting(Match::hash).containsOnly(SecretMatcher.hash("gcp-api-key", google.value()));
-		assertThat(HistoryScanner.pieces("short\nlines\n", 4096)).isEqualTo("short\nlines\n");
-	}
-
-	@Test
-	void unsafePathsAreRecognized() {
-		for (String path : Set.of("/etc/passwd", "../secret", "a/../b", "a/./b", ".git/config", "a/.GIT/hooks/x", "a//b",
-				"a\\b")) {
-			assertThat(HistoryScanner.safe(path)).as(path).isFalse();
-		}
-		assertThat(HistoryScanner.safe("src/.env")).isTrue();
-		assertThat(HistoryScanner.safe(".github/workflows/ci.yml")).isTrue();
 	}
 
 	@Test

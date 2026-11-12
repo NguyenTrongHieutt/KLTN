@@ -33,15 +33,6 @@ enum ProductReason {
 	/** A Job in Selecting to Closing pins the Product (FR-7, AD-3). */
 	PRODUCT_HAS_ACTIVE_JOB,
 
-	/** A scan of the Product is still waiting, running, or retrying. */
-	SCAN_IN_PROGRESS,
-
-	/** The day's on-demand scans of the Product are used up (5 a Vietnam day). */
-	SCAN_LIMIT,
-
-	/** A clean repository replaces only a Source Repository with an open personal-data Finding (FR-65). */
-	NO_PERSONAL_DATA_FINDING,
-
 	/** An acknowledgment is missing or of another notice version (FR-7). */
 	NOTICE_REQUIRED,
 

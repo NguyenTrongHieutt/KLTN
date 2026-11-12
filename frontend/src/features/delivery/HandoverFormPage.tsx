@@ -27,7 +27,7 @@ interface Mark {
  * "Tạo bàn giao" (FR-10, FR-32, AD-23, UX-DR54), a focused route for the Mentor: the preflight of the
  * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
  * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra"; for an Assessment
- * Job, the Report version to hand over; for a Code Job, its new commits scanned and the Sensitive change
+ * Job, the Report version to hand over; for a Code Job, its new commits and the Sensitive change
  * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). "Gửi bàn giao"
  * enables only when all of it passes, and sends the Job version the form loaded.
  */

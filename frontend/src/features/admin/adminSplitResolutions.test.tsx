@@ -737,7 +737,6 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
           disputes: { count: 0 },
           lowFeedback: { count: 0 },
           failedExecutions: { count: 0 },
-          falsePositives: { count: 0 },
           teamIssues: { count: 0 },
           skillSuggestions: { count: 0 },
           splitResolutions: { count: 2, oldestAt: '2026-10-20T03:00:00Z' },

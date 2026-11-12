@@ -32,7 +32,6 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.repo.HandoverBranches.Commit;
-import vn.vibefix.scanning.Scans;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
 import vn.vibefix.scanning.SensitiveText;
@@ -159,8 +158,6 @@ class Handovers {
 
 	private final JdbcClient jdbc;
 
-	private final Scans scans;
-
 	private final MilestoneHandovers jobs;
 
 	private final AgreementCriteria criteria;
@@ -183,9 +180,8 @@ class Handovers {
 
 	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
 			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
-			Scans scans, HandoverScreenshots screenshots) {
+			HandoverScreenshots screenshots) {
 		this.screenshots = screenshots;
-		this.scans = scans;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.criteria = criteria;
@@ -225,14 +221,8 @@ class Handovers {
 		if (mentor.job().assessment() && report == null) {
 			problems.add(DeliveryReason.REPORT_MISSING.name());
 		}
-		if (!mentor.job().assessment()) {
-			if (code != null) {
-				problems.addAll(code.problems());
-			}
-			// FR-8, AD-18: an open Finding in the Product's scans blocks the next handover.
-			if (!this.scans.openFindings(mentor.job().productId()).isEmpty()) {
-				problems.add(DeliveryReason.FINDING_OPEN.name());
-			}
+		if (!mentor.job().assessment() && code != null) {
+			problems.addAll(code.problems());
 		}
 		return new Preflight(milestone, state, mentor.job().version(), mentor.job().assessment(),
 				criteriaOf(jobId, milestoneId), items, report, problems, code == null ? List.of() : code.sensitive(),
@@ -243,7 +233,7 @@ class Handovers {
 	 * "Gửi bàn giao", first step: everything the handover will store, checked and masked, before anything
 	 * is written or pinned. A Code Job's handover pins its commit between this and {@link #record}.
 	 * @throws ApiException {@code NOT_FOUND} for a Milestone not in force; {@code GUARD_FAILED
-	 * MILESTONE_NOT_HELD}, {@code FINDING_OPEN} for a Code Job, {@code WORK_ITEMS_NOT_DONE} (with
+	 * MILESTONE_NOT_HELD}, {@code WORK_ITEMS_NOT_DONE} (with
 	 * {@code n}), {@code REPORT_MISSING}, or {@code SENSITIVE_CONTENT} (with the matches, under
 	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}, {@code PREVIEW_REQUIRED},
 	 * {@code PREVIEW_OR_RECORDING}, {@code RECORDING_REASON_MISSING}, {@code TOO_MANY_SCREENSHOTS}, or
@@ -256,9 +246,6 @@ class Handovers {
 		MilestoneInForce milestone = milestone(jobId, milestoneId);
 		if (!HANDABLE.contains(this.states.statesOf(jobId).getOrDefault(milestoneId, "PLANNED"))) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.MILESTONE_NOT_HELD);
-		}
-		if (!mentor.job().assessment() && !this.scans.openFindings(mentor.job().productId()).isEmpty()) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.FINDING_OPEN);
 		}
 		Map<UUID, CriterionMark> byCriterion = new HashMap<>();
 		marks.forEach(mark -> byCriterion.put(mark.criterionId(), mark));

@@ -159,13 +159,14 @@ class AgreementDraftIT extends IntegrationTest {
 
 	@Test
 	void anAssessmentJobDraftsOnlyThePriceAndTheDueDate() throws Exception {
+		// FR-10's five sections: since Story 23.1 no criterion asks for a scan's open Findings.
 		UUID job = agreement("ASSESSMENT");
 
 		String body = this.mvc.perform(get("/api/v1/mentor/jobs/" + job + "/agreement").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.content.assessment").value(true))
 			.andExpect(jsonPath("$.content.milestones.length()").value(1))
 			.andExpect(jsonPath("$.content.milestones[0].title").value("Báo cáo đánh giá"))
-			.andExpect(jsonPath("$.content.milestones[0].criteria.length()").value(6))
+			.andExpect(jsonPath("$.content.milestones[0].criteria.length()").value(5))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
@@ -175,7 +176,7 @@ class AgreementDraftIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.content.milestones[0].priceVnd").value(800000))
 			.andExpect(jsonPath("$.content.milestones[0].dueOn").value("2026-11-30"))
-			.andExpect(jsonPath("$.content.milestones[0].criteria.length()").value(6))
+			.andExpect(jsonPath("$.content.milestones[0].criteria.length()").value(5))
 			.andExpect(jsonPath("$.content.externalAccess.length()").value(0))
 			.andExpect(jsonPath("$.problems.length()").value(0));
 		share(job, 1).andExpect(status().isOk());

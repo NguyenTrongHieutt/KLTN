@@ -23,8 +23,7 @@ import java.util.stream.Collectors;
 enum Transition {
 
 	J1(Machine.JOB, job(JobState.DRAFT), job(JobState.OPEN), Set.of(USER), "The Customer publishes (FR-9)",
-			List.of(new Guard("FR-9", "The guided answers, a Job Type, the budget, and a future deadline are given"),
-					new Guard("FR-8", "A Code Job needs no open Intake Finding; an Assessment Job may have open Findings")),
+			List.of(new Guard("FR-9", "The guided answers, a Job Type, the budget, and a future deadline are given")),
 			List.of(new Effect("job", "The FR-61 rule values and the selection period are copied onto the Job (AD-7)"),
 					new Effect("timers", "The selection lapse is scheduled (FR-9)")),
 			false, true),
@@ -106,7 +105,7 @@ enum Transition {
 
 	M2(Machine.MILESTONE, milestone(MilestoneState.FUNDED, MilestoneState.REVISION_REQUESTED),
 			milestone(MilestoneState.SUBMITTED), Set.of(USER), "Milestone Handover by the Mentor (FR-32)",
-			List.of(new Guard("FR-8", "Scans are clean"), new Guard("FR-32", "The Handover Commit is recorded")),
+			List.of(new Guard("FR-32", "The Handover Commit is recorded")),
 			List.of(new Effect("timers", "The Auto-acceptance timer starts (FR-35)")), true, true),
 
 	M3(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED),

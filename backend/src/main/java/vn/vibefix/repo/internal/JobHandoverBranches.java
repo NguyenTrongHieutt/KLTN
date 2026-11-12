@@ -1,6 +1,5 @@
 package vn.vibefix.repo.internal;
 
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,16 +15,12 @@ import vn.vibefix.github.PlatformRepositories.Comparison;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 import vn.vibefix.repo.HandoverBranches;
 import vn.vibefix.repo.internal.JobSetups.Setup;
-import vn.vibefix.scanning.ScanStatus;
-import vn.vibefix.scanning.ScanSummary;
-import vn.vibefix.scanning.Scans;
 
 /**
- * {@link HandoverBranches} over the Job's done Setup (AD-11): the head comes from the push-scan heads
- * after reading them back ({@link PushScans#refresh}), "scanned" means a push scan requested since that
- * head was recorded succeeded, and the pin reuses the copy into the Intermediary Repository with the
- * Working default branch as its source. Nothing here runs in a transaction, so nothing is audited here:
- * {@code delivery} audits the handover it records.
+ * {@link HandoverBranches} over the Job's done Setup (AD-11): the head comes from the recorded heads after
+ * reading them back ({@link PushScans#refresh}), and the pin reuses the copy into the Intermediary
+ * Repository with the Working default branch as its source. Nothing here runs in a transaction, so
+ * nothing is audited here: {@code delivery} audits the handover it records.
  */
 @Component
 class JobHandoverBranches implements HandoverBranches {
@@ -40,14 +35,11 @@ class JobHandoverBranches implements HandoverBranches {
 
 	private final PlatformRepositories repositories;
 
-	private final Scans scans;
-
-	JobHandoverBranches(JdbcClient jdbc, JobSetups setups, PushScans pushScans, PlatformRepositories repositories, Scans scans) {
+	JobHandoverBranches(JdbcClient jdbc, JobSetups setups, PushScans pushScans, PlatformRepositories repositories) {
 		this.jdbc = jdbc;
 		this.setups = setups;
 		this.pushScans = pushScans;
 		this.repositories = repositories;
-		this.scans = scans;
 	}
 
 	@Override
@@ -63,30 +55,13 @@ class JobHandoverBranches implements HandoverBranches {
 			throw new Unavailable("The Working Repository of Job " + jobId + " was not read back", failed);
 		}
 		PlatformRepository working = setup.working();
-		record Head(String sha, Timestamp updatedAt) {
-		}
-		Head head = this.jdbc.sql("SELECT sha, updated_at FROM repo.branch_head WHERE repository_github_id = :id AND ref = :ref")
+		String head = this.jdbc.sql("SELECT sha FROM repo.branch_head WHERE repository_github_id = :id AND ref = :ref")
 			.param("id", working.id())
 			.param("ref", "refs/heads/" + setup.defaultBranch())
-			.query((rs, n) -> new Head(rs.getString("sha"), rs.getTimestamp("updated_at")))
+			.query(String.class)
 			.optional()
-			.orElse(new Head(setup.approvedSha(), Timestamp.from(setup.startedAt())));
-		boolean scanned = head.sha().equals(setup.approvedSha()) || this.jdbc.sql("""
-				SELECT scan_run_id FROM repo.push_scan
-				WHERE job_id = :job AND repository_github_id = :repository AND requested_at >= :since
-				ORDER BY requested_at DESC
-				""")
-			.param("job", jobId)
-			.param("repository", working.id())
-			.param("since", head.updatedAt())
-			.query(UUID.class)
-			.list()
-			.stream()
-			.map(this.scans::run)
-			.flatMap(Optional::stream)
-			.map(ScanSummary::status)
-			.anyMatch(status -> status == ScanStatus.SUCCEEDED);
-		return Optional.of(new WorkingHead(head.sha(), setup.approvedSha(), setup.defaultBranch(), scanned));
+			.orElse(setup.approvedSha());
+		return Optional.of(new WorkingHead(head, setup.approvedSha(), setup.defaultBranch()));
 	}
 
 	@Override

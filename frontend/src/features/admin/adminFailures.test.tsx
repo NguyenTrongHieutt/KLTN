@@ -43,7 +43,6 @@ const overview = {
   disputes: { count: 0 },
   lowFeedback: { count: 0 },
   failedExecutions: { count: 0 },
-  falsePositives: { count: 1 },
 }
 
 const operation = {
@@ -55,28 +54,15 @@ const operation = {
   jobId: 'j1',
 }
 
-const falsePositive = {
-  findingId: 'f1',
-  productId: 'p1',
-  productName: 'Sổ đặt bàn',
-  ruleType: 'Khóa API',
-  filePath: 'src/config.ts',
-  reason: 'Khóa thử nghiệm',
-  markedByName: 'Nguyễn Thị Lan',
-  markedAt: '2026-10-20T03:00:00Z',
-}
-
 describe('ADM-7 failures (FR-64)', () => {
-  it('retries a failed operation through the step-up and reopens a false positive', { timeout: 30_000 }, async () => {
+  it('retries a failed operation through the step-up, with no false-positive queue', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
-    let reopened = false
     let retried = false
     const view = () => ({
       operations: retried ? [] : [operation],
       executions: [],
       stalledEvents: [],
-      falsePositives: reopened ? [] : [falsePositive],
     })
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': () => json(overview),
@@ -86,23 +72,18 @@ describe('ADM-7 failures (FR-64)', () => {
         retried = true
         return json(view())
       },
-      'POST /api/v1/admin/failures/findings/f1/reopen': () => {
-        reopened = true
-        return json(view())
-      },
     })
     renderAt('/quan-tri/thao-tac-loi')
 
     expect(await screen.findByText('github.invite_member')).toBeInTheDocument()
+    // Story 23.1: vibefix scans no code, so ADM-7 lists no false positives to reopen.
+    expect(screen.queryByRole('heading', { name: 'Cảnh báo nhầm' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mở lại' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Thử lại' }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByRole('textbox'), '123456')
     await user.click(within(dialog).getByRole('button', { name: 'Thử lại' }))
     await waitFor(() => expect(sent).toEqual([{ stepUpCode: '123456' }]))
     await waitFor(() => expect(screen.queryByText('github.invite_member')).toBeNull())
-
-    expect(screen.getByText('Lý do: Khóa thử nghiệm')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Mở lại' }))
-    await waitFor(() => expect(screen.queryByText('Lý do: Khóa thử nghiệm')).toBeNull())
   })
 })

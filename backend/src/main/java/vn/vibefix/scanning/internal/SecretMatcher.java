@@ -18,7 +18,7 @@ import vn.vibefix.scanning.internal.ScanRules.Rule;
 /**
  * Applies {@link ScanRules} to one file's text (AD-18). A value is reported once per file: a later
  * rule never reports a span an earlier rule claimed, and placeholders, excluded matches, and values
- * failing their rule's check are dropped. The raw value stays inside the scan: callers receive only
+ * failing their rule's check are dropped. The raw value stays inside the check: callers receive only
  * {@link Match#masked()} and {@link Match#hash()}.
  */
 final class SecretMatcher {
@@ -108,7 +108,7 @@ final class SecretMatcher {
 	}
 
 	/**
-	 * At most a quarter of the value and never more than its first and last 4 characters (FR-8,
+	 * At most a quarter of the value and never more than its first and last 4 characters (FR-47,
 	 * AD-18): {@code k = min(4, length / 8)} characters at each end around {@link #BULLETS}.
 	 */
 	static String mask(String value) {
