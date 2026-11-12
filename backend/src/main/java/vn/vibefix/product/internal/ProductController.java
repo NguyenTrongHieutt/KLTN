@@ -1,6 +1,7 @@
 package vn.vibefix.product.internal;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -13,6 +14,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,12 +50,16 @@ import vn.vibefix.shared.Gate;
  * a scan. No account role gates them (Story 20.3): the install link, the checks and the registration need GitHub
  * linked ({@code FORBIDDEN GITHUB_NOT_LINKED}, FR-80), the published workflow any signed-in caller, every other
  * endpoint an unlocked user, and every query is scoped to the caller's own Products, so any other caller finds
- * nothing.
+ * nothing. Each Product carries its recorded Source App and workflow status, which CUS-4's "Kiểm tra lại" reads again
+ * (Story 23.5c); every "Kiểm tra" that reads GitHub, a registration attempt included, counts against the
+ * {@link CheckWindow} limit.
  */
 @RestController
 @RequestMapping("/api/v1/products")
 @Access(Gate.SIGNED_IN)
 class ProductController {
+
+	private static final Logger log = LoggerFactory.getLogger(ProductController.class);
 
 	record RepositoryCheckRequest(@NotBlank @Size(max = 300) String url) {
 	}
@@ -106,17 +113,42 @@ class ProductController {
 	/**
 	 * One Product as CUS-2 and CUS-4 show it.
 	 * @param sourceApp its Source App installation on CUS-4, once bound; none on CUS-2
+	 * @param sourceStatus its last known Source App and workflow status, read without a GitHub call: the Workflow
+	 * status badge (Story 23.5c)
+	 * @param sourceCheckedAt when a check last read it; none for a Product no check has read since the status began
+	 * @param defaultBranch the default branch as last read, where "Thêm file workflow ↗" adds the file
+	 * @param workflowEndsOn on CUS-4, the last day of the version its file matched while that day is
+	 * {@value SourceStatuses#LEAD_DAYS} days away or less (R12); none on CUS-2
+	 * @param installUrl on CUS-4 while the Source App is missing, GitHub's install page for the App with no state; none
+	 * when GitHub cannot name it now, and on CUS-2
 	 */
 	record ProductView(UUID id, String name, String description, @Nullable String demoUrl, List<Tool> tools,
 			String repositoryFullName, String repositoryUrl, String repositoryOwnerType, @Nullable String forkParent,
-			Instant createdAt, int jobs, @Nullable SourceAppView sourceApp) {
+			Instant createdAt, int jobs, @Nullable SourceAppView sourceApp, SourceStatuses.Status sourceStatus,
+			@Nullable Instant sourceCheckedAt, String defaultBranch, @Nullable LocalDate workflowEndsOn,
+			@Nullable String installUrl) {
 
-		static ProductView of(Product product, @Nullable SourceAppView sourceApp) {
+		static ProductView of(Product product, @Nullable SourceAppView sourceApp, @Nullable LocalDate workflowEndsOn,
+				@Nullable String installUrl) {
 			return new ProductView(product.id(), product.name(), product.description(), product.demoUrl(), product.tools(),
 					product.repositoryFullName(), "https://github.com/" + product.repositoryFullName(),
-					product.repositoryOwnerType(), product.forkParent(), product.createdAt(), 0, sourceApp);
+					product.repositoryOwnerType(), product.forkParent(), product.createdAt(), 0, sourceApp,
+					product.sourceStatus(), product.sourceCheckedAt(), product.defaultBranch(), workflowEndsOn, installUrl);
 		}
 
+	}
+
+	/**
+	 * CUS-4's "Kiểm tra lại" (Story 23.5c): the status it found and recorded.
+	 * @param lineEndings a {@code WORKFLOW_MISMATCH} whose file holds a carriage return: the CRLF hint
+	 * @param installUrl for {@code SOURCE_APP_MISSING}, GitHub's install page for the App with no state, when GitHub
+	 * names it
+	 * @param settingsUrl for {@code SOURCE_APP_WRONG_REPOSITORY}, the installation's settings page, when one is known
+	 * @param workflowEndsOn the last day of the version the file matched, while {@value SourceStatuses#LEAD_DAYS} days
+	 * away or less (R12)
+	 */
+	record SourceCheckView(SourceStatuses.Status status, @Nullable Instant checkedAt, boolean lineEndings,
+			@Nullable String installUrl, @Nullable String settingsUrl, @Nullable LocalDate workflowEndsOn) {
 	}
 
 	/** A Skill CUS-6 pre-selects, with its plain hint (UX-DR75). */
@@ -139,8 +171,15 @@ class ProductController {
 
 	private final ActiveAccount active;
 
+	private final SourceChecks sources;
+
+	private final SourceStatuses statuses;
+
+	private final CheckWindow window;
+
 	ProductController(Products products, RepositoryChecks checks, SourceAppBindings bindings, SourceApp app,
-			SkillSuggestions skillSuggestions, CurrentCaller callers, GitHubGate gitHub, ActiveAccount active) {
+			SkillSuggestions skillSuggestions, CurrentCaller callers, GitHubGate gitHub, ActiveAccount active,
+			SourceChecks sources, SourceStatuses statuses, CheckWindow window) {
 		this.gitHub = gitHub;
 		this.active = active;
 		this.products = products;
@@ -149,11 +188,15 @@ class ProductController {
 		this.app = app;
 		this.skillSuggestions = skillSuggestions;
 		this.callers = callers;
+		this.sources = sources;
+		this.statuses = statuses;
+		this.window = window;
 	}
 
+	/** CUS-2: the caller's own Products, each with its recorded Workflow status and no GitHub call (Story 23.5c). */
 	@GetMapping
 	List<ProductView> products() {
-		return this.products.list(customer()).stream().map(product -> ProductView.of(product, null)).toList();
+		return this.products.list(customer()).stream().map(product -> ProductView.of(product, null, null, null)).toList();
 	}
 
 	/**
@@ -181,6 +224,7 @@ class ProductController {
 	@PostMapping("/repository-check")
 	RepositoryCheckView check(@Valid @RequestBody RepositoryCheckRequest body) {
 		UUID customer = linkedUser();
+		draftCheck(customer, body.url());
 		return RepositoryCheckView.of(this.checks.check(customer, body.url(), false).repository());
 	}
 
@@ -200,26 +244,72 @@ class ProductController {
 	@PostMapping("/workflow-check")
 	WorkflowCheckView workflowCheck(@Valid @RequestBody RepositoryCheckRequest body) {
 		UUID customer = linkedUser();
+		draftCheck(customer, body.url());
 		RepositoryMetadata repository = this.checks.checkWorkflow(customer, body.url());
 		return new WorkflowCheckView(repository.fullName(), repository.defaultBranch());
 	}
 
-	/** CUS-3 step 5: "Đăng ký sản phẩm"; GitHub must be linked (FR-80). */
+	/**
+	 * CUS-3 step 5: "Đăng ký sản phẩm"; GitHub must be linked (FR-80). Each attempt reads GitHub through the Source App
+	 * again, so it counts against the "Kiểm tra" limit under the draft, before the checks (Story 23.5c). Once the
+	 * registration has committed, a version already ending within 14 days gets its to-do and notice at once (R12).
+	 * @throws ApiException {@code RATE_LIMITED CHECK_LIMIT} past the "Kiểm tra" limit, besides the registration's own
+	 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	ProductCreatedView register(@Valid @RequestBody ProductRegistrationRequest body) {
 		UUID customer = linkedUser();
-		return new ProductCreatedView(this.products.register(customer,
+		draftCheck(customer, body.repositoryUrl());
+		UUID id = this.products.register(customer,
 				new Registration(body.repositoryUrl(), body.tools(), body.name(), body.description(), body.demoUrl(),
-						body.publicNoticeVersion(), body.copyPermissionVersion(), body.detectionNoticeVersion())));
+						body.publicNoticeVersion(), body.copyPermissionVersion(), body.detectionNoticeVersion()));
+		try {
+			this.statuses.followEndDate(id);
+		}
+		catch (RuntimeException failed) {
+			// The Product is registered; the daily job follows its end date anyway.
+			log.warn("The workflow end date of Product {} was not followed at registration", id, failed);
+		}
+		return new ProductCreatedView(id);
 	}
 
-	/** CUS-4: the Product's Customer, or an Administrator. */
+	/**
+	 * CUS-4: the Product's Customer, or an Administrator. The Workflow status is the recorded one, with the end-date
+	 * alert while it holds (R12); only a missing Source App asks GitHub for the App's install page, once.
+	 */
 	@GetMapping("/{productId}")
 	ProductView product(@PathVariable UUID productId) {
 		Product product = readable(productId);
 		SourceAppView sourceApp = this.bindings.ofProduct(product.id()).map(this::sourceApp).orElse(null);
-		return ProductView.of(product, sourceApp);
+		return ProductView.of(product, sourceApp, this.statuses.ending(product.workflowBlob()).orElse(null),
+				product.sourceStatus() == SourceStatuses.Status.SOURCE_APP_MISSING ? installPage() : null);
+	}
+
+	/**
+	 * CUS-4's "Kiểm tra lại" (Story 23.5c): the Product's Customer only, an unlocked user; anyone else finds nothing.
+	 * The binding is taken on a fresh read and the workflow checked, without the admin right, and the status is
+	 * recorded, opening or closing its to-dos.
+	 * @throws ApiException {@code RATE_LIMITED CHECK_LIMIT} with {@code Retry-After} past the "Kiểm tra" limit;
+	 * {@code GUARD_FAILED GITHUB_UNAVAILABLE} when GitHub cannot answer now, or the Source App is not configured, and
+	 * nothing is recorded
+	 */
+	@PostMapping("/{productId}/source-check")
+	SourceCheckView sourceCheck(@PathVariable UUID productId) {
+		UUID customer = owner(productId);
+		this.window.product(customer, productId);
+		SourceChecks.Refreshed refreshed;
+		try {
+			refreshed = this.sources.refresh(productId);
+		}
+		catch (GitHubException unavailable) {
+			throw RepositoryChecks.refuse(ProductReason.GITHUB_UNAVAILABLE, null);
+		}
+		Product product = this.products.find(productId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		String settings = refreshed.status() == SourceStatuses.Status.SOURCE_APP_WRONG_REPOSITORY
+				? this.bindings.ofProduct(productId).map(this.bindings::settingsUrl).orElse(null) : null;
+		return new SourceCheckView(refreshed.status(), product.sourceCheckedAt(), refreshed.lineEndings(),
+				refreshed.status() == SourceStatuses.Status.SOURCE_APP_MISSING ? installPage() : null, settings,
+				this.statuses.ending(product.workflowBlob()).orElse(null));
 	}
 
 	/**
@@ -244,6 +334,26 @@ class ProductController {
 	private SourceAppView sourceApp(ProductBinding binding) {
 		return new SourceAppView(binding.accountLogin(), binding.accountType(), this.bindings.settingsUrl(binding),
 				binding.otherProducts());
+	}
+
+	/** GitHub's install page for the Source App, with no state; none when GitHub cannot name it now. */
+	private @Nullable String installPage() {
+		try {
+			return this.app.installPage();
+		}
+		catch (GitHubException unavailable) {
+			return null;
+		}
+	}
+
+	/**
+	 * Counts one of CUS-3's checks against the "Kiểm tra" limit, for the Customer's draft of the pasted repository; an
+	 * address that is no GitHub repository is refused first, without counting.
+	 * @throws ApiException {@code GUARD_FAILED NOT_GITHUB}; {@code RATE_LIMITED CHECK_LIMIT}
+	 */
+	private void draftCheck(UUID customerId, String url) {
+		RepositoryUrl address = RepositoryChecks.address(url);
+		this.window.draft(customerId, address.owner() + "/" + address.name());
 	}
 
 	/** The Product, for its own Customer (an unlocked user) or an Administrator; anyone else finds nothing. */

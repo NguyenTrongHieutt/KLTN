@@ -133,26 +133,63 @@ class GitHubSourceAppTest {
 		InstallationToken token = this.app.token(installation, 4001, Map.of("contents", "read"));
 		assertThat(this.github.grantOf(token.value()).path("repository_ids").toString()).isEqualTo("[4001]");
 
+		String blob = AcceptedWorkflows.blobSha(this.published);
 		assertThat(this.app.workflow(token, "lan-nguyen/shop-gom", "main"))
-			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MISSING, false));
+			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MISSING, false, null));
 		this.github.sourceFiles.put("lan-nguyen/shop-gom:" + PATH, this.published);
-		assertThat(this.app.workflow(token, "lan-nguyen/shop-gom", "main"))
-			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MATCHES, false));
+		assertThat(this.app.workflow(token, "lan-nguyen/shop-gom", "main")).as("names the accepted blob it matched")
+			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MATCHES, false, blob));
 		this.github.sourceFiles.put("lan-nguyen/shop-gom:" + PATH, this.published.replace("\n", "\r\n"));
 		assertThat(this.app.workflow(token, "lan-nguyen/shop-gom", "main")).as("CRLF read as LF")
-			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MATCHES, false));
+			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MATCHES, false, blob));
 		this.github.sourceFiles.put("lan-nguyen/shop-gom:" + PATH, this.published + "# changed\n");
 		assertThat(this.app.workflow(token, "lan-nguyen/shop-gom", "main"))
-			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MISMATCH, false));
+			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MISMATCH, false, null));
 		this.github.sourceFiles.put("lan-nguyen/shop-gom:" + PATH, (this.published + "# changed\n").replace("\n", "\r\n"));
 		assertThat(this.app.workflow(token, "lan-nguyen/shop-gom", "main"))
-			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MISMATCH, true));
+			.isEqualTo(new WorkflowCheck(WorkflowVerdict.MISMATCH, true, null));
 
 		this.github.unavailable.add("GET /repos/lan-nguyen/shop-gom/contents/");
 		assertThatThrownBy(() -> this.app.workflow(token, "lan-nguyen/shop-gom", "main")).as("a failed read proves nothing")
 			.isInstanceOf(GitHubException.class);
 		this.app.revoke(token);
 		assertThat(this.github.revokedTokens).contains(token.value());
+	}
+
+	/**
+	 * Story 23.5c (R12): an accepted blob's end date is read from the accepted set without a GitHub call: the latest
+	 * among its listings for the published path, none when any of those listings has no end date, and none for a blob
+	 * listed only under another path; and the plain install page carries no state.
+	 */
+	@Test
+	void anAcceptedBlobsEndDateIsReadFromTheAcceptedSetAndThePlainInstallPageHasNoState() throws Exception {
+		String older = AcceptedWorkflows.blobSha(this.published + "# v1\n");
+		String oldest = AcceptedWorkflows.blobSha(this.published + "# v0\n");
+		String current = AcceptedWorkflows.blobSha(this.published);
+		String runnerOnly = AcceptedWorkflows.blobSha(this.published + "# runner\n");
+		Path key = Files.writeString(this.directory.resolve("dated-key"), TestKeys.pkcs1());
+		GitHubProperties properties = new GitHubProperties(this.github.apiUrl(), URI.create("https://github.com"),
+				"vibefix-dev", null, null, null, null,
+				new Exchange(List.of(new AcceptedBlob(PATH, current, null),
+						new AcceptedBlob(PATH, older, java.time.LocalDate.parse("2026-11-20")),
+						new AcceptedBlob(PATH, older, java.time.LocalDate.parse("2026-11-25")),
+						new AcceptedBlob(PATH, oldest, java.time.LocalDate.parse("2026-11-01")),
+						new AcceptedBlob(".github/workflows/s6-copy.yml", current, java.time.LocalDate.parse("2026-11-02")),
+						new AcceptedBlob(".github/workflows/s6-copy.yml", runnerOnly, java.time.LocalDate.parse("2026-11-30"))),
+						null, null, null),
+				new AppProperties(GitHubStub.SOURCE_APP, null, key));
+		GitHubSourceApp dated = new GitHubSourceApp(new GitHubAppsClient(properties, CLOCK), CLOCK);
+		int seen = this.github.seen.size();
+
+		assertThat(dated.endsOn(older)).contains(java.time.LocalDate.parse("2026-11-25"));
+		assertThat(dated.endsOn(oldest)).as("past its end, still named").contains(java.time.LocalDate.parse("2026-11-01"));
+		assertThat(dated.endsOn(current)).as("no end date for the published path").isEmpty();
+		assertThat(dated.endsOn(runnerOnly)).as("listed with an end date only under another path").isEmpty();
+		assertThat(dated.endsOn("0".repeat(40))).as("not accepted").isEmpty();
+		assertThat(this.github.seen).hasSize(seen);
+
+		assertThat(dated.installPage()).startsWith("https://github.com/apps/").endsWith("/installations/new")
+			.doesNotContain("state");
 	}
 
 	/**

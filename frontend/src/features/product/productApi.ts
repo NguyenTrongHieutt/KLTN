@@ -8,6 +8,9 @@ export type RepositoryCheck = components['schemas']['RepositoryCheckView']
 export type WorkflowFile = components['schemas']['WorkflowFileView']
 export type ProductRegistration = components['schemas']['ProductRegistrationRequest']
 export type Tool = ProductRegistration['tools'][number]
+/** A Product's recorded Source App and workflow status (Story 23.5c): the Workflow status badge. */
+export type SourceStatus = Product['sourceStatus']
+export type SourceCheck = components['schemas']['SourceCheckView']
 
 export const PRODUCTS_QUERY_KEY = ['product'] as const
 
@@ -48,6 +51,23 @@ export function useProduct(productId: string | undefined) {
       unwrap(apiClient.GET('/api/v1/products/{productId}', { params: { path: { productId: productId ?? '' } } })),
     enabled: productId !== undefined,
     retry: false,
+  })
+}
+
+/**
+ * CUS-4's "Kiểm tra lại" (Story 23.5c): the Source App binding and the workflow read again and recorded; CUS-4 and
+ * CUS-2 then read the recorded status again.
+ */
+export function useSourceCheck(productId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(apiClient.POST('/api/v1/products/{productId}/source-check', { params: { path: { productId } } })),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...PRODUCTS_QUERY_KEY, 'detail', productId] }),
+        queryClient.invalidateQueries({ queryKey: [...PRODUCTS_QUERY_KEY, 'list'] }),
+      ]),
   })
 }
 

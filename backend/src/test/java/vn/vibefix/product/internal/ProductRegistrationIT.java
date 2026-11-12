@@ -1,6 +1,8 @@
 package vn.vibefix.product.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
@@ -102,6 +105,9 @@ class ProductRegistrationIT extends IntegrationTest {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
+	@Autowired
+	private WorkflowEndDates endDates;
+
 	private UUID lan;
 
 	private long lanGithubId;
@@ -114,7 +120,19 @@ class ProductRegistrationIT extends IntegrationTest {
 		registry.add("vibefix.github.git-url", () -> "https://github.com");
 		registry.add("vibefix.github.source-app.id", () -> "2222");
 		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		// The published vibefix.yml, and an older version accepted until OLDER_ENDS_ON, whose end date is followed (R12).
+		registry.add("vibefix.github.exchange.accepted-blobs[0].path", () -> WORKFLOW);
+		registry.add("vibefix.github.exchange.accepted-blobs[0].blob", () -> blobOf(""));
+		registry.add("vibefix.github.exchange.accepted-blobs[1].path", () -> WORKFLOW);
+		registry.add("vibefix.github.exchange.accepted-blobs[1].blob", () -> blobOf(OLDER));
+		registry.add("vibefix.github.exchange.accepted-blobs[1].ends-on", () -> OLDER_ENDS_ON);
 	}
+
+	/** What the older accepted version of {@code vibefix.yml} adds to the published one (Story 23.5c). */
+	private static final String OLDER = "# vibefix.yml, an older version\n";
+
+	/** The older version's last accepted day, Vietnam time: 20 days after the test clock's default day. */
+	private static final String OLDER_ENDS_ON = "2026-01-25";
 
 	@AfterAll
 	static void stop() {
@@ -172,6 +190,11 @@ class ProductRegistrationIT extends IntegrationTest {
 				       AND detection_notice_version = '2.0' AND ai_tools = ARRAY['LOVABLE']
 				FROM product.product WHERE id = :id
 				""").param("id", id).query(Boolean.class).single()).isTrue();
+		assertThat(this.jdbc.sql("""
+				SELECT source_status = 'READY' AND workflow_blob = :blob AND source_checked_at = :now FROM product.product
+				WHERE id = :id
+				""").param("blob", blob(published())).param("now", Timestamp.from(this.clock.instant())).param("id", id)
+			.query(Boolean.class).single()).as("registration records READY and the blob it matched (Story 23.5c)").isTrue();
 		assertThat(binding("lan-nguyen/shop-gom")).as("the binding is the Product's").isEqualTo("BOUND:" + installation + ":" + id);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'product.registered'")
 			.query(Long.class).single()).isOne();
@@ -190,9 +213,14 @@ class ProductRegistrationIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$[0].name").value("Shop Gốm Bát Tràng"))
 			.andExpect(jsonPath("$[0].scanState").doesNotExist())
+			.andExpect(jsonPath("$[0].sourceStatus").value("READY"))
 			.andExpect(jsonPath("$[0].repositoryUrl").value("https://github.com/lan-nguyen/shop-gom"));
 		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.sourceStatus").value("READY"))
+			.andExpect(jsonPath("$.defaultBranch").value("main"))
+			.andExpect(jsonPath("$.workflowEndsOn").doesNotExist())
+			.andExpect(jsonPath("$.installUrl").doesNotExist())
 			.andExpect(jsonPath("$.tools[0]").value("LOVABLE"))
 			.andExpect(jsonPath("$.sourceApp.accountLogin").value("lan-nguyen"))
 			.andExpect(jsonPath("$.sourceApp.settingsUrl").value("https://github.com/settings/installations/" + installation))
@@ -511,6 +539,400 @@ class ProductRegistrationIT extends IntegrationTest {
 	}
 
 	/**
+	 * Story 23.5c: CUS-4's "Kiểm tra lại" reads the binding and the workflow again and records the status. Each change
+	 * opens or closes its to-do and tells the Customer once; the same status read again sends nothing; CUS-2 shows the
+	 * recorded status without a GitHub call; and nobody but the Product's Customer may ask.
+	 */
+	@Test
+	void kiemTraLaiRecordsEachChangeWithItsToDoAndOneNotification() throws Exception {
+		long installation = ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		String workflow = "lan-nguyen/shop-gom:" + WORKFLOW;
+
+		sourceCheck(id).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("READY"))
+			.andExpect(jsonPath("$.lineEndings").value(false))
+			.andExpect(jsonPath("$.installUrl").doesNotExist());
+		assertThat(openTodos(id)).isEmpty();
+		assertThat(failures(id)).isEmpty();
+
+		// The Source App uninstalled: install_source_app, and one notification naming what failed.
+		GITHUB.mergeInstallations.remove(installation);
+		GITHUB.repositoryInstallations.values().remove(installation);
+		sourceCheck(id).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("SOURCE_APP_MISSING"))
+			.andExpect(jsonPath("$.installUrl").value(startsWith("https://github.com/apps/")))
+			.andExpect(jsonPath("$.installUrl").value(endsWith("/installations/new")));
+		assertThat(openTodos(id)).containsExactly("product.install_source_app");
+		assertThat(failures(id)).containsExactly(
+				"ứng dụng vibefix không dùng được trên dự án gốc (đã bị gỡ, bị tạm ngưng, hoặc đang chờ được duyệt)");
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'repo' FROM notification.todo WHERE subject_id = :id AND account_id = :lan
+				""").param("id", id).param("lan", this.lan).query(String.class).list()).containsExactly("lan-nguyen/shop-gom");
+		sourceCheck(id).andExpect(jsonPath("$.status").value("SOURCE_APP_MISSING"));
+		assertThat(failures(id)).as("the same failure read again sends nothing").hasSize(1);
+		GITHUB.seen.clear();
+		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$[0].sourceStatus").value("SOURCE_APP_MISSING"));
+		assertThat(GITHUB.seen).as("CUS-2 calls no GitHub").isEmpty();
+		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.sourceStatus").value("SOURCE_APP_MISSING"))
+			.andExpect(jsonPath("$.installUrl").value(startsWith("https://github.com/apps/")));
+
+		// Installed again, with a changed file: the first to-do closes and the second opens.
+		GITHUB.installSource("lan-nguyen", "shop-gom", 4001, this.lanGithubId);
+		GITHUB.sourceFiles.put(workflow, published() + "# changed\n");
+		sourceCheck(id).andExpect(jsonPath("$.status").value("WORKFLOW_MISMATCH"))
+			.andExpect(jsonPath("$.lineEndings").value(false));
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		assertThat(failures(id)).hasSize(2)
+			.contains("file .github/workflows/vibefix.yml khác bản vibefix công bố, hoặc là bản đã hết hạn");
+		GITHUB.sourceFiles.put(workflow, (published() + "# changed\n").replace("\n", "\r\n"));
+		sourceCheck(id).andExpect(jsonPath("$.status").value("WORKFLOW_MISMATCH"))
+			.andExpect(jsonPath("$.lineEndings").value(true));
+		assertThat(failures(id)).hasSize(2);
+		// Between failing statuses: one more notification.
+		GITHUB.sourceFiles.remove(workflow);
+		sourceCheck(id).andExpect(jsonPath("$.status").value("WORKFLOW_MISSING"));
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		assertThat(failures(id)).hasSize(3).contains("dự án gốc không còn file .github/workflows/vibefix.yml");
+
+		// Fixed: both to-dos close, and nothing is sent.
+		GITHUB.sourceFiles.put(workflow, published());
+		sourceCheck(id).andExpect(jsonPath("$.status").value("READY"))
+			.andExpect(jsonPath("$.checkedAt").value(this.clock.instant().toString()));
+		assertThat(openTodos(id)).isEmpty();
+		assertThat(failures(id)).hasSize(3);
+		assertThat(this.jdbc.sql("SELECT DISTINCT link FROM notification.notification WHERE type = 'repo.workflow_check_failed'")
+			.query(String.class).list()).containsExactly("/san-pham/" + id);
+		assertThat(this.jdbc.sql("SELECT workflow_blob FROM product.product WHERE id = :id").param("id", id)
+			.query(String.class).single()).isEqualTo(blob(published()));
+
+		// The Customer moved the default branch: the check keeps the one it read, where "Thêm file workflow" adds the file.
+		REPOSITORIES.computeIfPresent("/repos/lan-nguyen/shop-gom",
+				(path, body) -> body.replace("\"default_branch\":\"main\"", "\"default_branch\":\"trunk\""));
+		sourceCheck(id).andExpect(jsonPath("$.status").value("READY"));
+		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.defaultBranch").value("trunk"));
+
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		this.mvc.perform(post("/api/v1/products/" + id + "/source-check").with(as(other, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isNotFound());
+	}
+
+	/** Story 23.5c: GitHub not answering "Kiểm tra lại" records nothing, and the check may be tried again. */
+	@Test
+	void gitHubDownOnKiemTraLaiAnswersUnavailableAndRecordsNothing() throws Exception {
+		ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		GITHUB.sourceFiles.remove("lan-nguyen/shop-gom:" + WORKFLOW);
+		this.clock.advance(Duration.ofMinutes(5));
+		GITHUB.unavailable.add("GET /repos/lan-nguyen/shop-gom/contents/");
+
+		sourceCheck(id).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("GITHUB_UNAVAILABLE"));
+
+		assertThat(this.jdbc.sql("""
+				SELECT source_status || ':' || (source_checked_at < :now) FROM product.product WHERE id = :id
+				""").param("now", Timestamp.from(this.clock.instant())).param("id", id).query(String.class).single())
+			.as("nothing recorded").isEqualTo("READY:true");
+		assertThat(openTodos(id)).isEmpty();
+		assertThat(failures(id)).isEmpty();
+		GITHUB.unavailable.clear();
+		sourceCheck(id).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("WORKFLOW_MISSING"));
+	}
+
+	/**
+	 * Story 23.5c (AD-34 seed limits): "Kiểm tra" is limited to 30 an hour per Product, or per draft repository whatever
+	 * its case, and 120 an hour per Customer across all of them, each registration attempt counting as a check of its
+	 * draft; past either it answers {@code 429 RATE_LIMITED CHECK_LIMIT} with {@code Retry-After} and uses up nothing.
+	 */
+	@Test
+	void kiemTraIsLimitedPerProductPerDraftAndPerCustomer() throws Exception {
+		ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		// The registration counts once for the Customer.
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+
+		for (int i = 0; i < CheckWindow.PER_SUBJECT; i++) {
+			sourceCheck(id).andExpect(status().isOk());
+		}
+		sourceCheck(id).andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("RATE_LIMITED"))
+			.andExpect(jsonPath("$.reason").value("CHECK_LIMIT"))
+			.andExpect(header().string("Retry-After", "3600"));
+
+		// A draft counts per Customer and repository name in any case, the two CUS-3 checks together.
+		for (int i = 0; i < CheckWindow.PER_SUBJECT / 2; i++) {
+			check("https://github.com/lan-nguyen/ban-nhap").andExpect(jsonPath("$.reason").value("SOURCE_APP_MISSING"));
+			workflowCheck("https://github.com/Lan-Nguyen/Ban-Nhap").andExpect(jsonPath("$.reason").value("SOURCE_APP_MISSING"));
+		}
+		check("https://github.com/LAN-NGUYEN/ban-nhap.git").andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.reason").value("CHECK_LIMIT"));
+		// Registering the draft reads GitHub again, so it counts too, before any check.
+		register("https://github.com/lan-nguyen/ban-nhap", "2.0").andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.reason").value("CHECK_LIMIT"))
+			.andExpect(header().exists("Retry-After"));
+		// An address that is no GitHub repository is refused before it counts.
+		check("https://gitlab.com/lan/shop").andExpect(jsonPath("$.reason").value("NOT_GITHUB"));
+
+		// 61 counted so far (the registration, the Product's 30 and the draft's 30): 59 more on other drafts reach 120.
+		for (int i = 0; i < CheckWindow.PER_CUSTOMER - 2 * CheckWindow.PER_SUBJECT - 1; i++) {
+			check("https://github.com/lan-nguyen/nhap-" + (i % 2)).andExpect(jsonPath("$.reason").value("SOURCE_APP_MISSING"));
+		}
+		check("https://github.com/lan-nguyen/nhap-moi").andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.reason").value("CHECK_LIMIT"));
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		// Another Customer counts apart.
+		check(as(other, Role.CUSTOMER), "https://github.com/lan-nguyen/nhap-moi")
+			.andExpect(jsonPath("$.reason").value("SOURCE_APP_MISSING"));
+
+		this.clock.advance(Duration.ofMinutes(61));
+		sourceCheck(id).andExpect(status().isOk());
+		check("https://github.com/lan-nguyen/ban-nhap").andExpect(jsonPath("$.reason").value("SOURCE_APP_MISSING"));
+	}
+
+	/**
+	 * Story 23.5c (R12): a recorded version whose end date is 14 days away or less opens {@code product.add_workflow}
+	 * with the end date as its deadline and tells the Customer once for the (Product, version); CUS-4 shows the end
+	 * date while that holds; and a check that records another version closes the to-do.
+	 */
+	@Test
+	void anEndDateFourteenDaysAwayOpensTheToDoWithItsDeadlineAndNotifiesOncePerVersion() throws Exception {
+		ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		String workflow = "lan-nguyen/shop-gom:" + WORKFLOW;
+		GITHUB.sourceFiles.put(workflow, published() + OLDER);
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		assertThat(this.jdbc.sql("SELECT workflow_blob FROM product.product WHERE id = :id").param("id", id)
+			.query(String.class).single()).isEqualTo(blobOf(OLDER));
+
+		this.endDates.run();
+		assertThat(openTodos(id)).as("20 days away").isEmpty();
+		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.workflowEndsOn").doesNotExist());
+
+		this.clock.advance(Duration.ofDays(6));
+		this.endDates.run();
+		this.endDates.run();
+		this.clock.advance(Duration.ofDays(1));
+		this.endDates.run();
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		assertThat(this.jdbc.sql("SELECT deadline_at FROM notification.todo WHERE subject_id = :id AND closed_at IS NULL")
+			.param("id", id).query(Timestamp.class).single().toInstant())
+			.as("the end of the last day, Vietnam time").isEqualTo(java.time.Instant.parse("2026-01-25T16:59:00Z"));
+		assertThat(failures(id)).as("once for the (Product, version)")
+			.containsExactly("bản file workflow bạn đang dùng hết hạn ngày 25/01/2026");
+		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.sourceStatus").value("READY"))
+			.andExpect(jsonPath("$.workflowEndsOn").value(OLDER_ENDS_ON));
+
+		// The same version read again changes nothing.
+		sourceCheck(id).andExpect(jsonPath("$.status").value("READY"))
+			.andExpect(jsonPath("$.workflowEndsOn").value(OLDER_ENDS_ON));
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+
+		// The file changed while the end-date to-do is open: the failing file's to-do has no deadline.
+		GITHUB.sourceFiles.put(workflow, published() + "# changed\n");
+		sourceCheck(id).andExpect(jsonPath("$.status").value("WORKFLOW_MISMATCH"));
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		assertThat(this.jdbc.sql("""
+				SELECT deadline_at IS NULL FROM notification.todo WHERE subject_id = :id AND closed_at IS NULL
+				""").param("id", id).query(Boolean.class).single()).isTrue();
+
+		// The Customer adds the current version: a check that records another blob closes the to-do.
+		GITHUB.sourceFiles.put(workflow, published());
+		sourceCheck(id).andExpect(jsonPath("$.status").value("READY"))
+			.andExpect(jsonPath("$.workflowEndsOn").doesNotExist());
+		assertThat(openTodos(id)).isEmpty();
+		this.endDates.run();
+		assertThat(openTodos(id)).isEmpty();
+		assertThat(failures(id)).hasSize(2);
+	}
+
+	/**
+	 * Story 23.5c (R12): once the recorded version's end date has passed, the daily job records {@code WORKFLOW_MISMATCH}
+	 * without a GitHub call, with its to-do and one notification; CUS-4 never asks to re-add the file "before" a past
+	 * date.
+	 */
+	@Test
+	void aVersionPastItsEndDateIsRecordedAsMismatchWithoutAGitHubCall() throws Exception {
+		ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		GITHUB.sourceFiles.put("lan-nguyen/shop-gom:" + WORKFLOW, published() + OLDER);
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+
+		this.clock.advance(Duration.ofDays(21));
+		// A past date is no longer "nearing".
+		this.mvc.perform(get("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.sourceStatus").value("READY"))
+			.andExpect(jsonPath("$.workflowEndsOn").doesNotExist());
+		GITHUB.seen.clear();
+		this.endDates.run();
+		this.endDates.run();
+
+		assertThat(GITHUB.seen).as("the end dates are the accepted set's").isEmpty();
+		assertThat(this.jdbc.sql("SELECT source_status || ':' || coalesce(workflow_blob, '-') FROM product.product WHERE id = :id")
+			.param("id", id).query(String.class).single()).isEqualTo("WORKFLOW_MISMATCH:-");
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		assertThat(failures(id))
+			.containsExactly("file .github/workflows/vibefix.yml khác bản vibefix công bố, hoặc là bản đã hết hạn");
+		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$[0].sourceStatus").value("WORKFLOW_MISMATCH"));
+	}
+
+	/**
+	 * Story 23.5c (R12): a recorded version that no longer ends within 14 days, as when the accepted set drops its end
+	 * date or moves it later, closes its end-date to-do on the next daily run, and sends nothing.
+	 */
+	@Test
+	void aVersionNoLongerEndingClosesItsEndDateToDo() throws Exception {
+		ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		GITHUB.sourceFiles.put("lan-nguyen/shop-gom:" + WORKFLOW, published() + OLDER);
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		this.clock.advance(Duration.ofDays(7));
+		this.endDates.run();
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+
+		// The accepted set is fixed for this context: the recorded blob is swapped for one with no end date, which is
+		// what the daily job sees once the set drops the version's end date.
+		this.jdbc.sql("UPDATE product.product SET workflow_blob = :blob WHERE id = :id").param("blob", blobOf(""))
+			.param("id", id).update();
+		this.endDates.run();
+
+		assertThat(openTodos(id)).isEmpty();
+		assertThat(failures(id)).hasSize(1);
+		assertThat(this.jdbc.sql("SELECT source_status FROM product.product WHERE id = :id").param("id", id)
+			.query(String.class).single()).isEqualTo("READY");
+	}
+
+	/**
+	 * Story 23.5c: a check that moves a failing Product to READY on a version ending within 14 days opens the end-date
+	 * to-do with its deadline and tells the Customer once, before any daily run; and a registration on such a version
+	 * does the same once it has committed.
+	 */
+	@Test
+	void aCheckOrARegistrationOnAVersionEndingSoonOpensTheEndDateToDoAtOnce() throws Exception {
+		ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		String workflow = "lan-nguyen/shop-gom:" + WORKFLOW;
+		this.clock.advance(Duration.ofDays(7));
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		GITHUB.sourceFiles.remove(workflow);
+		sourceCheck(id).andExpect(jsonPath("$.status").value("WORKFLOW_MISSING"));
+
+		GITHUB.sourceFiles.put(workflow, published() + OLDER);
+		sourceCheck(id).andExpect(jsonPath("$.status").value("READY"))
+			.andExpect(jsonPath("$.workflowEndsOn").value(OLDER_ENDS_ON));
+
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		assertThat(this.jdbc.sql("SELECT deadline_at FROM notification.todo WHERE subject_id = :id AND closed_at IS NULL")
+			.param("id", id).query(Timestamp.class).single().toInstant()).isEqualTo(java.time.Instant.parse("2026-01-25T16:59:00Z"));
+		assertThat(failures(id)).filteredOn(problem -> problem.contains("hết hạn ngày"))
+			.containsExactly("bản file workflow bạn đang dùng hết hạn ngày 25/01/2026");
+
+		ready("lan-nguyen/quan-may", 4002, this.lanGithubId, "User", false, 10, "");
+		GITHUB.sourceFiles.put("lan-nguyen/quan-may:" + WORKFLOW, published() + OLDER);
+		UUID second = registered("https://github.com/lan-nguyen/quan-may");
+		assertThat(openTodos(second)).containsExactly("product.add_workflow");
+		assertThat(failures(second)).containsExactly("bản file workflow bạn đang dùng hết hạn ngày 25/01/2026");
+	}
+
+	/**
+	 * Story 23.5c: the recorder's write runs in a transaction of its own, so a refused re-confirmation from READY keeps
+	 * its status, its to-do and its notification when the caller's transaction rolls back.
+	 */
+	@Test
+	void aRefusedReconfirmationKeepsItsStatusWhenTheCallersTransactionRollsBack() throws Exception {
+		long installation = ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		GITHUB.mergeInstallations.remove(installation);
+		GITHUB.repositoryInstallations.values().remove(installation);
+
+		new TransactionTemplate(this.transactionManager).executeWithoutResult(status -> {
+			assertThat(this.sources.reconfirm(id, "lan-nguyen/shop-gom")).isEqualTo(ProductSources.Block.SOURCE_APP_MISSING);
+			status.setRollbackOnly();
+		});
+
+		assertThat(this.jdbc.sql("SELECT source_status FROM product.product WHERE id = :id").param("id", id)
+			.query(String.class).single()).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(openTodos(id)).containsExactly("product.install_source_app");
+		assertThat(failures(id)).hasSize(1);
+	}
+
+	/**
+	 * Story 23.5c: the Source check before Setup answers {@code NO_ADMIN_PERMISSION} without the admin right, yet records
+	 * what it read of the workflow, since the admin right is no status; and after {@code WORKFLOW_MISSING}, an
+	 * uninstalled Source App leaves exactly its own to-do open.
+	 */
+	@Test
+	void theSourceCheckRecordsTheWorkflowWithoutTheAdminRightAndTheToDosFollowTheStatus() throws Exception {
+		long installation = ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		String workflow = "lan-nguyen/shop-gom:" + WORKFLOW;
+		GITHUB.sourcePermissions.put("lan-nguyen/shop-gom", Map.of(this.lanLogin, "write"));
+
+		GITHUB.sourceFiles.put(workflow, published() + "# changed\n");
+		assertThat(this.sources.check(id).block()).isEqualTo(ProductSources.Block.NO_ADMIN_PERMISSION);
+		assertThat(this.jdbc.sql("SELECT source_status || ':' || coalesce(workflow_blob, '-') FROM product.product WHERE id = :id")
+			.param("id", id).query(String.class).single()).isEqualTo("WORKFLOW_MISMATCH:-");
+		GITHUB.sourceFiles.put(workflow, published());
+		assertThat(this.sources.check(id).block()).isEqualTo(ProductSources.Block.NO_ADMIN_PERMISSION);
+		assertThat(this.jdbc.sql("SELECT source_status || ':' || coalesce(workflow_blob, '-') FROM product.product WHERE id = :id")
+			.param("id", id).query(String.class).single()).isEqualTo("READY:" + blob(published()));
+
+		GITHUB.sourcePermissions.put("lan-nguyen/shop-gom", Map.of(this.lanLogin, "admin"));
+		GITHUB.sourceFiles.remove(workflow);
+		sourceCheck(id).andExpect(jsonPath("$.status").value("WORKFLOW_MISSING"));
+		assertThat(openTodos(id)).containsExactly("product.add_workflow");
+		GITHUB.mergeInstallations.remove(installation);
+		GITHUB.repositoryInstallations.values().remove(installation);
+		sourceCheck(id).andExpect(jsonPath("$.status").value("SOURCE_APP_MISSING"));
+		assertThat(openTodos(id)).containsExactly("product.install_source_app");
+	}
+
+	/**
+	 * Story 23.5c: deleting a Product closes its Source App and workflow to-dos in the same transaction, since CUS-4 no
+	 * longer answers for it; erasing the account leaves none open either.
+	 */
+	@Test
+	void deletingOrErasingTheProductClosesItsToDos() throws Exception {
+		long installation = ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		UUID id = registered("https://github.com/lan-nguyen/shop-gom");
+		GITHUB.mergeInstallations.remove(installation);
+		GITHUB.repositoryInstallations.values().remove(installation);
+		sourceCheck(id).andExpect(jsonPath("$.status").value("SOURCE_APP_MISSING"));
+		assertThat(openTodos(id)).containsExactly("product.install_source_app");
+
+		this.mvc.perform(delete("/api/v1/products/" + id).with(as(this.lan, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isNoContent());
+		assertThat(openTodos(id)).isEmpty();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE subject_id = :id AND closed_at IS NOT NULL")
+			.param("id", id).query(Long.class).single()).as("closed, not deleted").isOne();
+
+		ready("lan-nguyen/quan-may", 4002, this.lanGithubId, "User", false, 10, "");
+		UUID second = registered("https://github.com/lan-nguyen/quan-may");
+		GITHUB.sourceFiles.remove("lan-nguyen/quan-may:" + WORKFLOW);
+		sourceCheck(second).andExpect(jsonPath("$.status").value("WORKFLOW_MISSING"));
+		assertThat(openTodos(second)).containsExactly("product.add_workflow");
+		new TransactionTemplate(this.transactionManager)
+			.executeWithoutResult(status -> this.personalData.eraseAccount(this.lan));
+		assertThat(openTodos(second)).isEmpty();
+	}
+
+	/**
+	 * Story 23.5c: a Setup URL return that carries no {@code state} at all, which the plain install page CUS-4 links to
+	 * produces, goes to CUS-2; a return with a state, even an empty one, behaves as built.
+	 */
+	@Test
+	void aPlainInstallReturnWithoutStateGoesToTheProducts() throws Exception {
+		this.mvc.perform(get("/api/v1/github/source-app/setup").with(as(this.lan, Role.CUSTOMER))
+			.param("installation_id", "21")
+			.param("setup_action", "install"))
+			.andExpect(status().isSeeOther())
+			.andExpect(header().string("Location", "/san-pham"));
+		setup(this.lan, "", "21", "install").andExpect(header().string("Location", "/san-pham/moi"));
+		setup(this.lan, "not-a-state", "21", "install").andExpect(header().string("Location", "/san-pham/moi"));
+	}
+
+	/**
 	 * A repository ready to register: described, the Source App on exactly it, the Customer its admin, and the
 	 * published {@code vibefix.yml} on its default branch.
 	 * @return the installation
@@ -527,6 +949,16 @@ class ProductRegistrationIT extends IntegrationTest {
 
 	private static String published() throws Exception {
 		return GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW);
+	}
+
+	/** The blob of the published {@code vibefix.yml} followed by {@code suffix}. */
+	private static String blobOf(String suffix) {
+		try {
+			return blob(published() + suffix);
+		}
+		catch (Exception ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 	/** {@code git hash-object} of a text with LF line ends. */
@@ -554,6 +986,27 @@ class ProductRegistrationIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/products/repository-check").with(caller).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"url\":\"" + url + "\"}"));
+	}
+
+	/** CUS-4's "Kiểm tra lại", by the Product's Customer. */
+	private ResultActions sourceCheck(UUID productId) throws Exception {
+		return this.mvc.perform(post("/api/v1/products/" + productId + "/source-check").with(as(this.lan, Role.CUSTOMER))
+			.with(csrf()));
+	}
+
+	/** The Product's open to-dos, by key. */
+	private List<String> openTodos(UUID productId) {
+		return this.jdbc.sql("""
+				SELECT todo_key FROM notification.todo WHERE subject_id = :id AND closed_at IS NULL ORDER BY todo_key
+				""").param("id", productId).query(String.class).list();
+	}
+
+	/** What each {@code repo.workflow_check_failed} the Customer got about the Product says failed. */
+	private List<String> failures(UUID productId) {
+		return this.jdbc.sql("""
+				SELECT params ->> 'problem' FROM notification.notification
+				WHERE type = 'repo.workflow_check_failed' AND account_id = :lan AND link = :link ORDER BY created_at
+				""").param("lan", this.lan).param("link", "/san-pham/" + productId).query(String.class).list();
 	}
 
 	private ResultActions workflowCheck(String url) throws Exception {

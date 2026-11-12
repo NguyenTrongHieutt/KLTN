@@ -7545,6 +7545,33 @@
         "tags" : [ "product-controller" ]
       }
     },
+    "/api/v1/products/{productId}/source-check" : {
+      "post" : {
+        "operationId" : "sourceCheck",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SourceCheckView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
     "/api/v1/profile" : {
       "get" : {
         "operationId" : "profile",
@@ -16892,6 +16919,9 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "defaultBranch" : {
+            "type" : "string"
+          },
           "demoUrl" : {
             "type" : "string"
           },
@@ -16904,6 +16934,9 @@
           "id" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "installUrl" : {
+            "type" : "string"
           },
           "jobs" : {
             "type" : "integer",
@@ -16924,15 +16957,27 @@
           "sourceApp" : {
             "$ref" : "#/components/schemas/SourceAppView"
           },
+          "sourceCheckedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sourceStatus" : {
+            "type" : "string",
+            "enum" : [ "READY", "SOURCE_APP_MISSING", "SOURCE_APP_WRONG_REPOSITORY", "WORKFLOW_MISSING", "WORKFLOW_MISMATCH" ]
+          },
           "tools" : {
             "type" : "array",
             "items" : {
               "type" : "string",
               "enum" : [ "LOVABLE", "BOLT", "REPLIT", "V0", "BASE44", "CURSOR", "CLAUDE_CODE", "CODEX", "OTHER" ]
             }
+          },
+          "workflowEndsOn" : {
+            "type" : "string",
+            "format" : "date"
           }
         },
-        "required" : [ "createdAt", "description", "id", "jobs", "name", "repositoryFullName", "repositoryOwnerType", "repositoryUrl", "tools" ]
+        "required" : [ "createdAt", "defaultBranch", "description", "id", "jobs", "name", "repositoryFullName", "repositoryOwnerType", "repositoryUrl", "sourceStatus", "tools" ]
       },
       "ProfileRequest" : {
         "type" : "object",
@@ -18605,6 +18650,33 @@
           }
         },
         "required" : [ "accountLogin", "accountType", "otherProducts", "settingsUrl" ]
+      },
+      "SourceCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "checkedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "installUrl" : {
+            "type" : "string"
+          },
+          "lineEndings" : {
+            "type" : "boolean"
+          },
+          "settingsUrl" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "READY", "SOURCE_APP_MISSING", "SOURCE_APP_WRONG_REPOSITORY", "WORKFLOW_MISSING", "WORKFLOW_MISMATCH" ]
+          },
+          "workflowEndsOn" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "lineEndings", "status" ]
       },
       "SplitCardView" : {
         "type" : "object",

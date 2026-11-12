@@ -1,9 +1,12 @@
 package vn.vibefix.github;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+
+import org.jspecify.annotations.Nullable;
 
 import vn.vibefix.github.GitHubApps.InstallationToken;
 
@@ -73,8 +76,10 @@ public interface SourceApp {
 	 * A workflow check.
 	 * @param lineEndings a {@link WorkflowVerdict#MISMATCH} whose file holds a carriage return, so the Customer is
 	 * warned about Windows line endings
+	 * @param blob the accepted blob a {@link WorkflowVerdict#MATCHES} file matched (with CRLF read as LF), so its end
+	 * date can be followed (R12, Story 23.5c); none for any other verdict
 	 */
-	record WorkflowCheck(WorkflowVerdict verdict, boolean lineEndings) {
+	record WorkflowCheck(WorkflowVerdict verdict, boolean lineEndings, @Nullable String blob) {
 	}
 
 	/** Whether the App is configured, so its installations can be read. */
@@ -93,6 +98,13 @@ public interface SourceApp {
 
 	/** The install link, {@code {git-url}/apps/{slug}/installations/new?state=…}, carrying {@code state} to the Setup URL. */
 	String installUrl(String state);
+
+	/**
+	 * GitHub's plain install page, {@code {git-url}/apps/{slug}/installations/new}, with no {@code state}: CUS-4's
+	 * "Cài ứng dụng vibefix trên GitHub ↗" for a registered Product (Story 23.5c), whose return the Setup URL sends to
+	 * CUS-2. The slug is read once from {@code GET /app}.
+	 */
+	String installPage();
 
 	/** The App's bot, {@code {slug}[bot]}: the actor of every run it dispatches. */
 	String botLogin();
@@ -130,5 +142,12 @@ public interface SourceApp {
 	 * and checks it against the accepted set ({@code vibefix.github.exchange.accepted-blobs}).
 	 */
 	WorkflowCheck workflow(InstallationToken token, String fullName, String branch);
+
+	/**
+	 * The last day, Vietnam time, an accepted {@code vibefix.yml} blob may be used (AD-45, R12, Story 23.5c), as the
+	 * accepted set lists it; no GitHub call.
+	 * @return empty for a blob with no end date, or one the accepted set does not list for the published path
+	 */
+	Optional<LocalDate> endsOn(String blob);
 
 }

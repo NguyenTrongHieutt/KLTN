@@ -234,8 +234,9 @@ class ApplicationsIT extends IntegrationTest {
 
 	/**
 	 * Story 23.5b: a contributor read that cannot say who contributed fails closed, never as "not a contributor":
-	 * GitHub answering 5xx or 404 on the contributors, or the Customer's Source App uninstalled. The Customer is asked
-	 * nothing, since no linking token is read.
+	 * GitHub answering 5xx or 404 on the contributors, or the Customer's Source App uninstalled. Nobody is asked to
+	 * re-link GitHub, since no linking token is read; a refused binding is recorded as the Product's status, so the
+	 * Customer is asked once to install the Source App again (Story 23.5c), and a GitHub failure records nothing.
 	 */
 	@Test
 	void anUnknownContributorReadFailsClosed() throws Exception {
@@ -246,18 +247,36 @@ class ApplicationsIT extends IntegrationTest {
 		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "404 {}");
 		apply(mentor("D"), this.job, true).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :job").param("job", this.job)
+			.query(UUID.class).single();
+		assertThat(sourceStatus(product)).as("a GitHub failure records nothing").isEqualTo("READY");
 		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "200 []");
 		SOURCE.uninstall(repository(this.job));
 		int reads = CONTRIBUTOR_READS.get();
 		apply(mentor("E"), this.job, true).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
 		assertThat(CONTRIBUTOR_READS.get()).as("without the Source App, GitHub is not asked for contributors").isEqualTo(reads);
+		apply(mentor("G"), this.job, true).andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		assertThat(sourceStatus(product)).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(this.jdbc.sql("""
+				SELECT todo_key FROM notification.todo WHERE subject_id = :product AND account_id = :lan AND closed_at IS NULL
+				""").param("product", product).param("lan", this.lan).query(String.class).list())
+			.containsExactly("product.install_source_app");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.notification WHERE type = 'repo.workflow_check_failed' AND account_id = :lan
+				""").param("lan", this.lan).query(Long.class).single()).as("once, though two bids found it").isOne();
 
 		assertThat(relinkGitHub()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).as("no refusal writes a bid").isZero();
 		SOURCE.reinstall(repository(this.job));
 		apply(mentor("F"), this.job, true).andExpect(status().isCreated());
+	}
+
+	/** The Product's recorded Source App and workflow status (Story 23.5c). */
+	private String sourceStatus(UUID product) {
+		return this.jdbc.sql("SELECT source_status FROM product.product WHERE id = :id").param("id", product)
+			.query(String.class).single();
 	}
 
 	/** The GitHub ID of the Job's Source Repository, which numbers its Source App installation too. */

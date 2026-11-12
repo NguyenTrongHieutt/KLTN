@@ -17,11 +17,12 @@ import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.GitHubRepositories;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.github.SourceApp;
-import vn.vibefix.github.SourceApp.WorkflowVerdict;
+import vn.vibefix.github.SourceApp.WorkflowCheck;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.internal.SourceAppBindings.Bound;
 import vn.vibefix.product.internal.SourceAppBindings.Checked;
+import vn.vibefix.product.internal.SourceStatuses.Status;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
@@ -34,6 +35,12 @@ import vn.vibefix.shared.ErrorCode;
  * binding the same way (Story 23.5b); the contributor read answers "unknown" rather than throwing, and the drift read
  * reads no admin right. No path reads a repository with the Customer's linking token. A GitHub failure is a
  * {@link GitHubException}, which the caller retries.
+ * <p>
+ * Each read records what it found of the Source App and the workflow in {@link SourceStatuses} (Story 23.5c), so CUS-2
+ * shows it without a GitHub call, with the default branch it read when that moved: the check and the re-confirmation
+ * (whose admin right is no status, so their workflow is read even when the admin right is not held), the drift read,
+ * and a contributor read whose binding refuses record it best-effort, so a failed side effect never changes what they
+ * answer; CUS-4's "Kiểm tra lại" ({@link #refresh}) fails with it. A GitHub failure records nothing.
  */
 @Component
 class SourceChecks implements ProductSources {
@@ -43,8 +50,33 @@ class SourceChecks implements ProductSources {
 	private record Row(UUID customerId, String name, String fullName, long githubId, String defaultBranch) {
 	}
 
-	/** What the token's reads found: a block, or none with the default branch read now. */
-	private record Read(@Nullable Block block, String defaultBranch, String fullName) {
+	/**
+	 * What the token's reads found: a block, or none with the default branch read now, and the status to record.
+	 * @param branchRead the default branch as the repository was read now; none when no repository was read
+	 */
+	private record Read(@Nullable Block block, String defaultBranch, String fullName, Status status, @Nullable String blob,
+			@Nullable String branchRead) {
+	}
+
+	/**
+	 * The repository and its workflow, read with one token.
+	 * @param repository none when the token reads no repository of the registered ID
+	 * @param blob the accepted blob the file matched
+	 * @param lineEndings a mismatching file that holds a carriage return
+	 */
+	private record Found(@Nullable RepositoryMetadata repository, Status status, @Nullable String blob,
+			boolean lineEndings) {
+	}
+
+	/**
+	 * "Kiểm tra lại"'s outcome (CUS-4, Story 23.5c), as recorded.
+	 * @param lineEndings a {@link Status#WORKFLOW_MISMATCH} whose file holds a carriage return
+	 */
+	record Refreshed(Status status, boolean lineEndings) {
+	}
+
+	/** What the drift read found, and the status it records. */
+	private record DriftRead(Drift drift, Status status, @Nullable String blob, @Nullable String branchRead) {
 	}
 
 	private final SourceAppBindings bindings;
@@ -57,13 +89,16 @@ class SourceChecks implements ProductSources {
 
 	private final JdbcClient jdbc;
 
+	private final SourceStatuses statuses;
+
 	SourceChecks(SourceAppBindings bindings, SourceApp app, GitHubRepositories repositories, CustomerRepositories customers,
-			JdbcClient jdbc) {
+			JdbcClient jdbc, SourceStatuses statuses) {
 		this.bindings = bindings;
 		this.app = app;
 		this.repositories = repositories;
 		this.customers = customers;
 		this.jdbc = jdbc;
+		this.statuses = statuses;
 	}
 
 	@Override
@@ -82,6 +117,7 @@ class SourceChecks implements ProductSources {
 		if (newFullName.split("/", 2).length != 2) {
 			return Block.SOURCE_APP_WRONG_REPOSITORY;
 		}
+		// The status is recorded in a transaction of its own before this one writes the Product's row.
 		Read read = read(productId, product, newFullName);
 		if (read.block() != null) {
 			return read.block();
@@ -101,6 +137,28 @@ class SourceChecks implements ProductSources {
 				product.githubId(), read.block() == null ? read.defaultBranch() : product.defaultBranch());
 	}
 
+	/**
+	 * CUS-4's "Kiểm tra lại" (Story 23.5c): the binding on a fresh read, then the repository and its workflow with one
+	 * token, without the admin right; the status is recorded, and a failure to record it fails the check.
+	 * @throws ApiException {@code NOT_FOUND} for no such Product
+	 * @throws GitHubException when GitHub cannot answer now, or the Source App is not configured: nothing is recorded
+	 */
+	Refreshed refresh(UUID productId) {
+		Row product = row(productId);
+		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
+		if (checked.refusal() != null) {
+			Status status = Status.valueOf(checked.refusal().name());
+			this.statuses.record(productId, status, null, null);
+			return new Refreshed(status, false);
+		}
+		Bound bound = checked.bound();
+		Found found = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
+				token -> found(product, bound, token));
+		RepositoryMetadata repository = found.repository();
+		this.statuses.record(productId, found.status(), found.blob(), repository == null ? null : repository.defaultBranch());
+		return new Refreshed(found.status(), found.lineEndings());
+	}
+
 	@Override
 	public Optional<Set<Long>> contributors(UUID productId) {
 		try {
@@ -110,6 +168,7 @@ class SourceChecks implements ProductSources {
 			if (checked.refusal() != null) {
 				log.warn("The contributors of Product {} are unknown: the Source App binding does not hold ({})", productId,
 						checked.refusal());
+				recordQuietly(productId, Status.valueOf(checked.refusal().name()), null, null);
 				return Optional.empty();
 			}
 			Bound bound = checked.bound();
@@ -135,63 +194,98 @@ class SourceChecks implements ProductSources {
 		Row product = row(productId);
 		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
 		if (checked.refusal() != null) {
+			recordQuietly(productId, Status.valueOf(checked.refusal().name()), null, null);
 			return new Drift(Block.valueOf(checked.refusal().name()), null, product.fullName(), false, List.of());
 		}
 		Bound bound = checked.bound();
-		return this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
+		DriftRead read = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
 				token -> drift(product, bound, token, copiedSha));
+		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
+		return read.drift();
 	}
 
 	/**
 	 * The repository, its workflow and its new commits, with one token: a workflow that differs is read next to the
 	 * rest, so no other change waits for it. The admin right is no drift.
 	 */
-	private Drift drift(Row product, Bound bound, InstallationToken token, String copiedSha) {
-		String[] name = bound.repositoryFullName().split("/", 2);
-		RepositoryMetadata repository = this.repositories.read(token.value(), name[0], name[1]).orElse(null);
-		if (repository == null || repository.id() != product.githubId()) {
-			return new Drift(Block.SOURCE_APP_WRONG_REPOSITORY, null, product.fullName(), false, List.of());
+	private DriftRead drift(Row product, Bound bound, InstallationToken token, String copiedSha) {
+		Found found = found(product, bound, token);
+		RepositoryMetadata repository = found.repository();
+		if (repository == null) {
+			return new DriftRead(new Drift(Block.SOURCE_APP_WRONG_REPOSITORY, null, product.fullName(), false, List.of()),
+					found.status(), null, null);
 		}
-		Block workflow = switch (this.app.workflow(token, repository.fullName(), repository.defaultBranch()).verdict()) {
-			case MATCHES -> null;
-			case MISSING -> Block.WORKFLOW_MISSING;
-			case MISMATCH -> Block.WORKFLOW_MISMATCH;
-		};
+		Block workflow = found.status() == Status.READY ? null : Block.valueOf(found.status().name());
 		List<String> commits = this.repositories.commitsSince(token.value(), repository.fullName(), copiedSha,
 				repository.defaultBranch());
 		List<String> kept = commits.size() > MAX_DRIFT_COMMITS ? commits.subList(commits.size() - MAX_DRIFT_COMMITS,
 				commits.size()) : commits;
-		return new Drift(null, workflow, repository.fullName(), repository.archived(), kept);
+		return new DriftRead(new Drift(null, workflow, repository.fullName(), repository.archived(), kept), found.status(),
+				found.blob(), repository.defaultBranch());
 	}
 
-	/** The binding on a fresh read under {@code fullName}, then the repository, the admin right, and the workflow. */
+	/**
+	 * The binding on a fresh read under {@code fullName}, then the repository, the admin right, and the workflow; what
+	 * it found of the Source App and the workflow is recorded, best-effort.
+	 */
 	private Read read(UUID productId, Row product, String fullName) {
 		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), fullName);
 		if (checked.refusal() != null) {
-			return new Read(Block.valueOf(checked.refusal().name()), product.defaultBranch(), fullName);
+			Block block = Block.valueOf(checked.refusal().name());
+			recordQuietly(productId, Status.valueOf(block.name()), null, null);
+			return new Read(block, product.defaultBranch(), fullName, Status.valueOf(block.name()), null, null);
 		}
 		Bound bound = checked.bound();
-		return this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
+		Read read = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
 				token -> read(product, bound, token));
+		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
+		return read;
 	}
 
 	private Read read(Row product, Bound bound, InstallationToken token) {
-		String[] name = bound.repositoryFullName().split("/", 2);
-		RepositoryMetadata repository = this.repositories.read(token.value(), name[0], name[1]).orElse(null);
-		if (repository == null || repository.id() != product.githubId()) {
-			return new Read(Block.SOURCE_APP_WRONG_REPOSITORY, product.defaultBranch(), bound.repositoryFullName());
+		Found found = found(product, bound, token);
+		RepositoryMetadata repository = found.repository();
+		if (repository == null) {
+			return new Read(Block.SOURCE_APP_WRONG_REPOSITORY, product.defaultBranch(), bound.repositoryFullName(),
+					found.status(), null, null);
 		}
 		if (!RepositoryChecks.administers(this.customers, this.repositories, product.customerId(), token,
 				repository.fullName())) {
-			return new Read(Block.NO_ADMIN_PERMISSION, repository.defaultBranch(), repository.fullName());
+			return new Read(Block.NO_ADMIN_PERMISSION, repository.defaultBranch(), repository.fullName(), found.status(),
+					found.blob(), repository.defaultBranch());
 		}
-		WorkflowVerdict workflow = this.app.workflow(token, repository.fullName(), repository.defaultBranch()).verdict();
-		Block block = switch (workflow) {
-			case MATCHES -> null;
-			case MISSING -> Block.WORKFLOW_MISSING;
-			case MISMATCH -> Block.WORKFLOW_MISMATCH;
-		};
-		return new Read(block, repository.defaultBranch(), repository.fullName());
+		Block block = found.status() == Status.READY ? null : Block.valueOf(found.status().name());
+		return new Read(block, repository.defaultBranch(), repository.fullName(), found.status(), found.blob(),
+				repository.defaultBranch());
+	}
+
+	/**
+	 * The repository by the bound name, which must be the registered ID, else {@link Status#SOURCE_APP_WRONG_REPOSITORY};
+	 * then its {@code vibefix.yml} on its default branch.
+	 */
+	private Found found(Row product, Bound bound, InstallationToken token) {
+		String[] name = bound.repositoryFullName().split("/", 2);
+		RepositoryMetadata repository = this.repositories.read(token.value(), name[0], name[1]).orElse(null);
+		if (repository == null || repository.id() != product.githubId()) {
+			return new Found(null, Status.SOURCE_APP_WRONG_REPOSITORY, null, false);
+		}
+		WorkflowCheck workflow = this.app.workflow(token, repository.fullName(), repository.defaultBranch());
+		return new Found(repository, Status.of(workflow.verdict()), workflow.blob(), workflow.lineEndings());
+	}
+
+	/**
+	 * Records what a read found, best-effort: the check, the re-confirmation, the drift read and the contributor read
+	 * answer what GitHub said even when the side effect fails (a notification refused, a database error), which is
+	 * logged with the Product.
+	 */
+	private void recordQuietly(UUID productId, Status status, @Nullable String blob, @Nullable String branch) {
+		try {
+			this.statuses.record(productId, status, blob, branch);
+		}
+		catch (RuntimeException failed) {
+			log.warn("The Source status {} of Product {} was not recorded; the check answers anyway", status, productId,
+					failed);
+		}
 	}
 
 	private Row row(UUID productId) {

@@ -119,6 +119,8 @@ vibefix:
   product:
     notice-version: "2.0"
     per-day: 5
+    # R12 (Vietnam time, Story 23.5c): the daily look at each Product's vibefix.yml version nearing its end date.
+    workflow-ends-cron: "0 15 5 * * *"
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com

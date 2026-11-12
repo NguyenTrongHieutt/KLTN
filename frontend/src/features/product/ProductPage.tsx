@@ -13,12 +13,13 @@ import { cn } from '@/lib/utils'
 import { useProduct, type Product } from './productApi'
 import { DeleteProduct } from './DeleteProduct'
 import { domainOf } from './productText'
+import { SourceSetupCard } from './SourceSetupCard'
 
 /**
  * CUS-4 (`/san-pham/{productId}`, FR-7): the Product, its Source Repository, and its information, with
  * "Đăng công việc" (CUS-6) open at once. vibefix does not scan code (FR-8, rewritten 2026-11-12), so
- * CUS-4 shows no scan result and no re-scan. "Xóa sản phẩm" deletes it after a destructive
- * Confirmation dialog.
+ * CUS-4 shows no scan result and no re-scan; the compact Workflow setup card shows the Source App and workflow status
+ * with "Kiểm tra lại" (Story 23.5c). "Xóa sản phẩm" deletes it after a destructive Confirmation dialog.
  */
 export function ProductPage() {
   const { productId } = useParams()
@@ -67,6 +68,7 @@ function ProductDetail({ product }: { product: Product }) {
         </div>
       </div>
       <p className="text-body-sm break-words">{product.description}</p>
+      <SourceSetupCard product={product} />
       <section aria-labelledby="product-info-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
         <h2 id="product-info-heading" className="text-h3">
           {t('screen.product.detail.info')}

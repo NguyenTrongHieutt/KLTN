@@ -3444,6 +3444,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{productId}/source-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sourceCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -6938,11 +6954,13 @@ export interface components {
         ProductView: {
             /** Format: date-time */
             createdAt: string;
+            defaultBranch: string;
             demoUrl?: string;
             description: string;
             forkParent?: string;
             /** Format: uuid */
             id: string;
+            installUrl?: string;
             /** Format: int32 */
             jobs: number;
             name: string;
@@ -6950,7 +6968,13 @@ export interface components {
             repositoryOwnerType: string;
             repositoryUrl: string;
             sourceApp?: components["schemas"]["SourceAppView"];
+            /** Format: date-time */
+            sourceCheckedAt?: string;
+            /** @enum {string} */
+            sourceStatus: "READY" | "SOURCE_APP_MISSING" | "SOURCE_APP_WRONG_REPOSITORY" | "WORKFLOW_MISSING" | "WORKFLOW_MISMATCH";
             tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
+            /** Format: date */
+            workflowEndsOn?: string;
         };
         ProfileRequest: {
             /** Format: email */
@@ -7529,6 +7553,17 @@ export interface components {
             /** Format: int32 */
             otherProducts: number;
             settingsUrl: string;
+        };
+        SourceCheckView: {
+            /** Format: date-time */
+            checkedAt?: string;
+            installUrl?: string;
+            lineEndings: boolean;
+            settingsUrl?: string;
+            /** @enum {string} */
+            status: "READY" | "SOURCE_APP_MISSING" | "SOURCE_APP_WRONG_REPOSITORY" | "WORKFLOW_MISSING" | "WORKFLOW_MISMATCH";
+            /** Format: date */
+            workflowEndsOn?: string;
         };
         SplitCardView: {
             /** Format: int32 */
@@ -13880,6 +13915,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SuggestedSkillView"][];
+                };
+            };
+        };
+    };
+    sourceCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceCheckView"];
                 };
             };
         };

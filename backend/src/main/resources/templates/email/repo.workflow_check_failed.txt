@@ -1,0 +1,7 @@
+subject: Cần thêm lại file workflow vibefix cho {repo}: {problem}
+---
+Xin chào,
+
+vibefix thấy dự án gốc {repo}: {problem}.
+Hãy mở trang sản phẩm trên vibefix để xem cách sửa, rồi bấm "Kiểm tra lại".
+Các công việc của sản phẩm chỉ bắt đầu hay kết thúc được khi kiểm tra đạt.

@@ -32,6 +32,9 @@ const product = {
   forkParent: 'lovable-templates/shop-starter',
   createdAt: '2026-10-16T03:00:00Z',
   jobs: 0,
+  sourceStatus: 'READY',
+  sourceCheckedAt: '2026-10-16T03:00:00Z',
+  defaultBranch: 'main',
 }
 
 const sourceApp = {
@@ -120,6 +123,31 @@ describe('CUS-2, the Products (FR-7)', () => {
     expect(within(list).getByRole('link', { name: 'Shop Gốm Bát Tràng' })).toHaveAttribute('href', '/san-pham/p1')
     expect(within(list).getByText(/Dự án gốc: lan-nguyen\/shop-gom/)).toBeInTheDocument()
     expect(within(list).queryByText(/kiểm tra|vấn đề/i)).toBeNull()
+  })
+
+  it('shows each Product\'s recorded Workflow status badge, with no other read (Story 23.5c)', async () => {
+    const statuses = ['READY', 'SOURCE_APP_MISSING', 'SOURCE_APP_WRONG_REPOSITORY', 'WORKFLOW_MISSING', 'WORKFLOW_MISMATCH']
+    const seen = fakeBackend(signedInUser, {
+      'GET /api/v1/products': () =>
+        json(statuses.map((sourceStatus, n) => ({ ...product, id: `p${n}`, name: `Sản phẩm ${n}`, sourceStatus }))),
+    })
+    renderAt('/san-pham')
+
+    const list = await screen.findByRole('list', { name: 'Sản phẩm của bạn' })
+    const badges = within(list)
+      .getAllByRole('listitem')
+      .map((item) => within(item).getByText(/^(Sẵn sàng|Chưa cài ứng dụng vibefix|Thiếu file workflow|File workflow khác bản mẫu)$/).textContent)
+    expect(badges).toEqual([
+      'Ứng dụng vibefix và file workflow: Sẵn sàng',
+      'Ứng dụng vibefix và file workflow: Chưa cài ứng dụng vibefix',
+      'Ứng dụng vibefix và file workflow: Chưa cài ứng dụng vibefix',
+      'Ứng dụng vibefix và file workflow: Thiếu file workflow',
+      'Ứng dụng vibefix và file workflow: File workflow khác bản mẫu',
+    ])
+    const reads = seen
+      .map((request) => new URL(request.url, 'http://localhost').pathname)
+      .filter((pathname) => pathname.startsWith('/api/v1/products'))
+    expect(new Set(reads)).toEqual(new Set(['/api/v1/products']))
   })
 })
 
@@ -333,11 +361,66 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     expect(await screen.findByText('File workflow khác bản vibefix công bố')).toBeInTheDocument()
     expect(screen.getByText(/kiểu xuống dòng của Windows \(CRLF\)/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled()
+    // Story 23.5c: the file is there already, so GitHub's new-file page would refuse it: copy, then edit it on GitHub.
+    expect(screen.queryByRole('link', { name: /Thêm file workflow/ })).toBeNull()
+    const edit = screen.getByRole('link', { name: /Sửa file workflow/ })
+    expect(edit).toHaveAttribute('href', 'https://github.com/lan-nguyen/shop-gom/edit/main/.github/workflows/vibefix.yml')
+    expect(edit).toHaveAttribute('target', '_blank')
+    const copy = screen.getAllByRole('button', { name: 'Sao chép nội dung' })
+    expect(copy).toHaveLength(1)
+    expect(copy[0].compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText(/trang sửa của GitHub không điền sẵn được nội dung/)).toBeInTheDocument()
 
     answer = refusal(422, { code: 'GUARD_FAILED', reason: 'WORKFLOW_MISSING', repository: 'lan-nguyen/shop-gom' })
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
     expect(await screen.findByText('Chưa có file workflow trong lan-nguyen/shop-gom')).toBeInTheDocument()
     expect(screen.queryByText(/CRLF/)).toBeNull()
+    expect(screen.getByRole('link', { name: /Thêm file workflow/ })).toHaveAttribute(
+      'href',
+      `https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml&value=${encodeURIComponent(workflowFile.content)}`,
+    )
+    expect(screen.queryByRole('link', { name: /Sửa file workflow/ })).toBeNull()
+  })
+
+  it('keeps a passed repository check and a matched workflow file past the "Kiểm tra" limit, and says when to try again (Story 23.5c)', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    let limitRepository = false
+    let limitWorkflow = false
+    const limited = () =>
+      new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED', reason: 'CHECK_LIMIT' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '1200' },
+      })
+    fakeBackend(signedInUser, {
+      'POST /api/v1/products/repository-check': () => (limitRepository ? limited() : json(checked)),
+      'POST /api/v1/products/workflow-check': () =>
+        limitWorkflow ? limited() : json({ fullName: 'lan-nguyen/shop-gom', defaultBranch: 'main' }),
+    })
+    renderAt('/san-pham/moi')
+    const tooMany = /^Bạn đã bấm “Kiểm tra” quá nhiều lần trong một giờ\. Hãy thử lại sau \d\d:\d\d \d\d\/\d\d\.$/
+
+    await user.click(await screen.findByRole('button', { name: 'Lovable' }))
+    await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
+    await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
+    await screen.findByText('Dung lượng 38 MB, dưới giới hạn 250 MB')
+    limitRepository = true
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
+
+    expect(await screen.findByText(tooMany)).toBeInTheDocument()
+    expect(screen.getByText('Dung lượng 38 MB, dưới giới hạn 250 MB')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
+
+    expect(await screen.findByText('Bước 3/5')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Kiểm tra' }))
+    await screen.findByText('Đúng bản vibefix công bố')
+    limitWorkflow = true
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
+
+    expect(await screen.findByText(tooMany)).toBeInTheDocument()
+    expect(screen.getByText('Đúng bản vibefix công bố')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled()
   })
 
   it('goes back to the workflow step when the registration finds vibefix.yml changed', { timeout: 30_000 }, async () => {
@@ -391,14 +474,220 @@ describe('CUS-4, a Product (FR-7)', () => {
     expect(screen.getByRole('link', { name: 'Đăng công việc' })).toHaveAttribute('href', '/san-pham/p1/cong-viec-moi')
     expect(screen.getByText('Lovable')).toBeInTheDocument()
     expect(screen.getByText('lovable-templates/shop-starter')).toBeInTheDocument()
-    // vibefix does not scan code: no scan result, history, or "Kiểm tra lại", and no read but the Product.
-    expect(screen.queryByRole('button', { name: 'Kiểm tra lại' })).toBeNull()
+    // vibefix does not scan code: no scan result or history, and no read but the Product. "Kiểm tra lại" reads the
+    // Source App and the workflow file again (Story 23.5c), and the optional scan runs on GitHub only.
+    expect(screen.getByText('Sẵn sàng')).toBeInTheDocument()
+    expect(screen.getByText('Kiểm tra lần cuối lúc 10:00 16/10')).toBeInTheDocument()
+    expect(
+      screen.getByText('Ứng dụng vibefix được cài cho đúng kho lan-nguyen/shop-gom, và file workflow đúng bản vibefix công bố.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Kiểm tra lại' })).toBeEnabled()
+    expect(screen.getByRole('link', { name: /Tự kiểm tra khóa bí mật trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/lan-nguyen/shop-gom/actions/workflows/vibefix.yml',
+    )
+    expect(screen.queryByRole('link', { name: /Thêm file workflow/ })).toBeNull()
     expect(screen.queryByText(/vấn đề/)).toBeNull()
     expect(screen.queryByRole('table')).toBeNull()
     const reads = seen
       .map((request) => new URL(request.url, 'http://localhost').pathname)
       .filter((pathname) => pathname.startsWith('/api/v1/products/'))
     expect(new Set(reads)).toEqual(new Set(['/api/v1/products/p1']))
+  })
+
+  it('shows a missing Source App with the plain install page, and "Kiểm tra lại" records it ready (Story 23.5c)', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let status = 'SOURCE_APP_MISSING'
+    let checks = 0
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () =>
+        json({
+          ...product,
+          sourceStatus: status,
+          installUrl: status === 'SOURCE_APP_MISSING' ? 'https://github.com/apps/vibefix-dev-source/installations/new' : null,
+        }),
+      'POST /api/v1/products/p1/source-check': () => {
+        checks++
+        status = 'READY'
+        return json({ status: 'READY', checkedAt: '2026-11-13T03:00:00Z', lineEndings: false })
+      },
+    })
+    renderAt('/san-pham/p1')
+
+    expect(await screen.findByText('Chưa cài ứng dụng vibefix')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Ứng dụng vibefix chưa được cài trên lan-nguyen/shop-gom. vibefix cần ứng dụng này để đọc dự án và chạy việc sao chép.',
+      ),
+    ).toBeInTheDocument()
+    const install = screen.getByRole('link', { name: /Cài ứng dụng vibefix trên GitHub/ })
+    expect(install).toHaveAttribute('href', 'https://github.com/apps/vibefix-dev-source/installations/new')
+    expect(install).toHaveAttribute('target', '_blank')
+    expect(screen.getByText(/GitHub đưa bạn về trang Sản phẩm/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
+
+    expect(await screen.findByText('Sẵn sàng')).toBeInTheDocument()
+    expect(checks).toBe(1)
+    expect(screen.queryByRole('link', { name: /Cài ứng dụng vibefix trên GitHub/ })).toBeNull()
+  })
+
+  it('shows the selection link of a Source App on the wrong repositories (Story 23.5c)', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json({ ...product, sourceStatus: 'SOURCE_APP_WRONG_REPOSITORY', sourceApp }),
+    })
+    renderAt('/san-pham/p1')
+
+    expect(await screen.findByText(/Ứng dụng vibefix phải được cài cho đúng một kho là lan-nguyen\/shop-gom/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Chọn lại trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/settings/installations/21',
+    )
+  })
+
+  it('offers "Thêm file workflow" on GitHub\'s new-file page for a missing file (Story 23.5c)', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json({ ...product, sourceStatus: 'WORKFLOW_MISSING' }),
+    })
+    renderAt('/san-pham/p1')
+
+    expect(await screen.findByText('Thiếu file workflow')).toBeInTheDocument()
+    expect(screen.getByText('Chưa có file workflow trong lan-nguyen/shop-gom')).toBeInTheDocument()
+    const add = await screen.findByRole('link', { name: /Thêm file workflow/ })
+    expect(add).toHaveAttribute(
+      'href',
+      `https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml&value=${encodeURIComponent(workflowFile.content)}`,
+    )
+    expect(add).toHaveAttribute('target', '_blank')
+    expect(screen.queryByRole('link', { name: /Sửa file workflow/ })).toBeNull()
+    expect(screen.getByRole('link', { name: /Tải file vibefix.yml/ })).toHaveAttribute('download', 'vibefix.yml')
+    expect(screen.getByRole('button', { name: 'Sao chép nội dung' })).toBeInTheDocument()
+  })
+
+  it('offers the copy and "Sửa file workflow" for a different file in one tone, and the CRLF hint "Kiểm tra lại" found (Story 23.5c)', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let checkedAt = '2026-10-16T03:00:00Z'
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () =>
+        json({ ...product, sourceStatus: 'WORKFLOW_MISMATCH', sourceCheckedAt: checkedAt, defaultBranch: 'release/v2' }),
+      'POST /api/v1/products/p1/source-check': () => {
+        checkedAt = '2026-11-13T03:00:00Z'
+        return json({ status: 'WORKFLOW_MISMATCH', checkedAt, lineEndings: true })
+      },
+    })
+    renderAt('/san-pham/p1')
+
+    expect(await screen.findByText('File workflow khác bản mẫu')).toBeInTheDocument()
+    expect(screen.getByText('File workflow khác bản vibefix công bố')).toBeInTheDocument()
+    const edit = await screen.findByRole('link', { name: /Sửa file workflow/ })
+    expect(edit).toHaveAttribute(
+      'href',
+      'https://github.com/lan-nguyen/shop-gom/edit/release/v2/.github/workflows/vibefix.yml',
+    )
+    expect(edit).toHaveAttribute('target', '_blank')
+    expect(screen.queryByRole('link', { name: /Thêm file workflow/ })).toBeNull()
+    const copy = screen.getAllByRole('button', { name: 'Sao chép nội dung' })
+    expect(copy).toHaveLength(1)
+    expect(copy[0].compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Tải file vibefix.yml/ })).toHaveAttribute('download', 'vibefix.yml')
+    expect(screen.queryByText(/kiểu xuống dòng của Windows/)).toBeNull()
+    // One tone per status: CUS-2's badge and CUS-4's alert alike.
+    expect(screen.getByText('File workflow khác bản mẫu')).toHaveClass('bg-warning-soft')
+    expect(screen.getByText('File workflow khác bản vibefix công bố').closest('[role="alert"]')).toHaveClass('bg-warning-soft')
+
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
+
+    expect(await screen.findByText(/kiểu xuống dòng của Windows \(CRLF\)/)).toBeInTheDocument()
+  })
+
+  it('drops an earlier "Kiểm tra lại" answer once a later check is recorded (Story 23.5c)', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let checkedAt = '2026-10-16T03:00:00Z'
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json({ ...product, sourceStatus: 'WORKFLOW_MISMATCH', sourceCheckedAt: checkedAt }),
+      'POST /api/v1/products/p1/source-check': () => {
+        checkedAt = '2026-11-13T03:00:00Z'
+        return json({ status: 'WORKFLOW_MISMATCH', checkedAt, lineEndings: true })
+      },
+    })
+    const queryClient = createQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/san-pham/p1'] })} />
+      </QueryClientProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }))
+    expect(await screen.findByText(/kiểu xuống dòng của Windows \(CRLF\)/)).toBeInTheDocument()
+
+    // Another check (the drift poll, say) records the same status later: its CRLF state is unknown here.
+    checkedAt = '2026-11-14T03:00:00Z'
+    await queryClient.invalidateQueries({ queryKey: ['product', 'detail', 'p1'] })
+    await waitFor(() => expect(screen.queryByText(/kiểu xuống dòng của Windows/)).toBeNull())
+    expect(screen.getByText('Kiểm tra lần cuối lúc 10:00 14/11')).toBeInTheDocument()
+  })
+
+  it('says a Product no check has read yet is not checked, instead of ready (Story 23.5c)', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json({ ...product, sourceCheckedAt: null }),
+    })
+    renderAt('/san-pham/p1')
+
+    expect(
+      await screen.findByText(
+        'vibefix chưa kiểm tra ứng dụng vibefix và file workflow của lan-nguyen/shop-gom. Bấm “Kiểm tra lại” để kiểm tra ngay.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Chưa kiểm tra')).toBeInTheDocument()
+    expect(screen.queryByText(/đúng bản vibefix công bố/)).toBeNull()
+    expect(screen.queryByText(/từ khi đăng ký/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Kiểm tra lại' })).toBeEnabled()
+  })
+
+  it('warns of a workflow file nearing its end date, with the copy and the edit page (R12, Story 23.5c)', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json({ ...product, workflowEndsOn: '2026-01-25' }),
+    })
+    renderAt('/san-pham/p1')
+
+    expect(
+      await screen.findByText(
+        'vibefix đã cập nhật file workflow. Hãy thêm lại bản mới trước 25/01/2026, nếu không các công việc của sản phẩm này sẽ không bắt đầu hay kết thúc được.',
+      ),
+    ).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Sửa file workflow/ })).toHaveAttribute(
+      'href',
+      'https://github.com/lan-nguyen/shop-gom/edit/main/.github/workflows/vibefix.yml',
+    )
+    expect(screen.queryByRole('link', { name: /Thêm file workflow/ })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Sao chép nội dung' })).toHaveLength(1)
+    expect(screen.getByText('Sẵn sàng')).toBeInTheDocument()
+  })
+
+  it('says when to try "Kiểm tra lại" again past the limit, and that GitHub did not answer (Story 23.5c)', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup()
+    let answer = 0
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json(product),
+      'POST /api/v1/products/p1/source-check': () => {
+        answer++
+        return answer === 1
+          ? new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED', reason: 'CHECK_LIMIT' }), {
+              status: 429,
+              headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '600' },
+            })
+          : refusal(422, { code: 'GUARD_FAILED', reason: 'GITHUB_UNAVAILABLE' })
+      },
+    })
+    renderAt('/san-pham/p1')
+
+    await user.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }))
+    expect(
+      await screen.findByText(/^Bạn đã bấm “Kiểm tra” quá nhiều lần trong một giờ\. Hãy thử lại sau \d\d:\d\d \d\d\/\d\d\.$/),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
+    expect(await screen.findByText('Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.')).toBeInTheDocument()
+    expect(screen.getByText('Sẵn sàng')).toBeInTheDocument()
   })
 
   it('shows the not-found screen for an old CUS-5 link (Story 23.1)', async () => {

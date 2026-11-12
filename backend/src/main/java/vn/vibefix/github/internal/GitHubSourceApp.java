@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -124,6 +125,12 @@ class GitHubSourceApp implements SourceApp {
 	}
 
 	@Override
+	public String installPage() {
+		String base = this.apps.properties().gitUrl().toString().replaceAll("/+$", "");
+		return base + "/apps/" + slug() + "/installations/new";
+	}
+
+	@Override
 	public String botLogin() {
 		return slug() + "[bot]";
 	}
@@ -173,10 +180,15 @@ class GitHubSourceApp implements SourceApp {
 					+ URLEncoder.encode(branch, StandardCharsets.UTF_8), token.value(), null);
 		AcceptedWorkflows.Checked checked = this.accepted.check(WORKFLOW_PATH, file);
 		return switch (checked.verdict()) {
-			case ACCEPTED -> new WorkflowCheck(WorkflowVerdict.MATCHES, false);
-			case MISSING -> new WorkflowCheck(WorkflowVerdict.MISSING, false);
-			case MISMATCH -> new WorkflowCheck(WorkflowVerdict.MISMATCH, carriageReturn(file.body()));
+			case ACCEPTED -> new WorkflowCheck(WorkflowVerdict.MATCHES, false, checked.blob());
+			case MISSING -> new WorkflowCheck(WorkflowVerdict.MISSING, false, null);
+			case MISMATCH -> new WorkflowCheck(WorkflowVerdict.MISMATCH, carriageReturn(file.body()), null);
 		};
+	}
+
+	@Override
+	public Optional<LocalDate> endsOn(String blob) {
+		return this.accepted.endsOn(WORKFLOW_PATH, blob);
 	}
 
 	private String slug() {

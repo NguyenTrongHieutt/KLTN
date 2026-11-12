@@ -1,4 +1,8 @@
-import type { Tool } from './productApi'
+import { t } from '@/i18n/t'
+import { ApiError } from '@/lib/apiClient'
+import { formatDayMonthTime } from '@/lib/dates'
+import { problemMessage } from '@/lib/problemMessage'
+import type { SourceStatus, Tool } from './productApi'
 
 /** The AI tools of CUS-3 step 1, in the frames' order (FR-7). */
 export const TOOLS: Tool[] = ['LOVABLE', 'BOLT', 'V0', 'REPLIT', 'BASE44', 'CURSOR', 'CLAUDE_CODE', 'CODEX', 'OTHER']
@@ -38,9 +42,24 @@ export function newWorkflowUrl(htmlUrl: string, branch: string, path: string, co
   return `${htmlUrl.replace(/\/+$/, '')}/new/${segments}?${query}`
 }
 
+/**
+ * GitHub's edit page for a file that already exists on the branch (Story 23.5c): the new-file page refuses an existing
+ * path, and the edit page cannot be prefilled, so the Customer pastes the copied content there. The branch and the
+ * path keep their slashes as segments, each segment encoded on its own.
+ */
+export function editWorkflowUrl(htmlUrl: string, branch: string, path: string): string {
+  const segments = (value: string) => value.split('/').map(encodeURIComponent).join('/')
+  return `${htmlUrl.replace(/\/+$/, '')}/edit/${segments(branch)}/${segments(path)}`
+}
+
 /** The repository's Actions page for `vibefix.yml`, where the Customer may run the optional gitleaks scan. */
 export function workflowActionsUrl(htmlUrl: string): string {
   return `${htmlUrl.replace(/\/+$/, '')}/actions/workflows/vibefix.yml`
+}
+
+/** The one tone of each Workflow status, on CUS-2's badge and on CUS-4's card alike (Story 23.5c). */
+export function statusTone(status: SourceStatus): 'success' | 'warning' {
+  return status === 'READY' ? 'success' : 'warning'
 }
 
 /** The host of a link, without `www.`, for the "(domain)" note beside an outside link. */
@@ -50,6 +69,18 @@ export function domainOf(url: string): string {
   } catch {
     return url
   }
+}
+
+/**
+ * A refused "Kiểm tra" or "Kiểm tra lại" in plain words: past the "Kiểm tra" limit (AD-34, Story 23.5c), when to try
+ * again from `Retry-After`; anything else as `product` words it.
+ */
+export function checkProblem(error: unknown): string {
+  if (error instanceof ApiError && error.problem.reason === 'CHECK_LIMIT') {
+    const at = new Date(Date.now() + (error.retryAfter ?? 3600) * 1000).toISOString()
+    return t('reason.product.CHECK_LIMIT', { time: formatDayMonthTime(at) })
+  }
+  return problemMessage(error, { module: 'product' }).text
 }
 
 /** A repository size in MB from GitHub's kilobytes, as "38 MB". */

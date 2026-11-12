@@ -296,7 +296,7 @@ describe('FND-1, a bid with a quote and proof (UX-DR99, FR-13)', () => {
     [
       'a contributor read GitHub did not answer',
       { status: 422, code: 'GUARD_FAILED', reason: 'CONTRIBUTORS_UNKNOWN' },
-      'chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Việc này không do bạn; hãy thử lại sau.',
+      'chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Có thể khách hàng cần sửa lại ứng dụng vibefix trên GitHub cho dự án của họ. Việc này không do bạn; hãy thử lại sau.',
       undefined,
     ],
   ])('says %s inline', async (_, problem, text, link) => {

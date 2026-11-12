@@ -55,6 +55,12 @@ enum ProductReason {
 	NOTICE_REQUIRED,
 
 	/** The Customer registered 5 Products today (AD-34). */
-	PRODUCT_LIMIT
+	PRODUCT_LIMIT,
+
+	/**
+	 * "Kiểm tra" past its seed limits (AD-34, Story 23.5c): 30 an hour per Product, or per draft repository, and 120
+	 * an hour per Customer ({@link CheckWindow}).
+	 */
+	CHECK_LIMIT
 
 }

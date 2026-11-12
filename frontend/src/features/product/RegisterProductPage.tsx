@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Check, CircleAlert, CircleCheck, Copy, Download, ExternalLink, GitFork, TriangleAlert, X } from 'lucide-react'
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Check, CircleAlert, CircleCheck, ExternalLink, GitFork, TriangleAlert, X } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { PageHeading } from '@/app/PageHeading'
@@ -13,7 +13,6 @@ import { Skeleton } from '@/components/Skeleton'
 import { TermHint, TermScope } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
-import { buttonVariants } from '@/components/ui/button-variants'
 import { GitHubGate } from '@/features/identity/GitHubGate'
 import { GITHUB_LINK_QUERY_KEY } from '@/features/identity/githubApi'
 import { rich } from '@/i18n/rich'
@@ -32,17 +31,17 @@ import {
   useWorkflowFile,
   type RepositoryCheck,
   type Tool,
-  type WorkflowFile,
 } from './productApi'
 import {
   SECRET_PROVIDERS,
   TOOL_DOCS,
   TOOLS,
+  checkProblem,
   domainOf,
   megabytes,
-  newWorkflowUrl,
   workflowActionsUrl,
 } from './productText'
+import { OutLink, WorkflowFileActions } from './WorkflowSetup'
 
 const NOTICE_VERSION = (vi as { notice: { product: { version: string } } }).notice.product.version
 
@@ -343,6 +342,8 @@ function RepositoryStep({
   const toasts = useToasts()
   const [checkedUrl, setCheckedUrl] = useState<string>()
   const [linkError, setLinkError] = useState<string>()
+  // Past the "Kiểm tra" limit (Story 23.5c): when to try again, beside what the last check found, which stands.
+  const [limited, setLimited] = useState<string>()
   // The Setup URL's marker holds until the next check says what is true now.
   const [marker, setMarker] = useState(returned)
   const autoRan = useRef(false)
@@ -355,18 +356,25 @@ function RepositoryStep({
     }
     check.mutate(target, {
       onSuccess: (repository) => {
+        setLimited(undefined)
         setCheckedUrl(target)
         setMarker(undefined)
         onChecked({ kind: 'passed', repository })
       },
       onError: (error) => {
-        setCheckedUrl(target)
         const reason = error instanceof ApiError ? (error.problem.reason ?? '') : ''
+        if (reason === 'CHECK_LIMIT') {
+          // The limit says nothing about the repository: the last result is kept.
+          setLimited(checkProblem(error))
+          return
+        }
+        setLimited(undefined)
+        setCheckedUrl(target)
         if (GATE_REASONS.includes(reason)) {
           onGate()
           return
         }
-        onChecked({ kind: 'refused', reason, message: problemMessage(error, { module: 'product' }).text })
+        onChecked({ kind: 'refused', reason, message: checkProblem(error) })
       },
     })
   }
@@ -447,6 +455,11 @@ function RepositoryStep({
           </Button>
         </div>
       </FormField>
+      {limited && (
+        <p role="alert" className="text-body-sm text-destructive">
+          {limited}
+        </p>
+      )}
       {marker === 'cho-duyet' && checked?.kind !== 'passed' && (
         <section aria-labelledby="waiting-heading" className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
           <p id="waiting-heading" className="w-fit rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold">
@@ -597,13 +610,23 @@ function WorkflowStep({
   const file = useWorkflowFile()
   const check = useWorkflowCheck()
   const [outcome, setOutcome] = useState<WorkflowOutcome>()
+  // Past the "Kiểm tra" limit (Story 23.5c): when to try again, beside the last outcome, which stands.
+  const [limited, setLimited] = useState<string>()
 
   function run() {
     check.mutate(url.trim(), {
-      onSuccess: () => setOutcome({ kind: 'MATCHES' }),
+      onSuccess: () => {
+        setLimited(undefined)
+        setOutcome({ kind: 'MATCHES' })
+      },
       onError: (error) => {
         const problem = error instanceof ApiError ? error.problem : undefined
         const reason = problem?.reason ?? ''
+        if (reason === 'CHECK_LIMIT') {
+          setLimited(checkProblem(error))
+          return
+        }
+        setLimited(undefined)
         if (GATE_REASONS.includes(reason)) {
           onGate()
           return
@@ -611,7 +634,7 @@ function WorkflowStep({
         setOutcome({
           kind: 'REFUSED',
           reason,
-          message: problemMessage(error, { module: 'product' }).text,
+          message: checkProblem(error),
           lineEndings: problem?.lineEndings === true,
         })
       },
@@ -640,28 +663,27 @@ function WorkflowStep({
             <h2 id="workflow-card" className="text-h3">
               {rich('screen.product.wizard.workflowCardHeading', { file: <TermHint term="fileWorkflow" /> })}
             </h2>
-            <a
-              href={newWorkflowUrl(repository.htmlUrl, repository.defaultBranch, file.data.path, file.data.content)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(buttonVariants(), 'w-fit gap-1.5')}
-            >
-              <ExternalLink aria-hidden="true" className="size-4" />
-              {t('screen.product.wizard.addWorkflow')}
-              <span className="text-caption">{t('screen.product.domain', { domain: 'github.com' })}</span>
-              <span className="sr-only">{t('screen.product.newTab')}</span>
-            </a>
-            <p className="text-caption text-muted-foreground">
-              {t('screen.product.wizard.addWorkflowHint', { path: file.data.path })}
-            </p>
+            {/* A file that differs is already on the branch: GitHub's new-file page would refuse its path. */}
+            <WorkflowFileActions
+              file={file.data}
+              htmlUrl={repository.htmlUrl}
+              branch={repository.defaultBranch}
+              repo={repository.fullName}
+              existing={outcome?.kind === 'REFUSED' && outcome.reason === 'WORKFLOW_MISMATCH'}
+              recheck={false}
+            />
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" variant="secondary" disabled={check.isPending} onClick={run}>
                 {check.isPending ? t('screen.product.wizard.checking') : t('screen.product.wizard.check')}
               </Button>
               {!outcome && <span className="text-caption text-muted-foreground">{t('screen.product.wizard.workflowNotChecked')}</span>}
             </div>
+            {limited && (
+              <p role="alert" className="text-body-sm text-destructive">
+                {limited}
+              </p>
+            )}
             {outcome && <WorkflowResult outcome={outcome} repo={repo} />}
-            <Fallback file={file.data} repository={repository} />
           </section>
         )}
       </RegionState>
@@ -699,48 +721,6 @@ function WorkflowResult({ outcome, repo }: { outcome: WorkflowOutcome; repo: str
             {t('screen.product.wizard.workflowLineEndings')}
           </p>
         )}
-      </div>
-    </div>
-  )
-}
-
-/** For when GitHub's prefilled page does not open: the content to copy or download, and where it goes. */
-function Fallback({ file, repository }: { file: WorkflowFile; repository: RepositoryCheck }) {
-  const toasts = useToasts()
-  return (
-    <div className="flex flex-col gap-2 rounded-md bg-muted p-3">
-      <p className="text-caption font-semibold">{t('screen.product.wizard.fallbackHeading')}</p>
-      <p className="text-body-sm break-words">
-        {t('screen.product.wizard.fallbackBody', {
-          path: file.path,
-          branch: repository.defaultBranch,
-          repo: repository.fullName,
-        })}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="compact"
-          className="gap-1.5"
-          onClick={() => {
-            void navigator.clipboard
-              .writeText(file.content)
-              .then(() => toasts.success(t('screen.product.wizard.contentCopied')))
-              .catch(() => toasts.error(t('screen.product.wizard.copyFailed')))
-          }}
-        >
-          <Copy aria-hidden="true" className="size-4" />
-          {t('screen.product.wizard.copyContent')}
-        </Button>
-        <a
-          href={`data:text/yaml;charset=utf-8,${encodeURIComponent(file.content)}`}
-          download="vibefix.yml"
-          className={cn(buttonVariants({ variant: 'secondary', size: 'compact' }), 'gap-1.5')}
-        >
-          <Download aria-hidden="true" className="size-4" />
-          {t('screen.product.wizard.download')}
-        </a>
       </div>
     </div>
   )
@@ -1001,23 +981,6 @@ function StepNav({ onBack, ready, hint }: { onBack: () => void; ready: boolean; 
         </Button>
       </div>
     </div>
-  )
-}
-
-/** An outside link: a new tab without the opener, with its domain beside it (AD-35). */
-function OutLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex w-fit flex-wrap items-center gap-1 text-body-sm text-primary underline-offset-4 hover:underline"
-    >
-      {children}
-      <ExternalLink aria-hidden="true" className="size-3.5" />
-      <span className="text-caption text-muted-foreground">{t('screen.product.domain', { domain: domainOf(href) })}</span>
-      <span className="sr-only">{t('screen.product.newTab')}</span>
-    </a>
   )
 }
 

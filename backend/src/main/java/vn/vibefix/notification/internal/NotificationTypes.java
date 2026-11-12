@@ -36,6 +36,21 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_RECONFIRM_SOURCE = new TodoType("repo.reconfirm_source", Set.of(Audience.CUSTOMER), 2,
 			Set.of("job"));
 
+	/**
+	 * After registration, a check finds the Source App uninstalled or no longer on exactly the Source Repository (R2,
+	 * R7, Story 23.5c): the Product's owner, until a check finds it ready. The CUSTOMER audience in a Job is Story 23.6's.
+	 */
+	static final TodoType PRODUCT_INSTALL_SOURCE_APP = new TodoType("product.install_source_app", Set.of(Audience.SUBJECT),
+			2, Set.of("repo"));
+
+	/**
+	 * After registration, a check finds {@code vibefix.yml} missing or different, or the version the Customer added
+	 * nears its end date, which is then its deadline (R3, R12, Story 23.5c): the Product's owner, until "Kiểm tra"
+	 * matches a published version.
+	 */
+	static final TodoType PRODUCT_ADD_WORKFLOW = new TodoType("product.add_workflow", Set.of(Audience.SUBJECT), 2,
+			Set.of("repo"));
+
 	/** FR-66: one per External Access item when the Job ends; ticked when the Customer removed it. */
 	static final TodoType REPO_REVOCATION_ITEM = new TodoType("repo.revocation_item", Set.of(Audience.CUSTOMER), 3,
 			Set.of("system"));
@@ -188,6 +203,16 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_DRIFT_DETECTED = new NotificationType("repo.drift_detected",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("job"));
+
+	/**
+	 * A check finds the Source App missing or not on exactly the Source Repository, or {@code vibefix.yml} missing or
+	 * different, or the version the Customer added nears its end date (R12, UX-DR118, Story 23.5c): the Product's
+	 * owner, once per change of status or per (Product, version), with what failed. Sent by {@code product} under
+	 * EXPERIENCE.md's key; the CUSTOMER audience in a Job is Story 23.6's.
+	 */
+	static final NotificationType REPO_WORKFLOW_CHECK_FAILED = new NotificationType("repo.workflow_check_failed",
+			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("repo", "problem"));
 
 	/** An Open Job Post's selection period lapsed and it returned to Draft (FR-9): the Customer. */
 	static final NotificationType JOB_POST_LAPSED = new NotificationType("job.job_post_lapsed",
@@ -879,7 +904,7 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
-				REPO_DRIFT_DETECTED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
+				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
@@ -920,7 +945,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(IDENTITY_LINK_GITHUB, IDENTITY_RELINK_GITHUB_TODO,
+		return List.of(IDENTITY_LINK_GITHUB, IDENTITY_RELINK_GITHUB_TODO, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
 				REPO_ACCEPT_GITHUB_INVITATION, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,

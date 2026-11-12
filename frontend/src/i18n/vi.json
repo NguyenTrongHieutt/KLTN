@@ -1345,6 +1345,8 @@
         "workflowCardHeading": "Thêm {file} vào dự án gốc",
         "addWorkflow": "Thêm file workflow",
         "addWorkflowHint": "GitHub mở trang tạo tệp {path} với nội dung đã điền sẵn. Bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra”.",
+        "editWorkflow": "Sửa file workflow",
+        "editWorkflowHint": "Tệp {path} đã có trong dự án, và trang sửa của GitHub không điền sẵn được nội dung. Bấm “Sao chép nội dung”, mở “Sửa file workflow”, thay toàn bộ nội dung cũ bằng nội dung vừa chép, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra”.",
         "workflowNotChecked": "Bấm “Kiểm tra” sau khi lưu file trên GitHub.",
         "workflowMatches": "Đúng bản vibefix công bố",
         "workflowMissing": "Chưa có file workflow trong {repo}",
@@ -1433,6 +1435,30 @@
         "appSettings": "Mở cài đặt ứng dụng trên GitHub",
         "deletedGuidance": "Đã xóa {product}. Còn một việc trên GitHub:",
         "postJob": "Đăng công việc"
+      },
+      "status": {
+        "prefix": "Ứng dụng vibefix và file workflow: ",
+        "READY": "Sẵn sàng",
+        "SOURCE_APP_MISSING": "Chưa cài ứng dụng vibefix",
+        "SOURCE_APP_WRONG_REPOSITORY": "Chưa cài ứng dụng vibefix",
+        "WORKFLOW_MISSING": "Thiếu file workflow",
+        "WORKFLOW_MISMATCH": "File workflow khác bản mẫu"
+      },
+      "setup": {
+        "heading": "Ứng dụng vibefix và file workflow",
+        "checkedAt": "Kiểm tra lần cuối lúc {time}",
+        "neverChecked": "Chưa kiểm tra",
+        "recheck": "Kiểm tra lại",
+        "rechecking": "Đang kiểm tra…",
+        "ready": "Ứng dụng vibefix được cài cho đúng kho {repo}, và file workflow đúng bản vibefix công bố.",
+        "notChecked": "vibefix chưa kiểm tra ứng dụng vibefix và file workflow của {repo}. Bấm “Kiểm tra lại” để kiểm tra ngay.",
+        "wrongRepository": "Ứng dụng vibefix phải được cài cho đúng một kho là {repo}. Trên GitHub, chọn “Only select repositories”, rồi chỉ chọn {repo}.",
+        "installReturn": "Sau khi cài, GitHub đưa bạn về trang Sản phẩm. Mở lại sản phẩm này và bấm “Kiểm tra lại”.",
+        "reselectHint": "Sau khi chọn lại trên GitHub, quay lại đây và bấm “Kiểm tra lại”.",
+        "addWorkflowHint": "GitHub mở trang tạo tệp {path} với nội dung đã điền sẵn. Bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra lại”.",
+        "editWorkflowHint": "Tệp {path} đã có trong dự án, và trang sửa của GitHub không điền sẵn được nội dung. Bấm “Sao chép nội dung”, mở “Sửa file workflow”, thay toàn bộ nội dung cũ bằng nội dung vừa chép, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra lại”.",
+        "ending": "vibefix đã cập nhật file workflow. Hãy thêm lại bản mới trước {date}, nếu không các công việc của sản phẩm này sẽ không bắt đầu hay kết thúc được.",
+        "selfScanHint": "Không bắt buộc. Trên GitHub, chọn vibefix, bấm “Run workflow” và chọn scan. Kết quả chỉ hiện trên GitHub của bạn."
       }
     },
     "job": {
@@ -4093,6 +4119,10 @@
       "link_github": "Liên kết tài khoản GitHub",
       "relink_github": "Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn"
     },
+    "product": {
+      "install_source_app": "Cài ứng dụng vibefix trên GitHub cho {repo}",
+      "add_workflow": "Thêm file workflow vibefix vào {repo}"
+    },
     "matching": {
       "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
       "sign_nda": "Ký cam kết bảo mật cho {job}",
@@ -4565,6 +4595,10 @@
       "drift_detected": {
         "title": "Dự án gốc của {job} vừa thay đổi"
       },
+      "workflow_check_failed": {
+        "title": "Cần thêm lại file workflow vibefix cho {repo}: {problem}",
+        "body": "Mở trang sản phẩm để sửa, rồi bấm “Kiểm tra lại”. Các công việc của sản phẩm chỉ bắt đầu hay kết thúc được khi kiểm tra đạt."
+      },
       "access_revoked": {
         "title": "Quyền của bạn trên kho làm việc của {job} đã được thu hồi"
       }
@@ -4691,6 +4725,7 @@
       "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
       "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi đăng ký. Nếu bạn đã đánh dấu đủ, hãy tải lại trang: các lưu ý vừa được cập nhật.",
       "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai.",
+      "CHECK_LIMIT": "Bạn đã bấm “Kiểm tra” quá nhiều lần trong một giờ. Hãy thử lại sau {time}.",
       "RELINK_GITHUB": "vibefix chưa đọc được kho mã của bạn trên GitHub. Hãy liên kết lại GitHub để kiểm tra."
     },
     "job": {
@@ -4768,7 +4803,7 @@
       "MENTOR_JOB_LIMIT": "Bạn đang hướng dẫn đủ số công việc tối đa. Hãy hoàn thành bớt rồi chào giá tiếp.",
       "CONFLICT_OF_INTEREST": "Bạn không thể chào giá công việc này.",
       "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá.",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Việc này không do bạn; hãy thử lại sau.",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Có thể khách hàng cần sửa lại ứng dụng vibefix trên GitHub cho dự án của họ. Việc này không do bạn; hãy thử lại sau.",
       "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho làm việc riêng tư.",
       "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
       "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",

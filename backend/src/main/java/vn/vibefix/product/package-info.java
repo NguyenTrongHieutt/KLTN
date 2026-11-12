@@ -7,13 +7,18 @@
  * (Story 23.1), so registration starts no scan. A Customer deletes a Product no Job pins; every participant deletes
  * its data for it, and its binding ends.
  * <p>
+ * Each Product keeps its last known Source App and workflow status, whatever check found it (Story 23.5c), so CUS-2
+ * shows it without a GitHub call; on a change {@code product} opens or closes {@code product.install_source_app} and
+ * {@code product.add_workflow} and sends {@code repo.workflow_check_failed} through {@code notification} (L1), and a
+ * daily job warns of a workflow version nearing its end date (R12).
+ * <p>
  * Public API: {@link vn.vibefix.product.ProductDirectory}, {@link vn.vibefix.product.ProductPins} (Job
  * pins, Epic 3), {@link vn.vibefix.product.ProductSources} (the check before a Code Job starts and before the Final
  * Merge, Story 7.2; the contributor read and the drift read through the Source App, Story 23.5b), and
  * {@link vn.vibefix.product.ProductDeleted}. The HTTP endpoints, the Source App's Setup URL
  * included, are wiring in {@code product.internal}.
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "catalog", "identity", "github" })
+@ApplicationModule(allowedDependencies = { "shared", "audit", "notification", "catalog", "identity", "github" })
 package vn.vibefix.product;
 
 import org.springframework.modulith.ApplicationModule;
