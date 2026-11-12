@@ -44,7 +44,8 @@ import tools.jackson.databind.JsonNode;
  * redelivery, and the webhook's configuration. Its compare lists 300 files at most, as GitHub's does, and
  * its {@code POST /graphql} answers {@code object(expression:)} reads of commits and paths. For the Actions
  * exchange (Story 23.4) it serves a file's contents with its blob SHA, workflow dispatches and their runs, an
- * OIDC key set, and a revocation that can fail. A test may
+ * OIDC key set, and a revocation that can fail. For the Source App (Stories 23.5 and 23.5b) it serves a Customer's
+ * installations, a repository's contributors, and a renamed repository's 301 to its ID. A test may
  * answer what the platform no longer calls, such as Spike S4's forks and rulesets, through {@link #extra}.
  */
 public final class GitHubStub implements AutoCloseable {
@@ -289,6 +290,12 @@ public final class GitHubStub implements AutoCloseable {
 		Long installation = this.repositoryInstallations.remove(oldName.toLowerCase(java.util.Locale.ROOT));
 		if (installation != null) {
 			this.repositoryInstallations.put(newName.toLowerCase(java.util.Locale.ROOT), installation);
+		}
+		// GitHub redirects the old name to the repository's ID (Story 23.5b), and its contributors follow it.
+		this.movedRepositories.put(oldName.toLowerCase(java.util.Locale.ROOT), id);
+		List<Long> contributed = this.contributors.remove(oldName);
+		if (contributed != null) {
+			this.contributors.put(newName, contributed);
 		}
 		synchronized (this.sourceFiles) {
 			for (String key : List.copyOf(this.sourceFiles.keySet())) {
@@ -578,11 +585,50 @@ public final class GitHubStub implements AutoCloseable {
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/installation").matcher(path))
 			.matches()) {
 			// The Source App's installation that reaches a Customer's repository (Story 23.5), read with its own JWT only.
-			Long id = this.repositoryInstallations.get((matcher.group(1) + "/" + matcher.group(2)).toLowerCase(java.util.Locale.ROOT));
+			String fullName = (matcher.group(1) + "/" + matcher.group(2)).toLowerCase(java.util.Locale.ROOT);
+			Long id = this.repositoryInstallations.get(fullName);
+			Long moved = this.movedRepositories.get(fullName);
+			if (id == null && moved != null) {
+				// As GitHub does for a renamed or transferred repository (Story 23.5b): a 301 naming its place by ID.
+				send(exchange, 301, GitHubHttp.JSON.writeValueAsString(Map.of("message", "Moved Permanently", "url",
+						apiUrl() + "/repositories/" + moved + "/installation")));
+				return;
+			}
 			MergeInstallation installation = id == null ? null : this.mergeInstallations.get(id);
 			boolean found = installation != null && ownJwt(installation, exchange);
 			send(exchange, found ? 200 : 404, found ? GitHubHttp.JSON.writeValueAsString(installation.json(id))
 					: "{\"message\":\"Not Found\"}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repositories/(\\d+)/installation").matcher(path))
+			.matches()) {
+			// The same lookup by the repository's ID, where a moved repository's 301 points (Story 23.5b).
+			Published repository = this.published.get(Long.parseLong(matcher.group(1)));
+			Long id = repository == null ? null
+					: this.repositoryInstallations.get((repository.owner() + "/" + repository.name()).toLowerCase(java.util.Locale.ROOT));
+			MergeInstallation installation = id == null ? null : this.mergeInstallations.get(id);
+			boolean found = installation != null && ownJwt(installation, exchange);
+			send(exchange, found ? 200 : 404, found ? GitHubHttp.JSON.writeValueAsString(installation.json(id))
+					: "{\"message\":\"Not Found\"}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contributors").matcher(path))
+			.matches() && !matcher.group(1).equals(ORGANIZATION)) {
+			// A Customer's repository's contributors (Story 23.5b): 200 with each one's ID, 204 for an empty
+			// repository, and 404 for a repository the stub was not told of, as GitHub answers a repository it hides.
+			List<Long> ids = this.contributors.get(matcher.group(1) + "/" + matcher.group(2));
+			if (ids == null) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			if (ids.isEmpty()) {
+				send(exchange, 204, "");
+				return;
+			}
+			int size = Integer.parseInt(parameter(query, "per_page", "30"));
+			int page = Integer.parseInt(parameter(query, "page", "1"));
+			List<Long> shown = ids.subList(Math.min((page - 1) * size, ids.size()), Math.min(page * size, ids.size()));
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(shown.stream()
+				.map(id -> Map.of("id", id, "login", loginOf(id), "type", "User", "contributions", 1))
+				.toList()));
 		}
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/collaborators/([^/]+)/permission").matcher(path)).matches()
@@ -1438,6 +1484,18 @@ public final class GitHubStub implements AutoCloseable {
 	 * {@code owner/name:path}, with GitHub's blob SHA of their bytes: the Customer's {@code vibefix.yml} (Story 23.5).
 	 */
 	public final Map<String, String> sourceFiles = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/**
+	 * The contributors of repositories outside the organization, by {@code owner/name}, as GitHub numeric IDs (Story
+	 * 23.5b): an empty list answers 204 (an empty repository), and a repository not listed here answers 404.
+	 */
+	public final Map<String, List<Long>> contributors = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/**
+	 * Repositories renamed or transferred, by their old {@code owner/name} in lower case, to their ID: the Source
+	 * App's lookup by the old name answers 301 to {@code /repositories/{id}/installation} (Story 23.5b).
+	 */
+	public final Map<String, Long> movedRepositories = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	/**
 	 * The Source App installed on exactly one repository: its installation, selecting it, reaches it, and only the

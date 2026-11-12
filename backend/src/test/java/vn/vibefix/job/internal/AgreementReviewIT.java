@@ -41,8 +41,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sun.net.httpserver.HttpServer;
 
+import vn.vibefix.github.internal.SourceAppFixture;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewPicks;
@@ -57,7 +57,8 @@ import vn.vibefix.support.TestPeople;
  */
 class AgreementReviewIT extends IntegrationTest {
 
-	private static final String TOKEN = "gho_customer_token_never_printed";
+	/** The Customer's Source App, through which the contributors are read (Story 23.5b). */
+	private static final SourceAppFixture SOURCE = new SourceAppFixture();
 
 	private static final HttpServer GITHUB = start();
 
@@ -99,12 +100,12 @@ class AgreementReviewIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void stubGitHub(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
+		SOURCE.register(registry);
 	}
 
 	@BeforeEach
 	void aSharedDraft() throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		UUID product = product(this.lan);
 		this.job = UUID.randomUUID();
 		Instant now = this.clock.instant();
@@ -518,8 +519,10 @@ class AgreementReviewIT extends IntegrationTest {
 				""").param("key", key).param("account", account).query(Long.class).single();
 	}
 
+	/** A Product of {@code owner}'s, bound to a Source App installation of its own (Story 23.5b). */
 	private UUID product(UUID owner) {
 		UUID id = UUID.randomUUID();
+		long github = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
@@ -528,8 +531,8 @@ class AgreementReviewIT extends IntegrationTest {
 				VALUES (:id, :owner, 'Sổ đặt bàn Quán Mây', 'Đặt bàn.', ARRAY['LOVABLE'], :github,
 				    'lan/so-dat-ban', 'User', 'main', '1.0', '1.0', '1.0', :now, :now)
 				""")
-			.param("id", id).param("owner", owner)
-			.param("github", ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)).param("now", now).update();
+			.param("id", id).param("owner", owner).param("github", github).param("now", now).update();
+		SOURCE.bind(this.jdbc, id, owner, github, "lan/so-dat-ban");
 		return id;
 	}
 
@@ -537,11 +540,14 @@ class AgreementReviewIT extends IntegrationTest {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
 	}
 
-	/** GitHub answering that the Source Repository has no contributor yet. */
+	/** GitHub answering, through the Customer's Source App, that the Source Repository has no contributor yet. */
 	private static HttpServer start() {
 		try {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.createContext("/", exchange -> {
+				if (SOURCE.answer(exchange)) {
+					return;
+				}
 				byte[] body = (exchange.getRequestURI().getPath().endsWith("/contributors") ? "[]" : "{}")
 					.getBytes(StandardCharsets.UTF_8);
 				exchange.getResponseHeaders().add("Content-Type", "application/json");

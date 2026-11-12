@@ -1,24 +1,25 @@
 package vn.vibefix.matching.internal;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import vn.vibefix.github.GitHubException;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
-import vn.vibefix.product.ProductDirectory;
-import vn.vibefix.product.ProductDirectory.ProductInfo;
-import vn.vibefix.shared.ApiException;
+import vn.vibefix.product.ProductSources;
 
 /**
- * FR-13's contributor check, read from GitHub before the bid's transaction (A-03, AD-4, AD-6): the Source
- * Repository's contributors (up to five GitHub pages, with the Customer's token) are never read under the bidder's
- * advisory lock or a Job row lock, and the result is passed into the bid, never read again under a lock, since a
- * GitHub fact is a hint. GitHub not answering fails closed: the bid then refuses with {@code CONTRIBUTORS_UNKNOWN}.
+ * FR-13's and FR-81's contributor check, read from GitHub before the bid's, the application's or the signature's
+ * transaction (A-03, AD-4, AD-6): the Source Repository's contributors are read through the Customer's Source App
+ * ({@link ProductSources#contributors}, Story 23.5b), never under the bidder's advisory lock or a Job row lock, and the
+ * result is passed into the command, never read again under a lock, since a GitHub fact is a hint. The person's GitHub
+ * ID comes from {@code identity}. A read that cannot say who contributed (the Source App missing or not on this
+ * repository, GitHub refusing or unreachable) fails closed: the command then refuses with {@code CONTRIBUTORS_UNKNOWN},
+ * and it is never read as "not a contributor".
  */
 @Component
 class SourceContributors {
@@ -32,21 +33,24 @@ class SourceContributors {
 		/** The bidder contributed to the Source Repository. */
 		CONTRIBUTOR,
 
-		/** GitHub did not answer, or the Job is one no bid reaches: the bid refuses (fails closed). */
+		/**
+		 * The contributors could not be read through the Source App, or the Job is one no bid reaches: the bid refuses
+		 * (fails closed).
+		 */
 		UNKNOWN
 
 	}
 
 	private final JobPosts posts;
 
-	private final ProductDirectory products;
+	private final ProductSources sources;
 
-	private final CustomerRepositories repositories;
+	private final CustomerRepositories accounts;
 
-	SourceContributors(JobPosts posts, ProductDirectory products, CustomerRepositories repositories) {
+	SourceContributors(JobPosts posts, ProductSources sources, CustomerRepositories accounts) {
 		this.posts = posts;
-		this.products = products;
-		this.repositories = repositories;
+		this.sources = sources;
+		this.accounts = accounts;
 	}
 
 	/**
@@ -102,18 +106,16 @@ class SourceContributors {
 	}
 
 	private Contribution contribution(JobPostState post, UUID accountId) {
-		Optional<ProductInfo> product = this.products.find(post.productId());
-		if (product.isEmpty()) {
+		Long githubId = this.accounts.githubUserId(accountId).orElse(null);
+		if (githubId == null) {
+			// No GitHub account: none of its commits can name them.
+			return Contribution.NONE;
+		}
+		Optional<Set<Long>> contributors = this.sources.contributors(post.productId());
+		if (contributors.isEmpty()) {
 			return Contribution.UNKNOWN;
 		}
-		String[] repository = product.get().repositoryFullName().split("/", 2);
-		try {
-			return this.repositories.hasContributor(post.customerId(), repository[0], repository[1], accountId)
-					? Contribution.CONTRIBUTOR : Contribution.NONE;
-		}
-		catch (GitHubException | ApiException unanswered) {
-			return Contribution.UNKNOWN;
-		}
+		return contributors.get().contains(githubId) ? Contribution.CONTRIBUTOR : Contribution.NONE;
 	}
 
 }

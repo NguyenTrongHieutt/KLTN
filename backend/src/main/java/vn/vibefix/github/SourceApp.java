@@ -81,7 +81,9 @@ public interface SourceApp {
 	boolean configured();
 
 	/**
-	 * The installation that reaches {@code owner/name}, with its selection.
+	 * The installation that reaches {@code owner/name}, with its selection. A repository renamed, or transferred to an
+	 * account with the App, is still found by its old name: GitHub's one 301 or 307 is followed when its JSON
+	 * {@code url} lies under the configured {@code api-url}; any other redirect is a {@link GitHubException}.
 	 * @return empty when GitHub answers 404: no installation reaches it, or there is no such repository
 	 */
 	Optional<Installation> installationOn(String owner, String name);

@@ -2,6 +2,8 @@ package vn.vibefix.github.internal;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -22,7 +24,9 @@ import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.SourceApp;
 
 /**
- * {@link SourceApp} on GitHub's REST API (AD-10, AD-45). The installation is read with the Source App's JWT; its
+ * {@link SourceApp} on GitHub's REST API (AD-10, AD-45). The installation is read with the Source App's JWT, by its
+ * repository's name following one 301 or 307 under the configured {@code api-url} (a repository renamed, or
+ * transferred to an account with the App); its
  * selection with a Metadata-read token from that installation, revoked after the read whatever happened. The
  * install link's slug is the App's own, read once from {@code GET /app}. The published workflow is the classpath
  * copy {@value #RESOURCE} of {@code deploy/customer/vibefix.yml}, byte for byte; "Kiểm tra" compares a file with
@@ -62,12 +66,45 @@ class GitHubSourceApp implements SourceApp {
 
 	@Override
 	public Optional<Installation> installationOn(String owner, String name) {
-		GitHubHttp.Answer answer = this.apps.http()
-			.send("GET", "/repos/" + owner + "/" + name + "/installation", this.apps.jwt(App.SOURCE), null);
+		String jwt = this.apps.jwt(App.SOURCE);
+		String what = "read the installation on " + owner + "/" + name;
+		GitHubHttp.Answer answer = this.apps.http().send("GET", "/repos/" + owner + "/" + name + "/installation", jwt, null);
+		if (answer.status() == 301 || answer.status() == 307) {
+			// Renamed, or transferred to an account with the App: GitHub names its new place, followed once on the API
+			// host only. A second redirect is refused below like any other answer that is not a 2xx or a 404.
+			answer = this.apps.http().send("GET", moved(answer, owner + "/" + name), jwt, null);
+		}
 		if (answer.status() == 404) {
 			return Optional.empty();
 		}
-		return Optional.of(installation(require(answer, "read the installation on " + owner + "/" + name)));
+		return Optional.of(installation(require(answer, what)));
+	}
+
+	/**
+	 * The path below the configured {@code api-url} that a 301 or 307 names in its JSON {@code url}, with its query.
+	 * @throws GitHubException for a {@code url} that is missing, malformed, not normalized, or outside {@code api-url}
+	 */
+	private String moved(GitHubHttp.Answer answer, String fullName) {
+		String url = answer.body().path("url").asString("");
+		URI api = this.apps.properties().apiUrl();
+		String apiPath = api.getRawPath() == null ? "" : api.getRawPath().replaceAll("/+$", "");
+		URI target;
+		try {
+			target = new URI(url);
+		}
+		catch (URISyntaxException ex) {
+			target = null;
+		}
+		boolean under = target != null && target.isAbsolute() && api.getScheme().equalsIgnoreCase(target.getScheme())
+				&& api.getRawAuthority() != null && api.getRawAuthority().equalsIgnoreCase(target.getRawAuthority())
+				&& target.getRawUserInfo() == null && target.getRawFragment() == null && target.getRawPath() != null
+				&& target.getRawPath().startsWith(apiPath + "/") && target.normalize().equals(target);
+		if (!under) {
+			throw new GitHubException(answer.status(), "GitHub moved " + fullName + " to a place outside its API: HTTP "
+					+ answer.status());
+		}
+		String path = target.getRawPath().substring(apiPath.length());
+		return target.getRawQuery() == null ? path : path + "?" + target.getRawQuery();
 	}
 
 	@Override

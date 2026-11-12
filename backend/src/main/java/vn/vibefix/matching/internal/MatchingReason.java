@@ -29,7 +29,10 @@ enum MatchingReason {
 	/** The Mentor contributed to the Source Repository (FR-13). */
 	APPLICANT_IS_CONTRIBUTOR,
 
-	/** GitHub could not say who contributed, so the Application waits (fails closed). */
+	/**
+	 * Who contributed could not be read through the Customer's Source App (the App missing or not on the repository,
+	 * GitHub refusing or unreachable), so the Application waits (fails closed).
+	 */
 	CONTRIBUTORS_UNKNOWN,
 
 	/** N-5 was not acknowledged (FR-13). */

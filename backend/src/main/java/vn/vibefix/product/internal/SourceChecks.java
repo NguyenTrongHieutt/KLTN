@@ -1,14 +1,19 @@
 package vn.vibefix.product.internal;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.github.GitHubApps.InstallationToken;
+import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.GitHubRepositories;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.github.SourceApp;
@@ -25,11 +30,15 @@ import vn.vibefix.shared.ErrorCode;
  * Product's binding holds the selection rule on a fresh read (and is bound again to a reinstalled App), then one
  * token narrowed to the repository reads it, must find the registered GitHub ID, the Customer's linked account with
  * admin through the collaborator-permission endpoint, and a published {@code vibefix.yml} on its default branch. The
- * token is revoked after the reads. No path reads a repository with the Customer's linking token. A GitHub failure
- * is a {@link vn.vibefix.github.GitHubException}, which the caller retries.
+ * token is revoked after the reads. The contributor read (FR-13, FR-81) and the drift read (FR-20, R7) take the
+ * binding the same way (Story 23.5b); the contributor read answers "unknown" rather than throwing, and the drift read
+ * reads no admin right. No path reads a repository with the Customer's linking token. A GitHub failure is a
+ * {@link GitHubException}, which the caller retries.
  */
 @Component
 class SourceChecks implements ProductSources {
+
+	private static final Logger log = LoggerFactory.getLogger(SourceChecks.class);
 
 	private record Row(UUID customerId, String name, String fullName, long githubId, String defaultBranch) {
 	}
@@ -90,6 +99,69 @@ class SourceChecks implements ProductSources {
 		Read read = read(productId, product, product.fullName());
 		return new SourceCheck(read.block(), productId, product.customerId(), product.name(), product.fullName(),
 				product.githubId(), read.block() == null ? read.defaultBranch() : product.defaultBranch());
+	}
+
+	@Override
+	public Optional<Set<Long>> contributors(UUID productId) {
+		try {
+			Row product = row(productId);
+			Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(),
+					product.fullName());
+			if (checked.refusal() != null) {
+				log.warn("The contributors of Product {} are unknown: the Source App binding does not hold ({})", productId,
+						checked.refusal());
+				return Optional.empty();
+			}
+			Bound bound = checked.bound();
+			String[] name = bound.repositoryFullName().split("/", 2);
+			return Optional.of(Set.copyOf(this.app.withToken(bound.installationId(), bound.repositoryId(),
+					SourceAppBindings.METADATA_READ, token -> this.repositories.contributorIds(token.value(), name[0], name[1]))));
+		}
+		catch (ApiException missing) {
+			log.warn("The contributors of Product {} are unknown: no such Product ({})", productId, missing.code());
+			return Optional.empty();
+		}
+		catch (GitHubException unknown) {
+			// GitHub refusing or unreachable, or the App not configured: unknown, so the guard fails closed. Only the status
+			// is logged, never a token or a body.
+			log.warn("The contributors of Product {} are unknown: GitHub answered HTTP {} (0: not reached, or the Source "
+					+ "App is not configured)", productId, unknown.status());
+			return Optional.empty();
+		}
+	}
+
+	@Override
+	public Drift drift(UUID productId, String copiedSha) {
+		Row product = row(productId);
+		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
+		if (checked.refusal() != null) {
+			return new Drift(Block.valueOf(checked.refusal().name()), null, product.fullName(), false, List.of());
+		}
+		Bound bound = checked.bound();
+		return this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
+				token -> drift(product, bound, token, copiedSha));
+	}
+
+	/**
+	 * The repository, its workflow and its new commits, with one token: a workflow that differs is read next to the
+	 * rest, so no other change waits for it. The admin right is no drift.
+	 */
+	private Drift drift(Row product, Bound bound, InstallationToken token, String copiedSha) {
+		String[] name = bound.repositoryFullName().split("/", 2);
+		RepositoryMetadata repository = this.repositories.read(token.value(), name[0], name[1]).orElse(null);
+		if (repository == null || repository.id() != product.githubId()) {
+			return new Drift(Block.SOURCE_APP_WRONG_REPOSITORY, null, product.fullName(), false, List.of());
+		}
+		Block workflow = switch (this.app.workflow(token, repository.fullName(), repository.defaultBranch()).verdict()) {
+			case MATCHES -> null;
+			case MISSING -> Block.WORKFLOW_MISSING;
+			case MISMATCH -> Block.WORKFLOW_MISMATCH;
+		};
+		List<String> commits = this.repositories.commitsSince(token.value(), repository.fullName(), copiedSha,
+				repository.defaultBranch());
+		List<String> kept = commits.size() > MAX_DRIFT_COMMITS ? commits.subList(commits.size() - MAX_DRIFT_COMMITS,
+				commits.size()) : commits;
+		return new Drift(null, workflow, repository.fullName(), repository.archived(), kept);
 	}
 
 	/** The binding on a fresh read under {@code fullName}, then the repository, the admin right, and the workflow. */

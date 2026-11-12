@@ -51,9 +51,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.github.internal.SourceAppFixture;
 import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.ErasureOutcome;
@@ -63,10 +63,14 @@ import vn.vibefix.support.MutableClock;
 import vn.vibefix.support.TestFiles;
 import vn.vibefix.support.TestPeople;
 
-/** FR-13, AD-19, AD-33, AD-34: Applications to Open Job Posts, their refusals, and what ends them. */
+/**
+ * FR-13, AD-19, AD-33, AD-34: Applications to Open Job Posts, their refusals, and what ends them. The Source
+ * Repository's contributors are read through the Customer's Source App (Story 23.5b), whose calls
+ * {@link SourceAppFixture} answers; the Customer keeps no linking token.
+ */
 class ApplicationsIT extends IntegrationTest {
 
-	private static final String TOKEN = "gho_customer_token_never_printed";
+	private static final SourceAppFixture SOURCE = new SourceAppFixture();
 
 	private static final HttpServer GITHUB = start();
 
@@ -113,14 +117,15 @@ class ApplicationsIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void stubGitHub(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
+		SOURCE.register(registry);
 	}
 
 	@BeforeEach
 	void aCustomerWithAnOpenJobPost() {
 		CONTRIBUTORS.clear();
 		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "200 [{\"id\":987654321,\"login\":\"lan\"},{\"login\":\"anon\"}]");
+		SOURCE.clear();
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		this.job = openJob(product(this.lan), "Sửa lỗi mất đơn hàng");
 	}
 
@@ -215,20 +220,50 @@ class ApplicationsIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE identity.account SET github_user_id = 987654321 WHERE id = :id").param("id", contributor).update();
 		apply(contributor, this.job, true).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("APPLICANT_IS_CONTRIBUTOR"));
-		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "502 {}");
-		apply(mentor("C"), this.job, true).andExpect(status().is(422))
-			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
-		assertThat(relinkGitHub()).as("GitHub not answering is not the Customer's to fix").isZero();
-		// Author decision 2026-10-21: a refused token still fails closed and asks the Customer to re-link GitHub.
-		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "401 {}");
-		apply(mentor("D"), this.job, true).andExpect(status().is(422))
-			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
-		assertThat(relinkGitHub()).isOne();
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM notification.notification WHERE type = 'identity.relink_github' AND account_id = :lan
-				""").param("lan", this.lan).query(Long.class).single()).isOne();
+		// The selection read's token names no repository; every other one is the contributor read's.
+		assertThat(SOURCE.grants.values().stream().filter(grant -> grant.contains("repository_ids")).toList())
+			.as("read through the Source App, with a Metadata-read token on the one repository")
+			.isNotEmpty()
+			.allSatisfy(grant -> assertThat(grant)
+				.isEqualTo("{\"repository_ids\":[" + repository(this.job) + "],\"permissions\":{\"metadata\":\"read\"}}"));
+		assertThat(SOURCE.revoked).as("each token revoked after the read").containsExactlyInAnyOrderElementsOf(SOURCE.grants.keySet());
+		assertThat(relinkGitHub()).as("no linking token is read, so nobody is asked to re-link").isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application").query(Long.class).single())
 			.as("only the two accepted bids are written; no refusal writes one").isEqualTo(2);
+	}
+
+	/**
+	 * Story 23.5b: a contributor read that cannot say who contributed fails closed, never as "not a contributor":
+	 * GitHub answering 5xx or 404 on the contributors, or the Customer's Source App uninstalled. The Customer is asked
+	 * nothing, since no linking token is read.
+	 */
+	@Test
+	void anUnknownContributorReadFailsClosed() throws Exception {
+		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "502 {}");
+		apply(mentor("C"), this.job, true).andExpect(status().is(422))
+			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
+			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "404 {}");
+		apply(mentor("D"), this.job, true).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		CONTRIBUTORS.put("/repos/lan/so-dat-ban/contributors", "200 []");
+		SOURCE.uninstall(repository(this.job));
+		int reads = CONTRIBUTOR_READS.get();
+		apply(mentor("E"), this.job, true).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		assertThat(CONTRIBUTOR_READS.get()).as("without the Source App, GitHub is not asked for contributors").isEqualTo(reads);
+
+		assertThat(relinkGitHub()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).as("no refusal writes a bid").isZero();
+		SOURCE.reinstall(repository(this.job));
+		apply(mentor("F"), this.job, true).andExpect(status().isCreated());
+	}
+
+	/** The GitHub ID of the Job's Source Repository, which numbers its Source App installation too. */
+	private long repository(UUID job) {
+		return this.jdbc.sql("SELECT p.repository_github_id FROM product.product p JOIN job.job j ON j.product_id = p.id "
+				+ "WHERE j.id = :job").param("job", job).query(Long.class).single();
 	}
 
 	@Test
@@ -762,8 +797,10 @@ class ApplicationsIT extends IntegrationTest {
 		return id;
 	}
 
+	/** A Product of {@code owner}'s, bound to a Source App installation of its own (Story 23.5b). */
 	private UUID product(UUID owner) {
 		UUID id = UUID.randomUUID();
+		long github = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
@@ -774,9 +811,10 @@ class ApplicationsIT extends IntegrationTest {
 				""")
 			.param("id", id)
 			.param("owner", owner)
-			.param("github", ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))
+			.param("github", github)
 			.param("now", now)
 			.update();
+		SOURCE.bind(this.jdbc, id, owner, github, "lan/so-dat-ban");
 		return id;
 	}
 
@@ -788,6 +826,9 @@ class ApplicationsIT extends IntegrationTest {
 		try {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.createContext("/", exchange -> {
+				if (SOURCE.answer(exchange)) {
+					return;
+				}
 				Runnable before = BEFORE_CONTRIBUTORS.get();
 				if (exchange.getRequestURI().getPath().endsWith("/contributors")) {
 					CONTRIBUTOR_READS.incrementAndGet();

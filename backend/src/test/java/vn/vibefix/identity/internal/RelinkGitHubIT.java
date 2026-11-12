@@ -23,21 +23,19 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.github.GitHubException;
-import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.identity.GitHubLinks;
 import vn.vibefix.identity.internal.GitHubLinkReader.LinkedUser;
 import vn.vibefix.identity.internal.GitHubLinksImpl.Purpose;
 import vn.vibefix.product.ProductSources;
-import vn.vibefix.shared.ApiException;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * FR-13, FR-18, AD-10, author decision 2026-10-21, Story 19.2: when an AD-13 re-check finds no kept token,
- * it still fails closed, and the live Product's owner gets the {@code identity.relink_github} to-do and a
- * notice, which lead to ACC-2. Since Story 23.5 only the contributors check reads with the token (until Story
- * 23.5b): the Source Repository check before a Code Job starts reads through the Source App and never answers
- * {@code RELINK_GITHUB}. The notice is sent once a day however many Mentors try. Re-linking the same GitHub
- * account keeps a new token and closes the to-do; deleting the last live Product forgets the token.
+ * FR-13, FR-18, AD-10, author decision 2026-10-21, Story 19.2: the live Product's owner asked to re-link GitHub gets
+ * the {@code identity.relink_github} to-do and a notice, which lead to ACC-2. Since Story 23.5b no path reads with the
+ * kept token, so nothing asks any more ({@link TokenRenewals} stays until Story 23.5d retires the token): the Source
+ * Repository check before a Code Job starts and the contributors check read through the Source App, never with the
+ * token, and never answer {@code RELINK_GITHUB}. The notice is sent once a day however often it is asked. Re-linking
+ * the same GitHub account keeps a new token and closes the to-do; deleting the last live Product forgets the token.
  */
 class RelinkGitHubIT extends IntegrationTest {
 
@@ -45,7 +43,7 @@ class RelinkGitHubIT extends IntegrationTest {
 	private JdbcClient jdbc;
 
 	@Autowired
-	private CustomerRepositories repositories;
+	private TokenRenewals renewals;
 
 	@Autowired
 	private ProductSources sources;
@@ -72,14 +70,12 @@ class RelinkGitHubIT extends IntegrationTest {
 	private SessionRepository<? extends Session> sessions;
 
 	@Test
-	void aMissingTokenAsksTheOwnerToReLinkUntilTheyDo() {
+	void aReLinkAskStaysUntilTheOwnerReLinks() {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		UUID mentor = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		UUID product = liveProduct(lan);
 
 		for (int attempt = 0; attempt < 2; attempt++) {
-			assertThatThrownBy(() -> this.repositories.hasContributor(lan, "lan", "so-dat-ban", mentor))
-				.isInstanceOf(ApiException.class);
+			this.renewals.ask(lan);
 		}
 		assertThat(openTodos(lan)).isOne();
 		assertThat(this.jdbc.sql("SELECT link FROM notification.todo WHERE todo_key = 'identity.relink_github'")

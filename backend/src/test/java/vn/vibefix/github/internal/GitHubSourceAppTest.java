@@ -12,6 +12,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.jgit.internal.storage.file.WindowCache;
+import org.eclipse.jgit.lib.RepositoryCache;
+import org.eclipse.jgit.storage.file.WindowCacheConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,6 +74,10 @@ class GitHubSourceAppTest {
 	@AfterEach
 	void stop() {
 		this.github.close();
+		// JGit keeps pack files open in its window cache; Windows cannot delete the temporary directory
+		// until they are released.
+		RepositoryCache.clear();
+		WindowCache.reconfigure(new WindowCacheConfig());
 	}
 
 	@Test
@@ -146,6 +153,71 @@ class GitHubSourceAppTest {
 			.isInstanceOf(GitHubException.class);
 		this.app.revoke(token);
 		assertThat(this.github.revokedTokens).contains(token.value());
+	}
+
+	/**
+	 * Story 23.5b: a repository renamed, or transferred to an account with the App, is found by its old name: GitHub's
+	 * one 301 to {@code /repositories/{id}/installation} is followed, with the App's JWT.
+	 */
+	@Test
+	void aMovedRepositoryIsFoundByItsOldNameThroughOneRedirect() throws Exception {
+		this.github.publish("lan-nguyen", "shop-gom", 4001, 77, false, true);
+		this.github.source("lan-nguyen", "shop-gom");
+		long old = this.github.installSource("lan-nguyen", "shop-gom", 4001, 77);
+		this.github.mergeInstallations.get(old).deselect(4001);
+		this.github.rename(4001, "cong-ty", "shop-gom");
+		long moved = this.github.installSource("cong-ty", "shop-gom", 4001, 88);
+
+		Installation found = this.app.installationOn("lan-nguyen", "shop-gom").orElseThrow();
+
+		assertThat(found.id()).isEqualTo(moved);
+		assertThat(found.repositories()).containsExactly(new SelectedRepository(4001, "cong-ty/shop-gom"));
+		assertThat(this.github.seen).filteredOn(request -> request.path().equals("/repositories/4001/installation"))
+			.as("followed once, with the Source App's own JWT")
+			.singleElement()
+			.satisfies(request -> assertThat(GitHubStub.issuerOf(request.authorization())).isEqualTo(GitHubStub.SOURCE_APP));
+	}
+
+	/** Story 23.5b: a 307 is followed the same way; a second redirect, another code, or a place off the API is refused. */
+	@Test
+	void onlyOneRedirectUnderTheApiIsFollowed() {
+		long installation = this.github.installSource("lan-nguyen", "shop-gom", 4001, 77);
+		String api = this.github.apiUrl().toString();
+		java.util.Map<String, String> redirects = new java.util.concurrent.ConcurrentHashMap<>();
+		this.github.extra = (exchange, request, query) -> {
+			String answer = redirects.get(request.path());
+			if (answer == null) {
+				return false;
+			}
+			GitHubStub.send(exchange, Integer.parseInt(answer.substring(0, 3)), answer.substring(4));
+			return true;
+		};
+		redirects.put("/repos/lan-nguyen/old-name/installation",
+				"307 {\"message\":\"Temporary Redirect\",\"url\":\"" + api + "/repos/lan-nguyen/shop-gom/installation\"}");
+		assertThat(this.app.installationOn("lan-nguyen", "old-name")).map(Installation::id).contains(installation);
+
+		redirects.put("/repos/lan-nguyen/twice/installation",
+				"301 {\"message\":\"Moved Permanently\",\"url\":\"" + api + "/repos/lan-nguyen/old-name/installation\"}");
+		assertThatThrownBy(() -> this.app.installationOn("lan-nguyen", "twice")).as("a second redirect")
+			.isInstanceOf(GitHubException.class);
+
+		redirects.put("/repos/lan-nguyen/found/installation",
+				"302 {\"message\":\"Found\",\"url\":\"" + api + "/repos/lan-nguyen/shop-gom/installation\"}");
+		assertThatThrownBy(() -> this.app.installationOn("lan-nguyen", "found")).as("another code")
+			.isInstanceOf(GitHubException.class);
+
+		for (String outside : List.of("https://evil.example/repositories/4001/installation",
+				api + ".evil.example/repositories/4001/installation", api + "/repositories/../../x", "/repositories/4001/installation",
+				"")) {
+			redirects.put("/repos/lan-nguyen/away/installation",
+					"301 {\"message\":\"Moved Permanently\",\"url\":\"" + outside + "\"}");
+			int sent = this.github.seen.size();
+			// Refused before any request: a failed connection would not say "outside its API".
+			assertThatThrownBy(() -> this.app.installationOn("lan-nguyen", "away")).as(outside)
+				.isInstanceOf(GitHubException.class)
+				.hasMessageContaining("outside its API");
+			assertThat(this.github.seen).as("only the redirect itself reached the stub: %s", outside).hasSize(sent + 1);
+		}
 	}
 
 	@Test

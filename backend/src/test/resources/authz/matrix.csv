@@ -2378,7 +2378,7 @@ GET /api/v1/mentor/jobs/{jobId}/crew,CROSS_ROLE,job=crew,,404 NOT_FOUND,requireA
 GET /api/v1/mentor/jobs/{jobId}/crew,ADMINISTRATOR,job=crew,,404 NOT_FOUND,requireActiveAccount
 # The Commitment panel on MEN-3 (FR-81, AD-41, UX-DR103, Story 21.5): CREW_ASSIGNED, picked on the crew Job by its
 # Crew Application, reads the assignment projection and the panel, signs (the contributor read fails closed in the
-# matrix, no Customer token being kept: CONTRIBUTORS_UNKNOWN) and declines; every other caller, the Customer, the
+# matrix, which configures no Source App: CONTRIBUTORS_UNKNOWN) and declines; every other caller, the Customer, the
 # Mentor and the active members included, has no pick there and finds nothing.
 GET /api/v1/crew/jobs/{jobId}/commitment,ANONYMOUS,,,401
 GET /api/v1/crew/jobs/{jobId}/commitment,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
@@ -3080,7 +3080,7 @@ POST /api/v1/admin/skill-suggestions/{suggestionId}/decline,ADMINISTRATOR,,admin
 # Applicant cards) is the Mentor's alone: the Customer finds nothing on either Job, and so does every other caller. Every
 # row naming {crewApplicationId} runs on the recruiting Job. Sending refuses the Customer and the Mentor (ROLE_TAKEN), a
 # member of another running Crew (ON_ANOTHER_CREW, X8), and the applicant's second application (ALREADY_APPLIED); anyone
-# else reaches the contributor read, which fails closed in the matrix (no Customer token is kept: CONTRIBUTORS_UNKNOWN).
+# else reaches the contributor read, which fails closed in the matrix (no Source App is configured: CONTRIBUTORS_UNKNOWN).
 GET /api/v1/mentor/jobs/{jobId}/recruitment,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/recruitment,USER_UNVERIFIED,job=crew,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/recruitment,USER,job=crew,,404 NOT_FOUND,requireActiveAccount

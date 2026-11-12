@@ -44,7 +44,7 @@ enum ProductReason {
 
 	/**
 	 * No kept GitHub token reads the Customer's repositories (AD-10). {@code product} reads repositories through the
-	 * Source App since Story 23.5 and no longer answers it; it stays until Story 23.5b retires the linking token.
+	 * Source App since Story 23.5 and no longer answers it; it stays until Story 23.5d retires the linking token.
 	 */
 	RELINK_GITHUB,
 

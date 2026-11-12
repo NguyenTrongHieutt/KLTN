@@ -43,7 +43,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import vn.vibefix.identity.internal.CustomerTokens;
+import vn.vibefix.github.internal.SourceAppFixture;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
@@ -117,6 +117,9 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	static final Set<Command> ROLE_GIVING = Set.of(Command.BID, Command.SELECT, Command.INVITE, Command.PICK,
 			Command.SIGN);
 
+	/** The Customers' Source App, through which the contributors are read (Story 23.5b). */
+	private static final SourceAppFixture SOURCE = new SourceAppFixture();
+
 	private static final HttpServer GITHUB = start();
 
 	enum Command {
@@ -144,6 +147,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void stubGitHub(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
+		SOURCE.register(registry);
 		// A Crew holds up to five rows only with large Crews on (AD-30).
 		registry.add("vibefix.features.large-crews", () -> "true");
 	}
@@ -309,7 +313,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 
 	/**
 	 * Eight people who can each mentor a Job and join a Crew: GitHub linked, a profile with a display name, and a live
-	 * student verification; four of them post an Open Job Post on a Product of their own, whose GitHub token is kept.
+	 * student verification; four of them post an Open Job Post on a Product of their own, bound to their Source App.
 	 */
 	private void world() {
 		for (int i = 0; i < PEOPLE; i++) {
@@ -320,8 +324,8 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		for (int i = 0; i < POSTS; i++) {
 			UUID customer = this.people.get(i);
-			CustomerTokens.keep(this.context, customer, "gho_property_token_" + i);
 			UUID product = UUID.randomUUID();
+			long github = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
 			this.jdbc.sql("""
 					INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
 					    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,
@@ -332,10 +336,11 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 				.param("id", product)
 				.param("owner", customer)
 				.param("name", "Sản phẩm " + i)
-				.param("github", ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))
+				.param("github", github)
 				.param("repository", "nguoi" + i + "/san-pham")
 				.param("now", now)
 				.update();
+			SOURCE.bind(this.jdbc, product, customer, github, "nguoi" + i + "/san-pham");
 			UUID job = UUID.randomUUID();
 			this.jdbc.sql("""
 					INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
@@ -364,8 +369,9 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 		UUID customerId = this.people.get(customer);
 		UUID mentorId = this.people.get(mentor);
 		UUID memberId = this.people.get((mentor + 1) % PEOPLE);
-		CustomerTokens.keep(this.context, customerId, "gho_property_token_" + customer);
 		UUID product = JobContent.product(this.jdbc, customerId, "Sản phẩm " + customer);
+		SOURCE.bind(this.jdbc, product, customerId, this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id")
+			.param("id", product).query(Long.class).single(), "matrix/san-pham");
 		UUID job = JobContent.activeJob(this.jdbc, product, customerId, mentorId, "Việc đang làm " + customer);
 		JobContent.selectedBid(this.jdbc, job, product, customerId, mentorId, JobContent.SIGNED);
 		JobContent.crewRow(this.jdbc, job, memberId, "ACTIVE", null);
@@ -451,11 +457,14 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 		return IdentityTestSupport.signedIn(this.sessions, account, Role.MENTOR, this.clock.instant());
 	}
 
-	/** GitHub, answering that the Source Repository has no contributors, whoever asks. */
+	/** GitHub, answering through the Customer's Source App that the Source Repository has no contributors, whoever asks. */
 	private static HttpServer start() {
 		try {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.createContext("/", exchange -> {
+				if (SOURCE.answer(exchange)) {
+					return;
+				}
 				byte[] body = (exchange.getRequestURI().getPath().endsWith("/contributors") ? "[]" : "{}")
 					.getBytes(StandardCharsets.UTF_8);
 				exchange.getResponseHeaders().add("Content-Type", "application/json");

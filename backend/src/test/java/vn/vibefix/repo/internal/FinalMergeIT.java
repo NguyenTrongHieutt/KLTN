@@ -58,8 +58,6 @@ class FinalMergeIT extends IntegrationTest {
 
 	private static final AtomicLong IDS = new AtomicLong(770000);
 
-	private static final String TOKEN = "gho_" + "customer_token_never_printed";
-
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("final-merge-it-");
@@ -138,7 +136,6 @@ class FinalMergeIT extends IntegrationTest {
 	@BeforeEach
 	void aClosingCodeJobWithOneMergedHandover() throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		long id = IDS.incrementAndGet();
 		// The Customer's own repository: GitHub shows them as its owner, and the Merge App is installed on their account.

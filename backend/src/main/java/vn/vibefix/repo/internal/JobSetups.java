@@ -62,7 +62,7 @@ class JobSetups {
 
 	/**
 	 * Why a Setup stopped on something the Customer can fix (FR-18): {@code product}'s Source checks, through the
-	 * Source App since Story 23.5. {@code RELINK_GITHUB} is no longer answered and stays until Story 23.5b.
+	 * Source App since Story 23.5. {@code RELINK_GITHUB} is no longer answered and stays until Story 23.5d.
 	 */
 	enum Block {
 

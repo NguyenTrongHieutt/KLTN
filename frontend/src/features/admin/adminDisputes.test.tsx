@@ -197,6 +197,42 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(seen.some((request) => request.url.includes('crew-chat'))).toBe(false)
   })
 
+  it('names each Source App drift in the Evidence Package drift tab (Story 23.5b)', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const drift = (id: string, kind: string, fullName: string | null) => ({
+      id,
+      kind,
+      headSha: null,
+      fullName,
+      commits: [],
+      detectedAt: '2026-10-22T03:00:00Z',
+      reconfirmedAt: null,
+    })
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/disputes': () => json([{ ...row, assigned: true, assignedToMe: true }]),
+      'GET /api/v1/admin/disputes/d1': () => json(detail({ assigned: true, assignedToMe: true, evidenceReadable: true })),
+      'GET /api/v1/admin/disputes/d1/evidence/agreement': () => json([]),
+      'GET /api/v1/admin/disputes/d1/evidence/drift': () =>
+        json([
+          drift('w1', 'GONE', 'lan/so-dat-ban'),
+          drift('w2', 'APP_UNINSTALLED', 'lan/so-dat-ban'),
+          drift('w3', 'WORKFLOW_CHANGED', 'lan/so-dat-ban'),
+        ]),
+    })
+    renderAt('/quan-tri/tranh-chap/d1')
+
+    await user.click(await screen.findByRole('tab', { name: 'Cảnh báo thay đổi' }))
+    expect(
+      await screen.findByText(
+        'Ứng dụng vibefix không còn đến được kho nguồn lan/so-dat-ban: kho bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Ứng dụng vibefix trên kho nguồn bị gỡ, bị tạm ngưng hoặc thiếu quyền')).toBeInTheDocument()
+    expect(screen.getByText('File workflow vibefix.yml trong kho nguồn bị xóa hoặc sửa')).toBeInTheDocument()
+    expect(screen.queryByText(/screen\.admin\.disputes\.evidence\.drift/)).toBeNull()
+  })
+
   it('shows any Administrator what a decided Dispute was decided on', { timeout: 20_000 }, async () => {
     fakeBackend(administrator, {
       'GET /api/v1/admin/overview': () => json(overview),
