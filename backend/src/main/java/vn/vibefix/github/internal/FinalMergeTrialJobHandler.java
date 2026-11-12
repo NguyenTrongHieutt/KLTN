@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectChecker;
@@ -17,6 +18,7 @@ import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.ResolveMerger;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.springframework.core.env.Environment;
 
 import tools.jackson.databind.JsonNode;
@@ -27,15 +29,16 @@ import vn.vibefix.shared.SandboxJobHandler;
 
 /**
  * {@value #TYPE} (AD-11, AD-32): the Final Merge's trial merge. It bare-clones the public Source
- * Repository's default branch and fetches the public Intermediary Repository's branch, both read-only
- * with the object checker on and nothing checked out, and merges them in memory with JGit. Nothing is
- * written anywhere but the temporary directory, which is deleted. Like every handler, a plain class that
- * only the sandbox worker (or the in-process stand-in) creates.
+ * Repository's default branch and fetches the private Intermediary Repository's branch with the token it
+ * was given, narrowed to the Intermediary with {@code contents} read, both read-only with the object
+ * checker on and nothing checked out, and merges them in memory with JGit. Nothing is written anywhere but
+ * the temporary directory, which is deleted. Like every handler, a plain class that only the sandbox worker
+ * (or the in-process stand-in) creates. Story 23.9 replaces it.
  * <p>
  * Input: {@code source} and {@code intermediary} ({@code owner/name}), {@code sourceBranch},
- * {@code intermediaryBranch}, and {@code sha}, the Intermediary head the check read. Output:
- * {@code clean} and, for a conflict, {@code conflicts} (the paths); {@code moved} when the Intermediary
- * branch no longer has {@code sha} as its head.
+ * {@code intermediaryBranch}, {@code sha}, the Intermediary head the check read, and
+ * {@code intermediaryToken} for the fetch. Output: {@code clean} and, for a conflict, {@code conflicts}
+ * (the paths); {@code moved} when the Intermediary branch no longer has {@code sha} as its head.
  */
 final class FinalMergeTrialJobHandler implements SandboxJobHandler {
 
@@ -75,6 +78,11 @@ final class FinalMergeTrialJobHandler implements SandboxJobHandler {
 				throw new IllegalArgumentException("unsafe repository or branch name");
 			}
 		}
+		// The Intermediary is private, so the fetch always needs its read token.
+		String intermediaryToken = input.path("intermediaryToken").asString("");
+		if (intermediaryToken.isBlank()) {
+			throw new IllegalArgumentException("intermediaryToken is required");
+		}
 		Path directory;
 		try {
 			directory = Files.createTempDirectory("vibefix-trial-");
@@ -97,12 +105,14 @@ final class FinalMergeTrialJobHandler implements SandboxJobHandler {
 				transport.setObjectChecker(checker);
 			})
 			.call()) {
-			git.fetch()
+			FetchCommand fetch = git.fetch()
 				.setRemote(this.gitUrl + "/" + intermediary + ".git")
 				.setRefSpecs(new RefSpec("+refs/heads/" + intermediaryBranch + ":" + THEIRS))
 				.setTimeout(TIMEOUT_SECONDS)
 				.setCheckFetchedObjects(true)
-				.call();
+				// The private Intermediary: read with its own token, which only the credentials provider holds.
+				.setCredentialsProvider(new UsernamePasswordCredentialsProvider("x-access-token", intermediaryToken));
+			fetch.call();
 			ObjectId ours = git.getRepository().resolve("refs/heads/" + sourceBranch);
 			ObjectId theirs = git.getRepository().resolve(THEIRS);
 			ObjectNode output = JsonNodeFactory.instance.objectNode();
@@ -148,7 +158,7 @@ final class FinalMergeTrialJobHandler implements SandboxJobHandler {
 			paths.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
 		}
 		catch (IOException ex) {
-			// A leftover temporary directory holds two public repositories' objects and nothing else.
+			// A leftover temporary directory holds two repositories' objects and nothing else.
 		}
 	}
 

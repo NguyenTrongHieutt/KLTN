@@ -7,10 +7,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -23,12 +23,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 
 /**
- * Spike S6 revision (AD-11): {@code vibefix.github.runner-repository} unset, the organization's Actions
- * must be disabled, exactly as before; set, they must run on that one repository only ("Selected
- * repositories" listing it alone), and anything else is a difference in plain words. A blank value is
- * unset, as {@code deploy/compose.yaml} passes it; a value that is no repository name is refused.
+ * AD-11, AD-46 (Story 23.3, deferred-work 634): {@code vibefix.github.runner-repository} is required. Unset, it is
+ * an organization difference, with no fallback to "Actions disabled for all". Set, the organization's Actions must
+ * run on that one repository only ("Selected repositories" listing it alone), and the runner itself must be
+ * private, hold only the published copy workflow, and have no collaborator or invitation; anything else is a
+ * difference in plain words. A blank value is unset, as {@code deploy/compose.yaml} passes it; a value that is
+ * no repository name is refused.
  */
 class RunnerOrganizationTest {
+
+	private static final String RUNNER = "vibefix-runner";
 
 	@TempDir
 	Path directory;
@@ -46,34 +50,33 @@ class RunnerOrganizationTest {
 	@AfterEach
 	void stop() {
 		this.github.close();
+		// JGit keeps pack files open in its window cache; Windows cannot delete the temporary directory
+		// until they are released.
+		org.eclipse.jgit.lib.RepositoryCache.clear();
+		org.eclipse.jgit.internal.storage.file.WindowCache.reconfigure(new org.eclipse.jgit.storage.file.WindowCacheConfig());
 	}
 
 	@Test
-	void withoutARunnerActionsMustBeDisabledAsBefore() {
-		assertThat(differences(null)).isEmpty();
+	void withoutARunnerTheOrganizationDiffersWhateverItsActionsPolicy() {
+		assertThat(differences(null)).containsExactly(
+				"vibefix.github.runner-repository is not set: GitHub Actions must run on the runner only");
 
 		this.github.actionsEnabled = "selected";
-		this.github.actionsRepositories.add("vibefix-runner");
-		assertThat(differences(null)).containsExactly("GitHub Actions are enabled for selected repositories");
-		this.github.actionsEnabled = "all";
-		assertThat(differences(null)).containsExactly("GitHub Actions are enabled for all repositories");
-		this.github.actionsAllowed = "all";
-		this.github.defaultWorkflowPermissions = "write";
-		this.github.workflowsApprovePullRequests = true;
-		this.github.actionsEnabled = "none";
-		assertThat(differences(null)).as("without a runner, nothing but enabled_repositories counts").isEmpty();
-		assertThat(this.github.seen.stream().filter(request -> request.path().endsWith("/actions/permissions/repositories")
-				|| request.path().endsWith("/actions/permissions/workflow")))
-			.as("the selected repositories and the workflow permissions are never read without a runner")
+		this.github.actionsRepositories.add(RUNNER);
+		assertThat(differences(null)).as("not even a runner-shaped policy stands in for the setting").containsExactly(
+				"vibefix.github.runner-repository is not set: GitHub Actions must run on the runner only");
+		assertThat(repositories(null).runnerDifferences()).as("organizationDifferences reports it once").isEmpty();
+		assertThat(this.github.seen.stream().filter(request -> request.path().contains("/actions/permissions")))
+			.as("without a runner, nothing is compared with it")
 			.isEmpty();
 	}
 
 	@Test
 	void withARunnerActionsRunOnThatRepositoryAlone() {
 		this.github.actionsEnabled = "selected";
-		this.github.actionsRepositories.add("vibefix-runner");
+		this.github.actionsRepositories.add(RUNNER);
 
-		assertThat(differences("vibefix-runner")).isEmpty();
+		assertThat(differences(RUNNER)).isEmpty();
 		assertThat(differences("Vibefix-Runner")).as("GitHub's names ignore case").isEmpty();
 	}
 
@@ -81,7 +84,7 @@ class RunnerOrganizationTest {
 	@ValueSource(strings = { "all actions", "selected actions", "write tokens", "approvals" })
 	void withARunnerOnlyLocalActionsReadTokensAndNoApprovalsMatch(String setting) {
 		this.github.actionsEnabled = "selected";
-		this.github.actionsRepositories.add("vibefix-runner");
+		this.github.actionsRepositories.add(RUNNER);
 		switch (setting) {
 			case "all actions" -> this.github.actionsAllowed = "all";
 			case "selected actions" -> this.github.actionsAllowed = "selected";
@@ -89,7 +92,7 @@ class RunnerOrganizationTest {
 			default -> this.github.workflowsApprovePullRequests = true;
 		}
 
-		assertThat(differences("vibefix-runner")).singleElement().asString().isEqualTo(switch (setting) {
+		assertThat(differences(RUNNER)).singleElement().asString().isEqualTo(switch (setting) {
 			case "all actions" -> "GitHub Actions allow all actions instead of the organization's own only (local_only)";
 			case "selected actions" -> "GitHub Actions allow selected actions instead of the organization's own only (local_only)";
 			case "write tokens" -> "the default workflow permissions are write instead of read";
@@ -102,14 +105,14 @@ class RunnerOrganizationTest {
 	void withARunnerAnythingElseIsADifference(String policy) {
 		this.github.actionsEnabled = "selected";
 		switch (policy) {
-			case "another repository too" -> this.github.actionsRepositories.addAll(List.of("vibefix-runner", "job-1-working"));
+			case "another repository too" -> this.github.actionsRepositories.addAll(List.of(RUNNER, "job-1-working"));
 			case "another repository instead" -> this.github.actionsRepositories.add("job-1-working");
 			case "no repository" -> {
 			}
 			default -> this.github.actionsEnabled = policy;
 		}
 
-		List<String> differences = differences("vibefix-runner");
+		List<String> differences = differences(RUNNER);
 
 		assertThat(differences).singleElement().asString().endsWith("instead of the runner vibefix-runner only")
 			.startsWith(switch (policy) {
@@ -120,11 +123,60 @@ class RunnerOrganizationTest {
 			});
 	}
 
+	/** AD-11: a new private repository's {@code allow_forking} follows the organization's private forking setting. */
+	@Test
+	void membersWhoMayForkPrivateRepositoriesAreADifference() {
+		this.github.actionsEnabled = "selected";
+		this.github.actionsRepositories.add(RUNNER);
+		this.github.membersCanForkPrivateRepositories = true;
+
+		assertThat(differences(RUNNER)).containsExactly(
+				"members may fork private repositories (members_can_fork_private_repositories=true) instead of never");
+	}
+
+	@Test
+	void theRunnerIsPrivateHoldsOnlyThePublishedWorkflowAndHasNobody() throws Exception {
+		this.github.runner(RUNNER);
+
+		assertThat(repositories(RUNNER).runnerDifferences()).isEmpty();
+		assertThat(this.github.seen).as("its workflows are read with a token narrowed to it with contents read")
+			.anyMatch(request -> request.path().equals("/repos/vibefix-dev/vibefix-runner/contents/.github/workflows"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "public", "another workflow", "no workflow", "a collaborator", "an invitation", "missing" })
+	void aRunnerThatDriftsIsADifference(String drift) throws Exception {
+		this.github.runner(RUNNER);
+		switch (drift) {
+			case "public" -> this.github.setting(RUNNER, "private", false);
+			case "another workflow" -> this.github.push(GitHubStub.ORGANIZATION, RUNNER, "main", ".github/workflows/ci.yml",
+					"on: push\n");
+			case "no workflow" -> this.github.push(GitHubStub.ORGANIZATION, RUNNER, "main", Map.of("README.md", "# runner\n"),
+					List.of(".github"), "No workflow", "ops@example.test");
+			case "a collaborator" -> this.github.addCollaborator(RUNNER, "mallory", "write");
+			case "an invitation" -> this.github.addInvitation(RUNNER, "eve", "read");
+			default -> {
+			}
+		}
+
+		List<String> differences = repositories(drift.equals("missing") ? "vibefix-runner-gone" : RUNNER).runnerDifferences();
+
+		assertThat(differences).singleElement().asString().isEqualTo(switch (drift) {
+			case "public" -> "the runner vibefix-dev/vibefix-runner is public instead of private";
+			case "another workflow" -> "the runner vibefix-dev/vibefix-runner holds [ci.yml, s6-copy.yml] in .github/workflows"
+					+ " instead of [s6-copy.yml] only";
+			case "no workflow" -> "the runner vibefix-dev/vibefix-runner holds [] in .github/workflows instead of [s6-copy.yml] only";
+			case "a collaborator" -> "the runner vibefix-dev/vibefix-runner has collaborators [mallory]";
+			case "an invitation" -> "the runner vibefix-dev/vibefix-runner has invitations for [eve]";
+			default -> "the runner vibefix-dev/vibefix-runner-gone does not exist";
+		});
+	}
+
 	@Test
 	void aBlankRunnerIsUnsetAndAnOwnerOrAPathIsRefused() {
 		assertThat(properties("").runnerRepository()).isNull();
 		assertThat(properties("  ").runnerRepository()).isNull();
-		assertThat(properties("vibefix-runner").runnerRepository()).isEqualTo("vibefix-runner");
+		assertThat(properties(RUNNER).runnerRepository()).isEqualTo(RUNNER);
 		for (String wrong : List.of("vibefix-dev/vibefix-runner", "..", ".", "vibefix runner")) {
 			assertThatThrownBy(() -> properties(wrong)).as(wrong)
 				.isInstanceOf(IllegalArgumentException.class)
@@ -138,11 +190,15 @@ class RunnerOrganizationTest {
 	}
 
 	private List<String> differences(@Nullable String runner) {
-		Clock clock = Clock.fixed(Instant.parse("2026-11-10T03:00:00Z"), ZoneOffset.UTC);
+		return repositories(runner).organizationDifferences();
+	}
+
+	private GitHubPlatformRepositories repositories(@Nullable String runner) {
+		Clock clock = Clock.fixed(Instant.parse("2026-11-12T03:00:00Z"), ZoneOffset.UTC);
 		GitHubAppsClient apps = new GitHubAppsClient(properties(runner), clock);
 		return new GitHubPlatformRepositories(apps, (type, input) -> {
 			throw new UnsupportedOperationException("no sandbox job here: " + type);
-		}, Duration.ofMillis(10), Duration.ofSeconds(1), clock).organizationDifferences();
+		}, clock);
 	}
 
 	private GitHubProperties properties(@Nullable String runner) {

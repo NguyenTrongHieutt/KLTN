@@ -58,10 +58,13 @@ class Applications {
 	/** Applications per Mentor and Vietnam day (AD-34). */
 	static final int DAILY_LIMIT = 20;
 
-	/** N-5's version, recorded with the Application. */
 	static final String POST_HIDDEN = "job.job_post_hidden";
 
-	static final String PUBLIC_CODE_NOTICE_VERSION = "1.0";
+	/**
+	 * N-5's version, recorded with the Application: 2.0 since 2026-11-12, when the team's code moved to the
+	 * private Working Repository that the Customer reads part by part.
+	 */
+	static final String PUBLIC_CODE_NOTICE_VERSION = "2.0";
 
 	static final String RECEIVED = "matching.application_received";
 

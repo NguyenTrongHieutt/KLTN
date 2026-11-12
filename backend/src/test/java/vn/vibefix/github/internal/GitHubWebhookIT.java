@@ -64,12 +64,17 @@ class GitHubWebhookIT extends IntegrationTest {
 		try {
 			DIRECTORY = Files.createTempDirectory("github-webhooks-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
+			// AD-46: the runner the organization read-back requires (Story 23.3).
+			GITHUB.runner("vibefix-runner");
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 			Files.write(DIRECTORY.resolve("platform-webhook-secret"), PLATFORM_SECRET);
 			Files.write(DIRECTORY.resolve("merge-webhook-secret"), MERGE_SECRET);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);
+		}
+		catch (Exception ex) {
+			throw new IllegalStateException(ex);
 		}
 	}
 
@@ -100,6 +105,7 @@ class GitHubWebhookIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.id", () -> "123456");
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
 		registry.add("vibefix.github.platform-app.webhook-secret-file",
 				() -> DIRECTORY.resolve("platform-webhook-secret").toString());
 		registry.add("vibefix.github.merge-app.id", () -> "654321");

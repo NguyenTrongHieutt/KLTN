@@ -48,6 +48,8 @@ class SpikeS4CommandTest {
 	@BeforeEach
 	void aStubGitHubWithASourceRepository() throws Exception {
 		this.github = new GitHubStub(Files.createDirectories(this.directory.resolve("git")));
+		// The probe's forks and rulesets, which the platform no longer uses (Story 23.3).
+		this.github.extra = new SpikeS4Routes(this.github);
 		this.github.source("octo", "quan-may");
 		Path key = Files.writeString(this.directory.resolve("github-platform-app-key"), TestKeys.pkcs1());
 		this.apps = new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), this.github.gitUrl(), GitHubStub.ORGANIZATION,

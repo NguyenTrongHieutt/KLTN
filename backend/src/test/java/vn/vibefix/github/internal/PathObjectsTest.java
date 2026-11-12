@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -59,7 +58,7 @@ class PathObjectsTest {
 				GitHubStub.ORGANIZATION, new AppProperties(123456L, GitHubStub.INSTALLATION, key), null), clock);
 		this.repositories = new GitHubPlatformRepositories(apps, (type, input) -> {
 			throw new UnsupportedOperationException("no sandbox job here: " + type);
-		}, Duration.ofMillis(10), Duration.ofSeconds(1), clock);
+		}, clock);
 	}
 
 	@AfterEach

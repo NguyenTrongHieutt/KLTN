@@ -22,12 +22,11 @@ import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Spike S6 revision (AD-10, AD-11): with {@code vibefix.github.runner-repository} set, the application's
+ * Spike S6 revision (AD-10, AD-11, AD-46): with {@code vibefix.github.runner-repository} set, the application's
  * organization read-back (Job setup's and the platform guard's) wants the organization's Actions on that
  * one repository only, the organization's own actions only, read tokens by default, and no pull request
  * approvals by workflows; the daily configuration check wants the Platform App to hold Actions write.
- * Anything else, and a Platform App without Actions write, is a difference. GitHub is
- * {@link GitHubStub}; without the property, every other IT reads the organization as before.
+ * Anything else, and a Platform App without Actions write, is a difference. GitHub is {@link GitHubStub}.
  */
 class RunnerOrganizationIT extends IntegrationTest {
 
@@ -115,17 +114,18 @@ class RunnerOrganizationIT extends IntegrationTest {
 
 	@Test
 	void theDailyCheckWantsThePlatformAppToHoldActionsWrite() {
-		Map<String, String> withActions = new HashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
-		withActions.put("actions", "write");
-		GITHUB.app = registration(withActions);
+		assertThat(AppExpectations.PLATFORM_PERMISSIONS).containsEntry("actions", "write");
+		GITHUB.app = registration(AppExpectations.PLATFORM_PERMISSIONS);
 
 		assertThat(this.check.check(App.PLATFORM)).isEmpty();
 
-		GITHUB.app = registration(AppExpectations.PLATFORM_PERMISSIONS);
+		Map<String, String> withoutActions = new HashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
+		withoutActions.remove("actions");
+		GITHUB.app = registration(withoutActions);
 		List<String> differences = this.check.check(App.PLATFORM);
 
 		assertThat(differences).singleElement().asString().startsWith("permissions: ")
-			.endsWith(" instead of " + new TreeMap<>(withActions));
+			.endsWith(" instead of " + new TreeMap<>(AppExpectations.PLATFORM_PERMISSIONS));
 	}
 
 	private static String registration(Map<String, String> permissions) {

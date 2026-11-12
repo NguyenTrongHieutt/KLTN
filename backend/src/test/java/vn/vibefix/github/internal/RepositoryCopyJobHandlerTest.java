@@ -85,10 +85,25 @@ class RepositoryCopyJobHandlerTest {
 		ObjectNode traversal = input(this.head).put("branch", "../main");
 		ObjectNode noToken = input(this.head).put("token", "");
 		ObjectNode badSha = input(this.head).put("sha", "HEAD");
+		ObjectNode blankSourceToken = input(this.head).put("sourceToken", " ");
 
 		assertThatThrownBy(() -> this.handler.handle(traversal)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> this.handler.handle(noToken)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> this.handler.handle(badSha)).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.handler.handle(blankSourceToken)).isInstanceOf(IllegalArgumentException.class);
+	}
+
+	/**
+	 * Story 23.3: a private platform source is cloned with its own read token. A {@code file://} remote takes no
+	 * credentials, so this shows the handler accepts the token and copies as before; the narrowing is shown where
+	 * the token is minted ({@code PlatformCloneTokensTest}).
+	 */
+	@Test
+	void aPrivateSourceIsClonedWithItsOwnReadToken() throws Exception {
+		JsonNode output = this.handler.handle(input(this.head).put("sourceToken", String.join("", "gh", "s_", "r".repeat(36))));
+
+		assertThat(output.path("pushed").asString()).isEqualTo(this.head);
+		assertThat(output.toString()).as("no token in the output").doesNotContain("rrrrrrrr");
 	}
 
 	private static ObjectNode input(String sha) {

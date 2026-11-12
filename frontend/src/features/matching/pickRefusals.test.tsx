@@ -74,7 +74,7 @@ const panel = {
   codeJob: true,
   commitEmailNoticeAcknowledged: true,
   githubLogin: 'minh-dev',
-  ndaVersion: '1.0',
+  ndaVersion: '2.0',
   commitmentVersion: '1.0',
   splitRules: { mentorShareCapPercent: 30, draftDays: 7, confirmationDays: 3, editLimit: 3 },
 }

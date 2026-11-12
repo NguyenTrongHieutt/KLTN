@@ -45,14 +45,16 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.shared.ProcessedEvents;
 
 /**
- * The Intermediary Repository stays System-only (FR-19, AD-12, SG-16, SG-22, SM-2). A pull request the
- * System did not open is closed: on an Intermediary Repository always, on a Working Repository when an
- * outsider opened it (logged, not alerted). A privileged event on a platform repository whose sender is
- * neither the Platform App's bot nor a person granted on it alerts every Administrator; the operator
- * account's use alerts them too. Every 10 minutes the sweep reads the organization, the installation,
- * and each running Job's repositories back against what vibefix expects, and alerts any difference once a
- * day; an ended Job's repositories are read until they are deleted, and a revocation in progress may go
- * either way. Every closing and alert is audited.
+ * The Intermediary Repository stays System-only (FR-19, AD-12, SG-16, SG-22, SM-2). Both Job repositories
+ * are private and take no ruleset on GitHub Free, so the guarantee is read back from collaborators and
+ * invitations. A pull request the System did not open on an Intermediary Repository is closed. A
+ * {@code pull_request}, {@code member}, or {@code repository} event on a platform repository whose sender is
+ * neither the Platform App's bot nor a person granted on it alerts every Administrator; the operator account's
+ * use alerts them too. Every 10 minutes the sweep reads the organization, the runner, the
+ * installation, and each running Job's repositories (private, features and forking off, Actions disabled,
+ * and the expected collaborators and invitations) back against what vibefix expects, and alerts any
+ * difference once a day; an ended Job's repositories are read until they are deleted, and a revocation in
+ * progress may go either way. Every closing and alert is audited.
  */
 @Component
 class PlatformGuard {
@@ -63,8 +65,17 @@ class PlatformGuard {
 
 	static final String DRIFT = "github.platform_drift";
 
-	/** The events that change a repository or who may change it (AD-12). */
-	static final Set<String> PRIVILEGED = Set.of("push", "member", "repository", "repository_ruleset", "pull_request");
+	/**
+	 * The events that change a repository or who may change it (AD-12): the Platform App no longer subscribes
+	 * to {@code push} or {@code repository_ruleset} (2026-11-12).
+	 */
+	static final Set<String> PRIVILEGED = Set.of("member", "repository", "pull_request");
+
+	/**
+	 * The privileged events whose sender must be the bot or granted, or {@value #UNEXPECTED} alerts (AD-12): a
+	 * {@code repository} event (such as one made public) included.
+	 */
+	static final Set<String> ACTOR_CHECKED = Set.of("member", "repository", "pull_request");
 
 	private static final Set<String> RUNNING = Set.of("STARTING", "ACTIVE", "CLOSING");
 
@@ -135,7 +146,7 @@ class PlatformGuard {
 				continue;
 			}
 			try {
-				if ("pull_request".equals(event.event())) {
+				if ("pull_request".equals(event.event()) && repo.intermediary()) {
 					closeForeign(repo);
 				}
 				actor(event, repo);
@@ -148,8 +159,10 @@ class PlatformGuard {
 	}
 
 	/**
-	 * AD-12: the sender must be the bot or someone granted on the repository, matched by the sender's numeric
-	 * GitHub ID (AD-10 "Logins by ID"); the operator account always alerts.
+	 * AD-12: the sender of a {@code pull_request}, {@code member}, or {@code repository} event must be the bot or
+	 * someone granted on the repository, matched by the sender's numeric GitHub ID (AD-10 "Logins by ID");
+	 * nobody is granted on an Intermediary Repository yet (Story 23.7 adds the Customer's read). The operator
+	 * account always alerts.
 	 */
 	private void actor(GitHubWebhookReceived event, PlatformRepo repo) {
 		if (event.senderLogin() == null) {
@@ -165,9 +178,8 @@ class PlatformGuard {
 			audit("repo.operator_account_used", repo.jobId());
 			return;
 		}
-		boolean granted = !repo.intermediary() && granted(repo.jobId(), event.senderId(), login);
-		if (granted || (!repo.intermediary() && "pull_request".equals(event.event()))) {
-			// SG-16: an outsider's pull request on a public Working Repository is closed and logged only.
+		if (!ACTOR_CHECKED.contains(event.event())
+				|| (!repo.intermediary() && granted(repo.jobId(), event.senderId(), login))) {
 			return;
 		}
 		alert(UNEXPECTED, UUID.nameUUIDFromBytes(event.deliveryId().getBytes(StandardCharsets.UTF_8)), params);
@@ -175,40 +187,36 @@ class PlatformGuard {
 	}
 
 	/**
-	 * Closes the open pull requests the System did not open (FR-19) or, on a Working Repository, an outsider
-	 * did. A grantee is recognized by the author's numeric GitHub ID (AD-10 "Logins by ID"), by login only
-	 * when either ID is unknown.
+	 * Closes the open pull requests on an Intermediary Repository that the System did not open (FR-19). A
+	 * Working Repository is private and its grantees work there as they choose, so nothing is closed on it.
 	 */
 	void closeForeign(PlatformRepo repo) {
+		if (!repo.intermediary()) {
+			return;
+		}
 		String bot = this.repositories.botLogin();
-		List<Grant> grantees = repo.intermediary() ? List.of()
-				: this.grants.ofJob(repo.jobId()).stream().filter(grant -> !"REVOKED".equals(grant.status())).toList();
 		for (PullRequest pull : this.repositories.openPullRequests(repo.repository())) {
-			if (pull.authorLogin().equals(bot) || grantees.stream().anyMatch(grant -> sameAccount(grant, pull.authorId(),
-					pull.authorLogin()))) {
+			if (pull.authorLogin().equals(bot)) {
 				continue;
 			}
 			this.repositories.closePullRequest(repo.repository(), pull.number());
 			log.info("Closed pull request {} on {} opened by {}", pull.number(), repo.repository().fullName(), pull.authorLogin());
-			audit(repo.intermediary() ? "repo.foreign_pull_request_closed" : "repo.outsider_pull_request_closed", repo.jobId());
+			audit("repo.foreign_pull_request_closed", repo.jobId());
 		}
 	}
 
 	/**
-	 * The organization, the installation, and each running Job's repositories read back against what
-	 * vibefix expects (AD-10, AD-11, AD-12); any difference alerts every Administrator, once a day.
+	 * The organization, the runner, the installation, and each running Job's repositories read back against
+	 * what vibefix expects (AD-10, AD-11, AD-12, AD-46); any difference alerts every Administrator, once a day.
 	 * @return the differences found
 	 */
 	List<String> sweep() {
 		List<String> differences = new ArrayList<>();
-		try {
-			differences.addAll(this.repositories.organizationDifferences());
-			differences.addAll(this.repositories.organizationPeopleDifferences(this.operator));
-			differences.addAll(this.repositories.installationDifferences());
-		}
-		catch (GitHubException failed) {
-			differences.add("the organization could not be read back: HTTP " + failed.status());
-		}
+		// Each read on its own: one that GitHub refuses neither hides the others nor is named as another.
+		readBack(differences, "the organization", this.repositories::organizationDifferences);
+		readBack(differences, "the runner", this.repositories::runnerDifferences);
+		readBack(differences, "the organization's people", () -> this.repositories.organizationPeopleDifferences(this.operator));
+		readBack(differences, "the installation", this.repositories::installationDifferences);
 		String bot = null;
 		for (PlatformRepo repo : running()) {
 			try {
@@ -228,8 +236,23 @@ class PlatformGuard {
 		return differences;
 	}
 
+	/** Adds what one organization-level read found, or that {@code what} could not be read back. */
+	private static void readBack(List<String> differences, String what, java.util.function.Supplier<List<String>> read) {
+		try {
+			differences.addAll(read.get());
+		}
+		catch (GitHubException failed) {
+			differences.add(what + " could not be read back: HTTP " + failed.status());
+		}
+	}
+
+	/**
+	 * One repository read back: private, the features and forking off, and Actions disabled (AD-11); then, on
+	 * the Intermediary, no collaborator, no invitation, and no recent change but the System's (FR-19, SM-2), which
+	 * is what keeps it System-only without a ruleset; on the Working Repository, exactly the expected grants.
+	 */
 	private List<String> repositoryDifferences(PlatformRepo repo, String bot) {
-		List<String> differences = new ArrayList<>(this.repositories.featureDifferences(repo.repository()));
+		List<String> differences = new ArrayList<>(this.repositories.settingsDifferences(repo.repository()));
 		Map<String, String> collaborators = new TreeMap<>(this.repositories.directCollaborators(repo.repository()));
 		Set<String> invitees = new TreeSet<>(this.repositories.pendingInvitees(repo.repository()));
 		String name = repo.repository().fullName();
@@ -241,7 +264,6 @@ class PlatformGuard {
 			if (!invitees.isEmpty()) {
 				differences.add(name + ": invitations for " + invitees + " on the Intermediary Repository");
 			}
-			differences.addAll(this.repositories.rulesetDifferences(repo.repository()));
 			Set<String> actors = new TreeSet<>(this.repositories.recentActors(repo.repository()));
 			actors.remove(bot);
 			if (!actors.isEmpty()) {

@@ -132,9 +132,8 @@ class FinalMergeCheckOperation implements OperationHandler {
 				this.app.getObject().revoke(token);
 			}
 			TrialMerge trial = this.app.getObject()
-				.trialMerge(source.repositoryFullName(), source.defaultBranch(),
-						Objects.requireNonNull(read.intermediary()).fullName(), Objects.requireNonNull(setup.defaultBranch()),
-						head);
+				.trialMerge(source.repositoryFullName(), source.defaultBranch(), Objects.requireNonNull(read.intermediary()),
+						Objects.requireNonNull(setup.defaultBranch()), head);
 			if (trial.moved()) {
 				return new Outcome.Transient("INTERMEDIARY_MOVED");
 			}

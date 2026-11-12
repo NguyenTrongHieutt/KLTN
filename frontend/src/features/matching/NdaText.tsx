@@ -22,7 +22,7 @@ export function NdaText() {
   )
 }
 
-/** N-23 for a Code Job: commit metadata is public, with "Tôi đã hiểu" (asked once per notice version). */
+/** N-23 for a Code Job: the Customer reads commit names and emails, with "Tôi đã hiểu" (asked once per notice version). */
 export function CommitEmailNotice({ understood, onChange }: { understood: boolean; onChange: (understood: boolean) => void }) {
   return (
     <div role="note" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">

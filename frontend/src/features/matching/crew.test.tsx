@@ -615,7 +615,7 @@ const commitment = (overrides: object = {}, panel: object = {}) => ({
     codeJob: true,
     commitEmailNoticeAcknowledged: false,
     githubLogin: 'minh-dev',
-    ndaVersion: '1.0',
+    ndaVersion: '2.0',
     commitmentVersion: '1.0',
     splitRules: { mentorShareCapPercent: 30, draftDays: 7, confirmationDays: 3, editLimit: 3 },
     ...panel,
@@ -870,7 +870,7 @@ describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.
     expect(screen.getByText(/Phần của người hướng dẫn tối đa 30%/)).toBeInTheDocument()
     expect(screen.getByText(/Mỗi bản phân chia có 3 ngày/)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Cam kết tham gia · phiên bản 1.0' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 3, name: 'Cam kết bảo mật (NDA) · phiên bản 1.0' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Cam kết bảo mật (NDA) · phiên bản 2.0' })).toBeInTheDocument()
 
     const sign = screen.getByRole('button', { name: 'Ký và tham gia' })
     expect(sign).toBeDisabled()
@@ -882,7 +882,7 @@ describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.
 
     await waitFor(() =>
       expect(sent).toEqual({
-        ndaVersion: '1.0',
+        ndaVersion: '2.0',
         commitmentVersion: '1.0',
         publicCodeAcknowledged: true,
         commitEmailNoticeAcknowledged: true,

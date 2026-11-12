@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import vn.vibefix.github.GitHubApps.InstallationToken;
+import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 
 /**
  * The Merge App's installations (AD-10, Story 8.7): each Customer installs it on their Source Repository
@@ -87,17 +88,19 @@ public interface MergeApp {
 
 	/**
 	 * Merges {@code intermediaryBranch} of the Intermediary Repository into the Source default branch in
-	 * memory, in the sandbox, with nothing pushed (AD-11). Both are read as public repositories.
+	 * memory, in the sandbox, with nothing pushed (AD-11). The public Source Repository is read without a
+	 * token, and the private Intermediary with a Platform App token narrowed to it with {@code contents} read.
 	 */
-	TrialMerge trialMerge(String sourceFullName, String sourceBranch, String intermediaryFullName, String intermediaryBranch,
-			String sha);
+	TrialMerge trialMerge(String sourceFullName, String sourceBranch, PlatformRepository intermediary,
+			String intermediaryBranch, String sha);
 
 	/**
 	 * Pushes {@code sha}, read on {@code intermediaryBranch}, to a new branch of the Source Repository,
-	 * never forced, in the sandbox with the token.
+	 * never forced, in the sandbox with the token; the private Intermediary is cloned with a Platform App
+	 * token narrowed to it with {@code contents} read.
 	 * @return whether the push went through; one already there counts
 	 */
-	boolean push(InstallationToken token, String intermediaryFullName, String intermediaryBranch, String sha,
+	boolean push(InstallationToken token, PlatformRepository intermediary, String intermediaryBranch, String sha,
 			String sourceFullName, String branch);
 
 	/** The open pull request from {@code branch}, if one is. */

@@ -9,11 +9,14 @@ import java.util.UUID;
  */
 public interface Notices {
 
-	/** N-23: commits pushed to the public repositories publish their author's name and email. */
+	/** N-23: commits pushed to the Working Repository carry their author's name and email, which the Customer reads. */
 	String COMMIT_EMAIL = "COMMIT_EMAIL";
 
-	/** N-23's current version. */
-	String COMMIT_EMAIL_VERSION = "1.0";
+	/**
+	 * N-23's current version: 2.0 since 2026-11-12, when the repositories became private and the text says the
+	 * Customer reads the emails, not the public; an acknowledgment of 1.0 is asked again.
+	 */
+	String COMMIT_EMAIL_VERSION = "2.0";
 
 	/** N-24: what vibefix receives from GitHub when an account links it, and what the link then holds. */
 	String LINK_GITHUB = "LINK_GITHUB";

@@ -64,6 +64,8 @@ class FinalMergeIT extends IntegrationTest {
 		try {
 			DIRECTORY = Files.createTempDirectory("final-merge-it-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
+			// AD-46: the runner the organization read-back requires (Story 23.3).
+			GITHUB.runner("vibefix-runner");
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 		}
 		catch (Exception ex) {
@@ -120,6 +122,7 @@ class FinalMergeIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.id", () -> "123456");
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
 		registry.add("vibefix.github.merge-app.id", () -> "654321");
 		registry.add("vibefix.github.merge-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 	}

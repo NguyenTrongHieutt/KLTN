@@ -132,7 +132,7 @@ class AgreementReviewIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}")).andExpect(status().isOk());
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/nda").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
+			.content("{\"ndaVersion\":\"2.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
 		save(0, "Sửa lỗi hai khách đặt trùng bàn.").andExpect(status().isOk());
 		share(1).andExpect(status().isOk());
 	}

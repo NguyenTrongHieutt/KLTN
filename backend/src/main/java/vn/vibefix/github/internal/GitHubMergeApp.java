@@ -17,6 +17,7 @@ import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.MergeApp;
+import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 import vn.vibefix.shared.SandboxJobException;
 import vn.vibefix.shared.SandboxJobs;
 
@@ -30,6 +31,9 @@ class GitHubMergeApp implements MergeApp {
 
 	/** The selection read's one permission. */
 	static final Map<String, String> SELECTION_READ = Map.of("metadata", "read");
+
+	/** The Platform App token that reads the private Intermediary for the sandbox (Story 23.3). */
+	static final Map<String, String> INTERMEDIARY_READ = Map.of("contents", "read");
 
 	private static final int PAGE = 100;
 
@@ -123,42 +127,48 @@ class GitHubMergeApp implements MergeApp {
 	}
 
 	@Override
-	public TrialMerge trialMerge(String sourceFullName, String sourceBranch, String intermediaryFullName,
+	public TrialMerge trialMerge(String sourceFullName, String sourceBranch, PlatformRepository intermediary,
 			String intermediaryBranch, String sha) {
-		ObjectNode input = JsonNodeFactory.instance.objectNode();
-		input.put("source", sourceFullName);
-		input.put("sourceBranch", sourceBranch);
-		input.put("intermediary", intermediaryFullName);
-		input.put("intermediaryBranch", intermediaryBranch);
-		input.put("sha", sha);
-		JsonNode output;
-		try {
-			output = this.sandbox.run(FinalMergeTrialJobHandler.TYPE, input).output();
-		}
-		catch (SandboxJobException ex) {
-			throw new GitHubException(0, "The trial merge into " + sourceFullName + " did not run: " + ex.getMessage());
-		}
+		// The private Intermediary is fetched with a Platform App token narrowed to it with contents read.
+		JsonNode output = this.apps.withToken(App.PLATFORM, List.of(intermediary.id()), INTERMEDIARY_READ, read -> {
+			ObjectNode input = JsonNodeFactory.instance.objectNode();
+			input.put("source", sourceFullName);
+			input.put("sourceBranch", sourceBranch);
+			input.put("intermediary", intermediary.fullName());
+			input.put("intermediaryBranch", intermediaryBranch);
+			input.put("sha", sha);
+			input.put("intermediaryToken", read.value());
+			try {
+				return this.sandbox.run(FinalMergeTrialJobHandler.TYPE, input).output();
+			}
+			catch (SandboxJobException ex) {
+				throw new GitHubException(0, "The trial merge into " + sourceFullName + " did not run: " + ex.getMessage());
+			}
+		});
 		List<String> conflicts = new ArrayList<>();
 		output.path("conflicts").forEach(path -> conflicts.add(path.asString("")));
 		return new TrialMerge(output.path("clean").asBoolean(false), output.path("moved").asBoolean(false), conflicts);
 	}
 
 	@Override
-	public boolean push(InstallationToken token, String intermediaryFullName, String intermediaryBranch, String sha,
+	public boolean push(InstallationToken token, PlatformRepository intermediary, String intermediaryBranch, String sha,
 			String sourceFullName, String branch) {
-		ObjectNode input = JsonNodeFactory.instance.objectNode();
-		input.put("source", intermediaryFullName);
-		input.put("sha", sha);
-		input.put("sourceBranch", intermediaryBranch);
-		input.put("branch", branch);
-		input.put("target", sourceFullName);
-		input.put("token", token.value());
-		try {
-			return sha.equals(this.sandbox.run(RepositoryCopyJobHandler.TYPE, input).output().path("pushed").asString(""));
-		}
-		catch (SandboxJobException ex) {
-			throw new GitHubException(0, "The push to " + sourceFullName + " did not run: " + ex.getMessage());
-		}
+		return this.apps.withToken(App.PLATFORM, List.of(intermediary.id()), INTERMEDIARY_READ, read -> {
+			ObjectNode input = JsonNodeFactory.instance.objectNode();
+			input.put("source", intermediary.fullName());
+			input.put("sha", sha);
+			input.put("sourceBranch", intermediaryBranch);
+			input.put("branch", branch);
+			input.put("target", sourceFullName);
+			input.put("token", token.value());
+			input.put("sourceToken", read.value());
+			try {
+				return sha.equals(this.sandbox.run(RepositoryCopyJobHandler.TYPE, input).output().path("pushed").asString(""));
+			}
+			catch (SandboxJobException ex) {
+				throw new GitHubException(0, "The push to " + sourceFullName + " did not run: " + ex.getMessage());
+			}
+		});
 	}
 
 	@Override

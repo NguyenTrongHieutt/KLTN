@@ -33,12 +33,12 @@ class AppExpectationsTest {
 
 	@Test
 	void aMissingEventOrAnExtraPermissionIsADifference() {
-		Set<String> noPush = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
-		noPush.remove("push");
+		Set<String> noMember = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
+		noMember.remove("member");
 		Map<String, String> issues = new HashMap<>(AppExpectations.MERGE_PERMISSIONS);
 		issues.put("issues", "write");
 
-		assertThat(AppExpectations.differences(App.PLATFORM, platform(noPush))).singleElement()
+		assertThat(AppExpectations.differences(App.PLATFORM, platform(noMember))).singleElement()
 			.asString()
 			.startsWith("events: ")
 			.doesNotContain("permissions");
@@ -48,28 +48,37 @@ class AppExpectationsTest {
 			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of []"));
 	}
 
+	/** 2026-11-12 (AD-10, AD-12, R9): the Platform App no longer subscribes to push or repository_ruleset. */
 	@Test
-	void withARunnerThePlatformAppHoldsActionsWriteAndOnlyThen() {
-		Map<String, String> withActions = new HashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
-		withActions.put("actions", "write");
-		Registration dispatching = new Registration("vibefix-dev-platform", withActions, AppExpectations.PLATFORM_EVENTS);
+	void thePlatformAppSubscribesToNeitherPushNorRepositoryRulesets() {
+		assertThat(AppExpectations.PLATFORM_EVENTS).containsExactlyInAnyOrder("pull_request", "repository", "member",
+				"membership", "organization");
+		Set<String> withPush = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
+		withPush.add("push");
+		withPush.add("repository_ruleset");
 
-		assertThat(AppExpectations.permissions(App.PLATFORM, true)).isEqualTo(withActions);
-		assertThat(AppExpectations.permissions(App.PLATFORM, false)).isEqualTo(AppExpectations.PLATFORM_PERMISSIONS);
-		assertThat(AppExpectations.permissions(App.MERGE, true)).as("the Merge App never dispatches")
-			.isEqualTo(AppExpectations.MERGE_PERMISSIONS);
-		assertThat(AppExpectations.differences(App.PLATFORM, dispatching, true)).isEmpty();
-		assertThat(AppExpectations.differences(App.PLATFORM, platform(AppExpectations.PLATFORM_EVENTS), true)).singleElement()
+		assertThat(AppExpectations.differences(App.PLATFORM, platform(withPush))).singleElement()
 			.asString()
-			.startsWith("permissions: ")
-			.endsWith("instead of " + new TreeMap<>(withActions));
-		assertThat(AppExpectations.differences(App.PLATFORM, dispatching)).as("without a runner, Actions write is a difference")
+			.isEqualTo("events: [member, membership, organization, pull_request, push, repository, repository_ruleset]"
+					+ " instead of [member, membership, organization, pull_request, repository]");
+	}
+
+	/** The runner is required, so the Platform App always holds Actions write to dispatch it (AD-46). */
+	@Test
+	void thePlatformAppAlwaysHoldsActionsAndWorkflowsWrite() {
+		Map<String, String> withoutActions = new HashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
+		withoutActions.remove("actions");
+
+		assertThat(AppExpectations.permissions(App.PLATFORM)).containsEntry("actions", "write")
+			.containsEntry("workflows", "write");
+		assertThat(AppExpectations.permissions(App.MERGE)).as("the Merge App never dispatches")
+			.isEqualTo(AppExpectations.MERGE_PERMISSIONS);
+		assertThat(AppExpectations.differences(App.PLATFORM,
+				new Registration("vibefix-dev-platform", withoutActions, AppExpectations.PLATFORM_EVENTS)))
 			.singleElement()
 			.asString()
-			.contains("actions=write");
-		assertThat(AppExpectations.differences(App.MERGE,
-				new Registration("vibefix-dev-merge", AppExpectations.MERGE_PERMISSIONS, Set.of()), true))
-			.isEmpty();
+			.startsWith("permissions: ")
+			.endsWith("instead of " + new TreeMap<>(AppExpectations.PLATFORM_PERMISSIONS));
 	}
 
 	private static Registration platform(Set<String> events) {

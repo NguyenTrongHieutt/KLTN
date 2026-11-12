@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.JsonNode;
@@ -28,25 +27,19 @@ import vn.vibefix.shared.SandboxJobException;
 import vn.vibefix.shared.SandboxJobs;
 
 /**
- * {@link PlatformRepositories} with the Platform App (AD-10, AD-11, Spike S4). Creating a repository and
- * forking use AD-10's unnarrowed purposes, since GitHub refuses both to a token narrowed by
- * {@code repository_ids}; every other call is narrowed to its repository and the permissions it needs.
- * The rulesets are defined once here, for Setup and for the sweep (AD-12).
+ * {@link PlatformRepositories} with the Platform App (AD-10, AD-11, Spike S4, Spike S6). Creating a
+ * repository uses AD-10's unnarrowed creation purpose, since the repository does not exist yet; every
+ * other call is narrowed to its repository and the permissions it needs. Both Job repositories are private
+ * copies (D1, D5): every pull-request call holds {@code contents} read besides its {@code pull_requests}
+ * permission, as GitHub needs on a private repository (Spike S6 Part C), and a sandbox clone of a platform
+ * repository gets a token narrowed to it with {@code contents} read. The runner's state is defined once here,
+ * for Setup's gate and for the sweep (AD-12, AD-46).
  */
 @Component
 class GitHubPlatformRepositories implements PlatformRepositories {
 
-	/** AD-11's ruleset on the default branch. */
-	static final String DEFAULT_BRANCH_RULESET = "vibefix-default-branch";
-
-	/** AD-11's ruleset on {@code handover/**}. */
-	static final String HANDOVER_RULESET = "vibefix-handover";
-
-	static final Map<String, Set<String>> RULES = Map.of(DEFAULT_BRANCH_RULESET, Set.of("update", "non_fast_forward", "deletion"),
-			HANDOVER_RULESET, Set.of("creation", "update", "deletion"));
-
-	static final Map<String, String> REFS = Map.of(DEFAULT_BRANCH_RULESET, "~DEFAULT_BRANCH", HANDOVER_RULESET,
-			"refs/heads/handover/**");
+	/** The runner's one workflow, as {@code deploy/runner/} publishes it (AD-46). */
+	static final String RUNNER_WORKFLOW = "s6-copy.yml";
 
 	/** GitHub expires a repository invitation 7 days after it is sent. */
 	static final Duration INVITATION_LIFETIME = Duration.ofDays(7);
@@ -67,28 +60,29 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			}
 			""";
 
-	private static final Map<String, Object> FEATURES_OFF = Map.of("has_wiki", false, "has_issues", false, "has_projects",
-			false, "has_discussions", false);
+	/** The features AD-11 keeps off on every platform repository, as GitHub names them. */
+	static final List<String> FEATURES = List.of("has_wiki", "has_issues", "has_projects", "has_discussions");
+
+	/**
+	 * A pull-request read on a private repository: GitHub needs {@code contents} read besides
+	 * {@code pull_requests} (Spike S6 Part C, deferred-work 659).
+	 */
+	static final Map<String, String> PULLS_READ = Map.of("contents", "read", "pull_requests", "read");
+
+	/** A pull-request write on a private repository, which needs {@code contents} read too (Spike S6 Part C). */
+	static final Map<String, String> PULLS_WRITE = Map.of("contents", "read", "pull_requests", "write");
 
 	private final GitHubAppsClient apps;
 
 	private final SandboxJobs sandbox;
 
-	private final Duration forkPoll;
-
-	private final Duration forkWait;
-
 	private final Clock clock;
 
 	private volatile @Nullable String bot;
 
-	GitHubPlatformRepositories(GitHubAppsClient apps, SandboxJobs sandbox,
-			@Value("${vibefix.github.fork-poll:2s}") Duration forkPoll, @Value("${vibefix.github.fork-wait:5m}") Duration forkWait,
-			Clock clock) {
+	GitHubPlatformRepositories(GitHubAppsClient apps, SandboxJobs sandbox, Clock clock) {
 		this.apps = apps;
 		this.sandbox = sandbox;
-		this.forkPoll = forkPoll;
-		this.forkWait = forkWait;
 		this.clock = clock;
 	}
 
@@ -106,9 +100,12 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	@Override
 	public PlatformRepository create(String name) {
 		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.REPOSITORY_CREATION, token -> {
-			Map<String, Object> body = new java.util.LinkedHashMap<>(FEATURES_OFF);
+			Map<String, Object> body = new java.util.LinkedHashMap<>();
 			body.put("name", name);
-			body.put("private", false);
+			body.put("private", true);
+			FEATURES.forEach(feature -> body.put(feature, false));
+			// GitHub's create takes no allow_forking: the organization's private forking setting decides it, which
+			// organizationDifferences checks and settingsDifferences reads back.
 			body.put("auto_init", false);
 			GitHubHttp.Answer answer = http().send("POST", "/orgs/" + organization() + "/repos", token.value(), body);
 			return repository(require(answer, "create the repository " + name), name);
@@ -122,6 +119,24 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public void copy(String sourceFullName, String sha, String sourceBranch, String branch, PlatformRepository target) {
+		push(sourceFullName, null, sha, sourceBranch, branch, target);
+	}
+
+	@Override
+	public void copy(PlatformRepository source, String sha, String sourceBranch, String branch, PlatformRepository target) {
+		// The private source is cloned with its own token, narrowed to it with contents read.
+		this.apps.withToken(App.PLATFORM, List.of(source.id()), Map.of("contents", "read"), read -> {
+			push(source.fullName(), read, sha, sourceBranch, branch, target);
+			return null;
+		});
+	}
+
+	/**
+	 * The sandbox copy: {@code sha} read on {@code sourceBranch} and pushed to {@code branch} of the target with
+	 * a token narrowed to it; {@code sourceToken} clones a private source, none a public one.
+	 */
+	private void push(String sourceFullName, @Nullable InstallationToken sourceToken, String sha, String sourceBranch,
+			String branch, PlatformRepository target) {
 		this.apps.withToken(App.PLATFORM, List.of(target.id()), Map.of("contents", "write", "workflows", "write"), token -> {
 			ObjectNode input = JsonNodeFactory.instance.objectNode();
 			input.put("source", sourceFullName);
@@ -130,6 +145,9 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			input.put("branch", branch);
 			input.put("target", target.fullName());
 			input.put("token", token.value());
+			if (sourceToken != null) {
+				input.put("sourceToken", sourceToken.value());
+			}
 			JsonNode output;
 			try {
 				output = this.sandbox.run(RepositoryCopyJobHandler.TYPE, input).output();
@@ -146,47 +164,9 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public PlatformRepository fork(PlatformRepository from, String name) {
-		GitHubHttp.Answer answer = this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.FORK,
-				token -> http().send("POST", "/repos/" + from.fullName() + "/forks", token.value(),
-						Map.of("organization", organization(), "name", name, "default_branch_only", true)));
-		if (answer.status() != 202 && answer.status() != 201) {
-			throw new GitHubException(answer.status(), "GitHub refused the fork of " + from.fullName() + ": HTTP "
-					+ answer.status());
-		}
-		PlatformRepository fork = repository(answer.body(), name);
-		long waited = 0;
-		while (true) {
-			GitHubHttp.Answer ready = this.apps.withToken(App.PLATFORM, List.of(fork.id()), Map.of("contents", "read"),
-					token -> http().send("GET", "/repos/" + fork.fullName() + "/commits?per_page=1", token.value(), null));
-			if (ready.ok() && ready.body().size() > 0) {
-				break;
-			}
-			if (waited >= this.forkWait.toMillis()) {
-				throw new GitHubException(ready.status(), "The fork " + fork.fullName() + " was not ready after "
-						+ this.forkWait.toSeconds() + " s");
-			}
-			sleep();
-			waited += this.forkPoll.toMillis();
-		}
-		return fork;
-	}
-
-	@Override
-	public void turnFeaturesOff(PlatformRepository repository) {
-		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
-			require(http().send("PATCH", "/repos/" + repository.fullName(), token.value(), FEATURES_OFF),
-					"turn the features of " + repository.fullName() + " off");
-			return null;
-		});
-	}
-
-	@Override
 	public List<String> organizationDifferences() {
 		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
 			JsonNode org = require(http().send("GET", "/orgs/" + organization(), token.value(), null), "read the organization");
-			JsonNode actions = require(http().send("GET", "/orgs/" + organization() + "/actions/permissions", token.value(), null),
-					"read the organization's Actions permissions");
 			List<String> differences = new ArrayList<>();
 			if (!org.path("two_factor_requirement_enabled").asBoolean(false)) {
 				differences.add("two-factor authentication is not required");
@@ -195,28 +175,77 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 				differences.add("base permission is " + org.path("default_repository_permission").asString("absent")
 						+ " instead of none");
 			}
+			if (org.path("members_can_fork_private_repositories").asBoolean(false)) {
+				// AD-11: a new private repository's allow_forking follows this setting (Spike S6).
+				differences.add("members may fork private repositories (members_can_fork_private_repositories=true)"
+						+ " instead of never");
+			}
 			String runner = this.apps.properties().runnerRepository();
 			if (runner == null) {
-				if (!"none".equals(actions.path("enabled_repositories").asString(""))) {
-					differences.add("GitHub Actions are enabled for " + actions.path("enabled_repositories").asString("absent")
-							+ " repositories");
-				}
+				// AD-46: GitHub Actions run on the runner only, so a missing runner is a difference, never a fallback.
+				differences.add("vibefix.github.runner-repository is not set: GitHub Actions must run on the runner only");
 			}
 			else {
-				differences.addAll(runnerDifferences(runner, actions, token));
+				JsonNode actions = require(http().send("GET", "/orgs/" + organization() + "/actions/permissions", token.value(),
+						null), "read the organization's Actions permissions");
+				differences.addAll(actionsDifferences(runner, actions, token));
 			}
 			return differences;
 		});
 	}
 
+	@Override
+	public List<String> runnerDifferences() {
+		String runner = this.apps.properties().runnerRepository();
+		if (runner == null) {
+			return List.of();
+		}
+		String fullName = organization() + "/" + runner;
+		GitHubHttp.Answer answer = this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ,
+				token -> http().send("GET", "/repos/" + fullName, token.value(), null));
+		if (answer.status() == 404) {
+			return List.of("the runner " + fullName + " does not exist");
+		}
+		JsonNode body = require(answer, "read the runner " + fullName);
+		PlatformRepository repository = repository(body, runner);
+		List<String> differences = new ArrayList<>();
+		if (!body.path("private").asBoolean(false)) {
+			differences.add("the runner " + fullName + " is public instead of private");
+		}
+		String branch = body.path("default_branch").asString("main");
+		List<String> workflows = this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"),
+				token -> {
+					GitHubHttp.Answer listed = http().send("GET", "/repos/" + fullName + "/contents/.github/workflows?ref="
+							+ java.net.URLEncoder.encode(branch, java.nio.charset.StandardCharsets.UTF_8), token.value(), null);
+					List<String> names = new ArrayList<>();
+					if (listed.status() != 404) {
+						require(listed, "list the workflows of the runner " + fullName)
+							.forEach(entry -> names.add(entry.path("name").asString("")));
+					}
+					return names.stream().sorted().toList();
+				});
+		if (!workflows.equals(List.of(RUNNER_WORKFLOW))) {
+			differences.add("the runner " + fullName + " holds " + workflows + " in .github/workflows instead of ["
+					+ RUNNER_WORKFLOW + "] only");
+		}
+		Map<String, String> collaborators = directCollaborators(repository);
+		if (!collaborators.isEmpty()) {
+			differences.add("the runner " + fullName + " has collaborators " + collaborators.keySet());
+		}
+		Set<String> invitees = pendingInvitees(repository);
+		if (!invitees.isEmpty()) {
+			differences.add("the runner " + fullName + " has invitations for " + invitees);
+		}
+		return differences;
+	}
+
 	/**
-	 * With a runner repository configured (Spike S6 revision), Actions run on that one repository only:
-	 * "Selected repositories", listing it alone ({@code GET /orgs/{org}/actions/permissions/repositories}),
-	 * with the organization's own actions only ({@code allowed_actions} {@code local_only}). Workflows
-	 * get read tokens by default and may not approve pull requests
-	 * ({@code GET /orgs/{org}/actions/permissions/workflow}).
+	 * Actions run on the runner only (Spike S6 revision, AD-46): "Selected repositories", listing it alone
+	 * ({@code GET /orgs/{org}/actions/permissions/repositories}), with the organization's own actions only
+	 * ({@code allowed_actions} {@code local_only}). Workflows get read tokens by default and may not approve
+	 * pull requests ({@code GET /orgs/{org}/actions/permissions/workflow}).
 	 */
-	private List<String> runnerDifferences(String runner, JsonNode actions, InstallationToken token) {
+	private List<String> actionsDifferences(String runner, JsonNode actions, InstallationToken token) {
 		List<String> differences = new ArrayList<>();
 		String enabled = actions.path("enabled_repositories").asString("");
 		if ("none".equals(enabled)) {
@@ -260,76 +289,6 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 					+ (approve.isMissingNode() ? "absent" : approve.asString()) + ") instead of never");
 		}
 		return differences;
-	}
-
-	@Override
-	public void createRulesets(PlatformRepository intermediary) {
-		long appId = this.apps.appId(App.PLATFORM);
-		List<Map<String, Object>> bypass = List.of(Map.of("actor_id", appId, "actor_type", "Integration", "bypass_mode", "always"));
-		this.apps.withToken(App.PLATFORM, List.of(intermediary.id()), Map.of("administration", "write"), token -> {
-			String path = "/repos/" + intermediary.fullName() + "/rulesets";
-			Set<String> existing = new HashSet<>();
-			for (JsonNode ruleset : require(http().send("GET", path, token.value(), null), "list the rulesets")) {
-				existing.add(ruleset.path("name").asString(""));
-			}
-			for (String name : List.of(DEFAULT_BRANCH_RULESET, HANDOVER_RULESET)) {
-				if (existing.contains(name)) {
-					continue;
-				}
-				List<Map<String, String>> rules = RULES.get(name).stream().sorted().map(type -> Map.of("type", type)).toList();
-				require(http().send("POST", path, token.value(), Map.of("name", name, "target", "branch", "enforcement", "active",
-						"conditions", Map.of("ref_name", Map.of("include", List.of(REFS.get(name)), "exclude", List.of())),
-						"rules", rules, "bypass_actors", bypass)), "create the ruleset " + name);
-			}
-			return null;
-		});
-	}
-
-	@Override
-	public List<String> rulesetDifferences(PlatformRepository intermediary) {
-		long appId = this.apps.appId(App.PLATFORM);
-		// GitHub shows bypass_actors only to a caller with write access to the ruleset (Spike S4).
-		return this.apps.withToken(App.PLATFORM, List.of(intermediary.id()), Map.of("administration", "write"), token -> {
-			String path = "/repos/" + intermediary.fullName() + "/rulesets";
-			Map<String, JsonNode> found = new java.util.HashMap<>();
-			for (JsonNode summary : require(http().send("GET", path, token.value(), null), "list the rulesets")) {
-				String name = summary.path("name").asString("");
-				if (RULES.containsKey(name)) {
-					found.put(name, require(http().send("GET", path + "/" + summary.path("id").asString(), token.value(), null),
-							"read the ruleset " + name));
-				}
-			}
-			List<String> differences = new ArrayList<>();
-			for (String name : List.of(DEFAULT_BRANCH_RULESET, HANDOVER_RULESET)) {
-				JsonNode ruleset = found.get(name);
-				if (ruleset == null) {
-					differences.add(name + ": missing");
-					continue;
-				}
-				if (!"active".equals(ruleset.path("enforcement").asString(""))) {
-					differences.add(name + ": not active");
-				}
-				Set<String> rules = new HashSet<>();
-				ruleset.path("rules").forEach(rule -> rules.add(rule.path("type").asString("")));
-				if (!rules.equals(RULES.get(name))) {
-					differences.add(name + ": rules " + new java.util.TreeSet<>(rules) + " instead of "
-							+ new java.util.TreeSet<>(RULES.get(name)));
-				}
-				Set<String> includes = new HashSet<>();
-				ruleset.path("conditions").path("ref_name").path("include").forEach(ref -> includes.add(ref.asString("")));
-				if (!includes.equals(Set.of(REFS.get(name)))) {
-					differences.add(name + ": applies to " + includes + " instead of " + REFS.get(name));
-				}
-				JsonNode actors = ruleset.path("bypass_actors");
-				boolean onlyTheApp = actors.size() == 1 && "Integration".equals(actors.get(0).path("actor_type").asString(""))
-						&& actors.get(0).path("actor_id").asLong() == appId
-						&& "always".equals(actors.get(0).path("bypass_mode").asString(""));
-				if (!onlyTheApp) {
-					differences.add(name + ": the Platform App is not the only bypass actor");
-				}
-			}
-			return differences;
-		});
 	}
 
 	@Override
@@ -482,7 +441,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public List<PullRequest> openPullRequests(PlatformRepository repository) {
-		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"), token -> {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_READ, token -> {
 			List<PullRequest> open = new ArrayList<>();
 			for (JsonNode pull : require(http().send("GET", "/repos/" + repository.fullName() + "/pulls?state=open&per_page=100",
 					token.value(), null), "list the pull requests of " + repository.fullName())) {
@@ -496,7 +455,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public void closePullRequest(PlatformRepository repository, int number) {
-		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_WRITE, token -> {
 			require(http().send("PATCH", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(),
 					Map.of("state", "closed")), "close pull request " + number);
 			return null;
@@ -505,7 +464,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public int openPullRequest(PlatformRepository repository, String head, String base, String title, String body) {
-		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_WRITE, token -> {
 			String path = "/repos/" + repository.fullName() + "/pulls";
 			String owner = repository.fullName().substring(0, repository.fullName().indexOf('/'));
 			JsonNode existing = require(http().send("GET", path + "?state=all&per_page=1&head="
@@ -535,14 +494,14 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public boolean pullRequestMerged(PlatformRepository repository, int number) {
-		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"),
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_READ,
 				token -> require(http().send("GET", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(), null),
 						"read pull request " + number).path("merged").asBoolean(false));
 	}
 
 	@Override
 	public PullRequestState pullRequest(PlatformRepository repository, int number) {
-		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"), token -> {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_READ, token -> {
 			JsonNode pull = require(
 					http().send("GET", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(), null),
 					"read pull request " + number);
@@ -554,7 +513,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	@Override
 	public List<String> pullRequestComments(PlatformRepository repository, int number) {
 		// A pull request's conversation is its issue's (GitHub's issue comments API), which Pull requests read covers.
-		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"), token -> {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_READ, token -> {
 			List<String> bodies = new ArrayList<>();
 			for (JsonNode comment : pages("/repos/" + repository.fullName() + "/issues/" + number + "/comments?per_page=100",
 					token.value(), "list the comments of pull request " + number)) {
@@ -566,7 +525,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public void commentOnPullRequest(PlatformRepository repository, int number, String body) {
-		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_WRITE, token -> {
 			require(http().send("POST", "/repos/" + repository.fullName() + "/issues/" + number + "/comments", token.value(),
 					Map.of("body", body)), "comment on pull request " + number);
 			return null;
@@ -575,7 +534,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public void renameAndClosePullRequest(PlatformRepository repository, int number, String title) {
-		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), PULLS_WRITE, token -> {
 			require(http().send("PATCH", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(),
 					Map.of("title", title, "state", "closed")), "close pull request " + number);
 			return null;
@@ -672,18 +631,34 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public List<String> featureDifferences(PlatformRepository repository) {
-		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("metadata", "read"), token -> {
-			JsonNode body = require(http().send("GET", "/repos/" + repository.fullName(), token.value(), null),
-					"read " + repository.fullName());
-			List<String> differences = new ArrayList<>();
-			for (String feature : List.of("has_wiki", "has_issues", "has_projects", "has_discussions")) {
-				if (body.path(feature).asBoolean(false)) {
-					differences.add(repository.fullName() + ": " + feature + " is on");
-				}
-			}
-			return differences;
-		});
+	public List<String> settingsDifferences(PlatformRepository repository) {
+		// Administration read covers the Actions permissions; nothing is set, only read back (Spike S6).
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("metadata", "read", "administration", "read"),
+				token -> {
+					String name = repository.fullName();
+					JsonNode body = require(http().send("GET", "/repos/" + name, token.value(), null), "read " + name);
+					List<String> differences = new ArrayList<>();
+					if (!body.path("private").asBoolean(false)) {
+						differences.add(name + ": public instead of private");
+					}
+					for (String feature : FEATURES) {
+						if (body.path(feature).asBoolean(false)) {
+							differences.add(name + ": " + feature + " is on");
+						}
+					}
+					JsonNode forking = body.path("allow_forking");
+					if (!forking.isBoolean() || forking.asBoolean()) {
+						differences.add(name + ": allow_forking is " + (forking.isMissingNode() ? "absent" : forking.asString())
+								+ " instead of false");
+					}
+					JsonNode enabled = require(http().send("GET", "/repos/" + name + "/actions/permissions", token.value(), null),
+							"read the Actions permissions of " + name).path("enabled");
+					if (!enabled.isBoolean() || enabled.asBoolean()) {
+						differences.add(name + ": GitHub Actions are " + (enabled.isBoolean() ? "enabled" : "absent")
+								+ " instead of disabled");
+					}
+					return differences;
+				});
 	}
 
 	@Override
@@ -751,16 +726,24 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public String branchHead(String fullName, String branch) {
-		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
-			// The branch's ref alone: never a tag of the same name, and no commit body with its files.
-			JsonNode ref = require(http().send("GET", "/repos/" + fullName + "/git/ref/heads/" + branch, token.value(), null),
-					"read the head of " + fullName);
-			String sha = ref.path("object").path("sha").asString("");
-			if (!sha.matches("[0-9a-f]{40}")) {
-				throw new GitHubException(0, "The head of " + fullName + " was not a commit SHA");
-			}
-			return sha;
-		});
+		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> head(fullName, branch, token));
+	}
+
+	@Override
+	public String branchHead(PlatformRepository repository, String branch) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"),
+				token -> head(repository.fullName(), branch, token));
+	}
+
+	/** The branch's ref alone: never a tag of the same name, and no commit body with its files. */
+	private String head(String fullName, String branch, InstallationToken token) {
+		JsonNode ref = require(http().send("GET", "/repos/" + fullName + "/git/ref/heads/" + branch, token.value(), null),
+				"read the head of " + fullName);
+		String sha = ref.path("object").path("sha").asString("");
+		if (!sha.matches("[0-9a-f]{40}")) {
+			throw new GitHubException(0, "The head of " + fullName + " was not a commit SHA");
+		}
+		return sha;
 	}
 
 	@Override
@@ -799,16 +782,19 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	@Override
 	public byte[] zip(PlatformRepository repository, String branch) {
-		ObjectNode input = JsonNodeFactory.instance.objectNode();
-		input.put("repository", repository.fullName());
-		input.put("branch", branch);
-		JsonNode output;
-		try {
-			output = this.sandbox.run(RepositoryZipJobHandler.TYPE, input).output();
-		}
-		catch (SandboxJobException ex) {
-			throw new GitHubException(0, "The ZIP of " + repository.fullName() + " did not run: " + ex.getMessage());
-		}
+		// The repository is private: the clone gets a token narrowed to it with contents read.
+		JsonNode output = this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
+			ObjectNode input = JsonNodeFactory.instance.objectNode();
+			input.put("repository", repository.fullName());
+			input.put("branch", branch);
+			input.put("token", token.value());
+			try {
+				return this.sandbox.run(RepositoryZipJobHandler.TYPE, input).output();
+			}
+			catch (SandboxJobException ex) {
+				throw new GitHubException(0, "The ZIP of " + repository.fullName() + " did not run: " + ex.getMessage());
+			}
+		});
 		if (!output.path("zip").isString()) {
 			throw new GitHubException(0, "The ZIP of " + repository.fullName() + " was refused: "
 					+ output.path("refused").asString("UNKNOWN"));
@@ -877,16 +863,6 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 					+ answer.body().path("message").asString(""));
 		}
 		return answer.body();
-	}
-
-	private void sleep() {
-		try {
-			Thread.sleep(this.forkPoll.toMillis());
-		}
-		catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			throw new GitHubException(0, "Interrupted while waiting for a fork");
-		}
 	}
 
 }

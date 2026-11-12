@@ -116,10 +116,28 @@ class RepositoryZipJobHandlerTest {
 		ObjectNode traversal = input("../main");
 		ObjectNode outside = input("main").put("repository", "vibefix-dev/..");
 		ObjectNode absolute = input("/main");
+		ObjectNode blankToken = input("main").put("token", " ");
+		ObjectNode noToken = input("main");
+		noToken.remove("token");
 
 		assertThatThrownBy(() -> this.handler.handle(traversal)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> this.handler.handle(outside)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> this.handler.handle(absolute)).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.handler.handle(blankToken)).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.handler.handle(noToken)).as("every platform repository is private")
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	/**
+	 * Story 23.3: the private repository is listed and cloned with the read token it was given. A {@code file://}
+	 * remote takes no credentials, so this shows the token is accepted and kept out of the output.
+	 */
+	@Test
+	void aPrivateRepositoryIsZippedWithItsReadToken() {
+		JsonNode output = this.handler.handle(input("main"));
+
+		assertThat(output.path("sha").asString()).isEqualTo(this.head);
+		assertThat(output.toString()).doesNotContain("zzzzzzzz");
 	}
 
 	private static ObjectId blob(ObjectInserter inserter, String content) throws Exception {
@@ -130,6 +148,8 @@ class RepositoryZipJobHandlerTest {
 		ObjectNode input = JsonNodeFactory.instance.objectNode();
 		input.put("repository", "vibefix-dev/job-intermediary");
 		input.put("branch", branch);
+		// A fake read token, built at run time: file:// remotes ignore it.
+		input.put("token", String.join("", "gh", "s_", "z".repeat(36)));
 		return input;
 	}
 

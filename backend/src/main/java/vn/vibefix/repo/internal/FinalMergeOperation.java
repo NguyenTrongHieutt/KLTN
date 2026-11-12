@@ -141,7 +141,7 @@ class FinalMergeOperation implements OperationHandler {
 						? new PullRequest(merge.pullNumber(), Objects.requireNonNullElse(merge.pullUrl(), ""))
 						: app.findPull(token, source, branch).orElse(null);
 				if (pull == null) {
-					if (!app.push(token, Objects.requireNonNull(read.intermediary()).fullName(),
+					if (!app.push(token, Objects.requireNonNull(read.intermediary()),
 							Objects.requireNonNull(Objects.requireNonNull(read.setup()).defaultBranch()), head, source, branch)) {
 						merges.fallback(authorizationId, "REFUSED", "PUSH_REFUSED");
 						return new Outcome.Aborted("PUSH_REFUSED");

@@ -1698,7 +1698,12 @@ final class SpikeS6Stub implements AutoCloseable {
 		if (installation == SOURCE_INSTALLATION) {
 			return SpikeS6Command.SOURCE_APP_PERMISSIONS;
 		}
-		return AppExpectations.permissions(App.PLATFORM, this.platformActions);
+		if (this.platformActions) {
+			return AppExpectations.permissions(App.PLATFORM);
+		}
+		Map<String, String> withoutActions = new LinkedHashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
+		withoutActions.remove("actions");
+		return withoutActions;
 	}
 
 	private Map<String, Object> registration(long app) {

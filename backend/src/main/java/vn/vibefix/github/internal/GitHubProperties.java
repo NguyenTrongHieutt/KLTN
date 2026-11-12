@@ -18,9 +18,10 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  * @param webhookUrl where both Apps' webhooks must point ({@code https://…/webhooks}); the daily
  * configuration check compares it when set
  * @param runnerRepository the one repository of the organization that may run GitHub Actions, by name
- * (Spike S6 revision, 2026-11-10): when set, AD-11's read-back wants the organization's Actions on
- * that repository only, and AD-10's Platform App holds Actions write to dispatch it; unset (or blank),
- * Actions stay disabled for every repository, as before
+ * (AD-46, D5): required since 2026-11-12. AD-11's read-back wants the organization's Actions on that
+ * repository only, and the runner private, holding only the published copy workflow, with no
+ * collaborator. Unset (or blank), it is an organization difference: the sweep alerts it, and new
+ * setups wait until it is set
  */
 @ConfigurationProperties("vibefix.github")
 record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
@@ -57,7 +58,7 @@ record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @
 			gitUrl = URI.create("https://github.com");
 		}
 		if (runnerRepository != null && runnerRepository.isBlank()) {
-			// deploy/compose.yaml passes an empty value when no runner is set.
+			// deploy/compose.yaml passes an empty value when no runner is set: unset, which the read-back reports.
 			runnerRepository = null;
 		}
 		if (runnerRepository != null && (!REPOSITORY_NAME.matcher(runnerRepository).matches() || runnerRepository.equals(".")

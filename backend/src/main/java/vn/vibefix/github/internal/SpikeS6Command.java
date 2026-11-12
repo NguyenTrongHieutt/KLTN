@@ -805,7 +805,7 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 	 */
 	private Check platformAndRunner(String organization, String runnerName, Inputs inputs, State state) {
 		Registration registration = this.apps.registration(App.PLATFORM);
-		List<String> appDifferences = AppExpectations.differences(App.PLATFORM, registration, true);
+		List<String> appDifferences = AppExpectations.differences(App.PLATFORM, registration);
 		// What the installation accepted: a changed registration waits for an owner to accept it.
 		GitHubHttp.Answer installation = this.apps.installation(App.PLATFORM);
 		String accepted = installation.body().path("permissions").path("actions").asString("-");

@@ -95,7 +95,7 @@ class CrewChatIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}")).andExpect(status().isOk());
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/nda").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
+			.content("{\"ndaVersion\":\"2.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("SELECT count(*) FROM chat.chat WHERE job_id = :job")
 			.param("job", this.job).query(Long.class).single() == 2);
 		this.crewChat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")

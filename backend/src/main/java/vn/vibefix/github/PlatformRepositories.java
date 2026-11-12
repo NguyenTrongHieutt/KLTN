@@ -10,10 +10,12 @@ import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Job's repositories in the platform organization (AD-11, AD-10): the Intermediary Repository, a copy
- * of the Source Repository at one approved commit, and the Working Repository, its fork inside the
- * organization. Every call mints a token for its one step, narrowed as AD-10 lists, and revokes it; the
- * copy itself runs in the sandbox (AD-32).
+ * A Job's repositories in the platform organization (AD-11, AD-10, D1, D5): the Intermediary Repository and
+ * the Working Repository, two private copies of the Source Repository at one approved commit. There is no
+ * fork, and GitHub Free takes no ruleset on a private repository, so "only the System writes the
+ * Intermediary" is read back from its collaborators and invitations. Every call mints a token for its one
+ * step, narrowed as AD-10 lists, and revokes it; the copy itself runs in the sandbox (AD-32), and a clone
+ * of a private platform repository gets a token narrowed to it with {@code contents} read.
  * @throws GitHubException from every method when GitHub refuses or cannot be reached
  */
 public interface PlatformRepositories {
@@ -25,40 +27,48 @@ public interface PlatformRepositories {
 	/** The repository named {@code name} in the organization, if it exists. */
 	Optional<PlatformRepository> find(String name);
 
-	/** A new public repository, with Wiki, Issues, Projects, and Discussions off (the creation token). */
+	/**
+	 * A new private repository, with Wiki, Issues, Projects, and Discussions off (the creation token). Forking
+	 * stays off through the organization's private forking setting, and its Actions stay disabled through the
+	 * organization's policy, which lets only the runner run.
+	 */
 	PlatformRepository create(String name);
 
 	/**
 	 * Pushes exactly {@code sha} of the public {@code sourceFullName} to {@code branch} of {@code target},
 	 * keeping the commit IDs: a bare clone and a push in the sandbox, with one token narrowed to
-	 * {@code target}.
+	 * {@code target}. A push of a commit the branch already holds changes nothing, so a retry is a no-op.
 	 */
 	void copy(String sourceFullName, String sha, String branch, PlatformRepository target);
 
 	/**
 	 * As {@link #copy(String, String, String, PlatformRepository)}, with {@code sha} read on
-	 * {@code sourceBranch} of the source and pushed to {@code branch} of the target, such as a Handover
-	 * Commit to {@code handover/{handoverId}} (AD-11).
+	 * {@code sourceBranch} of the source and pushed to {@code branch} of the target.
 	 */
 	void copy(String sourceFullName, String sha, String sourceBranch, String branch, PlatformRepository target);
 
-	/** Forks {@code from} inside the organization as {@code name} (the fork token) and waits for GitHub's asynchronous fork. */
-	PlatformRepository fork(PlatformRepository from, String name);
-
-	/** Turns Wiki, Issues, Projects, and Discussions off, as a fork may not inherit it. */
-	void turnFeaturesOff(PlatformRepository repository);
+	/**
+	 * As {@link #copy(String, String, String, String, PlatformRepository)} from a private platform repository,
+	 * such as a Handover Commit on the Working Repository's default branch to {@code handover/{handoverId}} of
+	 * the Intermediary (AD-11): the sandbox clones {@code source} with a second token, narrowed to it with
+	 * {@code contents} read.
+	 */
+	void copy(PlatformRepository source, String sha, String sourceBranch, String branch, PlatformRepository target);
 
 	/**
-	 * How the organization differs from AD-11's settings (2FA required, base permission none, and Actions
-	 * disabled; with {@code vibefix.github.runner-repository} set, Actions on that repository only).
+	 * How the organization differs from AD-11's settings: two-factor authentication required, base permission
+	 * none, members never forking private repositories, and GitHub Actions on the runner only ("Selected
+	 * repositories" listing {@code vibefix.github.runner-repository} alone, the organization's own actions, read
+	 * tokens, and no pull request approvals). An unset runner is a difference.
 	 */
 	List<String> organizationDifferences();
 
-	/** Creates AD-11's two rulesets on the Intermediary Repository, except those that exist by name. */
-	void createRulesets(PlatformRepository intermediary);
-
-	/** How the rulesets differ from AD-11's definition, the bypass actors read with an Administration write token. */
-	List<String> rulesetDifferences(PlatformRepository intermediary);
+	/**
+	 * How the runner differs from AD-46 (deferred-work 634): private, holding only the published copy workflow
+	 * in {@code .github/workflows/} of its default branch, with no collaborator and no invitation. Empty when
+	 * no runner is configured, which {@link #organizationDifferences()} reports.
+	 */
+	List<String> runnerDifferences();
 
 	/**
 	 * What inviting someone did (AD-11).
@@ -221,8 +231,12 @@ public interface PlatformRepositories {
 	/** The lower-case logins with a pending invitation. */
 	Set<String> pendingInvitees(PlatformRepository repository);
 
-	/** How the repository's features differ from AD-11's (Wiki, Issues, Projects, and Discussions off). */
-	List<String> featureDifferences(PlatformRepository repository);
+	/**
+	 * The repository's settings read back against AD-11's: private, with Wiki, Issues, Projects, Discussions,
+	 * and forking off, and GitHub Actions disabled ({@code GET /repos/{r}/actions/permissions} answers
+	 * {@code enabled: false}; nothing sets it, the organization's policy disables it).
+	 */
+	List<String> settingsDifferences(PlatformRepository repository);
 
 	/** How the organization's people differ: owners other than {@code operatorLogin}, and any member who is no owner. */
 	List<String> organizationPeopleDifferences(@Nullable String operatorLogin);
@@ -241,11 +255,18 @@ public interface PlatformRepositories {
 	Optional<SourceRepository> source(long githubId);
 
 	/**
-	 * The commit SHA {@code branch} of a repository the Platform App reads points at now
-	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}): the public Source Repository's default branch, which
-	 * J7 copies until Story 23.6's self-confirmation, or the Working Repository's, which a handover reads.
+	 * The commit SHA {@code branch} of the public Source Repository points at now
+	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}), which J7 copies until Story 23.6's
+	 * self-confirmation.
 	 */
 	String branchHead(String fullName, String branch);
+
+	/**
+	 * The commit SHA {@code branch} of a private platform repository points at now, such as the Working
+	 * Repository's default branch that a handover reads, with a token narrowed to it holding {@code contents}
+	 * read.
+	 */
+	String branchHead(PlatformRepository repository, String branch);
 
 	/** The commits on {@code branch} after {@code baseSha}, oldest first, at most 250 (FR-20, FR-53). */
 	List<String> commitsSince(String fullName, String baseSha, String branch);
@@ -253,7 +274,10 @@ public interface PlatformRepositories {
 	/** Removes {@code login}'s pending invitation, if any (FR-21). */
 	void removeInvitation(PlatformRepository repository, String login);
 
-	/** The ZIP of the repository's {@code branch}, built in the sandbox from tree objects (FR-21, FR-38, AD-32). */
+	/**
+	 * The ZIP of the repository's {@code branch}, built in the sandbox from tree objects (FR-21, FR-38, AD-32),
+	 * cloned with a token narrowed to the repository holding {@code contents} read.
+	 */
 	byte[] zip(PlatformRepository repository, String branch);
 
 	/** Deletes the repository; a repository already gone changes nothing (FR-21). */

@@ -25,6 +25,8 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.springframework.core.env.Environment;
 
 import tools.jackson.databind.JsonNode;
@@ -39,7 +41,10 @@ import vn.vibefix.shared.SandboxJobHandler;
  * points at. Like every handler, a plain class that only the sandbox worker (or the in-process stand-in)
  * creates.
  * <p>
- * Input: {@code repository} ({@code owner/name}) and {@code branch}. Output: {@code zip} (Base64),
+ * The platform repositories are private, so the branch list and the clone use the token it was given,
+ * narrowed to the repository with {@code contents} read; Story 23.10 retires the ZIP.
+ * <p>
+ * Input: {@code repository} ({@code owner/name}), {@code branch}, and {@code token}. Output: {@code zip} (Base64),
  * {@code sha} (the commit archived), and {@code size}; or {@code refused}: {@value #BRANCH_NOT_FOUND} or
  * {@value #TOO_LARGE}.
  */
@@ -84,9 +89,16 @@ final class RepositoryZipJobHandler implements SandboxJobHandler {
 				|| !BRANCH.matcher(branch).matches() || branch.contains("..") || branch.startsWith("/")) {
 			throw new IllegalArgumentException("repository must be owner/name and branch a branch name");
 		}
+		// Every platform repository is private, so the read token is always needed.
+		String token = input.path("token").asString("");
+		if (token.isBlank()) {
+			throw new IllegalArgumentException("token is required");
+		}
+		// Only the credentials provider holds the token, so no message names it.
+		CredentialsProvider credentials = new UsernamePasswordCredentialsProvider("x-access-token", token);
 		String url = this.gitUrl + "/" + repository + ".git";
 		try {
-			if (Git.lsRemoteRepository().setRemote(url).setHeads(true).setTimeout(60).call()
+			if (Git.lsRemoteRepository().setRemote(url).setHeads(true).setTimeout(60).setCredentialsProvider(credentials).call()
 				.stream()
 				.noneMatch(ref -> ref.getName().equals("refs/heads/" + branch))) {
 				return refused(BRANCH_NOT_FOUND);
@@ -113,6 +125,7 @@ final class RepositoryZipJobHandler implements SandboxJobHandler {
 			.setBranch("refs/heads/" + branch)
 			.setCloneSubmodules(false)
 			.setTimeout(600)
+			.setCredentialsProvider(credentials)
 			.setTransportConfigCallback(transport -> {
 				transport.setCheckFetchedObjects(true);
 				transport.setObjectChecker(checker);
