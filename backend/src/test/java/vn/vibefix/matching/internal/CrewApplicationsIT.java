@@ -60,8 +60,8 @@ import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.authz.JobContent;
 import vn.vibefix.files.StoredFiles;
+import vn.vibefix.github.internal.SourceAppFixture;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewRecruitment.ClosedBy;
@@ -85,7 +85,8 @@ import vn.vibefix.timers.internal.DeadlinePoller;
  */
 class CrewApplicationsIT extends IntegrationTest {
 
-	private static final String TOKEN = "gho_customer_token_never_printed";
+	/** The Customer's Source App, through which the contributors are read (Story 23.5b). */
+	private static final SourceAppFixture SOURCE = new SourceAppFixture();
 
 	private static final String CONTRIBUTORS_PATH = "/repos/lan/so-dat-ban/contributors";
 
@@ -145,6 +146,7 @@ class CrewApplicationsIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void stubGitHub(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
+		SOURCE.register(registry);
 	}
 
 	@BeforeEach
@@ -154,7 +156,6 @@ class CrewApplicationsIT extends IntegrationTest {
 		BEFORE_CONTRIBUTORS.set(null);
 		CONTRIBUTOR_READS.set(0);
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.product = product(this.lan);
 		this.job = JobContent.job(this.jdbc, this.product, this.lan, this.hung, "Sửa lỗi đặt bàn", JobContent.SIGNED,
@@ -332,7 +333,19 @@ class CrewApplicationsIT extends IntegrationTest {
 		ANSWERS.put(CONTRIBUTORS_PATH, "500 {}");
 		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		// Story 23.5b: a 404 or an uninstalled Source App says nothing of who contributed, so it fails closed too.
+		ANSWERS.put(CONTRIBUTORS_PATH, "404 {}");
+		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
+		ANSWERS.put(CONTRIBUTORS_PATH, "200 []");
+		long repository = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id")
+			.param("id", this.product).query(Long.class).single();
+		SOURCE.uninstall(repository);
+		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
 		assertThat(count("SELECT count(*) FROM matching.crew_application", Map.of())).isZero();
+		SOURCE.reinstall(repository);
+		apply(this.minh, this.job, true, List.of(), "[]").andExpect(status().isCreated());
 	}
 
 	/**
@@ -949,8 +962,10 @@ class CrewApplicationsIT extends IntegrationTest {
 		return admin;
 	}
 
+	/** A Product of {@code owner}'s, bound to a Source App installation of its own (Story 23.5b). */
 	private UUID product(UUID owner) {
 		UUID id = UUID.randomUUID();
+		long github = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
@@ -961,9 +976,10 @@ class CrewApplicationsIT extends IntegrationTest {
 				""")
 			.param("id", id)
 			.param("owner", owner)
-			.param("github", ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))
+			.param("github", github)
 			.param("now", now)
 			.update();
+		SOURCE.bind(this.jdbc, id, owner, github, "lan/so-dat-ban");
 		return id;
 	}
 
@@ -976,6 +992,9 @@ class CrewApplicationsIT extends IntegrationTest {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.setExecutor(Executors.newCachedThreadPool());
 			server.createContext("/", exchange -> {
+				if (SOURCE.answer(exchange)) {
+					return;
+				}
 				if (exchange.getRequestURI().getPath().endsWith("/contributors")) {
 					CONTRIBUTOR_READS.incrementAndGet();
 					Runnable before = BEFORE_CONTRIBUTORS.get();

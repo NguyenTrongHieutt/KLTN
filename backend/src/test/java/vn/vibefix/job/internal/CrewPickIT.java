@@ -62,10 +62,10 @@ import com.jayway.jsonpath.JsonPath;
 import com.sun.net.httpserver.HttpServer;
 
 import vn.vibefix.authz.JobContent;
+import vn.vibefix.github.internal.SourceAppFixture;
 import vn.vibefix.identity.AccountLocked;
 import vn.vibefix.identity.Notices;
 import vn.vibefix.identity.PersonSignalMatched;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewPicks;
@@ -91,7 +91,8 @@ import vn.vibefix.timers.internal.DeadlinePoller;
 @TestPropertySource(properties = "vibefix.features.large-crews=true")
 class CrewPickIT extends IntegrationTest {
 
-	private static final String TOKEN = "gho_customer_token_never_printed";
+	/** The Customers' Source App, through which the contributors are read (Story 23.5b). */
+	private static final SourceAppFixture SOURCE = new SourceAppFixture();
 
 	private static final String CONTRIBUTORS_PATH = "/repos/lan/so-dat-ban/contributors";
 
@@ -148,6 +149,7 @@ class CrewPickIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void stubGitHub(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
+		SOURCE.register(registry);
 	}
 
 	@BeforeEach
@@ -155,7 +157,6 @@ class CrewPickIT extends IntegrationTest {
 		ANSWERS.clear();
 		BEFORE_CONTRIBUTORS.set(null);
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, this.lan, TOKEN);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
 		this.product = product(this.lan, "lan/so-dat-ban");
 		this.job = JobContent.job(this.jdbc, this.product, this.lan, this.hung, "Sửa lỗi đặt bàn", JobContent.SIGNED,
@@ -271,6 +272,10 @@ class CrewPickIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM job.crew_row WHERE job_id = :job", Map.of("job", this.job))).isZero();
 		assertThat(applicationState(application)).isEqualTo("PENDING null");
 		assertThat(crewVersion()).isEqualTo(crewVersion);
+		// Story 23.5b: a 404 says nothing of who contributed, so it fails closed too.
+		ANSWERS.put(CONTRIBUTORS_PATH, "404 {}");
+		pick(this.hung, this.job, application).andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("CONTRIBUTORS_UNKNOWN"));
 		ANSWERS.put(CONTRIBUTORS_PATH, "200 [{\"id\":" + githubId(this.minh) + ",\"login\":\"minh\"}]");
 		pick(this.hung, this.job, application).andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("APPLICANT_IS_CONTRIBUTOR"));
@@ -1112,7 +1117,6 @@ class CrewPickIT extends IntegrationTest {
 	/** Another Agreement Job, of another Customer, whose own Mentor recruits one member. */
 	private UUID recruitingJob() throws Exception {
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, customer, TOKEN);
 		UUID mentor = person("Nguyễn Thu Hà");
 		UUID job = JobContent.job(this.jdbc, product(customer, "ha/cua-hang"), customer, mentor, "Việc của Hà",
 				JobContent.SIGNED, "AGREEMENT");
@@ -1235,8 +1239,10 @@ class CrewPickIT extends IntegrationTest {
 				"SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL").query(Long.class).single() == 0);
 	}
 
+	/** A Product of {@code owner}'s, bound to a Source App installation of its own (Story 23.5b). */
 	private UUID product(UUID owner, String repository) {
 		UUID id = UUID.randomUUID();
+		long github = java.util.concurrent.ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
@@ -1247,10 +1253,11 @@ class CrewPickIT extends IntegrationTest {
 				""")
 			.param("id", id)
 			.param("owner", owner)
-			.param("github", java.util.concurrent.ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))
+			.param("github", github)
 			.param("repository", repository)
 			.param("now", now)
 			.update();
+		SOURCE.bind(this.jdbc, id, owner, github, repository);
 		return id;
 	}
 
@@ -1263,6 +1270,9 @@ class CrewPickIT extends IntegrationTest {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.setExecutor(Executors.newCachedThreadPool());
 			server.createContext("/", exchange -> {
+				if (SOURCE.answer(exchange)) {
+					return;
+				}
 				String path = exchange.getRequestURI().getPath();
 				boolean contributors = path.endsWith("/contributors");
 				if (contributors) {

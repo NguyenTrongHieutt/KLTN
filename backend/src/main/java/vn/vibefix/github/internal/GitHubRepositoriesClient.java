@@ -17,7 +17,8 @@ import vn.vibefix.github.GitHubRepositories;
 /**
  * {@link GitHubRepositories} on GitHub's REST API: the repository, then two small files of its
  * default branch that reveal submodules and Git LFS (AD-13). Three requests, all reads; the admin check reads
- * an account's login and its collaborator permission.
+ * an account's login and its collaborator permission, the contributor read pages through the contributors, and the
+ * drift poll compares the default branch with the copied commit.
  */
 @Component
 class GitHubRepositoriesClient implements GitHubRepositories {
@@ -51,7 +52,7 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 		return Optional.of(new RepositoryMetadata(body.path("id").asLong(), body.path("full_name").asString(),
 				body.path("html_url").asString(""), body.path("owner").path("id").asLong(),
 				body.path("owner").path("type").asString(""), publicRepository, body.path("size").asLong(), parent, branch,
-				admin.isBoolean() ? admin.booleanValue() : null, submodules, lfs));
+				admin.isBoolean() ? admin.booleanValue() : null, submodules, lfs, body.path("archived").asBoolean(false)));
 	}
 
 	@Override
@@ -75,9 +76,11 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 		for (int page = 1; page <= MAX_CONTRIBUTOR_PAGES; page++) {
 			GitHubHttp.Answer answer = this.http.send("GET",
 					"/repos/" + owner + "/" + name + "/contributors?per_page=100&page=" + page, bearer, null);
-			if (answer.status() == 204 || answer.status() == 404) {
+			if (answer.status() == 204) {
+				// An empty repository: nobody contributed.
 				break;
 			}
+			// A 404 says nothing of who contributed (a repository gone, or one this credential does not see): unknown.
 			if (answer.status() != 200) {
 				throw new GitHubException(answer.status(), "GitHub refused the contributors read: HTTP " + answer.status());
 			}
@@ -93,6 +96,24 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 			}
 		}
 		return ids;
+	}
+
+	@Override
+	public List<String> commitsSince(String bearer, String fullName, String baseSha, String branch) {
+		GitHubHttp.Answer answer = this.http.send("GET", "/repos/" + fullName + "/compare/" + baseSha + "..." + branch,
+				bearer, null);
+		if (answer.status() == 404) {
+			// The base commit is gone from the branch's history: every commit counts as new.
+			return List.of("unknown");
+		}
+		if (answer.status() != 200) {
+			throw new GitHubException(answer.status(), "GitHub refused the compare of " + fullName + ": HTTP " + answer.status());
+		}
+		List<String> commits = new ArrayList<>();
+		for (JsonNode commit : answer.body().path("commits")) {
+			commits.add(commit.path("sha").asString(""));
+		}
+		return commits;
 	}
 
 	@Override

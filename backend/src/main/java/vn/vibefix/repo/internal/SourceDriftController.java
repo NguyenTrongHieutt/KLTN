@@ -34,9 +34,11 @@ class SourceDriftController {
 
 	/**
 	 * One warning.
-	 * @param kind {@code COMMITS}, {@code DELETED_OR_PRIVATE}, {@code ARCHIVED}, {@code RENAMED}, or {@code TRANSFERRED}
+	 * @param kind {@code COMMITS}, {@code GONE}, {@code ARCHIVED}, {@code RENAMED}, {@code TRANSFERRED},
+	 * {@code APP_UNINSTALLED}, or {@code WORKFLOW_CHANGED} (Story 23.5b)
 	 * @param commits how many commits triggered it
-	 * @param fullName the repository's new name, for a rename or transfer
+	 * @param fullName the repository's new name, for a rename or transfer; the name it was read under, for every other
+	 * kind but {@code COMMITS}
 	 */
 	record DriftWarningView(String kind, Instant detectedAt, int commits, @Nullable String fullName, boolean reconfirmed) {
 	}

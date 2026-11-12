@@ -11,7 +11,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,8 +30,6 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.GitHubException;
-import vn.vibefix.github.PlatformRepositories;
-import vn.vibefix.github.PlatformRepositories.SourceRepository;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.notification.Audience;
@@ -43,6 +40,7 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.ProductSources.Block;
+import vn.vibefix.product.ProductSources.Drift;
 import vn.vibefix.product.ProductSources.Registered;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.shared.ApiException;
@@ -50,11 +48,13 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * Drift Warnings (FR-20, FR-53, AD-12): every day, each Active or Closing Code Job's Source Repository is
- * read by its permanent ID. Commits past the copy, a repository gone or private, archived, renamed, or
- * transferred each make one warning, stored with the commits that triggered it, and the Customer and the
- * Mentor hear of it once. A renamed or transferred repository becomes the Final Merge target only after
- * the Customer re-confirms it and still administers it.
+ * Drift Warnings (FR-20, FR-53, AD-12, R7): every day, each Active or Closing Code Job's Source Repository is
+ * read through the Customer's Source App ({@link ProductSources#drift}, Story 23.5b); the Platform App reads no
+ * Source. Commits past the copy; a repository gone (deleted, removed from the App's selection, or transferred to an
+ * account without the App), archived, renamed, or transferred; the Source App uninstalled; or {@code vibefix.yml}
+ * removed or changed each make one warning, stored with the commits that triggered it, and the Customer and the
+ * Mentor hear of it once. "Made private" is no drift, and neither is the admin right. A renamed or transferred
+ * repository becomes the Final Merge target only after the Customer re-confirms it and still administers it.
  */
 @Component
 class SourceDrift {
@@ -70,7 +70,29 @@ class SourceDrift {
 	/** What changed in the Source Repository. */
 	enum Kind {
 
-		COMMITS, DELETED_OR_PRIVATE, ARCHIVED, RENAMED, TRANSFERRED
+		/** Commits on the default branch past the copied one. */
+		COMMITS,
+
+		/**
+		 * The Source App no longer reaches it: deleted, removed from the App's selection, or transferred to an account
+		 * without the App, which the Source App cannot tell apart ({@code SOURCE_APP_WRONG_REPOSITORY}).
+		 */
+		GONE,
+
+		/** Archived on GitHub. */
+		ARCHIVED,
+
+		/** Renamed within its account: the Customer re-confirms it. */
+		RENAMED,
+
+		/** Transferred to another account with the App: the Customer re-confirms it. */
+		TRANSFERRED,
+
+		/** The Source App was uninstalled, suspended, or lost a permission ({@code SOURCE_APP_MISSING}). */
+		APP_UNINSTALLED,
+
+		/** {@code vibefix.yml} was removed or changed ({@code WORKFLOW_MISSING}, {@code WORKFLOW_MISMATCH}). */
+		WORKFLOW_CHANGED
 
 	}
 
@@ -90,8 +112,6 @@ class SourceDrift {
 
 	private final JobSetups setups;
 
-	private final PlatformRepositories repositories;
-
 	private final ProductSources sources;
 
 	private final Notifications notifications;
@@ -106,13 +126,11 @@ class SourceDrift {
 
 	private final TransactionTemplate transactions;
 
-	SourceDrift(JdbcClient jdbc, JobBusy busy, JobSetups setups, PlatformRepositories repositories, ProductSources sources,
-			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock,
-			PlatformTransactionManager transactionManager) {
+	SourceDrift(JdbcClient jdbc, JobBusy busy, JobSetups setups, ProductSources sources, Notifications notifications,
+			Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock, PlatformTransactionManager transactionManager) {
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.setups = setups;
-		this.repositories = repositories;
 		this.sources = sources;
 		this.notifications = notifications;
 		this.todos = todos;
@@ -124,17 +142,28 @@ class SourceDrift {
 
 	/** Every running Code Job past Setup. */
 	void poll() {
-		for (UUID jobId : this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE status = 'DONE'").query(UUID.class).list()) {
+		// In ID order, so one Job's failure is read the same way every day; it never stops the Jobs after it.
+		for (UUID jobId : this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE status = 'DONE' ORDER BY job_id")
+			.query(UUID.class)
+			.list()) {
 			try {
 				check(jobId);
 			}
 			catch (GitHubException failed) {
 				log.warn("The Source Repository of Job {} was not read: {}", jobId, failed.getMessage());
 			}
+			catch (RuntimeException failed) {
+				log.warn("The drift check of Job {} failed; the next Job is read anyway", jobId, failed);
+			}
 		}
 	}
 
-	/** Reads one Job's Source Repository by its permanent ID and warns of any new change. */
+	/**
+	 * Reads one Job's Source Repository through the Source App and warns of any new change. When the Source App cannot
+	 * read it, that is its one kind ({@code APP_UNINSTALLED} or {@code GONE}); otherwise a {@code vibefix.yml} that
+	 * differs, archived, renamed or transferred (by its owner and name), and new commits each warn on their own.
+	 * @throws GitHubException when GitHub cannot answer now: nothing is warned, and the next day's poll reads again
+	 */
 	void check(UUID jobId) {
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		Setup setup = this.setups.latest(jobId).orElse(null);
@@ -143,26 +172,30 @@ class SourceDrift {
 				|| registered == null || setup.approvedSha() == null) {
 			return;
 		}
-		Optional<SourceRepository> now = this.repositories.source(registered.repositoryGithubId());
-		if (now.isEmpty()) {
-			warn(job, Kind.DELETED_OR_PRIVATE, null, registered.repositoryFullName(), List.of());
+		Drift drift = this.sources.drift(job.productId(), setup.approvedSha());
+		Block block = drift.block();
+		if (block != null) {
+			// The repository cannot be read through the Source App: nothing else is known.
+			warn(job, block == Block.SOURCE_APP_MISSING ? Kind.APP_UNINSTALLED : Kind.GONE, null, drift.fullName(),
+					List.of());
 			return;
 		}
-		SourceRepository repository = now.get();
-		if (repository.archived()) {
-			warn(job, Kind.ARCHIVED, null, repository.fullName(), List.of());
+		if (drift.workflow() != null) {
+			warn(job, Kind.WORKFLOW_CHANGED, null, drift.fullName(), List.of());
 		}
-		if (!repository.fullName().equalsIgnoreCase(registered.repositoryFullName())) {
+		if (drift.archived()) {
+			warn(job, Kind.ARCHIVED, null, drift.fullName(), List.of());
+		}
+		if (!drift.fullName().equalsIgnoreCase(registered.repositoryFullName())) {
 			String before = registered.repositoryFullName().toLowerCase(Locale.ROOT);
-			String after = repository.fullName().toLowerCase(Locale.ROOT);
+			String after = drift.fullName().toLowerCase(Locale.ROOT);
 			boolean moved = !before.substring(0, before.indexOf('/')).equals(after.substring(0, after.indexOf('/')));
-			warn(job, moved ? Kind.TRANSFERRED : Kind.RENAMED, null, repository.fullName(), List.of());
+			warn(job, moved ? Kind.TRANSFERRED : Kind.RENAMED, null, drift.fullName(), List.of());
 		}
-		List<String> commits = this.repositories.commitsSince(repository.fullName(), setup.approvedSha(),
-				repository.defaultBranch());
+		// At most ProductSources.MAX_DRIFT_COMMITS, the newest, as the drift read keeps them.
+		List<String> commits = drift.commits();
 		if (!commits.isEmpty()) {
-			List<String> kept = commits.size() > 250 ? commits.subList(commits.size() - 250, commits.size()) : commits;
-			warn(job, Kind.COMMITS, kept.get(kept.size() - 1), null, kept);
+			warn(job, Kind.COMMITS, commits.get(commits.size() - 1), null, commits);
 		}
 	}
 

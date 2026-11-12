@@ -27,7 +27,7 @@ public interface CrewPicks {
 		/** The person contributed to it: refused (FR-81). */
 		CONTRIBUTOR,
 
-		/** GitHub did not answer: refused, failing closed. */
+		/** The contributors could not be read through the Customer's Source App: refused, failing closed. */
 		UNKNOWN
 
 	}

@@ -60,6 +60,9 @@ class SourceAppBindings {
 	/** A Source Repository read's permissions: its metadata, its collaborator permission, and its files. */
 	static final java.util.Map<String, String> READ = java.util.Map.of("contents", "read", "metadata", "read");
 
+	/** The contributor read's one permission (FR-13, Story 23.5b): metadata only, no file. */
+	static final java.util.Map<String, String> METADATA_READ = java.util.Map.of("metadata", "read");
+
 	private static final SecureRandom RANDOM = new SecureRandom();
 
 	/** What the setup return says on CUS-3: installed, waiting for an organization owner, or nothing seen. */

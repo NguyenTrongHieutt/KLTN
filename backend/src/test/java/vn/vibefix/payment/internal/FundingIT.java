@@ -46,8 +46,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.jayway.jsonpath.JsonPath;
 import com.sun.net.httpserver.HttpServer;
 
+import vn.vibefix.github.internal.SourceAppFixture;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.CrewEmptied;
@@ -71,6 +71,9 @@ class FundingIT extends IntegrationTest {
 	private static final String SECRET = "funding-it-" + UUID.randomUUID();
 
 	private static final Path SECRET_FILE = secretFile();
+
+	/** The Customer's Source App, through which the contributors are read (Story 23.5b). */
+	private static final SourceAppFixture SOURCE = new SourceAppFixture();
 
 	private static final HttpServer GITHUB = start();
 
@@ -123,6 +126,7 @@ class FundingIT extends IntegrationTest {
 	@DynamicPropertySource
 	static void merchant(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> "http://127.0.0.1:" + GITHUB.getAddress().getPort());
+		SOURCE.register(registry);
 		registry.add("vibefix.payment.vnpay.tmn-code", () -> TMN);
 		registry.add("vibefix.payment.vnpay.hash-secret-file", SECRET_FILE::toString);
 		registry.add("vibefix.payment.vnpay.return-url", () -> "http://localhost:5173/thanh-toan");
@@ -492,7 +496,6 @@ class FundingIT extends IntegrationTest {
 
 	private void confirmedAgreement(String jobType) throws Exception {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		CustomerTokens.keep(this.context, this.lan, "gho_customer_token_never_printed");
 		UUID product = product(this.lan);
 		this.job = UUID.randomUUID();
 		Instant now = this.clock.instant();
@@ -644,8 +647,10 @@ class FundingIT extends IntegrationTest {
 		return this.jdbc.sql(sql).query(Long.class).single();
 	}
 
+	/** A Product of {@code owner}'s, bound to a Source App installation of its own (Story 23.5b). */
 	private UUID product(UUID owner) {
 		UUID id = UUID.randomUUID();
+		long github = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
 		Timestamp now = Timestamp.from(MutableClock.DEFAULT_INSTANT);
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
@@ -654,8 +659,8 @@ class FundingIT extends IntegrationTest {
 				VALUES (:id, :owner, 'Sổ đặt bàn Quán Mây', 'Đặt bàn.', ARRAY['LOVABLE'], :github,
 				    'lan/so-dat-ban', 'User', 'main', '1.0', '1.0', '1.0', :now, :now)
 				""")
-			.param("id", id).param("owner", owner)
-			.param("github", ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)).param("now", now).update();
+			.param("id", id).param("owner", owner).param("github", github).param("now", now).update();
+		SOURCE.bind(this.jdbc, id, owner, github, "lan/so-dat-ban");
 		return id;
 	}
 
@@ -675,11 +680,14 @@ class FundingIT extends IntegrationTest {
 		}
 	}
 
-	/** GitHub answering that the Source Repository has no contributor yet. */
+	/** GitHub answering, through the Customer's Source App, that the Source Repository has no contributor yet. */
 	private static HttpServer start() {
 		try {
 			HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.createContext("/", exchange -> {
+				if (SOURCE.answer(exchange)) {
+					return;
+				}
 				boolean contributors = exchange.getRequestURI().getPath().endsWith("/contributors");
 				byte[] body = (contributors ? "[]" : "{}").getBytes(StandardCharsets.UTF_8);
 				exchange.getResponseHeaders().add("Content-Type", "application/json");

@@ -14,8 +14,9 @@ public interface DriftEvidence {
 
 	/**
 	 * One Drift Warning.
-	 * @param kind {@code COMMITS}, {@code DELETED_OR_PRIVATE}, {@code ARCHIVED}, {@code RENAMED}, or
-	 * {@code TRANSFERRED}
+	 * @param kind {@code COMMITS}, {@code GONE}, {@code ARCHIVED}, {@code RENAMED}, {@code TRANSFERRED},
+	 * {@code APP_UNINSTALLED}, or {@code WORKFLOW_CHANGED} (Story 23.5b; an Evidence Package snapshotted earlier may
+	 * still name a kind retired since)
 	 * @param commits the SHAs past the copied commit that triggered a {@code COMMITS} warning
 	 * @param reconfirmedAt when the Customer re-confirmed a renamed or transferred repository
 	 */

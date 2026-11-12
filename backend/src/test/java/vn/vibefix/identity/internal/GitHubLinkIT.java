@@ -38,8 +38,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import vn.vibefix.identity.CustomerRepositories;
-import vn.vibefix.shared.ApiException;
 import vn.vibefix.support.Browser;
 import vn.vibefix.support.IntegrationTest;
 
@@ -71,9 +69,6 @@ class GitHubLinkIT extends IntegrationTest {
 
 	@Autowired
 	private TokenRenewals renewals;
-
-	@Autowired
-	private CustomerRepositories repositories;
 
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
@@ -377,15 +372,17 @@ class GitHubLinkIT extends IntegrationTest {
 			.isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
 	}
 
+	/**
+	 * A live Product's owner asked to re-link reads it on ACC-2 until they do. Since Story 23.5b no path reads with the
+	 * kept token, so nothing asks any more; {@link TokenRenewals} stays until Story 23.5d retires the token.
+	 */
 	@Test
-	void aMissingTokenAtAReCheckAsksTheOwnerToReLink() throws Exception {
+	void aReLinkAskShowsOnAcc2UntilTheOwnerReLinks() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 		link(this.browser, "PROFILE");
 		liveProduct(lan, "Sổ đặt bàn Quán Mây");
 
-		// Since Story 23.5 only the contributor check reads with the kept token.
-		assertThatThrownBy(() -> this.repositories.hasContributor(lan, "lan-dev", "quan-may", lan))
-			.isInstanceOf(ApiException.class);
+		this.renewals.ask(lan);
 
 		assertThat(openTodos(lan, "identity.relink_github")).isOne();
 		assertThat(this.jdbc.sql("""

@@ -38,7 +38,7 @@ enum RepoReason {
 
 	/**
 	 * The Customer's kept token is missing or refused (AD-10, AD-13). {@code product} no longer answers it since
-	 * Story 23.5; it stays until Story 23.5b retires the linking token.
+	 * Story 23.5; it stays until Story 23.5d retires the linking token.
 	 */
 	RELINK_GITHUB,
 

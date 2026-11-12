@@ -45,7 +45,10 @@ enum JobReason {
 	/** The person contributed to the Source Repository (FR-75, FR-81). */
 	APPLICANT_IS_CONTRIBUTOR,
 
-	/** GitHub could not say who contributed, so the pick or the signature waits (fails closed, A-03). */
+	/**
+	 * Who contributed could not be read through the Customer's Source App, so the pick or the signature waits (fails
+	 * closed, A-03).
+	 */
 	CONTRIBUTORS_UNKNOWN,
 
 	/** The Customer already approved this draft version (FR-17). */

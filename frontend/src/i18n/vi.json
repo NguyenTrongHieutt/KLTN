@@ -642,9 +642,12 @@
           "drift": {
             "COMMITS": "Có commit mới trên kho nguồn",
             "DELETED_OR_PRIVATE": "Kho nguồn bị xóa hoặc chuyển sang riêng tư",
+            "GONE": "Ứng dụng vibefix không còn đến được kho nguồn {name}: kho bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi",
             "ARCHIVED": "Kho nguồn đã được lưu trữ",
             "RENAMED": "Kho nguồn đổi tên thành {name}",
-            "TRANSFERRED": "Kho nguồn được chuyển sang {name}"
+            "TRANSFERRED": "Kho nguồn được chuyển sang {name}",
+            "APP_UNINSTALLED": "Ứng dụng vibefix trên kho nguồn bị gỡ, bị tạm ngưng hoặc thiếu quyền",
+            "WORKFLOW_CHANGED": "File workflow vibefix.yml trong kho nguồn bị xóa hoặc sửa"
           },
           "newer": "Mới hơn",
           "older": "Cũ hơn",
@@ -1444,10 +1447,12 @@
       "drift": {
         "title": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại.",
         "kindCOMMITS": "Có {n} thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày {date}).",
-        "kindDELETED_OR_PRIVATE": "Dự án gốc đã bị xóa hoặc chuyển sang riêng tư (ghi nhận ngày {date}).",
+        "kindGONE": "Ứng dụng vibefix không còn đến được dự án gốc {name}: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày {date}). Cần sửa lại trên GitHub để ứng dụng chọn đúng một kho là dự án này.",
         "kindARCHIVED": "Dự án gốc đã được lưu trữ trên GitHub, nên không nhận thay đổi mới (ghi nhận ngày {date}).",
         "kindRENAMED": "Dự án gốc đã đổi tên thành {name} (ghi nhận ngày {date}).",
         "kindTRANSFERRED": "Dự án gốc đã được chuyển sang {name} (ghi nhận ngày {date}).",
+        "kindAPP_UNINSTALLED": "Ứng dụng vibefix trên dự án gốc đã bị gỡ, bị tạm ngưng hoặc thiếu quyền cần có, nên vibefix không còn đọc được dự án (ghi nhận ngày {date}). Cần cài lại hoặc bật lại ứng dụng vibefix trên GitHub và chấp nhận đủ quyền.",
+        "kindWORKFLOW_CHANGED": "File workflow vibefix.yml trong dự án gốc đã bị xóa hoặc sửa khác bản vibefix công bố (ghi nhận ngày {date}). Cần thêm lại đúng file trên GitHub.",
         "meaning": "Nếu dự án gốc tiếp tục thay đổi, việc hợp nhất cuối có thể không làm được và bạn sẽ nhận mã dưới dạng tệp ZIP. Hãy tạm dừng đồng bộ của công cụ AI cho đến khi hợp nhất xong.",
         "reconfirmLead": "Hãy xác nhận lại dự án gốc ở tên mới, để vibefix hợp nhất cuối vào đúng kho mã của bạn.",
         "reconfirm": "Xác nhận lại dự án gốc",
