@@ -156,7 +156,7 @@ class JobSetupOperation implements OperationHandler {
 			setups().block(setup, block);
 			return new Outcome.Aborted(block.name());
 		}
-		String head = repositories().sourceHead(source.repositoryFullName(), source.defaultBranch());
+		String head = repositories().branchHead(source.repositoryFullName(), source.defaultBranch());
 		setups().checked(setup, source.repositoryFullName(), source.defaultBranch(), head);
 		return null;
 	}

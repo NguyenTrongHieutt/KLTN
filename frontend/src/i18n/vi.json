@@ -617,7 +617,7 @@
             "HANDOVER_ACCEPTED": "Khách hàng chấp nhận Giai đoạn {n}: {title} (lần {round})",
             "HANDOVER_AUTO_ACCEPTED": "Tự động chấp nhận Giai đoạn {n}: {title} (lần {round}) khi hết hạn kiểm tra",
             "HANDOVER_REVISION_REQUESTED": "Khách hàng yêu cầu sửa Giai đoạn {n}: {title} (lần {round})",
-            "HANDOVER_VOIDED": "Bàn giao Giai đoạn {n}: {title} (lần {round}) bị hủy"
+            "HANDOVER_VOIDED": "Bàn giao Giai đoạn {n}: {title} (lần {round}) bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi nghiệm thu"
           },
           "moneyIn": {
             "FUND": "Nạp tiền Giai đoạn",
@@ -2680,12 +2680,15 @@
         "customer": "Chờ bạn nghiệm thu · tự nghiệm thu {date}",
         "ACCEPTED": "Đã nghiệm thu",
         "REVISION_REQUESTED": "Đã yêu cầu sửa",
-        "VOIDED": "Đã hủy vì có thay đổi mới",
+        "VOIDED": "Đã hủy vì nội dung bàn giao thay đổi",
         "auto": "Đã tự nghiệm thu"
       },
       "acceptance": {
         "merging": "Đang hợp nhất bàn giao Giai đoạn {n}. Tiền được chuyển ngay khi hợp nhất xong.",
         "failed": "Chưa hợp nhất được. Quản trị viên đã được báo; bạn chưa cần làm gì."
+      },
+      "voided": {
+        "moneyHeld": "Tiền của giai đoạn vẫn được giữ."
       },
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
@@ -4160,7 +4163,8 @@
     },
     "job": {
       "handover_voided": {
-        "title": "Bàn giao Giai đoạn {n} đã bị hủy vì có thay đổi mới sau khi bàn giao"
+        "title": "Bàn giao Giai đoạn {n} đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi nghiệm thu",
+        "body": "Tiền của giai đoạn vẫn được giữ. Người hướng dẫn sẽ bàn giao lại."
       },
       "job_post_lapsed": {
         "title": "Tin {job} đã hết hạn và trở về bản nháp"
@@ -4434,6 +4438,9 @@
       }
     },
     "repo": {
+      "acceptance_head_moved": {
+        "title": "Nghiệm thu Giai đoạn {n} của {job} bị từ chối vì nhánh bàn giao đã thay đổi; bàn giao đã bị hủy"
+      },
       "final_merge_authorization_pending": {
         "title": "Hãy cho phép hợp nhất trước {date}, nếu không bạn sẽ nhận mã dạng ZIP"
       },
@@ -4767,7 +4774,7 @@
       "TOO_MANY_SCREENSHOTS": "Mỗi lần bàn giao có tối đa 5 ảnh chụp màn hình.",
       "SCREENSHOT_UNKNOWN": "Có ảnh chụp không còn trong danh sách. Hãy tải lại trang.",
       "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB.",
-      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì có thay đổi mới được lưu sau khi bàn giao."
+      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại."
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",

@@ -736,6 +736,7 @@ public final class GitHubStub implements AutoCloseable {
 				.put(number, "vibefix-dev-platform[bot]");
 			this.pullHeads.computeIfAbsent(matcher.group(1), name -> Collections.synchronizedMap(new LinkedHashMap<>()))
 				.put(number, body.path("head").asString());
+			this.pullTitles.put(matcher.group(1) + "#" + number, body.path("title").asString(""));
 			send(exchange, 201, "{\"number\":" + number + "}");
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls").matcher(path))
@@ -764,6 +765,12 @@ public final class GitHubStub implements AutoCloseable {
 				send(exchange, 405, "{\"message\":\"Pull Request is not mergeable\"}");
 				return;
 			}
+			Integer refusal = this.mergeRefusals.get(repository);
+			if (refusal != null) {
+				send(exchange, refusal, GitHubHttp.JSON.writeValueAsString(Map.of("message",
+						refusal == 405 ? "Pull Request is not mergeable" : "Validation Failed")));
+				return;
+			}
 			try (Repository git = repository(ORGANIZATION, repository)) {
 				var tip = git.resolve("refs/heads/" + head);
 				if (tip == null || !tip.name().equals(body.path("sha").asString())) {
@@ -781,14 +788,41 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls/(\\d+)").matcher(path)).matches()) {
-			boolean merged = this.mergedPulls.contains(matcher.group(1) + "#" + matcher.group(2));
-			send(exchange, 200, "{\"number\":" + matcher.group(2) + ",\"merged\":" + merged + "}");
+			String pull = matcher.group(1) + "#" + matcher.group(2);
+			boolean merged = this.mergedPulls.contains(pull);
+			boolean closed = merged || this.closedPulls.contains(pull);
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("number", Integer.parseInt(matcher.group(2)), "merged",
+					merged, "state", closed ? "closed" : "open", "title", this.pullTitles.getOrDefault(pull, ""))));
 		}
 		else if (method.equals("PATCH")
 				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/pulls/(\\d+)").matcher(path)).matches()) {
-			this.pulls.getOrDefault(matcher.group(1), new LinkedHashMap<>()).remove(Integer.parseInt(matcher.group(2)));
-			this.closedPulls.add(matcher.group(1) + "#" + matcher.group(2));
-			send(exchange, 200, "{\"state\":\"closed\"}");
+			String pull = matcher.group(1) + "#" + matcher.group(2);
+			if (body.path("title").isString()) {
+				this.pullTitles.put(pull, body.path("title").asString());
+			}
+			if ("closed".equals(body.path("state").asString(""))) {
+				this.pulls.getOrDefault(matcher.group(1), new LinkedHashMap<>()).remove(Integer.parseInt(matcher.group(2)));
+				this.closedPulls.add(pull);
+			}
+			boolean closed = this.mergedPulls.contains(pull) || this.closedPulls.contains(pull);
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("state", closed ? "closed" : "open", "title",
+					this.pullTitles.getOrDefault(pull, ""))));
+		}
+		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/issues/(\\d+)/comments").matcher(path))
+			.matches()) {
+			// A pull request's conversation, as GitHub's issue comments API serves it.
+			List<String> comments = this.pullComments.computeIfAbsent(matcher.group(1) + "#" + matcher.group(2),
+					pull -> Collections.synchronizedList(new ArrayList<>()));
+			if (method.equals("POST")) {
+				comments.add(body.path("body").asString(""));
+				send(exchange, 201, GitHubHttp.JSON.writeValueAsString(Map.of("id", this.ids.incrementAndGet(), "body",
+						body.path("body").asString(""))));
+			}
+			else {
+				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(List.copyOf(comments).stream()
+					.map(comment -> Map.of("body", comment))
+					.toList()));
+			}
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/events").matcher(path))
 			.matches()) {
@@ -847,7 +881,8 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/git/ref/heads/(.+)").matcher(path)).matches()) {
-			// A branch's ref, as J7 reads the Source Repository's default branch before the copy.
+			// A branch's ref (branchHead): the Source Repository's default branch J7 copies, or the Working
+			// Repository's that a handover reads.
 			String head = Files.isDirectory(this.gitRoot.resolve(matcher.group(1)).resolve(matcher.group(2) + ".git"))
 					? head(matcher.group(1), matcher.group(2), matcher.group(3)) : null;
 			send(exchange, head == null ? 404 : 200, head == null ? "{\"message\":\"Not Found\"}"
@@ -1004,6 +1039,12 @@ public final class GitHubStub implements AutoCloseable {
 	/** The status a merge on a repository outside the organization answers instead, as a ruleset or an archive would. */
 	public volatile Integer sourceMergeRefusal;
 
+	/**
+	 * Per organization repository, by name: the status a pull request merge answers instead of merging, such as
+	 * 405 (not mergeable) or 422 (validation failed); never the 409 of a moved head branch, which the merge decides.
+	 */
+	public final Map<String, Integer> mergeRefusals = Collections.synchronizedMap(new LinkedHashMap<>());
+
 	/** The Merge App's installations on Customers' accounts, by installation ID. */
 	public final Map<Long, MergeInstallation> mergeInstallations = Collections.synchronizedMap(new LinkedHashMap<>());
 
@@ -1041,6 +1082,12 @@ public final class GitHubStub implements AutoCloseable {
 
 	/** Per repository: each pull request's head branch, open or closed, by number. */
 	public final Map<String, Map<Integer, String>> pullHeads = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** Each pull request the System opened, as {@code repository#number}, with its title now. */
+	public final Map<String, String> pullTitles = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The comments on each pull request's conversation, as {@code repository#number}, oldest first. */
+	public final Map<String, List<String>> pullComments = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	private final AtomicInteger pullNumbers = new AtomicInteger(100);
 

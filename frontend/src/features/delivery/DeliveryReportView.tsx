@@ -17,7 +17,8 @@ import { SensitiveChangeList } from './SensitiveChangeList'
  * Sensitive change list, the Pages updated during the Milestone, and the collapsed "Chi tiết kỹ thuật"
  * with the commits, all rendered as text (NFR-3). While it waits for the Customer, they get "Kiểm tra
  * từng tiêu chí" and the Revision Rounds left; once decided, everyone sees the Customer's marks. A Code
- * Job's acceptance says while it merges, and when the merge did not go through (FR-33).
+ * Job's acceptance says while it merges, and when the merge did not go through (FR-33). A handover voided at
+ * acceptance says why, and tells the Customer the Milestone's money is still held (M3).
  */
 export function DeliveryReportView({ report }: { report: DeliveryReport }) {
   const customer = report.audience === 'CUSTOMER'
@@ -49,9 +50,10 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           {t('screen.handover.acceptance.failed')}
         </p>
       )}
-      {report.status === 'VOIDED' && (
+      {(report.status === 'VOIDED' || report.acceptance === 'VOIDED') && (
         <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
-          {t('reason.delivery.HANDOVER_VOIDED')}
+          <span>{t('reason.delivery.HANDOVER_VOIDED')}</span>
+          {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
         </p>
       )}
       {report.decision && (

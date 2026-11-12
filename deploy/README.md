@@ -198,8 +198,9 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
    ```
 
 4. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost either. Accepted
-   invitations, pushes to the Working Repository, and organization drift are read back every 10 minutes
-   (`vibefix.repo.grant-sweep`, `vibefix.repo.push-sweep`).
+   invitations and organization drift are read back every 10 minutes (`vibefix.repo.grant-sweep`,
+   `vibefix.repo.platform-sweep`). Pushes to the Working Repository need no webhook: vibefix reads the
+   Working head live when the Mentor hands over, and compares heads only at acceptance (Story 23.2).
 5. **Use four accounts, one browser profile each.** A browser holds one vibefix session, and one
    signed-in GitHub account, at a time:
    - three users, each with their own Google account (a test user of the dev Google client) and their
@@ -350,9 +351,11 @@ App is configured.
   Job Active.
 - **A `vibefix-dev` member** is added by GitHub without an invitation. Administrators are alerted;
   remove the person from the organization.
-- **Pushes to the Working Repository are not scanned (Story 23.1).** A `push` webhook, or the 10-minute
-  sweep (`vibefix.repo.push-sweep`), reads the branch and tag heads back and records them, until Story
-  23.2 retires the head tracking. vibefix scans no code: the Mentor keeps the team's secrets out.
+- **Pushes to the Working Repository are neither scanned nor tracked (Stories 23.1, 23.2).** The team keeps
+  working while the Customer reviews a handover. Only the acceptance merge compares, through GitHub's
+  `sha` on `handover/{id}`: a 409 there voids the handover (M3) and alerts Administrators, and M3 or a
+  revision (M4) closes the older pull request with a comment and "(lần n)" in its title, keeping its
+  branch. vibefix scans no code: the Mentor keeps the team's secrets out.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

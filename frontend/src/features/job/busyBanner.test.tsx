@@ -54,6 +54,20 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
     expect(failed.length).toBeGreaterThan(0)
   })
 
+  it('says the handover was voided when its merge answered 409, before the handover shows it (FR-33)', { timeout: 15_000 }, async () => {
+    clearsAfterOnePoll({ status: 'SUBMITTED', acceptance: 'VOIDED' })
+    renderBanner()
+
+    await screen.findByText('Đang hợp nhất bàn giao Giai đoạn 1…')
+    const voided = await screen.findAllByText(
+      'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.',
+      {},
+      { timeout: 5_000 },
+    )
+    expect(voided.length).toBeGreaterThan(0)
+    expect(screen.queryByText('Việc đang chạy đã xong.')).toBeNull()
+  })
+
   it('shows nothing while the Job is not busy', async () => {
     let read = false
     fakeBackend(signedInUser, {

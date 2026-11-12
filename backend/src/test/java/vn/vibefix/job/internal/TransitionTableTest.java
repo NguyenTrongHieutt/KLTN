@@ -116,6 +116,22 @@ class TransitionTableTest {
 		assertThat(Transition.J1.auditAction()).isEqualTo("job.transition_j1");
 	}
 
+	/** Story 23.2 (D9, R25, R26): only the acceptance merge's 409 applies M3, and M3 and M4 close the pull request. */
+	@Test
+	void m3IsTheAcceptanceMergesRefusalAndM3AndM4CloseThePullRequest() {
+		assertThat(Transition.M3.trigger())
+			.isEqualTo("The acceptance merge answers 409: the handover branch no longer holds the Handover Commit (FR-33)")
+			.doesNotContainIgnoringCase("push");
+		assertThat(Transition.M3.triggers()).containsExactly(Trigger.SYSTEM);
+		String close = "The handover's pull request is closed with a reason comment and \"(lần {n})\" in its title";
+		assertThat(Transition.M3.effects()).extracting(Transition.Effect::module, Transition.Effect::text)
+			.contains(org.assertj.core.groups.Tuple.tuple("delivery", "The Handover is void"),
+					org.assertj.core.groups.Tuple.tuple("delivery", "Every Administrator is alerted (repo.acceptance_head_moved)"),
+					org.assertj.core.groups.Tuple.tuple("delivery", close));
+		assertThat(Transition.M4.effects()).extracting(Transition.Effect::module, Transition.Effect::text)
+			.contains(org.assertj.core.groups.Tuple.tuple("delivery", close));
+	}
+
 	/** No code but {@link JobLifecycle} sets the state column of a Job (or, later, of a Milestone). */
 	@Test
 	void onlyTheLifecycleWritesAState() throws IOException {

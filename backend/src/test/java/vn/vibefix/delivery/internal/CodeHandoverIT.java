@@ -43,6 +43,7 @@ import tools.jackson.databind.JsonNode;
 import vn.vibefix.dispute.internal.DisputeTestSupport;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
+import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobFreezes;
@@ -62,10 +63,12 @@ import vn.vibefix.timers.internal.DeadlinePoller;
  * applies M2, and
  * records each commit with its author's GitHub ID and the Work Items it mentions, the Sensitive Changes,
  * and the Pages updated. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
- * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). A push
- * after the handover voids it through M3 (Story 8.4). GitHub and
- * git hosting are {@link GitHubStub}; the sandbox jobs run in process; the preview check is
- * {@link ScriptedPreviewChecks}.
+ * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). Heads are
+ * compared only at acceptance (Story 23.2, D9): a push to the Working Repository voids nothing, and only the
+ * acceptance merge's 409, when {@code handover/{id}} no longer holds the Handover Commit, applies M3 with an
+ * Administrator alert. M3 and M4 close the older pull request with a reason comment and "(lần {n})" in its
+ * title, once, and leave one GitHub shows merged as it is. GitHub and git hosting are {@link GitHubStub}; the
+ * sandbox jobs run in process; the preview check is {@link ScriptedPreviewChecks}.
  */
 class CodeHandoverIT extends IntegrationTest {
 
@@ -74,6 +77,9 @@ class CodeHandoverIT extends IntegrationTest {
 	private static final GitHubStub GITHUB;
 
 	private static final AtomicLong REPOSITORY_IDS = new AtomicLong(990000);
+
+	/** The title the handover's pull request opens with: the Milestone's number and title. */
+	private static final String PULL_TITLE = "Bàn giao Giai đoạn 1: Chặn đặt trùng bàn";
 
 	static {
 		try {
@@ -100,9 +106,6 @@ class CodeHandoverIT extends IntegrationTest {
 
 	@Autowired
 	private ScriptedPreviewChecks previews;
-
-	@Autowired
-	private HandoverVoids voids;
 
 	@Autowired
 	private DeadlinePoller poller;
@@ -238,10 +241,6 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("source", "lan-dev/" + source).param("sha", approved).param("intermediaryId", intermediaryId)
 			.param("intermediary", GitHubStub.ORGANIZATION + "/" + this.intermediary).param("workingId", workingId)
 			.param("working", GitHubStub.ORGANIZATION + "/" + this.working).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO repo.branch_head (repository_github_id, ref, job_id, sha, updated_at)
-				VALUES (:id, 'refs/heads/main', :job, :sha, :now)
-				""").param("id", workingId).param("job", this.job).param("sha", approved).param("now", now).update();
 		GITHUB.userIds.put("hung@example.test", 4242L);
 	}
 
@@ -330,8 +329,9 @@ class CodeHandoverIT extends IntegrationTest {
 		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử", "hung@example.test");
 		preflight();
-		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
-			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
+		assertThat(milestoneState()).as("a push to the Working Repository voids nothing").isEqualTo("SUBMITTED");
+		// Only the handover branch moving makes the acceptance merge answer 409, and M3 void the handover.
+		voidAtAcceptance(handover);
 
 		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
@@ -441,8 +441,6 @@ class CodeHandoverIT extends IntegrationTest {
 	private void startAt(String sha) {
 		this.jdbc.sql("UPDATE repo.job_setup SET approved_sha = :sha WHERE job_id = :job").param("sha", sha).param("job", this.job)
 			.update();
-		this.jdbc.sql("UPDATE repo.branch_head SET sha = :sha WHERE job_id = :job AND ref = 'refs/heads/main'").param("sha", sha)
-			.param("job", this.job).update();
 	}
 
 	/** The GraphQL requests that read this Job's Working Repository, oldest first. */
@@ -544,57 +542,271 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	@Test
-	void aPushAfterTheHandoverVoidsItAndTheCustomerCanNoLongerDecideOnIt() throws Exception {
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
-				"hung@example.test");
-		preflight();
-		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-		UUID handover = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
-		long version = this.jdbc.sql("SELECT version FROM job.job WHERE id = :id").param("id", this.job).query(Long.class).single();
+	void aPushToWorkingVoidsNothingAndOnlyAMovedHandoverBranchVoidsItAtAcceptance() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		UUID handover = handedOver();
+		int pull = pull(handover);
+		Instant checkBy = ((Timestamp) autoAcceptance(handover).get("due_at")).toInstant();
 
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = false;\n",
 				"Sửa thêm sau khi bàn giao", "hung@example.test");
-		// The Mentor's next look reads the head back; repo tells delivery it moved.
 		preflight();
 
-		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
-			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
-		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
-			.query(String.class).single()).as("back to where it was handed over from").isEqualTo("FUNDED");
+		// D9: the team keeps working while the Customer reviews; nothing is read or voided.
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		assertThat(handoverStatus(handover)).isEqualTo("SUBMITTED");
+		assertThat(autoAcceptance(handover)).containsEntry("status", "PENDING");
+
+		// FR-33: only the handover branch no longer at the Handover Commit makes the merge answer 409.
+		voidAtAcceptance(handover);
+
+		assertThat(GITHUB.mergedPulls).doesNotContain(this.intermediary + "#" + pull);
+		assertThat(milestoneState()).as("M3: back to where it was handed over from").isEqualTo("FUNDED");
+		assertThat(acceptance(handover)).isEqualTo("VOIDED");
+		assertThat(releases()).isZero();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.busy").value(false));
 		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> openTodos("delivery.hand_over", this.hung) == 1);
 		assertThat(openTodos("delivery.review_handover", this.lan)).isZero();
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM notification.notification WHERE type = 'job.handover_voided' AND account_id IN (:lan, :hung)
 				""").param("lan", this.lan).param("hung", this.hung).query(Long.class).single()).isEqualTo(2);
+		assertThat(this.jdbc.sql("""
+				SELECT (params ->> 'n') || ' ' || (params ->> 'job') FROM notification.notification
+				WHERE type = 'repo.acceptance_head_moved' AND account_id = :admin
+				""").param("admin", admin).query(String.class).list()).containsExactly("1 Sửa lỗi đặt bàn");
+
+		// R26: the voided handover's pull request is closed with M3's comment and its round; the branch stays.
+		closePullRequests(handover);
+		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull);
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull)).isEqualTo(PULL_TITLE + " (lần 1)");
+		assertThat(GITHUB.pullComments.get(this.intermediary + "#" + pull)).singleElement()
+			.satisfies(comment -> assertThat(comment).startsWith(HandoverPullCloses.voidComment(handover))
+				.contains("handover/" + handover)
+				.contains("<!-- vibefix:handover-closed:" + handover + " -->"));
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + handover)).isNotNull();
+
+		// The Customer's decision on the voided handover is stale, shown inline (UX-DR26).
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.status").value("VOIDED"));
-		this.mvc.perform(post("/api/v1/handovers/" + handover + "/accept").with(as(this.lan, Role.CUSTOMER)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"version\":" + (version + 1) + ",\"checks\":[{\"criterionId\":\"" + this.criterion + "\",\"met\":true}]}"))
-			.andExpect(status().isConflict())
+		accept(handover, version()).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("STALE"))
 			.andExpect(jsonPath("$.reason").value("HANDOVER_VOIDED"));
+		// Its Auto-acceptance ends at its time through the generation check.
+		this.clock.setInstant(checkBy.plus(Duration.ofMinutes(1)));
+		this.poller.runDue();
+		assertThat(autoAcceptance(handover)).containsEntry("status", "OBSOLETE");
+		assertThat(milestoneState()).isEqualTo("FUNDED");
+	}
+
+	/** Auto-acceptance merges as the Customer's acceptance would, so its 409 applies M3 the same way (FR-35). */
+	@Test
+	void anAutoAcceptanceWhoseHandoverBranchMovedVoidsTheHandover() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		UUID handover = handedOver();
+		moveHandoverBranch(handover);
+		Instant due = ((Timestamp) autoAcceptance(handover).get("due_at")).toInstant();
+		this.clock.setInstant(due.plus(Duration.ofMinutes(1)));
+		this.poller.runDue();
+		assertThat(autoAcceptance(handover)).containsEntry("status", "FIRED");
+		assertThat(acceptance(handover)).isEqualTo("MERGING");
+
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(acceptance(handover)).isEqualTo("VOIDED");
+		assertThat(milestoneState()).isEqualTo("FUNDED");
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(handoverStatus(handover)));
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.notification WHERE type = 'repo.acceptance_head_moved' AND account_id = :admin
+				""").param("admin", admin).query(Long.class).single()).isOne();
+		closePullRequests(handover);
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull(handover))).endsWith(" (lần 1)");
+	}
+
+	/**
+	 * A Dispute froze the Job between the merge's frozen check and M3: M3, the alert, and the void's notices all roll
+	 * back, and the merge waits for the thaw without using an attempt.
+	 */
+	@Test
+	void a409WhileTheJobFrozeIsTriedAgainAfterTheThaw() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		UUID handover = handedOver();
+		int pull = pull(handover);
+		moveHandoverBranch(handover);
+		accept(handover, version()).andExpect(status().isOk());
+		java.util.concurrent.atomic.AtomicBoolean froze = new java.util.concurrent.atomic.AtomicBoolean();
+		GITHUB.beforeAnswer = request -> {
+			if ("PUT".equals(request.method()) && request.path().endsWith("/pulls/" + pull + "/merge")
+					&& froze.compareAndSet(false, true)) {
+				this.freezes.freeze(this.job);
+			}
+		};
+		try {
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		finally {
+			GITHUB.beforeAnswer = request -> {
+			};
+		}
+
+		assertThat(froze).isTrue();
+		assertThat(acceptance(handover)).as("nothing resolved").isEqualTo("MERGING");
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		assertThat(handoverStatus(handover)).isEqualTo("SUBMITTED");
+		assertThat(this.jdbc.sql("SELECT busy_operation_key IS NOT NULL FROM job.job WHERE id = :id").param("id", this.job)
+			.query(Boolean.class).single()).as("the marker is still the merge's").isTrue();
+		awaitPublications();
+		assertThat(notifications("repo.acceptance_head_moved", admin)).as("the alert rolled back").isZero();
+		assertThat(notifications("job.handover_voided", this.lan) + notifications("job.handover_voided", this.hung)).isZero();
+		assertThat(closeOperation(handover)).as("no M3, so nothing to close").isNull();
+		// Deferred while frozen: no attempt used, the next one after the frozen wait.
+		assertThat(this.jdbc.sql("""
+				SELECT status || ' ' || attempt_count FROM operations.external_operation
+				WHERE type = 'delivery.acceptance_merge' AND payload ->> 'handoverId' = :handover AND next_attempt_at = :due
+				""").param("handover", handover.toString())
+			.param("due", Timestamp.from(this.clock.instant().plus(AcceptanceMergeOperation.FROZEN_WAIT)))
+			.query(String.class).list()).containsExactly("PENDING 0");
+
+		// Still frozen at that time: it waits again.
+		this.clock.advance(AcceptanceMergeOperation.FROZEN_WAIT.plusMinutes(1));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(acceptance(handover)).isEqualTo("MERGING");
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+
+		this.freezes.unfreeze(this.job);
+		this.clock.advance(AcceptanceMergeOperation.FROZEN_WAIT.plusMinutes(1));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(acceptance(handover)).isEqualTo("VOIDED");
+		assertThat(milestoneState()).isEqualTo("FUNDED");
+		assertThat(mergeOperation(handover)).isEqualTo("ABORTED HEAD_MOVED");
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(handoverStatus(handover)));
+		assertThat(notifications("repo.acceptance_head_moved", admin)).isOne();
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> closeOperation(handover) != null);
+		awaitPublications();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'delivery.handover_pull_close' AND payload ->> 'handoverId' = :handover
+				""").param("handover", handover.toString()).query(Long.class).single()).isOne();
+	}
+
+	/**
+	 * Only GitHub's 409 means the handover branch moved: a merge GitHub refuses as not mergeable (405) or invalid
+	 * (422) is a failed merge as built, never M3.
+	 */
+	@Test
+	void aMergeRefusedWithAnythingButA409IsNoMovedHead() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		UUID handover = handedOver();
+		accept(handover, version()).andExpect(status().isOk());
+		for (int refusal : new int[] { 405, 422 }) {
+			GITHUB.mergeRefusals.put(this.intermediary, refusal);
+			try {
+				this.clock.advance(Duration.ofHours(1));
+				this.worker.runDue(Lane.GITHUB_SHORT);
+			}
+			finally {
+				GITHUB.mergeRefusals.remove(this.intermediary);
+			}
+			assertThat(mergeOperation(handover)).as("HTTP %d", refusal).isEqualTo("PENDING GITHUB_UNAVAILABLE");
+			assertThat(acceptance(handover)).isEqualTo("MERGING");
+			assertThat(handoverStatus(handover)).isEqualTo("SUBMITTED");
+			assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		}
+		awaitPublications();
+		assertThat(notifications("repo.acceptance_head_moved", admin)).isZero();
+		assertThat(notifications("job.handover_voided", this.lan)).isZero();
+		assertThat(closeOperation(handover)).isNull();
+	}
+
+	/** Each round's pull request gets its own round: the second revision adds "(lần 2)", the first keeps "(lần 1)". */
+	@Test
+	void eachClosedPullRequestCarriesItsOwnRound() throws Exception {
+		UUID first = handedOver();
+		requestRevision(first).andExpect(status().isOk());
+		closePullRequests(first);
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = 'again';\n",
+				"Sửa theo yêu cầu", "hung@example.test");
+		preflight();
+		String report = handOver(version()).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		UUID second = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+		requestRevision(second).andExpect(status().isOk());
+		closePullRequests(second);
+
+		assertThat(pull(second)).isNotEqualTo(pull(first));
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull(second))).isEqualTo(PULL_TITLE + " (lần 2)");
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull(first))).isEqualTo(PULL_TITLE + " (lần 1)");
+		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull(first), this.intermediary + "#" + pull(second));
+	}
+
+	/** A default branch GitHub does not show is unreadable, never the commit Setup copied. */
+	@Test
+	void aMissingDefaultBranchMakesTheRepositoryUnreadable() throws Exception {
+		this.jdbc.sql("UPDATE repo.job_setup SET default_branch = 'khong-co' WHERE job_id = :job").param("job", this.job)
+			.update();
+
+		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("REPOSITORY_UNREADABLE")));
 	}
 
 	@Test
-	void theTenMinuteLookVoidsAHandoverWhoseRecordedHeadMoved() throws Exception {
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
-				"hung@example.test");
-		preflight();
-		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-		UUID handover = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
-		this.voids.sweep();
-		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
-			.query(String.class).single()).as("the same head changes nothing").isEqualTo("SUBMITTED");
+	void aRevisionClosesTheOlderPullRequestWithItsCommentAndRoundAndKeepsItsBranch() throws Exception {
+		UUID handover = handedOver();
+		int pull = pull(handover);
 
-		this.jdbc.sql("UPDATE repo.branch_head SET sha = :sha WHERE job_id = :job AND ref = 'refs/heads/main'")
-			.param("sha", "f".repeat(40)).param("job", this.job).update();
-		this.voids.sweep();
+		requestRevision(handover).andExpect(status().isOk());
+		closePullRequests(handover);
 
-		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
-			.query(String.class).single()).isEqualTo("FUNDED");
-		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
-			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
+		assertThat(milestoneState()).isEqualTo("REVISION_REQUESTED");
+		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull);
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull)).isEqualTo(PULL_TITLE + " (lần 1)");
+		assertThat(GITHUB.pullComments.get(this.intermediary + "#" + pull)).singleElement()
+			.satisfies(comment -> assertThat(comment).startsWith(HandoverPullCloses.revisionComment(handover))
+				.contains("<!-- vibefix:handover-closed:" + handover + " -->"));
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + handover)).as("kept as evidence")
+			.isEqualTo(handoverCommit(handover));
+		assertThat(closeOperation(handover)).isEqualTo("SUCCEEDED");
+	}
+
+	@Test
+	void aRetriedCloseCommentsOnceAndAddsTheRoundOnce() throws Exception {
+		UUID handover = handedOver();
+		int pull = pull(handover);
+		requestRevision(handover).andExpect(status().isOk());
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> closeOperation(handover) != null);
+		String patch = "PATCH /repos/" + GitHubStub.ORGANIZATION + "/" + this.intermediary + "/pulls/";
+		GITHUB.unavailable.add(patch);
+		try {
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		finally {
+			GITHUB.unavailable.remove(patch);
+		}
+		assertThat(GITHUB.pullComments.get(this.intermediary + "#" + pull)).hasSize(1);
+		assertThat(GITHUB.closedPulls).doesNotContain(this.intermediary + "#" + pull);
+		assertThat(closeOperation(handover)).isEqualTo("PENDING");
+
+		this.clock.advance(Duration.ofMinutes(1));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(GITHUB.pullComments.get(this.intermediary + "#" + pull)).as("the marker found the first comment").hasSize(1);
+		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull);
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull)).isEqualTo(PULL_TITLE + " (lần 1)");
+		assertThat(closeOperation(handover)).isEqualTo("SUCCEEDED");
+	}
+
+	@Test
+	void aPullRequestGitHubShowsMergedIsLeftAsItIs() throws Exception {
+		UUID handover = handedOver();
+		int pull = pull(handover);
+		GITHUB.mergedPulls.add(this.intermediary + "#" + pull);
+
+		requestRevision(handover).andExpect(status().isOk());
+		closePullRequests(handover);
+
+		assertThat(closeOperation(handover)).isEqualTo("SUCCEEDED");
+		assertThat(GITHUB.pullComments.getOrDefault(this.intermediary + "#" + pull, List.of())).isEmpty();
+		assertThat(GITHUB.closedPulls).doesNotContain(this.intermediary + "#" + pull);
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull)).isEqualTo(PULL_TITLE);
 	}
 
 	@Test
@@ -636,24 +848,32 @@ class CodeHandoverIT extends IntegrationTest {
 			.query(UUID.class).single()).isEqualTo(this.lan);
 	}
 
+	/** D9: the merge names the Handover Commit and never reads the Working head, so the team's push is no 409. */
 	@Test
-	void aHeadThatMovedBeforeTheMergeVoidsTheHandoverAndReleasesNothing() throws Exception {
+	void aPushToWorkingDuringTheAcceptanceMergesTheHandoverAsHandedOver() throws Exception {
 		UUID handover = handedOver();
 		fundForRelease();
+		String commit = handoverCommit(handover);
 		accept(handover, version()).andExpect(status().isOk());
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = false;\n",
 				"Sửa thêm trong lúc nghiệm thu", "hung@example.test");
+		GITHUB.seen.clear();
 
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
-		assertThat(GITHUB.mergedPulls).noneMatch(merged -> merged.startsWith(this.intermediary + "#"));
-		assertThat(milestoneState()).as("M3: back to where it was handed over from").isEqualTo("FUNDED");
-		assertThat(releases()).isZero();
-		assertThat(acceptance(handover)).isEqualTo("VOIDED");
-		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(this.jdbc
-			.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class).single()));
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.lan, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.busy").value(false));
+		assertThat(GITHUB.mergedPulls).contains(this.intermediary + "#" + pull(handover));
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "main")).isEqualTo(commit);
+		assertThat(milestoneState()).isEqualTo("ACCEPTED");
+		assertThat(releases()).isOne();
+		assertThat(acceptance(handover)).isEqualTo("DONE");
+		assertThat(List.copyOf(GITHUB.seen)).as("the Working Repository is not read at acceptance")
+			.noneMatch(request -> request.path().contains("/" + this.working + "/"));
+		assertThat(List.copyOf(GITHUB.seen)).filteredOn(request -> "PUT".equals(request.method()))
+			.singleElement()
+			.satisfies(merge -> {
+				assertThat(merge.body().path("sha").asString()).isEqualTo(commit);
+				assertThat(merge.body().path("merge_method").asString()).isEqualTo("merge");
+			});
 	}
 
 	@Test
@@ -754,6 +974,77 @@ class CodeHandoverIT extends IntegrationTest {
 		preflight();
 		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		return UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+	}
+
+	/** Someone writes to {@code handover/{id}} in the Intermediary, so it no longer holds the Handover Commit. */
+	private void moveHandoverBranch(UUID handover) throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + handover, "src/booking.js",
+				"export const free = 'moved';\n", "Đổi nhánh bàn giao", "operator@example.test");
+	}
+
+	/** The handover branch moved, then the Customer accepts: the merge answers 409 and M3 voids the handover. */
+	private void voidAtAcceptance(UUID handover) throws Exception {
+		moveHandoverBranch(handover);
+		accept(handover, version()).andExpect(status().isOk());
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(handoverStatus(handover)));
+	}
+
+	/** Waits for the close that M3 or M4 requested, then runs it. */
+	private void closePullRequests(UUID handover) {
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> closeOperation(handover) != null);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+	}
+
+	private ResultActions requestRevision(UUID handover) throws Exception {
+		return this.mvc.perform(post("/api/v1/handovers/" + handover + "/revision").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"version\":" + version() + ",\"checks\":[{\"criterionId\":\"" + this.criterion
+					+ "\",\"met\":false,\"comment\":\"Vẫn đặt trùng khi hai người bấm cùng lúc.\"}]}"));
+	}
+
+	/** The close operation's status, or {@code null} before it is requested. */
+	private String closeOperation(UUID handover) {
+		return this.jdbc.sql("""
+				SELECT status FROM operations.external_operation
+				WHERE type = 'delivery.handover_pull_close' AND payload ->> 'handoverId' = :handover
+				""").param("handover", handover.toString()).query(String.class).optional().orElse(null);
+	}
+
+	/** Waits until every listener of the events published so far has run. */
+	private void awaitPublications() {
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
+				.query(Long.class)
+				.single() == 0);
+	}
+
+	private long notifications(String type, UUID account) {
+		return this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type = :type AND account_id = :account")
+			.param("type", type).param("account", account).query(Long.class).single();
+	}
+
+	/** The acceptance merge's status and its last error code. */
+	private String mergeOperation(UUID handover) {
+		return this.jdbc.sql("""
+				SELECT status || ' ' || coalesce(error_code, '-') FROM operations.external_operation
+				WHERE type = 'delivery.acceptance_merge' AND payload ->> 'handoverId' = :handover
+				""").param("handover", handover.toString()).query(String.class).single();
+	}
+
+	private int pull(UUID handover) {
+		return this.jdbc.sql("SELECT pull_number FROM delivery.handover WHERE id = :id").param("id", handover)
+			.query(Integer.class).single();
+	}
+
+	private String handoverCommit(UUID handover) {
+		return this.jdbc.sql("SELECT handover_commit FROM delivery.handover WHERE id = :id").param("id", handover)
+			.query(String.class).single();
+	}
+
+	private String handoverStatus(UUID handover) {
+		return this.jdbc.sql("SELECT status FROM delivery.handover WHERE id = :id").param("id", handover).query(String.class)
+			.single();
 	}
 
 	/** The Milestone's funding in the ledger. */

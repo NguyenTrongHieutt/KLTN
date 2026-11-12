@@ -1,0 +1,6 @@
+subject: Nghiệm thu Giai đoạn {n} của {job} bị từ chối vì nhánh bàn giao đã thay đổi; bàn giao đã bị hủy
+---
+Xin chào,
+
+GitHub từ chối hợp nhất bàn giao Giai đoạn {n} của {job} vì nhánh bàn giao trong kho trung gian không còn đúng lần lưu đã bàn giao, dù chỉ hệ thống được ghi vào nhánh này.
+Bàn giao đã bị hủy, tiền của giai đoạn vẫn được giữ, và người hướng dẫn sẽ bàn giao lại. Hãy kiểm tra trên GitHub ai đã thay đổi nhánh bàn giao.

@@ -141,12 +141,30 @@ public interface PlatformRepositories {
 
 	/**
 	 * Merges the pull request exactly at {@code sha} with a merge commit (FR-33, AD-11); GitHub refuses it
-	 * when the head moved. A pull request already merged changes nothing.
+	 * with 409 when its head branch no longer holds {@code sha}. A pull request already merged changes nothing.
 	 */
 	void mergePullRequest(PlatformRepository repository, int number, String sha, String title);
 
 	/** Whether the pull request is merged, read back from GitHub. */
 	boolean pullRequestMerged(PlatformRepository repository, int number);
+
+	/**
+	 * A pull request as GitHub shows it now.
+	 * @param state {@code open} or {@code closed}; a merged one is {@code closed} too
+	 */
+	record PullRequestState(int number, String state, boolean merged, String title) {
+	}
+
+	PullRequestState pullRequest(PlatformRepository repository, int number);
+
+	/** The body of every comment on the pull request's conversation, oldest first, every page. */
+	List<String> pullRequestComments(PlatformRepository repository, int number);
+
+	/** Adds a comment to the pull request's conversation. */
+	void commentOnPullRequest(PlatformRepository repository, int number, String body);
+
+	/** Renames and closes the pull request in one PATCH (R26); its head branch stays. */
+	void renameAndClosePullRequest(PlatformRepository repository, int number, String title);
 
 	/**
 	 * One commit of a compared range (AD-33).
@@ -223,10 +241,11 @@ public interface PlatformRepositories {
 	Optional<SourceRepository> source(long githubId);
 
 	/**
-	 * The commit SHA {@code branch} of the public Source Repository {@code fullName} points at now
-	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}): J7 copies it until Story 23.6's self-confirmation.
+	 * The commit SHA {@code branch} of a repository the Platform App reads points at now
+	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}): the public Source Repository's default branch, which
+	 * J7 copies until Story 23.6's self-confirmation, or the Working Repository's, which a handover reads.
 	 */
-	String sourceHead(String fullName, String branch);
+	String branchHead(String fullName, String branch);
 
 	/** The commits on {@code branch} after {@code baseSha}, oldest first, at most 250 (FR-20, FR-53). */
 	List<String> commitsSince(String fullName, String baseSha, String branch);

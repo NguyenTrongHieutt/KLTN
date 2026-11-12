@@ -173,7 +173,7 @@ class Decisions {
 			.filter(found -> found.jobId().equals(customer.job().jobId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if ("VOIDED".equals(handover.status())) {
-			// FR-32, UX-DR26: a new commit voided it while the Customer was deciding.
+			// FR-33, UX-DR26: an acceptance merge answered 409 and M3 voided it while the Customer was deciding.
 			throw new ApiException(ErrorCode.STALE, DeliveryReason.HANDOVER_VOIDED);
 		}
 		if (!"SUBMITTED".equals(handover.status())) {

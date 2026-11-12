@@ -19,12 +19,13 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
- * M3 (FR-32, AD-11): a push after a Code Job's handover moved the Working Repository's head away from its
- * Handover Commit, so the handover is void. Only the Milestone's current handover is voided. The
- * Milestone goes back to where it was handed over from: Revision Requested once a Revision Round was
- * used, Funded before that. The Customer and the Mentor get {@code job.handover_voided};
- * {@code delivery} voids the handover and moves its to-dos, and Auto-acceptance ends through its
- * generation check.
+ * M3 (FR-33, AD-11, D9): a Code Job's acceptance merge answered 409, because the handover branch no longer
+ * holds the Handover Commit, so the handover is void; a push to the Working Repository never applies it. Only
+ * the Milestone's current handover is voided. The Milestone goes back to where it was handed over from:
+ * Revision Requested once a Revision Round was used, Funded before that. The Customer and the Mentor get
+ * {@code job.handover_voided}; {@code delivery} voids the handover, moves its to-dos, alerts the
+ * Administrators, and closes the handover's pull request, and Auto-acceptance ends through its generation
+ * check.
  */
 @Component
 class M3Void implements JobLifecycle.Step {

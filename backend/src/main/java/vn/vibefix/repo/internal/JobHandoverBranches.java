@@ -13,13 +13,15 @@ import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.Comparison;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
+import vn.vibefix.github.PlatformRepositories.PullRequestState;
 import vn.vibefix.repo.HandoverBranches;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 
 /**
- * {@link HandoverBranches} over the Job's done Setup (AD-11): the head comes from the recorded heads after
- * reading them back ({@link PushScans#refresh}), and the pin reuses the copy into the Intermediary
- * Repository with the Working default branch as its source. Nothing here runs in a transaction, so
+ * {@link HandoverBranches} over the Job's done Setup (AD-11): the Working head is read live from GitHub on
+ * every call, never recorded (D9), and the pin reuses the copy into the Intermediary Repository with the
+ * Working default branch as its source. The merge's 409 is {@link HeadMoved}; the close after M3 or M4
+ * marks its comment with the handover, so a retry posts it once. Nothing here runs in a transaction, so
  * nothing is audited here: {@code delivery} audits the handover it records.
  */
 @Component
@@ -31,14 +33,11 @@ class JobHandoverBranches implements HandoverBranches {
 
 	private final JobSetups setups;
 
-	private final PushScans pushScans;
-
 	private final PlatformRepositories repositories;
 
-	JobHandoverBranches(JdbcClient jdbc, JobSetups setups, PushScans pushScans, PlatformRepositories repositories) {
+	JobHandoverBranches(JdbcClient jdbc, JobSetups setups, PlatformRepositories repositories) {
 		this.jdbc = jdbc;
 		this.setups = setups;
-		this.pushScans = pushScans;
 		this.repositories = repositories;
 	}
 
@@ -48,30 +47,17 @@ class JobHandoverBranches implements HandoverBranches {
 		if (setup == null) {
 			return Optional.empty();
 		}
+		String head;
 		try {
-			this.pushScans.refresh(jobId);
+			// The default branch's ref alone; a branch GitHub does not show (404) is unreadable, never the commit
+			// Setup copied.
+			head = this.repositories.branchHead(java.util.Objects.requireNonNull(setup.working()).fullName(),
+					setup.defaultBranch());
 		}
 		catch (GitHubException failed) {
-			throw new Unavailable("The Working Repository of Job " + jobId + " was not read back", failed);
+			throw new Unavailable("The Working Repository of Job " + jobId + " was not read", failed);
 		}
-		PlatformRepository working = setup.working();
-		String head = this.jdbc.sql("SELECT sha FROM repo.branch_head WHERE repository_github_id = :id AND ref = :ref")
-			.param("id", working.id())
-			.param("ref", "refs/heads/" + setup.defaultBranch())
-			.query(String.class)
-			.optional()
-			.orElse(setup.approvedSha());
 		return Optional.of(new WorkingHead(head, setup.approvedSha(), setup.defaultBranch()));
-	}
-
-	@Override
-	public Optional<String> recordedHead(UUID jobId) {
-		return done(jobId).flatMap(setup -> this.jdbc.sql(
-				"SELECT sha FROM repo.branch_head WHERE repository_github_id = :id AND ref = :ref")
-			.param("id", setup.working().id())
-			.param("ref", "refs/heads/" + setup.defaultBranch())
-			.query(String.class)
-			.optional());
 	}
 
 	@Override
@@ -134,7 +120,16 @@ class JobHandoverBranches implements HandoverBranches {
 	public boolean merge(UUID jobId, int pullNumber, String sha, String title) {
 		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
 		try {
-			this.repositories.mergePullRequest(setup.intermediary(), pullNumber, sha, title);
+			try {
+				this.repositories.mergePullRequest(setup.intermediary(), pullNumber, sha, title);
+			}
+			catch (GitHubException refused) {
+				if (refused.status() == 409) {
+					// FR-33, D9: GitHub's sha precondition; only this answer of this call means the head moved.
+					throw new HeadMoved("Pull request " + pullNumber + " of Job " + jobId + " no longer holds " + sha, refused);
+				}
+				throw refused;
+			}
 			boolean merged = this.repositories.pullRequestMerged(setup.intermediary(), pullNumber);
 			if (merged) {
 				recordHead(setup, pullNumber, sha);
@@ -155,6 +150,41 @@ class JobHandoverBranches implements HandoverBranches {
 		catch (GitHubException failed) {
 			throw new Unavailable("Pull request " + pullNumber + " of Job " + jobId + " was not read", failed);
 		}
+	}
+
+	@Override
+	public boolean close(UUID jobId, UUID handoverId, int pullNumber, int round, String comment) {
+		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
+		PlatformRepository intermediary = java.util.Objects.requireNonNull(setup.intermediary());
+		String marker = closeMarker(handoverId);
+		try {
+			PullRequestState pull = this.repositories.pullRequest(intermediary, pullNumber);
+			if (pull.merged()) {
+				// GitHub shows it merged: it is left as GitHub shows it.
+				return false;
+			}
+			String suffix = " (lần " + round + ")";
+			boolean renamed = pull.title().endsWith(suffix);
+			if ("closed".equals(pull.state()) && renamed) {
+				return true;
+			}
+			boolean commented = this.repositories.pullRequestComments(intermediary, pullNumber)
+				.stream()
+				.anyMatch(body -> body.contains(marker));
+			if (!commented) {
+				this.repositories.commentOnPullRequest(intermediary, pullNumber, comment + "\n\n" + marker);
+			}
+			this.repositories.renameAndClosePullRequest(intermediary, pullNumber, renamed ? pull.title() : pull.title() + suffix);
+			return true;
+		}
+		catch (GitHubException failed) {
+			throw new Unavailable("Pull request " + pullNumber + " of Job " + jobId + " was not closed", failed);
+		}
+	}
+
+	/** The hidden line that marks the close comment of one handover, so a retry finds it and posts none. */
+	static String closeMarker(UUID handoverId) {
+		return "<!-- vibefix:handover-closed:" + handoverId + " -->";
 	}
 
 	/**

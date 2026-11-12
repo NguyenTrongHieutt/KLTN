@@ -124,13 +124,9 @@ class JobSetups {
 	/** Looked up on use: the grants need the Crew and the directories, which need {@code operations}. */
 	private final ObjectProvider<JobGrants> grants;
 
-	private final ObjectProvider<PushScans> pushScans;
-
 	JobSetups(JdbcClient jdbc, JobBusy busy, ExternalOperations operations, Notifications notifications,
-			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock, ObjectProvider<JobGrants> grants,
-			ObjectProvider<PushScans> pushScans) {
+			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock, ObjectProvider<JobGrants> grants) {
 		this.grants = grants;
-		this.pushScans = pushScans;
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.operations = operations;
@@ -298,7 +294,6 @@ class JobSetups {
 		if (updated == 1) {
 			this.busy.release(setup.jobId(), setup.operationKey());
 			audit("repo.setup_done", setup.id(), setup.jobId());
-			this.pushScans.getObject().recordCopy(setup, working);
 			this.grants.getObject().grantAll(setup, working);
 		}
 	}

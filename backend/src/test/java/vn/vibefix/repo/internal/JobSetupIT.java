@@ -118,9 +118,6 @@ class JobSetupIT extends IntegrationTest {
 	private DeadlinePoller deadlines;
 
 	@Autowired
-	private PushScans pushScans;
-
-	@Autowired
 	private PlatformGuard guard;
 
 	@Autowired
@@ -548,29 +545,6 @@ class JobSetupIT extends IntegrationTest {
 			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
-		awaitListeners();
-	}
-
-	@Test
-	void aPushMovesTheRecordedHeadAndRequestsNoScan() throws Exception {
-		j6();
-		run();
-		String working = JobSetups.workingName(this.job);
-		String head = GITHUB.push(GitHubStub.ORGANIZATION, working, "main", "README.md", "# Quán Mây v2\n");
-		long repository = GITHUB.organizationRepositoryId(working);
-
-		this.pushScans.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
-				vn.vibefix.github.GitHubApps.App.PLATFORM, "push", null, 7L, List.of(repository), 1L, null));
-		this.pushScans.sweep();
-
-		// vibefix scans no code (Story 23.1): the head is recorded until Story 23.2, and nothing else is requested.
-		assertThat(this.jdbc.sql("SELECT sha FROM repo.branch_head WHERE repository_github_id = :id AND ref = 'refs/heads/main'")
-			.param("id", repository).query(String.class).single()).isEqualTo(head);
-		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.push_scan").query(Long.class).single()).isZero();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM timers.deadline WHERE kind = 'repo.push_scan_delay'")
-			.query(Long.class).single()).isZero();
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/findings").with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isNotFound());
 		awaitListeners();
 	}
 

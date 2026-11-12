@@ -18,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -28,9 +29,15 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.delivery.internal.Decisions.Check;
 import vn.vibefix.delivery.internal.Handovers.CodeRecord;
 import vn.vibefix.delivery.internal.Handovers.Handover;
+import vn.vibefix.identity.Administrators;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.job.MilestoneHandovers;
+import vn.vibefix.job.MilestoneHandovers.HandoverJob;
+import vn.vibefix.notification.Audience;
+import vn.vibefix.notification.NotificationRequest;
+import vn.vibefix.notification.Notifications;
+import vn.vibefix.notification.Recipient;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationCompleted;
 import vn.vibefix.operations.OperationRequest;
@@ -47,14 +54,18 @@ import vn.vibefix.timers.DeadlineOutcome;
  * đoạn" (or Auto-acceptance) reserves the {@code ACCEPTANCE} busy marker for the handover and requests
  * {@value #TYPE} in one transaction; nothing is accepted yet. The operation merges exactly the Handover
  * Commit, and its resolving transaction releases the marker, then applies M5 with the release through
- * {@link Decisions}. A moved head resolves as M3 instead (Story 8.4). A failure after the last attempt
- * releases the marker and leaves the Milestone Submitted; the daily reconciliation reads failed merges back
- * and resolves any it finds merged (SG-29).
+ * {@link Decisions}. GitHub's 409 at that merge (the handover branch moved, D9) resolves as M3 instead, with
+ * {@value #HEAD_MOVED} to every Administrator. A failure after the last attempt releases the marker and leaves
+ * the Milestone Submitted; the daily reconciliation reads failed merges back and resolves any it finds merged
+ * (SG-29).
  */
 @Component
 class AcceptanceMerges {
 
 	static final String TYPE = "delivery.acceptance_merge";
+
+	/** The Administrators' alert when an acceptance merge answered 409 and M3 applied (FR-33, R25, R30). */
+	static final String HEAD_MOVED = "repo.acceptance_head_moved";
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -79,6 +90,10 @@ class AcceptanceMerges {
 
 	private final AuditLog auditLog;
 
+	private final Notifications notifications;
+
+	private final Administrators administrators;
+
 	private final IdGenerator ids;
 
 	private final Clock clock;
@@ -87,8 +102,8 @@ class AcceptanceMerges {
 	private final ObjectProvider<Decisions> decisions;
 
 	AcceptanceMerges(JdbcClient jdbc, JobBusy busy, ExternalOperations operations, MilestoneHandovers jobs,
-			HandoverBranches branches, Handovers handovers, AuditLog auditLog, IdGenerator ids, Clock clock,
-			ObjectProvider<Decisions> decisions) {
+			HandoverBranches branches, Handovers handovers, AuditLog auditLog, Notifications notifications,
+			Administrators administrators, IdGenerator ids, Clock clock, ObjectProvider<Decisions> decisions) {
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.operations = operations;
@@ -96,6 +111,8 @@ class AcceptanceMerges {
 		this.branches = branches;
 		this.handovers = handovers;
 		this.auditLog = auditLog;
+		this.notifications = notifications;
+		this.administrators = administrators;
 		this.ids = ids;
 		this.clock = clock;
 		this.decisions = decisions;
@@ -188,17 +205,36 @@ class AcceptanceMerges {
 		resolve(operationKey, accept(acceptance) ? "DONE" : "FAILED");
 	}
 
-	/** The head had moved (a precondition violation): the marker goes and M3 voids the handover. */
+	/**
+	 * The merge answered 409 (a precondition violation, FR-33): in one resolving transaction the marker goes,
+	 * M3 voids the handover as the System, the acceptance is {@code VOIDED}, and every Administrator gets
+	 * {@value #HEAD_MOVED}. M3 refused rolls all of it back, so the operation merges again later: it waits while
+	 * the Job is frozen, which is how M3 is refused under the marker. Resolving twice changes nothing.
+	 * @return {@code false} when M3 was refused and nothing was written
+	 */
 	@Transactional
-	void headMoved(String operationKey) {
+	boolean headMoved(String operationKey) {
 		Acceptance acceptance = merging(operationKey).orElse(null);
 		if (acceptance == null) {
-			return;
+			return true;
 		}
 		this.busy.release(acceptance.jobId(), operationKey);
 		Handover handover = this.handovers.find(acceptance.handoverId()).orElseThrow();
-		this.jobs.voidHandover(handover.jobId(), handover.milestoneId(), handover.id());
+		if (!this.jobs.voidHandover(handover.jobId(), handover.milestoneId(), handover.id())) {
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			log.info("Acceptance {} met a moved handover branch but M3 was refused; nothing was resolved", operationKey);
+			return false;
+		}
 		resolve(operationKey, "VOIDED");
+		List<Recipient> admins = this.administrators.activeIds().stream().map(id -> new Recipient(id, Audience.ADMIN)).toList();
+		if (!admins.isEmpty()) {
+			String job = this.jobs.job(handover.jobId()).map(HandoverJob::title).orElse("");
+			// One alert per handover: a handover is voided once.
+			this.notifications.send(new NotificationRequest(HEAD_MOVED, handover.id(), admins,
+					Map.of("n", String.valueOf(handover.number()), "job", job), "/quan-tri/cong-viec/" + handover.jobId(), null,
+					null));
+		}
+		return true;
 	}
 
 	@ApplicationModuleListener

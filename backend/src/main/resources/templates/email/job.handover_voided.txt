@@ -1,6 +1,6 @@
-subject: Bàn giao Giai đoạn {n} đã bị hủy vì có thay đổi mới sau khi bàn giao
+subject: Bàn giao Giai đoạn {n} đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi nghiệm thu
 ---
 Xin chào,
 
-Sau khi bàn giao Giai đoạn {n}, nhóm thực hiện đã lưu thêm thay đổi vào kho làm việc, nên lần bàn giao này đã bị hủy.
-Khách hàng không cần kiểm tra lần bàn giao này nữa. Người hướng dẫn sẽ bàn giao lại, kèm các thay đổi mới.
+Khi nghiệm thu Giai đoạn {n}, GitHub cho biết nhánh bàn giao không còn đúng lần lưu đã bàn giao, nên lần bàn giao này đã bị hủy.
+Tiền của giai đoạn vẫn được giữ. Người hướng dẫn sẽ bàn giao lại.
