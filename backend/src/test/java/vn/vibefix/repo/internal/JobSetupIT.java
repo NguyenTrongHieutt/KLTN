@@ -1243,6 +1243,8 @@ class JobSetupIT extends IntegrationTest {
 			.andExpect(jsonPath("$.canRetry").value(true));
 
 		GITHUB.publish("lan-dev", name, id, owner, true, false);
+		// The new attempt starts later than the blocked one, as it would on a running clock.
+		this.clock.advance(Duration.ofMinutes(1));
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/setup/retry").with(as(this.customer, Role.CUSTOMER)).with(csrf()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("RUNNING"));
