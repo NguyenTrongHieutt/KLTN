@@ -221,7 +221,8 @@ class HandoverController {
 	 * @param auto accepted by Auto-acceptance (FR-35)
 	 * @param code a Code Job's pinned commit, its range, Sensitive Changes, and updated Pages
 	 * @param acceptance a Code Job's acceptance while the handover waits: {@code MERGING} under the busy
-	 * marker, or {@code FAILED} when its merge did not go through (FR-33)
+	 * marker, {@code FAILED} when its merge did not go through (FR-33), or {@code VOIDED} when its merge
+	 * answered 409 and M3 applied, until the handover itself shows {@code VOIDED}
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
@@ -432,11 +433,12 @@ class HandoverController {
 			.orElse(null);
 		int roundsLeft = this.jobs.rounds(handover.milestoneId()).map(Rounds::left).orElse(0);
 		String acceptance = "SUBMITTED".equals(handover.status())
-				? this.merges.latestStatus(handover.id()).filter(status -> status.equals("MERGING") || status.equals("FAILED"))
+				? this.merges.latestStatus(handover.id())
+					.filter(status -> status.equals("MERGING") || status.equals("FAILED") || status.equals("VOIDED"))
 					.orElse(null)
 				: null;
 		HandoverDecisionView decision = viewer.kind() == Kind.CUSTOMER && "SUBMITTED".equals(handover.status())
-				&& !"MERGING".equals(acceptance)
+				&& !"MERGING".equals(acceptance) && !"VOIDED".equals(acceptance)
 						? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0)
 						: null;
 		return new DeliveryReportView(handover.id(), handover.jobId(), viewer.job().title(), handover.number(),

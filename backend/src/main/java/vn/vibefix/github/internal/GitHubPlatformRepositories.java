@@ -541,6 +541,48 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
+	public PullRequestState pullRequest(PlatformRepository repository, int number) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"), token -> {
+			JsonNode pull = require(
+					http().send("GET", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(), null),
+					"read pull request " + number);
+			return new PullRequestState(number, pull.path("state").asString(""), pull.path("merged").asBoolean(false),
+					pull.path("title").asString(""));
+		});
+	}
+
+	@Override
+	public List<String> pullRequestComments(PlatformRepository repository, int number) {
+		// A pull request's conversation is its issue's (GitHub's issue comments API), which Pull requests read covers.
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "read"), token -> {
+			List<String> bodies = new ArrayList<>();
+			for (JsonNode comment : pages("/repos/" + repository.fullName() + "/issues/" + number + "/comments?per_page=100",
+					token.value(), "list the comments of pull request " + number)) {
+				bodies.add(comment.path("body").asString(""));
+			}
+			return bodies;
+		});
+	}
+
+	@Override
+	public void commentOnPullRequest(PlatformRepository repository, int number, String body) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+			require(http().send("POST", "/repos/" + repository.fullName() + "/issues/" + number + "/comments", token.value(),
+					Map.of("body", body)), "comment on pull request " + number);
+			return null;
+		});
+	}
+
+	@Override
+	public void renameAndClosePullRequest(PlatformRepository repository, int number, String title) {
+		this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("pull_requests", "write"), token -> {
+			require(http().send("PATCH", "/repos/" + repository.fullName() + "/pulls/" + number, token.value(),
+					Map.of("title", title, "state", "closed")), "close pull request " + number);
+			return null;
+		});
+	}
+
+	@Override
 	public Comparison compare(PlatformRepository repository, String baseSha, String headSha) {
 		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
 			JsonNode body = require(http().send("GET", "/repos/" + repository.fullName() + "/compare/" + baseSha + "..." + headSha,
@@ -708,7 +750,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public String sourceHead(String fullName, String branch) {
+	public String branchHead(String fullName, String branch) {
 		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> {
 			// The branch's ref alone: never a tag of the same name, and no commit body with its files.
 			JsonNode ref = require(http().send("GET", "/repos/" + fullName + "/git/ref/heads/" + branch, token.value(), null),

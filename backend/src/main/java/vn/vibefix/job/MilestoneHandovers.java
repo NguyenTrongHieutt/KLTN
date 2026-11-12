@@ -51,9 +51,11 @@ public interface MilestoneHandovers {
 			@Nullable String handoverCommit);
 
 	/**
-	 * M3 by the System (FR-32, AD-11): the handover's Working head moved, so it is void, in the caller's
-	 * transaction. A handover that is not the Milestone's current one, a Job that left Active, or a busy or
-	 * frozen Job changes nothing: the caller asks again on its next look (AD-28).
+	 * M3 by the System (FR-33, AD-11): the acceptance merge answered 409 because the handover branch no
+	 * longer holds the Handover Commit, so the handover is void, in the caller's transaction. A handover that
+	 * is not the Milestone's current one, a Job that left Active, or a busy or frozen Job changes nothing, and
+	 * the caller decides what follows: {@code delivery} rolls its resolution back, waits while the Job is frozen,
+	 * and merges again (AD-28).
 	 * @return whether M3 applied
 	 */
 	boolean voidHandover(UUID jobId, UUID milestoneId, UUID handoverId);

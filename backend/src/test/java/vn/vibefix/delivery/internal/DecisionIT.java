@@ -219,6 +219,11 @@ class DecisionIT extends IntegrationTest {
 		assertThat(notifications("job.revision_requested")).isOne();
 		assertThat(openTodos("delivery.review_handover", this.lan)).isZero();
 		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos("delivery.hand_over", this.hung) == 1);
+		// An Assessment Report has no pull request, so M4 closes nothing on GitHub (Story 23.2).
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL") == 0);
+		assertThat(count("SELECT count(*) FROM operations.external_operation WHERE type = 'delivery.handover_pull_close'"))
+			.isZero();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isZero();
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.milestones[0].revisionCriteria").value(1))

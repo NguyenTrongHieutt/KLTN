@@ -28,6 +28,10 @@ import tools.jackson.databind.json.JsonMapper;
  * them. What {@code scanning} keeps (the rules, {@code SensitiveText} and {@code SensitiveChanges}) stays, and only the
  * modules that use it depend on it. The SPA's Job phases {@code FINDING_MENTOR} and {@code FINDING_CREW} are about
  * finding people, and a word-bounded, capitalized {@code Finding} never matches them.
+ * <p>
+ * Story 23.2 (D9, R25): heads are compared only at acceptance, so nothing live names the head tracking either: the
+ * {@code WorkingHeadMoved} event, {@code PushScans}, {@code recordedHead}, the {@code branch_head} and
+ * {@code push_scan} tables, or the {@code push-sweep} and {@code void-sweep} settings.
  */
 class RetiredScanningTest {
 
@@ -55,7 +59,9 @@ class RetiredScanningTest {
 			"a scanning notification, to-do or template", Pattern.compile("\\bscanning\\.(?:resolve_|intake_scan|finding_|push_scan)"),
 			"a promise of a scan in the text people read",
 			Pattern.compile("quét bảo mật|đã (?:được )?quét|kiểm tra khóa bí mật", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE),
-			"the fingerprint key", Pattern.compile("scanning[-_.]fingerprint[-_.]key", Pattern.CASE_INSENSITIVE));
+			"the fingerprint key", Pattern.compile("scanning[-_.]fingerprint[-_.]key", Pattern.CASE_INSENSITIVE),
+			"head tracking",
+			Pattern.compile("\\b(?:WorkingHeadMoved|PushScans|recordedHead|branch_head|push_scan|push-sweep|void-sweep)\\b"));
 
 	@Test
 	void nothingLiveNamesTheScanPipelineAFindingTheScanLaneOrARetiredReason() {
@@ -110,12 +116,16 @@ class RetiredScanningTest {
 				"COMMITS_NOT_SCANNED", "JobReason.OPEN_FINDINGS", "SCAN_LIMIT", "'scanning.resolve_work_finding'",
 				"\"scanning.finding_opened\"", "scanning.push_scan_delayed", "scanning.intake_scan_clean",
 				"- scanning-fingerprint-key", "SCANNING_FINGERPRINT_KEY", "khi các thay đổi mới đã được quét bảo mật",
-				"Đã quét lịch sử mã", "Kiểm tra khóa bí mật: không còn vấn đề nào mở.")) {
+				"Đã quét lịch sử mã", "Kiểm tra khóa bí mật: không còn vấn đề nào mở.",
+				"import vn.vibefix.repo.WorkingHeadMoved;", "class PushScans {", "this.branches.recordedHead(jobId)",
+				"SELECT sha FROM repo.branch_head", "INSERT INTO repo.push_scan", "    push-sweep: PT10M",
+				"${vibefix.delivery.void-sweep:PT10M}")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
 		for (String text : List.of("import vn.vibefix.scanning.SensitiveText;", "SensitiveChanges.WORKFLOWS", "FINDING_MENTOR",
-				"case FINDING_CREW ->", "PushScans", "scanning/rules.yaml", "One finding.", "finding people for the Job",
-				"vibefix scans no code", "Lane.GITHUB_LONG", "Tôi hiểu vibefix không quét mã.")) {
+				"case FINDING_CREW ->", "scanning/rules.yaml", "One finding.", "finding people for the Job",
+				"vibefix scans no code", "Lane.GITHUB_LONG", "Tôi hiểu vibefix không quét mã.", "HandoverVoids",
+				"HeadMoved moved", "grant-sweep: PT10M", "platform-sweep: PT10M", "branches.working(jobId)", "refs/heads/main")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
 	}

@@ -81,7 +81,10 @@ enum DeliveryReason {
 	/** The Job's uploads would pass its quota (AD-34). */
 	JOB_FILE_QUOTA,
 
-	/** A push after the handover voided it (M3, FR-32): the Customer decides on the next one. */
+	/**
+	 * The acceptance merge answered 409, so M3 voided the handover (FR-33, D9): the Customer decides on the next
+	 * one.
+	 */
 	HANDOVER_VOIDED
 
 }

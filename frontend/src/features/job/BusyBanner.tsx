@@ -98,7 +98,8 @@ async function announce(before: Busy, jobId: string): Promise<{ text: string; er
     if (report.status === 'ACCEPTED') {
       return { text: t('screen.handover.check.accepted', { n: report.number }), error: false }
     }
-    if (report.status === 'VOIDED') {
+    // The acceptance resolves VOIDED a moment before the handover itself shows it (FR-33, M3).
+    if (report.status === 'VOIDED' || report.acceptance === 'VOIDED') {
       return { text: t('reason.delivery.HANDOVER_VOIDED'), error: true }
     }
     if (report.acceptance === 'FAILED') {

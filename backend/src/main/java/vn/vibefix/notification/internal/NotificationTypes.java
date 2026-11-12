@@ -526,12 +526,19 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType DELIVERY_ACCEPTANCE_REMINDER = new NotificationType("delivery.acceptance_reminder",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("n", "m", "date"));
 
-	/** M4 (FR-33, FR-34): the Mentor learns what to fix and how many Revision Rounds are left. */
-	/** M3 (FR-32): a push after the handover voided it; the Customer and the Mentor. */
+	/**
+	 * M3 (FR-33, D9): the acceptance merge answered 409 because the handover branch changed, so the handover is
+	 * void; the Customer and the Mentor.
+	 */
 	static final NotificationType JOB_HANDOVER_VOIDED = new NotificationType("job.handover_voided",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n"));
 
+	/** An acceptance merge, manual or Auto-acceptance, answered 409 and M3 applied (FR-33, R25, R30): every Administrator. */
+	static final NotificationType REPO_ACCEPTANCE_HEAD_MOVED = new NotificationType("repo.acceptance_head_moved",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job"));
+
+	/** M4 (FR-33, FR-34): the Mentor learns what to fix and how many Revision Rounds are left. */
 	static final NotificationType JOB_REVISION_REQUESTED = new NotificationType("job.revision_requested",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n", "count", "rounds"));
@@ -860,7 +867,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
-				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED,
+				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,

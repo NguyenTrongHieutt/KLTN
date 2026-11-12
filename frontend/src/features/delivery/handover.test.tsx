@@ -392,7 +392,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(sent).not.toHaveProperty('previewUrl')
   })
 
-  it('tells the Customer a voided handover was cancelled by a new change (FR-32, M3)', { timeout: 20_000 }, async () => {
+  it('tells the Customer a handover voided at acceptance changed on GitHub (FR-33, M3)', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
@@ -401,8 +401,13 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     })
     renderAt('/cong-viec/j1/ban-giao/h1')
 
-    expect(await screen.findByText('Bàn giao này đã bị hủy vì có thay đổi mới được lưu sau khi bàn giao.')).toBeInTheDocument()
-    expect(screen.getAllByText('Đã hủy vì có thay đổi mới').length).toBeGreaterThan(0)
+    expect(
+      await screen.findByText(
+        'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Tiền của giai đoạn vẫn được giữ.')).toBeInTheDocument()
+    expect(screen.getAllByText('Đã hủy vì nội dung bàn giao thay đổi').length).toBeGreaterThan(0)
   })
 
   it('refuses a Code Job handover that changes a workflow file with N-16', { timeout: 20_000 }, async () => {
