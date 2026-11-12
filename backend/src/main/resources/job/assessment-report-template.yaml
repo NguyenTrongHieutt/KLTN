@@ -2,7 +2,7 @@
 # and its Acceptance Criteria are these sections; the Mentor drafts only the price and the due date.
 # The "what is missing" section is the checklist of typical AI-code flaws, each marked checked, found,
 # or not applicable. Plain Vietnamese for the Customer (UX-DR8). Version 2 (Story 23.1): vibefix scans no
-# code, so no criterion asks for the open Findings of a scan.
+# code, so no criterion asks for what a scan found.
 version: 2
 milestone: Báo cáo đánh giá
 criteria:
