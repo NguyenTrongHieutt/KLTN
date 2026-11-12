@@ -8523,6 +8523,27 @@
         "tags" : [ "board-controller" ]
       }
     },
+    "/github/actions/exchange" : {
+      "post" : {
+        "operationId" : "exchange",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "actions-exchange-controller" ]
+      }
+    },
     "/webhooks" : {
       "post" : {
         "operationId" : "webhook",

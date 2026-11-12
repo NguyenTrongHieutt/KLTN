@@ -168,6 +168,22 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType GITHUB_PLATFORM_DRIFT = new NotificationType("github.platform_drift", Set.of(Audience.ADMIN),
 			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("differences"));
 
+	/**
+	 * The Actions token exchange refused a verified ID token with its reason (AD-44, UX-DR118, Story 23.4): every
+	 * Administrator, once per correlation and reason, with the correlation's ID for the Audit Log.
+	 */
+	static final NotificationType GITHUB_EXCHANGE_REFUSED = new NotificationType("github.exchange_refused",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("operation", "reason", "correlation"));
+
+	/**
+	 * A restart left an exchanged token unrevoked; GitHub expires it within the hour (AD-44, Story 23.4): every
+	 * Administrator, once per correlation, with its ID for the Audit Log.
+	 */
+	static final NotificationType GITHUB_EXCHANGE_REVOKE_UNKNOWN = new NotificationType("github.exchange_revoke_unknown",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("operation", "correlation"));
+
 	/** The Source Repository changed during the Job (FR-20): the Customer and the Mentor, once per change. */
 	static final NotificationType REPO_DRIFT_DETECTED = new NotificationType("repo.drift_detected",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
@@ -867,6 +883,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
+				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,

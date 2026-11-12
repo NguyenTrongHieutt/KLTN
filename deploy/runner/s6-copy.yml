@@ -1,16 +1,15 @@
-# Spike S6 (revision of 2026-11-10): copies one Handover Commit from a Job's Working Repository to a
-# handover/ branch of its Intermediary Repository, inside GitHub Actions of vibefix-dev/vibefix-runner:
-# the one repository of vibefix-dev whose Actions may run ("Selected repositories"). The probe
-# `spike-s6` (backend, github.internal.SpikeS6Command) writes this file to the runner's
-# .github/workflows/, and the Platform App dispatches it.
+# The handover copy (AD-11, AD-46): copies one Handover Commit from a Job's Working Repository to a
+# handover/ branch of its Intermediary Repository, inside GitHub Actions of the runner: the one
+# repository of the platform organization whose Actions may run ("Selected repositories"). The
+# runner's .github/workflows/ holds this file alone, and the Platform App dispatches it.
 #
 # The run holds no secret. It asks GitHub Actions for an OIDC ID token with the audience vibefix and
-# exchanges it at the probe's exchange for a token narrowed to the Working and Intermediary
-# Repositories. The probe lends that token only to a run of this exact file (its blob) on main,
-# dispatched by the Platform App, and revokes it when the run ends. The ID token and the token are
-# masked before anything else runs. Inputs reach the scripts through env: only and are checked first;
-# git reads the token from a file through GIT_ASKPASS, never pushes with force, and reads the branch
-# back.
+# exchanges it at vibefix (POST /github/actions/exchange) for a token narrowed to the Working and
+# Intermediary Repositories. vibefix lends that token only to a run of this exact file (its blob) on
+# the runner's default branch, dispatched by the Platform App, and revokes it when the run ends. The
+# ID token and the token are masked before anything else runs. Inputs reach the scripts through env:
+# only and are checked first; git reads the token from a file through GIT_ASKPASS, never pushes with
+# force, and reads the branch back.
 name: s6-copy
 run-name: s6-copy ${{ inputs.correlation }}
 
@@ -18,11 +17,11 @@ on:
   workflow_dispatch:
     inputs:
       correlation:
-        description: The probe's correlation ID for this run
+        description: vibefix's correlation ID for this run
         required: true
         type: string
       exchange_url:
-        description: Where the ID token is exchanged, an https origin (Spike S6)
+        description: vibefix's exchange host, an https origin
         required: true
         type: string
       source_repository:
@@ -100,7 +99,7 @@ jobs:
           ID_TOKEN="$id_token" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}' > "$RUNNER_TEMP/exchange.json"
           unset id_token
           status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/exchanged.json" -w '%{http_code}' -X POST \
-            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/exchange")"
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/github/actions/exchange")"
           rm -f "$RUNNER_TEMP/exchange.json"
           if [ "$status" != 200 ]; then
             reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/exchanged.json" 2>/dev/null || echo -)"

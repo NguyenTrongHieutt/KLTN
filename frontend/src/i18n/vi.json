@@ -4130,6 +4130,12 @@
       },
       "platform_drift": {
         "title": "Tổ chức GitHub của vibefix khác với dự kiến: {differences}"
+      },
+      "exchange_refused": {
+        "title": "vibefix từ chối cấp token cho một lần chạy GitHub Actions ({operation}, mã {correlation}): {reason}"
+      },
+      "exchange_revoke_unknown": {
+        "title": "Không chắc token GitHub Actions ({operation}, mã {correlation}) đã được thu hồi sau khi vibefix khởi động lại"
       }
     },
     "identity": {

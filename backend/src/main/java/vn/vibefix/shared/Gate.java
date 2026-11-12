@@ -6,7 +6,10 @@ package vn.vibefix.shared;
  */
 public enum Gate {
 
-	/** Anyone, signed in or not: public pages, and webhooks that verify their own signature. */
+	/**
+	 * Anyone, signed in or not: public pages, webhooks that verify their own signature, and the Actions token
+	 * exchange, whose caller, an Actions run, proves itself with its OIDC ID token (AD-44).
+	 */
 	PUBLIC,
 
 	/** Any signed-in account; an anonymous caller gets {@code 401}. */

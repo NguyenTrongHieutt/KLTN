@@ -23,10 +23,11 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * Spike S6 revision: the Customer's {@code deploy/customer/vibefix.yml} and the runner's
+ * Spike S6 revision and Story 23.4: the Customer's {@code deploy/customer/vibefix.yml} and the runner's
  * {@code deploy/runner/s6-copy.yml} hold the rules the design runs under. Steps run scripts only, with no
  * action; every input reaches a script through {@code env:} only and is checked by a regular expression
- * first; each run asks for an ID token with the audience {@code vibefix}, exchanges it, and masks both
+ * first; each run asks for an ID token with the audience {@code vibefix}, exchanges it at
+ * {@code POST /github/actions/exchange}, and masks both
  * the ID token and the token before the first {@code git}; git reads the token from a file through
  * {@code GIT_ASKPASS}, never pushes with force, and reads every branch it pushes back; the job runs on
  * {@code ubuntu-24.04} for at most 15 minutes, with only the permissions it needs, holds no secret, and
@@ -41,6 +42,9 @@ class RunnerWorkflowsTest {
 	private static final String RUNNER = "runner/s6-copy.yml";
 
 	private static final Path DEPLOY = Path.of("..", "deploy");
+
+	/** Where each run posts its ID token: vibefix's exchange (Story 23.4). */
+	private static final String EXCHANGE = "\"$EXCHANGE_URL/github/actions/exchange\"";
 
 	/** The Secret Scan's rules, which the Customer's gitleaks scan ports three of. */
 	private static final Path RULES = Path.of("src", "main", "resources", "scanning", "rules.yaml");
@@ -96,10 +100,31 @@ class RunnerWorkflowsTest {
 		}
 		assertThat(scripts).contains("\"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix\"",
 				"-H @\"$RUNNER_TEMP/oidc-header\"", "ID_TOKEN=\"$id_token\" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}'",
-				"\"$EXCHANGE_URL/exchange\"", "umask 077");
+				EXCHANGE, "umask 077");
 		assertThat(scripts).as("the ID token never goes on a command line").doesNotContain("--arg id_token");
 		assertThat(scripts.indexOf("::add-mask::$id_token")).as("the ID token is masked before it is sent")
-			.isLessThan(scripts.indexOf("\"$EXCHANGE_URL/exchange\""));
+			.isLessThan(scripts.indexOf(EXCHANGE));
+	}
+
+	/**
+	 * Story 23.4: both files post to the production exchange's path, which the spike's probe serves too; the
+	 * exchange URL stays an input (no production host is published), and a correlation, a random UUID, passes
+	 * the input check.
+	 */
+	@ParameterizedTest
+	@ValueSource(strings = { CUSTOMER, RUNNER })
+	void theRunPostsToTheProductionExchangesPathAndTakesAUuidCorrelation(String file) throws IOException {
+		String text = text(file);
+		String check = String.valueOf(steps(load(text)).getFirst().get("run"));
+		Matcher correlation = Pattern.compile("(?m)^correlation_re='([^']+)'$").matcher(check);
+
+		assertThat(EXCHANGE).isEqualTo("\"$EXCHANGE_URL" + ActionsExchangeController.PATH + "\"")
+			.contains(OidcExchange.PRODUCTION_PATH);
+		assertThat(count(text, EXCHANGE)).isOne();
+		assertThat(text).doesNotContain("\"$EXCHANGE_URL/exchange\"", "vibefix.vn", "trycloudflare.com");
+		assertThat(correlation.find()).isTrue();
+		assertThat(Pattern.compile(correlation.group(1)).matcher(java.util.UUID.randomUUID().toString()).matches())
+			.as("a correlation is a random UUID").isTrue();
 	}
 
 	@ParameterizedTest

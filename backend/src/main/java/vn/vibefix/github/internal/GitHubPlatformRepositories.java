@@ -213,20 +213,35 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			differences.add("the runner " + fullName + " is public instead of private");
 		}
 		String branch = body.path("default_branch").asString("main");
+		String ref = java.net.URLEncoder.encode(branch, java.nio.charset.StandardCharsets.UTF_8);
+		String workflowPath = ".github/workflows/" + RUNNER_WORKFLOW;
+		AcceptedWorkflows.Checked[] blob = { null };
 		List<String> workflows = this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"),
 				token -> {
-					GitHubHttp.Answer listed = http().send("GET", "/repos/" + fullName + "/contents/.github/workflows?ref="
-							+ java.net.URLEncoder.encode(branch, java.nio.charset.StandardCharsets.UTF_8), token.value(), null);
+					GitHubHttp.Answer listed = http().send("GET", "/repos/" + fullName + "/contents/.github/workflows?ref=" + ref,
+							token.value(), null);
 					List<String> names = new ArrayList<>();
 					if (listed.status() != 404) {
 						require(listed, "list the workflows of the runner " + fullName)
 							.forEach(entry -> names.add(entry.path("name").asString("")));
+					}
+					if (names.contains(RUNNER_WORKFLOW)) {
+						// AD-45 (deferred runner check): the copy workflow must be an accepted blob. A read GitHub fails
+						// throws, as every other failed read of the sweep does.
+						GitHubHttp.Answer file = http().send("GET", "/repos/" + fullName + "/contents/" + workflowPath + "?ref="
+								+ ref, token.value(), null);
+						blob[0] = new AcceptedWorkflows(this.apps.properties(), this.clock).check(workflowPath, file);
 					}
 					return names.stream().sorted().toList();
 				});
 		if (!workflows.equals(List.of(RUNNER_WORKFLOW))) {
 			differences.add("the runner " + fullName + " holds " + workflows + " in .github/workflows instead of ["
 					+ RUNNER_WORKFLOW + "] only");
+		}
+		if (blob[0] != null && !blob[0].accepted()) {
+			differences.add("the runner " + fullName + "'s " + workflowPath + " is "
+					+ (blob[0].blob() == null ? "missing" : "blob " + blob[0].blob())
+					+ ", which vibefix.github.exchange.accepted-blobs does not accept");
 		}
 		Map<String, String> collaborators = directCollaborators(repository);
 		if (!collaborators.isEmpty()) {

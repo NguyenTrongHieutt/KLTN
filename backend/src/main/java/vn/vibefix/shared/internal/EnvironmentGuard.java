@@ -35,8 +35,10 @@ import org.springframework.stereotype.Component;
  * <p>
  * SG-36: under {@code prod}, the guard also refuses, before migrating, a Flyway location that would
  * load dev seed data ({@code db/seed}, anything under it, or a parent such as {@code db}, which
- * Flyway scans recursively) and the dev GitHub organization {@value #DEV_ORGANIZATION}. It
- * depends on {@link SecretSourceGuard}, so secrets have been checked (AD-22) before Flyway connects.
+ * Flyway scans recursively) and the dev GitHub organization {@value #DEV_ORGANIZATION}, and, for the Actions
+ * exchange (AD-44, Story 23.4), the dev stack's tunnel {@value #EXCHANGE_TUNNEL_PROPERTY} and any ID token issuer
+ * but GitHub Actions'. It depends on {@link SecretSourceGuard}, so secrets have been checked (AD-22) before
+ * Flyway connects.
  */
 @Component
 class EnvironmentGuard implements FlywayMigrationStrategy, SmartInitializingSingleton {
@@ -50,6 +52,14 @@ class EnvironmentGuard implements FlywayMigrationStrategy, SmartInitializingSing
 	static final String ORGANIZATION_PROPERTY = "vibefix.github.organization";
 
 	static final String DEV_ORGANIZATION = "vibefix-dev";
+
+	/** The dev stack's cloudflared quick tunnel to the Actions exchange (AD-44, Story 23.4): dev only. */
+	static final String EXCHANGE_TUNNEL_PROPERTY = "vibefix.github.exchange.public-url";
+
+	/** Whose ID tokens the Actions exchange accepts: GitHub Actions' alone in production. */
+	static final String EXCHANGE_ISSUER_PROPERTY = "vibefix.github.exchange.issuer";
+
+	static final String GITHUB_ACTIONS_ISSUER = "https://token.actions.githubusercontent.com";
 
 	static final String SEED_LOCATION = "db/seed";
 
@@ -113,6 +123,15 @@ class EnvironmentGuard implements FlywayMigrationStrategy, SmartInitializingSing
 		if (organization.strip().toLowerCase(Locale.ROOT).equals(DEV_ORGANIZATION)) {
 			throw new IllegalStateException("The prod profile is configured with the dev GitHub organization ("
 					+ ORGANIZATION_PROPERTY + "=" + DEV_ORGANIZATION + "); refusing to start");
+		}
+		if (!this.springEnvironment.getProperty(EXCHANGE_TUNNEL_PROPERTY, "").isBlank()) {
+			throw new IllegalStateException("The prod profile is configured with the dev stack's exchange tunnel ("
+					+ EXCHANGE_TUNNEL_PROPERTY + "); refusing to start");
+		}
+		String issuer = this.springEnvironment.getProperty(EXCHANGE_ISSUER_PROPERTY, "").strip();
+		if (!issuer.isEmpty() && !issuer.replaceAll("/+$", "").equals(GITHUB_ACTIONS_ISSUER)) {
+			throw new IllegalStateException("The prod profile is configured with another ID token issuer than GitHub"
+					+ " Actions' (" + EXCHANGE_ISSUER_PROPERTY + "); refusing to start");
 		}
 		for (Location location : locations) {
 			if (reachesSeedData(location.getPath())) {

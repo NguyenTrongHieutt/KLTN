@@ -459,6 +459,12 @@ class OidcExchangeTest {
 			HttpResponse<String> large = client.send(HttpRequest.newBuilder(URI.create(url + OidcExchange.PATH))
 				.POST(HttpRequest.BodyPublishers.ofString("x".repeat(17 * 1024)))
 				.build(), HttpResponse.BodyHandlers.ofString());
+			// Story 23.4: the published workflows post to the production path, which the probe serves too.
+			HttpResponse<String> production = client.send(
+					HttpRequest.newBuilder(URI.create(url + OidcExchange.PRODUCTION_PATH))
+						.POST(HttpRequest.BodyPublishers.ofByteArray(body(sign(KEY), CORRELATION)))
+						.build(),
+					HttpResponse.BodyHandlers.ofString());
 
 			assertThat(ok.statusCode()).isEqualTo(200);
 			assertThat(ok.headers().firstValue("Cache-Control")).hasValue("no-store");
@@ -470,6 +476,9 @@ class OidcExchangeTest {
 			assertThat(get.statusCode()).isEqualTo(405);
 			assertThat(elsewhere.statusCode()).isEqualTo(404);
 			assertThat(large.statusCode()).isEqualTo(413);
+			assertThat(production.statusCode()).as("served, and refused as the correlation's second exchange")
+				.isEqualTo(403);
+			assertThat(production.body()).isEqualTo("{\"reason\":\"replay\"}");
 		}
 		finally {
 			served.close();

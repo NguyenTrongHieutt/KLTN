@@ -8,14 +8,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import vn.vibefix.shared.CurrentCaller;
 
 /**
- * Puts the {@link AccessGateInterceptor} in front of every API and webhook handler (AD-20), and
- * provides the {@link CurrentCaller} it and the modules' policies read.
+ * Puts the {@link AccessGateInterceptor} in front of every API and webhook handler, and the Actions token
+ * exchange's (AD-20, AD-44), and provides the {@link CurrentCaller} it and the modules' policies read.
  */
 @Configuration(proxyBeanMethods = false)
 class AccessWebConfiguration implements WebMvcConfigurer {
 
 	/** The paths whose handlers must declare a gate; {@code MatrixCoverageIT} checks the same prefixes. */
-	static final String[] GATED_PATHS = { "/api/**", "/webhooks/**" };
+	static final String[] GATED_PATHS = { "/api/**", "/webhooks/**", "/github/actions/**" };
 
 	private final CurrentCaller callers = new RequestCurrentCaller();
 

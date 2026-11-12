@@ -2543,6 +2543,16 @@ POST /webhooks,CUSTOMER,,,401
 POST /webhooks,CROSS_ROLE,,,401
 POST /webhooks,ADMINISTRATOR,,,401
 
+# Story 23.4 (AD-44, AD-20's caller "Actions run"): the Actions token exchange takes no session and no CSRF token;
+# the OIDC ID token in the body alone decides. A row's body carries none that verifies, so every caller, the Actions
+# run among them, is refused alike with the first check's reason; ActionsExchangeIT runs a genuine run end to end.
+POST /github/actions/exchange,ANONYMOUS,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+POST /github/actions/exchange,USER_UNVERIFIED,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+POST /github/actions/exchange,USER,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+POST /github/actions/exchange,CUSTOMER,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+POST /github/actions/exchange,ADMINISTRATOR,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+POST /github/actions/exchange,ACTIONS_RUN,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+
 # Story 7.2 (UX-DR23, AD-11): the step tracker; the Customer reads it on the Draft, and the crew Job's Customer,
 # Mentor and ACTIVE members on the crew Job (job=crew); "Thử lại" needs a blocked Setup.
 GET /api/v1/jobs/{jobId}/setup,ANONYMOUS,,,401

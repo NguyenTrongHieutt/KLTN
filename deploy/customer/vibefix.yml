@@ -16,15 +16,15 @@
 # start scan from this repository's Actions tab, with every other input left empty.
 #
 # The copy and the Final Merge hold no secret. Each asks GitHub Actions for an OIDC ID token with the
-# audience vibefix and exchanges it at vibefix for a token narrowed to the Job's repositories. vibefix
-# lends that token only to a run of this exact file (its blob) on the default branch, dispatched by the
-# Source App, and revokes it when the run ends. The ID token and the token are masked before anything
-# else runs. Inputs reach the scripts through env: only and are checked first in each job; git reads
-# each credential from a file through GIT_ASKPASS, never pushes with force, and reads every branch it
-# pushes back.
+# audience vibefix and exchanges it at vibefix (POST /github/actions/exchange) for a token narrowed to
+# the Job's repositories. vibefix lends that token only to a run of this exact file (its blob) on the
+# default branch, dispatched by the Source App, and revokes it when the run ends. The ID token and the
+# token are masked before anything else runs. Inputs reach the scripts through env: only and are
+# checked first in each job; git reads each credential from a file through GIT_ASKPASS, never pushes
+# with force, and reads every branch it pushes back.
 #
-# Spike S6: exchange_url names the probe's exchange (a cloudflared quick tunnel in dev); a released
-# file would name vibefix's own host instead.
+# exchange_url names vibefix's exchange host, an https origin: on the dev stack, its cloudflared quick
+# tunnel.
 name: vibefix
 run-name: vibefix ${{ inputs.operation }} ${{ inputs.correlation }}
 
@@ -45,7 +45,7 @@ on:
         type: string
         default: ""
       exchange_url:
-        description: Where the ID token is exchanged, an https origin (Spike S6; copy and final-merge only)
+        description: vibefix's exchange host, an https origin (copy and final-merge only)
         required: false
         type: string
         default: ""
@@ -133,7 +133,7 @@ jobs:
           ID_TOKEN="$id_token" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}' > "$RUNNER_TEMP/exchange.json"
           unset id_token
           status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/exchanged.json" -w '%{http_code}' -X POST \
-            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/exchange")"
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/github/actions/exchange")"
           rm -f "$RUNNER_TEMP/exchange.json"
           if [ "$status" != 200 ]; then
             reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/exchanged.json" 2>/dev/null || echo -)"

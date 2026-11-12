@@ -48,7 +48,8 @@ import vn.vibefix.github.GitHubApps.InstallationToken;
 /**
  * Spike S6's token exchange (the revision of 2026-11-10): a workflow run asks GitHub Actions for an
  * OIDC ID token with the audience {@value #AUDIENCE} and posts it, with the correlation it was
- * dispatched under, to {@code POST /exchange} ({@code {id_token, correlation}}). The probe registers
+ * dispatched under, to {@code POST /exchange} or, as the published workflows do since Story 23.4,
+ * {@code POST /github/actions/exchange} ({@code {id_token, correlation}}). The probe registers
  * each correlation before it dispatches the run ({@link #expect}), and the exchange answers 200 with a
  * Platform App token narrowed to that correlation's {@link Grant} only when every one of these holds:
  * <ul>
@@ -96,6 +97,12 @@ final class OidcExchange implements AutoCloseable {
 	static final int DEFAULT_PORT = 8099;
 
 	static final String PATH = "/exchange";
+
+	/**
+	 * The production exchange's path, which the published workflows post to since Story 23.4: the probe serves
+	 * it too, so it stays runnable with them.
+	 */
+	static final String PRODUCTION_PATH = "/github/actions/exchange";
 
 	/** How many refusals one correlation keeps; later ones are only counted. */
 	static final int MAX_REFUSALS = 32;
@@ -374,7 +381,8 @@ final class OidcExchange implements AutoCloseable {
 	private void handle(HttpExchange http) throws IOException {
 		try {
 			Answer answer;
-			if (!PATH.equals(http.getRequestURI().getPath())) {
+			String path = http.getRequestURI().getPath();
+			if (!PATH.equals(path) && !PRODUCTION_PATH.equals(path)) {
 				answer = new Answer(404, "not_found", null);
 			}
 			else if (!"POST".equals(http.getRequestMethod())) {

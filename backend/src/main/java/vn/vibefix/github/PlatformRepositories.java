@@ -65,8 +65,9 @@ public interface PlatformRepositories {
 
 	/**
 	 * How the runner differs from AD-46 (deferred-work 634): private, holding only the published copy workflow
-	 * in {@code .github/workflows/} of its default branch, with no collaborator and no invitation. Empty when
-	 * no runner is configured, which {@link #organizationDifferences()} reports.
+	 * in {@code .github/workflows/} of its default branch, as an accepted blob (AD-45, Story 23.4), with no
+	 * collaborator and no invitation. Empty when no runner is configured, which {@link #organizationDifferences()}
+	 * reports.
 	 */
 	List<String> runnerDifferences();
 

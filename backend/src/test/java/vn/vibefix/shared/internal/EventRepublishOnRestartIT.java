@@ -48,7 +48,9 @@ class EventRepublishOnRestartIT {
 			await().atMost(WAIT).until(() -> "COMPLETED".equals(status(db)));
 			assertThat(scheduledMethods(second)).as("the pollers run when scheduling is on")
 				.contains(EventPublicationScheduler.class.getName() + ".maintain",
-						"vn.vibefix.operations.internal.OperationScheduler.poll");
+						"vn.vibefix.operations.internal.OperationScheduler.poll",
+						// Story 23.4: the Actions exchange's revocation poller.
+						"vn.vibefix.github.internal.ExchangeRevocations$Scheduler.run");
 		}
 
 		assertThat(ProbeListener.applied.get()).isOne();

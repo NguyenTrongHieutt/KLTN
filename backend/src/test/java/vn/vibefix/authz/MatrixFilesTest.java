@@ -41,6 +41,9 @@ class MatrixFilesTest {
 	static final Set<MatrixCaller> GLOBAL = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER_UNVERIFIED,
 			MatrixCaller.USER, MatrixCaller.ADMINISTRATOR, MatrixCaller.CUSTOMER);
 
+	/** AD-44's Actions token exchange (Story 23.4): the one endpoint {@link MatrixCaller#ACTIONS_RUN} calls. */
+	static final String ACTIONS_EXCHANGE = "POST /github/actions/exchange";
+
 	/** A Job-scoped endpoint's callers on top of {@link #GLOBAL}. */
 	static final Set<MatrixCaller> PER_JOB = EnumSet.of(MatrixCaller.CUSTOMER, MatrixCaller.MENTOR, MatrixCaller.BIDDER,
 			MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CROSS_ROLE,
@@ -353,7 +356,7 @@ class MatrixFilesTest {
 	@Test
 	void theMatrixFileParses() {
 		assertThat(MatrixRow.loadMatrix()).isNotEmpty()
-			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?)"))
+			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?|github/actions/exchange)"))
 			.allSatisfy(row -> assertThat(row.callerState()).as("no caller takes a subject state: %s", row).isEmpty())
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
 		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
@@ -391,6 +394,25 @@ class MatrixFilesTest {
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + global + "GET /api/v1/x,CUSTOMER,job=crew,,200\n")))
 			.as("one caller on two Jobs is two rows")
 			.isEmpty();
+	}
+
+	/** Story 23.4: the Actions run is AD-20's caller of the token exchange alone, and the exchange runs it. */
+	@Test
+	void theActionsRunCallsTheTokenExchangeAlone() {
+		String global = "POST /github/actions/exchange,ANONYMOUS,,,403 FORBIDDEN SIGNATURE\n"
+				+ "POST /github/actions/exchange,USER_UNVERIFIED,,,403 FORBIDDEN SIGNATURE\n"
+				+ "POST /github/actions/exchange,USER,,,403 FORBIDDEN SIGNATURE\n"
+				+ "POST /github/actions/exchange,ADMINISTRATOR,,,403 FORBIDDEN SIGNATURE\n"
+				+ "POST /github/actions/exchange,CUSTOMER,,,403 FORBIDDEN SIGNATURE\n";
+		assertThat(coverageViolations(MatrixRow.parse(HEADER + global)))
+			.containsExactly("POST /github/actions/exchange has no row for [ACTIONS_RUN]");
+		assertThat(coverageViolations(
+				MatrixRow.parse(HEADER + global + "POST /github/actions/exchange,ACTIONS_RUN,,,403 FORBIDDEN SIGNATURE\n")))
+			.isEmpty();
+		assertThat(coverageViolations(MatrixRow.parse(HEADER + "GET /api/v1/x,ANONYMOUS,,,401\nGET /api/v1/x,USER_UNVERIFIED,,,200\n"
+				+ "GET /api/v1/x,USER,,,200\nGET /api/v1/x,ADMINISTRATOR,,,404 NOT_FOUND\nGET /api/v1/x,CUSTOMER,,,200\n"
+				+ "GET /api/v1/x,ACTIONS_RUN,,,401\n")))
+			.containsExactly("GET /api/v1/x has a row for ACTIONS_RUN, which calls " + ACTIONS_EXCHANGE + " only");
 	}
 
 	@Test
@@ -918,12 +940,13 @@ class MatrixFilesTest {
 		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "USER_UNVERIFIED",
 				"USER", "LOCKED", "CUSTOMER", "MENTOR", "BIDDER", "CREW_APPLICANT", "CREW_ASSIGNED", "CREW_ACTIVE", "CREW_FORMER",
 				"CREW_ACTIVE_PARTY", "CREW_FORMER_PARTY", "CROSS_ROLE", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
-				"ADMIN_ABUSE_REPORT_GRANT", "ADMIN_SPLIT_RESOLUTION_GRANT", "AUTHOR");
+				"ADMIN_ABUSE_REPORT_GRANT", "ADMIN_SPLIT_RESOLUTION_GRANT", "ACTIONS_RUN", "AUTHOR");
 	}
 
 	/**
 	 * The coverage rule: every endpoint has the {@link #GLOBAL} callers' rows, every Job-scoped one also the
-	 * {@link #PER_JOB} callers', and no caller twice on one Job (a row's world-binding keys name its Job).
+	 * {@link #PER_JOB} callers', the token exchange also {@link MatrixCaller#ACTIONS_RUN}'s, which no other endpoint
+	 * has (Story 23.4), and no caller twice on one Job (a row's world-binding keys name its Job).
 	 */
 	static List<String> coverageViolations(List<MatrixRow> rows) {
 		Map<String, List<MatrixRow>> byEndpoint = byEndpoint(rows);
@@ -938,9 +961,15 @@ class MatrixFilesTest {
 					violations.add(endpoint + " has two rows for " + row.caller());
 				}
 			}
+			if (callers.contains(MatrixCaller.ACTIONS_RUN) && !endpoint.equals(ACTIONS_EXCHANGE)) {
+				violations.add(endpoint + " has a row for ACTIONS_RUN, which calls " + ACTIONS_EXCHANGE + " only");
+			}
 			Set<MatrixCaller> wanted = EnumSet.copyOf(GLOBAL);
 			if (endpointRows.stream().anyMatch(MatrixRow::jobScoped)) {
 				wanted.addAll(PER_JOB);
+			}
+			if (endpoint.equals(ACTIONS_EXCHANGE)) {
+				wanted.add(MatrixCaller.ACTIONS_RUN);
 			}
 			wanted.removeAll(callers);
 			if (!wanted.isEmpty()) {
@@ -1318,12 +1347,15 @@ class MatrixFilesTest {
 
 	/**
 	 * SG-31: a caller that holds no relation to the row's objects is never refused with {@code FORBIDDEN}, which would
-	 * tell it that the object exists, except by a global gate ({@link #GATE_REASONS}).
+	 * tell it that the object exists, except by a global gate ({@link #GATE_REASONS}). The token exchange's
+	 * {@code SIGNATURE} is such a gate (Story 23.4): its ID token is its caller's only credential, and a token that
+	 * does not verify is refused before any correlation is looked at, so the answer names no object.
 	 */
 	static List<String> sg31Violations(List<MatrixRow> rows) {
 		return rows.stream()
 			.filter(row -> UNRELATED.contains(row.caller()) && row.expect().status() == 403
 					&& (row.expect().reason() == null || !GATE_REASONS.contains(row.expect().reason())))
+			.filter(row -> !(row.endpoint().equals(ACTIONS_EXCHANGE) && "SIGNATURE".equals(row.expect().reason())))
 			.map(row -> row + ": answer NOT_FOUND (SG-31)")
 			.toList();
 	}

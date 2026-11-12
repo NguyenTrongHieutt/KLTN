@@ -40,6 +40,8 @@ public class RoleCallers implements MatrixFixture {
 	public Optional<RequestPostProcessor> realize(MatrixCaller caller, Map<String, String> state, MatrixWorld world) {
 		return switch (caller) {
 			case ANONYMOUS -> Optional.of(request -> request);
+			// AD-44: an Actions run carries no session; the OIDC ID token in its body is its credential.
+			case ACTIONS_RUN -> Optional.of(request -> request);
 			case USER -> Optional.of(googleUser(this.jdbc, this.sessions, true));
 			case USER_UNVERIFIED -> Optional.of(googleUser(this.jdbc, this.sessions, false));
 			case ADMINISTRATOR -> Optional.of(IdentityTestSupport.signedIn(this.sessions,

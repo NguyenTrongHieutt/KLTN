@@ -42,7 +42,9 @@ import tools.jackson.databind.JsonNode;
  * {@code contents} read (422) and hides a branch's ref from one (404). It also answers an App's webhook
  * reads: its deliveries, newest first and paged by {@code cursor} in the {@code Link} header, their
  * redelivery, and the webhook's configuration. Its compare lists 300 files at most, as GitHub's does, and
- * its {@code POST /graphql} answers {@code object(expression:)} reads of commits and paths. A test may
+ * its {@code POST /graphql} answers {@code object(expression:)} reads of commits and paths. For the Actions
+ * exchange (Story 23.4) it serves a file's contents with its blob SHA, workflow dispatches and their runs, an
+ * OIDC key set, and a revocation that can fail. A test may
  * answer what the platform no longer calls, such as Spike S4's forks and rulesets, through {@link #extra}.
  */
 public final class GitHubStub implements AutoCloseable {
@@ -260,6 +262,18 @@ public final class GitHubStub implements AutoCloseable {
 		return this.repositories.get(name);
 	}
 
+	/** The organization repository with that ID, by name, or none. */
+	private @org.jspecify.annotations.Nullable String organizationRepositoryName(long id) {
+		synchronized (this.repositories) {
+			return this.repositories.entrySet()
+				.stream()
+				.filter(entry -> entry.getValue() == id)
+				.map(Map.Entry::getKey)
+				.findFirst()
+				.orElse(null);
+		}
+	}
+
 	/** One setting of an organization repository changes, as someone on GitHub would change it ({@code has_issues}, {@code private}…). */
 	public void setting(String name, String key, Object value) {
 		this.settings.computeIfAbsent(name, repository -> Collections.synchronizedMap(new LinkedHashMap<>())).put(key, value);
@@ -286,16 +300,27 @@ public final class GitHubStub implements AutoCloseable {
 		this.settings.put(name, shown);
 	}
 
+	/** The published runner workflow, {@code deploy/runner/s6-copy.yml}, with LF line ends as GitHub stores it. */
+	public static final Path RUNNER_WORKFLOW = Path.of("..", "deploy", "runner", "s6-copy.yml");
+
+	/** The published Customer workflow, {@code deploy/customer/vibefix.yml}. */
+	public static final Path CUSTOMER_WORKFLOW = Path.of("..", "deploy", "customer", "vibefix.yml");
+
+	/** A published workflow's text, its CRLF line ends read as LF. */
+	public static String published(Path file) throws IOException {
+		return Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
+	}
+
 	/**
 	 * The runner (AD-46): a private repository of the organization whose default branch holds only
-	 * {@code .github/workflows/s6-copy.yml}, with no collaborator, and the only one the organization's Actions
-	 * policy ("Selected repositories") lets run.
+	 * {@code .github/workflows/s6-copy.yml}, the published file (an accepted blob, Story 23.4), with no
+	 * collaborator, and the only one the organization's Actions policy ("Selected repositories") lets run.
 	 */
 	public void runner(String name) throws Exception {
 		Path work = Files.createTempDirectory("stub-runner-");
 		try (Git git = Git.init().setDirectory(work.toFile()).setInitialBranch("main").call()) {
 			Files.createDirectories(work.resolve(".github/workflows"));
-			Files.writeString(work.resolve(".github/workflows/s6-copy.yml"), "on: workflow_dispatch\n");
+			Files.writeString(work.resolve(".github/workflows/s6-copy.yml"), published(RUNNER_WORKFLOW));
 			Files.writeString(work.resolve("README.md"), "# vibefix-runner\n");
 			git.add().addFilepattern(".").call();
 			git.commit().setMessage("The runner").setAuthor("Vibefix", "ops@example.test").setCommitter("Vibefix", "ops@example.test")
@@ -436,8 +461,43 @@ public final class GitHubStub implements AutoCloseable {
 			}
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("id", id, "login", loginOf(id))));
 		}
+		else if (method.equals("GET") && path.equals("/.well-known/jwks")) {
+			// GitHub Actions' OIDC issuer, when a test names this stub as the issuer (Story 23.4).
+			String keys = this.jwks;
+			send(exchange, keys == null ? 404 : 200, keys == null ? "{\"message\":\"Not Found\"}" : keys);
+		}
+		else if (method.equals("POST")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/workflows/([^/]+)/dispatches").matcher(path))
+					.matches()) {
+			dispatch(exchange, matcher.group(1), matcher.group(2), matcher.group(3), body);
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/runs/(\\d+)").matcher(path)).matches()) {
+			Map<String, Object> run = this.runs.get(Long.parseLong(matcher.group(3)));
+			boolean here = run != null && (matcher.group(1) + "/" + matcher.group(2)).equals(run.get("repository_full_name"));
+			send(exchange, here ? 200 : 404, here ? GitHubHttp.JSON.writeValueAsString(run) : "{\"message\":\"Not Found\"}");
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/workflows/([^/]+)/runs").matcher(path))
+					.matches()) {
+			String repository = matcher.group(1) + "/" + matcher.group(2);
+			String workflowPath = ".github/workflows/" + matcher.group(3);
+			List<Map<String, Object>> listed = new ArrayList<>();
+			synchronized (this.runs) {
+				this.runs.values()
+					.stream()
+					.filter(run -> !this.runsHidden && repository.equals(run.get("repository_full_name"))
+							&& workflowPath.equals(run.get("path")))
+					.forEach(run -> listed.add(0, run));
+			}
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", listed.size(), "workflow_runs", listed)));
+		}
+		else if (method.equals("POST") && path.equals("/app/installations/" + INSTALLATION + "/access_tokens")
+				&& this.mintRefused.test(body)) {
+			send(exchange, 500, "{\"message\":\"Server Error\"}");
+		}
 		else if (method.equals("POST") && path.equals("/app/installations/" + INSTALLATION + "/access_tokens")) {
-			String token = "ghs_stubtoken_" + this.tokens.size() + "_d41d8cd98f";
+			String token = this.tokenFormat.apply(this.tokens.size());
 			this.tokens.add(token);
 			this.grants.put(token, body);
 			send(exchange, 201, "{\"token\":\"" + token + "\",\"expires_at\":\"2026-10-19T04:00:00Z\"}");
@@ -516,6 +576,16 @@ public final class GitHubStub implements AutoCloseable {
 				return;
 			}
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(files));
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contents/(.+)").matcher(path)).matches()) {
+			// One file at a branch or a commit, as the contents API shows it: its blob SHA and base64 content
+			// (Story 23.4's accepted workflow blobs). A private organization repository hides it from a token
+			// without contents read.
+			boolean hidden = matcher.group(1).equals(ORGANIZATION) && isPrivate(matcher.group(2)) && !readsContents(exchange);
+			String ref = java.net.URLDecoder.decode(parameter(query, "ref", "main"), StandardCharsets.UTF_8);
+			Map<String, Object> file = hidden ? null : file(matcher.group(1), matcher.group(2), ref, matcher.group(3));
+			send(exchange, file == null ? 404 : 200,
+					file == null ? "{\"message\":\"Not Found\"}" : GitHubHttp.JSON.writeValueAsString(file));
 		}
 		else if ((method.equals("GET") || method.equals("POST"))
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/pulls").matcher(path)).matches()
@@ -608,8 +678,13 @@ public final class GitHubStub implements AutoCloseable {
 			}
 		}
 		else if (method.equals("DELETE") && path.equals("/installation/token")) {
-			this.revoked.incrementAndGet();
-			send(exchange, 204, "");
+			int status = this.revocationStatus;
+			if (status == 204) {
+				this.revoked.incrementAndGet();
+				String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+				this.revokedTokens.add(authorization == null ? "" : authorization.replaceFirst("^Bearer ", ""));
+			}
+			send(exchange, status, status == 204 ? "" : "{\"message\":\"Server Error\"}");
 		}
 		else if (method.equals("GET") && path.equals("/app")) {
 			send(exchange, 200, this.app);
@@ -892,7 +967,14 @@ public final class GitHubStub implements AutoCloseable {
 					: organizationRepository(matcher.group(1), id));
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repositories/(\\d+)").matcher(path)).matches()) {
-			Published repository = this.published.get(Long.parseLong(matcher.group(1)));
+			long id = Long.parseLong(matcher.group(1));
+			Published repository = this.published.get(id);
+			String platform = organizationRepositoryName(id);
+			if (repository == null && platform != null && (!isPrivate(platform) || readsMetadata(exchange))) {
+				// An organization repository by its ID, as the Actions dispatch reads its target (Story 23.4).
+				send(exchange, 200, organizationRepository(platform, id));
+				return;
+			}
 			boolean visible = repository != null && repository.publicRepository();
 			send(exchange, visible ? 200 : 404, visible ? repository.json() : "{\"message\":\"Not Found\"}");
 		}
@@ -1051,6 +1133,115 @@ public final class GitHubStub implements AutoCloseable {
 
 	/** Requests answered 502, as GitHub down: each a prefix of {@code "METHOD /path"}. */
 	public final java.util.Set<String> unavailable = Collections.synchronizedSet(new java.util.HashSet<>());
+
+	/** What {@code DELETE /installation/token} answers: 204, or a failure a test asks for. */
+	public volatile int revocationStatus = 204;
+
+	/** The tokens {@code DELETE /installation/token} revoked, in order. */
+	public final List<String> revokedTokens = Collections.synchronizedList(new ArrayList<>());
+
+	/** The value of the {@code n}-th installation token of {@link #INSTALLATION}. */
+	public volatile java.util.function.IntFunction<String> tokenFormat = n -> "ghs_stubtoken_" + n + "_d41d8cd98f";
+
+	/** GitHub Actions OIDC's key set, served at {@code /.well-known/jwks} when a test names this stub the issuer. */
+	public volatile String jwks;
+
+	/**
+	 * GitHub Actions runs by ID, as {@code GET /repos/{owner}/{name}/actions/runs/{id}} shows them: each dispatch
+	 * adds one, queued, with its title from the workflow's {@code run-name} and the dispatching App's bot as its
+	 * triggering actor. A test changes a run to show another one, or completes it ({@link #completeRun}).
+	 */
+	public final Map<Long, Map<String, Object>> runs = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** Whether a dispatch answers 200 with the run's ID ({@code return_run_details}) or 204, as GitHub once did. */
+	public volatile boolean runDetails = true;
+
+	/** Whether a workflow's run list shows none yet, as right after a dispatch GitHub has not queued. */
+	public volatile boolean runsHidden;
+
+	/** Which mint requests of {@link #INSTALLATION}, by their body, GitHub answers 500. */
+	public volatile java.util.function.Predicate<JsonNode> mintRefused = body -> false;
+
+	/** The run is over, with {@code conclusion}. */
+	public void completeRun(long id, String conclusion) {
+		Map<String, Object> run = this.runs.get(id);
+		run.put("status", "completed");
+		run.put("conclusion", conclusion);
+	}
+
+	/**
+	 * {@code POST /repos/{owner}/{name}/actions/workflows/{workflow}/dispatches}: a run of the workflow at the
+	 * head of {@code ref}, titled as the published files' {@code run-name} titles it. 404 when the workflow is not
+	 * on that branch, as GitHub answers.
+	 */
+	private void dispatch(HttpExchange exchange, String owner, String name, String workflow, JsonNode body)
+			throws IOException {
+		String ref = body.path("ref").asString("");
+		String path = ".github/workflows/" + workflow;
+		String head = Files.isDirectory(this.gitRoot.resolve(owner).resolve(name + ".git")) ? head(owner, name, ref) : null;
+		if (head == null || file(owner, name, head, path) == null) {
+			send(exchange, 404, "{\"message\":\"Not Found\"}");
+			return;
+		}
+		JsonNode inputs = body.path("inputs");
+		String stem = workflow.replaceFirst("\\.ya?ml$", "");
+		String operation = inputs.path("operation").asString("");
+		long id = this.ids.incrementAndGet();
+		Map<String, Object> run = Collections.synchronizedMap(new LinkedHashMap<>());
+		run.put("id", id);
+		run.put("name", stem);
+		run.put("path", path);
+		run.put("event", "workflow_dispatch");
+		run.put("head_branch", ref);
+		run.put("head_sha", head);
+		run.put("status", "queued");
+		run.put("conclusion", null);
+		run.put("display_title", stem + (operation.isEmpty() ? "" : " " + operation) + " "
+				+ inputs.path("correlation").asString(""));
+		run.put("triggering_actor", Map.of("login", GitHubHttp.JSON.readTree(this.app).path("slug").asString() + "[bot]"));
+		run.put("repository_full_name", owner + "/" + name);
+		run.put("inputs", GitHubHttp.JSON.convertValue(inputs, Map.class));
+		this.runs.put(id, run);
+		if (this.runDetails && body.path("return_run_details").asBoolean(false)) {
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("workflow_run_id", id, "run_url",
+					apiUrl() + "/repos/" + owner + "/" + name + "/actions/runs/" + id)));
+		}
+		else {
+			send(exchange, 204, "");
+		}
+	}
+
+	/**
+	 * {@code path} at {@code ref} (a branch, or a 40-hex commit) as the contents API shows a file: its blob SHA
+	 * and base64 content; none when there is no such file.
+	 */
+	private @org.jspecify.annotations.Nullable Map<String, Object> file(String owner, String name, String ref, String path)
+			throws IOException {
+		if (!Files.isDirectory(this.gitRoot.resolve(owner).resolve(name + ".git"))) {
+			return null;
+		}
+		try (Repository repository = repository(owner, name); RevWalk walk = new RevWalk(repository)) {
+			var commit = repository.resolve(ref.matches("[0-9a-f]{40}") ? ref : "refs/heads/" + ref);
+			if (commit == null || !repository.getObjectDatabase().has(commit)) {
+				return null;
+			}
+			try (TreeWalk tree = TreeWalk.forPath(repository, path, walk.parseCommit(commit).getTree())) {
+				if (tree == null || tree.isSubtree()) {
+					return null;
+				}
+				var blob = tree.getObjectId(0);
+				byte[] bytes = repository.open(blob).getBytes();
+				Map<String, Object> file = new LinkedHashMap<>();
+				file.put("type", "file");
+				file.put("name", path.substring(path.lastIndexOf('/') + 1));
+				file.put("path", path);
+				file.put("sha", blob.name());
+				file.put("encoding", "base64");
+				file.put("content", java.util.Base64.getMimeEncoder().encodeToString(bytes));
+				return file;
+			}
+		}
+	}
 
 	/** GitHub numeric IDs of commit authors by email; an author missing here is unresolved, as on GitHub. */
 	public final Map<String, Long> userIds = Collections.synchronizedMap(new LinkedHashMap<>());

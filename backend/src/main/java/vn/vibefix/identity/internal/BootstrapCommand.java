@@ -41,8 +41,11 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 	/** Spike S6's probe, in {@code github.internal}; named here so this command lets it run. */
 	static final String SPIKE_S6 = "spike-s6";
 
+	/** Story 23.4's dev command, in {@code github.internal}; named here so this command lets it run. */
+	static final String RUNNER_DISPATCH = "runner-dispatch";
+
 	private static final Set<String> OTHER_COMMANDS = Set.of(SpikeS1Command.COMMAND, SPIKE_S4, SPIKE_S2,
-			SpikeS5Command.COMMAND, SPIKE_S6);
+			SpikeS5Command.COMMAND, SPIKE_S6, RUNNER_DISPATCH);
 
 	static final String PASSWORD_VARIABLE = "VIBEFIX_ADMIN_PASSWORD";
 
@@ -76,7 +79,7 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 	public void run(ApplicationArguments args) {
 		String command = this.environment.getProperty("vibefix.cli.command");
 		if (command != null && OTHER_COMMANDS.contains(command)) {
-			// Another command's run (Stories 1.14, 2.1, 4.5 and 19.5, and Spike S6); it answers for itself.
+			// Another command's run (Stories 1.14, 2.1, 4.5, 19.5 and 23.4, and Spike S6); it answers for itself.
 			this.exitCode = 0;
 			return;
 		}
@@ -87,8 +90,9 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 					+ " --email=<address> --name=<display name>; the password comes from the console or "
 					+ PASSWORD_VARIABLE + ". Also: --vibefix.cli.command=" + SpikeS1Command.COMMAND
 					+ " --github-login=<Customer> --repo=<owner/name>, " + SPIKE_S4 + " (deploy/README.md, \"Spike S4\"), "
-					+ SPIKE_S2 + " (\"Spike S2\"), " + SpikeS5Command.COMMAND + " (\"Spike S5\"), and " + SPIKE_S6
-					+ " (\"Spike S6\": copies on the Customer's Actions and the runner's, tokens through OIDC), dev only.");
+					+ SPIKE_S2 + " (\"Spike S2\"), " + SpikeS5Command.COMMAND + " (\"Spike S5\"), " + SPIKE_S6
+					+ " (\"Spike S6\": copies on the Customer's Actions and the runner's, tokens through OIDC), and "
+					+ RUNNER_DISPATCH + " (\"Actions exchange on the dev stack\": a handover copy on the runner), dev only.");
 			this.exitCode = 2;
 			return;
 		}

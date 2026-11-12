@@ -102,6 +102,13 @@ public enum MatrixCaller {
 	 */
 	ADMIN_SPLIT_RESOLUTION_GRANT,
 
+	/**
+	 * AD-20's caller "Actions run" (AD-44, Story 23.4): a GitHub Actions run posting its OIDC ID token to the token
+	 * exchange, with no session and no CSRF token. Its rows cover {@code POST /github/actions/exchange} only, where
+	 * the ID token, not an account, decides; {@code ActionsExchangeIT} runs a genuine run end to end.
+	 */
+	ACTIONS_RUN,
+
 	/** The author of the harness's own record, for {@code AuthorizationHarnessIT} only; no matrix row uses it. */
 	AUTHOR
 

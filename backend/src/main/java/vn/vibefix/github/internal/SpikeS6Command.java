@@ -2221,7 +2221,8 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 	}
 
 	/**
-	 * The exchange's origin, as the workflows append {@code /exchange} to it: {@code https://host[:port]},
+	 * The exchange's origin, as the workflows append {@code /github/actions/exchange} to it since Story 23.4
+	 * ({@code /exchange} before, which the probe serves too): {@code https://host[:port]},
 	 * or, when {@code loopbackAllowed}, {@code http} on a loopback host (a stand-in GitHub's runs);
 	 * {@code null} for anything else.
 	 */
