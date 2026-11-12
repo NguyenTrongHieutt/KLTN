@@ -91,14 +91,14 @@ class NdaIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].title").value("Sửa lỗi mất đơn hàng"));
 
 		sign(this.hung, "0.9", true).andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("NDA_VERSION_OUTDATED"));
-		sign(this.hung, "1.0", false).andExpect(status().isBadRequest())
+		sign(this.hung, "2.0", false).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("COMMIT_EMAIL_NOT_ACKNOWLEDGED"));
-		sign(this.ha, "1.0", true).andExpect(status().isNotFound());
-		sign(this.hung, "1.0", true).andExpect(status().isNoContent());
+		sign(this.ha, "2.0", true).andExpect(status().isNotFound());
+		sign(this.hung, "2.0", true).andExpect(status().isNoContent());
 
 		assertThat(jobState()).isEqualTo("AGREEMENT");
 		assertThat(this.jdbc.sql("SELECT nda_version FROM matching.nda_signature WHERE job_id = :job AND account_id = :hung")
-			.param("job", this.job).param("hung", this.hung).query(String.class).single()).isEqualTo("1.0");
+			.param("job", this.job).param("hung", this.hung).query(String.class).single()).isEqualTo("2.0");
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM identity.acknowledgment WHERE account_id = :hung AND notice = 'COMMIT_EMAIL'
 				""").param("hung", this.hung).query(Long.class).single()).isOne();
@@ -108,7 +108,34 @@ class NdaIT extends IntegrationTest {
 				SELECT count(*) FROM notification.notification WHERE type = 'matching.applications_closed' AND account_id = :ha
 				""").param("ha", this.ha).query(Long.class).single() == 1);
 		assertThat(openTodos("matching.sign_nda")).isZero();
-		sign(this.hung, "1.0", true).andExpect(status().isConflict());
+		sign(this.hung, "2.0", true).andExpect(status().isConflict());
+	}
+
+	/**
+	 * Story 23.3 (R18, UX-DR117): N-14 and N-23 were rewritten for the private repositories, and their versions
+	 * bumped, so a Mentor who acknowledged N-23 1.0 is asked again and an NDA 1.0 payload is outdated.
+	 */
+	@Test
+	void aMentorWhoAcknowledgedTheOldNoticesIsAskedAgain() throws Exception {
+		this.jdbc.sql("""
+				INSERT INTO identity.acknowledgment (id, account_id, notice, notice_version, acknowledged_at)
+				VALUES (:id, :hung, 'COMMIT_EMAIL', '1.0', :now)
+				""").param("id", UUID.randomUUID()).param("hung", this.hung).param("now", Timestamp.from(this.clock.instant()))
+			.update();
+
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job).with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.commitEmailNoticeAcknowledged").value(false));
+		sign(this.hung, "1.0", true).andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("NDA_VERSION_OUTDATED"));
+		sign(this.hung, "2.0", false).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("COMMIT_EMAIL_NOT_ACKNOWLEDGED"));
+		assertThat(jobState()).isEqualTo("SELECTING");
+
+		sign(this.hung, "2.0", true).andExpect(status().isNoContent());
+		assertThat(this.jdbc.sql("""
+				SELECT notice_version FROM identity.acknowledgment WHERE account_id = :hung AND notice = 'COMMIT_EMAIL'
+				ORDER BY notice_version
+				""").param("hung", this.hung).query(String.class).list()).containsExactly("1.0", "2.0");
 	}
 
 	@Test
@@ -174,7 +201,7 @@ class NdaIT extends IntegrationTest {
 	void aMentorWithoutGitHubLinkedCannotSign() throws Exception {
 		IdentityTestSupport.unlinkGitHub(this.jdbc, this.hung);
 
-		sign(this.hung, "1.0", true).andExpect(status().isForbidden())
+		sign(this.hung, "2.0", true).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
 		assertThat(jobState()).isEqualTo("SELECTING");
 	}

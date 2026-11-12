@@ -85,6 +85,8 @@ class CodeHandoverIT extends IntegrationTest {
 		try {
 			DIRECTORY = Files.createTempDirectory("code-handover-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
+			// AD-46: the runner the organization read-back requires (Story 23.3).
+			GITHUB.runner("vibefix-runner");
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 		}
 		catch (Exception ex) {
@@ -145,6 +147,7 @@ class CodeHandoverIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.id", () -> "123456");
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
 	}
 
 	@AfterAll
@@ -225,7 +228,8 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("now", now).update();
 		page("Hướng dẫn dùng", "CUSTOMER");
 		page("Ghi chú nhóm", "TEAM");
-		// The repositories as Setup left them: the copy and its fork, at the commit Setup approved.
+		// The repositories as Setup leaves them (Story 23.3): two private copies at the commit Setup approved, so every
+		// pull-request call and the Working head read need contents read, and the pin clones Working with a read token.
 		this.intermediary = "job-" + id + "-intermediary";
 		this.working = "job-" + id + "-working";
 		long intermediaryId = GITHUB.platformRepository(this.intermediary, "lan-dev", source);
@@ -272,6 +276,28 @@ class CodeHandoverIT extends IntegrationTest {
 		int pull = com.jayway.jsonpath.JsonPath.read(report, "$.code.pullNumber");
 
 		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + handover)).isEqualTo(head);
+		// Story 23.3: the pin clones the private Working Repository with a read token narrowed to it, minted just
+		// before the push token on the Intermediary.
+		long workingId = GITHUB.organizationRepositoryId(this.working);
+		long intermediaryId = GITHUB.organizationRepositoryId(this.intermediary);
+		List<GitHubStub.Seen> seen;
+		synchronized (GITHUB.seen) {
+			seen = List.copyOf(GITHUB.seen);
+		}
+		int push = -1;
+		for (int index = 0; index < seen.size() && push < 0; index++) {
+			GitHubStub.Seen request = seen.get(index);
+			if (request.path().endsWith("/access_tokens")
+					&& request.body().path("repository_ids").toString().equals("[" + intermediaryId + "]")
+					&& request.body().path("permissions").path("workflows").asString("").equals("write")) {
+				push = index;
+			}
+		}
+		assertThat(push).as("the pin's push token on the Intermediary").isPositive();
+		assertThat(seen.get(push).body().path("permissions").path("contents").asString()).isEqualTo("write");
+		assertThat(seen.get(push - 1).path()).endsWith("/access_tokens");
+		assertThat(seen.get(push - 1).body().path("repository_ids").toString()).isEqualTo("[" + workingId + "]");
+		assertThat(seen.get(push - 1).body().path("permissions").toString()).isEqualTo("{\"contents\":\"read\"}");
 		assertThat(GITHUB.pullHeads.get(this.intermediary)).containsEntry(pull, "handover/" + handover);
 		assertThat(this.jdbc.sql("SELECT author_github_id FROM delivery.handover_commit WHERE handover_id = :id ORDER BY position")
 			.param("id", UUID.fromString(handover)).query(Long.class).list()).containsExactly(4242L, null);

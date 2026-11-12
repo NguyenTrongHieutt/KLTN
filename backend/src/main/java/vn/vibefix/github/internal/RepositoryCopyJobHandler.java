@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectChecker;
@@ -27,15 +28,18 @@ import tools.jackson.databind.node.ObjectNode;
 import vn.vibefix.shared.SandboxJobHandler;
 
 /**
- * {@value #TYPE} (AD-11, AD-32): the copy into the Intermediary Repository. It bare-clones the public
- * Source Repository's default branch, with the object checker on, no submodules, and nothing checked
- * out, and pushes exactly the approved commit to the target's branch with the one token it was given,
- * never forced. The commit IDs are kept and no fork network is shared. Like every handler, a plain class
- * that only the sandbox worker (or the in-process stand-in) creates.
+ * {@value #TYPE} (AD-11, AD-32): the copy into a private platform repository. It bare-clones the source's
+ * branch, with the object checker on, no submodules, and nothing checked out, and pushes exactly the
+ * approved commit to the target's branch with the token it was given for the target, never forced. The
+ * commit IDs are kept and no fork network is shared. A source that is itself a private platform
+ * repository is cloned with its own token, narrowed to it with {@code contents} read; the public Source
+ * Repository is cloned without one (until Story 23.6). Like every handler, a plain class that only the
+ * sandbox worker (or the in-process stand-in) creates.
  * <p>
  * Input: {@code source} and {@code target} ({@code owner/name}), {@code sha}, {@code branch}, and
  * {@code token}; {@code sourceBranch} when the commit is read on another branch than the one pushed, such
- * as a Handover Commit on the Working Repository's default branch (AD-11). Output: {@code pushed} (the SHA), or {@code refused}: {@value #SHA_NOT_FOUND} when the
+ * as a Handover Commit on the Working Repository's default branch (AD-11); {@code sourceToken} for a
+ * private source. Output: {@code pushed} (the SHA), or {@code refused}: {@value #SHA_NOT_FOUND} when the
  * branch no longer holds the commit, or {@value #PUSH_REFUSED}.
  */
 final class RepositoryCopyJobHandler implements SandboxJobHandler {
@@ -83,6 +87,10 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 		if (token.isBlank()) {
 			throw new IllegalArgumentException("token is required");
 		}
+		String sourceToken = input.has("sourceToken") ? input.path("sourceToken").asString("") : null;
+		if (sourceToken != null && sourceToken.isBlank()) {
+			throw new IllegalArgumentException("sourceToken is blank");
+		}
 		Path directory;
 		try {
 			directory = Files.createTempDirectory("vibefix-copy-");
@@ -91,7 +99,7 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 			throw new UncheckedIOException(ex);
 		}
 		ObjectChecker checker = new ObjectChecker().setSafeForWindows(true).setSafeForMacOS(true);
-		try (Git git = Git.cloneRepository()
+		CloneCommand clone = Git.cloneRepository()
 			.setURI(this.gitUrl + "/" + source + ".git")
 			.setDirectory(directory.toFile())
 			.setBare(true)
@@ -103,8 +111,12 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 			.setTransportConfigCallback(transport -> {
 				transport.setCheckFetchedObjects(true);
 				transport.setObjectChecker(checker);
-			})
-			.call()) {
+			});
+		if (sourceToken != null) {
+			// A private platform repository: read with its own token, which only the credentials provider holds.
+			clone.setCredentialsProvider(new UsernamePasswordCredentialsProvider("x-access-token", sourceToken));
+		}
+		try (Git git = clone.call()) {
 			ObjectId commit = ObjectId.fromString(sha);
 			if (!onBranch(git, sourceBranch, commit)) {
 				return refused(SHA_NOT_FOUND);
@@ -171,7 +183,7 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 			paths.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
 		}
 		catch (IOException ex) {
-			// A leftover temporary directory holds a public repository's objects and nothing else.
+			// A leftover temporary directory holds one repository's objects and nothing else.
 		}
 	}
 

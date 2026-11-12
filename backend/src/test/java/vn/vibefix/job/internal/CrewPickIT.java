@@ -310,7 +310,7 @@ class CrewPickIT extends IntegrationTest {
 			.andExpect(jsonPath("$.panel.milestones[0].priceVnd").value(800000))
 			.andExpect(jsonPath("$.panel.codeJob").value(true))
 			.andExpect(jsonPath("$.panel.githubLogin").value(TestPeople.login(this.jdbc, this.minh)))
-			.andExpect(jsonPath("$.panel.ndaVersion").value("1.0"))
+			.andExpect(jsonPath("$.panel.ndaVersion").value("2.0"))
 			.andExpect(jsonPath("$.panel.commitmentVersion").value("1.0"))
 			// The cap and the edit limit are read live, whatever the Job copied; the days are the Job's own (FR-61, AD-7).
 			.andExpect(jsonPath("$.panel.splitRules.mentorShareCapPercent").value(30))
@@ -361,7 +361,7 @@ class CrewPickIT extends IntegrationTest {
 		assertThat(text("""
 				SELECT nda_version || ' ' || commitment_version FROM matching.nda_signature
 				WHERE job_id = :job AND account_id = :minh
-				""", Map.of("job", this.job, "minh", this.minh))).isEqualTo("1.0 1.0");
+				""", Map.of("job", this.job, "minh", this.minh))).isEqualTo("2.0 1.0");
 		assertThat(text("SELECT params ->> 'name' FROM notification.notification WHERE type = 'job.crew_member_joined'"
 				+ " AND account_id = :hung", Map.of("hung", this.hung))).isEqualTo("Trần Quang Minh");
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.crew_member_joined'"
@@ -708,7 +708,7 @@ class CrewPickIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/commitment").with(as(this.minh)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
-					{"ndaVersion":"1.0","commitmentVersion":"1.0","publicCodeAcknowledged":false,
+					{"ndaVersion":"2.0","commitmentVersion":"1.0","publicCodeAcknowledged":false,
 					 "commitEmailNoticeAcknowledged":true}
 					"""))
 			.andExpect(status().isBadRequest())
@@ -1196,7 +1196,7 @@ class CrewPickIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/crew/jobs/" + jobId + "/commitment").with(as(person)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
-					{"ndaVersion":"1.0","commitmentVersion":"%s","publicCodeAcknowledged":true,
+					{"ndaVersion":"2.0","commitmentVersion":"%s","publicCodeAcknowledged":true,
 					 "commitEmailNoticeAcknowledged":%s}
 					""".formatted(commitmentVersion, commitEmail)));
 	}

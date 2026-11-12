@@ -32,6 +32,12 @@ import tools.jackson.databind.json.JsonMapper;
  * Story 23.2 (D9, R25): heads are compared only at acceptance, so nothing live names the head tracking either: the
  * {@code WorkingHeadMoved} event, {@code PushScans}, {@code recordedHead}, the {@code branch_head} and
  * {@code push_scan} tables, or the {@code push-sweep} and {@code void-sweep} settings.
+ * <p>
+ * Story 23.3 (D1, D5): the platform repositories are private copies, so nothing live outside the S4 and S6 spike
+ * commands names the fork ({@code Unnarrowed.FORK}, {@code fork-poll}, {@code fork-wait}, {@code turnFeaturesOff}),
+ * the rulesets ({@code createRulesets}, {@code rulesetDifferences}, {@code RULESETS_DIFFER},
+ * {@code vibefix-default-branch}, {@code vibefix-handover}), the old feature read ({@code featureDifferences}), or
+ * the public-Working outsider audit ({@code outsider_pull_request_closed}).
  */
 class RetiredScanningTest {
 
@@ -47,6 +53,12 @@ class RetiredScanningTest {
 
 	static final Path MODULES = BACKEND_MAIN.resolve(Path.of("java", "vn", "vibefix"));
 
+	/** Story 23.3's entry, which the spike commands may still name: they keep their own code as CLI history. */
+	static final String FORK_AND_RULESETS = "fork and rulesets";
+
+	/** The two spike commands whose probes keep their own fork and ruleset code. */
+	static final java.util.Set<String> SPIKE_COMMANDS = java.util.Set.of("SpikeS4Command.java", "SpikeS6Command.java");
+
 	/** What no live file may say, each with what it names. */
 	static final Map<String, Pattern> RETIRED = Map.of("the scan pipeline",
 			Pattern.compile("\\b(?:Scans|ScanCompleted|ScanPurpose|ScanStatus|ScanSummary|ScanTarget|ShaRange|requestScan"
@@ -61,7 +73,10 @@ class RetiredScanningTest {
 			Pattern.compile("quét bảo mật|đã (?:được )?quét|kiểm tra khóa bí mật", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE),
 			"the fingerprint key", Pattern.compile("scanning[-_.]fingerprint[-_.]key", Pattern.CASE_INSENSITIVE),
 			"head tracking",
-			Pattern.compile("\\b(?:WorkingHeadMoved|PushScans|recordedHead|branch_head|push_scan|push-sweep|void-sweep)\\b"));
+			Pattern.compile("\\b(?:WorkingHeadMoved|PushScans|recordedHead|branch_head|push_scan|push-sweep|void-sweep)\\b"),
+			FORK_AND_RULESETS, Pattern.compile("\\b(?:Unnarrowed\\.FORK|createRulesets|rulesetDifferences|RULESETS_DIFFER"
+					+ "|fork-poll|fork-wait|turnFeaturesOff|featureDifferences|vibefix-default-branch|vibefix-handover"
+					+ "|outsider_pull_request_closed)\\b"));
 
 	@Test
 	void nothingLiveNamesTheScanPipelineAFindingTheScanLaneOrARetiredReason() {
@@ -119,23 +134,54 @@ class RetiredScanningTest {
 				"Đã quét lịch sử mã", "Kiểm tra khóa bí mật: không còn vấn đề nào mở.",
 				"import vn.vibefix.repo.WorkingHeadMoved;", "class PushScans {", "this.branches.recordedHead(jobId)",
 				"SELECT sha FROM repo.branch_head", "INSERT INTO repo.push_scan", "    push-sweep: PT10M",
-				"${vibefix.delivery.void-sweep:PT10M}")) {
+				"${vibefix.delivery.void-sweep:PT10M}", "withUnnarrowed(App.PLATFORM, Unnarrowed.FORK, call)",
+				"repositories().createRulesets(intermediary);", "this.repositories.rulesetDifferences(repo.repository())",
+				"new Outcome.Transient(\"RULESETS_DIFFER\")", "@Value(\"${vibefix.github.fork-poll:2s}\")",
+				"registry.add(\"vibefix.github.fork-wait\", () -> \"5s\");", "repositories().turnFeaturesOff(working);",
+				"this.repositories.featureDifferences(repo.repository())", "static final String DEFAULT = \"vibefix-default-branch\";",
+				"\"vibefix-handover\"", "audit(\"repo.outsider_pull_request_closed\", jobId);")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
 		for (String text : List.of("import vn.vibefix.scanning.SensitiveText;", "SensitiveChanges.WORKFLOWS", "FINDING_MENTOR",
 				"case FINDING_CREW ->", "scanning/rules.yaml", "One finding.", "finding people for the Job",
 				"vibefix scans no code", "Lane.GITHUB_LONG", "Tôi hiểu vibefix không quét mã.", "HandoverVoids",
-				"HeadMoved moved", "grant-sweep: PT10M", "platform-sweep: PT10M", "branches.working(jobId)", "refs/heads/main")) {
+				"HeadMoved moved", "grant-sweep: PT10M", "platform-sweep: PT10M", "branches.working(jobId)", "refs/heads/main",
+				"repositories().settingsDifferences(working)", "Unnarrowed.REPOSITORY_CREATION", "forkPoll",
+				"\"allow_forking\", false")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
+	}
+
+	/**
+	 * Story 23.3: the spike commands keep their own fork and ruleset code as CLI history, so the "fork and rulesets"
+	 * entry does not read them; every other entry still does, and it reads every other file.
+	 */
+	@Test
+	void theForkAndRulesetEntryLeavesTheSpikeCommandsAlone() {
+		Path s4 = MODULES.resolve(Path.of("github", "internal", "SpikeS4Command.java"));
+		String probe = read(s4);
+
+		assertThat(probe).as("the S4 probe still creates its rulesets").contains("createRulesets(");
+		assertThat(violations(s4, probe)).isEmpty();
+		assertThat(violations(s4, "private Check createRulesets(String organization, Run run) {")).isEmpty();
+		assertThat(violations(s4, "import vn.vibefix.scanning.Scans;")).as("the other entries still apply").isNotEmpty();
+		assertThat(violations(Path.of("JobSetupOperation.java"), "private Check createRulesets(String organization, Run run) {"))
+			.isNotEmpty();
+		assertThat(violations(Path.of("SpikeS7Command.java"), "private Check createRulesets(String organization, Run run) {"))
+			.as("only the two spike commands that keep this code are exempt")
+			.isNotEmpty();
 	}
 
 	/** Each line of {@code text} a retired name appears on, as {@code file:line: what}. */
 	static List<String> violations(Path file, String text) {
 		List<String> violations = new ArrayList<>();
 		String[] lines = text.split("\n", -1);
+		boolean spike = SPIKE_COMMANDS.contains(file.getFileName().toString());
 		for (int number = 0; number < lines.length; number++) {
 			for (Map.Entry<String, Pattern> retired : RETIRED.entrySet()) {
+				if (spike && retired.getKey().equals(FORK_AND_RULESETS)) {
+					continue;
+				}
 				Matcher matcher = retired.getValue().matcher(lines[number]);
 				if (matcher.find()) {
 					violations.add(file + ":" + (number + 1) + ": names " + retired.getKey() + " (" + matcher.group() + ")");

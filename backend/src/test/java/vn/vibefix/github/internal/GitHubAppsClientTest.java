@@ -29,7 +29,7 @@ import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 
 /**
  * AD-10: installation tokens narrowed by 1 to 500 repository IDs and the permissions of their operation,
- * the three unnarrowed purposes, revocation after use, and registrations.
+ * the two unnarrowed purposes, revocation after use, and registrations.
  */
 class GitHubAppsClientTest {
 
@@ -90,12 +90,13 @@ class GitHubAppsClientTest {
 	void anUnnarrowedTokenNamesNoRepositoryAndOnlyItsPurposesPermissions() {
 		this.client.unnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ);
 		this.client.unnarrowed(App.PLATFORM, Unnarrowed.REPOSITORY_CREATION);
-		this.client.unnarrowed(App.PLATFORM, Unnarrowed.FORK);
 
+		assertThat(Unnarrowed.values()).as("no fork purpose since the copies are private (Story 23.3)")
+			.containsExactly(Unnarrowed.REPOSITORY_CREATION, Unnarrowed.ORGANIZATION_READ);
 		assertThat(this.github.seen).allSatisfy(request -> assertThat(request.body().has("repository_ids")).isFalse());
 		assertThat(this.github.seen).extracting(request -> permissions(request.body().path("permissions")))
-			.containsExactly(Map.of("organization_administration", "read", "members", "read"),
-					Map.of("administration", "write"), Map.of("administration", "write", "contents", "read"));
+			.containsExactly(Map.of("organization_administration", "read", "members", "read", "metadata", "read"),
+					Map.of("administration", "write"));
 	}
 
 	@Test

@@ -82,7 +82,7 @@ class SpikeS6CommandTest {
 		this.apps = apps(platformKey, SpikeS6Stub.RUNNER_NAME);
 		this.repositories = new GitHubPlatformRepositories(this.apps, (type, input) -> {
 			throw new AssertionError("Spike S6 sends no sandbox job");
-		}, Duration.ofMillis(1), Duration.ofMillis(10), CLOCK);
+		}, CLOCK);
 	}
 
 	@AfterEach

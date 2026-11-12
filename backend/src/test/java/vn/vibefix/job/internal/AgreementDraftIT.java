@@ -245,7 +245,7 @@ class AgreementDraftIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}")).andExpect(status().isOk());
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + job + "/nda").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
+			.content("{\"ndaVersion\":\"2.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
 		await().atMost(Duration.ofSeconds(5)).until(() -> count("SELECT count(*) FROM job.agreement_draft WHERE job_id = '" + job + "'") == 1);
 		return job;
 	}

@@ -18,7 +18,7 @@ public interface GitHubApps {
 	/** The two GitHub Apps of an environment; the sign-in OAuth App lives in {@code identity}. */
 	enum App {
 
-		/** Installed only on the platform organization: copies, forks, rulesets, invitations. */
+		/** Installed only on the platform organization: private copies, invitations, pull requests, the runner. */
 		PLATFORM,
 
 		/** Installed by a Customer on their Source Repository for one Final Merge. */
@@ -35,14 +35,14 @@ public interface GitHubApps {
 	 */
 	enum Unnarrowed {
 
-		/** The J7 Intermediary Repository: it does not exist yet, so nothing can narrow the token. */
+		/** J7's two private repositories: they do not exist yet, so nothing can narrow the token. */
 		REPOSITORY_CREATION(Map.of("administration", "write")),
 
-		/** The create-fork call: GitHub refuses a fork token narrowed by {@code repository_ids} (403). */
-		FORK(Map.of("administration", "write", "contents", "read")),
-
-		/** Organization settings, Actions permissions, and members. */
-		ORGANIZATION_READ(Map.of("organization_administration", "read", "members", "read"));
+		/**
+		 * Organization settings, Actions permissions, and members; Metadata read finds a private repository by
+		 * name (Setup's resume and the runner), as Spike S6 read them.
+		 */
+		ORGANIZATION_READ(Map.of("organization_administration", "read", "members", "read", "metadata", "read"));
 
 		private final Map<String, String> permissions;
 

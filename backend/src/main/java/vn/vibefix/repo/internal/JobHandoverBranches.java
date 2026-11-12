@@ -20,9 +20,10 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
 /**
  * {@link HandoverBranches} over the Job's done Setup (AD-11): the Working head is read live from GitHub on
  * every call, never recorded (D9), and the pin reuses the copy into the Intermediary Repository with the
- * Working default branch as its source. The merge's 409 is {@link HeadMoved}; the close after M3 or M4
- * marks its comment with the handover, so a retry posts it once. Nothing here runs in a transaction, so
- * nothing is audited here: {@code delivery} audits the handover it records.
+ * Working default branch as its source. Both repositories are private, so the head read and the pin's clone
+ * use tokens narrowed to the Working Repository with contents read. The merge's 409 is {@link HeadMoved};
+ * the close after M3 or M4 marks its comment with the handover, so a retry posts it once. Nothing here runs
+ * in a transaction, so nothing is audited here: {@code delivery} audits the handover it records.
  */
 @Component
 class JobHandoverBranches implements HandoverBranches {
@@ -49,10 +50,9 @@ class JobHandoverBranches implements HandoverBranches {
 		}
 		String head;
 		try {
-			// The default branch's ref alone; a branch GitHub does not show (404) is unreadable, never the commit
-			// Setup copied.
-			head = this.repositories.branchHead(java.util.Objects.requireNonNull(setup.working()).fullName(),
-					setup.defaultBranch());
+			// The default branch's ref alone, read with a token narrowed to the private Working Repository; a branch
+			// GitHub does not show (404) is unreadable, never the commit Setup copied.
+			head = this.repositories.branchHead(java.util.Objects.requireNonNull(setup.working()), setup.defaultBranch());
 		}
 		catch (GitHubException failed) {
 			throw new Unavailable("The Working Repository of Job " + jobId + " was not read", failed);
@@ -92,7 +92,8 @@ class JobHandoverBranches implements HandoverBranches {
 		String branch = "handover/" + handoverId;
 		int number;
 		try {
-			this.repositories.copy(setup.working().fullName(), sha, setup.defaultBranch(), branch, setup.intermediary());
+			// The private Working Repository is cloned with a token narrowed to it with contents read.
+			this.repositories.copy(setup.working(), sha, setup.defaultBranch(), branch, setup.intermediary());
 			number = this.repositories.openPullRequest(setup.intermediary(), branch, setup.defaultBranch(), title,
 					"Bàn giao " + handoverId + " của vibefix: lần lưu " + sha + ".");
 		}

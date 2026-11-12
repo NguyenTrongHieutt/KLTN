@@ -1698,7 +1698,7 @@
         "approach": "Cách bạn sẽ làm",
         "approachHint": "Viết bằng lời cho khách hàng không rành kỹ thuật. Không dán mã.",
         "approachRequired": "Hãy viết cách bạn sẽ làm.",
-        "n5": "Tôi hiểu mã tôi và nhóm làm sẽ nằm trong kho mã công khai trước khi được nghiệm thu. Mỗi giai đoạn được khách hàng thanh toán trước khi bắt đầu.",
+        "n5": "Tôi hiểu mã tôi và nhóm làm nằm trong kho làm việc riêng tư, và khách hàng đọc được từng phần đã bàn giao. vibefix không quét mã của nhóm, nên tôi không đưa khóa bí mật hay dữ liệu thật vào commit. Mỗi giai đoạn được khách hàng thanh toán trước khi bắt đầu.",
         "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi gửi chào giá.",
         "submit": "Gửi chào giá",
         "sending": "Đang gửi…",
@@ -1884,15 +1884,15 @@
       }
     },
     "nda": {
-      "version": "1.0",
+      "version": "2.0",
       "meta": "{product} · {types} · khách hàng đã chọn đơn ứng tuyển của bạn ngày {date}",
       "title": "Cam kết bảo mật (NDA) · phiên bản {version}",
-      "n14": "Cam kết này bảo vệ thông tin kinh doanh khách hàng chia sẻ trong Trò chuyện, Trao đổi nhóm và tài liệu (dữ liệu, khóa truy cập, tệp). Mã nguồn là công khai nên không thuộc phạm vi này.",
+      "n14": "Cam kết này bảo vệ mã nguồn của khách hàng trong các kho riêng tư, và thông tin kinh doanh khách hàng chia sẻ trong Trò chuyện, Trao đổi nhóm và tài liệu (dữ liệu, khóa truy cập, tệp). Khi công việc kết thúc, bạn xóa mọi bản sao mã và dữ liệu trên máy của mình, và xác nhận việc đó trên vibefix.",
       "textLabel": "Toàn văn cam kết bảo mật",
       "article1": "Điều 1. Thông tin được bảo vệ",
       "article2": "Điều 2. Trách nhiệm với nhóm thực hiện",
       "pending": "[VĂN BẢN CAM KẾT BẢO MẬT · CHỜ DUYỆT PHÁP LÝ (OQ5)]",
-      "n23": "Mỗi commit bạn đẩy lên kho mã công khai đều hiện tên và email của bạn, ai cũng đọc được, kể cả khách hàng. Hãy dùng email ẩn của GitHub trước khi commit.",
+      "n23": "Mỗi commit bạn đẩy lên kho làm việc đều mang tên và email của bạn, và khách hàng của công việc đọc được chúng trong kho trung gian khi bạn bàn giao. Hãy dùng email ẩn của GitHub trước khi commit.",
       "n23Link": "Dùng email ẩn của GitHub",
       "understood": "Tôi đã hiểu",
       "decline": "Từ chối",
@@ -2836,7 +2836,7 @@
         "mine": "Xác nhận đã xóa dữ liệu",
         "lead": "Công việc đã kết thúc. Hãy xóa dữ liệu của khách hàng rồi đánh dấu từng mục.",
         "notYet": "Bạn đánh dấu được sau khi công việc bắt đầu kết thúc.",
-        "NON_CODE_DATA": "Đã xóa dữ liệu không phải mã nguồn: khóa, bản sao cơ sở dữ liệu, tệp của khách hàng",
+        "NON_CODE_DATA": "Đã xóa bản sao mã nguồn và dữ liệu của khách hàng trên máy của tôi: mã, khóa, bản sao cơ sở dữ liệu, tệp",
         "PREVIEWS": "Đã xóa các bản xem thử tôi đã triển khai",
         "confirmedAt": "Đã xác nhận {time}",
         "dialogTitle": "Xác nhận đã xóa?",
@@ -3761,7 +3761,7 @@
     },
     "nda": {
       "label": "Cam kết bảo mật (NDA)",
-      "hint": "Người hướng dẫn và từng thành viên nhóm thực hiện cam kết giữ kín thông tin kinh doanh bạn chia sẻ. Không áp dụng cho mã nguồn vì mã là công khai."
+      "hint": "Người hướng dẫn và từng thành viên nhóm thực hiện cam kết giữ kín mã nguồn của bạn và thông tin kinh doanh bạn chia sẻ, và xóa các bản sao trên máy của họ khi công việc kết thúc."
     },
     "changeRequest": {
       "label": "Yêu cầu thay đổi",
@@ -4690,7 +4690,7 @@
       "CONFLICT_OF_INTEREST": "Bạn không thể chào giá công việc này.",
       "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá.",
       "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Việc này không do bạn; hãy thử lại sau.",
-      "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho mã công khai.",
+      "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho làm việc riêng tư.",
       "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
       "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",
       "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký.",

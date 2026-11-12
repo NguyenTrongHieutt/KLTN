@@ -2,10 +2,13 @@ package vn.vibefix.repo.internal;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,20 +30,24 @@ import vn.vibefix.repo.internal.JobSetups.Block;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 
 /**
- * {@value JobSetups#OPERATION} (FR-18, AD-5, AD-11, AD-28): Setup as a precondition External Operation in
- * the GitHub-long lane. Each attempt resumes at the first unfinished step, and each step finds what an
- * earlier attempt created before it creates anything:
+ * {@value JobSetups#OPERATION} (FR-18, AD-5, AD-11, AD-28, D1, D5): Setup as a precondition External
+ * Operation in the GitHub-long lane. Each attempt resumes at the first unfinished step, and each step finds
+ * what an earlier attempt created before it creates anything:
  * <ol>
  * <li>"Kiểm tra lại dự án gốc": the Source Repository read again with the Customer's token (AD-13); a check
  * that fails blocks the start. The default branch's head, read through the GitHub API, becomes the approved
  * commit (vibefix scans no code; Story 23.6 replaces it with the Customer's self-confirmed SHA).</li>
- * <li>"Tạo kho trung gian": the public Intermediary Repository, then the copy of exactly the approved
- * commit in the sandbox.</li>
- * <li>"Tạo kho làm việc": the fork inside the organization with its features off, the organization read
- * back, and AD-11's rulesets created and read back.</li>
+ * <li>Before anything is created, the gate: the organization, the runner, and the installation read back
+ * (AD-12, AD-46). A difference waits {@link #FROZEN_WAIT} and looks again.</li>
+ * <li>"Tạo kho trung gian": the private Intermediary Repository, its settings read back (private, features
+ * and forking off, Actions disabled), then the copy of exactly the approved commit in the sandbox.</li>
+ * <li>"Tạo kho làm việc": the private Working Repository, a second copy (no fork, no ruleset), read back the
+ * same way, then the approved commit pushed into it from the Intermediary.</li>
  * </ol>
- * A GitHub failure is retried by the lane policy; a frozen Job only waits (AD-28). The marker is released
- * by every resolution.
+ * During Setup, no code is pushed into a repository whose settings were not read back. A repeated push of the
+ * approved commit is a no-op, so a retried attempt resumes safely. A GitHub failure is retried by the lane
+ * policy, and the gate's own reads wait like a difference; a frozen Job only waits (AD-28). The marker is
+ * released by every resolution.
  */
 @Component
 class JobSetupOperation implements OperationHandler {
@@ -130,8 +137,15 @@ class JobSetupOperation implements OperationHandler {
 				}
 				setup = setups().find(id).orElseThrow();
 			}
+			Outcome waiting = gate(setup);
+			if (waiting != null) {
+				return waiting;
+			}
 			if (setup.intermediaryAt() == null) {
-				copy(setup, job);
+				Outcome differs = copy(setup, job);
+				if (differs != null) {
+					return differs;
+				}
 				setup = setups().find(id).orElseThrow();
 			}
 			return work(setup, job);
@@ -161,41 +175,84 @@ class JobSetupOperation implements OperationHandler {
 		return null;
 	}
 
-	/** Step 2: the Intermediary Repository at exactly the approved commit. */
-	private void copy(Setup setup, BusyJob job) {
+	/**
+	 * The gate, before anything is created: the organization, the runner, and the installation read back
+	 * (AD-12, AD-46). A runner, Actions, 2FA, or repository-selection difference holds new setups until it is
+	 * fixed; the attempt waits and looks again.
+	 * @return the wait, or {@code null} when everything is as AD-10, AD-11, and AD-46 expect
+	 */
+	private @Nullable Outcome gate(Setup setup) {
+		List<String> differences;
+		try {
+			differences = new ArrayList<>(repositories().organizationDifferences());
+			differences.addAll(repositories().runnerDifferences());
+			differences.addAll(repositories().installationDifferences());
+		}
+		catch (GitHubException failed) {
+			// An unreadable organization waits like a difference, without using up the attempts.
+			log.warn("Setup {} waits: the organization was not read back: {}", setup.id(), failed.getMessage());
+			return new Outcome.Deferred(this.clock.instant().plus(FROZEN_WAIT));
+		}
+		if (differences.isEmpty()) {
+			return null;
+		}
+		log.warn("Setup {} waits: the organization differs from AD-10, AD-11 or AD-46: {}", setup.id(), differences);
+		return new Outcome.Deferred(this.clock.instant().plus(FROZEN_WAIT));
+	}
+
+	/**
+	 * Step 2: the private Intermediary Repository, read back, at exactly the approved commit.
+	 * @return the retry when its settings differ, or {@code null} once the step is done
+	 */
+	private @Nullable Outcome copy(Setup setup, BusyJob job) {
 		PlatformRepository intermediary = setup.intermediary();
 		if (intermediary == null) {
 			String name = JobSetups.intermediaryName(job.jobId());
 			intermediary = repositories().find(name).orElseGet(() -> repositories().create(name));
 			setups().intermediaryCreated(setup, intermediary);
 		}
+		Outcome differs = readBack(setup, intermediary);
+		if (differs != null) {
+			return differs;
+		}
 		repositories().copy(setup.sourceFullName(), setup.approvedSha(), setup.defaultBranch(), intermediary);
 		setups().copied(setup);
+		return null;
 	}
 
-	/** Step 3: the Working Repository, the organization's settings, and the rulesets, each read back. */
+	/**
+	 * Step 3: the private Working Repository, read back, then a second copy of the approved commit taken from
+	 * the Intermediary (a read token narrowed to it), never from the Source Repository, which may have moved or
+	 * gone private since step 2.
+	 */
 	private Outcome work(Setup setup, BusyJob job) {
-		PlatformRepository intermediary = setup.intermediary();
-		String name = JobSetups.workingName(job.jobId());
-		PlatformRepository working = repositories().find(name)
-			.orElseGet(() -> repositories().fork(intermediary, name));
-		setups().workingCreated(setup, working);
-		repositories().turnFeaturesOff(working);
-		List<String> organization = new java.util.ArrayList<>(repositories().organizationDifferences());
-		organization.addAll(repositories().installationDifferences());
-		if (!organization.isEmpty()) {
-			// AD-12: an Actions, 2FA, or repository-selection difference blocks new setups until it is fixed.
-			log.warn("Setup {} waits: the organization differs from AD-10/AD-11: {}", setup.id(), organization);
-			return new Outcome.Deferred(this.clock.instant().plus(FROZEN_WAIT));
+		PlatformRepository intermediary = Objects.requireNonNull(setup.intermediary());
+		PlatformRepository working = setup.working();
+		if (working == null) {
+			String name = JobSetups.workingName(job.jobId());
+			working = repositories().find(name).orElseGet(() -> repositories().create(name));
+			setups().workingCreated(setup, working);
 		}
-		repositories().createRulesets(intermediary);
-		List<String> rulesets = repositories().rulesetDifferences(intermediary);
-		if (!rulesets.isEmpty()) {
-			log.warn("Setup {} waits: the rulesets differ from AD-11: {}", setup.id(), rulesets);
-			return new Outcome.Transient("RULESETS_DIFFER");
+		Outcome differs = readBack(setup, working);
+		if (differs != null) {
+			return differs;
 		}
+		repositories().copy(intermediary, setup.approvedSha(), setup.defaultBranch(), setup.defaultBranch(), working);
 		setups().done(setup, working);
 		return new Outcome.Succeeded(Map.of("intermediary", intermediary.fullName(), "working", working.fullName()));
+	}
+
+	/**
+	 * AD-11's settings read back before any code is pushed: private, the features and forking off, and Actions
+	 * disabled. A difference is retried by the lane policy, and nothing is pushed meanwhile.
+	 */
+	private @Nullable Outcome readBack(Setup setup, PlatformRepository repository) {
+		List<String> differences = repositories().settingsDifferences(repository);
+		if (differences.isEmpty()) {
+			return null;
+		}
+		log.warn("Setup {} waits: {} differs from AD-11: {}", setup.id(), repository.fullName(), differences);
+		return new Outcome.Transient("REPOSITORY_SETTINGS_DIFFER");
 	}
 
 	private JobSetups setups() {

@@ -78,7 +78,7 @@ class JobSetups {
 			return OPERATION + ":" + this.id;
 		}
 
-		/** The Working Repository once forked. */
+		/** The Working Repository once created: a second private copy, not a fork (D5). */
 		@Nullable PlatformRepository working() {
 			return this.workingId == null || this.workingName == null ? null
 					: new PlatformRepository(this.workingId, this.workingName.substring(this.workingName.indexOf('/') + 1),
@@ -282,8 +282,8 @@ class JobSetups {
 	}
 
 	/**
-	 * Step 3 done and verified: the resolving transaction (AD-5) releases the marker, and the Invitations
-	 * stage starts in it (Story 7.3); J7 waits for Verify.
+	 * Step 3 done and verified, the Working Repository's copy pushed: the resolving transaction (AD-5) releases
+	 * the marker, and the Invitations stage starts in it (Story 7.3); J7 waits for Verify.
 	 */
 	@Transactional
 	void done(Setup setup, PlatformRepository working) {

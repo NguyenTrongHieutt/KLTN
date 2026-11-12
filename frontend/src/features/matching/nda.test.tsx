@@ -70,9 +70,9 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Cam kết bảo mật (NDA) · phiên bản 1.0' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cam kết bảo mật (NDA) · phiên bản 2.0' })).toBeInTheDocument()
     expect(screen.getByText('Chờ bạn ký cam kết bảo mật')).toBeInTheDocument()
-    expect(screen.getByText(/Mã nguồn là công khai nên không thuộc phạm vi này/)).toBeInTheDocument()
+    expect(screen.getByText(/bảo vệ mã nguồn của khách hàng trong các kho riêng tư/)).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Toàn văn cam kết bảo mật' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Dùng email ẩn của GitHub/ })).toHaveAttribute('target', '_blank')
     const sign = screen.getByRole('button', { name: 'Ký cam kết' })
@@ -80,7 +80,7 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Tôi đã hiểu' }))
     await user.click(sign)
 
-    await waitFor(() => expect(sent).toEqual({ ndaVersion: '1.0', commitEmailNoticeAcknowledged: true }))
+    await waitFor(() => expect(sent).toEqual({ ndaVersion: '2.0', commitEmailNoticeAcknowledged: true }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Bạn đã ký cam kết bảo mật' })).toBeInTheDocument()
   })
 

@@ -34,14 +34,16 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * A stand-in for GitHub's REST API and git hosting, on loopback and {@code file://}: installation
- * tokens, organization reads, repository creation, rulesets, forks that appear after one poll, and
- * invitations. It records every request and every token it handed out. As GitHub does (Spike S4,
- * 2026-10-21), it shows a ruleset's {@code bypass_actors} only to a token with Administration write,
- * refuses a fork to a token narrowed by {@code repository_ids}, and leaves a pending invitation at
- * the permission it was sent with. It also answers an App's webhook reads: its deliveries, newest first
- * and paged by {@code cursor} in the {@code Link} header, their redelivery, and the webhook's
- * configuration. Its compare lists 300 files at most, as GitHub's does, and its {@code POST /graphql}
- * answers {@code object(expression:)} reads of commits and paths.
+ * tokens, organization reads, repository creation with its settings ({@code private}, the features, and
+ * {@code allow_forking}, answered on read), each repository's Actions permissions under the
+ * organization's policy, the runner, and invitations. It records every request and every token it handed
+ * out. As GitHub does (Spike S4, Spike S6), it leaves a pending invitation at the permission it was sent
+ * with, and on a private organization repository it refuses a pull-request call to a token without
+ * {@code contents} read (422) and hides a branch's ref from one (404). It also answers an App's webhook
+ * reads: its deliveries, newest first and paged by {@code cursor} in the {@code Link} header, their
+ * redelivery, and the webhook's configuration. Its compare lists 300 files at most, as GitHub's does, and
+ * its {@code POST /graphql} answers {@code object(expression:)} reads of commits and paths. A test may
+ * answer what the platform no longer calls, such as Spike S4's forks and rulesets, through {@link #extra}.
  */
 public final class GitHubStub implements AutoCloseable {
 
@@ -58,6 +60,17 @@ public final class GitHubStub implements AutoCloseable {
 	/** Runs before a request is answered, for a test that changes the world in the middle of an operation. */
 	public volatile Consumer<Seen> beforeAnswer = request -> {
 	};
+
+	/** A route a test adds: it answers the request and returns {@code true}, or leaves it to the stub. */
+	@FunctionalInterface
+	public interface Route {
+
+		boolean answer(HttpExchange exchange, Seen request, @org.jspecify.annotations.Nullable String query) throws Exception;
+
+	}
+
+	/** Answers before the stub's own routes, for GitHub behaviour only a spike's test needs (Spike S4's forks and rulesets). */
+	public volatile Route extra = (exchange, request, query) -> false;
 
 	/** The public metadata of repositories outside the organization, as a Customer's token reads them. */
 	private final Map<Long, Published> published = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -90,9 +103,12 @@ public final class GitHubStub implements AutoCloseable {
 
 	private final Map<String, Long> repositories = new LinkedHashMap<>();
 
-	private final Map<String, List<JsonNode>> rulesets = new LinkedHashMap<>();
-
-	private final Map<String, Integer> forkPolls = new LinkedHashMap<>();
+	/**
+	 * Each organization repository's settings by name, as {@code GET /repos/{org}/{name}} shows them:
+	 * {@code private}, {@code has_wiki}, {@code has_issues}, {@code has_projects}, {@code has_discussions}, and
+	 * {@code allow_forking}.
+	 */
+	private final Map<String, Map<String, Object>> settings = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	/** Per repository: pending invitations by invitee, with their permission, and collaborators who accepted. */
 	private final Map<String, Map<String, String>> invitations = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -128,8 +144,8 @@ public final class GitHubStub implements AutoCloseable {
 
 	public volatile boolean workflowsApprovePullRequests;
 
-	/** Repositories whose Issues are on, as {@code GET /repos/{org}/{name}} shows them. */
-	public final java.util.Set<String> issuesOn = Collections.synchronizedSet(new java.util.HashSet<>());
+	/** {@code GET /orgs/{org}}'s {@code members_can_fork_private_repositories}, which a new private repository's {@code allow_forking} follows. */
+	public volatile boolean membersCanForkPrivateRepositories;
 
 	/** Organization members: GitHub adds them at once, without an invitation (AD-11's MEMBER_DRIFT). */
 	public final java.util.Set<String> members = Collections.synchronizedSet(new java.util.HashSet<>());
@@ -239,14 +255,63 @@ public final class GitHubStub implements AutoCloseable {
 		}
 	}
 
-	/** The names of the rulesets on {@code name} in the organization. */
-	public List<String> rulesetNames(String name) {
-		return this.rulesets.getOrDefault(name, List.of()).stream().map(ruleset -> ruleset.path("name").asString()).toList();
-	}
-
 	/** The ID GitHub gave {@code name} in the organization. */
 	public Long organizationRepositoryId(String name) {
 		return this.repositories.get(name);
+	}
+
+	/** One setting of an organization repository changes, as someone on GitHub would change it ({@code has_issues}, {@code private}…). */
+	public void setting(String name, String key, Object value) {
+		this.settings.computeIfAbsent(name, repository -> Collections.synchronizedMap(new LinkedHashMap<>())).put(key, value);
+	}
+
+	/** One setting of an organization repository as GitHub shows it now, or none. */
+	public @org.jspecify.annotations.Nullable Object setting(String name, String key) {
+		return this.settings.getOrDefault(name, Map.of()).get(key);
+	}
+
+	/** Whether the organization repository is private. */
+	public boolean isPrivate(String name) {
+		return Boolean.TRUE.equals(setting(name, "private"));
+	}
+
+	/** The settings AD-11 gives a platform repository: private, with the features and forking off. */
+	private void privateSettings(String name) {
+		Map<String, Object> shown = Collections.synchronizedMap(new LinkedHashMap<>());
+		shown.put("private", true);
+		for (String feature : List.of("has_wiki", "has_issues", "has_projects", "has_discussions")) {
+			shown.put(feature, false);
+		}
+		shown.put("allow_forking", false);
+		this.settings.put(name, shown);
+	}
+
+	/**
+	 * The runner (AD-46): a private repository of the organization whose default branch holds only
+	 * {@code .github/workflows/s6-copy.yml}, with no collaborator, and the only one the organization's Actions
+	 * policy ("Selected repositories") lets run.
+	 */
+	public void runner(String name) throws Exception {
+		Path work = Files.createTempDirectory("stub-runner-");
+		try (Git git = Git.init().setDirectory(work.toFile()).setInitialBranch("main").call()) {
+			Files.createDirectories(work.resolve(".github/workflows"));
+			Files.writeString(work.resolve(".github/workflows/s6-copy.yml"), "on: workflow_dispatch\n");
+			Files.writeString(work.resolve("README.md"), "# vibefix-runner\n");
+			git.add().addFilepattern(".").call();
+			git.commit().setMessage("The runner").setAuthor("Vibefix", "ops@example.test").setCommitter("Vibefix", "ops@example.test")
+				.call();
+		}
+		Path bare = this.gitRoot.resolve(ORGANIZATION).resolve(name + ".git");
+		if (!Files.isDirectory(bare)) {
+			Git.cloneRepository().setURI(work.toUri().toString()).setBare(true).setDirectory(bare.toFile()).call().close();
+			this.repositories.put(name, this.ids.incrementAndGet());
+		}
+		privateSettings(name);
+		collaboratorsOf(name).clear();
+		invitationsOf(name).clear();
+		this.actionsEnabled = "selected";
+		this.actionsRepositories.clear();
+		this.actionsRepositories.add(name);
 	}
 
 	public boolean hasFile(String owner, String name, String branch, String path) throws IOException {
@@ -308,12 +373,16 @@ public final class GitHubStub implements AutoCloseable {
 		}
 	}
 
-	/** A platform repository as Setup leaves it: a bare copy of {@code fromOwner/fromName}, with its ID. */
+	/**
+	 * A platform repository as Setup leaves it: a private bare copy of {@code fromOwner/fromName}, with the
+	 * features and forking off, and its ID.
+	 */
 	public long platformRepository(String name, String fromOwner, String fromName) throws Exception {
 		Git.cloneRepository().setURI(this.gitRoot.resolve(fromOwner).resolve(fromName + ".git").toUri().toString()).setBare(true)
 			.setDirectory(this.gitRoot.resolve(ORGANIZATION).resolve(name + ".git").toFile()).call().close();
 		long id = this.ids.incrementAndGet();
 		this.repositories.put(name, id);
+		privateSettings(name);
 		return id;
 	}
 
@@ -339,16 +408,27 @@ public final class GitHubStub implements AutoCloseable {
 			return;
 		}
 		try {
-			route(exchange, method, path, query, json);
+			if (!this.extra.answer(exchange, request, query)) {
+				route(exchange, method, path, query, json);
+			}
 		}
 		catch (Exception ex) {
 			send(exchange, 500, "{\"message\":\"" + ex.getClass().getSimpleName() + "\"}");
 		}
 	}
 
+	/** Every pull-request call on an organization repository: open, look up, list, read, merge, close, and comment. */
+	private static final Pattern PULL_CALL = Pattern
+		.compile("/repos/" + ORGANIZATION + "/([^/]+)/(?:pulls(?:/\\d+(?:/merge)?)?|issues/\\d+/comments)");
+
 	private void route(HttpExchange exchange, String method, String path, String query, JsonNode body) throws Exception {
 		Matcher matcher;
-		if (method.equals("GET") && (matcher = Pattern.compile("/user/(\\d+)").matcher(path)).matches()) {
+		if ((matcher = PULL_CALL.matcher(path)).matches() && isPrivate(matcher.group(1)) && !readsContents(exchange)) {
+			// Spike S6 Part C: on a private repository GitHub needs contents read besides pull_requests.
+			send(exchange, 422, "{\"message\":\"Validation Failed\",\"errors\":[{\"resource\":\"PullRequest\",\"field\":\"head\","
+					+ "\"code\":\"invalid\"}]}");
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/user/(\\d+)").matcher(path)).matches()) {
 			long id = Long.parseLong(matcher.group(1));
 			if (this.goneUsers.contains(id)) {
 				send(exchange, 404, "{\"message\":\"Not Found\"}");
@@ -413,9 +493,9 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(requests));
 		}
 		else if (method.equals("GET")
-				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contents/\\.github/workflows").matcher(path)).matches()
-				&& !matcher.group(1).equals(ORGANIZATION)) {
-			String branch = parameter(query, "ref", "main");
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contents/\\.github/workflows").matcher(path)).matches()) {
+			// A Source Repository's workflows (SG-19), or a platform repository's, such as the runner's one workflow.
+			String branch = java.net.URLDecoder.decode(parameter(query, "ref", "main"), StandardCharsets.UTF_8);
 			List<Map<String, Object>> files = new ArrayList<>();
 			try (Repository git = repository(matcher.group(1), matcher.group(2)); RevWalk walk = new RevWalk(git)) {
 				var head = git.resolve("refs/heads/" + branch);
@@ -560,7 +640,8 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION)) {
 			send(exchange, 200, "{\"login\":\"" + ORGANIZATION
-					+ "\",\"two_factor_requirement_enabled\":true,\"default_repository_permission\":\"none\"}");
+					+ "\",\"two_factor_requirement_enabled\":true,\"default_repository_permission\":\"none\","
+					+ "\"members_can_fork_private_repositories\":" + this.membersCanForkPrivateRepositories + "}");
 		}
 		else if (method.equals("GET") && path.equals("/orgs/" + ORGANIZATION + "/actions/permissions")) {
 			send(exchange, 200, "{\"enabled_repositories\":\"" + this.actionsEnabled + "\",\"allowed_actions\":\""
@@ -586,12 +667,29 @@ public final class GitHubStub implements AutoCloseable {
 				.setDirectory(this.gitRoot.resolve(ORGANIZATION).resolve(name + ".git").toFile()).call().close();
 			long id = this.ids.incrementAndGet();
 			this.repositories.put(name, id);
-			send(exchange, 201, "{\"id\":" + id + ",\"name\":\"" + name + "\"}");
+			// As GitHub records them: public unless asked, the features on and forking allowed unless turned off.
+			Map<String, Object> shown = Collections.synchronizedMap(new LinkedHashMap<>());
+			shown.put("private", body.path("private").asBoolean(false));
+			for (String feature : List.of("has_wiki", "has_issues", "has_projects", "has_discussions")) {
+				shown.put(feature, body.path(feature).asBoolean(true));
+			}
+			// GitHub's create takes no allow_forking: a private repository follows the organization's setting.
+			shown.put("allow_forking", !Boolean.TRUE.equals(shown.get("private")) || this.membersCanForkPrivateRepositories);
+			this.settings.put(name, shown);
+			send(exchange, 201, organizationRepository(name, id));
 		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/contents/\\.github/workflows").matcher(path))
-			.matches()) {
-			boolean found = hasFile(ORGANIZATION, matcher.group(1), "main", ".github/workflows/ci.yml");
-			send(exchange, found ? 200 : 404, found ? "[{\"name\":\"ci.yml\"}]" : "{\"message\":\"Not Found\"}");
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/actions/permissions").matcher(path)).matches()) {
+			String name = matcher.group(1);
+			if (!this.repositories.containsKey(name)) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			// The organization's policy decides: "selected" enables only the repositories it lists.
+			boolean enabled = "all".equals(this.actionsEnabled) || ("selected".equals(this.actionsEnabled)
+					&& this.actionsRepositories.stream().anyMatch(name::equalsIgnoreCase));
+			send(exchange, 200, enabled ? "{\"enabled\":true,\"allowed_actions\":\"" + this.actionsAllowed + "\"}"
+					: "{\"enabled\":false}");
 		}
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/git/matching-refs/(heads|tags)").matcher(path))
@@ -603,50 +701,6 @@ public final class GitHubStub implements AutoCloseable {
 				}
 			}
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(refs));
-		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/rulesets").matcher(path)).matches()) {
-			List<JsonNode> list = this.rulesets.computeIfAbsent(matcher.group(1), name -> new ArrayList<>());
-			if (method.equals("POST")) {
-				long id = this.ids.incrementAndGet();
-				((tools.jackson.databind.node.ObjectNode) body).put("id", id);
-				list.add(body);
-				send(exchange, 201, GitHubHttp.JSON.writeValueAsString(body));
-			}
-			else {
-				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(list.stream()
-					.map(ruleset -> Map.of("id", ruleset.path("id").asLong(), "name", ruleset.path("name").asString()))
-					.toList()));
-			}
-		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/rulesets/(\\d+)").matcher(path)).matches()) {
-			String id = matcher.group(2);
-			JsonNode ruleset = this.rulesets.getOrDefault(matcher.group(1), List.of())
-				.stream()
-				.filter(found -> found.path("id").asString().equals(id))
-				.findFirst()
-				.orElseThrow();
-			tools.jackson.databind.node.ObjectNode shown = (tools.jackson.databind.node.ObjectNode) ruleset.deepCopy();
-			if (!grant(exchange).path("permissions").path("administration").asString("").equals("write")) {
-				shown.remove("bypass_actors");
-			}
-			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(shown));
-		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/forks").matcher(path)).matches()) {
-			if (grant(exchange).has("repository_ids")) {
-				send(exchange, 403, "{\"message\":\"Resource not accessible by integration\"}");
-				return;
-			}
-			String forkName = body.path("name").asString();
-			Git.cloneRepository().setURI(this.gitRoot.resolve(ORGANIZATION).resolve(matcher.group(1) + ".git").toUri().toString())
-				.setBare(true).setDirectory(this.gitRoot.resolve(ORGANIZATION).resolve(forkName + ".git").toFile()).call().close();
-			long id = this.ids.incrementAndGet();
-			this.repositories.put(forkName, id);
-			send(exchange, 202, "{\"id\":" + id + ",\"name\":\"" + forkName + "\"}");
-		}
-		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/commits").matcher(path)).matches()) {
-			// A fork appears after one poll, as GitHub creates forks asynchronously.
-			int polls = this.forkPolls.merge(matcher.group(1), 1, Integer::sum);
-			send(exchange, polls < 2 ? 409 : 200, polls < 2 ? "{\"message\":\"Git Repository is empty.\"}" : "[{\"sha\":\"abc\"}]");
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/collaborators/([^/]+)/permission").matcher(path))
 			.matches()) {
@@ -832,10 +886,10 @@ public final class GitHubStub implements AutoCloseable {
 				.toList()));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
-			Long id = this.repositories.get(matcher.group(1));
+			// A private repository is hidden from a token that reads neither its metadata nor its contents.
+			Long id = isPrivate(matcher.group(1)) && !readsMetadata(exchange) ? null : this.repositories.get(matcher.group(1));
 			send(exchange, id == null ? 404 : 200, id == null ? "{\"message\":\"Not Found\"}"
-					: "{\"id\":" + id + ",\"name\":\"" + matcher.group(1) + "\",\"has_wiki\":false,\"has_issues\":"
-							+ this.issuesOn.contains(matcher.group(1)) + ",\"has_projects\":false,\"has_discussions\":false}");
+					: organizationRepository(matcher.group(1), id));
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repositories/(\\d+)").matcher(path)).matches()) {
 			Published repository = this.published.get(Long.parseLong(matcher.group(1)));
@@ -882,8 +936,9 @@ public final class GitHubStub implements AutoCloseable {
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/git/ref/heads/(.+)").matcher(path)).matches()) {
 			// A branch's ref (branchHead): the Source Repository's default branch J7 copies, or the Working
-			// Repository's that a handover reads.
-			String head = Files.isDirectory(this.gitRoot.resolve(matcher.group(1)).resolve(matcher.group(2) + ".git"))
+			// Repository's that a handover reads. A private repository hides it from a token without contents read.
+			boolean hidden = matcher.group(1).equals(ORGANIZATION) && isPrivate(matcher.group(2)) && !readsContents(exchange);
+			String head = !hidden && Files.isDirectory(this.gitRoot.resolve(matcher.group(1)).resolve(matcher.group(2) + ".git"))
 					? head(matcher.group(1), matcher.group(2), matcher.group(3)) : null;
 			send(exchange, head == null ? 404 : 200, head == null ? "{\"message\":\"Not Found\"}"
 					: "{\"ref\":\"refs/heads/" + matcher.group(3) + "\",\"object\":{\"type\":\"commit\",\"sha\":\"" + head
@@ -1181,6 +1236,11 @@ public final class GitHubStub implements AutoCloseable {
 		collaboratorsOf(repository).put(login, role);
 	}
 
+	/** A pending invitation someone sent outside vibefix. */
+	public void addInvitation(String repository, String login, String permission) {
+		invitationsOf(repository).put(login, permission);
+	}
+
 	private Map<String, String> collaboratorsOf(String repository) {
 		return this.collaborators.computeIfAbsent(repository, name -> Collections.synchronizedMap(new LinkedHashMap<>()));
 	}
@@ -1189,10 +1249,34 @@ public final class GitHubStub implements AutoCloseable {
 		return this.invitations.computeIfAbsent(repository, name -> Collections.synchronizedMap(new LinkedHashMap<>()));
 	}
 
-	private JsonNode grant(HttpExchange exchange) {
+	/** The {@code repository_ids} and {@code permissions} of the request's token, or none for another credential. */
+	JsonNode grant(HttpExchange exchange) {
 		String authorization = exchange.getRequestHeaders().getFirst("Authorization");
 		JsonNode grant = authorization == null ? null : this.grants.get(authorization.replaceFirst("^Bearer ", ""));
 		return grant == null ? GitHubHttp.JSON.createObjectNode() : grant;
+	}
+
+	/** Whether the request's token reads contents, as a private repository's refs and pull requests need. */
+	private boolean readsContents(HttpExchange exchange) {
+		String contents = grant(exchange).path("permissions").path("contents").asString("");
+		return contents.equals("read") || contents.equals("write");
+	}
+
+	/** Whether the request's token reads metadata or contents, as reading a private repository needs. */
+	private boolean readsMetadata(HttpExchange exchange) {
+		String metadata = grant(exchange).path("permissions").path("metadata").asString("");
+		return metadata.equals("read") || metadata.equals("write") || readsContents(exchange);
+	}
+
+	/** An organization repository as {@code GET /repos/{org}/{name}} shows it, with its settings. */
+	private String organizationRepository(String name, long id) {
+		Map<String, Object> shown = new LinkedHashMap<>();
+		shown.put("id", id);
+		shown.put("name", name);
+		shown.put("full_name", ORGANIZATION + "/" + name);
+		shown.put("default_branch", "main");
+		shown.putAll(this.settings.getOrDefault(name, Map.of()));
+		return GitHubHttp.JSON.writeValueAsString(shown);
 	}
 
 	/** A delivery as GitHub lists it: one attempt of one GUID. */
@@ -1211,7 +1295,7 @@ public final class GitHubStub implements AutoCloseable {
 		return fallback;
 	}
 
-	private static void send(HttpExchange exchange, int status, String body) throws IOException {
+	static void send(HttpExchange exchange, int status, String body) throws IOException {
 		send(exchange, status, body, null);
 	}
 

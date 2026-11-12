@@ -261,11 +261,12 @@ organization's settings, and protect the default branch with a ruleset (S4, SG-1
 author can run it, on GitHub, as an owner of `vibefix-dev`.
 
 1. **Register the dev Platform App** (Settings → Developer settings → GitHub Apps, owned by
-   `vibefix-dev`), with AD-10's permissions and nothing more:
-   - repository: Administration, Contents, Pull requests, and Workflows **write**; Metadata **read**;
+   `vibefix-dev`), with AD-10's permissions and nothing more (as of 2026-11-12, Story 23.3):
+   - repository: Actions, Administration, Contents, Pull requests, and Workflows **write**; Metadata **read**;
    - organization: Administration and Members **read**;
-   - events: `push`, `pull_request`, `repository`, `member`, `membership`, `organization`,
-     `repository_ruleset`, `meta`.
+   - events: `pull_request`, `repository`, `member`, `membership`, `organization`, `meta`. S4 ran with
+     `push` and `repository_ruleset` too; the private copies dropped both (AD-12), and the daily
+     configuration check now reports either one as a difference.
 
    Generate a private key and save it, unopened by anything else, as
    `deploy/secrets/github-platform-app-key.pem` (the folder is ignored by git). Install the App on
@@ -330,9 +331,19 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
 
 When Milestone 1 of a Code Job is paid, vibefix sets up its repositories under the Job's busy marker.
 It checks the Source Repository again with the Customer's token and reads its default branch's head
-through the GitHub API (vibefix scans no code, Story 23.1). Then it copies that commit into
-`job-…-intermediary` in `vibefix-dev`, forks that into `job-…-working`, and reads the organization
-settings and both rulesets back. JOB-H shows the three steps.
+through the GitHub API (vibefix scans no code, Story 23.1). Before it creates anything, it reads the
+organization, the runner, and the Platform App's installation back (Story 23.3). Then it creates
+`job-…-intermediary` and `job-…-working` in `vibefix-dev` as two **private** repositories (Wiki, Issues,
+Projects, Discussions, and forking off), reads each one's settings back, including Actions disabled by the
+organization's policy, and only then pushes that commit into each, keeping its ID. There is no fork and no
+ruleset: GitHub Free takes none on a private repository, so the sweep reads the Intermediary's
+collaborators and invitations instead. JOB-H shows the three steps.
+
+**The runner is required.** Set `VIBEFIX_GITHUB_RUNNER_REPOSITORY=vibefix-runner` in `deploy/.env` and keep
+`vibefix-dev/vibefix-runner` as Spike S6 left it: private, holding only `.github/workflows/s6-copy.yml` on
+`main`, with no collaborator or invitation, and the only repository the organization's Actions policy
+("Selected repositories") lists. Unset or drifted, every new Setup waits 15 minutes and looks again, and the
+10-minute sweep alerts Administrators with `github.platform_drift`.
 
 On the dev stack this needs the Platform App configured for the backend, as for Spike S4:
 `vibefix.github.platform-app.id`, `installation-id`, and `key-file`, with the key mounted read-only from
@@ -343,7 +354,10 @@ App is configured.
 
 - **A block** (a private repository, lost admin rights, or a missing sign-in) stops the start and tells
   the Customer and the Mentor why. The Customer fixes it and taps "Thử lại" on JOB-H.
-- **The copies are public repositories** in the organization. Delete them by hand after a dev run.
+- **The copies are private repositories** in the organization. Every pull-request call holds Contents read,
+  and the handover pin, the Final Merge trial and push, and the ZIP clone them with a token narrowed to the
+  one repository with Contents read (Stories 23.8 to 23.10 replace these jobs). Delete them by hand after a
+  dev run.
 - **Invitations follow (Story 7.3).** The Mentor and each active Crew member are invited to the Working
   Repository with read. Each accepts on GitHub, with two-factor authentication on. vibefix reads
   acceptance back every 10 minutes (`vibefix.repo.grant-sweep`), or at once on a `member` webhook.
@@ -794,9 +808,9 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
     - any `s6-refused-…` branch that part a's ref check reported ACCEPTED on the Customer's repository;
     - the Source App (Developer settings › GitHub Apps › Advanced › Delete) and its key,
       `deploy/secrets/github-source-app-key.pem`;
-    - Actions write on the Platform App, `VIBEFIX_GITHUB_RUNNER_REPOSITORY` in `deploy/.env`, and the
-      `vibefix-runner` repository, if the correct-course does not keep them; then set Actions back to
-      "Disable" for `vibefix-dev`;
+    - not the runner: since Story 23.3 the platform requires it, so Actions write on the Platform App,
+      `VIBEFIX_GITHUB_RUNNER_REPOSITORY` in `deploy/.env`, the `vibefix-runner` repository, and the Actions
+      policy "Selected repositories" listing it alone all stay (see "Code Job setup on the dev stack");
     - from the first probe of 2026-11-09, if they still exist: the runner organization
       `vibefix-runner-dev` with its Runner App and `github-runner-app-key.pem`, the Actions secret
       `VIBEFIX_RUNNER_KEY`, and the key pairs `runner-key.pem`, `runner-key.pub.pem`, and

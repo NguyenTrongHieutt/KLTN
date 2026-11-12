@@ -28,8 +28,11 @@ import vn.vibefix.shared.ErrorCode;
 @Component
 class NdaSignatures {
 
-	/** The NDA text's version; its legal wording waits for OQ5, and {@code vi.json} shows the same version. */
-	static final String NDA_VERSION = "1.0";
+	/**
+	 * The NDA text's version; its legal wording waits for OQ5, and {@code vi.json} shows the same version. 2.0
+	 * since 2026-11-12: N-14 says the NDA covers the Customer's code in the private repositories (R18).
+	 */
+	static final String NDA_VERSION = "2.0";
 
 	private final JdbcClient jdbc;
 

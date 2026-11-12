@@ -241,7 +241,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 			case SELECT -> post("/api/v1/jobs/" + job + "/applications/" + application + "/select")
 				.content("{\"version\":" + version(job, "version") + "}");
 			case NDA -> post("/api/v1/mentor/jobs/" + job + "/nda")
-				.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}");
+				.content("{\"ndaVersion\":\"2.0\",\"commitEmailNoticeAcknowledged\":true}");
 			case RECRUIT -> put("/api/v1/mentor/jobs/" + job + "/recruitment").content("""
 					{"on":true,"openSlots":%d,"skillIds":[],"crewVersion":%d}"""
 				.formatted(1 + random.nextInt(2), version(job, "crew_version")));
@@ -249,7 +249,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 					{"note":"Mình muốn tham gia nhóm.","skillIds":[],"publicCodeAcknowledged":true}""");
 			case PICK -> post("/api/v1/mentor/jobs/" + job + "/crew-applications/" + crewApplication + "/pick");
 			case SIGN -> post("/api/v1/crew/jobs/" + job + "/commitment").content("""
-					{"ndaVersion":"1.0","commitmentVersion":"1.0","publicCodeAcknowledged":true,
+					{"ndaVersion":"2.0","commitmentVersion":"1.0","publicCodeAcknowledged":true,
 					 "commitEmailNoticeAcknowledged":true}""");
 		};
 		return new Step(request.with(as(caller)).with(csrf()).contentType(MediaType.APPLICATION_JSON), caller, customer,

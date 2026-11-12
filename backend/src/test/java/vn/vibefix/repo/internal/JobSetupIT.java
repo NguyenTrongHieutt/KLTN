@@ -51,9 +51,11 @@ import vn.vibefix.support.IntegrationTest;
 /**
  * Story 7.2 (FR-18, AD-5, AD-11, AD-28): J6 of a Code Job sets up its repositories under the busy marker.
  * The Source Repository is read again with the Customer's token and its default branch's head through the
- * GitHub API (vibefix scans no code, Story 23.1); the Intermediary Repository gets exactly that commit, the
- * Working Repository is its fork, and AD-11's rulesets are read back before the marker clears. A private
- * repository or lost admin rights block the start until the Customer fixes it and taps "Thử lại". Then (Story 7.3)
+ * GitHub API (vibefix scans no code, Story 23.1). Story 23.3 (D1, D5): once the organization and the runner read
+ * back clean, the Intermediary and the Working Repository are two private copies of exactly that commit, each
+ * read back (private, features and forking off, Actions disabled) before anything is pushed; there is no fork
+ * and no ruleset. A private Source Repository or lost admin rights block the start until the Customer fixes it
+ * and taps "Thử lại". Then (Story 7.3)
  * the Mentor and the active Crew are invited with read; once each accepted with two-factor authentication
  * on, Verify raises them to write, reads it back, and only then applies J7. J8, J10, a locked account, or a
  * Crew change revokes access, read back (Story 7.7); 30 days after the end the final ZIP is stored and both
@@ -66,6 +68,8 @@ class JobSetupIT extends IntegrationTest {
 	private static final GitHubStub GITHUB;
 
 	private static final AtomicLong REPOSITORY_IDS = new AtomicLong(880000);
+
+	private static final String RUNNER = "vibefix-runner";
 
 	static {
 		try {
@@ -148,8 +152,7 @@ class JobSetupIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.id", () -> "123456");
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
-		registry.add("vibefix.github.fork-poll", () -> "10ms");
-		registry.add("vibefix.github.fork-wait", () -> "5s");
+		registry.add("vibefix.github.runner-repository", () -> RUNNER);
 		registry.add("vibefix.github.operator-login", () -> "vibefix-operator");
 	}
 
@@ -204,8 +207,9 @@ class JobSetupIT extends IntegrationTest {
 		GITHUB.pulls.clear();
 		GITHUB.closedPulls.clear();
 		GITHUB.eventActors.clear();
-		GITHUB.issuesOn.clear();
 		GITHUB.repositorySelection = "all";
+		// AD-46: the runner, private with only its published workflow, the only repository whose Actions run.
+		GITHUB.runner(RUNNER);
 	}
 
 	@Test
@@ -548,8 +552,13 @@ class JobSetupIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/**
+	 * Story 23.3 (FR-19, AD-12): a foreign pull request is closed on the Intermediary only, since the private
+	 * Working Repository is the team's; a {@code pull_request} or {@code member} event by anyone but the bot or a
+	 * grantee alerts, and {@code push} is no longer a privileged event.
+	 */
 	@Test
-	void foreignPullRequestsAreClosedAndOnlyTheSystemAndGranteesActWithoutAnAlert() throws Exception {
+	void foreignPullRequestsAreClosedOnTheIntermediaryAndOnlyTheSystemAndGranteesActWithoutAnAlert() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		j6();
 		run();
@@ -557,24 +566,50 @@ class JobSetupIT extends IntegrationTest {
 		String working = JobSetups.workingName(this.job);
 		long intermediaryId = GITHUB.organizationRepositoryId(intermediary);
 		long workingId = GITHUB.organizationRepositoryId(working);
+		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.pulls.put(intermediary, new java.util.LinkedHashMap<>(Map.of(1, "mallory", 2, "vibefix-dev-platform[bot]")));
-		GITHUB.pulls.put(working, new java.util.LinkedHashMap<>(Map.of(3, "outsider")));
+		GITHUB.pulls.put(working, new java.util.LinkedHashMap<>(Map.of(3, crewLogin)));
 
 		this.guard.hinted(webhook("pull_request", intermediaryId, "mallory"));
-		this.guard.hinted(webhook("pull_request", workingId, "outsider"));
+		this.guard.hinted(webhook("pull_request", workingId, crewLogin, crewId));
 
-		assertThat(GITHUB.closedPulls).containsExactlyInAnyOrder(intermediary + "#1", working + "#3");
-		assertThat(notices("github.unexpected_actor")).as("an outsider's pull request on the Working Repository is not alerted")
+		assertThat(GITHUB.closedPulls).containsExactly(intermediary + "#1");
+		assertThat(notices("github.unexpected_actor")).as("a grantee's pull request on the Working Repository is theirs")
 			.isOne();
-		this.guard.hinted(webhook("push", workingId, TestPeople.login(this.jdbc, this.crew),
-				CustomerTokens.githubUserId(this.jdbc, this.crew)));
-		assertThat(notices("github.unexpected_actor")).as("a grantee pushes freely").isOne();
+		this.guard.hinted(webhook("member", workingId, crewLogin, crewId));
+		assertThat(notices("github.unexpected_actor")).as("a grantee acts freely").isOne();
+		this.guard.hinted(webhook("pull_request", workingId, "outsider"));
+		assertThat(notices("github.unexpected_actor")).as("a stranger on the private Working Repository alerts").isEqualTo(2);
+		assertThat(GITHUB.closedPulls).as("nothing is closed on the Working Repository").containsExactly(intermediary + "#1");
+		this.guard.hinted(webhook("member", intermediaryId, crewLogin, crewId));
+		assertThat(notices("github.unexpected_actor")).as("nobody but the System is granted on the Intermediary").isEqualTo(3);
 		this.guard.hinted(webhook("push", workingId, "mallory"));
-		assertThat(notices("github.unexpected_actor")).isEqualTo(2);
-		this.guard.hinted(webhook("push", intermediaryId, "vibefix-operator"));
+		assertThat(notices("github.unexpected_actor")).as("push is no longer a privileged event").isEqualTo(3);
+		this.guard.hinted(webhook("repository", workingId, "mallory"));
+		assertThat(notices("github.unexpected_actor")).as("a stranger's repository event, such as making it public, alerts")
+			.isEqualTo(4);
+		this.guard.hinted(webhook("member", intermediaryId, "vibefix-operator"));
 		assertThat(notices("github.operator_account_used")).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.foreign_pull_request_closed'")
 			.query(Long.class).single()).isOne();
+		awaitListeners();
+	}
+
+	/** Story 23.3: the sweep closes nothing on the private Working Repository, whoever opened the pull request. */
+	@Test
+	void theSweepClosesNoPullRequestOnTheWorkingRepository() throws Exception {
+		j6();
+		run();
+		String working = JobSetups.workingName(this.job);
+		GITHUB.pulls.put(working, new java.util.LinkedHashMap<>(Map.of(7, TestPeople.login(this.jdbc, this.crew), 8, "outsider")));
+
+		sweep();
+
+		assertThat(GITHUB.closedPulls).noneMatch(closed -> closed.startsWith(working + "#"));
+		assertThat(GITHUB.seen).as("its pull requests are not even listed")
+			.noneMatch(request -> request.method().equals("GET")
+					&& request.path().equals("/repos/" + GitHubStub.ORGANIZATION + "/" + working + "/pulls"));
 		awaitListeners();
 	}
 
@@ -585,36 +620,129 @@ class JobSetupIT extends IntegrationTest {
 		run();
 		assertThat(sweep()).as("everything as vibefix expects").isEmpty();
 		String intermediary = JobSetups.intermediaryName(this.job);
+		String working = JobSetups.workingName(this.job);
 		GITHUB.addCollaborator(intermediary, "mallory", "write");
-		GITHUB.issuesOn.add(JobSetups.workingName(this.job));
+		GITHUB.setting(working, "has_issues", true);
+		GITHUB.setting(working, "private", false);
+		GITHUB.setting(intermediary, "allow_forking", true);
+		GITHUB.actionsRepositories.add(intermediary);
+		GITHUB.addCollaborator(RUNNER, "eve", "admin");
 		GITHUB.repositorySelection = "selected";
 		GITHUB.eventActors.put(intermediary, List.of("vibefix-dev-platform[bot]", "mallory"));
 
 		List<String> differences = sweep();
 
 		assertThat(differences).anyMatch(difference -> difference.contains("collaborators [mallory] on the Intermediary"))
-			.anyMatch(difference -> difference.contains("has_issues is on"))
+			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + working + ": has_issues is on"))
+			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + working + ": public instead of private"))
+			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + intermediary
+					+ ": allow_forking is true instead of false"))
+			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + intermediary
+					+ ": GitHub Actions are enabled instead of disabled"))
+			.anyMatch(difference -> difference.equals("GitHub Actions are enabled for vibefix-runner, " + intermediary
+					+ " instead of the runner vibefix-runner only"))
+			.anyMatch(difference -> difference.equals("the runner vibefix-dev/vibefix-runner has collaborators [eve]"))
 			.anyMatch(difference -> difference.contains("repository selection: selected instead of all"))
-			.anyMatch(difference -> difference.contains("recent changes by [mallory]"));
+			.anyMatch(difference -> difference.contains("recent changes by [mallory]"))
+			.noneMatch(difference -> difference.contains("ruleset"));
+		assertThat(GITHUB.seen).as("no ruleset is read").noneMatch(request -> request.path().contains("/rulesets"));
 		assertThat(notices("github.platform_drift")).isOne();
 		sweep();
 		assertThat(notices("github.platform_drift")).as("once a day for the same differences").isOne();
 		awaitListeners();
 	}
 
+	/** AD-12, AD-46: the gate runs before anything is created; a difference waits 15 minutes and looks again. */
 	@Test
-	void aRepositorySelectionDifferenceHoldsNewSetupsUntilItIsFixed() throws Exception {
+	void aRepositorySelectionDifferenceHoldsNewSetupsBeforeAnythingIsCreated() throws Exception {
 		GITHUB.repositorySelection = "selected";
 		j6();
 		run();
 
-		assertThat(this.setups.latest(this.job).orElseThrow().status()).as("waiting, not failed").isEqualTo("RUNNING");
-		assertThat(this.setups.latest(this.job).orElseThrow().intermediaryAt()).isNotNull();
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+		assertThat(waiting.status()).as("waiting, not failed").isEqualTo("RUNNING");
+		assertThat(waiting.checkedAt()).isNotNull();
+		assertThat(waiting.intermediaryAt()).isNull();
+		assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
+		assertThat(GITHUB.seen).noneMatch(request -> request.method().equals("POST")
+				&& request.path().equals("/orgs/" + GitHubStub.ORGANIZATION + "/repos")
+				&& request.body().path("name").asString("").equals(JobSetups.intermediaryName(this.job)));
 		GITHUB.repositorySelection = "all";
 		this.clock.advance(Duration.ofMinutes(16));
 		this.worker.runDue(Lane.GITHUB_LONG);
 
 		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+	}
+
+	/** AD-46, deferred-work 634: a runner that drifts holds new setups before anything is created, until it is fixed. */
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.ValueSource(strings = { "public", "another workflow", "a collaborator",
+			"an invitation", "Actions for all" })
+	void aRunnerThatDriftsHoldsNewSetupsUntilItIsFixed(String drift) throws Exception {
+		switch (drift) {
+			case "public" -> GITHUB.setting(RUNNER, "private", false);
+			case "another workflow" -> GITHUB.push(GitHubStub.ORGANIZATION, RUNNER, "main", ".github/workflows/ci.yml",
+					"on: push\n");
+			case "a collaborator" -> GITHUB.addCollaborator(RUNNER, "mallory", "write");
+			case "an invitation" -> GITHUB.addInvitation(RUNNER, "mallory", "read");
+			default -> GITHUB.actionsEnabled = "all";
+		}
+		try {
+			j6();
+			run();
+
+			assertThat(this.setups.latest(this.job).orElseThrow().status()).as("waiting, not failed").isEqualTo("RUNNING");
+			assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
+		}
+		finally {
+			if (drift.equals("another workflow")) {
+				GITHUB.push(GitHubStub.ORGANIZATION, RUNNER, "main", Map.of(), List.of(".github/workflows/ci.yml"), "Remove ci.yml",
+						"ops@example.test");
+			}
+			GITHUB.runner(RUNNER);
+		}
+		this.clock.advance(Duration.ofMinutes(16));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+		awaitListeners();
+	}
+
+	/** D1: a repository whose settings read back wrong receives no code; the attempt is retried. */
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.ValueSource(strings = { "intermediary", "working" })
+	void aRepositoryThatReadsBackPublicReceivesNoCodeUntilItIsPrivate(String which) throws Exception {
+		boolean working = which.equals("working");
+		String name = working ? JobSetups.workingName(this.job) : JobSetups.intermediaryName(this.job);
+		long id = GITHUB.platformRepository(name, "lan-dev", this.source.substring("lan-dev/".length()));
+		GITHUB.setting(name, "private", false);
+		j6();
+		run();
+
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+		assertThat(waiting.status()).isEqualTo("RUNNING");
+		assertThat(working ? waiting.workingId() : waiting.intermediaryId()).as("the earlier repository, found by name")
+			.isEqualTo(id);
+		if (working) {
+			assertThat(waiting.intermediaryAt()).as("the Intermediary was copied").isNotNull();
+			assertThat(waiting.workingAt()).as("the Working Repository was not").isNull();
+		}
+		else {
+			assertThat(waiting.intermediaryAt()).as("nothing was copied").isNull();
+		}
+		assertThat(this.jdbc.sql("SELECT status || ':' || error_code FROM operations.external_operation WHERE type = 'repo.job_setup'")
+			.query(String.class).single()).isEqualTo("PENDING:REPOSITORY_SETTINGS_DIFFER");
+		assertThat(GITHUB.seen).as("no token that could push was minted for it")
+			.noneMatch(request -> request.path().endsWith("/access_tokens")
+					&& request.body().path("repository_ids").toString().equals("[" + id + "]")
+					&& request.body().path("permissions").path("contents").asString("").equals("write"));
+
+		GITHUB.setting(name, "private", true);
+		this.clock.advance(JobSetupOperation.POLICY.delayAfter(1).plusSeconds(1));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+		awaitListeners();
 	}
 
 	@Test
@@ -774,6 +902,20 @@ class JobSetupIT extends IntegrationTest {
 		return new org.springframework.transaction.support.TransactionTemplate(this.transactions).execute(status -> this.guard.sweep());
 	}
 
+	/** Where the first request {@code wanted} matches stands among every request GitHub received, or -1. */
+	private static int indexOf(java.util.function.Predicate<GitHubStub.Seen> wanted) {
+		List<GitHubStub.Seen> seen;
+		synchronized (GITHUB.seen) {
+			seen = List.copyOf(GITHUB.seen);
+		}
+		for (int index = 0; index < seen.size(); index++) {
+			if (wanted.test(seen.get(index))) {
+				return index;
+			}
+		}
+		return -1;
+	}
+
 	private static vn.vibefix.github.GitHubWebhookReceived webhook(String event, long repository, String login) {
 		return webhook(event, repository, login, 1L);
 	}
@@ -820,10 +962,10 @@ class JobSetupIT extends IntegrationTest {
 			assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("WRITE");
 
 			long workingId = GITHUB.organizationRepositoryId(JobSetups.workingName(this.job));
-			this.guard.hinted(webhook("push", workingId, "thao-vy-moi", crewId));
-			this.guard.hinted(webhook("push", workingId, oldLogin, crewId));
+			this.guard.hinted(webhook("pull_request", workingId, "thao-vy-moi", crewId));
+			this.guard.hinted(webhook("pull_request", workingId, oldLogin, crewId));
 			assertThat(notices("github.unexpected_actor")).as("the sender is recognized by ID").isZero();
-			this.guard.hinted(webhook("push", workingId, oldLogin, crewId + 1_000_000));
+			this.guard.hinted(webhook("pull_request", workingId, oldLogin, crewId + 1_000_000));
 			assertThat(notices("github.unexpected_actor")).as("an old login under another ID is a stranger").isOne();
 			awaitListeners();
 		}
@@ -1115,7 +1257,7 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	@Test
-	void theSourcesHeadIsCopiedForkedAndProtectedUnderTheBusyMarker() throws Exception {
+	void theSourcesHeadIsCopiedIntoTwoPrivateRepositoriesUnderTheBusyMarker() throws Exception {
 		String head = GITHUB.head("lan-dev", this.source.substring("lan-dev/".length()), "main");
 
 		j6();
@@ -1140,8 +1282,46 @@ class JobSetupIT extends IntegrationTest {
 		String working = JobSetups.workingName(this.job);
 		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, intermediary, "main")).as("a copy with the commit IDs kept")
 			.isEqualTo(head);
-		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, working, "main")).isEqualTo(head);
-		assertThat(GITHUB.rulesetNames(intermediary)).containsExactlyInAnyOrder("vibefix-default-branch", "vibefix-handover");
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, working, "main")).as("a second copy, not a fork").isEqualTo(head);
+		for (String name : List.of(intermediary, working)) {
+			assertThat(GITHUB.isPrivate(name)).as(name + " is private").isTrue();
+			for (String off : List.of("has_wiki", "has_issues", "has_projects", "has_discussions", "allow_forking")) {
+				assertThat(GITHUB.setting(name, off)).as(name + " " + off).isEqualTo(false);
+			}
+			assertThat(GITHUB.seen).as("its settings and Actions are read back")
+				.anyMatch(request -> request.method().equals("GET")
+						&& request.path().equals("/repos/" + GitHubStub.ORGANIZATION + "/" + name + "/actions/permissions"))
+				.noneMatch(request -> request.method().equals("PUT") && request.path().endsWith(name + "/actions/permissions"));
+			long id = GITHUB.organizationRepositoryId(name);
+			int readBack = indexOf(request -> request.path().equals("/repos/" + GitHubStub.ORGANIZATION + "/" + name
+					+ "/actions/permissions"));
+			int pushToken = indexOf(request -> request.path().endsWith("/access_tokens")
+					&& request.body().path("repository_ids").toString().equals("[" + id + "]")
+					&& request.body().path("permissions").path("contents").asString("").equals("write"));
+			assertThat(readBack).as("read back before any code is pushed into " + name).isNotNegative().isLessThan(pushToken);
+		}
+		long intermediaryId = GITHUB.organizationRepositoryId(intermediary);
+		long workingId = GITHUB.organizationRepositoryId(working);
+		int workingPush = indexOf(request -> request.path().endsWith("/access_tokens")
+				&& request.body().path("repository_ids").toString().equals("[" + workingId + "]")
+				&& request.body().path("permissions").path("contents").asString("").equals("write"));
+		GitHubStub.Seen beforeWorkingPush = List.copyOf(GITHUB.seen).get(workingPush - 1);
+		assertThat(beforeWorkingPush.path()).as("the Working copy is cloned from the Intermediary, not the Source")
+			.endsWith("/access_tokens");
+		assertThat(beforeWorkingPush.body().path("repository_ids").toString()).isEqualTo("[" + intermediaryId + "]");
+		assertThat(beforeWorkingPush.body().path("permissions").toString()).isEqualTo("{\"contents\":\"read\"}");
+		assertThat(GITHUB.seen.stream().filter(request -> request.method().equals("POST")
+				&& request.path().equals("/orgs/" + GitHubStub.ORGANIZATION + "/repos")
+				&& List.of(intermediary, working).contains(request.body().path("name").asString(""))))
+			.as("both created private, with the features off; forking follows the organization's setting")
+			.hasSize(2)
+			.allSatisfy(request -> {
+				assertThat(request.body().path("private").asBoolean()).isTrue();
+				assertThat(request.body().has("allow_forking")).as("GitHub's create takes none").isFalse();
+				assertThat(request.body().path("has_issues").asBoolean(true)).isFalse();
+			});
+		assertThat(GITHUB.seen).as("no fork and no ruleset")
+			.noneMatch(request -> request.path().endsWith("/forks") || request.path().contains("/rulesets"));
 		assertThat(done.intermediaryName()).isEqualTo(GitHubStub.ORGANIZATION + "/" + intermediary);
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the resolving transaction cleared it").isEmpty();
 		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 waits for Verify").isEqualTo("STARTING");

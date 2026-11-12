@@ -520,7 +520,7 @@ class FundingIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}")).andExpect(status().isOk());
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/nda").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"ndaVersion\":\"1.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
+			.content("{\"ndaVersion\":\"2.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
 		boolean assessment = "ASSESSMENT".equals(jobType);
 		UUID milestone = assessment ? UUID.fromString(JsonPath.read(this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/agreement")
 			.with(as(this.hung, Role.MENTOR))).andReturn().getResponse().getContentAsString(), "$.content.milestones[0].id")) : MILESTONE;
