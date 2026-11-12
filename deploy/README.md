@@ -168,16 +168,20 @@ Google sign-in and GitHub linking, intake, an Assessment Job, a Code Job with tw
 Milestone's split (confirmed by the Crew member, or decided by an Administrator), and closure with a
 Final Merge. Roles belong to each Job, never to an account. Beyond the stack above it needs the dev
 Google client ("Signing in with Google locally"), the dev GitHub OAuth App with its linking callback
-("Linking GitHub locally"), the dev Platform App, the dev Merge App, and the dev VNPay sandbox merchant.
+("Linking GitHub locally"), the dev Platform App, the dev Merge App, the dev Source App ("The Source App on
+the dev stack", below), and the dev VNPay sandbox merchant. Until Story 23.6 moves the J7 copy onto the
+Customer's Actions, the Source Repository of a Code Job must be public: Setup still reads its head with the
+Platform App and clones it without a token.
 
 A database from before Epics 19–22 cannot run this path: its accounts have no Google subject, and Story
 22.4's ledger check stops the backend at boot while `RELEASE_HELD` rows remain. Reset it first (an
 author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml down -v`.
 
-1. **Give the backend the three accounts.** Copy `.env.example` to `deploy/.env` and fill in the App
-   IDs, the Platform App's installation ID on `vibefix-dev`, and the VNPay terminal code. The keys stay
-   in `deploy/secrets/` as `github-platform-app-key.pem`, `github-merge-app-key.pem`, and
-   `vnpay-hash-secret`. Then start the stack with both files:
+1. **Give the backend the four accounts.** Copy `.env.example` to `deploy/.env` and fill in the App
+   IDs (the Source App's too, `VIBEFIX_SOURCE_APP_ID`), the Platform App's installation ID on `vibefix-dev`,
+   and the VNPay terminal code. The keys stay in `deploy/secrets/` as `github-platform-app-key.pem`,
+   `github-merge-app-key.pem`, `github-source-app-key.pem`, and `vnpay-hash-secret`. Then start the stack with
+   both files:
 
    ```sh
    docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait
@@ -330,8 +334,9 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
 ## Code Job setup on the dev stack (Story 7.2)
 
 When Milestone 1 of a Code Job is paid, vibefix sets up its repositories under the Job's busy marker.
-It checks the Source Repository again with the Customer's token and reads its default branch's head
-through the GitHub API (vibefix scans no code, Story 23.1). Before it creates anything, it reads the
+It checks the Source Repository again through the Customer's Source App (Story 23.5: the binding, the
+admin right, and the published `vibefix.yml`) and reads its default branch's head through the GitHub API
+(vibefix scans no code, Story 23.1). Before it creates anything, it reads the
 organization, the runner, and the Platform App's installation back (Story 23.3). Then it creates
 `job-…-intermediary` and `job-…-working` in `vibefix-dev` as two **private** repositories (Wiki, Issues,
 Projects, Discussions, and forking off), reads each one's settings back, including Actions disabled by the
@@ -354,8 +359,10 @@ every attempt fails with `GITHUB_UNAVAILABLE`. After the retries, the
 operation waits in ADM-7's failed queue (Thao tác lỗi), and an Administrator retries it there once the
 App is configured.
 
-- **A block** (a private repository, lost admin rights, or a missing sign-in) stops the start and tells
-  the Customer and the Mentor why. The Customer fixes it and taps "Thử lại" on JOB-H.
+- **A block** (the Source App uninstalled or on the wrong repositories, `vibefix.yml` removed or changed, or
+  lost admin rights) stops the start and tells the Customer and the Mentor why. The Customer fixes it and
+  taps "Thử lại" on JOB-H. Until Story 23.6 moves the copy onto the Customer's Actions, the sandbox still
+  clones the Source Repository without a token, so a dev run needs a public test repository.
 - **The copies are private repositories** in the organization. Every pull-request call holds Contents read,
   and the handover pin, the Final Merge trial and push, and the ZIP clone them with a token narrowed to the
   one repository with Contents read (Stories 23.8 to 23.10 replace these jobs). Delete them by hand after a
@@ -421,6 +428,47 @@ exchange and answers 404 to anything else, never at 8080.
 
 Spike S6's probe still serves its own exchange on 8099 for its parts b and c: it answers the published
 workflows' new path, `/github/actions/exchange`, too.
+
+## The Source App on the dev stack (Story 23.5)
+
+Every read of a Source Repository goes through the Source App, the third GitHub App (AD-10): registration's
+checks (CUS-3), and the Source checks before a Code Job's Setup and before the Final Merge. Each Customer
+installs it on exactly their Source Repository, public or private, and adds the published
+`deploy/customer/vibefix.yml` as `.github/workflows/vibefix.yml` on the default branch. vibefix binds the pair
+(installation, repository) in `product.source_app_binding` when "Kiểm tra" finds the installation through
+`GET /repos/{owner}/{repo}/installation`, mints every token from that installation narrowed to the one
+repository, and revokes it after use.
+
+1. **Settings of the dev Source App** (the App Spike S6 left, "Spike S6" below, step 4). On its settings page:
+   - Repository permissions **Contents: Read**, **Metadata: Read**, **Actions: Read and write**, and nothing
+     else; no organization or account permission; no event.
+   - **Webhook: off** (untick "Active"). The daily configuration check compares only the registration for
+     this App, and the redelivery job skips it.
+   - **Setup URL** `http://localhost:5173/api/v1/github/source-app/setup`, with **"Redirect on update"**
+     ticked, so GitHub sends the Customer back to CUS-3 after an install, a change of the selection, or an
+     organization's request.
+   - "Where can this GitHub App be installed?": **Any account**.
+2. **Give the backend its ID and key.** Put the App ID in `deploy/.env` as `VIBEFIX_SOURCE_APP_ID`; its key is
+   `deploy/secrets/github-source-app-key.pem` (from Spike S6). `compose.integrations.yaml` passes both, with no
+   installation ID: each Customer has their own. Recreate the backend:
+   ```
+   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait backend
+   ```
+   Without them, registration and the Source checks answer `GITHUB_UNAVAILABLE`.
+3. **Run it once.** As a Customer on CUS-3, paste a test repository you administer, tap "Cài ứng dụng vibefix
+   trên GitHub", choose "Only select repositories" and only that repository, and come back: the wizard runs
+   "Kiểm tra" and binds it. On step 3, "Thêm file workflow" opens GitHub's new-file page with
+   `.github/workflows/vibefix.yml` prefilled; commit it on the default branch, come back, and tap "Kiểm tra":
+   "Đúng bản vibefix công bố". Then register. Checks to try on the way: select all repositories
+   (`SOURCE_APP_WRONG_REPOSITORY`), uninstall (`SOURCE_APP_MISSING`), or edit the file
+   (`WORKFLOW_MISMATCH`). An organization repository whose owner must approve the install comes back with
+   "Chờ chủ tổ chức duyệt"; the next "Kiểm tra" binds it once approved.
+4. **The published file changed in this story.** Story 23.5 split `vibefix.yml` into the jobs `copy`,
+   `final-merge` and `scan` (each with only its permissions, and `copy` and `final-merge` refuse a run no GitHub
+   App started), so its blob changed and the old one is no longer accepted. Replace the copy in `s6-source`
+   (and any other test repository) with the new file before a Customer's run uses the exchange.
+5. **Deleting a Product** ends its binding. vibefix never uninstalls the Customer's App: CUS-4 and CUS-2 tell
+   them to deselect the repository on GitHub, or to uninstall the App when no other Product uses it.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

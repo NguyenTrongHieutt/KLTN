@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
+import messages from '@/i18n/vi.json'
 import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 import { SetupTracker } from './SetupTracker'
 
@@ -96,10 +97,26 @@ describe('JOB-H step tracker while Starting (UX-DR23, AD-11)', () => {
     expect(screen.getByText('Mời người hướng dẫn và nhóm trên GitHub: Đang làm')).toHaveAttribute('aria-live', 'polite')
   })
 
+  it.each([
+    ['SOURCE_APP_MISSING', messages.screen.job.setup.blockedSOURCE_APP_MISSING],
+    ['SOURCE_APP_WRONG_REPOSITORY', messages.screen.job.setup.blockedSOURCE_APP_WRONG_REPOSITORY],
+    ['WORKFLOW_MISSING', messages.screen.job.setup.blockedWORKFLOW_MISSING],
+    ['WORKFLOW_MISMATCH', messages.screen.job.setup.blockedWORKFLOW_MISMATCH],
+  ])('tells the Customer how to fix a %s block before "Thử lại" (Story 23.5)', async (reason, text) => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: reason, canRetry: true })),
+    })
+    renderTracker()
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument()
+  })
+
   it('shows the Mentor that the Customer must act, without a retry', async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>
-        json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: 'SOURCE_NOT_PUBLIC' })),
+        json(setup('BLOCKED', ['BLOCKED', 'PENDING', 'PENDING'], { blockedReason: 'SOURCE_APP_MISSING' })),
     })
     renderTracker()
 

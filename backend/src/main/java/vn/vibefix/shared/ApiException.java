@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * A refusal the API reports as Problem Details with {@code code} and, when given, {@code reason}
  * (AD-23). The reason is a constant of the throwing module's own reason enum (for example
- * {@code REPO_PRIVATE}); the SPA maps it to Vietnamese.
+ * {@code REPO_TOO_LARGE}); the SPA maps it to Vietnamese.
  * <p>
  * The message exists for logs only and is never sent to the client.
  */

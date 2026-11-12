@@ -383,7 +383,9 @@ class GitHubLinkIT extends IntegrationTest {
 		link(this.browser, "PROFILE");
 		liveProduct(lan, "Sổ đặt bàn Quán Mây");
 
-		assertThatThrownBy(() -> this.repositories.read(lan, "lan-dev", "quan-may")).isInstanceOf(ApiException.class);
+		// Since Story 23.5 only the contributor check reads with the kept token.
+		assertThatThrownBy(() -> this.repositories.hasContributor(lan, "lan-dev", "quan-may", lan))
+			.isInstanceOf(ApiException.class);
 
 		assertThat(openTodos(lan, "identity.relink_github")).isOne();
 		assertThat(this.jdbc.sql("""

@@ -1,5 +1,5 @@
 import { Package } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
+import { SourceAppGuidance, type DeletedProduct } from './DeleteProduct'
 import { useProducts, type Product } from './productApi'
 
 /**
@@ -22,6 +23,8 @@ export function ProductsPage() {
 function ProductList() {
   const products = useProducts()
   const items = products.data ?? []
+  // R23: after a deletion, the Source App guidance stays on CUS-2 until the page is left.
+  const deleted = (useLocation().state as { deleted?: DeletedProduct } | null)?.deleted
   return (
     <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -35,6 +38,14 @@ function ProductList() {
           </Link>
         )}
       </div>
+      {deleted?.sourceApp && (
+        <section role="status" className="flex flex-col gap-2 rounded-md border-l-4 border-info bg-info-soft p-4">
+          <p className="text-label font-semibold break-words">
+            {t('screen.product.detail.deletedGuidance', { product: deleted.name })}
+          </p>
+          <SourceAppGuidance repository={deleted.repository} sourceApp={deleted.sourceApp} />
+        </section>
+      )}
       <RegionState query={products} skeleton={<Skeleton className="h-48 w-full" />}>
         {items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card p-10 text-center">

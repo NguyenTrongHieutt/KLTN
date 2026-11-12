@@ -278,10 +278,12 @@ GET /api/v1/reputation/histories?username={username},USER,user=member,,200
 GET /api/v1/reputation/histories?username={username},CUSTOMER,user=member,,200
 GET /api/v1/reputation/histories?username={username},CROSS_ROLE,user=member,,200
 GET /api/v1/reputation/histories?username={username},ADMINISTRATOR,user=member,,200
-# Products (product, FR-7, AD-20, Story 20.3): any unlocked user lists their own Products; checking and
-# registering a repository need GitHub linked (USER_UNVERIFIED: GITHUB_NOT_LINKED); only the owning Customer and
-# Administrators read a Product: not even the crew Job's Mentor and Crew, who work on it (B5). No matrix account has a kept GitHub token, so a linked one's repository reads
-# ask it to link GitHub again (RELINK_GITHUB, Story 19.2).
+# Products (product, FR-7, AD-20, Story 20.3): any unlocked user lists their own Products; the Source App's install
+# link, checking a repository or its workflow file, and registering need GitHub linked (USER_UNVERIFIED:
+# GITHUB_NOT_LINKED); only the owning Customer and Administrators read a Product: not even the crew Job's Mentor and
+# Crew, who work on it (B5). The matrix configures no Source App (Story 23.5), so a linked user's install link and
+# repository reads answer GITHUB_UNAVAILABLE, with no GitHub call; no path reads with a kept linking token. The
+# published workflow file is the same for every signed-in caller.
 GET /api/v1/products,ANONYMOUS,,,401
 GET /api/v1/products,USER_UNVERIFIED,,,200
 GET /api/v1/products,USER,,,200
@@ -289,19 +291,49 @@ GET /api/v1/products,LOCKED,,,401
 GET /api/v1/products,CUSTOMER,,,200
 GET /api/v1/products,CROSS_ROLE,,,200
 GET /api/v1/products,ADMINISTRATOR,,,404 NOT_FOUND
+POST /api/v1/products/source-app/install-link,ANONYMOUS,,product-repository-check.json,401
+POST /api/v1/products/source-app/install-link,USER_UNVERIFIED,,product-repository-check.json,403 FORBIDDEN GITHUB_NOT_LINKED
+POST /api/v1/products/source-app/install-link,USER,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/source-app/install-link,LOCKED,,product-repository-check.json,401
+POST /api/v1/products/source-app/install-link,CUSTOMER,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/source-app/install-link,CROSS_ROLE,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/source-app/install-link,ADMINISTRATOR,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products/repository-check,ANONYMOUS,,product-repository-check.json,401
 POST /api/v1/products/repository-check,USER_UNVERIFIED,,product-repository-check.json,403 FORBIDDEN GITHUB_NOT_LINKED
-POST /api/v1/products/repository-check,USER,,product-repository-check.json,422 GUARD_FAILED RELINK_GITHUB
-POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,422 GUARD_FAILED RELINK_GITHUB
-POST /api/v1/products/repository-check,CROSS_ROLE,,product-repository-check.json,422 GUARD_FAILED RELINK_GITHUB
+POST /api/v1/products/repository-check,USER,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/repository-check,CUSTOMER,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/repository-check,CROSS_ROLE,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
 POST /api/v1/products/repository-check,ADMINISTRATOR,,product-repository-check.json,404 NOT_FOUND
+GET /api/v1/products/workflow-file,ANONYMOUS,,,401
+GET /api/v1/products/workflow-file,USER_UNVERIFIED,,,200
+GET /api/v1/products/workflow-file,USER,,,200
+GET /api/v1/products/workflow-file,LOCKED,,,401
+GET /api/v1/products/workflow-file,CUSTOMER,,,200
+GET /api/v1/products/workflow-file,CROSS_ROLE,,,200
+GET /api/v1/products/workflow-file,ADMINISTRATOR,,,200
+POST /api/v1/products/workflow-check,ANONYMOUS,,product-repository-check.json,401
+POST /api/v1/products/workflow-check,USER_UNVERIFIED,,product-repository-check.json,403 FORBIDDEN GITHUB_NOT_LINKED
+POST /api/v1/products/workflow-check,USER,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/workflow-check,LOCKED,,product-repository-check.json,401
+POST /api/v1/products/workflow-check,CUSTOMER,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/workflow-check,CROSS_ROLE,,product-repository-check.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/workflow-check,ADMINISTRATOR,,product-repository-check.json,404 NOT_FOUND
 POST /api/v1/products,ANONYMOUS,,product-registration.json,401
 POST /api/v1/products,USER_UNVERIFIED,,product-registration.json,403 FORBIDDEN GITHUB_NOT_LINKED
-POST /api/v1/products,USER,,product-registration.json,422 GUARD_FAILED RELINK_GITHUB
+POST /api/v1/products,USER,,product-registration.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
 POST /api/v1/products,LOCKED,,product-registration.json,401
-POST /api/v1/products,CUSTOMER,,product-registration.json,422 GUARD_FAILED RELINK_GITHUB
-POST /api/v1/products,CROSS_ROLE,,product-registration.json,422 GUARD_FAILED RELINK_GITHUB
+POST /api/v1/products,CUSTOMER,,product-registration.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products,CROSS_ROLE,,product-registration.json,422 GUARD_FAILED GITHUB_UNAVAILABLE
 POST /api/v1/products,ADMINISTRATOR,,product-registration.json,404 NOT_FOUND
+# The Source App's Setup URL (product, Story 23.5): GitHub's return goes back to CUS-3 for every signed-in caller;
+# only the signed-in Customer who minted the state consumes it, and nothing is bound there.
+GET /api/v1/github/source-app/setup,ANONYMOUS,,,401
+GET /api/v1/github/source-app/setup,USER_UNVERIFIED,,,303
+GET /api/v1/github/source-app/setup,USER,,,303
+GET /api/v1/github/source-app/setup,LOCKED,,,401
+GET /api/v1/github/source-app/setup,CUSTOMER,,,303
+GET /api/v1/github/source-app/setup,CROSS_ROLE,,,303
+GET /api/v1/github/source-app/setup,ADMINISTRATOR,,,303
 GET /api/v1/products/{productId},ANONYMOUS,,,401
 GET /api/v1/products/{productId},USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/products/{productId},USER,,,404 NOT_FOUND

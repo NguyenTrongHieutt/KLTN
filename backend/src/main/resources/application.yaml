@@ -114,15 +114,19 @@ vibefix:
   # FR-7, AD-34: CUS-3's acknowledgments (N-1, N-1b, N-2) and the daily registration limit. The SPA shows the same
   # version (frontend/src/i18n/vi.json notice.product.version).
   # 1.1 (Story 23.1): N-2 no longer speaks of a scan, since vibefix scans no code.
+  # 2.0 (Story 23.5): private copies on the Customer's own GitHub Actions through the Source App (N-1, N-1b), and
+  # the secret guidance with the optional gitleaks run (N-2).
   product:
-    notice-version: "1.1"
+    notice-version: "2.0"
     per-day: 5
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com
     # Where repositories are cloned from and pushed to (AD-11). The Apps' IDs and key files
-    # (vibefix.github.platform-app.*, merge-app.*) are set where a story needs them; see
-    # deploy/README.md "Spike S4".
+    # (vibefix.github.platform-app.*, merge-app.*, source-app.*) are set where a story needs them; see
+    # deploy/README.md "Spike S4" and "The Source App". The Source App (Story 23.5) takes its ID and key file
+    # only: each Customer installs it, so it has no installation of the platform's own, and it has no webhook.
+    # Unset, registration and the Source checks answer GITHUB_UNAVAILABLE.
     git-url: https://github.com
     # AD-12: both Apps' webhooks reach POST /webhooks, signed with each App's secret file
     # (platform-app.webhook-secret-file, merge-app.webhook-secret-file). Set webhook-url to
@@ -140,9 +144,11 @@ vibefix:
       # The published files whose runs may exchange: each one's path, its blob (git hash-object with CRLF
       # read as LF), and an optional last day, ends-on (Vietnam time), once a newer version replaces it.
       # AcceptedBlobsTest proves the files in deploy/ are listed; a changed file adds its new blob here.
+      # Story 23.5 split vibefix.yml's copy and final-merge into jobs of their own (deferred-work 630): its new
+      # blob replaces the old one, which no Customer has added yet.
       accepted-blobs:
         - path: .github/workflows/vibefix.yml
-          blob: f43450a98033fc5adaf1a6efa64fafd2627bd111
+          blob: db448cf8fe316ef7876e5a6b0556a554ae74c976
         - path: .github/workflows/s6-copy.yml
           blob: 82e83caca2379c6d4a1c716e41b1348429dbcf2c
       # The dev stack serves the exchange on this port too, alone, while public-url names its cloudflared

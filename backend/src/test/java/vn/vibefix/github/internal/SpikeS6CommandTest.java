@@ -487,14 +487,13 @@ class SpikeS6CommandTest {
 
 	@Test
 	void aScanWhoseWorkflowRunsTheExchangeStepGetsNoTokenAndFails() throws Exception {
-		// A vibefix.yml whose copy job and exchange step run for every operation, added as the published file:
-		// the stand-in reads both if:s from the file (not the scripts), so this scan asks for an ID token, which
-		// no scan of the published file does.
+		// A vibefix.yml whose copy job runs for every operation, added as the published file: the stand-in reads the
+		// jobs' if:s from the file (not the scripts), so this scan asks for an ID token, which no scan of the
+		// published file does. Since Story 23.5 the copy is a job of its own, and its exchange step has no if:.
 		String published = Files.readString(CUSTOMER_WORKFLOW, StandardCharsets.UTF_8).replace("\r\n", "\n");
-		String exchanging = published
-			.replaceAll("(?m)^ +if: inputs\\.operation == 'copy' \\|\\| inputs\\.operation == 'final-merge'\n", "");
-		assertThat(published.split("== 'copy' \\|\\|", -1)).as("the copy job's if: and the exchange step's").hasSize(3);
-		assertThat(exchanging).as("both gone").doesNotContain("== 'copy' ||");
+		String exchanging = published.replaceAll("(?m)^ +if: inputs\\.operation == 'copy'\n", "");
+		assertThat(published.split("if: inputs\\.operation == 'copy'\n", -1)).as("the copy job's if:").hasSize(2);
+		assertThat(exchanging).as("gone").doesNotContain("if: inputs.operation == 'copy'\n");
 		Path file = Files.writeString(this.directory.resolve("exchanging-vibefix.yml"), exchanging);
 		this.github.commitFile(SpikeS6Stub.SOURCE, "main", SpikeS6Stub.CUSTOMER_PATH, exchanging);
 
@@ -656,7 +655,7 @@ class SpikeS6CommandTest {
 		assertThat(line(output(), "J7 copy on Customer's Actions")).contains("run ID in field workflow_run_id", " failure,",
 				"token issued to run", "revoked HTTP 204", "logs kept (a Customer's run)");
 		String errors = errors();
-		assertThat(errors).contains("did not succeed; failed step 4 (Copy the commit), the last 40 lines of vibefix/4_Copy the"
+		assertThat(errors).contains("did not succeed; failed step 4 (Copy the commit), the last 40 lines of copy/4_Copy the"
 				+ " commit.txt");
 		List<String> tail = errors.lines().filter(line -> line.startsWith("  | ")).toList();
 		assertThat(tail).hasSize(SpikeS6Command.LOG_LINES);

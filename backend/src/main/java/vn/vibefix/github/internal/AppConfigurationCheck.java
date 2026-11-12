@@ -25,8 +25,9 @@ import vn.vibefix.shared.IdGenerator;
  * SG-18's daily configuration check (AD-10): for each configured App, {@code GET /app} against AD-10's
  * permissions and events ({@link AppExpectations}), and {@code GET /app/hook/config}: the webhook is
  * active at {@code vibefix.github.webhook-url} when that is set (the Merge App's too, though it subscribes
- * to no event), sends JSON, and verifies SSL. Any difference publishes {@link GitHubConfigurationDrift},
- * which {@code admin} turns into an alert for every Administrator.
+ * to no event), sends JSON, and verifies SSL. The Source App has no webhook (Story 23.5), so only its
+ * registration is compared. Any difference publishes {@link GitHubConfigurationDrift}, which {@code admin}
+ * turns into an alert for every Administrator.
  */
 @Component
 class AppConfigurationCheck {
@@ -74,12 +75,14 @@ class AppConfigurationCheck {
 		catch (GitHubException refused) {
 			differences.add("GET /app: HTTP " + refused.status());
 		}
-		GitHubHttp.Answer hook = this.apps.http().send("GET", "/app/hook/config", this.apps.jwt(app), null);
-		if (!hook.ok()) {
-			differences.add("GET /app/hook/config: HTTP " + hook.status() + " (no active webhook)");
-		}
-		else {
-			differences.addAll(webhook(hook.body()));
+		if (AppExpectations.webhook(app)) {
+			GitHubHttp.Answer hook = this.apps.http().send("GET", "/app/hook/config", this.apps.jwt(app), null);
+			if (!hook.ok()) {
+				differences.add("GET /app/hook/config: HTTP " + hook.status() + " (no active webhook)");
+			}
+			else {
+				differences.addAll(webhook(hook.body()));
+			}
 		}
 		if (!differences.isEmpty()) {
 			log.warn("The {} App differs from AD-10: {}", app, differences);

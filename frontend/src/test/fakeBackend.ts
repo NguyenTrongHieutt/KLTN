@@ -118,12 +118,19 @@ export function json(body: unknown, status = 200): Response {
   })
 }
 
+/** The published `vibefix.yml` as `GET /api/v1/products/workflow-file` serves it (Story 23.5): a short stand-in. */
+export const workflowFile = {
+  path: '.github/workflows/vibefix.yml',
+  content: 'name: vibefix\non:\n  workflow_dispatch:\n',
+  blob: '0123456789abcdef0123456789abcdef01234567',
+}
+
 /**
  * Replaces `fetch` with a backend that answers `GET /api/v1/session` with `session` and any other
  * `METHOD /path` from `handlers`, where a `*` in a handler's path stands for one path segment; the to-dos,
  * notifications, Jobs held (`/my-jobs`), bids and Crew Applications are empty, GitHub is as {@link gitHubLink} says, the profile is
- * {@link profileView}'s, and the verification is `UNVERIFIED` unless a handler answers them, and an unknown
- * request answers 404. Returns the requests it saw.
+ * {@link profileView}'s, the published workflow is {@link workflowFile}, and the verification is `UNVERIFIED` unless a
+ * handler answers them, and an unknown request answers 404. Returns the requests it saw.
  */
 export function fakeBackend(session: Session, handlers: Record<string, Handler> = {}): Request[] {
   const seen: Request[] = []
@@ -164,6 +171,9 @@ export function fakeBackend(session: Session, handlers: Record<string, Handler> 
       }
       if (key === 'GET /api/v1/profile') {
         return json(profileView())
+      }
+      if (key === 'GET /api/v1/products/workflow-file') {
+        return json(workflowFile)
       }
       // A Student who has not verified yet.
       if (key === 'GET /api/v1/verification') {

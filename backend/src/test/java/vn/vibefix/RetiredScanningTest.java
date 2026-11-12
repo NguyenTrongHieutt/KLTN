@@ -70,7 +70,9 @@ class RetiredScanningTest {
 					+ "|SCAN_LIMIT|NO_PERSONAL_DATA_FINDING|NOT_A_FALSE_POSITIVE)\\b"),
 			"a scanning notification, to-do or template", Pattern.compile("\\bscanning\\.(?:resolve_|intake_scan|finding_|push_scan)"),
 			"a promise of a scan in the text people read",
-			Pattern.compile("quét bảo mật|đã (?:được )?quét|kiểm tra khóa bí mật", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE),
+			// Story 23.5: "Tự kiểm tra khóa bí mật" is the Customer's own optional gitleaks run (N-2), no scan of vibefix's.
+			Pattern.compile("quét bảo mật|đã (?:được )?quét|(?<!tự )kiểm tra khóa bí mật",
+					Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE),
 			"the fingerprint key", Pattern.compile("scanning[-_.]fingerprint[-_.]key", Pattern.CASE_INSENSITIVE),
 			"head tracking",
 			Pattern.compile("\\b(?:WorkingHeadMoved|PushScans|recordedHead|branch_head|push_scan|push-sweep|void-sweep)\\b"),
@@ -145,6 +147,7 @@ class RetiredScanningTest {
 		for (String text : List.of("import vn.vibefix.scanning.SensitiveText;", "SensitiveChanges.WORKFLOWS", "FINDING_MENTOR",
 				"case FINDING_CREW ->", "scanning/rules.yaml", "One finding.", "finding people for the Job",
 				"vibefix scans no code", "Lane.GITHUB_LONG", "Tôi hiểu vibefix không quét mã.", "HandoverVoids",
+				"Tự kiểm tra khóa bí mật trên GitHub", "\"scanLink\": \"Tự kiểm tra khóa bí mật (gitleaks, không bắt buộc)\"",
 				"HeadMoved moved", "grant-sweep: PT10M", "platform-sweep: PT10M", "branches.working(jobId)", "refs/heads/main",
 				"repositories().settingsDifferences(working)", "Unnarrowed.REPOSITORY_CREATION", "forkPoll",
 				"\"allow_forking\", false")) {

@@ -12,7 +12,6 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
-import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubConfigurationDrift;
 import vn.vibefix.github.GitHubExchangeIssued;
 import vn.vibefix.github.GitHubExchangeRefused;
@@ -154,9 +153,12 @@ class AdminAlerts {
 	void onConfigurationDrift(GitHubConfigurationDrift event) {
 		if (this.processedEvents.markProcessed("admin.AdminAlerts.onConfigurationDrift", event.eventId())) {
 			UUID cause = UUID.nameUUIDFromBytes((event.app() + ":" + event.day()).getBytes(StandardCharsets.UTF_8));
-			alert(CONFIGURATION_DRIFT, cause,
-					Map.of("app", event.app() == App.PLATFORM ? "Platform App" : "Merge App", "differences",
-							String.join("; ", event.differences())),
+			String app = switch (event.app()) {
+				case PLATFORM -> "Platform App";
+				case MERGE -> "Merge App";
+				case SOURCE -> "Source App";
+			};
+			alert(CONFIGURATION_DRIFT, cause, Map.of("app", app, "differences", String.join("; ", event.differences())),
 					"/quan-tri");
 		}
 	}

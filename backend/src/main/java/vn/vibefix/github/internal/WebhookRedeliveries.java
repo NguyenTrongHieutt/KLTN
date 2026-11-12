@@ -21,7 +21,7 @@ import vn.vibefix.github.GitHubApps.App;
 
 /**
  * AD-12's daily redelivery: GitHub does not redeliver a failed webhook by itself, so each configured
- * App's deliveries of the last 3 days are read with its JWT ({@code GET /app/hook/deliveries}, page by
+ * App with a webhook (not the Source App) has its deliveries of the last 3 days read with its JWT ({@code GET /app/hook/deliveries}, page by
  * page) and every delivery GUID with no {@code OK} attempt is redelivered once, from its latest attempt
  * ({@code POST /app/hook/deliveries/{id}/attempts}). The signature and the delivery ID still decide on
  * arrival. It also purges kept delivery IDs older than 30 days.
@@ -49,7 +49,8 @@ class WebhookRedeliveries {
 
 	void daily() {
 		for (App app : App.values()) {
-			if (this.apps.isConfigured(app)) {
+			// The Source App has no webhook (Story 23.5): it has no deliveries to redeliver.
+			if (AppExpectations.webhook(app) && this.apps.isConfigured(app)) {
 				redeliver(app);
 			}
 		}

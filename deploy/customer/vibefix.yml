@@ -1,19 +1,23 @@
 # vibefix: the one workflow a Customer adds to the Source Repository, unchanged, as
-# .github/workflows/vibefix.yml on the default branch.
+# .github/workflows/vibefix.yml on the default branch. Each operation is a job of its own, with only the
+# permissions it needs:
 #
 #   copy         copies an approved commit of this repository's default branch to the Job's private
-#                Intermediary and Working Repositories (J7), so vibefix never downloads the code;
+#                Intermediary and Working Repositories (J7), so vibefix never downloads the code; it may
+#                only read this repository;
 #   final-merge  brings the Job's Final Merge back from the Intermediary Repository as a new vibefix/
-#                branch here, so vibefix never writes to this repository itself;
+#                branch here, so vibefix never writes to this repository itself; it may write here;
 #   scan         helps the Customer with the J7 confirmation: gitleaks v8.30.1 reads the default
-#                branch's whole history here, in a job of its own that may only read this repository and
-#                holds no id-token permission, so it gets no vibefix token. The run's summary names the
-#                commit scanned and lists each finding's rule, file, commit and line, never its value; the
-#                log holds only ::error:: lines and one count line. The scan decides nothing: the
-#                Customer still confirms at J7.
+#                branch's whole history here, in a job that may only read this repository and holds no
+#                id-token permission, so it gets no vibefix token. The run's summary names the commit
+#                scanned and lists each finding's rule, file, commit and line, never its value; the log
+#                holds only ::error:: lines and one count line. The scan decides nothing: the Customer
+#                still confirms at J7.
 #
 # vibefix's Source App dispatches copy and final-merge, and may dispatch scan. The Customer may also
-# start scan from this repository's Actions tab, with every other input left empty.
+# start scan from this repository's Actions tab, with every other input left empty. copy and final-merge
+# first refuse a run that no GitHub App started (its triggering actor is not a [bot]); vibefix's exchange
+# then accepts only the Source App's own bot.
 #
 # The copy and the Final Merge hold no secret. Each asks GitHub Actions for an OIDC ID token with the
 # audience vibefix and exchanges it at vibefix (POST /github/actions/exchange) for a token narrowed to
@@ -78,16 +82,17 @@ defaults:
     shell: bash
 
 jobs:
-  vibefix:
-    if: inputs.operation == 'copy' || inputs.operation == 'final-merge'
+  copy:
+    if: inputs.operation == 'copy'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
       - name: Check the inputs
         env:
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           OPERATION: ${{ inputs.operation }}
           CORRELATION: ${{ inputs.correlation }}
           EXCHANGE_URL: ${{ inputs.exchange_url }}
@@ -97,27 +102,22 @@ jobs:
           WORKING: ${{ inputs.working }}
         run: |
           set -euo pipefail
-          operation_re='^(copy|final-merge)$'
+          # Only a GitHub App starts a copy, never a person; vibefix's exchange accepts only the Source App's bot.
+          [[ "$TRIGGERING_ACTOR" == *'[bot]' ]] || { echo "::error::only vibefix's Source App starts a copy"; exit 1; }
           correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
           url_re='^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$'
           sha_re='^[0-9a-f]{40}$'
           branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
           repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
-          [[ "$OPERATION" =~ $operation_re ]] || { echo "::error::operation is copy or final-merge"; exit 1; }
+          [ "$OPERATION" = copy ] || { echo "::error::this job only copies"; exit 1; }
           [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
           [[ "$EXCHANGE_URL" =~ $url_re ]] || { echo "::error::exchange_url is not an https origin"; exit 1; }
           [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
           [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::branch is refused"; exit 1; }
           [[ "$INTERMEDIARY" =~ $repository_re && "$INTERMEDIARY" != */. && "$INTERMEDIARY" != */.. ]] || { echo "::error::intermediary is not owner/name"; exit 1; }
-          if [ "$OPERATION" = copy ]; then
-            [[ "$WORKING" =~ $repository_re && "$WORKING" != */. && "$WORKING" != */.. ]] || { echo "::error::working is not owner/name"; exit 1; }
-          else
-            [ -z "$WORKING" ] || { echo "::error::final-merge takes no working repository"; exit 1; }
-            [[ "$BRANCH" == vibefix/* ]] || { echo "::error::final-merge pushes a new vibefix/ branch only"; exit 1; }
-          fi
+          [[ "$WORKING" =~ $repository_re && "$WORKING" != */. && "$WORKING" != */.. ]] || { echo "::error::working is not owner/name"; exit 1; }
 
       - name: Exchange the ID token
-        if: inputs.operation == 'copy' || inputs.operation == 'final-merge'
         env:
           CORRELATION: ${{ inputs.correlation }}
           EXCHANGE_URL: ${{ inputs.exchange_url }}
@@ -164,7 +164,6 @@ jobs:
           chmod 700 "$RUNNER_TEMP/askpass.sh"
 
       - name: Copy the commit
-        if: inputs.operation == 'copy'
         env:
           SHA: ${{ inputs.sha }}
           BRANCH: ${{ inputs.branch }}
@@ -188,8 +187,95 @@ jobs:
             [ "$head" = "$SHA" ] || { echo "::error::$target reads back another commit on $BRANCH"; exit 1; }
           done
 
+      - name: Remove the credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/vibefix-token" "$RUNNER_TEMP/github-token" "$RUNNER_TEMP/askpass.sh" \
+            "$RUNNER_TEMP/oidc-header" "$RUNNER_TEMP/exchange.json" "$RUNNER_TEMP/exchanged.json"
+
+  final-merge:
+    if: inputs.operation == 'final-merge'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Check the inputs
+        env:
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          OPERATION: ${{ inputs.operation }}
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          # Only a GitHub App starts a Final Merge, never a person; vibefix's exchange accepts only the Source App's bot.
+          [[ "$TRIGGERING_ACTOR" == *'[bot]' ]] || { echo "::error::only vibefix's Source App starts a Final Merge"; exit 1; }
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          url_re='^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$'
+          sha_re='^[0-9a-f]{40}$'
+          branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
+          [ "$OPERATION" = final-merge ] || { echo "::error::this job only brings a Final Merge back"; exit 1; }
+          [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
+          [[ "$EXCHANGE_URL" =~ $url_re ]] || { echo "::error::exchange_url is not an https origin"; exit 1; }
+          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::branch is refused"; exit 1; }
+          [[ "$BRANCH" == vibefix/* ]] || { echo "::error::final-merge pushes a new vibefix/ branch only"; exit 1; }
+          [[ "$INTERMEDIARY" =~ $repository_re && "$INTERMEDIARY" != */. && "$INTERMEDIARY" != */.. ]] || { echo "::error::intermediary is not owner/name"; exit 1; }
+          [ -z "$WORKING" ] || { echo "::error::final-merge takes no working repository"; exit 1; }
+
+      - name: Exchange the ID token
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'Authorization: bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" > "$RUNNER_TEMP/oidc-header"
+          id_token="$(curl -sS --fail --max-time 30 -H @"$RUNNER_TEMP/oidc-header" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix" | jq -r '.value // empty')"
+          rm -f "$RUNNER_TEMP/oidc-header"
+          echo "::add-mask::$id_token"
+          [ -n "$id_token" ] || { echo "::error::GitHub gave no ID token"; exit 1; }
+          ID_TOKEN="$id_token" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}' > "$RUNNER_TEMP/exchange.json"
+          unset id_token
+          status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/exchanged.json" -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/github/actions/exchange")"
+          rm -f "$RUNNER_TEMP/exchange.json"
+          if [ "$status" != 200 ]; then
+            reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/exchanged.json" 2>/dev/null || echo -)"
+            rm -f "$RUNNER_TEMP/exchanged.json"
+            echo "::error::the exchange refused the ID token: HTTP $status $reason"
+            exit 1
+          fi
+          token="$(jq -r '.token // empty' "$RUNNER_TEMP/exchanged.json")"
+          rm -f "$RUNNER_TEMP/exchanged.json"
+          echo "::add-mask::$token"
+          # Installation tokens are opaque: since GitHub's 2026 rollout they read ghs_<App ID>_<JWT>, about
+          # 520 characters with dots and dashes. Only characters safe in a file and a header are taken.
+          token_re='^[A-Za-z0-9_.-]{20,}$'
+          if ! [[ "$token" =~ $token_re ]] || (( ${#token} > 4096 )); then
+            echo "::error::the exchange answered no token"
+            exit 1
+          fi
+          printf '%s' "$token" > "$RUNNER_TEMP/vibefix-token"
+          unset token
+          printf '%s' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+
       - name: Bring the Final Merge back
-        if: inputs.operation == 'final-merge'
         env:
           SHA: ${{ inputs.sha }}
           BRANCH: ${{ inputs.branch }}

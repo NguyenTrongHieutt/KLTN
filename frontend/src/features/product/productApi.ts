@@ -3,11 +3,37 @@ import type { components } from '@/api/schema'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type Product = components['schemas']['ProductView']
+export type SourceApp = components['schemas']['SourceAppView']
 export type RepositoryCheck = components['schemas']['RepositoryCheckView']
+export type WorkflowFile = components['schemas']['WorkflowFileView']
 export type ProductRegistration = components['schemas']['ProductRegistrationRequest']
 export type Tool = ProductRegistration['tools'][number]
 
 export const PRODUCTS_QUERY_KEY = ['product'] as const
+
+/** CUS-3 step 2: a fresh Source App install link for the pasted repository, with its single-use state. */
+export function useSourceAppInstallLink() {
+  return useMutation({
+    mutationFn: (url: string) =>
+      unwrap(apiClient.POST('/api/v1/products/source-app/install-link', { body: { url } })),
+  })
+}
+
+/** CUS-3 step 3: the published `vibefix.yml` the Workflow setup card prefills, copies, and downloads (AD-45). */
+export function useWorkflowFile() {
+  return useQuery({
+    queryKey: [...PRODUCTS_QUERY_KEY, 'workflow-file'],
+    queryFn: () => unwrap(apiClient.GET('/api/v1/products/workflow-file')),
+    staleTime: Infinity,
+  })
+}
+
+/** CUS-3 step 3's "Kiểm tra": the default branch's `vibefix.yml`, read through the Source App. */
+export function useWorkflowCheck() {
+  return useMutation({
+    mutationFn: (url: string) => unwrap(apiClient.POST('/api/v1/products/workflow-check', { body: { url } })),
+  })
+}
 
 /** CUS-2: the Customer's Products. */
 export function useProducts() {
@@ -36,14 +62,14 @@ export function useDeleteProduct(productId: string) {
   })
 }
 
-/** CUS-3 step 2: every repository check, read with the Customer's own GitHub sign-in. */
+/** CUS-3 step 2's "Kiểm tra": the Source App, then every repository check through it. */
 export function useRepositoryCheck() {
   return useMutation({
     mutationFn: (url: string) => unwrap(apiClient.POST('/api/v1/products/repository-check', { body: { url } })),
   })
 }
 
-/** CUS-3 step 4: "Đăng ký sản phẩm"; the Product is registered at once, with no scan (FR-7). */
+/** CUS-3 step 5: "Đăng ký sản phẩm"; the Product is registered at once, with no scan (FR-7). */
 export function useRegisterProduct() {
   const queryClient = useQueryClient()
   return useMutation({

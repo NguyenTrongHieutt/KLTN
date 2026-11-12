@@ -101,10 +101,6 @@ class FinalMergeCheckOperation implements OperationHandler {
 				case WAIT_FOR_REVOCATION -> {
 					return new Outcome.Deferred(this.clock.instant().plus(SHORT_WAIT));
 				}
-				case SOURCE_GONE -> {
-					merges.fallback(authorizationId, "REFUSED", "SOURCE_NOT_PUBLIC");
-					return new Outcome.Aborted("SOURCE_NOT_PUBLIC");
-				}
 				case GUARD_FAILED -> {
 					merges.fallback(authorizationId, "REFUSED", "J9_GUARD");
 					return new Outcome.Aborted("J9_GUARD");

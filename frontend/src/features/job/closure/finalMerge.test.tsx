@@ -217,6 +217,28 @@ describe('N-17, the ZIP Fallback (FR-38, Story 8.9)', () => {
     expect(screen.getByText(/Bạn không cần chạy lệnh nào/)).toBeInTheDocument()
   })
 
+  it('names the Source App when it no longer reads the Source Repository (Story 23.5)', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...requested,
+          status: 'ENDED',
+          endReason: 'ZIP_FALLBACK',
+          productId: 'pr1',
+          zip: { status: 'READY', reason: 'SOURCE_APP_MISSING', fileId: 'f1', sensitive: [] },
+        }),
+    })
+    renderStep()
+
+    expect(
+      await screen.findByText(
+        /Không thể hợp nhất tự động: ứng dụng vibefix không còn đọc được dự án gốc: ứng dụng đã bị gỡ, hoặc dự án đã bị xóa\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
+  })
+
   it('lets the Customer choose the ZIP after the confirmation dialog', async () => {
     const user = userEvent.setup()
     let declined = false

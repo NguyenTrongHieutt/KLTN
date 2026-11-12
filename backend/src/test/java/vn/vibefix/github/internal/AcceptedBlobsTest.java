@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,6 +24,7 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
+import vn.vibefix.github.SourceApp;
 import vn.vibefix.github.internal.AcceptedWorkflows.Verdict;
 import vn.vibefix.github.internal.GitHubProperties.AcceptedBlob;
 import vn.vibefix.github.internal.GitHubProperties.Exchange;
@@ -53,6 +55,37 @@ class AcceptedBlobsTest {
 		assertThat(accepted).as("deploy/runner/s6-copy.yml changed: list its new blob").containsEntry(runner, RUNNER_PATH);
 		assertThat(AcceptedWorkflows.blobSha(Files.readString(GitHubStub.RUNNER_WORKFLOW, StandardCharsets.UTF_8)
 			.replace("\n", "\r\n"))).as("a CRLF copy is the same blob").isEqualTo(runner);
+	}
+
+	/**
+	 * Story 23.5: the Source App serves the published {@code vibefix.yml} from its classpath copy, which is
+	 * {@code deploy/customer/vibefix.yml} byte for byte, with the blob {@code application.yaml} accepts.
+	 */
+	@Test
+	void theSourceAppsPublishedWorkflowIsTheDeployFileByteForByteAndItsBlobIsAccepted() throws IOException {
+		byte[] classpath;
+		try (InputStream in = AcceptedBlobsTest.class.getClassLoader().getResourceAsStream(GitHubSourceApp.RESOURCE)) {
+			assertThat(in).as(GitHubSourceApp.RESOURCE + " is on the classpath").isNotNull();
+			classpath = in.readAllBytes();
+		}
+		assertThat(classpath).as("deploy/customer/vibefix.yml changed: copy it to src/main/resources/"
+				+ GitHubSourceApp.RESOURCE).isEqualTo(Files.readAllBytes(GitHubStub.CUSTOMER_WORKFLOW));
+
+		List<AcceptedBlob> accepted = new ArrayList<>();
+		for (Map<String, Object> blob : acceptedBlobs()) {
+			accepted.add(new AcceptedBlob(String.valueOf(blob.get("path")), String.valueOf(blob.get("blob")), null));
+		}
+		GitHubProperties properties = new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null,
+				null, null, null, new Exchange(accepted, null, null, null));
+		Clock clock = Clock.fixed(Instant.parse("2026-11-12T03:00:00Z"), ZoneOffset.UTC);
+		SourceApp.PublishedWorkflow published = new GitHubSourceApp(new GitHubAppsClient(properties, clock), clock)
+			.publishedWorkflow();
+
+		assertThat(published.path()).isEqualTo(CUSTOMER_PATH);
+		assertThat(published.content()).isEqualTo(GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
+		assertThat(published.blob()).isEqualTo(AcceptedWorkflows.blobSha(published.content()));
+		assertThat(new AcceptedWorkflows(properties, clock).accepts(CUSTOMER_PATH, published.blob()))
+			.as("the blob served is accepted").isTrue();
 	}
 
 	@Test

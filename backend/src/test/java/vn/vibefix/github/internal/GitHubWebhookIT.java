@@ -111,6 +111,9 @@ class GitHubWebhookIT extends IntegrationTest {
 		registry.add("vibefix.github.merge-app.id", () -> "654321");
 		registry.add("vibefix.github.merge-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 		registry.add("vibefix.github.merge-app.webhook-secret-file", () -> DIRECTORY.resolve("merge-webhook-secret").toString());
+		// Story 23.5: the Source App, which has no webhook.
+		registry.add("vibefix.github.source-app.id", () -> String.valueOf(GitHubStub.SOURCE_APP));
+		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 	}
 
 	@AfterAll
@@ -286,6 +289,27 @@ class GitHubWebhookIT extends IntegrationTest {
 
 		assertThat(this.check.check(App.MERGE)).contains("GET /app/hook/config: HTTP 404 (no active webhook)");
 		awaitListeners();
+	}
+
+	/** Story 23.5: the Source App has no webhook, so only its registration is compared and nothing is redelivered. */
+	@Test
+	void theSourceAppIsComparedWithoutAWebhookAndNothingIsRedeliveredForIt() {
+		assertThat(this.check.check(App.SOURCE)).isEmpty();
+
+		assertThat(GITHUB.seen).filteredOn(request -> request.path().equals("/app"))
+			.as("its registration, read with its own JWT")
+			.isNotEmpty()
+			.allSatisfy(request -> assertThat(GitHubStub.issuerOf(request.authorization())).isEqualTo(GitHubStub.SOURCE_APP));
+		assertThat(GITHUB.seen).noneMatch(request -> request.path().startsWith("/app/hook/config"));
+		assertThat(this.events.stream(GitHubConfigurationDrift.class)).isEmpty();
+
+		GITHUB.seen.clear();
+		this.redeliveries.daily();
+
+		assertThat(GITHUB.seen).filteredOn(request -> request.path().startsWith("/app/hook/deliveries"))
+			.as("the Platform App's and the Merge App's deliveries only")
+			.isNotEmpty()
+			.noneMatch(request -> Long.valueOf(GitHubStub.SOURCE_APP).equals(GitHubStub.issuerOf(request.authorization())));
 	}
 
 	private void awaitListeners() {

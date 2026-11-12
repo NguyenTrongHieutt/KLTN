@@ -21,13 +21,25 @@ enum RepoReason {
 	/** No renamed or transferred Source Repository waits for re-confirmation (FR-20). */
 	NOTHING_TO_RECONFIRM,
 
-	/** The re-confirmed repository is gone, private, or not the registered one (FR-20, AD-13). */
-	SOURCE_NOT_PUBLIC,
+	/** No Source App installation reaches the re-confirmed repository, or it lacks AD-10's permissions (Story 23.5). */
+	SOURCE_APP_MISSING,
+
+	/** The Source App's selection is not exactly the registered repository and live Products' (AD-10, Story 23.5). */
+	SOURCE_APP_WRONG_REPOSITORY,
+
+	/** The re-confirmed repository has no published {@code vibefix.yml} on its default branch (AD-45). */
+	WORKFLOW_MISSING,
+
+	/** The re-confirmed repository's {@code vibefix.yml} is no published version (AD-45). */
+	WORKFLOW_MISMATCH,
 
 	/** The Customer no longer administers the re-confirmed repository (FR-20, AD-13). */
 	NO_ADMIN_PERMISSION,
 
-	/** The Customer's kept token is missing or refused: they re-link GitHub first (AD-10, AD-13). */
+	/**
+	 * The Customer's kept token is missing or refused (AD-10, AD-13). {@code product} no longer answers it since
+	 * Story 23.5; it stays until Story 23.5b retires the linking token.
+	 */
 	RELINK_GITHUB,
 
 	/** The Job has no open Final Merge authorization to install the Merge App for (FR-37, AD-10). */

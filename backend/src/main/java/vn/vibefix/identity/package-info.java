@@ -14,7 +14,8 @@
  * {@link vn.vibefix.identity.AccountLocked}, any person's card {@link vn.vibefix.identity.PersonDirectory}, the
  * people search {@link vn.vibefix.identity.MentorDirectory}, PUB-4's public facts of a person
  * {@link vn.vibefix.identity.PublicProfiles} (Story 21.3),
- * {@link vn.vibefix.identity.CustomerRepositories} (repositories read with a Customer's kept token),
+ * {@link vn.vibefix.identity.CustomerRepositories} (a Customer's GitHub ID, and the contributor check with their kept
+ * token),
  * {@link vn.vibefix.identity.Administrators}, {@link vn.vibefix.identity.Notices},
  * {@link vn.vibefix.identity.CustomerNames}, and the GitHub link (Story 19.2): the gate of the commands that
  * create work and of reading Job Posts {@link vn.vibefix.identity.GitHubGate},

@@ -6,8 +6,9 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Read-only repository metadata (AD-13, FR-7), with a caller's credential: the Product intake
- * reads it with the Customer's own GitHub token, kept from linking, through {@code identity}. Nothing is written.
+ * Read-only repository metadata (AD-13, FR-7), with a caller's credential: {@code product} reads a Source
+ * Repository with a {@link SourceApp} token narrowed to it (Story 23.5), and {@code identity} reads contributors
+ * with the Customer's kept linking token until Story 23.5b. Nothing is written.
  */
 public interface GitHubRepositories {
 
@@ -51,5 +52,23 @@ public interface GitHubRepositories {
 
 	/** How many pages of contributors {@link #contributorIds} reads. */
 	int MAX_CONTRIBUTOR_PAGES = 5;
+
+	/**
+	 * The current login of the GitHub account with this numeric ID ({@code GET /user/{id}}), for the admin check
+	 * by ID (AD-13): a renamed account keeps its ID.
+	 * @return empty when GitHub answers 404 (the account is gone)
+	 * @throws GitHubException for any other refusal, or when GitHub cannot be reached
+	 */
+	Optional<String> login(String bearer, long githubUserId);
+
+	/**
+	 * {@code login}'s permission on the repository, as the collaborator-permission endpoint reports it
+	 * ({@code GET /repos/{owner}/{name}/collaborators/{login}/permission}, Metadata read): {@code admin},
+	 * {@code maintain}, {@code write}, {@code triage}, {@code read}, or {@code none}. An organization's owners read
+	 * as {@code admin} (AD-13, Spike S6).
+	 * @return empty when GitHub answers 404 (no such account, or a repository this credential cannot see)
+	 * @throws GitHubException for any other refusal, or when GitHub cannot be reached
+	 */
+	Optional<String> permission(String bearer, String owner, String name, String login);
 
 }
