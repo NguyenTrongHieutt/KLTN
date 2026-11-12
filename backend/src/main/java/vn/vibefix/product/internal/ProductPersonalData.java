@@ -19,6 +19,7 @@ import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.GitHubLinkBlocker;
 import vn.vibefix.identity.GitHubLinkParticipant;
+import vn.vibefix.notification.Todos;
 import vn.vibefix.product.ProductDeleted;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.IdGenerator;
@@ -50,13 +51,16 @@ class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticip
 
 	private final IdGenerator ids;
 
+	private final Todos todos;
+
 	ProductPersonalData(JdbcClient jdbc, ObjectProvider<PersonalData> personalData, ApplicationEventPublisher events,
-			AuditLog auditLog, IdGenerator ids) {
+			AuditLog auditLog, IdGenerator ids, Todos todos) {
 		this.jdbc = jdbc;
 		this.personalData = personalData;
 		this.events = events;
 		this.auditLog = auditLog;
 		this.ids = ids;
+		this.todos = todos;
 	}
 
 	@Override
@@ -131,10 +135,13 @@ class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticip
 
 	/**
 	 * The Product row goes, and with it its pins and its Source App binding, so the binding ends (Story 23.5); its
-	 * repository ID is free again.
+	 * repository ID is free again. Its Source App and workflow to-dos close in the same transaction, since CUS-4 no
+	 * longer answers for it (Story 23.5c).
 	 */
 	@Override
 	public void deleteProduct(UUID productId) {
+		this.todos.closeAll(SourceStatuses.INSTALL_SOURCE_APP, productId);
+		this.todos.closeAll(SourceStatuses.ADD_WORKFLOW, productId);
 		this.jdbc.sql("DELETE FROM product.source_app_binding WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM product.product WHERE id = :id").param("id", productId).update();
 	}

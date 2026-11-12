@@ -350,6 +350,16 @@ DELETE /api/v1/products/{productId},MENTOR,,,404 NOT_FOUND
 DELETE /api/v1/products/{productId},CREW_ACTIVE,,,404 NOT_FOUND
 DELETE /api/v1/products/{productId},CROSS_ROLE,,,404 NOT_FOUND
 DELETE /api/v1/products/{productId},ADMINISTRATOR,,,404 NOT_FOUND
+# CUS-4's "Kiểm tra lại" (Story 23.5c): the Product's own Customer only, an unlocked user; the matrix's Source App is
+# not configured, so the Customer's check answers GITHUB_UNAVAILABLE and records nothing.
+POST /api/v1/products/{productId}/source-check,ANONYMOUS,,,401
+POST /api/v1/products/{productId}/source-check,USER_UNVERIFIED,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/source-check,USER,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/source-check,CUSTOMER,,,422 GUARD_FAILED GITHUB_UNAVAILABLE
+POST /api/v1/products/{productId}/source-check,MENTOR,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/source-check,CREW_ACTIVE,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/source-check,CROSS_ROLE,,,404 NOT_FOUND
+POST /api/v1/products/{productId}/source-check,ADMINISTRATOR,,,404 NOT_FOUND
 # Student verification (identity, FR-5, AD-42, Story 19.4): every person's account has its own, whatever
 # role it holds; an Administrator has none. Another account's live verification is keyed by the
 # SCHOOL_EMAIL canary as its subject HMAC, which no answer may hold. The confirm rows' callers have no

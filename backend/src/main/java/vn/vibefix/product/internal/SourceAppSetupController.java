@@ -21,7 +21,8 @@ import vn.vibefix.shared.Gate;
  * with a marker, {@code ung-dung=da-cai} (installed), {@code cho-duyet} (waiting for an organization owner,
  * {@code setup_action=request}) or {@code chua-thay} (nothing seen), where the wizard runs "Kiểm tra". It binds
  * nothing: the check binds. Any other return, an expired, used, or another Customer's state, goes back to CUS-3
- * with nothing recorded.
+ * with nothing recorded. A return that carries no {@code state} at all is the plain install page CUS-4 links to for a
+ * registered Product (Story 23.5c), so it goes to CUS-2, where the Customer opens the Product and runs "Kiểm tra lại".
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -29,6 +30,9 @@ class SourceAppSetupController {
 
 	/** CUS-3, the registration wizard. */
 	static final String WIZARD = "/san-pham/moi";
+
+	/** CUS-2, the Products. */
+	static final String PRODUCTS = "/san-pham";
 
 	private final SourceAppBindings bindings;
 
@@ -43,8 +47,11 @@ class SourceAppSetupController {
 	ResponseEntity<Void> setup(@RequestParam(name = "installation_id", required = false) @Nullable Long installationId,
 			@RequestParam(name = "setup_action", required = false) @Nullable String action,
 			@RequestParam(required = false) @Nullable String state) {
+		if (state == null) {
+			return back(PRODUCTS);
+		}
 		Caller caller = this.callers.get();
-		Returned returned = state == null || state.isBlank() || state.length() > 200 || !caller.isUser() ? null
+		Returned returned = state.isBlank() || state.length() > 200 || !caller.isUser() ? null
 				: this.bindings.consume(state, caller.requireAccountId(), installationId, action).orElse(null);
 		if (returned == null) {
 			return back(WIZARD);

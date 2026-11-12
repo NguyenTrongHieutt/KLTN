@@ -1189,6 +1189,69 @@ class JobSetupIT extends IntegrationTest {
 			.query(String.class).list()).containsOnly("ứng dụng vibefix phải được cài cho đúng một kho là dự án gốc");
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.blockedReason").value("SOURCE_APP_WRONG_REPOSITORY"));
+		// Story 23.5c: the Setup check records the Product's status, with its to-do.
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_WRONG_REPOSITORY");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+	}
+
+	/**
+	 * Story 23.5c: the daily drift read records the Product's status, so an uninstalled Source App opens
+	 * {@code product.install_source_app} and tells the Customer once, however often the poll reads it; the file changed
+	 * afterwards moves the to-do to {@code product.add_workflow} with one more notification.
+	 */
+	@Test
+	void theDriftReadRecordsTheStatusAndOpensItsToDoOnce() throws Exception {
+		j6();
+		run();
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+		assertThat(sourceStatus()).as("the Setup check found it ready").isEqualTo("READY");
+		assertThat(this.jdbc.sql("SELECT workflow_blob FROM product.product WHERE id = :id").param("id", this.product)
+			.query(String.class).single()).as("with the blob it matched").matches("[0-9a-f]{40}");
+
+		GITHUB.mergeInstallations.remove(this.installation);
+		GITHUB.repositoryInstallations.values().remove(this.installation);
+		this.drift.poll();
+		this.clock.advance(Duration.ofDays(1));
+		this.drift.poll();
+
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+		assertThat(workflowCheckFailures()).as("once, to the Product's Customer").containsExactly(this.customer);
+
+		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long repository = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id")
+			.param("id", this.product).query(Long.class).single();
+		GITHUB.installSource("lan-dev", this.source.substring(this.source.indexOf('/') + 1), repository, owner);
+		GITHUB.sourceFiles.put(this.source + ":.github/workflows/vibefix.yml",
+				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW) + "# changed\n");
+		this.clock.advance(Duration.ofDays(1));
+		this.drift.poll();
+
+		assertThat(sourceStatus()).isEqualTo("WORKFLOW_MISMATCH");
+		assertThat(productTodos()).containsExactly("product.add_workflow");
+		assertThat(workflowCheckFailures()).hasSize(2);
+		awaitListeners();
+	}
+
+	/** The Product's recorded Source App and workflow status (Story 23.5c). */
+	private String sourceStatus() {
+		return this.jdbc.sql("SELECT source_status FROM product.product WHERE id = :id").param("id", this.product)
+			.query(String.class).single();
+	}
+
+	/** The Product's open to-dos for its Customer, by key. */
+	private List<String> productTodos() {
+		return this.jdbc.sql("""
+				SELECT todo_key FROM notification.todo
+				WHERE subject_id = :product AND account_id = :customer AND closed_at IS NULL ORDER BY todo_key
+				""").param("product", this.product).param("customer", this.customer).query(String.class).list();
+	}
+
+	/** Who got each {@code repo.workflow_check_failed} about the Product. */
+	private List<UUID> workflowCheckFailures() {
+		return this.jdbc.sql("""
+				SELECT account_id FROM notification.notification WHERE type = 'repo.workflow_check_failed' AND link = :link
+				""").param("link", "/san-pham/" + this.product).query(UUID.class).list();
 	}
 
 	private JobGrants.Grant crewGrant() {

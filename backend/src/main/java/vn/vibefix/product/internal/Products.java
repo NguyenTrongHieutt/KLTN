@@ -78,15 +78,22 @@ class Products {
 			@Nullable String detectionNoticeVersion) {
 	}
 
+	/**
+	 * A Product as its row holds it.
+	 * @param sourceStatus its last known Source App and workflow status (Story 23.5c)
+	 * @param sourceCheckedAt when a check last found it; none since the status migration until a check reads it
+	 * @param workflowBlob the accepted {@code vibefix.yml} blob the file matched, while {@code READY}
+	 */
 	record Product(UUID id, UUID customerId, String name, String description, @Nullable String demoUrl, List<Tool> tools,
 			long repositoryId, String repositoryFullName, String repositoryOwnerType, String defaultBranch,
-			@Nullable String forkParent, String noticeVersion, Instant acknowledgedAt, Instant createdAt) {
+			@Nullable String forkParent, String noticeVersion, Instant acknowledgedAt, Instant createdAt,
+			SourceStatuses.Status sourceStatus, @Nullable Instant sourceCheckedAt, @Nullable String workflowBlob) {
 	}
 
 	private static final String COLUMNS = """
 			id, customer_account_id, name, description, demo_url, ai_tools, repository_github_id, repository_full_name,
 			repository_owner_type, repository_default_branch, repository_fork_parent, copy_permission_version,
-			acknowledged_at, created_at
+			acknowledged_at, created_at, source_status, source_checked_at, workflow_blob
 			""";
 
 	private final JdbcClient jdbc;
@@ -126,7 +133,8 @@ class Products {
 
 	/**
 	 * Registers the Product after checking the repository again, through the Source App and with the published
-	 * workflow (the wizard's checks are hints); the draft's Source App binding becomes the Product's.
+	 * workflow (the wizard's checks are hints); the draft's Source App binding becomes the Product's. Its status is
+	 * {@code READY} with the blob its file matched, checked now (Story 23.5c).
 	 * @throws ApiException {@code VALIDATION NOTICE_REQUIRED}; {@code RATE_LIMITED PRODUCT_LIMIT}; any
 	 * repository check's {@code GUARD_FAILED}
 	 */
@@ -154,9 +162,9 @@ class Products {
 					INSERT INTO product.product (id, customer_account_id, name, description, demo_url, ai_tools,
 					    repository_github_id, repository_full_name, repository_owner_type, repository_default_branch,
 					    repository_fork_parent, public_notice_version, copy_permission_version, detection_notice_version,
-					    acknowledged_at, created_at)
+					    acknowledged_at, created_at, source_status, source_checked_at, workflow_blob)
 					VALUES (:id, :customer, :name, :description, :demo, CAST(:tools AS TEXT[]), :repositoryId, :fullName,
-					    :ownerType, :branch, :parent, :version, :version, :version, :now, :now)
+					    :ownerType, :branch, :parent, :version, :version, :version, :now, :now, 'READY', :now, :blob)
 					""")
 				.param("id", id)
 				.param("customer", customerId)
@@ -172,6 +180,7 @@ class Products {
 				.param("parent", repository.forkParent())
 				.param("version", version)
 				.param("now", Timestamp.from(now))
+				.param("blob", passed.workflowBlob())
 				.update();
 		}
 		catch (DuplicateKeyException ex) {
@@ -242,12 +251,15 @@ class Products {
 	private static Product product(ResultSet rs, int n) throws SQLException {
 		Array tools = rs.getArray("ai_tools");
 		Timestamp acknowledged = rs.getTimestamp("acknowledged_at");
+		Timestamp checked = rs.getTimestamp("source_checked_at");
 		return new Product(rs.getObject("id", UUID.class), rs.getObject("customer_account_id", UUID.class),
 				rs.getString("name"), rs.getString("description"), rs.getString("demo_url"),
 				Arrays.stream((String[]) tools.getArray()).map(Tool::valueOf).toList(), rs.getLong("repository_github_id"),
 				rs.getString("repository_full_name"), rs.getString("repository_owner_type"),
 				rs.getString("repository_default_branch"), rs.getString("repository_fork_parent"),
-				rs.getString("copy_permission_version"), acknowledged.toInstant(), rs.getTimestamp("created_at").toInstant());
+				rs.getString("copy_permission_version"), acknowledged.toInstant(), rs.getTimestamp("created_at").toInstant(),
+				SourceStatuses.Status.valueOf(rs.getString("source_status")), checked == null ? null : checked.toInstant(),
+				rs.getString("workflow_blob"));
 	}
 
 }

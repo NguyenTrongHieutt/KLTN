@@ -10,13 +10,15 @@ import { failuresInARow, MAX_BACKOFF_MS, pollEvery } from '@/config/polling'
 import { sessionExpiry } from '@/features/identity/sessionExpiry'
 import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
 
-// Notification types join vi.json with the stories that send them; these stand in for them here.
+// Notification types join vi.json with the stories that send them; these stand in for them here, beside the real
+// repo.* types (Story 23.5c's repo.workflow_check_failed among them).
 vi.mock('@/i18n/vi.json', async (importOriginal) => {
-  const original = await importOriginal<{ default: Record<string, unknown> }>()
+  const original = await importOriginal<{ default: { notification: { repo: unknown } } & Record<string, unknown> }>()
   return {
     default: {
       ...original.default,
       notification: {
+        repo: original.default.notification.repo,
         test: {
           update: { title: 'Có tin mới cho {name}', body: 'Mở để xem chi tiết.' },
           info: { title: 'Thông tin mới' },
@@ -108,6 +110,37 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     expect(screen.queryByRole('region', { name: 'Việc cần làm tiếp theo' })).not.toBeInTheDocument()
   })
 
+  it('lists the Product to-dos of Story 23.5c with their repository, the end date as a deadline, and CUS-4 as the link', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/todos': () =>
+        json({
+          items: [
+            todo('product.add_workflow', {
+              tier: 2,
+              params: { repo: 'lan-nguyen/shop-gom' },
+              link: '/san-pham/p1',
+              deadlineAt: '2026-01-25T16:59:00Z',
+              deadlineNear: true,
+            }),
+            todo('product.install_source_app', { tier: 2, params: { repo: 'lan-nguyen/quan-may' }, link: '/san-pham/p2' }),
+          ],
+          total: 2,
+        }),
+    })
+    renderAt('/viec-can-lam')
+
+    const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
+    expect(strip).toHaveTextContent('Thêm file workflow vibefix vào lan-nguyen/shop-gom')
+    expect(strip).toHaveTextContent('Hạn 25/01')
+    expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/san-pham/p1')
+    const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
+    expect(within(list).getByRole('link', { name: /Cài ứng dụng vibefix trên GitHub cho lan-nguyen\/quan-may/ })).toHaveAttribute(
+      'href',
+      '/san-pham/p2',
+    )
+    expect(within(list).getAllByText('Tài khoản')).not.toHaveLength(0)
+  })
+
   it('gives a Mentor the strip and the bell, since no Mentor waits for an approval (Story 19.7)', async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/todos': () => json({ items: [todo('identity.link_github', { tier: 1 })], total: 1 }),
@@ -149,6 +182,30 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
     expect(seen.some((request) => request.method === 'POST' && request.url.endsWith(`/${first.id}/read`))).toBe(true)
     // The successful command refreshed the unread count.
     await waitFor(() => expect(screen.queryByRole('link', { name: 'Thông báo, 1 chưa đọc' })).not.toBeInTheDocument())
+  })
+
+  it('names what the Source check found in repo.workflow_check_failed (Story 23.5c)', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/notifications': () =>
+        json({
+          items: [
+            notification('repo.workflow_check_failed', {
+              icon: 'alert',
+              params: { repo: 'lan-nguyen/shop-gom', problem: 'bản file workflow bạn đang dùng hết hạn ngày 25/01/2026' },
+              link: '/san-pham/p1',
+            }),
+          ],
+          page: 0,
+          size: 20,
+          total: 1,
+        }),
+    })
+    renderAt('/thong-bao')
+
+    const item = await screen.findByRole('button', {
+      name: /Cần thêm lại file workflow vibefix cho lan-nguyen\/shop-gom: bản file workflow bạn đang dùng hết hạn ngày 25\/01\/2026/,
+    })
+    expect(item).toHaveTextContent('Mở trang sản phẩm để sửa, rồi bấm “Kiểm tra lại”.')
   })
 
   it('offers "Đánh dấu đã đọc tất cả" only while something is unread', async () => {

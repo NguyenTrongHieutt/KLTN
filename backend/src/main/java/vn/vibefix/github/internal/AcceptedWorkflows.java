@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 
@@ -92,6 +93,24 @@ final class AcceptedWorkflows {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * The last day {@code blob} is accepted for {@code path} (R12): the latest end date among its listings for that
+	 * path; none when it is not listed for that path, or when any of its listings for that path has no end date (that
+	 * listing accepts it for good).
+	 */
+	Optional<LocalDate> endsOn(String path, String blob) {
+		LocalDate last = null;
+		for (AcceptedBlob accepted : this.exchange.acceptedBlobs()) {
+			if (accepted.path().equals(path) && accepted.blob().equals(blob)) {
+				if (accepted.endsOn() == null) {
+					return Optional.empty();
+				}
+				last = last == null || accepted.endsOn().isAfter(last) ? accepted.endsOn() : last;
+			}
+		}
+		return Optional.ofNullable(last);
 	}
 
 	/** The blob of the base64 content GitHub sent, CRLF read as LF; none when it sent no content. */

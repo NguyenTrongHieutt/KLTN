@@ -40,8 +40,12 @@ class RepositoryChecks {
 	/** 250 MB in GitHub's kilobytes (AD-13). */
 	static final long SIZE_LIMIT_KB = 250L * 1024;
 
-	/** Every check passed: the repository as read, and the pair the draft is bound to. */
-	record Passed(RepositoryMetadata repository, Bound bound) {
+	/**
+	 * Every check passed: the repository as read, and the pair the draft is bound to.
+	 * @param workflowBlob the accepted blob the published {@code vibefix.yml} matched, when the workflow was checked
+	 * (Story 23.5c: the registration records it)
+	 */
+	record Passed(RepositoryMetadata repository, Bound bound, @Nullable String workflowBlob) {
 	}
 
 	private final SourceAppBindings bindings;
@@ -89,10 +93,8 @@ class RepositoryChecks {
 				if (repository.sizeKb() > SIZE_LIMIT_KB) {
 					throw refuse(ProductReason.REPO_TOO_LARGE, repository);
 				}
-				if (workflow) {
-					workflow(token, repository);
-				}
-				return new Passed(repository, bound);
+				String blob = workflow ? workflow(token, repository) : null;
+				return new Passed(repository, bound, blob);
 			});
 		}
 		catch (GitHubException unavailable) {
@@ -160,7 +162,8 @@ class RepositoryChecks {
 		}
 	}
 
-	private void workflow(InstallationToken token, RepositoryMetadata repository) {
+	/** @return the accepted blob the file matched */
+	private @Nullable String workflow(InstallationToken token, RepositoryMetadata repository) {
 		WorkflowCheck checked = this.app.workflow(token, repository.fullName(), repository.defaultBranch());
 		if (checked.verdict() == WorkflowVerdict.MISSING) {
 			throw refuse(ProductReason.WORKFLOW_MISSING, repository);
@@ -169,6 +172,7 @@ class RepositoryChecks {
 			throw refuse(ProductReason.WORKFLOW_MISMATCH, repository.fullName(), repository.htmlUrl(),
 					checked.lineEndings() ? Map.<String, Object>of("lineEndings", true) : Map.<String, Object>of());
 		}
+		return checked.blob();
 	}
 
 	/**

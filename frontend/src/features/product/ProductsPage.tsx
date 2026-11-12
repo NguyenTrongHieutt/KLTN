@@ -9,11 +9,13 @@ import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { SourceAppGuidance, type DeletedProduct } from './DeleteProduct'
 import { useProducts, type Product } from './productApi'
+import { SourceStatusBadge } from './WorkflowSetup'
 
 /**
  * CUS-2 (`/san-pham`, FR-7, UX-DR66): the user's own Products, with no role needed (Story 20.3), each with
- * its Source Repository and its Jobs; with none, the empty state and "Đăng ký sản phẩm". vibefix scans no
- * code, so no scan state is shown. Job counts come with Story 3.1.
+ * its Source Repository, its Workflow status badge (the recorded status, read with no GitHub call, Story 23.5c), and
+ * its Jobs; with none, the empty state and "Đăng ký sản phẩm". vibefix scans no code, so no scan state is shown. Job
+ * counts come with Story 3.1.
  */
 export function ProductsPage() {
   usePageTitle(t('screen.product.title'))
@@ -71,9 +73,12 @@ function ProductList() {
 function ProductCard({ product }: { product: Product }) {
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
-      <Link to={`/san-pham/${product.id}`} className="w-fit text-h3 break-words text-primary underline-offset-4 hover:underline">
-        {product.name}
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link to={`/san-pham/${product.id}`} className="w-fit text-h3 break-words text-primary underline-offset-4 hover:underline">
+          {product.name}
+        </Link>
+        <SourceStatusBadge status={product.sourceStatus} />
+      </div>
       <p className="text-body-sm break-words text-muted-foreground">{product.description}</p>
       <p className="text-caption text-muted-foreground">
         {t('screen.product.source', { name: product.repositoryFullName })} {t('screen.product.domain', { domain: 'github.com' })}
