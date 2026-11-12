@@ -60,10 +60,14 @@ class JobSetups {
 
 	}
 
-	/** Why a Setup stopped on something the Customer can fix (FR-18). */
+	/**
+	 * Why a Setup stopped on something the Customer can fix (FR-18): {@code product}'s Source checks, through the
+	 * Source App since Story 23.5. {@code RELINK_GITHUB} is no longer answered and stays until Story 23.5b.
+	 */
 	enum Block {
 
-		SOURCE_NOT_PUBLIC, NO_ADMIN_PERMISSION, RELINK_GITHUB
+		SOURCE_APP_MISSING, SOURCE_APP_WRONG_REPOSITORY, WORKFLOW_MISSING, WORKFLOW_MISMATCH, NO_ADMIN_PERMISSION,
+		RELINK_GITHUB
 
 	}
 
@@ -95,7 +99,11 @@ class JobSetups {
 	}
 
 	/** The plain reasons in {@value #START_BLOCKED}, which the Customer and the Mentor both read. */
-	private static final Map<Block, String> REASONS = Map.of(Block.SOURCE_NOT_PUBLIC, "dự án gốc không còn công khai",
+	static final Map<Block, String> REASONS = Map.of(
+			Block.SOURCE_APP_MISSING, "ứng dụng vibefix chưa được cài trên dự án gốc",
+			Block.SOURCE_APP_WRONG_REPOSITORY, "ứng dụng vibefix phải được cài cho đúng một kho là dự án gốc",
+			Block.WORKFLOW_MISSING, "dự án gốc chưa có file workflow vibefix.yml",
+			Block.WORKFLOW_MISMATCH, "file workflow vibefix.yml trong dự án gốc khác bản vibefix công bố",
 			Block.NO_ADMIN_PERMISSION, "tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc",
 			Block.RELINK_GITHUB, "khách hàng cần liên kết lại GitHub để vibefix kiểm tra dự án gốc");
 

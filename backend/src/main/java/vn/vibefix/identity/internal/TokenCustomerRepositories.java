@@ -1,6 +1,5 @@
 package vn.vibefix.identity.internal;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,9 +16,10 @@ import vn.vibefix.shared.Kind;
 /**
  * {@link CustomerRepositories} with the account's kept GitHub token (AD-10, AD-13, AD-22): opened in
  * memory for the call, sealed with the account ID as associated data, never returned or logged. Any
- * active account with a linked GitHub account qualifies, whatever it does in a Job (Story 19.2). When a
- * repository read or the contributor check finds no token, or GitHub refuses it, the check still fails closed,
- * and a live Product's owner is asked to re-link GitHub ({@link TokenRenewals}).
+ * active account with a linked GitHub account qualifies, whatever it does in a Job (Story 19.2). Only the
+ * contributor check reads with the token since Story 23.5 (Source Repositories are read through the Source App);
+ * when it finds no token, or GitHub refuses it, the check still fails closed, and a live Product's owner is asked to
+ * re-link GitHub ({@link TokenRenewals}).
  */
 @Component
 class TokenCustomerRepositories implements CustomerRepositories {
@@ -41,31 +41,6 @@ class TokenCustomerRepositories implements CustomerRepositories {
 		this.accounts = accounts;
 		this.cipher = cipher;
 		this.repositories = repositories;
-	}
-
-	@Override
-	public CustomerView read(UUID customerId, String owner, String name) {
-		Account account = customer(customerId);
-		try {
-			return new CustomerView(account.githubUserId(), this.repositories.read(token(customerId), owner, name));
-		}
-		catch (ApiException missing) {
-			// No kept token: the admin check before a Code Job starts cannot run until GitHub is re-linked (AD-13).
-			askToRelink(customerId);
-			throw missing;
-		}
-		catch (GitHubException refused) {
-			if (refused.status() == 401) {
-				askToRelink(customerId);
-			}
-			throw refused;
-		}
-	}
-
-	@Override
-	public List<String> languages(UUID customerId, String owner, String name) {
-		customer(customerId);
-		return this.repositories.languages(token(customerId), owner, name);
 	}
 
 	@Override

@@ -1,0 +1,477 @@
+# vibefix: the one workflow a Customer adds to the Source Repository, unchanged, as
+# .github/workflows/vibefix.yml on the default branch. Each operation is a job of its own, with only the
+# permissions it needs:
+#
+#   copy         copies an approved commit of this repository's default branch to the Job's private
+#                Intermediary and Working Repositories (J7), so vibefix never downloads the code; it may
+#                only read this repository;
+#   final-merge  brings the Job's Final Merge back from the Intermediary Repository as a new vibefix/
+#                branch here, so vibefix never writes to this repository itself; it may write here;
+#   scan         helps the Customer with the J7 confirmation: gitleaks v8.30.1 reads the default
+#                branch's whole history here, in a job that may only read this repository and holds no
+#                id-token permission, so it gets no vibefix token. The run's summary names the commit
+#                scanned and lists each finding's rule, file, commit and line, never its value; the log
+#                holds only ::error:: lines and one count line. The scan decides nothing: the Customer
+#                still confirms at J7.
+#
+# vibefix's Source App dispatches copy and final-merge, and may dispatch scan. The Customer may also
+# start scan from this repository's Actions tab, with every other input left empty. copy and final-merge
+# first refuse a run that no GitHub App started (its triggering actor is not a [bot]); vibefix's exchange
+# then accepts only the Source App's own bot.
+#
+# The copy and the Final Merge hold no secret. Each asks GitHub Actions for an OIDC ID token with the
+# audience vibefix and exchanges it at vibefix (POST /github/actions/exchange) for a token narrowed to
+# the Job's repositories. vibefix lends that token only to a run of this exact file (its blob) on the
+# default branch, dispatched by the Source App, and revokes it when the run ends. The ID token and the
+# token are masked before anything else runs. Inputs reach the scripts through env: only and are
+# checked first in each job; git reads each credential from a file through GIT_ASKPASS, never pushes
+# with force, and reads every branch it pushes back.
+#
+# exchange_url names vibefix's exchange host, an https origin: on the dev stack, its cloudflared quick
+# tunnel.
+name: vibefix
+run-name: vibefix ${{ inputs.operation }} ${{ inputs.correlation }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: copy (J7), final-merge, or scan (gitleaks)
+        required: true
+        type: choice
+        options:
+          - copy
+          - final-merge
+          - scan
+      correlation:
+        description: vibefix's correlation ID for this run (copy and final-merge; may be empty for scan)
+        required: false
+        type: string
+        default: ""
+      exchange_url:
+        description: vibefix's exchange host, an https origin (copy and final-merge only)
+        required: false
+        type: string
+        default: ""
+      sha:
+        description: The commit copied (copy) or brought back (final-merge), 40 hex digits
+        required: false
+        type: string
+        default: ""
+      branch:
+        description: The branch pushed to without force; for final-merge a new vibefix/ branch here
+        required: false
+        type: string
+        default: ""
+      intermediary:
+        description: owner/name of the Job's Intermediary Repository (copy and final-merge only)
+        required: false
+        type: string
+        default: ""
+      working:
+        description: owner/name of the Job's Working Repository (copy only)
+        required: false
+        type: string
+        default: ""
+
+# Nothing by default: each job names what it needs.
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  copy:
+    if: inputs.operation == 'copy'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check the inputs
+        env:
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          OPERATION: ${{ inputs.operation }}
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          # Only a GitHub App starts a copy, never a person; vibefix's exchange accepts only the Source App's bot.
+          [[ "$TRIGGERING_ACTOR" == *'[bot]' ]] || { echo "::error::only vibefix's Source App starts a copy"; exit 1; }
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          url_re='^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$'
+          sha_re='^[0-9a-f]{40}$'
+          branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
+          [ "$OPERATION" = copy ] || { echo "::error::this job only copies"; exit 1; }
+          [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
+          [[ "$EXCHANGE_URL" =~ $url_re ]] || { echo "::error::exchange_url is not an https origin"; exit 1; }
+          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::branch is refused"; exit 1; }
+          [[ "$INTERMEDIARY" =~ $repository_re && "$INTERMEDIARY" != */. && "$INTERMEDIARY" != */.. ]] || { echo "::error::intermediary is not owner/name"; exit 1; }
+          [[ "$WORKING" =~ $repository_re && "$WORKING" != */. && "$WORKING" != */.. ]] || { echo "::error::working is not owner/name"; exit 1; }
+
+      - name: Exchange the ID token
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'Authorization: bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" > "$RUNNER_TEMP/oidc-header"
+          id_token="$(curl -sS --fail --max-time 30 -H @"$RUNNER_TEMP/oidc-header" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix" | jq -r '.value // empty')"
+          rm -f "$RUNNER_TEMP/oidc-header"
+          echo "::add-mask::$id_token"
+          [ -n "$id_token" ] || { echo "::error::GitHub gave no ID token"; exit 1; }
+          ID_TOKEN="$id_token" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}' > "$RUNNER_TEMP/exchange.json"
+          unset id_token
+          status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/exchanged.json" -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/github/actions/exchange")"
+          rm -f "$RUNNER_TEMP/exchange.json"
+          if [ "$status" != 200 ]; then
+            reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/exchanged.json" 2>/dev/null || echo -)"
+            rm -f "$RUNNER_TEMP/exchanged.json"
+            echo "::error::the exchange refused the ID token: HTTP $status $reason"
+            exit 1
+          fi
+          token="$(jq -r '.token // empty' "$RUNNER_TEMP/exchanged.json")"
+          rm -f "$RUNNER_TEMP/exchanged.json"
+          echo "::add-mask::$token"
+          # Installation tokens are opaque: since GitHub's 2026 rollout they read ghs_<App ID>_<JWT>, about
+          # 520 characters with dots and dashes. Only characters safe in a file and a header are taken.
+          token_re='^[A-Za-z0-9_.-]{20,}$'
+          if ! [[ "$token" =~ $token_re ]] || (( ${#token} > 4096 )); then
+            echo "::error::the exchange answered no token"
+            exit 1
+          fi
+          printf '%s' "$token" > "$RUNNER_TEMP/vibefix-token"
+          unset token
+          printf '%s' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+
+      - name: Copy the commit
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          repository="$RUNNER_TEMP/copy.git"
+          git init --quiet --bare "$repository"
+          git -C "$repository" config transfer.fsckObjects true
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "+$GITHUB_REF:refs/heads/vibefix-source"
+          git -C "$repository" cat-file -e "$SHA^{commit}"
+          git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-source
+          for target in "$INTERMEDIARY" "$WORKING"; do
+            VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= push --quiet \
+              "$GITHUB_SERVER_URL/$target.git" "$SHA:refs/heads/$BRANCH"
+            head="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= ls-remote \
+              "$GITHUB_SERVER_URL/$target.git" "refs/heads/$BRANCH" | cut -f1)"
+            [ "$head" = "$SHA" ] || { echo "::error::$target reads back another commit on $BRANCH"; exit 1; }
+          done
+
+      - name: Remove the credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/vibefix-token" "$RUNNER_TEMP/github-token" "$RUNNER_TEMP/askpass.sh" \
+            "$RUNNER_TEMP/oidc-header" "$RUNNER_TEMP/exchange.json" "$RUNNER_TEMP/exchanged.json"
+
+  final-merge:
+    if: inputs.operation == 'final-merge'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Check the inputs
+        env:
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          OPERATION: ${{ inputs.operation }}
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          # Only a GitHub App starts a Final Merge, never a person; vibefix's exchange accepts only the Source App's bot.
+          [[ "$TRIGGERING_ACTOR" == *'[bot]' ]] || { echo "::error::only vibefix's Source App starts a Final Merge"; exit 1; }
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          url_re='^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$'
+          sha_re='^[0-9a-f]{40}$'
+          branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
+          [ "$OPERATION" = final-merge ] || { echo "::error::this job only brings a Final Merge back"; exit 1; }
+          [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
+          [[ "$EXCHANGE_URL" =~ $url_re ]] || { echo "::error::exchange_url is not an https origin"; exit 1; }
+          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::branch is refused"; exit 1; }
+          [[ "$BRANCH" == vibefix/* ]] || { echo "::error::final-merge pushes a new vibefix/ branch only"; exit 1; }
+          [[ "$INTERMEDIARY" =~ $repository_re && "$INTERMEDIARY" != */. && "$INTERMEDIARY" != */.. ]] || { echo "::error::intermediary is not owner/name"; exit 1; }
+          [ -z "$WORKING" ] || { echo "::error::final-merge takes no working repository"; exit 1; }
+
+      - name: Exchange the ID token
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'Authorization: bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" > "$RUNNER_TEMP/oidc-header"
+          id_token="$(curl -sS --fail --max-time 30 -H @"$RUNNER_TEMP/oidc-header" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix" | jq -r '.value // empty')"
+          rm -f "$RUNNER_TEMP/oidc-header"
+          echo "::add-mask::$id_token"
+          [ -n "$id_token" ] || { echo "::error::GitHub gave no ID token"; exit 1; }
+          ID_TOKEN="$id_token" jq -n '{id_token: env.ID_TOKEN, correlation: env.CORRELATION}' > "$RUNNER_TEMP/exchange.json"
+          unset id_token
+          status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/exchanged.json" -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/exchange.json" "$EXCHANGE_URL/github/actions/exchange")"
+          rm -f "$RUNNER_TEMP/exchange.json"
+          if [ "$status" != 200 ]; then
+            reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/exchanged.json" 2>/dev/null || echo -)"
+            rm -f "$RUNNER_TEMP/exchanged.json"
+            echo "::error::the exchange refused the ID token: HTTP $status $reason"
+            exit 1
+          fi
+          token="$(jq -r '.token // empty' "$RUNNER_TEMP/exchanged.json")"
+          rm -f "$RUNNER_TEMP/exchanged.json"
+          echo "::add-mask::$token"
+          # Installation tokens are opaque: since GitHub's 2026 rollout they read ghs_<App ID>_<JWT>, about
+          # 520 characters with dots and dashes. Only characters safe in a file and a header are taken.
+          token_re='^[A-Za-z0-9_.-]{20,}$'
+          if ! [[ "$token" =~ $token_re ]] || (( ${#token} > 4096 )); then
+            echo "::error::the exchange answered no token"
+            exit 1
+          fi
+          printf '%s' "$token" > "$RUNNER_TEMP/vibefix-token"
+          unset token
+          printf '%s' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+
+      - name: Bring the Final Merge back
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          here="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          repository="$RUNNER_TEMP/final.git"
+          git init --quiet --bare "$repository"
+          git -C "$repository" config transfer.fsckObjects true
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "$GITHUB_SERVER_URL/$INTERMEDIARY.git" "+HEAD:refs/heads/vibefix-intermediary"
+          git -C "$repository" cat-file -e "$SHA^{commit}"
+          git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-intermediary
+          existing="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= ls-remote \
+            "$here" "refs/heads/$BRANCH")"
+          [ -z "$existing" ] || { echo "::error::$BRANCH exists here already"; exit 1; }
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= push --quiet \
+            "$here" "$SHA:refs/heads/$BRANCH"
+          head="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= ls-remote \
+            "$here" "refs/heads/$BRANCH" | cut -f1)"
+          [ "$head" = "$SHA" ] || { echo "::error::$BRANCH reads back another commit"; exit 1; }
+
+      - name: Remove the credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/vibefix-token" "$RUNNER_TEMP/github-token" "$RUNNER_TEMP/askpass.sh" \
+            "$RUNNER_TEMP/oidc-header" "$RUNNER_TEMP/exchange.json" "$RUNNER_TEMP/exchanged.json"
+
+  scan:
+    if: inputs.operation == 'scan'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check the inputs
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          INTERMEDIARY: ${{ inputs.intermediary }}
+          WORKING: ${{ inputs.working }}
+        run: |
+          set -euo pipefail
+          correlation_re='^[a-z0-9][a-z0-9-]{7,63}$'
+          [ "$OPERATION" = scan ] || { echo "::error::this job only scans"; exit 1; }
+          [ -z "$CORRELATION" ] || [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is empty or a correlation ID"; exit 1; }
+          for empty in "$EXCHANGE_URL" "$SHA" "$BRANCH" "$INTERMEDIARY" "$WORKING"; do
+            [ -z "$empty" ] || { echo "::error::scan takes no exchange_url, sha, branch, intermediary or working"; exit 1; }
+          done
+
+      - name: Download gitleaks
+        env:
+          # gitleaks v8.30.1 for linux_x64. Its sha256 is copied from the release's official checksums file,
+          # https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt
+          GITLEAKS_URL: https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/gitleaks"
+          curl -sS --fail --location --max-time 120 -o "$RUNNER_TEMP/gitleaks/gitleaks.tar.gz" "$GITLEAKS_URL"
+          printf '%s  %s\n' "$GITLEAKS_SHA256" "$RUNNER_TEMP/gitleaks/gitleaks.tar.gz" | sha256sum -c --strict --status - \
+            || { echo "::error::the gitleaks download does not match its pinned sha256"; exit 1; }
+          tar -xzf "$RUNNER_TEMP/gitleaks/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks"
+          [ -x "$RUNNER_TEMP/gitleaks/gitleaks" ] || { echo "::error::the gitleaks download holds no gitleaks"; exit 1; }
+
+      - name: Scan with gitleaks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          umask 077
+          # A failed scan says why in the run's summary; the log keeps one ::error:: line and no tool output.
+          fail() {
+            { echo "## vibefix: gitleaks scan failed"; echo; echo "${1^}."; } >> "$GITHUB_STEP_SUMMARY"
+            if [ -s "${2:-}" ]; then
+              { echo; echo "<pre>"; tail -n 20 "$2" | jq -Rr '@html'; echo "</pre>"; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo "::error::$1; the run's summary shows why"
+            exit 1
+          }
+          if [ -z "$DEFAULT_BRANCH" ] || ! git check-ref-format --branch "$DEFAULT_BRANCH" > /dev/null 2>&1; then
+            fail "the default branch name is refused"
+          fi
+          printf '%s' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-token"
+          cat > "$RUNNER_TEMP/askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo x-access-token ;;
+            *) cat "$VIBEFIX_TOKEN_FILE" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass.sh"
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          repository="$RUNNER_TEMP/scan.git"
+          git init --quiet --bare "$repository"
+          # Read only, so no object check: a legacy history the copy would refuse is still scanned.
+          fetched=0
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "+refs/heads/$DEFAULT_BRANCH:refs/heads/vibefix-scan" \
+            2> "$RUNNER_TEMP/fetch.log" || fetched=$?
+          rm -f "$RUNNER_TEMP/github-token" "$RUNNER_TEMP/askpass.sh"
+          unset GITHUB_TOKEN
+          [ "$fetched" = 0 ] || fail "the fetch of the default branch failed (git exit $fetched)" "$RUNNER_TEMP/fetch.log"
+          head="$(git -C "$repository" rev-parse --verify --quiet 'refs/heads/vibefix-scan^{commit}' || true)"
+          sha_re='^[0-9a-f]{40}$'
+          [[ "$head" =~ $sha_re ]] || fail "the fetched default branch names no commit"
+          # gitleaks' default rules, plus four rules of backend/src/main/resources/scanning/rules.yaml: the
+          # three Vietnamese payment rules, and GitHub App installation tokens in the stateless format of
+          # 2026 (ghs_<App ID>_<JWT>), which gitleaks 8.30.1's default rule misses. Same patterns and capture
+          # group, and its placeholders filter on the value. VNPay and GitHub keep their keywords; MoMo and
+          # ZaloPay keep none, since gitleaks reads keywords per changed hunk, where the provider's name is
+          # often missing.
+          cat > "$RUNNER_TEMP/gitleaks.toml" <<'RULES'
+          title = "vibefix"
+
+          [extend]
+          useDefault = true
+
+          [[rules]]
+          id = "vnpay-hash-secret"
+          description = "VNPay hash secret"
+          regex = '''(?i)vnp(?:ay)?[_.-]?hash[_.-]?secret["']?\s*[:=]\s*["']?([A-Za-z0-9]{16,64})'''
+          secretGroup = 1
+          keywords = ["hashsecret", "hash_secret", "hash-secret", "hash.secret"]
+
+          [[rules.allowlists]]
+          regexTarget = "secret"
+          regexes = ['''(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$''']
+
+          [[rules]]
+          id = "momo-secret-key"
+          description = "MoMo secret key"
+          regex = '''(?i)(?:momo[_.-]?)?secret[_.-]?key["']?\s*[:=]\s*["']?([A-Za-z0-9]{32})\b'''
+          secretGroup = 1
+
+          [[rules.allowlists]]
+          regexTarget = "secret"
+          regexes = ['''(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$''']
+
+          [[rules]]
+          id = "zalopay-key"
+          description = "ZaloPay key"
+          regex = '''(?i)(?:zalo(?:pay)?[_.-]?)?key[12]["']?\s*[:=]\s*["']?([A-Za-z0-9]{32})\b'''
+          secretGroup = 1
+
+          [[rules.allowlists]]
+          regexTarget = "secret"
+          regexes = ['''(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$''']
+
+          [[rules]]
+          id = "github-app-token-stateless"
+          description = "GitHub App installation token, stateless format"
+          regex = '''\b(ghs_[0-9]{1,12}_[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})'''
+          secretGroup = 1
+          keywords = ["ghs_"]
+
+          [[rules.allowlists]]
+          regexTarget = "secret"
+          regexes = ['''(?i)^(?:x+|\*+|\.+|0+|-+|password|passw0rd|pass|secret|changeme|change_me|change-me|example|sample|dummy|test|testing|none|null|undefined|your[-_a-z0-9]*|my[-_a-z0-9]*(?:password|secret|key|token)|<[^>]*>|\[[^\]]*\]|\{[^}]*\}|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[^%]*%|process\.env\.[A-Za-z0-9_]+|import\.meta\.env\.[A-Za-z0-9_]+)$''']
+          RULES
+          status=0
+          "$RUNNER_TEMP/gitleaks/gitleaks" git --config "$RUNNER_TEMP/gitleaks.toml" --redact --ignore-gitleaks-allow \
+            --no-banner --log-level error --exit-code 42 --report-format json --report-path "$RUNNER_TEMP/gitleaks.json" \
+            "$repository" > "$RUNNER_TEMP/gitleaks.log" 2>&1 || status=$?
+          # 0 is a scan without findings and 42 one with findings; anything else, or any error logged, is a failed scan.
+          if { [ "$status" != 0 ] && [ "$status" != 42 ]; } || [ -s "$RUNNER_TEMP/gitleaks.log" ]; then
+            fail "the gitleaks scan failed (exit $status), so it counts nothing" "$RUNNER_TEMP/gitleaks.log"
+          fi
+          count="$(jq -r 'if type == "array" then length else "none" end' "$RUNNER_TEMP/gitleaks.json" 2>/dev/null || echo none)"
+          count_re='^(0|[1-9][0-9]{0,8})$'
+          [[ "$count" =~ $count_re ]] || fail "the gitleaks report cannot be read"
+          if { [ "$status" = 0 ] && [ "$count" != 0 ]; } || { [ "$status" = 42 ] && [ "$count" = 0 ]; }; then
+            fail "the gitleaks exit code and its report disagree"
+          fi
+          # The summary names the commit scanned, and each finding's rule, file, short commit and line, never its value.
+          HEAD_SHA="$head" jq -r '
+            def cell: tostring | gsub("[\r\n]+"; " ") | @html | gsub("(?<c>[\\\\|`*_\\[\\]])"; "&#\(.c | explode[0]);");
+            "## vibefix: gitleaks scan",
+            "",
+            "gitleaks 8.30.1 read the whole history of \(env.DEFAULT_BRANCH | cell) up to \(env.HEAD_SHA) with its default rules and the VNPay, MoMo and ZaloPay rules of vibefix: \(length) finding(s), each shown without its value. The scan decides nothing: you still confirm at J7 yourself that every credential and all personal data are removed or revoked.",
+            "",
+            "| Rule | File | Commit | Line |",
+            "| --- | --- | --- | --- |",
+            (.[0:500][] | "| \(.RuleID | cell) | \(.File | cell) | \(.Commit[0:7] | cell) | \(.StartLine | cell) |"),
+            (if length > 500 then "", "The table shows the first 500 of \(length)." else empty end)
+          ' "$RUNNER_TEMP/gitleaks.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "VIBEFIX_SCAN head=$head findings=$count"
+          [ "$count" = 0 ] || { echo "::error::gitleaks found $count finding(s) up to $head, listed without their values in this run's summary"; exit 1; }
+
+      - name: Remove the credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/github-token" "$RUNNER_TEMP/askpass.sh"

@@ -28,7 +28,8 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code product}'s part in exports and erasure (AD-24): the Customer's Products with their
- * acknowledgments. Erasure deletes them as a Product deletion does (Story 16.2): every participant's data for
+ * acknowledgments, and their Source App bindings (Story 23.5), drafts included. Erasure deletes them as a Product
+ * deletion does (Story 16.2), and then the drafts' bindings: every participant's data for
  * each, audited as the System, and {@link ProductDeleted} published, so {@code repo} deletes their platform
  * repositories (FR-21); {@code job} blocks the erasure first while a Job runs.
  * <p>
@@ -60,11 +61,32 @@ class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticip
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("product.product", "product.job_pin");
+		return Set.of("product.product", "product.job_pin", "product.source_app_binding");
 	}
 
 	@Override
 	public Optional<PersonalDataSection> export(UUID accountId) {
+		// Story 23.5: each Source App binding, with the installation's account, never the install link's state.
+		List<Map<String, Object>> bindings = this.jdbc.sql("""
+				SELECT repository_full_name, account_login, account_type, status, created_at, bound_at, ended_at
+				FROM product.source_app_binding WHERE customer_account_id = :id ORDER BY created_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> binding = new LinkedHashMap<>();
+			binding.put("repository", rs.getString("repository_full_name"));
+			binding.put("status", rs.getString("status"));
+			if (rs.getString("account_login") != null) {
+				binding.put("installedOn", rs.getString("account_login"));
+				binding.put("accountType", rs.getString("account_type"));
+			}
+			binding.put("createdAt", rs.getTimestamp("created_at").toInstant().toString());
+			if (rs.getTimestamp("bound_at") != null) {
+				binding.put("boundAt", rs.getTimestamp("bound_at").toInstant().toString());
+			}
+			if (rs.getTimestamp("ended_at") != null) {
+				binding.put("endedAt", rs.getTimestamp("ended_at").toInstant().toString());
+			}
+			return binding;
+		}).list();
 		List<Map<String, Object>> products = this.jdbc.sql("""
 				SELECT name, description, demo_url, array_to_string(ai_tools, ',') AS tools, repository_full_name,
 				       copy_permission_version, acknowledged_at, created_at, deleted_at
@@ -84,8 +106,11 @@ class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticip
 			}
 			return product;
 		}).list();
-		return products.isEmpty() ? Optional.empty()
-				: Optional.of(new PersonalDataSection("product", Map.of("products", products)));
+		if (products.isEmpty() && bindings.isEmpty()) {
+			return Optional.empty();
+		}
+		return Optional.of(new PersonalDataSection("product", bindings.isEmpty() ? Map.of("products", products)
+				: Map.of("products", products, "sourceAppBindings", bindings)));
 	}
 
 	@Override
@@ -100,11 +125,17 @@ class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticip
 			this.personalData.getObject().deleteProduct(product);
 			this.events.publishEvent(new ProductDeleted(this.ids.newId(), product, accountId));
 		}
+		// The Source App bindings of drafts never registered (Story 23.5).
+		this.jdbc.sql("DELETE FROM product.source_app_binding WHERE customer_account_id = :id").param("id", accountId).update();
 	}
 
-	/** The Product row goes, and with it its pins; its repository ID is free again. */
+	/**
+	 * The Product row goes, and with it its pins and its Source App binding, so the binding ends (Story 23.5); its
+	 * repository ID is free again.
+	 */
 	@Override
 	public void deleteProduct(UUID productId) {
+		this.jdbc.sql("DELETE FROM product.source_app_binding WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM product.product WHERE id = :id").param("id", productId).update();
 	}
 

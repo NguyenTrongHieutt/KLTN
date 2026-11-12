@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, FlaskConical, Globe, Package, Users } from 'lucide-react'
+import { BriefcaseBusiness, FlaskConical, LockKeyhole, Package, Users } from 'lucide-react'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { buttonVariants } from '@/components/ui/button-variants'
@@ -18,9 +18,9 @@ const ROLES = [
 
 /**
  * PUB-1, the landing page (FR-45, NFR-12, PRD §6.5 #2, UX-DR65, UX-DR89): what vibefix does in plain
- * Vietnamese, the seven Stages, the test-money and public-code notices, three cards that each explain
- * one role, and one "Đăng nhập bằng Google" below them. One account holds every role, a role per Job,
- * so the cards pick nothing.
+ * Vietnamese, the seven Stages, the test-money notice and the private-copies line (the public-code notice went
+ * with public repositories, Story 23.5), three cards that each explain one role, and one "Đăng nhập bằng
+ * Google" below them. One account holds every role, a role per Job, so the cards pick nothing.
  */
 export function LandingPage() {
   usePageTitle(t('screen.public.landing.title'))
@@ -82,15 +82,12 @@ export function LandingPage() {
             </div>
           </div>
           <div className="flex gap-3 rounded-md border-l-4 border-info bg-info-soft p-4">
-            <Globe aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
+            <LockKeyhole aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
             <div className="flex min-w-0 flex-col gap-1">
               <h3 className="text-label font-semibold">
-                {rich('screen.public.landing.publicCodeTitle', {
-                  public: <TermHint term="congKhai" />,
-                  github: <TermHint term="github" />,
-                })}
+                {rich('screen.public.landing.privateCodeTitle', { github: <TermHint term="github" /> })}
               </h3>
-              <p className="text-body-sm">{t('screen.public.landing.publicCodeBody')}</p>
+              <p className="text-body-sm">{t('screen.public.landing.privateCodeBody')}</p>
             </div>
           </div>
         </section>

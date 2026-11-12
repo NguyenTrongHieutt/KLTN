@@ -52,7 +52,10 @@ export function problemMessage(error: unknown, context: ProblemContext = {}): Pr
   if (error.status >= 500 || !code || !CODES.includes(code)) {
     return unexpected(error.status >= 500 ? correlationId : undefined)
   }
-  const reasonText = reason ? reasonFor(context, reason) : undefined
+  const found = reason ? reasonFor(context, reason) : undefined
+  // A repository check's reason names the repository it refused (`{repo}`, Story 23.5).
+  const repository = error.problem.repository
+  const reasonText = found && repository ? found.replace(/\{repo\}/g, repository) : found
   if (reason === 'GITHUB_NOT_LINKED') {
     const text = reasonText ? `${t('error.FORBIDDEN')} ${sentence(reasonText)}` : t('error.FORBIDDEN')
     return { text, link: { href: '/ho-so/xac-minh', label: t('error.githubLink') } }

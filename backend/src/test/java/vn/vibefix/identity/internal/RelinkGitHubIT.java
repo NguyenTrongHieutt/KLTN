@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.github.GitHubException;
 import vn.vibefix.identity.CustomerRepositories;
 import vn.vibefix.identity.GitHubLinks;
 import vn.vibefix.identity.internal.GitHubLinkReader.LinkedUser;
@@ -33,7 +34,8 @@ import vn.vibefix.support.IntegrationTest;
 /**
  * FR-13, FR-18, AD-10, author decision 2026-10-21, Story 19.2: when an AD-13 re-check finds no kept token,
  * it still fails closed, and the live Product's owner gets the {@code identity.relink_github} to-do and a
- * notice, which lead to ACC-2; the Source Repository check before a Code Job starts blocks with
+ * notice, which lead to ACC-2. Since Story 23.5 only the contributors check reads with the token (until Story
+ * 23.5b): the Source Repository check before a Code Job starts reads through the Source App and never answers
  * {@code RELINK_GITHUB}. The notice is sent once a day however many Mentors try. Re-linking the same GitHub
  * account keeps a new token and closes the to-do; deleting the last live Product forgets the token.
  */
@@ -85,7 +87,9 @@ class RelinkGitHubIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM notification.notification WHERE type = 'identity.relink_github' AND account_id = :id
 				""").param("id", lan).query(Long.class).single()).as("once a day").isOne();
-		assertThat(this.sources.check(product).block()).isEqualTo(ProductSources.Block.RELINK_GITHUB);
+		// Story 23.5: the Source check reads through the Source App, which this test does not configure, never the token.
+		assertThatThrownBy(() -> this.sources.check(product)).isInstanceOf(GitHubException.class)
+			.hasMessageContaining("source-app");
 
 		long githubId = CustomerTokens.githubUserId(this.jdbc, lan);
 		// A fake token, built at run time so no secret pattern sits in the source.

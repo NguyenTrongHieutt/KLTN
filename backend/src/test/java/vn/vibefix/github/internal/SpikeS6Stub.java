@@ -1039,10 +1039,12 @@ final class SpikeS6Stub implements AutoCloseable {
 				steps.add(map("number", number, "name", names.get(i), "conclusion", failing == 0 || number < failing ? "success"
 						: number == failing ? "failure" : number < names.size() - 1 ? "skipped" : "success"));
 			}
-			// The job takes 65 seconds: Free bills it as two minutes. A scan's run also lists the copy job, skipped.
+			// The job takes 65 seconds: Free bills it as two minutes. A scan's run also lists the copy and Final Merge
+			// jobs, skipped.
 			List<Map<String, Object>> jobs = new ArrayList<>();
 			if (job(run).equals("scan")) {
-				jobs.add(map("id", run.id + 2, "name", "vibefix", "conclusion", "skipped", "steps", List.of()));
+				jobs.add(map("id", run.id + 2, "name", "copy", "conclusion", "skipped", "steps", List.of()));
+				jobs.add(map("id", run.id + 3, "name", "final-merge", "conclusion", "skipped", "steps", List.of()));
 			}
 			jobs.add(map("id", run.id + 1, "name", job(run), "started_at", "2026-11-09T03:00:00Z", "completed_at",
 					"2026-11-09T03:01:05Z", "conclusion", run.conclusion, "steps", steps));
@@ -1350,18 +1352,24 @@ final class SpikeS6Stub implements AutoCloseable {
 		return run.inputs.path(name).asString("");
 	}
 
-	/** The job a run's work happens in: {@code vibefix.yml}'s scan job for a scan that exchanges nothing. */
+	/**
+	 * The job a run's work happens in: the runner's copy; {@code vibefix.yml}'s scan job for a scan that exchanges
+	 * nothing; else, since Story 23.5 gave each operation a job of its own, its {@code final-merge} or {@code copy}.
+	 */
 	private static String job(Run run) {
 		if (!run.customer()) {
 			return "copy";
 		}
-		return run.scan() && !run.exchanges ? "scan" : "vibefix";
+		if (run.scan() && !run.exchanges) {
+			return "scan";
+		}
+		return "final-merge".equals(input(run, "operation")) ? "final-merge" : "copy";
 	}
 
 	private static List<String> steps(Run run) {
 		return switch (job(run)) {
-			case "vibefix" -> List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit",
-					"Bring the Final Merge back", "Remove the credentials", "Complete job");
+			case "final-merge" -> List.of("Set up job", "Check the inputs", "Exchange the ID token", "Bring the Final Merge back",
+					"Remove the credentials", "Complete job");
 			case "scan" -> List.of("Set up job", "Check the inputs", "Download gitleaks", "Scan with gitleaks",
 					"Remove the credentials", "Complete job");
 			default -> List.of("Set up job", "Check the inputs", "Exchange the ID token", "Copy the commit",
@@ -1379,22 +1387,32 @@ final class SpikeS6Stub implements AutoCloseable {
 			case "exchange" -> 3;
 			case "download" -> 3;
 			case "scan" -> 4;
-			default -> run.customer() && "final-merge".equals(input(run, "operation")) ? 5 : 4;
+			default -> 4;
 		};
 	}
 
-	/** Whether the workflow's "Exchange the ID token" step runs for these inputs: its job's {@code if:} and its own. */
+	/**
+	 * Whether a job's "Exchange the ID token" step runs for these inputs: that job's {@code if:} and the step's own.
+	 * Since Story 23.5 the copy and the Final Merge each have one.
+	 */
 	@SuppressWarnings("unchecked")
 	private static boolean exchangeRuns(Map<String, Object> workflow, JsonNode inputs) {
+		boolean found = false;
 		for (Object job : ((Map<String, Object>) workflow.get("jobs")).values()) {
 			Map<String, Object> declared = (Map<String, Object>) job;
 			for (Map<String, Object> step : (List<Map<String, Object>>) declared.get("steps")) {
 				if ("Exchange the ID token".equals(step.get("name"))) {
-					return runs(declared.get("if"), inputs) && runs(step.get("if"), inputs);
+					found = true;
+					if (runs(declared.get("if"), inputs) && runs(step.get("if"), inputs)) {
+						return true;
+					}
 				}
 			}
 		}
-		throw new IllegalStateException("The workflow has no step named Exchange the ID token");
+		if (!found) {
+			throw new IllegalStateException("The workflow has no step named Exchange the ID token");
+		}
+		return false;
 	}
 
 	/**
@@ -1470,7 +1488,7 @@ final class SpikeS6Stub implements AutoCloseable {
 		if (run.scan()) {
 			return scanLogs(run);
 		}
-		String job = run.customer() ? "vibefix" : "copy";
+		String job = job(run);
 		int failing = failingStep(run) == 0 ? 4 : failingStep(run);
 		String leak = this.logLeak;
 		StringBuilder step = new StringBuilder();

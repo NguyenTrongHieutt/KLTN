@@ -1,5 +1,6 @@
 package vn.vibefix.github.internal;
 
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -15,7 +16,8 @@ import vn.vibefix.github.GitHubRepositories;
 
 /**
  * {@link GitHubRepositories} on GitHub's REST API: the repository, then two small files of its
- * default branch that reveal submodules and Git LFS (AD-13). Three requests, all reads.
+ * default branch that reveal submodules and Git LFS (AD-13). Three requests, all reads; the admin check reads
+ * an account's login and its collaborator permission.
  */
 @Component
 class GitHubRepositoriesClient implements GitHubRepositories {
@@ -91,6 +93,32 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 			}
 		}
 		return ids;
+	}
+
+	@Override
+	public Optional<String> login(String bearer, long githubUserId) {
+		GitHubHttp.Answer answer = this.http.send("GET", "/user/" + githubUserId, bearer, null);
+		if (answer.status() == 404) {
+			return Optional.empty();
+		}
+		if (answer.status() != 200) {
+			throw new GitHubException(answer.status(), "GitHub refused the account read: HTTP " + answer.status());
+		}
+		String login = answer.body().path("login").asString("");
+		return login.isBlank() ? Optional.empty() : Optional.of(login);
+	}
+
+	@Override
+	public Optional<String> permission(String bearer, String owner, String name, String login) {
+		GitHubHttp.Answer answer = this.http.send("GET", "/repos/" + owner + "/" + name + "/collaborators/"
+				+ URLEncoder.encode(login, StandardCharsets.UTF_8) + "/permission", bearer, null);
+		if (answer.status() == 404) {
+			return Optional.empty();
+		}
+		if (answer.status() != 200) {
+			throw new GitHubException(answer.status(), "GitHub refused the permission read: HTTP " + answer.status());
+		}
+		return Optional.of(answer.body().path("permission").asString("none"));
 	}
 
 	private boolean exists(String path, String bearer) {

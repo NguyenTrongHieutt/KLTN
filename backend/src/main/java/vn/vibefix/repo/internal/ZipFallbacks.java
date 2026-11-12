@@ -175,7 +175,7 @@ class ZipFallbacks {
 					? "REQUEST_NOT_APPROVED" : "NOT_AUTHORIZED";
 		}
 		String refusal = merge == null ? null : merge.refusal();
-		return refusal != null && Set.of("TRIAL_CONFLICT", "SOURCE_NOT_PUBLIC", "J9_GUARD", "PUSH_REFUSED", "MERGE_REFUSED")
+		return refusal != null && Set.of("TRIAL_CONFLICT", "SOURCE_APP_MISSING", "J9_GUARD", "PUSH_REFUSED", "MERGE_REFUSED")
 			.contains(refusal) ? refusal : "MERGE_REFUSED";
 	}
 

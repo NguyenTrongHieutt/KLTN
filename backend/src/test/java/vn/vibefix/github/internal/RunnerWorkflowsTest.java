@@ -120,7 +120,8 @@ class RunnerWorkflowsTest {
 
 		assertThat(EXCHANGE).isEqualTo("\"$EXCHANGE_URL" + ActionsExchangeController.PATH + "\"")
 			.contains(OidcExchange.PRODUCTION_PATH);
-		assertThat(count(text, EXCHANGE)).isOne();
+		// Story 23.5: the Customer's copy and final-merge are jobs of their own, each with its exchange step.
+		assertThat(count(text, EXCHANGE)).isEqualTo(file.equals(CUSTOMER) ? 2 : 1);
 		assertThat(text).doesNotContain("\"$EXCHANGE_URL/exchange\"", "vibefix.vn", "trycloudflare.com");
 		assertThat(correlation.find()).isTrue();
 		assertThat(Pattern.compile(correlation.group(1)).matcher(java.util.UUID.randomUUID().toString()).matches())
@@ -168,20 +169,46 @@ class RunnerWorkflowsTest {
 
 	@Test
 	void theCustomersFinalMergePushesOnlyANewVibefixBranch() throws IOException {
-		List<Map<String, Object>> steps = steps(load(text(CUSTOMER)));
+		List<Map<String, Object>> steps = jobSteps(asMap(asMap(load(text(CUSTOMER)).get("jobs")).get("final-merge")));
 		String check = String.valueOf(steps.getFirst().get("run"));
-		Map<String, Object> finalMerge = steps.stream()
-			.filter(step -> "inputs.operation == 'final-merge'".equals(step.get("if")))
-			.findFirst()
-			.orElseThrow();
-		String script = String.valueOf(finalMerge.get("run"));
+		String script = String.valueOf(step(steps, "Bring the Final Merge back").get("run"));
 
 		assertThat(check).contains("[[ \"$BRANCH\" == vibefix/* ]]", "[ -z \"$WORKING\" ]");
 		assertThat(script).contains("+HEAD:refs/heads/vibefix-intermediary", "[ -z \"$existing\" ]",
 				"VIBEFIX_TOKEN_FILE=\"$RUNNER_TEMP/github-token\"");
 		assertThat(script.indexOf("[ -z \"$existing\" ]")).as("the branch must be new before the push")
 			.isLessThan(script.indexOf("credential.helper= push"));
-		assertThat(steps.stream().filter(step -> "inputs.operation == 'copy'".equals(step.get("if")))).hasSize(1);
+		assertThat(steps).extracting(step -> step.get("name"))
+			.containsExactly("Check the inputs", "Exchange the ID token", "Bring the Final Merge back", "Remove the credentials");
+		assertThat(jobSteps(asMap(asMap(load(text(CUSTOMER)).get("jobs")).get("copy")))).extracting(step -> step.get("name"))
+			.containsExactly("Check the inputs", "Exchange the ID token", "Copy the commit", "Remove the credentials");
+		assertThat(steps(load(text(CUSTOMER)))).as("no step decides by the operation: each job is one")
+			.allSatisfy(step -> assertThat(step.get("if")).isIn(null, "always()"));
+	}
+
+	/**
+	 * Story 23.5 (deferred-work 630): the copy and the Final Merge first refuse a run that no GitHub App started, by its
+	 * triggering actor; the exchange holds the exact Source App bot, so the file names no bot and no exchange host.
+	 */
+	@Test
+	void theCopyAndTheFinalMergeFirstRefuseARunNoGitHubAppStarted() throws IOException {
+		String text = text(CUSTOMER);
+		Map<String, Object> jobs = asMap(load(text).get("jobs"));
+		String guard = "[[ \"$TRIGGERING_ACTOR\" == *'[bot]' ]] || {";
+
+		for (String name : List.of("copy", "final-merge")) {
+			Map<String, Object> first = jobSteps(asMap(jobs.get(name))).getFirst();
+			String script = String.valueOf(first.get("run"));
+			assertThat(asMap(first.get("env"))).as(name).containsEntry("TRIGGERING_ACTOR", "${{ github.triggering_actor }}");
+			assertThat(script).as(name + " checks the actor before anything else")
+				.startsWith("set -euo pipefail\n# Only a GitHub App starts")
+				.contains(guard);
+			assertThat(script.indexOf(guard)).as(name).isLessThan(script.indexOf("correlation_re="));
+		}
+		String scan = String.valueOf(jobSteps(asMap(jobs.get("scan"))).getFirst().get("run"));
+		assertThat(scan).as("the Customer may start a scan by hand").doesNotContain("TRIGGERING_ACTOR");
+		assertThat(text).as("no bot login and no exchange host").doesNotContain("[bot]\"", "vibefix-dev-source[bot]",
+				"trycloudflare.com", "vibefix.vn");
 	}
 
 	@ParameterizedTest
@@ -193,11 +220,13 @@ class RunnerWorkflowsTest {
 		assertThat(String.valueOf(workflow.get("run-name"))).contains("${{ inputs.correlation }}");
 		assertThat(on(workflow)).containsOnlyKeys("workflow_dispatch");
 		if (file.equals(CUSTOMER)) {
-			// Nothing by default: the copy job may write and ask for an ID token, the scan job may only read.
+			// Nothing by default, and a job per operation (Story 23.5, deferred-work 630): the copy may only read here
+			// and ask for an ID token, the Final Merge may write here and ask for one, and the scan may only read.
 			assertThat(workflow.get("permissions")).isEqualTo(Map.of());
-			assertThat(jobs).containsOnlyKeys("vibefix", "scan");
-			assertThat(asMap(jobs.get("vibefix")))
-				.containsEntry("if", "inputs.operation == 'copy' || inputs.operation == 'final-merge'")
+			assertThat(jobs).containsOnlyKeys("copy", "final-merge", "scan");
+			assertThat(asMap(jobs.get("copy"))).containsEntry("if", "inputs.operation == 'copy'")
+				.containsEntry("permissions", Map.of("contents", "read", "id-token", "write"));
+			assertThat(asMap(jobs.get("final-merge"))).containsEntry("if", "inputs.operation == 'final-merge'")
 				.containsEntry("permissions", Map.of("contents", "write", "id-token", "write"));
 			assertThat(asMap(jobs.get("scan"))).containsEntry("if", "inputs.operation == 'scan'")
 				.containsEntry("permissions", Map.of("contents", "read"));
@@ -268,13 +297,18 @@ class RunnerWorkflowsTest {
 			}
 			assertThat(script).as(name).startsWith("set -euo pipefail").contains("exit 1");
 		});
-		String copy = String.valueOf(jobSteps(asMap(jobs.get("vibefix"))).getFirst().get("run"));
-		assertThat(copy).as("copy and final-merge need every input, as before").contains(
-				"operation_re='^(copy|final-merge)$'", "[[ \"$CORRELATION\" =~ $correlation_re ]] || {",
+		String copy = String.valueOf(jobSteps(asMap(jobs.get("copy"))).getFirst().get("run"));
+		assertThat(copy).as("the copy needs every input, the Working Repository too").contains(
+				"[ \"$OPERATION\" = copy ] || {", "[[ \"$CORRELATION\" =~ $correlation_re ]] || {",
 				"[[ \"$EXCHANGE_URL\" =~ $url_re ]] || {", "[[ \"$SHA\" =~ $sha_re ]] || {", "[[ \"$BRANCH\" =~ $branch_re",
-				"[[ \"$INTERMEDIARY\" =~ $repository_re", "[[ \"$WORKING\" =~ $repository_re", "[ -z \"$WORKING\" ] || {",
-				"[[ \"$BRANCH\" == vibefix/* ]]")
-			.doesNotContain("scan");
+				"[[ \"$INTERMEDIARY\" =~ $repository_re", "[[ \"$WORKING\" =~ $repository_re")
+			.doesNotContain("scan", "[ -z \"$WORKING\" ]", "vibefix/*");
+		String finalMerge = String.valueOf(jobSteps(asMap(jobs.get("final-merge"))).getFirst().get("run"));
+		assertThat(finalMerge).as("the Final Merge needs every input but the Working Repository, and a new vibefix/ branch")
+			.contains("[ \"$OPERATION\" = final-merge ] || {", "[[ \"$CORRELATION\" =~ $correlation_re ]] || {",
+					"[[ \"$EXCHANGE_URL\" =~ $url_re ]] || {", "[[ \"$SHA\" =~ $sha_re ]] || {", "[[ \"$BRANCH\" =~ $branch_re",
+					"[[ \"$INTERMEDIARY\" =~ $repository_re", "[ -z \"$WORKING\" ] || {", "[[ \"$BRANCH\" == vibefix/* ]]")
+			.doesNotContain("scan", "[[ \"$WORKING\" =~");
 		String scan = String.valueOf(jobSteps(asMap(jobs.get("scan"))).getFirst().get("run"));
 		assertThat(scan).as("a scan takes its operation, an empty or valid correlation, and every copy input empty").contains(
 				"[ \"$OPERATION\" = scan ] || {",
@@ -285,14 +319,15 @@ class RunnerWorkflowsTest {
 	@Test
 	void theScanRunsInAJobOfItsOwnWithNoVibefixToken() throws IOException {
 		Map<String, Object> workflow = load(text(CUSTOMER));
-		Map<String, Object> exchange = step(jobSteps(asMap(asMap(workflow.get("jobs")).get("vibefix"))),
-				"Exchange the ID token");
+		Map<String, Object> jobs = asMap(workflow.get("jobs"));
+		Map<String, Object> copy = step(jobSteps(asMap(jobs.get("copy"))), "Exchange the ID token");
+		Map<String, Object> finalMerge = step(jobSteps(asMap(jobs.get("final-merge"))), "Exchange the ID token");
 		List<Map<String, Object>> scan = scanSteps();
 
-		assertThat(exchange.get("if")).isEqualTo("inputs.operation == 'copy' || inputs.operation == 'final-merge'");
-		assertThat(steps(workflow)).as("only the copy job's exchange asks for an ID token")
+		assertThat(steps(workflow)).as("only the copy's and the Final Merge's exchanges ask for an ID token")
 			.filteredOn(step -> String.valueOf(step.get("run")).contains("ACTIONS_ID_TOKEN_REQUEST"))
-			.containsExactly(exchange);
+			.containsExactly(copy, finalMerge);
+		assertThat(copy.get("run")).as("the same exchange in both").isEqualTo(finalMerge.get("run"));
 		assertThat(scan).extracting(step -> step.get("name"))
 			.containsExactly("Check the inputs", "Download gitleaks", "Scan with gitleaks", "Remove the credentials");
 		for (Map<String, Object> step : scan) {

@@ -109,8 +109,13 @@ class WebhookSignatures {
 		return secret;
 	}
 
+	/** The App's properties; the Source App has no webhook, so it never names a secret and verifies nothing. */
 	private @Nullable AppProperties configured(App app) {
-		return app == App.PLATFORM ? this.properties.platformApp() : this.properties.mergeApp();
+		return switch (app) {
+			case PLATFORM -> this.properties.platformApp();
+			case MERGE -> this.properties.mergeApp();
+			case SOURCE -> null;
+		};
 	}
 
 }

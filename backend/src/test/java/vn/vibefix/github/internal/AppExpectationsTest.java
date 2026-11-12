@@ -81,6 +81,26 @@ class AppExpectationsTest {
 			.endsWith("instead of " + new TreeMap<>(AppExpectations.PLATFORM_PERMISSIONS));
 	}
 
+	/** Story 23.5: the Source App reads the code and metadata, dispatches vibefix.yml, and has no event or webhook. */
+	@Test
+	void theSourceAppReadsContentsAndMetadataDispatchesActionsAndHasNoWebhook() {
+		Map<String, String> withWrite = new HashMap<>(AppExpectations.SOURCE_PERMISSIONS);
+		withWrite.put("contents", "write");
+
+		assertThat(AppExpectations.permissions(App.SOURCE)).isEqualTo(Map.of("contents", "read", "metadata", "read",
+				"actions", "write"));
+		assertThat(AppExpectations.webhook(App.SOURCE)).isFalse();
+		assertThat(AppExpectations.webhook(App.PLATFORM)).isTrue();
+		assertThat(AppExpectations.webhook(App.MERGE)).isTrue();
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("meta"))))
+			.isEmpty();
+		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source", withWrite, Set.of("push"))))
+			.hasSize(2)
+			.anySatisfy(difference -> assertThat(difference).startsWith("permissions: ").contains("contents=write"))
+			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of []"));
+	}
+
 	private static Registration platform(Set<String> events) {
 		return new Registration("vibefix-dev-platform", AppExpectations.PLATFORM_PERMISSIONS, events);
 	}

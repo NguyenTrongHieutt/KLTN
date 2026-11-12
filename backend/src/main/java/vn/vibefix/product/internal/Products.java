@@ -31,6 +31,7 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.identity.GitHubLinks;
 import vn.vibefix.product.ProductDeleted;
+import vn.vibefix.product.internal.RepositoryChecks.Passed;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -38,9 +39,9 @@ import vn.vibefix.shared.PersonalData;
 import vn.vibefix.shared.RateLimitedException;
 
 /**
- * A Customer's Products (FR-7): registration after every repository check and the three
- * acknowledgments, at most 5 a day (AD-34), with no scan (vibefix scans no code, Story 23.1); the list; one
- * Product's detail; and its deletion while no Job pins it (AD-24).
+ * A Customer's Products (FR-7): registration after every repository check, the Source App, the published workflow,
+ * and the three acknowledgments, at most 5 a day (AD-34), with no scan (vibefix scans no code, Story 23.1); the
+ * list; one Product's detail; and its deletion while no Job pins it (AD-24).
  */
 @Component
 class Products {
@@ -106,10 +107,13 @@ class Products {
 
 	private final GitHubLinks gitHubLinks;
 
+	private final SourceAppBindings bindings;
+
 	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog,
 			PersonalData personalData, ApplicationEventPublisher events, IdGenerator ids, Clock clock,
-			GitHubLinks gitHubLinks) {
+			GitHubLinks gitHubLinks, SourceAppBindings bindings) {
 		this.gitHubLinks = gitHubLinks;
+		this.bindings = bindings;
 		this.jdbc = jdbc;
 		this.checks = checks;
 		this.properties = properties;
@@ -121,7 +125,8 @@ class Products {
 	}
 
 	/**
-	 * Registers the Product after checking the repository again (the wizard's checks are hints).
+	 * Registers the Product after checking the repository again, through the Source App and with the published
+	 * workflow (the wizard's checks are hints); the draft's Source App binding becomes the Product's.
 	 * @throws ApiException {@code VALIDATION NOTICE_REQUIRED}; {@code RATE_LIMITED PRODUCT_LIMIT}; any
 	 * repository check's {@code GUARD_FAILED}
 	 */
@@ -141,7 +146,8 @@ class Products {
 			throw new RateLimitedException(Duration.between(now, today.atZone(VIETNAM).plusDays(1).toInstant()),
 					ProductReason.PRODUCT_LIMIT);
 		}
-		RepositoryMetadata repository = this.checks.check(customerId, registration.repositoryUrl());
+		Passed passed = this.checks.check(customerId, registration.repositoryUrl(), true);
+		RepositoryMetadata repository = passed.repository();
 		UUID id = this.ids.newId();
 		try {
 			this.jdbc.sql("""
@@ -171,15 +177,18 @@ class Products {
 		catch (DuplicateKeyException ex) {
 			throw RepositoryChecks.refuse(ProductReason.REPO_ALREADY_LINKED, repository);
 		}
+		this.bindings.attach(passed.bound().bindingId(), id, customerId, repository.id());
 		this.auditLog.record(AuditEntry.of(AuditActor.user(customerId), "product.registered",
 				AuditObject.of("product.product", id)));
 		return id;
 	}
 
 	/**
-	 * Deletes the Customer's Product (FR-7, AD-24): audited, every participant's data for it deleted,
-	 * and {@link ProductDeleted} published, in one transaction; the repository ID is free again. Deleting
-	 * the Customer's last live Product deletes their kept GitHub token too (AD-10).
+	 * Deletes the Customer's Product (FR-7, AD-24): audited, every participant's data for it deleted, its Source App
+	 * binding included, so the binding ends, and {@link ProductDeleted} published, in one transaction; the repository
+	 * ID is free again. vibefix never uninstalls the Customer's Source App: CUS-4 tells them before and after how to
+	 * deselect the repository or uninstall it (R23). Deleting the Customer's last live Product deletes their kept
+	 * GitHub token too (AD-10).
 	 * @throws ApiException {@code NOT_FOUND} for a Product that is not the Customer's;
 	 * {@code GUARD_FAILED PRODUCT_HAS_ACTIVE_JOB} while a Job pins it
 	 */

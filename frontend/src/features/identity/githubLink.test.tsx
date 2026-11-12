@@ -202,7 +202,7 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
     await user.click(await screen.findByRole('button', { name: 'Lovable' }))
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
 
-    expect(await screen.findByText('Bước 2/4')).toBeInTheDocument()
+    expect(await screen.findByText('Bước 2/5')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Liên kết GitHub để đăng ký sản phẩm' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Đường dẫn kho mã trên GitHub')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Liên kết GitHub ↗/ }))
@@ -240,7 +240,7 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
 
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
     expect(screen.queryByLabelText('Đường dẫn kho mã trên GitHub')).not.toBeInTheDocument()
-    expect(screen.getByText('Bước 2/4')).toBeInTheDocument()
+    expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
   })
 
   it('links again when no token is kept, and comes back to step 2 with the input', { timeout: 15_000 }, async () => {
@@ -260,7 +260,7 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
     renderAt('/san-pham/moi')
 
     expect(await screen.findByRole('heading', { name: 'Liên kết lại GitHub để đăng ký sản phẩm' })).toBeInTheDocument()
-    expect(screen.getByText('Bước 2/4')).toBeInTheDocument()
+    expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
     expect(window.sessionStorage.getItem('vibefix.product.registration')).toBeNull()
 
     cleanup()

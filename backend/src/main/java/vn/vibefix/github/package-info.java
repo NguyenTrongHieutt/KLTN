@@ -11,7 +11,9 @@
  * OIDC ID token for one token narrowed to its correlation's grant, which is revoked when the run ends.
  * <p>
  * Public API: {@link vn.vibefix.github.GitHubApps}, {@link vn.vibefix.github.MergeApp} (the Customers'
- * Merge App installations, Story 8.7), {@link vn.vibefix.github.GitHubRepositories}
+ * Merge App installations, Story 8.7), {@link vn.vibefix.github.SourceApp} (the Customers' Source App
+ * installations, which have no webhook, the published {@code vibefix.yml}, and its check, Story 23.5),
+ * {@link vn.vibefix.github.GitHubRepositories}
  * (read-only metadata with a caller's credential), {@link vn.vibefix.github.OAuthGrants} (revoking a token the
  * linking App issued once vibefix stops keeping it, and the App's grant when an account is deleted, SG-9),
  * {@link vn.vibefix.github.ActionsRuns} (dispatching exchange runs, and their correlations), and the events

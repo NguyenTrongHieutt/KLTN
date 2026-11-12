@@ -88,6 +88,35 @@ public final class GitHubStub implements AutoCloseable {
 	volatile String app = "{\"slug\":\"vibefix-dev-platform\",\"permissions\":{\"contents\":\"write\",\"metadata\":\"read\"},"
 			+ "\"events\":[\"push\",\"pull_request\"]}";
 
+	/** The Source App's ID (Story 23.5): a JWT that it issued is answered as the Source App, and only such a JWT. */
+	public static final long SOURCE_APP = 2222;
+
+	/** The slug of the Source App's own registration. */
+	public static final String SOURCE_SLUG = "vibefix-dev-source";
+
+	/** {@code GET /app}'s body for the Source App's JWT: AD-10's Source App, with no events. */
+	public volatile String sourceApp = "{\"slug\":\"" + SOURCE_SLUG + "\",\"permissions\":{\"contents\":\"read\","
+			+ "\"metadata\":\"read\",\"actions\":\"write\"},\"events\":[]}";
+
+	/** The App ID a JWT in {@code authorization} ({@code Bearer …}) names as its {@code iss}; none for an installation token. */
+	public static @org.jspecify.annotations.Nullable Long issuerOf(@org.jspecify.annotations.Nullable String authorization) {
+		if (authorization == null || !authorization.startsWith("Bearer ")) {
+			return null;
+		}
+		String[] parts = authorization.substring("Bearer ".length()).split("\\.");
+		if (parts.length != 3) {
+			return null;
+		}
+		try {
+			JsonNode claims = GitHubHttp.JSON.readTree(java.util.Base64.getUrlDecoder().decode(parts[1]));
+			String issuer = claims.path("iss").asString("");
+			return issuer.matches("[0-9]{1,18}") ? Long.parseLong(issuer) : null;
+		}
+		catch (RuntimeException notAJwt) {
+			return null;
+		}
+	}
+
 	/** {@code GET /app/hook/config}'s body, or none for an App whose webhook is not active (404). */
 	volatile String hookConfig = "{\"url\":\"https://vibefix.test/webhooks\",\"content_type\":\"json\",\"insecure_ssl\":\"0\"}";
 
@@ -245,6 +274,29 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		this.published.put(id, new Published(owner, name, id, before.ownerId(), before.publicRepository(), before.admin(),
 				before.archived()));
+		// The Source App's selection and its lookup follow the repository, and so do its served files (Story 23.5).
+		String oldName = before.owner() + "/" + before.name();
+		String newName = owner + "/" + name;
+		synchronized (this.mergeInstallations) {
+			for (MergeInstallation installation : this.mergeInstallations.values()) {
+				synchronized (installation.repositories) {
+					installation.repositories.replaceAll(repository -> Long.valueOf(id)
+						.equals(((Number) repository.get("id")).longValue())
+								? Map.of("id", id, "full_name", newName, "owner", repository.get("owner")) : repository);
+				}
+			}
+		}
+		Long installation = this.repositoryInstallations.remove(oldName.toLowerCase(java.util.Locale.ROOT));
+		if (installation != null) {
+			this.repositoryInstallations.put(newName.toLowerCase(java.util.Locale.ROOT), installation);
+		}
+		synchronized (this.sourceFiles) {
+			for (String key : List.copyOf(this.sourceFiles.keySet())) {
+				if (key.startsWith(oldName + ":")) {
+					this.sourceFiles.put(newName + key.substring(oldName.length()), this.sourceFiles.remove(key));
+				}
+			}
+		}
 	}
 
 	private @org.jspecify.annotations.Nullable Published published(String owner, String name) {
@@ -504,6 +556,10 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		else if (method.equals("POST") && (matcher = Pattern.compile("/app/installations/(\\d+)/access_tokens").matcher(path)).matches()
 				&& this.mergeInstallations.containsKey(Long.parseLong(matcher.group(1)))) {
+			if (!ownJwt(this.mergeInstallations.get(Long.parseLong(matcher.group(1))), exchange)) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
 			String token = "ghs_stubtoken_" + this.tokens.size() + "_m3rg3";
 			this.tokens.add(token);
 			this.grants.put(token, body);
@@ -513,13 +569,33 @@ public final class GitHubStub implements AutoCloseable {
 		else if (method.equals("GET") && (matcher = Pattern.compile("/app/installations/(\\d+)").matcher(path)).matches()
 				&& Long.parseLong(matcher.group(1)) != INSTALLATION) {
 			MergeInstallation installation = this.mergeInstallations.get(Long.parseLong(matcher.group(1)));
-			if (installation == null) {
+			if (installation == null || !ownJwt(installation, exchange)) {
 				send(exchange, 404, "{\"message\":\"Not Found\"}");
 				return;
 			}
-			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("id", Long.parseLong(matcher.group(1)), "account",
-					Map.of("id", installation.accountId, "login", installation.accountLogin), "repository_selection",
-					installation.all ? "all" : "selected", "suspended_at", installation.suspended ? "2026-10-22T00:00:00Z" : "")));
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(installation.json(Long.parseLong(matcher.group(1)))));
+		}
+		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/installation").matcher(path))
+			.matches()) {
+			// The Source App's installation that reaches a Customer's repository (Story 23.5), read with its own JWT only.
+			Long id = this.repositoryInstallations.get((matcher.group(1) + "/" + matcher.group(2)).toLowerCase(java.util.Locale.ROOT));
+			MergeInstallation installation = id == null ? null : this.mergeInstallations.get(id);
+			boolean found = installation != null && ownJwt(installation, exchange);
+			send(exchange, found ? 200 : 404, found ? GitHubHttp.JSON.writeValueAsString(installation.json(id))
+					: "{\"message\":\"Not Found\"}");
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/collaborators/([^/]+)/permission").matcher(path)).matches()
+				&& !matcher.group(1).equals(ORGANIZATION)) {
+			// A Customer's repository (Story 23.5): the owner, or an account the published repository grants admin, is admin.
+			String repository = matcher.group(1) + "/" + matcher.group(2);
+			String login = java.net.URLDecoder.decode(matcher.group(3), StandardCharsets.UTF_8);
+			Published published = published(matcher.group(1), matcher.group(2));
+			String fallback = published != null && (loginOf(published.ownerId()).equals(login) || published.admin()) ? "admin"
+					: "read";
+			String permission = this.sourcePermissions.getOrDefault(repository, Map.of()).getOrDefault(login, fallback);
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("permission", permission, "role_name", permission,
+					"user", Map.of("login", login))));
 		}
 		else if (method.equals("DELETE") && (matcher = Pattern.compile("/app/installations/(\\d+)").matcher(path)).matches()) {
 			long id = Long.parseLong(matcher.group(1));
@@ -583,7 +659,9 @@ public final class GitHubStub implements AutoCloseable {
 			// without contents read.
 			boolean hidden = matcher.group(1).equals(ORGANIZATION) && isPrivate(matcher.group(2)) && !readsContents(exchange);
 			String ref = java.net.URLDecoder.decode(parameter(query, "ref", "main"), StandardCharsets.UTF_8);
-			Map<String, Object> file = hidden ? null : file(matcher.group(1), matcher.group(2), ref, matcher.group(3));
+			String served = this.sourceFiles.get(matcher.group(1) + "/" + matcher.group(2) + ":" + matcher.group(3));
+			Map<String, Object> file = hidden ? null
+					: served != null ? servedFile(matcher.group(3), served) : file(matcher.group(1), matcher.group(2), ref, matcher.group(3));
 			send(exchange, file == null ? 404 : 200,
 					file == null ? "{\"message\":\"Not Found\"}" : GitHubHttp.JSON.writeValueAsString(file));
 		}
@@ -687,7 +765,9 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, status, status == 204 ? "" : "{\"message\":\"Server Error\"}");
 		}
 		else if (method.equals("GET") && path.equals("/app")) {
-			send(exchange, 200, this.app);
+			// Each App reads its own registration: the Source App's JWT gets the Source App's (Story 23.5).
+			Long issuer = issuerOf(exchange.getRequestHeaders().getFirst("Authorization"));
+			send(exchange, 200, issuer != null && issuer == SOURCE_APP ? this.sourceApp : this.app);
 		}
 		else if (method.equals("GET") && path.equals("/app/hook/config")) {
 			String config = this.hookConfig;
@@ -1243,12 +1323,46 @@ public final class GitHubStub implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Whether the request's JWT may read the installation: one of a known App answers only that App's JWT, as on
+	 * GitHub, where another App's JWT finds nothing.
+	 */
+	private static boolean ownJwt(MergeInstallation installation, HttpExchange exchange) {
+		Long app = installation.appId;
+		if (app == null) {
+			return true;
+		}
+		Long issuer = issuerOf(exchange.getRequestHeaders().getFirst("Authorization"));
+		return issuer != null && issuer.longValue() == app.longValue();
+	}
+
+	/** A {@link #sourceFiles} file as the contents API shows it: GitHub's blob SHA of its exact bytes, and its content. */
+	private static Map<String, Object> servedFile(String path, String content) {
+		byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+		Map<String, Object> file = new LinkedHashMap<>();
+		file.put("type", "file");
+		file.put("name", path.substring(path.lastIndexOf('/') + 1));
+		file.put("path", path);
+		try {
+			java.security.MessageDigest sha1 = java.security.MessageDigest.getInstance("SHA-1");
+			sha1.update(("blob " + bytes.length + "\0").getBytes(StandardCharsets.US_ASCII));
+			file.put("sha", java.util.HexFormat.of().formatHex(sha1.digest(bytes)));
+		}
+		catch (java.security.NoSuchAlgorithmException ex) {
+			throw new IllegalStateException(ex);
+		}
+		file.put("encoding", "base64");
+		file.put("content", java.util.Base64.getMimeEncoder().encodeToString(bytes));
+		return file;
+	}
+
 	/** GitHub numeric IDs of commit authors by email; an author missing here is unresolved, as on GitHub. */
 	public final Map<String, Long> userIds = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	/**
-	 * A Customer's Merge App installation (Story 8.7): its account, its selection, and whether it is
-	 * suspended. Tests change it to show a wider selection or a suspension.
+	 * A Customer's installation of the Merge App (Story 8.7) or the Source App (Story 23.5): its account, its
+	 * selection, the permissions it accepted, and whether it is suspended. Tests change it to show a wider selection,
+	 * a suspension, or a permission not accepted.
 	 */
 	public static final class MergeInstallation {
 
@@ -1256,9 +1370,19 @@ public final class GitHubStub implements AutoCloseable {
 
 		public final String accountLogin;
 
+		/** {@code User} or {@code Organization}. */
+		public volatile String accountType = "User";
+
+		/** The App it belongs to, whose JWT alone reads it and mints its tokens; none for the Merge App's, read by any. */
+		public volatile @org.jspecify.annotations.Nullable Long appId;
+
 		public volatile boolean all;
 
 		public volatile boolean suspended;
+
+		/** The permissions it accepted: the Source App's by default (AD-10). */
+		public final Map<String, String> permissions = Collections
+			.synchronizedMap(new LinkedHashMap<>(Map.of("contents", "read", "metadata", "read", "actions", "write")));
 
 		/** Each selected repository as GitHub lists it: {@code id}, {@code full_name}, {@code owner.id}. */
 		public final List<Map<String, Object>> repositories = Collections.synchronizedList(new ArrayList<>());
@@ -1274,6 +1398,58 @@ public final class GitHubStub implements AutoCloseable {
 			return this;
 		}
 
+		/** Deselects a repository. */
+		public MergeInstallation deselect(long id) {
+			this.repositories.removeIf(repository -> Long.valueOf(id).equals(((Number) repository.get("id")).longValue()));
+			return this;
+		}
+
+		/** The installation as {@code GET /app/installations/{id}} and {@code GET /repos/{owner}/{name}/installation} show it. */
+		Map<String, Object> json(long id) {
+			Map<String, Object> json = new LinkedHashMap<>();
+			json.put("id", id);
+			json.put("account", Map.of("id", this.accountId, "login", this.accountLogin, "type", this.accountType));
+			json.put("repository_selection", this.all ? "all" : "selected");
+			json.put("suspended_at", this.suspended ? "2026-10-22T00:00:00Z" : "");
+			synchronized (this.permissions) {
+				json.put("permissions", Map.copyOf(this.permissions));
+			}
+			return json;
+		}
+
+	}
+
+	/**
+	 * The Source App's installation that reaches each repository outside the organization, by {@code owner/name} in
+	 * lower case, as {@code GET /repos/{owner}/{name}/installation} finds it with the App's JWT (Story 23.5). The
+	 * installation itself is in {@link #mergeInstallations}.
+	 */
+	public final Map<String, Long> repositoryInstallations = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/**
+	 * Each account's permission on a repository outside the organization, by {@code owner/name} and login, as the
+	 * collaborator-permission endpoint reads it (Story 23.5). Unlisted, the repository's owner and an account the
+	 * published repository grants admin read {@code admin}, anyone else {@code read}.
+	 */
+	public final Map<String, Map<String, String>> sourcePermissions = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/**
+	 * Files of repositories outside the organization served by the contents API before their git data, by
+	 * {@code owner/name:path}, with GitHub's blob SHA of their bytes: the Customer's {@code vibefix.yml} (Story 23.5).
+	 */
+	public final Map<String, String> sourceFiles = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/**
+	 * The Source App installed on exactly one repository: its installation, selecting it, reaches it, and only the
+	 * Source App's JWT ({@link #SOURCE_APP}) reads it.
+	 */
+	public long installSource(String owner, String name, long repositoryId, long ownerId) {
+		long installation = this.ids.incrementAndGet();
+		MergeInstallation installed = new MergeInstallation(ownerId, owner).repository(repositoryId, owner + "/" + name, ownerId);
+		installed.appId = SOURCE_APP;
+		this.mergeInstallations.put(installation, installed);
+		this.repositoryInstallations.put((owner + "/" + name).toLowerCase(java.util.Locale.ROOT), installation);
+		return installation;
 	}
 
 	/**

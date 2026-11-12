@@ -145,6 +145,9 @@ class JobSetupIT extends IntegrationTest {
 
 	private String source;
 
+	/** The Customer's Source App installation on the Source Repository (Story 23.5). */
+	private long installation;
+
 	@DynamicPropertySource
 	static void github(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> GITHUB.apiUrl().toString());
@@ -154,6 +157,9 @@ class JobSetupIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 		registry.add("vibefix.github.runner-repository", () -> RUNNER);
 		registry.add("vibefix.github.operator-login", () -> "vibefix-operator");
+		// Story 23.5: the Source checks read the Source Repository through the Customer's Source App installation.
+		registry.add("vibefix.github.source-app.id", () -> "2222");
+		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 	}
 
 	@AfterAll
@@ -164,7 +170,7 @@ class JobSetupIT extends IntegrationTest {
 	@BeforeEach
 	void aCodeJobStarting() throws Exception {
 		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		// A fake token, built at run time; the stub accepts any.
+		// A fake token, built at run time; the stub accepts any. The contributors check still reads with it (23.5b).
 		CustomerTokens.keep(this.context, this.customer, String.join("", "gh", "o_", "x".repeat(36)));
 		this.mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
@@ -174,7 +180,12 @@ class JobSetupIT extends IntegrationTest {
 		String name = "so-dat-ban-" + repository;
 		this.source = "lan-dev/" + name;
 		GITHUB.source("lan-dev", name);
-		GITHUB.publish("lan-dev", name, repository, CustomerTokens.githubUserId(this.jdbc, this.customer), true, false);
+		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		GITHUB.publish("lan-dev", name, repository, owner, true, false);
+		// The Customer's Source App on exactly the Source Repository, and the published vibefix.yml on its default branch.
+		this.installation = GITHUB.installSource("lan-dev", name, repository, owner);
+		GITHUB.sourceFiles.put(this.source + ":.github/workflows/vibefix.yml",
+				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
 		this.product = UUID.randomUUID();
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
@@ -1128,21 +1139,26 @@ class JobSetupIT extends IntegrationTest {
 		}
 	}
 
-	/** The Customer's kept token is gone: Setup blocks on a re-link, and so does a re-confirmation. */
+	/**
+	 * Story 23.5: the Customer uninstalled the Source App, so Setup blocks on it and so does a re-confirmation. The
+	 * Customer's kept linking token plays no part: none of the Source checks reads with it.
+	 */
 	@Test
-	void aMissingTokenBlocksSetupAndTheReconfirmationOnARelink() throws Exception {
+	void anUninstalledSourceAppBlocksSetupAndTheReconfirmation() throws Exception {
 		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", this.customer).update();
+		GITHUB.mergeInstallations.remove(this.installation);
+		GITHUB.repositoryInstallations.values().remove(this.installation);
 
 		j6();
 		this.worker.runDue(Lane.GITHUB_LONG);
 
 		Setup blocked = this.setups.latest(this.job).orElseThrow();
 		assertThat(blocked.status()).isEqualTo("BLOCKED");
-		assertThat(blocked.block()).isEqualTo(JobSetups.Block.RELINK_GITHUB);
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.relink_github' AND account_id = :id
-				    AND closed_at IS NULL
-				""").param("id", this.customer).query(Long.class).single()).as("the live Product's owner re-links").isOne();
+		assertThat(blocked.block()).isEqualTo(JobSetups.Block.SOURCE_APP_MISSING);
+		assertThat(this.jdbc.sql("SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked'")
+			.query(String.class).list()).containsOnly("ứng dụng vibefix chưa được cài trên dự án gốc");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.blockedReason").value("SOURCE_APP_MISSING"));
 
 		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
 		this.jdbc.sql("""
@@ -1154,7 +1170,26 @@ class JobSetupIT extends IntegrationTest {
 			.with(csrf()))
 			.andExpect(status().is(422))
 			.andExpect(jsonPath("$.code").value("GUARD_FAILED"))
-			.andExpect(jsonPath("$.reason").value("RELINK_GITHUB"));
+			.andExpect(jsonPath("$.reason").value("SOURCE_APP_MISSING"));
+	}
+
+	/** Story 23.5: the Customer deselected the Source Repository from the Source App, so Setup blocks on the selection. */
+	@Test
+	void aSourceRepositoryNoLongerSelectedBlocksSetupOnTheSelection() throws Exception {
+		long repository = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id")
+			.param("id", this.product).query(Long.class).single();
+		GITHUB.mergeInstallations.get(this.installation).deselect(repository);
+
+		j6();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		Setup blocked = this.setups.latest(this.job).orElseThrow();
+		assertThat(blocked.status()).isEqualTo("BLOCKED");
+		assertThat(blocked.block()).isEqualTo(JobSetups.Block.SOURCE_APP_WRONG_REPOSITORY);
+		assertThat(this.jdbc.sql("SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked'")
+			.query(String.class).list()).containsOnly("ứng dụng vibefix phải được cài cho đúng một kho là dự án gốc");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.blockedReason").value("SOURCE_APP_WRONG_REPOSITORY"));
 	}
 
 	private JobGrants.Grant crewGrant() {
@@ -1368,35 +1403,47 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(done.approvedSha()).isEqualTo(GITHUB.head("lan-dev", this.source.substring("lan-dev/".length()), "main"));
 	}
 
+	/**
+	 * Story 23.5: the Customer changed {@code vibefix.yml} after registration, so Setup blocks before anything is copied
+	 * with {@code WORKFLOW_MISMATCH}, until they add the published file again and try again. A repository that is not
+	 * public reads through the Source App like any other.
+	 */
 	@Test
-	void aPrivateSourceBlocksBeforeAnyCopyUntilTheCustomerMakesItPublicAndTriesAgain() throws Exception {
+	void aChangedWorkflowFileBlocksBeforeAnyCopyUntilTheCustomerAddsThePublishedOneAndTriesAgain() throws Exception {
 		String name = this.source.substring("lan-dev/".length());
 		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
 			.query(Long.class).single();
 		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
 		GITHUB.publish("lan-dev", name, id, owner, false, false);
+		String published = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW);
+		GITHUB.sourceFiles.put(this.source + ":.github/workflows/vibefix.yml", published + "      # changed\n");
 
 		j6();
 		this.worker.runDue(Lane.GITHUB_LONG);
 
 		Setup blocked = this.setups.latest(this.job).orElseThrow();
-		assertThat(blocked.block()).isEqualTo(JobSetups.Block.SOURCE_NOT_PUBLIC);
+		assertThat(blocked.block()).isEqualTo(JobSetups.Block.WORKFLOW_MISMATCH);
 		assertThat(blocked.approvedSha()).as("no head was read").isNull();
 		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.job_setup'")
 			.query(String.class).single()).isEqualTo("ABORTED");
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the block releases the marker").isEmpty();
 		assertThat(this.jdbc.sql("SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked'")
 			.query(String.class).list()).as("the Customer and the Mentor, each with the reason").hasSize(2)
-			.containsOnly("dự án gốc không còn công khai");
+			.containsOnly("file workflow vibefix.yml trong dự án gốc khác bản vibefix công bố");
 		assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job))).as("nothing was created").isNull();
+		assertThat(GITHUB.revokedTokens).as("every Source App token is revoked")
+			.containsAll(GITHUB.tokensOf(this.installation));
+		assertThat(GITHUB.tokensOf(this.installation)).as("the selection read, then one token narrowed to the repository")
+			.anySatisfy(token -> assertThat(GITHUB.grantOf(token).path("repository_ids").toString()).isEqualTo("[" + id + "]"));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("BLOCKED"))
 			.andExpect(jsonPath("$.steps[0].state").value("BLOCKED"))
-			.andExpect(jsonPath("$.blockedReason").value("SOURCE_NOT_PUBLIC"))
+			.andExpect(jsonPath("$.blockedReason").value("WORKFLOW_MISMATCH"))
 			.andExpect(jsonPath("$.canRetry").value(true));
 
 		GITHUB.publish("lan-dev", name, id, owner, true, false);
+		GITHUB.sourceFiles.put(this.source + ":.github/workflows/vibefix.yml", published);
 		// The new attempt starts later than the blocked one, as it would on a running clock.
 		this.clock.advance(Duration.ofMinutes(1));
 		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/setup/retry").with(as(this.customer, Role.CUSTOMER)).with(csrf()))
@@ -1435,7 +1482,7 @@ class JobSetupIT extends IntegrationTest {
 		this.clock.advance(Duration.ofMinutes(1));
 		this.jdbc.sql("""
 				INSERT INTO repo.job_setup (id, job_id, product_id, status, blocked_reason, started_at, finished_at)
-				VALUES (:id, :job, :product, 'BLOCKED', 'SOURCE_NOT_PUBLIC', :now, :now)
+				VALUES (:id, :job, :product, 'BLOCKED', 'SOURCE_APP_MISSING', :now, :now)
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("product", this.product)
 			.param("now", Timestamp.from(this.clock.instant())).update();
 

@@ -1,15 +1,19 @@
 # vibefix, local development stack: the external accounts the end-to-end path needs (checkpoint 1).
-# Layered over compose.yaml, it gives the backend the dev Platform App and Merge App (AD-10) and the
-# dev VNPay sandbox merchant (AD-14). Without it, repository setup fails with GITHUB_UNAVAILABLE,
-# the Final Merge cannot be authorized, and payment orders cannot be created.
+# Layered over compose.yaml, it gives the backend the dev Platform App, Merge App and Source App (AD-10)
+# and the dev VNPay sandbox merchant (AD-14). Without it, repository setup fails with GITHUB_UNAVAILABLE,
+# a Product cannot be registered (the Source App reads the Source Repository, Story 23.5), the Final Merge
+# cannot be authorized, and payment orders cannot be created.
 #
 # The IDs come from deploy/.env (ignored by git; copy .env.example), and the keys stay secret files
-# in deploy/secrets/ (AD-22): github-platform-app-key.pem, github-merge-app-key.pem, vnpay-hash-secret.
+# in deploy/secrets/ (AD-22): github-platform-app-key.pem, github-merge-app-key.pem,
+# github-source-app-key.pem, vnpay-hash-secret. The Source App takes no installation ID: each Customer
+# installs it on their own Source Repository.
 #
 #   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait
 #
 # No webhook reaches localhost, so the sweeps read GitHub back instead (invitations, pushes, drift:
-# every 10 minutes), and VNPay's IPN is relayed by hand (deploy/README.md, "Checkpoint 1").
+# every 10 minutes), and VNPay's IPN is relayed by hand (deploy/README.md, "Checkpoint 1"). The Source App
+# has no webhook at all.
 services:
   backend:
     environment:
@@ -18,11 +22,14 @@ services:
       VIBEFIX_GITHUB_PLATFORMAPP_KEYFILE: /run/secrets/github-platform-app-key
       VIBEFIX_GITHUB_MERGEAPP_ID: ${VIBEFIX_MERGE_APP_ID:?set VIBEFIX_MERGE_APP_ID in deploy/.env}
       VIBEFIX_GITHUB_MERGEAPP_KEYFILE: /run/secrets/github-merge-app-key
+      VIBEFIX_GITHUB_SOURCEAPP_ID: ${VIBEFIX_SOURCE_APP_ID:?set VIBEFIX_SOURCE_APP_ID in deploy/.env}
+      VIBEFIX_GITHUB_SOURCEAPP_KEYFILE: /run/secrets/github-source-app-key
       VIBEFIX_PAYMENT_VNPAY_TMNCODE: ${VIBEFIX_VNPAY_TMN_CODE:?set VIBEFIX_VNPAY_TMN_CODE in deploy/.env}
       VIBEFIX_PAYMENT_VNPAY_HASHSECRETFILE: /run/secrets/vnpay-hash-secret
     secrets:
       - github-platform-app-key
       - github-merge-app-key
+      - github-source-app-key
       - vnpay-hash-secret
 
 secrets:
@@ -30,5 +37,7 @@ secrets:
     file: ./secrets/github-platform-app-key.pem
   github-merge-app-key:
     file: ./secrets/github-merge-app-key.pem
+  github-source-app-key:
+    file: ./secrets/github-source-app-key.pem
   vnpay-hash-secret:
     file: ./secrets/vnpay-hash-secret

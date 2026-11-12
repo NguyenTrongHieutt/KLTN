@@ -4044,7 +4044,7 @@
     },
     "/api/v1/github/merge-app/setup" : {
       "get" : {
-        "operationId" : "setup_1",
+        "operationId" : "setup_2",
         "parameters" : [ {
           "in" : "query",
           "name" : "installation_id",
@@ -4074,6 +4074,40 @@
           }
         },
         "tags" : [ "final-merge-controller" ]
+      }
+    },
+    "/api/v1/github/source-app/setup" : {
+      "get" : {
+        "operationId" : "setup_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "installation_id",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "setup_action",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "state",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "source-app-setup-controller" ]
       }
     },
     "/api/v1/handovers/{handoverId}" : {
@@ -5064,7 +5098,7 @@
     },
     "/api/v1/jobs/{jobId}/final-merge/install-link" : {
       "post" : {
-        "operationId" : "installLink",
+        "operationId" : "installLink_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -7353,6 +7387,80 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/RepositoryCheckView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/source-app/install-link" : {
+      "post" : {
+        "operationId" : "installLink",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RepositoryCheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SourceAppInstallLinkView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/workflow-check" : {
+      "post" : {
+        "operationId" : "workflowCheck",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RepositoryCheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowCheckView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/workflow-file" : {
+      "get" : {
+        "operationId" : "workflowFile",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowFileView"
                 }
               }
             },
@@ -16813,6 +16921,9 @@
           "repositoryUrl" : {
             "type" : "string"
           },
+          "sourceApp" : {
+            "$ref" : "#/components/schemas/SourceAppView"
+          },
           "tools" : {
             "type" : "array",
             "items" : {
@@ -18466,6 +18577,34 @@
           }
         },
         "required" : [ "number", "status", "version", "workItemId" ]
+      },
+      "SourceAppInstallLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "url" ]
+      },
+      "SourceAppView" : {
+        "type" : "object",
+        "properties" : {
+          "accountLogin" : {
+            "type" : "string"
+          },
+          "accountType" : {
+            "type" : "string"
+          },
+          "otherProducts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "settingsUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accountLogin", "accountType", "otherProducts", "settingsUrl" ]
       },
       "SplitCardView" : {
         "type" : "object",
@@ -20167,6 +20306,33 @@
           }
         },
         "required" : [ "milestoneId", "title", "type" ]
+      },
+      "WorkflowCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "defaultBranch" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "defaultBranch", "fullName" ]
+      },
+      "WorkflowFileView" : {
+        "type" : "object",
+        "properties" : {
+          "blob" : {
+            "type" : "string"
+          },
+          "content" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "blob", "content", "path" ]
       },
       "WorkloadView" : {
         "type" : "object",

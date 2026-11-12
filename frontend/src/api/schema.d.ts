@@ -1851,6 +1851,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get: operations["setup_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/github/source-app/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         get: operations["setup_1"];
         put?: never;
         post?: never;
@@ -2317,7 +2333,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["installLink"];
+        post: operations["installLink_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3342,6 +3358,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/source-app/install-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["installLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/workflow-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["workflowCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/workflow-file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workflowFile"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6885,6 +6949,7 @@ export interface components {
             repositoryFullName: string;
             repositoryOwnerType: string;
             repositoryUrl: string;
+            sourceApp?: components["schemas"]["SourceAppView"];
             tools: ("LOVABLE" | "BOLT" | "REPLIT" | "V0" | "BASE44" | "CURSOR" | "CLAUDE_CODE" | "CODEX" | "OTHER")[];
         };
         ProfileRequest: {
@@ -7454,6 +7519,16 @@ export interface components {
             version: number;
             /** Format: uuid */
             workItemId: string;
+        };
+        SourceAppInstallLinkView: {
+            url: string;
+        };
+        SourceAppView: {
+            accountLogin: string;
+            accountType: string;
+            /** Format: int32 */
+            otherProducts: number;
+            settingsUrl: string;
         };
         SplitCardView: {
             /** Format: int32 */
@@ -8091,6 +8166,15 @@ export interface components {
             type: "STORY" | "TASK" | "BUG";
             /** Format: int64 */
             version?: number;
+        };
+        WorkflowCheckView: {
+            defaultBranch: string;
+            fullName: string;
+        };
+        WorkflowFileView: {
+            blob: string;
+            content: string;
+            path: string;
         };
         WorkloadView: {
             /** Format: uuid */
@@ -11184,6 +11268,28 @@ export interface operations {
             };
         };
     };
+    setup_2: {
+        parameters: {
+            query?: {
+                installation_id?: number;
+                setup_action?: string;
+                state?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     setup_1: {
         parameters: {
             query?: {
@@ -11959,7 +12065,7 @@ export interface operations {
             };
         };
     };
-    installLink: {
+    installLink_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -13642,6 +13748,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RepositoryCheckView"];
+                };
+            };
+        };
+    };
+    installLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceAppInstallLinkView"];
+                };
+            };
+        };
+    };
+    workflowCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowCheckView"];
+                };
+            };
+        };
+    };
+    workflowFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowFileView"];
                 };
             };
         };

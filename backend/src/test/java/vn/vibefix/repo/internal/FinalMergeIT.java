@@ -125,6 +125,9 @@ class FinalMergeIT extends IntegrationTest {
 		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
 		registry.add("vibefix.github.merge-app.id", () -> "654321");
 		registry.add("vibefix.github.merge-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		// Story 23.5: the Source check before the Final Merge reads through the Customer's Source App.
+		registry.add("vibefix.github.source-app.id", () -> "2222");
+		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 	}
 
 	@AfterAll
@@ -145,6 +148,10 @@ class FinalMergeIT extends IntegrationTest {
 		this.repository = id;
 		GITHUB.source(this.owner, this.name);
 		GITHUB.publish(this.owner, this.name, this.repository, this.ownerId, true, true);
+		// The Customer's Source App on exactly the Source Repository, and the published vibefix.yml (Story 23.5).
+		GITHUB.installSource(this.owner, this.name, this.repository, this.ownerId);
+		GITHUB.sourceFiles.put(this.owner + "/" + this.name + ":.github/workflows/vibefix.yml",
+				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
 		String approved = GITHUB.head(this.owner, this.name, "main");
 		this.intermediary = "job-" + id + "-intermediary";
 		long intermediaryId = GITHUB.platformRepository(this.intermediary, this.owner, this.name);
@@ -353,6 +360,38 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(mergeStatus()).isEqualTo("CHECKING");
 		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
 			.query(String.class).single()).isEqualTo("PENDING");
+	}
+
+	@Test
+	void anUninstalledSourceAppMakesTheCheckWaitForTheCustomerWithNoZip() throws Exception {
+		bind();
+		// The Customer uninstalls the Source App during Closing: they can install it again, so nothing ends.
+		Long source = GITHUB.repositoryInstallations.remove((this.owner + "/" + this.name).toLowerCase(java.util.Locale.ROOT));
+		assertThat(source).isNotNull();
+		GITHUB.mergeInstallations.remove(source);
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		waitsForTheCustomer();
+	}
+
+	@Test
+	void aChangedWorkflowMakesTheCheckWaitForTheCustomerWithNoZip() throws Exception {
+		bind();
+		GITHUB.sourceFiles.put(this.owner + "/" + this.name + ":.github/workflows/vibefix.yml",
+				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW) + "# changed\n");
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		waitsForTheCustomer();
+	}
+
+	/** A Source block the Customer can fix: the check waits, the authorization stays, and no ZIP Fallback starts. */
+	private void waitsForTheCustomer() {
+		assertThat(mergeStatus()).isEqualTo("CHECKING");
+		assertThat(authorizationStatus()).isEqualTo("BOUND");
+		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
+			.query(String.class).single()).isEqualTo("PENDING");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
 	}
 
 	@Test

@@ -26,10 +26,13 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  * collaborator. Unset (or blank), it is an organization difference: the sweep alerts it, and new
  * setups wait until it is set
  * @param exchange the Actions token exchange (AD-44, Story 23.4)
+ * @param sourceApp the Source App (AD-10, Story 23.5): its ID and key file only. Each Customer installs it on
+ * their own Source Repository, so no installation is configured, and it has no webhook
  */
 @ConfigurationProperties("vibefix.github")
 record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-		@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository, Exchange exchange) {
+		@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository, Exchange exchange,
+		@Nullable AppProperties sourceApp) {
 
 	/** A repository name, as GitHub allows it inside an organization. */
 	private static final Pattern REPOSITORY_NAME = Pattern.compile("[A-Za-z0-9._-]{1,100}");
@@ -173,6 +176,12 @@ record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @
 		if (exchange == null) {
 			exchange = Exchange.NONE;
 		}
+	}
+
+	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
+			@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository,
+			@Nullable Exchange exchange) {
+		this(apiUrl, gitUrl, organization, platformApp, mergeApp, webhookUrl, runnerRepository, exchange, null);
 	}
 
 	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,

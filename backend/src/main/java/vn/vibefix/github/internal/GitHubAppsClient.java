@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.JsonNode;
@@ -63,6 +64,10 @@ class GitHubAppsClient implements GitHubApps {
 	 */
 	InstallationToken mint(App app, Collection<Long> repositoryIds, Map<String, String> permissions) {
 		AppProperties configured = configured(app);
+		if (app == App.SOURCE) {
+			// Each Customer has their own installation of the Source App (AD-10): SourceApp names it, never a property.
+			throw new GitHubException(0, propertyName(app) + " has no installation of the platform's own");
+		}
 		if (configured.installationId() == null) {
 			throw new GitHubException(0, propertyName(app) + ".installation-id is not configured");
 		}
@@ -70,8 +75,9 @@ class GitHubAppsClient implements GitHubApps {
 	}
 
 	/**
-	 * Mints a token from one installation, unchecked: the Merge App's installations are the Customers'
-	 * (AD-10), so {@link GitHubMergeApp} names the installation and holds its rules.
+	 * Mints a token from one installation, unchecked: the Merge App's and the Source App's installations are the
+	 * Customers' (AD-10), so {@link GitHubMergeApp} and {@link GitHubSourceApp} name the installation and hold
+	 * its rules.
 	 */
 	InstallationToken mintFrom(App app, long installationId, Collection<Long> repositoryIds, Map<String, String> permissions) {
 		Map<String, Object> body = new LinkedHashMap<>();
@@ -140,7 +146,7 @@ class GitHubAppsClient implements GitHubApps {
 
 	/** Whether the App has an ID configured, so the daily jobs read it. */
 	boolean isConfigured(App app) {
-		AppProperties configured = app == App.PLATFORM ? this.properties.platformApp() : this.properties.mergeApp();
+		AppProperties configured = properties(app);
 		return configured != null && configured.id() != null && configured.keyFile() != null;
 	}
 
@@ -167,15 +173,27 @@ class GitHubAppsClient implements GitHubApps {
 	}
 
 	private AppProperties configured(App app) {
-		AppProperties configured = app == App.PLATFORM ? this.properties.platformApp() : this.properties.mergeApp();
+		AppProperties configured = properties(app);
 		if (configured == null || configured.id() == null) {
 			throw new GitHubException(0, propertyName(app) + ".id is not configured");
 		}
 		return configured;
 	}
 
+	private @Nullable AppProperties properties(App app) {
+		return switch (app) {
+			case PLATFORM -> this.properties.platformApp();
+			case MERGE -> this.properties.mergeApp();
+			case SOURCE -> this.properties.sourceApp();
+		};
+	}
+
 	private static String propertyName(App app) {
-		return app == App.PLATFORM ? "vibefix.github.platform-app" : "vibefix.github.merge-app";
+		return switch (app) {
+			case PLATFORM -> "vibefix.github.platform-app";
+			case MERGE -> "vibefix.github.merge-app";
+			case SOURCE -> "vibefix.github.source-app";
+		};
 	}
 
 }

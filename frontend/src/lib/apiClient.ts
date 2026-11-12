@@ -56,6 +56,10 @@ export interface Problem {
   attemptsLeft?: number
   /** `JOB_INCOMPLETE`: the answers publishing still needs (FR-9). */
   missing?: string[]
+  /** A repository check's refusal (`product`): the repository's `owner/name`, which fills a reason's `{repo}`. */
+  repository?: string
+  /** `WORKFLOW_MISMATCH`: the file holds a carriage return, so the copy warns about line endings (AD-45). */
+  lineEndings?: boolean
 }
 
 export class ApiError extends Error {

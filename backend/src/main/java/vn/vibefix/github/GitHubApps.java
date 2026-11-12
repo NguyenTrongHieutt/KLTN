@@ -15,14 +15,21 @@ import java.util.function.Function;
  */
 public interface GitHubApps {
 
-	/** The two GitHub Apps of an environment; the sign-in OAuth App lives in {@code identity}. */
+	/** The GitHub Apps of an environment; the linking OAuth App lives in {@code identity}. */
 	enum App {
 
 		/** Installed only on the platform organization: private copies, invitations, pull requests, the runner. */
 		PLATFORM,
 
 		/** Installed by a Customer on their Source Repository for one Final Merge. */
-		MERGE
+		MERGE,
+
+		/**
+		 * Installed by each Customer on exactly their Source Repository (AD-10, AD-13, Story 23.5): Contents and
+		 * Metadata read and Actions write, and no webhook. Each installation is a Customer's own, so none is
+		 * configured; {@link SourceApp} names it for every token.
+		 */
+		SOURCE
 
 	}
 

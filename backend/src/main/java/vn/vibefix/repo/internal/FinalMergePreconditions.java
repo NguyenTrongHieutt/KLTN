@@ -14,8 +14,10 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
 /**
  * What the Final Merge checks before acting (FR-37, NFR-6, AD-11, SG-9), outside any transaction:
  * <ul>
- * <li>the Source Repository, read again by its permanent ID with the Customer's token: gone or private
- * routes to the ZIP Fallback; a token to renew or a lost admin right waits for the Customer;</li>
+ * <li>the Source Repository, read again by its permanent ID through the Customer's Source App binding (Story
+ * 23.5): every block (the Source App missing, suspended, or on the wrong repositories, a missing or different
+ * {@code vibefix.yml}, or a lost admin right) waits for the Customer, who can fix it or choose the ZIP
+ * themselves; no Source block routes to the ZIP Fallback;</li>
  * <li>every grant of the Mentor and the Crew read back as revoked, else it waits;</li>
  * <li>J9's guard: the Intermediary default branch's head is the head {@code repo} read back after its
  * last handover merge, or the J7 commit when it made none; anything else routes to the ZIP Fallback.</li>
@@ -28,7 +30,7 @@ class FinalMergePreconditions {
 	/** Where the preconditions stand. */
 	enum Verdict {
 
-		HOLD, WAIT_FOR_CUSTOMER, WAIT_FOR_REVOCATION, SOURCE_GONE, GUARD_FAILED
+		HOLD, WAIT_FOR_CUSTOMER, WAIT_FOR_REVOCATION, GUARD_FAILED
 
 	}
 
@@ -58,9 +60,6 @@ class FinalMergePreconditions {
 
 	Read read(UUID jobId, UUID productId) {
 		SourceCheck source = this.sources.check(productId);
-		if (source.block() == ProductSources.Block.SOURCE_NOT_PUBLIC) {
-			return new Read(Verdict.SOURCE_GONE, source, null, null, null);
-		}
 		if (source.block() != null) {
 			return new Read(Verdict.WAIT_FOR_CUSTOMER, source, null, null, null);
 		}
