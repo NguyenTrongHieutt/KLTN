@@ -86,7 +86,8 @@ describe('PUB-6 Administrator sign-in (FR-2, AD-19)', () => {
       password: 'dung-mat-khau-dai-12',
       code: '482107',
     })
-  })
+    // It types three fields and loads two lazy routes; under the full suite that can pass the default 5 s.
+  }, 15_000)
 
   it('says only that something is wrong, and clears the code', async () => {
     const user = userEvent.setup()
