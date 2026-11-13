@@ -36,12 +36,6 @@ enum RepoReason {
 	/** The Customer no longer administers the re-confirmed repository (FR-20, AD-13). */
 	NO_ADMIN_PERMISSION,
 
-	/**
-	 * The Customer's kept token is missing or refused (AD-10, AD-13). {@code product} no longer answers it since
-	 * Story 23.5; it stays until Story 23.5d retires the linking token.
-	 */
-	RELINK_GITHUB,
-
 	/** The Job has no open Final Merge authorization to install the Merge App for (FR-37, AD-10). */
 	NO_AUTHORIZATION_OPEN,
 

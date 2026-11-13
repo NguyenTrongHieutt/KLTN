@@ -34,7 +34,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.AccountLocked;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
@@ -50,7 +49,7 @@ import vn.vibefix.support.IntegrationTest;
 
 /**
  * Story 7.2 (FR-18, AD-5, AD-11, AD-28): J6 of a Code Job sets up its repositories under the busy marker.
- * The Source Repository is read again with the Customer's token and its default branch's head through the
+ * The Source Repository is read again through the Customer's Source App and its default branch's head through the
  * GitHub API (vibefix scans no code, Story 23.1). Story 23.3 (D1, D5): once the organization and the runner read
  * back clean, the Intermediary and the Working Repository are two private copies of exactly that commit, each
  * read back (private, features and forking off, Actions disabled) before anything is pushed; there is no fork
@@ -179,7 +178,7 @@ class JobSetupIT extends IntegrationTest {
 		String name = "so-dat-ban-" + repository;
 		this.source = "lan-dev/" + name;
 		GITHUB.source("lan-dev", name);
-		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long owner = githubUserId(this.customer);
 		GITHUB.publish("lan-dev", name, repository, owner, true, false);
 		// The Customer's Source App on exactly the Source Repository, and the published vibefix.yml on its default branch.
 		this.installation = GITHUB.installSource("lan-dev", name, repository, owner);
@@ -576,7 +575,7 @@ class JobSetupIT extends IntegrationTest {
 		String working = JobSetups.workingName(this.job);
 		long intermediaryId = GITHUB.organizationRepositoryId(intermediary);
 		long workingId = GITHUB.organizationRepositoryId(working);
-		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		long crewId = githubUserId(this.crew);
 		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.pulls.put(intermediary, new java.util.LinkedHashMap<>(Map.of(1, "mallory", 2, "vibefix-dev-platform[bot]")));
 		GITHUB.pulls.put(working, new java.util.LinkedHashMap<>(Map.of(3, crewLogin)));
@@ -945,7 +944,7 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void aGranteeWhoRenamedTheirGitHubAccountIsInvitedRecognizedAndRaisedByTheirId() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		long crewId = githubUserId(this.crew);
 		String oldLogin = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.logins.put(crewId, "thao-vy-moi");
 		try {
@@ -997,7 +996,7 @@ class JobSetupIT extends IntegrationTest {
 		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		this.checks.check(this.job);
 
-		assertThat(crewGrant().githubUserId()).isEqualTo(CustomerTokens.githubUserId(this.jdbc, this.crew));
+		assertThat(crewGrant().githubUserId()).isEqualTo(githubUserId(this.crew));
 		assertThat(crewGrant().status()).isEqualTo("ACCEPTED");
 		JobGrants.Grant mentor = this.grants.ofJob(this.job).stream().filter(grant -> grant.accountId().equals(this.mentor))
 			.findFirst().orElseThrow();
@@ -1007,7 +1006,7 @@ class JobSetupIT extends IntegrationTest {
 	/** A rename after the invitation and before its acceptance: acceptance, two-factor, and the raise go by ID. */
 	@Test
 	void aGranteeWhoRenamesAfterTheInvitationIsAcceptedCheckedAndRaisedByTheirId() throws Exception {
-		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		long crewId = githubUserId(this.crew);
 		try {
 			j6();
 			run();
@@ -1044,7 +1043,7 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void aGranteeWhoRenamesOnceActiveIsNoDriftAndJ8RevokesTheirNewLogin() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
-		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		long crewId = githubUserId(this.crew);
 		try {
 			active();
 			GITHUB.renameUser(crewId, "thao-vy-moi");
@@ -1075,7 +1074,7 @@ class JobSetupIT extends IntegrationTest {
 		active();
 		UUID hai = TestPeople.student(this.jdbc, "Phạm Văn Hải", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-12-31"));
-		long haiId = CustomerTokens.githubUserId(this.jdbc, hai);
+		long haiId = githubUserId(hai);
 		UUID row = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
@@ -1109,7 +1108,7 @@ class JobSetupIT extends IntegrationTest {
 	/** A GitHub account deleted on GitHub cannot be invited; its revocation names the last login. */
 	@Test
 	void aGitHubAccountThatIsGoneIsNotInvitedAndItsRevocationUsesTheStoredLogin() throws Exception {
-		long crewId = CustomerTokens.githubUserId(this.jdbc, this.crew);
+		long crewId = githubUserId(this.crew);
 		String stored = TestPeople.login(this.jdbc, this.crew);
 		GITHUB.goneUsers.add(crewId);
 		try {
@@ -1138,13 +1137,9 @@ class JobSetupIT extends IntegrationTest {
 		}
 	}
 
-	/**
-	 * Story 23.5: the Customer uninstalled the Source App, so Setup blocks on it and so does a re-confirmation. The
-	 * Customer's kept linking token plays no part: none of the Source checks reads with it.
-	 */
+	/** Story 23.5: the Customer uninstalled the Source App, so Setup blocks on it and so does a re-confirmation. */
 	@Test
 	void anUninstalledSourceAppBlocksSetupAndTheReconfirmation() throws Exception {
-		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", this.customer).update();
 		GITHUB.mergeInstallations.remove(this.installation);
 		GITHUB.repositoryInstallations.values().remove(this.installation);
 
@@ -1218,7 +1213,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(productTodos()).containsExactly("product.install_source_app");
 		assertThat(workflowCheckFailures()).as("once, to the Product's Customer").containsExactly(this.customer);
 
-		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long owner = githubUserId(this.customer);
 		long repository = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id")
 			.param("id", this.product).query(Long.class).single();
 		GITHUB.installSource("lan-dev", this.source.substring(this.source.indexOf('/') + 1), repository, owner);
@@ -1308,7 +1303,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
 			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED, SourceDrift.Kind.ARCHIVED);
 		// R7 (Story 23.5b): the Source App reads a private repository, so making it private is no drift.
-		GITHUB.publish("lan-dev", name + "-v2", id, CustomerTokens.githubUserId(this.jdbc, this.customer), false, false);
+		GITHUB.publish("lan-dev", name + "-v2", id, githubUserId(this.customer), false, false);
 		this.clock.advance(Duration.ofDays(1));
 		this.drift.poll();
 		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind).as("made private warns nothing")
@@ -1378,7 +1373,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
 		GITHUB.sourceFiles.put(workflow, published);
 
-		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long owner = githubUserId(this.customer);
 		GITHUB.mergeInstallations.get(this.installation).deselect(id);
 		this.clock.advance(Duration.ofDays(1));
 		this.drift.poll();
@@ -1420,7 +1415,7 @@ class JobSetupIT extends IntegrationTest {
 		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
 			.query(Long.class).single();
 		String name = this.source.substring("lan-dev/".length());
-		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long owner = githubUserId(this.customer);
 
 		GITHUB.mergeInstallations.get(this.installation).deselect(id);
 		GITHUB.rename(id, "lan-shop", name);
@@ -1483,7 +1478,7 @@ class JobSetupIT extends IntegrationTest {
 		String pushed = GITHUB.push("lan-dev", this.source.substring("lan-dev/".length()), "main", "app.js",
 				"console.log('Lovable')\n");
 
-		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long owner = githubUserId(this.customer);
 		long repository = REPOSITORY_IDS.incrementAndGet();
 		String name = "lan-dev/so-dat-ban-" + repository;
 		long installed = GITHUB.installSource("lan-dev", name.substring("lan-dev/".length()), repository, owner);
@@ -1693,7 +1688,7 @@ class JobSetupIT extends IntegrationTest {
 		String name = this.source.substring("lan-dev/".length());
 		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
 			.query(Long.class).single();
-		long owner = CustomerTokens.githubUserId(this.jdbc, this.customer);
+		long owner = githubUserId(this.customer);
 		GITHUB.publish("lan-dev", name, id, owner, false, false);
 		String published = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW);
 		GITHUB.sourceFiles.put(this.source + ":.github/workflows/vibefix.yml", published + "      # changed\n");
@@ -1845,6 +1840,12 @@ class JobSetupIT extends IntegrationTest {
 
 	private RequestPostProcessor as(UUID account, Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
+	}
+
+	private long githubUserId(UUID account) {
+		return this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id").param("id", account)
+			.query(Long.class)
+			.single();
 	}
 
 }

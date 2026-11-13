@@ -89,7 +89,7 @@ class BootstrapCommand implements ApplicationRunner, ExitCodeGenerator {
 			this.err.println("Usage: --spring.profiles.active=dev,cli --vibefix.cli.command=" + COMMAND
 					+ " --email=<address> --name=<display name>; the password comes from the console or "
 					+ PASSWORD_VARIABLE + ". Also: --vibefix.cli.command=" + SpikeS1Command.COMMAND
-					+ " --github-login=<Customer> --repo=<owner/name>, " + SPIKE_S4 + " (deploy/README.md, \"Spike S4\"), "
+					+ " --repo=<owner/name> with " + SpikeS1Command.TOKEN_VARIABLE + ", " + SPIKE_S4 + " (deploy/README.md, \"Spike S4\"), "
 					+ SPIKE_S2 + " (\"Spike S2\"), " + SpikeS5Command.COMMAND + " (\"Spike S5\"), " + SPIKE_S6
 					+ " (\"Spike S6\": copies on the Customer's Actions and the runner's, tokens through OIDC), and "
 					+ RUNNER_DISPATCH + " (\"Actions exchange on the dev stack\": a handover copy on the runner), dev only.");

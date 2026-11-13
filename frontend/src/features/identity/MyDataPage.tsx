@@ -89,9 +89,7 @@ function Deletion({ data }: { data: MyData }) {
               </ul>
             </div>
           )}
-          <p className="text-caption text-muted-foreground">
-            {t(data.tokenKept ? 'screen.myData.githubRevoked' : 'screen.myData.githubYourself')}
-          </p>
+          <p className="text-caption text-muted-foreground">{t('screen.myData.githubNothingKept')}</p>
         </>
       ) : (
         <>

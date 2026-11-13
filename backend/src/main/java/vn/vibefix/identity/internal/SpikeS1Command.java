@@ -8,8 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +19,6 @@ import org.springframework.boot.ExitCodeGenerator;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.JsonNode;
@@ -28,14 +26,16 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Spike S1's probe (Story 1.14, AD-13): under the {@code cli} profile with {@code dev},
- * {@code --vibefix.cli.command=spike-s1 --github-login=<Customer> --repo=<owner/name> [--repo=…]}
- * reads each repository from GitHub's REST API with that Customer's kept GitHub token, as the
- * Product intake's admin check will, and prints the owner type, the HTTP status, and
- * {@code permissions.admin}. The token is opened in memory only and never printed or logged.
+ * {@code --vibefix.cli.command=spike-s1 --repo=<owner/name> [--repo=…]} reads each repository from GitHub's REST
+ * API with the GitHub token in the process's environment variable {@value #TOKEN_VARIABLE} (read with
+ * {@code System.getenv} only, never as a Spring property, so a command-line argument cannot carry it into shell
+ * history), and prints the owner type, the HTTP status, and {@code permissions.admin}. vibefix keeps no GitHub token
+ * (R31), so the probe never reads one from storage: the person running it supplies a dev OAuth App user token. The
+ * token is held in memory only and never printed or logged. S1 closed on 2026-10-19; the probe is kept as history.
  * <p>
- * It refuses to run under {@code prod}: it exists to answer S1 on the dev OAuth App and the
- * {@code vibefix-dev} organization. Exit code 0 when every repository was read, 1 when refused or
- * when GitHub answered an error for one, 2 for a wrong invocation.
+ * It refuses to run under {@code prod}: it exists to answer S1 on the {@code vibefix-dev} organization. Exit code
+ * 0 when every repository was read, 1 when refused or when GitHub answered an error for one, 2 for a wrong
+ * invocation.
  */
 @Component
 @Profile("cli")
@@ -43,11 +43,14 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 
 	static final String COMMAND = "spike-s1";
 
+	/** The environment variable that holds the GitHub token the probe reads with. */
+	static final String TOKEN_VARIABLE = "VIBEFIX_SPIKE_S1_TOKEN";
+
 	private static final Pattern REPOSITORY = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}");
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	/** One repository as the Customer's token sees it. */
+	/** One repository as the token sees it. */
 	record Probe(String repository, int status, String ownerType, String admin) {
 
 		String line() {
@@ -57,13 +60,10 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 
 	}
 
-	private final JdbcClient jdbc;
-
-	private final Accounts accounts;
-
-	private final TokenCipher cipher;
-
 	private final Environment environment;
+
+	/** The process's environment variables, never Spring's properties, so no command-line argument can set the token. */
+	private final UnaryOperator<String> variables;
 
 	private final URI apiUrl;
 
@@ -76,17 +76,14 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 	private volatile int exitCode;
 
 	@Autowired
-	SpikeS1Command(JdbcClient jdbc, Accounts accounts, TokenCipher cipher, Environment environment,
-			@Value("${vibefix.github.api-url}") URI apiUrl) {
-		this(jdbc, accounts, cipher, environment, apiUrl, System.out, System.err);
+	SpikeS1Command(Environment environment, @Value("${vibefix.github.api-url}") URI apiUrl) {
+		this(environment, System::getenv, apiUrl, System.out, System.err);
 	}
 
-	SpikeS1Command(JdbcClient jdbc, Accounts accounts, TokenCipher cipher, Environment environment, URI apiUrl,
-			PrintStream out, PrintStream err) {
-		this.jdbc = jdbc;
-		this.accounts = accounts;
-		this.cipher = cipher;
+	SpikeS1Command(Environment environment, UnaryOperator<String> variables, URI apiUrl, PrintStream out,
+			PrintStream err) {
 		this.environment = environment;
+		this.variables = variables;
 		this.apiUrl = apiUrl;
 		this.out = out;
 		this.err = err;
@@ -104,12 +101,11 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 			this.exitCode = 0;
 			return;
 		}
-		List<String> logins = args.getOptionValues("github-login");
 		List<String> repositories = args.getOptionValues("repo");
-		if (logins == null || logins.size() != 1 || repositories == null || repositories.isEmpty()
+		if (repositories == null || repositories.isEmpty()
 				|| !repositories.stream().allMatch(repository -> REPOSITORY.matcher(repository).matches())) {
-			this.err.println("Usage: --spring.profiles.active=dev,cli --vibefix.cli.command=" + COMMAND
-					+ " --github-login=<Customer's GitHub username> --repo=<owner/name> [--repo=<owner/name> ...]");
+			this.err.println("Usage: " + TOKEN_VARIABLE + "=<GitHub token> --spring.profiles.active=dev,cli"
+					+ " --vibefix.cli.command=" + COMMAND + " --repo=<owner/name> [--repo=<owner/name> ...]");
 			this.exitCode = 2;
 			return;
 		}
@@ -118,19 +114,16 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 			this.exitCode = 1;
 			return;
 		}
-		Optional<UUID> customer = customer(logins.getFirst());
-		Optional<TokenCipher.Sealed> sealed = customer.flatMap(this.accounts::customerToken);
-		if (sealed.isEmpty()) {
-			this.err.println("Refused: no Customer " + logins.getFirst()
-					+ " with a stored GitHub token; link GitHub from CUS-3 step 2 on the dev stack as that Customer first");
+		String token = this.variables.apply(TOKEN_VARIABLE);
+		if (token == null || token.isBlank()) {
+			this.err.println("Refused: set " + TOKEN_VARIABLE + " to the GitHub token to read with; vibefix keeps none");
 			this.exitCode = 1;
 			return;
 		}
-		String token = this.cipher.open(sealed.get(), customer.get().toString());
 		int failures = 0;
-		this.out.println("Spike S1: each repository read with " + logins.getFirst() + "'s kept GitHub token");
+		this.out.println("Spike S1: each repository read with the token in " + TOKEN_VARIABLE);
 		for (String repository : repositories) {
-			Probe probe = probe(repository, token);
+			Probe probe = probe(repository, token.strip());
 			this.out.println(probe.line());
 			if (probe.status() != 200) {
 				failures++;
@@ -142,13 +135,6 @@ class SpikeS1Command implements ApplicationRunner, ExitCodeGenerator {
 	@Override
 	public int getExitCode() {
 		return this.exitCode;
-	}
-
-	private Optional<UUID> customer(String login) {
-		return this.jdbc.sql("""
-				SELECT id FROM identity.account
-				WHERE lower(github_login) = lower(:login) AND kind = 'USER' AND erased_at IS NULL
-				""").param("login", login).query(UUID.class).optional();
 	}
 
 	private Probe probe(String repository, String token) {

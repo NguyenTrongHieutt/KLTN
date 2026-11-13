@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +29,6 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
-import vn.vibefix.operations.ExternalOperations;
-import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.ErasureOutcome;
@@ -45,8 +42,8 @@ import vn.vibefix.shared.PersonalDataSection;
  * NFR-11, AD-24, SG-9: a person's own data requests. They download every participant's export of their data,
  * and request their account's deletion once; every Administrator hears of it. The request waits while any
  * participant reports a blocker, and an Administrator confirms it on ADM-2 behind the step-up: every participant
- * erases or anonymizes the account, its sessions end, the sign-in grant is revoked through an operation when a
- * Customer token was kept, and {@link AccountErased} is published.
+ * erases or anonymizes the account, its sessions end, and {@link AccountErased} is published. No GitHub token is
+ * kept, so nothing is revoked on GitHub here: linking revoked the grant at once (R31).
  */
 @Component
 class DataRequests {
@@ -58,10 +55,8 @@ class DataRequests {
 	/**
 	 * The person's request as ALL-2 and ADM-2 show it.
 	 * @param blockers what keeps it waiting now; none before a request, or once it is completed
-	 * @param tokenKept a GitHub token is kept for the account, so the grant is revoked for them at the erasure
 	 */
-	record State(@Nullable Instant requestedAt, @Nullable Instant completedAt, List<ErasureBlocker> blockers,
-			boolean tokenKept) {
+	record State(@Nullable Instant requestedAt, @Nullable Instant completedAt, List<ErasureBlocker> blockers) {
 	}
 
 	private record Request(UUID id, Instant requestedAt, @Nullable Instant completedAt) {
@@ -71,15 +66,11 @@ class DataRequests {
 
 	private final PersonalData personalData;
 
-	private final Accounts accounts;
-
 	private final StepUps stepUps;
 
 	private final Notifications notifications;
 
 	private final Administrators administrators;
-
-	private final ExternalOperations operations;
 
 	private final ApplicationEventPublisher events;
 
@@ -89,16 +80,14 @@ class DataRequests {
 
 	private final Clock clock;
 
-	DataRequests(JdbcClient jdbc, PersonalData personalData, Accounts accounts, StepUps stepUps, Notifications notifications,
-			Administrators administrators, ExternalOperations operations, ApplicationEventPublisher events, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+	DataRequests(JdbcClient jdbc, PersonalData personalData, StepUps stepUps, Notifications notifications,
+			Administrators administrators, ApplicationEventPublisher events, AuditLog auditLog, IdGenerator ids,
+			Clock clock) {
 		this.jdbc = jdbc;
 		this.personalData = personalData;
-		this.accounts = accounts;
 		this.stepUps = stepUps;
 		this.notifications = notifications;
 		this.administrators = administrators;
-		this.operations = operations;
 		this.events = events;
 		this.auditLog = auditLog;
 		this.ids = ids;
@@ -111,7 +100,7 @@ class DataRequests {
 		List<ErasureBlocker> blockers = request == null || request.completedAt() != null ? List.of()
 				: this.personalData.erasureBlockers(accountId);
 		return new State(request == null ? null : request.requestedAt(), request == null ? null : request.completedAt(),
-				blockers, this.accounts.customerToken(accountId).isPresent());
+				blockers);
 	}
 
 	/** "Tải dữ liệu của tôi": every participant's section for the person, as one JSON document, audited. */
@@ -173,7 +162,6 @@ class DataRequests {
 		if (request == null) {
 			return new Result(new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.NO_DELETION_REQUEST), false);
 		}
-		Optional<TokenCipher.Sealed> token = this.accounts.customerToken(accountId);
 		if (this.personalData.erase(accountId) instanceof ErasureOutcome.Blocked blocked) {
 			List<Map<String, Object>> blockers = blocked.blockers().stream().map(DataRequests::blocker).toList();
 			return new Result(new ApiException(ErrorCode.GUARD_FAILED, IdentityReason.ERASURE_BLOCKED,
@@ -189,11 +177,6 @@ class DataRequests {
 		this.jdbc.sql("DELETE FROM platform.spring_session WHERE principal_name = :name")
 			.param("name", accountId.toString())
 			.update();
-		token.ifPresent(sealed -> this.operations.request(new OperationRequest(OAuthGrantRevocation.TYPE, request.id(),
-				Map.of("accountId", accountId.toString()),
-				Map.of("keyVersion", sealed.keyVersion(), "nonce", Base64.getEncoder().encodeToString(sealed.nonce()),
-						"ciphertext", Base64.getEncoder().encodeToString(sealed.ciphertext())),
-				accountId, 0)));
 		this.events.publishEvent(new AccountErased(this.ids.newId(), accountId));
 		this.auditLog.record(AuditEntry.of(AuditActor.user(administrator), "identity.account_erased",
 				AuditObject.of("identity.account", accountId)));

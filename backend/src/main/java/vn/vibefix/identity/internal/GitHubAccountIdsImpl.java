@@ -5,20 +5,16 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
-import vn.vibefix.identity.CustomerRepositories;
+import vn.vibefix.identity.GitHubAccountIds;
 import vn.vibefix.shared.Kind;
 
-/**
- * {@link CustomerRepositories} from the account row, with no GitHub call (AD-10, AD-13). Since Story 23.5b no path reads
- * with the Customer's kept linking token: the contributor check reads through the Source App, and the token itself is
- * retired by Story 23.5d.
- */
+/** {@link GitHubAccountIds} from the account row, with no GitHub call (AD-10, AD-13). */
 @Component
-class TokenCustomerRepositories implements CustomerRepositories {
+class GitHubAccountIdsImpl implements GitHubAccountIds {
 
 	private final Accounts accounts;
 
-	TokenCustomerRepositories(Accounts accounts) {
+	GitHubAccountIdsImpl(Accounts accounts) {
 		this.accounts = accounts;
 	}
 

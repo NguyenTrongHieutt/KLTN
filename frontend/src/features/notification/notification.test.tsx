@@ -78,7 +78,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
               deadlineNear: true,
               link: '/ho-so/xac-minh',
             }),
-            todo('identity.relink_github'),
+            todo('product.install_source_app', { params: { repo: 'lan-nguyen/so-dat-ban' } }),
           ],
           total: 2,
         }),
@@ -94,7 +94,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
     expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual([
       expect.stringContaining('Liên kết tài khoản GitHub'),
-      expect.stringContaining('Liên kết lại GitHub để vibefix kiểm tra được kho mã của bạn'),
+      expect.stringContaining('Cài ứng dụng vibefix trên GitHub cho lan-nguyen/so-dat-ban'),
     ])
     const tab = within(screen.getByRole('navigation', { name: 'Điều hướng nhanh' })).getByRole('link', {
       name: /Việc cần làm/,

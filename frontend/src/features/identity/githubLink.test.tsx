@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -31,7 +31,7 @@ const AUTHORIZATION = 'https://github.com/login/oauth/authorize?client_id=dev&st
 const linkedLan = { ...signedInWithGoogle, githubLogin: 'lan-dev' }
 
 describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
-  it('shows N-24 before leaving for GitHub, and the start names its version and the purpose', { timeout: 15_000 }, async () => {
+  it('shows N-24 before leaving for GitHub, and the start names its version', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     let started: Record<string, unknown> | undefined
     fakeBackend(signedInWithGoogle, {
@@ -52,12 +52,18 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
 
     const notice = await screen.findByRole('dialog', { name: 'Trước khi liên kết GitHub' })
     expect(within(notice).getByText(/vibefix sẽ nhận từ GitHub tên tài khoản và mã số tài khoản của bạn/)).toBeInTheDocument()
-    expect(within(notice).getByText('Lưu ý khi liên kết GitHub · phiên bản 1.0')).toBeInTheDocument()
+    // R31: from now on the link keeps identity only, and an earlier link is removed on GitHub; the notice says so.
+    expect(within(notice).getByText(/Từ nay, vibefix không giữ quyền GitHub nào của bạn/)).toBeInTheDocument()
+    expect(within(notice).getByText(/rồi thu hồi quyền đó ngay/)).toBeInTheDocument()
+    expect(within(notice).getByText(/Nếu bạn đã liên kết GitHub với vibefix trước đây/)).toHaveTextContent(
+      'Settings › Applications',
+    )
+    expect(within(notice).getByText('Lưu ý khi liên kết GitHub · phiên bản 1.1')).toBeInTheDocument()
     expect(started).toBeUndefined()
     await user.click(within(notice).getByRole('button', { name: /Liên kết GitHub ↗/ }))
 
     await waitFor(() => expect(redirectTo).toHaveBeenCalledWith(AUTHORIZATION))
-    expect(started).toEqual({ noticeVersion: '1.0', purpose: 'PROFILE' })
+    expect(started).toEqual({ noticeVersion: '1.1' })
   })
 
   it('shows a refused start in the notice and stays on vibefix', { timeout: 15_000 }, async () => {
@@ -81,7 +87,7 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
     let unlinked = false
     fakeBackend(linkedLan, {
       'GET /api/v1/identity/github': () =>
-        json(unlinked ? gitHubLink(signedInWithGoogle) : gitHubLink(linkedLan, { repositoryTokenKept: false })),
+        json(unlinked ? gitHubLink(signedInWithGoogle) : gitHubLink(linkedLan)),
       'DELETE /api/v1/identity/github': () => {
         unlinked = true
         return new Response(null, { status: 204 })
@@ -94,6 +100,9 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
     await user.click(screen.getByRole('button', { name: 'Bỏ liên kết' }))
     const confirm = await screen.findByRole('dialog', { name: 'Bỏ liên kết GitHub?' })
     expect(within(confirm).getByText(/Dấu mã hóa dùng để chống gian lận vẫn được giữ/)).toBeInTheDocument()
+    expect(within(confirm).getByText(/lần bỏ liên kết này không phải thu hồi gì/)).toHaveTextContent(
+      'Nếu bạn đã liên kết trước đây, bạn có thể gỡ vibefix trong GitHub, ở mục Settings › Applications.',
+    )
     expect(unlinked).toBe(false)
     await user.click(within(confirm).getByRole('button', { name: 'Bỏ liên kết' }))
 
@@ -131,27 +140,17 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
     expect(screen.getByText('Một đơn chào giá đang mở')).toBeInTheDocument()
   })
 
-  it('asks a live Product\'s owner to re-link once the kept token stopped working', { timeout: 15_000 }, async () => {
-    const user = userEvent.setup()
-    let started: Record<string, unknown> | undefined
+  it('never asks a linked account to link again, since no token is kept (R31)', async () => {
     fakeBackend(linkedLan, {
-      'GET /api/v1/identity/github': () => json(gitHubLink(linkedLan, { relinkNeeded: true })),
-      'POST /api/v1/identity/github/link': async (request) => {
-        started = await request.json()
-        return json({ authorizationUrl: AUTHORIZATION })
-      },
+      'GET /api/v1/identity/github': () =>
+        json(gitHubLink(linkedLan, { blockers: [{ module: 'product', reason: 'LIVE_PRODUCT', subjectId: 'p1', name: 'Sổ' }] })),
     })
     renderAt('/ho-so/xac-minh')
 
-    expect(await screen.findByText('Cần liên kết lại')).toBeInTheDocument()
-    expect(screen.getByText('vibefix không còn đọc được GitHub của bạn. Hãy liên kết lại.')).toBeInTheDocument()
-    expect(screen.getByText(/Bạn không mất dữ liệu nào/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Liên kết lại GitHub/ }))
-    const notice = await screen.findByRole('dialog', { name: 'Trước khi liên kết GitHub' })
-    await user.click(within(notice).getByRole('button', { name: /Liên kết lại GitHub ↗/ }))
-
-    await waitFor(() => expect(redirectTo).toHaveBeenCalledWith(AUTHORIZATION))
-    expect(started).toEqual({ noticeVersion: '1.0', purpose: 'PROFILE' })
+    const row = await screen.findByRole('region', { name: 'GitHub' })
+    expect(await within(row).findByText('Đã liên kết')).toBeInTheDocument()
+    expect(within(row).queryByText('Cần liên kết lại')).not.toBeInTheDocument()
+    expect(within(row).queryByRole('button', { name: /Liên kết/ })).not.toBeInTheDocument()
   })
 
   it('reads GitHub\'s return once, so a reload shows no banner', async () => {
@@ -177,12 +176,11 @@ describe('ACC-2, the GitHub row (FR-80, UX-DR91)', () => {
     expect(banner.closest(`[role="${role}"]`)).not.toBeNull()
   })
 
-  it('sends the old sign-in-again page to ACC-2', async () => {
+  it('shows the not-found screen at the retired sign-in-again address (Story 23.5d)', async () => {
     fakeBackend(signedInUser)
-    const router = renderAt('/dang-nhap-lai')
+    renderAt('/dang-nhap-lai')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Hồ sơ và xác minh' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/ho-so/xac-minh')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
   })
 })
 
@@ -210,25 +208,21 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
     await user.click(within(notice).getByRole('button', { name: /Liên kết GitHub ↗/ }))
 
     await waitFor(() => expect(redirectTo).toHaveBeenCalledWith(AUTHORIZATION))
-    expect(started).toEqual({ noticeVersion: '1.0', purpose: 'PRODUCT', returnTo: '/san-pham/moi' })
+    expect(started).toEqual({ noticeVersion: '1.1', returnTo: '/san-pham/moi' })
     expect(JSON.parse(window.sessionStorage.getItem('vibefix.product.registration') ?? '{}')).toMatchObject({
       step: 2,
       tools: ['LOVABLE'],
     })
   })
 
-  it.each([
-    [403, 'FORBIDDEN', 'GITHUB_NOT_LINKED', 'Liên kết GitHub để đăng ký sản phẩm'],
-    [422, 'GUARD_FAILED', 'RELINK_GITHUB', 'Liên kết lại GitHub để đăng ký sản phẩm'],
-  ])('takes over again once the repository check answers %s %s %s', { timeout: 20_000 }, async (status, code, reason, heading) => {
+  it('takes over again once the repository check answers 403 FORBIDDEN GITHUB_NOT_LINKED', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let refused = false
     fakeBackend(signedInUser, {
-      'GET /api/v1/identity/github': () =>
-        json(refused && reason === 'GITHUB_NOT_LINKED' ? gitHubLink(signedInWithGoogle) : gitHubLink(signedInUser)),
+      'GET /api/v1/identity/github': () => json(refused ? gitHubLink(signedInWithGoogle) : gitHubLink(signedInUser)),
       'POST /api/v1/products/repository-check': () => {
         refused = true
-        return json({ status, code, reason }, status)
+        return json({ status: 403, code: 'FORBIDDEN', reason: 'GITHUB_NOT_LINKED' }, 403)
       },
     })
     renderAt('/san-pham/moi')
@@ -238,12 +232,12 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
     await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
 
-    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Liên kết GitHub để đăng ký sản phẩm' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Đường dẫn kho mã trên GitHub')).not.toBeInTheDocument()
     expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
   })
 
-  it('links again when no token is kept, and comes back to step 2 with the input', { timeout: 15_000 }, async () => {
+  it('lets a linked account through at once and comes back to step 2 with the input (R31)', { timeout: 15_000 }, async () => {
     window.sessionStorage.setItem(
       'vibefix.product.registration',
       JSON.stringify({
@@ -253,29 +247,14 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
         values: { name: '', description: '', demoUrl: '' },
       }),
     )
-    let kept = false
     fakeBackend(signedInUser, {
-      'GET /api/v1/identity/github': () => json(gitHubLink(signedInUser, { repositoryTokenKept: kept })),
+      'GET /api/v1/identity/github': () => json(gitHubLink(signedInUser)),
     })
     renderAt('/san-pham/moi')
 
-    expect(await screen.findByRole('heading', { name: 'Liên kết lại GitHub để đăng ký sản phẩm' })).toBeInTheDocument()
-    expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
-    expect(window.sessionStorage.getItem('vibefix.product.registration')).toBeNull()
-
-    cleanup()
-    kept = true
-    window.sessionStorage.setItem(
-      'vibefix.product.registration',
-      JSON.stringify({
-        step: 2,
-        tools: ['LOVABLE'],
-        url: 'https://github.com/lan-nguyen/shop-gom',
-        values: { name: '', description: '', demoUrl: '' },
-      }),
-    )
-    renderAt('/san-pham/moi')
-
     expect(await screen.findByLabelText('Đường dẫn kho mã trên GitHub')).toHaveValue('https://github.com/lan-nguyen/shop-gom')
+    expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Liên kết GitHub để/ })).not.toBeInTheDocument()
+    expect(window.sessionStorage.getItem('vibefix.product.registration')).toBeNull()
   })
 })

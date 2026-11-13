@@ -29,7 +29,6 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
-import vn.vibefix.identity.GitHubLinks;
 import vn.vibefix.product.ProductDeleted;
 import vn.vibefix.product.internal.RepositoryChecks.Passed;
 import vn.vibefix.shared.ApiException;
@@ -112,14 +111,11 @@ class Products {
 
 	private final Clock clock;
 
-	private final GitHubLinks gitHubLinks;
-
 	private final SourceAppBindings bindings;
 
 	Products(JdbcClient jdbc, RepositoryChecks checks, ProductProperties properties, AuditLog auditLog,
 			PersonalData personalData, ApplicationEventPublisher events, IdGenerator ids, Clock clock,
-			GitHubLinks gitHubLinks, SourceAppBindings bindings) {
-		this.gitHubLinks = gitHubLinks;
+			SourceAppBindings bindings) {
 		this.bindings = bindings;
 		this.jdbc = jdbc;
 		this.checks = checks;
@@ -196,8 +192,7 @@ class Products {
 	 * Deletes the Customer's Product (FR-7, AD-24): audited, every participant's data for it deleted, its Source App
 	 * binding included, so the binding ends, and {@link ProductDeleted} published, in one transaction; the repository
 	 * ID is free again. vibefix never uninstalls the Customer's Source App: CUS-4 tells them before and after how to
-	 * deselect the repository or uninstall it (R23). Deleting the Customer's last live Product deletes their kept
-	 * GitHub token too (AD-10).
+	 * deselect the repository or uninstall it (R23).
 	 * @throws ApiException {@code NOT_FOUND} for a Product that is not the Customer's;
 	 * {@code GUARD_FAILED PRODUCT_HAS_ACTIVE_JOB} while a Job pins it
 	 */
@@ -223,12 +218,6 @@ class Products {
 				AuditObject.of("product.product", productId)));
 		this.personalData.deleteProduct(productId);
 		this.events.publishEvent(new ProductDeleted(this.ids.newId(), productId, customerId));
-		boolean live = this.jdbc.sql("""
-				SELECT EXISTS (SELECT 1 FROM product.product WHERE customer_account_id = :customer AND deleted_at IS NULL)
-				""").param("customer", customerId).query(Boolean.class).single();
-		if (!live) {
-			this.gitHubLinks.forgetRepositoryToken(customerId);
-		}
 	}
 
 	/** The Customer's live Products, newest first. */

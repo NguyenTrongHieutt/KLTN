@@ -13529,17 +13529,13 @@
             "type" : "string",
             "minLength" : 1
           },
-          "purpose" : {
-            "type" : "string",
-            "enum" : [ "PROFILE", "PRODUCT" ]
-          },
           "returnTo" : {
             "type" : "string",
             "maxLength" : 200,
             "minLength" : 0
           }
         },
-        "required" : [ "noticeVersion", "purpose" ]
+        "required" : [ "noticeVersion" ]
       },
       "GitHubLinkStartView" : {
         "type" : "object",
@@ -13574,15 +13570,9 @@
           },
           "noticeVersion" : {
             "type" : "string"
-          },
-          "relinkNeeded" : {
-            "type" : "boolean"
-          },
-          "repositoryTokenKept" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "blockers", "linked", "noticeVersion", "relinkNeeded", "repositoryTokenKept" ]
+        "required" : [ "blockers", "linked", "noticeVersion" ]
       },
       "HandoverCheckRequest" : {
         "type" : "object",
@@ -15718,12 +15708,9 @@
           "deletionRequestedAt" : {
             "type" : "string",
             "format" : "date-time"
-          },
-          "tokenKept" : {
-            "type" : "boolean"
           }
         },
-        "required" : [ "blockers", "tokenKept" ]
+        "required" : [ "blockers" ]
       },
       "MyJobView" : {
         "type" : "object",

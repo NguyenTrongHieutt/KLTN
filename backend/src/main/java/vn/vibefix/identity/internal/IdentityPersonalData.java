@@ -24,8 +24,8 @@ import vn.vibefix.timers.Deadlines;
 
 /**
  * {@code identity}'s part in exports and erasure (AD-24). An erased account keeps its row, so the
- * records that name it still resolve, but loses its Google and GitHub identities, its avatar, its kept
- * token, its profile with its typed links and showcased repositories, its school email codes and send
+ * records that name it still resolve, but loses its Google and GitHub identities, its avatar, its profile
+ * with its typed links and showcased repositories, its school email codes and send
  * counters, and its live verification, which ends {@code ERASED} with its facts deleted (so its subject
  * no longer counts as used). The verification rows keep their subject HMACs, as the person-link signals
  * do, until {@link PersonSignalPurge} deletes them 24 months later; no export shows an HMAC. Its
@@ -60,9 +60,8 @@ class IdentityPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("identity.account", "identity.acknowledgment", "identity.customer_token",
-				"identity.profile", "identity.profile_link", "identity.showcase_repository",
-				"identity.contact_grant", "identity.school_email_code", "identity.school_email_send_hour",
+		return Set.of("identity.account", "identity.acknowledgment", "identity.profile", "identity.profile_link",
+				"identity.showcase_repository", "identity.contact_grant", "identity.school_email_code", "identity.school_email_send_hour",
 				"identity.school_email_send_day", "identity.verification", "identity.administrator_credential",
 				"identity.administrator_enrolment", "identity.person_signal", "identity.deletion_request",
 				"identity.account_action");
@@ -169,7 +168,6 @@ class IdentityPersonalData implements PersonalDataParticipant {
 	@Override
 	@Transactional
 	public void eraseAccount(UUID accountId) {
-		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
 		// The deletion request stays as the record that it was carried out; an erased Administrator's name goes.
 		this.jdbc.sql("UPDATE identity.deletion_request SET completed_by_admin_id = NULL WHERE completed_by_admin_id = :id")
 			.param("id", accountId)

@@ -40,12 +40,8 @@ class DataRequestController {
 	record ErasureBlockerView(String module, String reason, @Nullable UUID jobId, @Nullable String name) {
 	}
 
-	/**
-	 * @param tokenKept a Customer token is kept, so vibefix revokes its GitHub grant at the erasure; otherwise the
-	 * page asks the person to revoke vibefix in their GitHub settings
-	 */
 	record MyDataView(@Nullable Instant deletionRequestedAt, @Nullable Instant deletionCompletedAt,
-			List<ErasureBlockerView> blockers, boolean tokenKept) {
+			List<ErasureBlockerView> blockers) {
 	}
 
 	private final DataRequests requests;
@@ -97,8 +93,7 @@ class DataRequestController {
 				state.blockers()
 					.stream()
 					.map(blocker -> new ErasureBlockerView(blocker.module(), blocker.reason(), blocker.jobId(), blocker.name()))
-					.toList(),
-				state.tokenKept());
+					.toList());
 	}
 
 }

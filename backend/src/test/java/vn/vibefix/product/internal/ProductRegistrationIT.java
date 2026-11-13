@@ -50,7 +50,6 @@ import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.GitHubStub.MergeInstallation;
 import vn.vibefix.github.internal.GitHubStub.Seen;
 import vn.vibefix.github.internal.TestKeys;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.product.ProductSources;
@@ -163,7 +162,7 @@ class ProductRegistrationIT extends IntegrationTest {
 			return true;
 		};
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.lanGithubId = CustomerTokens.githubUserId(this.jdbc, this.lan);
+		this.lanGithubId = githubUserId(this.lan);
 		this.lanLogin = GITHUB.loginOf(this.lanGithubId);
 	}
 
@@ -428,7 +427,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		// Story 20.3: no account role gates the Products; the GitHub link does (FR-80).
 		UUID minh = IdentityTestSupport.insertGoogleAccount(this.jdbc, "google-minh", "3.1");
 		IdentityTestSupport.linkGitHub(this.jdbc, minh);
-		long minhId = CustomerTokens.githubUserId(this.jdbc, minh);
+		long minhId = githubUserId(minh);
 		ready("minh-tran/quan-ca-phe", 4101, minhId, "User", false, 1_000, "");
 		GITHUB.sourcePermissions.put("minh-tran/quan-ca-phe", Map.of(GITHUB.loginOf(minhId), "admin"));
 		check(as(minh, null), "https://github.com/minh-tran/quan-ca-phe").andExpect(status().isOk());
@@ -1076,6 +1075,12 @@ class ProductRegistrationIT extends IntegrationTest {
 
 	private RequestPostProcessor as(UUID account, @Nullable Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
+	}
+
+	private long githubUserId(UUID account) {
+		return this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id").param("id", account)
+			.query(Long.class)
+			.single();
 	}
 
 }

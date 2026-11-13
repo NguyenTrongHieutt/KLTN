@@ -24,7 +24,7 @@ import vn.vibefix.github.MergeApp;
 import vn.vibefix.github.MergeApp.InstallRequest;
 import vn.vibefix.github.MergeApp.Installation;
 import vn.vibefix.github.MergeApp.SelectedRepository;
-import vn.vibefix.identity.CustomerRepositories;
+import vn.vibefix.identity.GitHubAccountIds;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
@@ -73,7 +73,7 @@ class MergeAppBindings {
 
 	private final FinalMergeAuthorizations authorizations;
 
-	private final CustomerRepositories customers;
+	private final GitHubAccountIds customers;
 
 	private final Notifications notifications;
 
@@ -84,7 +84,7 @@ class MergeAppBindings {
 	/** Looked up on use: a bind in Closing starts the Final Merge's check (Story 8.8). */
 	private final ObjectProvider<FinalMerges> merges;
 
-	MergeAppBindings(MergeApp app, JdbcClient jdbc, FinalMergeAuthorizations authorizations, CustomerRepositories customers,
+	MergeAppBindings(MergeApp app, JdbcClient jdbc, FinalMergeAuthorizations authorizations, GitHubAccountIds customers,
 			Notifications notifications, TransactionTemplate transactions, Clock clock, ObjectProvider<FinalMerges> merges) {
 		this.merges = merges;
 		this.app = app;

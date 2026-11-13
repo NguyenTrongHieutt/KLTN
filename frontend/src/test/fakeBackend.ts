@@ -82,18 +82,16 @@ export function heldJobs(...jobs: HeldJob[]): Record<string, Handler> {
 }
 
 /**
- * ACC-2's GitHub row (Story 19.2): by default a session with a GitHub username is linked, with its token
- * kept and nothing keeping the link, and any other is not linked.
+ * ACC-2's GitHub row (Story 19.2): by default a session with a GitHub username is linked, with nothing
+ * keeping the link, and any other is not linked.
  */
 export function gitHubLink(session: Session, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const linked = session.githubLogin !== undefined
   return {
     linked,
     ...(linked ? { login: session.githubLogin, linkedAt: '2026-10-20T03:00:00Z' } : {}),
-    relinkNeeded: false,
-    repositoryTokenKept: linked,
     blockers: [],
-    noticeVersion: '1.0',
+    noticeVersion: '1.1',
     ...overrides,
   }
 }

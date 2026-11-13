@@ -14,13 +14,14 @@ import vn.vibefix.operations.OperationRun;
 import vn.vibefix.operations.Outcome;
 
 /**
- * {@value #TYPE} (SG-9, NFR-11, FR-80, AD-10): every GitHub token vibefix stops keeping is revoked on GitHub. A
- * token discarded after linking, forgotten, replaced by a re-link, or dropped by an unlink is revoked alone
- * ({@value #TOKEN}), so the App's grant and a newer token stay; after an account's deletion the whole grant is
- * revoked with the token kept for it (the payload names no {@code revoke}, as before Story 19.2). The token rides
- * sealed as the operation's personal data, opened in memory with the account ID as associated data, and purged
- * when the operation completes. Without the App's credentials (an environment that has none) there is nothing to
- * revoke.
+ * {@value #TYPE} (SG-9, NFR-11, FR-80, AD-10, R31): the linking callback uses GitHub's token once to read the
+ * person and keeps it nowhere, so it requests the revocation of the whole OAuth grant the token came with (the
+ * payload names no {@code revoke}): a link made since Story 23.5d leaves vibefix authorized on nobody's GitHub
+ * account. Someone who linked before then may still find vibefix listed on GitHub, under Settings › Applications,
+ * until they remove it there. The open revocations recorded before Story 23.5d with {@value #TOKEN}, which revoked
+ * that token alone, lost the key in that story's migration; the mode is still read for any other. The token rides
+ * sealed as the operation's personal data, opened in memory with the account ID as associated data, and purged when
+ * the operation completes. Without the App's credentials (an environment that has none) there is nothing to revoke.
  */
 @Component
 class OAuthGrantRevocation implements OperationHandler {

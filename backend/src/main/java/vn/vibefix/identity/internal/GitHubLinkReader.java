@@ -39,12 +39,16 @@ class GitHubLinkReader {
 
 	}
 
-	/** The token GitHub issued and the user it reads. The token never leaves {@code identity}. */
-	record Answer(String token, LinkedUser user) {
+	/**
+	 * The token GitHub issued and the user it reads. The token never leaves {@code identity}, and its grant is
+	 * revoked whatever the user read found (R31).
+	 * @param user none when the exchange issued the token but the user could not be read
+	 */
+	record Answer(String token, @Nullable LinkedUser user) {
 
 		@Override
 		public String toString() {
-			return "Answer[user=" + this.user.id() + "]";
+			return "Answer[user=" + (this.user == null ? "none" : this.user.id()) + "]";
 		}
 
 	}
@@ -72,14 +76,16 @@ class GitHubLinkReader {
 	/**
 	 * Exchanges the code at the registration's token URI, then reads the user and their emails.
 	 * @param redirectUri the {@code redirect_uri} the authorization request named
-	 * @return empty when this environment has no linking OAuth App, or when GitHub refused or did not
-	 * answer; the user's emails are empty when only their read failed
+	 * @return empty when this environment has no linking OAuth App, or when GitHub issued no token; an answer
+	 * without a user when a token was issued but GitHub refused, did not answer, or named no user on the user
+	 * read, so its grant is still revoked; the user's emails are empty when only their read failed
 	 */
 	Optional<Answer> read(String code, String redirectUri, String codeVerifier) {
 		ClientRegistration registration = this.signIn.registration().orElse(null);
 		if (registration == null) {
 			return Optional.empty();
 		}
+		String token;
 		try {
 			MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
 			form.add("client_id", registration.getClientId());
@@ -94,11 +100,19 @@ class GitHubLinkReader {
 				.body(form)
 				.retrieve()
 				.body(OBJECT);
-			if (issued == null || !(issued.get("access_token") instanceof String token) || token.isBlank()) {
+			if (issued == null || !(issued.get("access_token") instanceof String issuedToken) || issuedToken.isBlank()) {
 				// GitHub answers a refused exchange with 200 and an error member.
 				log.warn("GitHub issued no token for a link");
 				return Optional.empty();
 			}
+			token = issuedToken;
+		}
+		catch (RestClientException ex) {
+			// The exception class only: a message could hold the code, the token, or a claim.
+			log.warn("A GitHub link could not be completed: {}", ex.getClass().getSimpleName());
+			return Optional.empty();
+		}
+		try {
 			Map<String, Object> user = this.http.get()
 				.uri(registration.getProviderDetails().getUserInfoEndpoint().getUri())
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -108,7 +122,7 @@ class GitHubLinkReader {
 			if (user == null || !(user.get("id") instanceof Number id) || !(user.get("login") instanceof String login)
 					|| login.isBlank()) {
 				log.warn("GitHub answered a link without a user");
-				return Optional.empty();
+				return Optional.of(new Answer(token, null));
 			}
 			List<Map<String, Object>> emails = emails(token);
 			String avatar = user.get("avatar_url") instanceof String url && !url.isBlank() ? url : null;
@@ -116,9 +130,9 @@ class GitHubLinkReader {
 					primaryVerifiedEmail(emails).orElse(null), verifiedEmails(emails))));
 		}
 		catch (RestClientException ex) {
-			// The exception class only: a message could hold the code, the token, or a claim.
-			log.warn("A GitHub link could not be completed: {}", ex.getClass().getSimpleName());
-			return Optional.empty();
+			// The exception class only: a message could hold the token or a claim.
+			log.warn("A GitHub link could not read the user: {}", ex.getClass().getSimpleName());
+			return Optional.of(new Answer(token, null));
 		}
 	}
 

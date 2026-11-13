@@ -57,6 +57,16 @@ class NotificationCatalogTest {
 		}
 	}
 
+	/** Story 23.5d (R31, UX-DR118): no GitHub linking token is kept, so the re-link to-do and notice left with their texts. */
+	@Test
+	void theReLinkToDoAndNoticeAreGone() {
+		assertThat(this.catalog.notificationTypes()).extracting(NotificationType::key).doesNotContain("identity.relink_github");
+		assertThat(this.catalog.todoTypes()).extracting(TodoType::key).doesNotContain("identity.relink_github");
+		assertThat(node("notification.identity.relink_github")).isNull();
+		assertThat(node("todo.identity.relink_github")).isNull();
+		assertThat(TEMPLATES.resolve("identity.relink_github.txt")).doesNotExist();
+	}
+
 	/** Story 22.4 (UX-DR112, AD-40): no release holds a share, so payment.share_held left the registry and its text. */
 	@Test
 	void theShareHeldNoticeIsGone() {

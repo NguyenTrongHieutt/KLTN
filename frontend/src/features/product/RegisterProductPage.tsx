@@ -80,8 +80,8 @@ const RETURNED = 'ung-dung'
 
 type Returned = 'da-cai' | 'cho-duyet' | 'chua-thay'
 
-/** The answers that send the wizard back to the GitHub gate: no link, or no kept token that GitHub accepts. */
-const GATE_REASONS = ['RELINK_GITHUB', 'GITHUB_NOT_LINKED']
+/** The answers that send the wizard back to the GitHub gate: no link (FR-80). */
+const GATE_REASONS = ['GITHUB_NOT_LINKED']
 
 const DRAFT_KEY = 'vibefix.product.registration'
 
@@ -153,8 +153,6 @@ function Wizard() {
   const [url, setUrl] = useState(draft?.url ?? '')
   const [checked, setChecked] = useState<Checked>()
   const [values, setValues] = useState<Details>(draft?.values ?? { name: '', description: '', demoUrl: '' })
-  // The backend said GitHub must be linked again: the gate takes over step 2 whatever the link read says.
-  const [relink, setRelink] = useState(false)
   const queryClient = useQueryClient()
   // A draft comes back once: it is taken as the wizard opens.
   useEffect(() => writeDraft(undefined), [])
@@ -163,9 +161,9 @@ function Wizard() {
       setParams({}, { replace: true })
     }
   }, [params, setParams])
+  // The backend said GitHub is not linked: the link is read again, and the gate takes over step 2.
   const toGate = () => {
     void queryClient.invalidateQueries({ queryKey: GITHUB_LINK_QUERY_KEY })
-    setRelink(true)
     setChecked(undefined)
     setStep(2)
   }
@@ -191,8 +189,6 @@ function Wizard() {
           <GitHubGate
             action={t('screen.githubGate.action.registerProduct')}
             returnTo={ROUTE}
-            needsRepositoryToken
-            forceRelink={relink}
             onLeave={leave}
             onBack={() => setStep(1)}
           >
@@ -330,7 +326,7 @@ function RepositoryStep({
   autoCheck: boolean
   onUrl: (url: string) => void
   onChecked: (checked: Checked) => void
-  /** No link, or no kept token GitHub accepts: back to the GitHub gate (AD-10). */
+  /** GitHub is not linked: back to the GitHub gate (FR-80). */
   onGate: () => void
   /** The browser goes to GitHub: the input waits in the draft. */
   onLeave: () => void

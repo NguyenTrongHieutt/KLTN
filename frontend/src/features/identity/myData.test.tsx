@@ -39,7 +39,7 @@ describe('ALL-2 my data (NFR-11)', () => {
     let requested = false
     fakeBackend(customer, {
       'GET /api/v1/account/data': () =>
-        json({ deletionRequestedAt: null, deletionCompletedAt: null, blockers: [], tokenKept: true }),
+        json({ deletionRequestedAt: null, deletionCompletedAt: null, blockers: [] }),
       'POST /api/v1/account/deletion-request': () => {
         requested = true
         return json(
@@ -52,7 +52,6 @@ describe('ALL-2 my data (NFR-11)', () => {
               { module: 'job', reason: 'MILESTONE_PENDING', jobId: 'j2', name: 'Trang đặt món' },
               { module: 'job', reason: 'SPLIT_PENDING', jobId: 'j3', name: 'Báo cáo đặt bàn' },
             ],
-            tokenKept: true,
           },
           201,
         )
@@ -74,6 +73,9 @@ describe('ALL-2 my data (NFR-11)', () => {
     expect(
       screen.getByRole('link', { name: 'Tiền của một cột mốc bạn tham gia chưa chia xong · Báo cáo đặt bàn' }),
     ).toHaveAttribute('href', '/cong-viec/j3')
-    expect(screen.getByText(/thu hồi quyền truy cập GitHub/)).toBeInTheDocument()
+    // R31: no GitHub token is kept from now on, and whoever linked earlier still learns where to remove vibefix.
+    expect(screen.getByText(/Từ nay vibefix không giữ quyền GitHub nào/)).toHaveTextContent(
+      'Nếu bạn đã liên kết GitHub trước đây, sau khi tài khoản bị xóa bạn có thể gỡ vibefix trong GitHub, ở mục Settings › Applications.',
+    )
   })
 })

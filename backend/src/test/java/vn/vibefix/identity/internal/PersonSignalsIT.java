@@ -107,7 +107,7 @@ class PersonSignalsIT extends IntegrationTest {
 			.single();
 
 		this.links.link(mentor, new GitHubLinkReader.LinkedUser(githubId, "hung-dev", null, "hung@example.test",
-				List.of("hung@example.test", "hung@work.example.test")), GitHubLinksImpl.Purpose.PROFILE, null);
+				List.of("hung@example.test", "hung@work.example.test")));
 
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.person_signal WHERE account_id = :id AND source = 'GITHUB_EMAIL'")
 			.param("id", mentor)

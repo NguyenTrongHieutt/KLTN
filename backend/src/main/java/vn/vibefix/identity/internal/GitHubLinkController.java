@@ -17,7 +17,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import org.jspecify.annotations.Nullable;
@@ -40,8 +39,8 @@ import io.swagger.v3.oas.annotations.Hidden;
 import vn.vibefix.identity.GitHubLinkBlocker;
 import vn.vibefix.identity.Notices;
 import vn.vibefix.identity.internal.GitHubLinkReader.Answer;
+import vn.vibefix.identity.internal.GitHubLinkReader.LinkedUser;
 import vn.vibefix.identity.internal.GitHubLinksImpl.Outcome;
-import vn.vibefix.identity.internal.GitHubLinksImpl.Purpose;
 import vn.vibefix.identity.internal.SignInSession.PendingLink;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -55,8 +54,9 @@ import vn.vibefix.shared.Kind;
  * signed-in session and never creates one: the start records N-24, binds a random {@code state} and a
  * PKCE verifier to the session, and sends the browser to GitHub with exactly {@code read:user user:email};
  * the callback, outside {@code /api} and outside Spring's login filter, accepts that {@code state} once,
- * within 10 minutes, from the account that started it, then links what GitHub returned. No token, code,
- * or claim is ever logged.
+ * within 10 minutes, from the account that started it, then links what GitHub returned. The token is used
+ * once there to read the person and never stored; its whole grant's revocation is requested as soon as GitHub
+ * issued it, before the link (R31). No token, code, or claim is ever logged.
  */
 @RestController
 class GitHubLinkController {
@@ -73,11 +73,9 @@ class GitHubLinkController {
 
 	/**
 	 * @param noticeVersion the version of N-24 the person accepted
-	 * @param purpose {@code PRODUCT} from CUS-3 step 2, which keeps the token; {@code PROFILE} from ACC-2
 	 * @param returnTo a relative path inside the SPA to come back to; ACC-2 when absent
 	 */
-	record GitHubLinkRequest(@NotBlank String noticeVersion, @NotNull Purpose purpose,
-			@Nullable @Size(max = 200) String returnTo) {
+	record GitHubLinkRequest(@NotBlank String noticeVersion, @Nullable @Size(max = 200) String returnTo) {
 	}
 
 	/** Where the SPA sends the browser: GitHub's authorization page. */
@@ -101,14 +99,11 @@ class GitHubLinkController {
 	 * ACC-2's GitHub row.
 	 * @param login the GitHub username, while linked
 	 * @param linkedAt when GitHub was last linked: "Xác minh qua GitHub · {tháng/năm}"
-	 * @param relinkNeeded "Cần liên kết lại": the kept token stopped working at a re-check
-	 * @param repositoryTokenKept whether vibefix keeps a token to read the account's repositories; CUS-3
-	 * step 2 links again without one
 	 * @param blockers what disables "Bỏ liên kết", while linked
 	 * @param noticeVersion N-24's current version, which the start must name
 	 */
 	record GitHubLinkView(boolean linked, @Nullable String login, @Nullable String avatarUrl, @Nullable Instant linkedAt,
-			boolean relinkNeeded, boolean repositoryTokenKept, List<GitHubLinkBlockerView> blockers, String noticeVersion) {
+			List<GitHubLinkBlockerView> blockers, String noticeVersion) {
 	}
 
 	private final CurrentCaller callers;
@@ -138,13 +133,12 @@ class GitHubLinkController {
 		this.clock = clock;
 	}
 
-	/** ACC-2's GitHub row: linked or not, re-link needed, and what blocks "Bỏ liên kết". */
+	/** ACC-2's GitHub row: linked or not, and what blocks "Bỏ liên kết". */
 	@GetMapping("/api/v1/identity/github")
 	@Access(Gate.SIGNED_IN)
 	GitHubLinkView read() {
 		GitHubLinksImpl.Status status = this.links.status(this.callers.get().requireAccountId());
 		return new GitHubLinkView(status.linked(), status.login(), status.avatarUrl(), status.linkedAt(),
-				status.relinkNeeded(), status.repositoryTokenKept(),
 				status.blockers().stream().map(GitHubLinkBlockerView::of).toList(), Notices.LINK_GITHUB_VERSION);
 	}
 
@@ -184,7 +178,7 @@ class GitHubLinkController {
 		String verifier = randomToken();
 		String redirectUri = baseUrl(request) + GitHubSignIn.CALLBACK_PATH;
 		request.getSession().setAttribute(SignInSession.PENDING_LINK,
-				new PendingLink(accountId, state, verifier, body.purpose(), redirectUri, returnTo, this.clock.instant()));
+				new PendingLink(accountId, state, verifier, redirectUri, returnTo, this.clock.instant()));
 		String url = UriComponentsBuilder.fromUriString(registration.getProviderDetails().getAuthorizationUri())
 			.queryParam("response_type", "code")
 			.queryParam("client_id", registration.getClientId())
@@ -202,8 +196,9 @@ class GitHubLinkController {
 
 	/**
 	 * GitHub's return. The pending link is taken from the session first, so a {@code state} is accepted
-	 * once; anything wrong (no session, another account, a wrong or old {@code state}, a refused code)
-	 * writes nothing and lands on ACC-2 with {@code loi=that-bai}.
+	 * once; anything wrong (no session, another account, a wrong or old {@code state}, a refused code, a user
+	 * GitHub could not read) links nothing and lands on ACC-2 with {@code loi=that-bai}. Once GitHub issued a
+	 * token, its whole grant's revocation is requested first, whatever follows (R31).
 	 */
 	@Hidden
 	@GetMapping(GitHubSignIn.CALLBACK_PATH)
@@ -247,9 +242,16 @@ class GitHubLinkController {
 		if (answer == null) {
 			return failed("that-bai");
 		}
+		// GitHub issued a token: its whole grant is revoked once, in a transaction of its own, before anything
+		// else can fail (R31). The user read failing, or the link refusing or throwing, never loses it.
+		this.links.revokeGrant(pending.accountId(), answer.token());
+		LinkedUser user = answer.user();
+		if (user == null) {
+			return failed("that-bai");
+		}
 		Outcome outcome;
 		try {
-			outcome = this.links.link(pending.accountId(), answer.user(), pending.purpose(), answer.token());
+			outcome = this.links.link(pending.accountId(), user);
 		}
 		catch (DuplicateKeyException taken) {
 			outcome = Outcome.ALREADY_LINKED;

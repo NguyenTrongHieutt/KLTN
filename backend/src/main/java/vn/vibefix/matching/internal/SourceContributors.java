@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import vn.vibefix.identity.CustomerRepositories;
+import vn.vibefix.identity.GitHubAccountIds;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.product.ProductSources;
@@ -45,9 +45,9 @@ class SourceContributors {
 
 	private final ProductSources sources;
 
-	private final CustomerRepositories accounts;
+	private final GitHubAccountIds accounts;
 
-	SourceContributors(JobPosts posts, ProductSources sources, CustomerRepositories accounts) {
+	SourceContributors(JobPosts posts, ProductSources sources, GitHubAccountIds accounts) {
 		this.posts = posts;
 		this.sources = sources;
 		this.accounts = accounts;

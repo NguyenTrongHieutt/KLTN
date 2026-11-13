@@ -34,7 +34,7 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
  * Operation in the GitHub-long lane. Each attempt resumes at the first unfinished step, and each step finds
  * what an earlier attempt created before it creates anything:
  * <ol>
- * <li>"Kiểm tra lại dự án gốc": the Source Repository read again with the Customer's token (AD-13); a check
+ * <li>"Kiểm tra lại dự án gốc": the Source Repository read again through the Customer's Source App (AD-13); a check
  * that fails blocks the start. The default branch's head, read through the GitHub API, becomes the approved
  * commit (vibefix scans no code; Story 23.6 replaces it with the Customer's self-confirmed SHA).</li>
  * <li>Before anything is created, the gate: the organization, the runner, and the installation read back

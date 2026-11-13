@@ -48,17 +48,17 @@ final class SignInSession {
 
 	/**
 	 * A GitHub link on its way to GitHub (AD-10, RFC 7636): the {@code state} it must come back with, the
-	 * PKCE verifier its code is exchanged with, what it is for, where to return, and who started it when.
-	 * The verifier is a secret of the session, never logged or returned, and gone once the link returns.
+	 * PKCE verifier its code is exchanged with, where to return, and who started it when. The verifier is a
+	 * secret of the session, never logged or returned, and gone once the link returns.
 	 * @param redirectUri the callback the authorization request named, which the exchange names again
 	 * @param returnTo a relative path inside the SPA, or {@code null} for ACC-2
 	 */
-	record PendingLink(UUID accountId, String state, String codeVerifier, GitHubLinksImpl.Purpose purpose,
-			String redirectUri, @Nullable String returnTo, Instant startedAt) implements Serializable {
+	record PendingLink(UUID accountId, String state, String codeVerifier, String redirectUri, @Nullable String returnTo,
+			Instant startedAt) implements Serializable {
 
 		@Override
 		public String toString() {
-			return "PendingLink[accountId=" + this.accountId + ", purpose=" + this.purpose + "]";
+			return "PendingLink[accountId=" + this.accountId + "]";
 		}
 
 	}

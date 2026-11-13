@@ -67,7 +67,8 @@ services:
     secrets:
       - db-app-password
       - db-migrator-password
-      # AD-22: the key that seals the kept GitHub tokens.
+      # AD-22: the key that seals the GitHub token a grant-revocation operation carries until it runs
+      # (no Customer token is kept, R31; the Source is read through the Source App) and the TOTP secrets.
       - identity-token-key-1
       # AD-19, AD-22: the key of the person-link signals.
       - identity-person-signal-key-1

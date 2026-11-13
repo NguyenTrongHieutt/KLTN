@@ -34,8 +34,7 @@ import vn.vibefix.shared.PersonalDataSection;
  * each, audited as the System, and {@link ProductDeleted} published, so {@code repo} deletes their platform
  * repositories (FR-21); {@code job} blocks the erasure first while a Job runs.
  * <p>
- * It also answers for the GitHub link (FR-80, R14, AD-10): a live Product keeps its Customer's link, and
- * the token its Source Repository is read with.
+ * It also answers for the GitHub link (FR-80, R14, AD-10): a live Product keeps its Customer's link.
  */
 @Component
 @EnableConfigurationProperties(Products.ProductProperties.class)
@@ -162,14 +161,6 @@ class ProductPersonalData implements PersonalDataParticipant, GitHubLinkParticip
 			.query((rs, n) -> new GitHubLinkBlocker("product", "LIVE_PRODUCT", rs.getObject("id", UUID.class),
 					rs.getString("name")))
 			.list();
-	}
-
-	/** The owner of a live Product: AD-13's re-checks read its Source Repository with the token. */
-	@Override
-	public boolean keepsRepositoryToken(UUID accountId) {
-		return this.jdbc.sql("""
-				SELECT EXISTS (SELECT 1 FROM product.product WHERE customer_account_id = :id AND deleted_at IS NULL)
-				""").param("id", accountId).query(Boolean.class).single();
 	}
 
 }

@@ -19,8 +19,8 @@ import vn.vibefix.support.PostgresTestDatabase;
 /**
  * Story 23.5's forward migrations (AD-13, R2, R7): {@code SOURCE_NOT_PUBLIC} goes. A Setup it blocked, a Final Merge
  * it refused and the ZIP Fallback it routed to read {@code SOURCE_APP_MISSING}; the CHECKs allow the Source App's and
- * the workflow file's blocks and no longer the retired reason; {@code RELINK_GITHUB} stays until Story 23.5b; and
- * {@code product.source_app_binding} exists.
+ * the workflow file's blocks and no longer the retired reason; {@code RELINK_GITHUB} stays at this version, until
+ * Story 23.5d's migration ({@code RetireLinkingTokenMigrationIT}); and {@code product.source_app_binding} exists.
  */
 class SourceAppBlocksMigrationIT {
 

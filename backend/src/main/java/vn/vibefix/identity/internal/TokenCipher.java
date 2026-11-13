@@ -15,9 +15,12 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.core.env.Environment;
 
 /**
- * The versioned keyring for stored user secrets (AD-22): AES-256-GCM with a random 96-bit nonce and
- * the caller's associated data (for a Customer token, the account ID), so a ciphertext cannot be
- * moved to another account. Keys are 32-byte secret files {@code identity-token-key-{n}} in
+ * The versioned keyring for the secrets {@code identity} holds (AD-22): AES-256-GCM with a random 96-bit nonce
+ * and the caller's associated data, so a ciphertext cannot be moved to another account. No Customer token is kept
+ * (R31): the only GitHub token it seals is the one a grant-revocation operation carries until it runs
+ * ({@link OAuthGrantRevocation}, with the account ID as associated data); it also seals the Administrators' TOTP
+ * secrets. The Source Repository is read through the Source App. Keys are 32-byte secret files
+ * {@code identity-token-key-{n}} in
  * hexadecimal; the current version seals, and every present version opens what it sealed, so a
  * key rotates by adding the next file and raising {@code vibefix.identity.token-key-version}.
  */

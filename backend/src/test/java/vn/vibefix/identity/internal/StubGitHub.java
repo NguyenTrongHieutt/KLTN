@@ -34,6 +34,8 @@ public final class StubGitHub implements AutoCloseable {
 
 	private volatile int emailsStatus = 200;
 
+	private volatile int userStatus = 200;
+
 	private volatile boolean refusesCodes;
 
 	private StubGitHub() {
@@ -68,11 +70,17 @@ public final class StubGitHub implements AutoCloseable {
 				+ "{\"email\":\"" + login + "@school.test\",\"primary\":false,\"verified\":true},"
 				+ "{\"email\":\"" + login + "@example.test\",\"primary\":true,\"verified\":true}]";
 		this.emailsStatus = 200;
+		this.userStatus = 200;
 	}
 
 	/** GitHub's email addresses answer {@code status} for the next sign-ins. */
 	public void emailsAnswer(int status) {
 		this.emailsStatus = status;
+	}
+
+	/** GitHub's {@code /user} answers {@code status} for the next sign-ins, after a token was issued. */
+	public void userAnswers(int status) {
+		this.userStatus = status;
 	}
 
 	/** Whether the token endpoint refuses every code, as GitHub does a used or expired one (200 with an error). */
@@ -104,6 +112,11 @@ public final class StubGitHub implements AutoCloseable {
 		String authorization = exchange.getRequestHeaders().getFirst("Authorization");
 		if (authorization == null || !authorization.startsWith("Bearer gho_stub_")) {
 			exchange.sendResponseHeaders(401, -1);
+			exchange.close();
+			return;
+		}
+		if (this.userStatus != 200) {
+			exchange.sendResponseHeaders(this.userStatus, -1);
 			exchange.close();
 			return;
 		}
