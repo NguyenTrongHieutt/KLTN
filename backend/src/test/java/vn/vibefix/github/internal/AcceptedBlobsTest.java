@@ -58,6 +58,36 @@ class AcceptedBlobsTest {
 	}
 
 	/**
+	 * R12 (Story 23.6c, deferred-work 650): the published {@code vibefix.yml} has no end date, and every earlier version
+	 * still accepted has one, so a Product that added it gets the end-date notice; the 23.5 version, which dev Products
+	 * added before the copy's fsck ignore list, ends on 2026-12-14 [ASSUMPTION]. Each (path, blob) is listed once, so no
+	 * listing overwrites another's end date.
+	 */
+	@Test
+	void everyEarlierVibefixYmlEndsAndThePublishedOneDoesNot() throws IOException {
+		String published = AcceptedWorkflows.blobSha(GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
+		List<String> listings = new ArrayList<>();
+		Map<String, Object> endsOn = new LinkedHashMap<>();
+		for (Map<String, Object> blob : acceptedBlobs()) {
+			listings.add(blob.get("path") + " " + blob.get("blob"));
+			if (CUSTOMER_PATH.equals(blob.get("path"))) {
+				endsOn.put(String.valueOf(blob.get("blob")), blob.get("ends-on"));
+			}
+		}
+
+		assertThat(listings).as("one listing per path and blob").doesNotHaveDuplicates();
+		assertThat(endsOn).as("the published version, with no end").containsEntry(published, null);
+		assertThat(endsOn).as("the 23.5 version, from before the fsck ignore list")
+			.containsEntry("db448cf8fe316ef7876e5a6b0556a554ae74c976", "2026-12-14");
+		endsOn.forEach((blob, last) -> {
+			if (!blob.equals(published)) {
+				assertThat(last).as("%s is an earlier version, so it ends", blob).isInstanceOf(String.class);
+				assertThat(LocalDate.parse(String.valueOf(last))).as("%s ends on a day", blob).isNotNull();
+			}
+		});
+	}
+
+	/**
 	 * Story 23.5: the Source App serves the published {@code vibefix.yml} from its classpath copy, which is
 	 * {@code deploy/customer/vibefix.yml} byte for byte, with the blob {@code application.yaml} accepts.
 	 */

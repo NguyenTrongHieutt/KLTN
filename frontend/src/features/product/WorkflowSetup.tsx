@@ -1,12 +1,21 @@
 import { Copy, Download, ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { TermHint } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 import type { SourceStatus, WorkflowFile } from './productApi'
-import { domainOf, editWorkflowUrl, newWorkflowUrl, statusTone } from './productText'
+import {
+  SECRET_PROVIDERS,
+  domainOf,
+  editWorkflowUrl,
+  newWorkflowUrl,
+  statusTone,
+  workflowActionsUrl,
+} from './productText'
 
 /** An outside link: a new tab without the opener, with its domain beside it (AD-35). */
 export function OutLink({ href, children }: { href: string; children: ReactNode }) {
@@ -47,6 +56,33 @@ export function GitHubAction({
       <span className="text-caption">{t('screen.product.domain', { domain: 'github.com' })}</span>
       <span className="sr-only">{t('screen.product.newTab')}</span>
     </a>
+  )
+}
+
+/**
+ * N-2's guidance (FR-8, D8): what to check by hand, each credential's page, and the optional gitleaks run on the
+ * Source Repository's Actions tab, which never gates. CUS-3 step 3 shows it, and the SHA confirmation card in a Sheet.
+ * @param htmlUrl the Source Repository's page on GitHub
+ */
+export function SecretGuidance({ htmlUrl }: { htmlUrl: string }) {
+  return (
+    <>
+      <p className="text-body-sm">{t('notice.product.guidance')}</p>
+      <p className="text-label">{t('screen.product.wizard.secretsItemsHeading')}</p>
+      <ul className="flex flex-col gap-1.5">
+        {SECRET_PROVIDERS.map((item) => (
+          <li key={item.key} className="flex flex-wrap items-center gap-x-2 text-body-sm">
+            <span>{t(`screen.product.wizard.secret.${item.key}` as MessageKey)}</span>
+            <OutLink href={item.url}>{t('screen.product.wizard.secretLink', { provider: item.provider })}</OutLink>
+          </li>
+        ))}
+      </ul>
+      <p className="text-label">
+        {rich('screen.product.wizard.selfScanTerm', { term: <TermHint term="tuKiemTraKhoaBiMat" /> })}
+      </p>
+      <OutLink href={workflowActionsUrl(htmlUrl)}>{t('screen.product.wizard.selfScan')}</OutLink>
+      <p className="text-caption text-muted-foreground">{t('screen.product.wizard.selfScanHint')}</p>
+    </>
   )
 }
 
@@ -113,6 +149,7 @@ export function WorkflowFallback({
  * or a version nearing its end date), the new-file page would refuse the path and the edit page cannot be prefilled,
  * so the actions lead with "Sao chép nội dung", then "Sửa file workflow ↗" on GitHub's edit page.
  * @param recheck the card's check is "Kiểm tra lại" (CUS-4), not "Kiểm tra" (CUS-3)
+ * @param hints the hints of a surface whose way back is another action, such as the step tracker's "Thử lại"
  */
 export function WorkflowFileActions({
   file,
@@ -121,6 +158,7 @@ export function WorkflowFileActions({
   repo,
   existing,
   recheck,
+  hints,
 }: {
   file: WorkflowFile
   htmlUrl: string
@@ -128,7 +166,10 @@ export function WorkflowFileActions({
   repo: string
   existing: boolean
   recheck: boolean
+  hints?: { add: MessageKey; edit: MessageKey }
 }) {
+  const editHint = hints?.edit ?? (recheck ? 'screen.product.setup.editWorkflowHint' : 'screen.product.wizard.editWorkflowHint')
+  const addHint = hints?.add ?? (recheck ? 'screen.product.setup.addWorkflowHint' : 'screen.product.wizard.addWorkflowHint')
   return (
     <div className="flex flex-col gap-2">
       {existing ? (
@@ -139,22 +180,14 @@ export function WorkflowFileActions({
               {t('screen.product.wizard.editWorkflow')}
             </GitHubAction>
           </div>
-          <p className="text-caption text-muted-foreground">
-            {t(recheck ? 'screen.product.setup.editWorkflowHint' : 'screen.product.wizard.editWorkflowHint', {
-              path: file.path,
-            })}
-          </p>
+          <p className="text-caption text-muted-foreground">{t(editHint, { path: file.path })}</p>
         </>
       ) : (
         <>
           <GitHubAction href={newWorkflowUrl(htmlUrl, branch, file.path, file.content)}>
             {t('screen.product.wizard.addWorkflow')}
           </GitHubAction>
-          <p className="text-caption text-muted-foreground">
-            {t(recheck ? 'screen.product.setup.addWorkflowHint' : 'screen.product.wizard.addWorkflowHint', {
-              path: file.path,
-            })}
-          </p>
+          <p className="text-caption text-muted-foreground">{t(addHint, { path: file.path })}</p>
         </>
       )}
       <WorkflowFallback file={file} branch={branch} repo={repo} copy={!existing} />

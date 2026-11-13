@@ -32,16 +32,8 @@ import {
   type RepositoryCheck,
   type Tool,
 } from './productApi'
-import {
-  SECRET_PROVIDERS,
-  TOOL_DOCS,
-  TOOLS,
-  checkProblem,
-  domainOf,
-  megabytes,
-  workflowActionsUrl,
-} from './productText'
-import { OutLink, WorkflowFileActions } from './WorkflowSetup'
+import { TOOL_DOCS, TOOLS, checkProblem, domainOf, megabytes } from './productText'
+import { OutLink, SecretGuidance, WorkflowFileActions } from './WorkflowSetup'
 
 const NOTICE_VERSION = (vi as { notice: { product: { version: string } } }).notice.product.version
 
@@ -729,21 +721,7 @@ function Secrets({ repository }: { repository: RepositoryCheck }) {
       <h2 id="secrets-heading" className="text-h3">
         {t('screen.product.wizard.secretsHeading')}
       </h2>
-      <p className="text-body-sm">{t('notice.product.guidance')}</p>
-      <p className="text-label">{t('screen.product.wizard.secretsItemsHeading')}</p>
-      <ul className="flex flex-col gap-1.5">
-        {SECRET_PROVIDERS.map((item) => (
-          <li key={item.key} className="flex flex-wrap items-center gap-x-2 text-body-sm">
-            <span>{t(`screen.product.wizard.secret.${item.key}` as MessageKey)}</span>
-            <OutLink href={item.url}>{t('screen.product.wizard.secretLink', { provider: item.provider })}</OutLink>
-          </li>
-        ))}
-      </ul>
-      <p className="text-label">
-        {rich('screen.product.wizard.selfScanTerm', { term: <TermHint term="tuKiemTraKhoaBiMat" /> })}
-      </p>
-      <OutLink href={workflowActionsUrl(repository.htmlUrl)}>{t('screen.product.wizard.selfScan')}</OutLink>
-      <p className="text-caption text-muted-foreground">{t('screen.product.wizard.selfScanHint')}</p>
+      <SecretGuidance htmlUrl={repository.htmlUrl} />
     </section>
   )
 }

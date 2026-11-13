@@ -18371,6 +18371,9 @@
           "confirmation" : {
             "$ref" : "#/components/schemas/SetupConfirmationView"
           },
+          "defaultBranch" : {
+            "type" : "string"
+          },
           "exchangeReason" : {
             "type" : "string"
           },
@@ -18390,8 +18393,18 @@
               "$ref" : "#/components/schemas/SetupPersonView"
             }
           },
+          "productId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "run" : {
             "$ref" : "#/components/schemas/SetupRunView"
+          },
+          "sourceFullName" : {
+            "type" : "string"
+          },
+          "sourceUrl" : {
+            "type" : "string"
           },
           "status" : {
             "type" : "string"
@@ -18401,9 +18414,13 @@
             "items" : {
               "$ref" : "#/components/schemas/SetupStepView"
             }
+          },
+          "viewer" : {
+            "type" : "string",
+            "enum" : [ "CUSTOMER", "MENTOR", "CREW", "ADMINISTRATOR" ]
           }
         },
-        "required" : [ "canRetry", "jobId", "jobState", "people", "status", "steps" ]
+        "required" : [ "canRetry", "jobId", "jobState", "people", "productId", "status", "steps", "viewer" ]
       },
       "ShareRequest" : {
         "type" : "object",
