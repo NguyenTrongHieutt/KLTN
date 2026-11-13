@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.shared.Kind;
 
-/** Reads and writes {@code identity.account}, {@code identity.acknowledgment}, and the kept GitHub token. */
+/** Reads and writes {@code identity.account} and {@code identity.acknowledgment}. */
 @Component
 class Accounts {
 
@@ -243,36 +243,6 @@ class Accounts {
 			.param("version", noticeVersion)
 			.query(Boolean.class)
 			.single();
-	}
-
-	/** Stores or replaces the account's sealed GitHub token (AD-22, SG-9); the table keeps its first name. */
-	void storeCustomerToken(UUID accountId, TokenCipher.Sealed sealed, Instant at) {
-		this.jdbc.sql("""
-				INSERT INTO identity.customer_token (account_id, key_version, nonce, ciphertext, stored_at)
-				VALUES (:accountId, :keyVersion, :nonce, :ciphertext, :at)
-				ON CONFLICT (account_id) DO UPDATE
-				SET key_version = EXCLUDED.key_version, nonce = EXCLUDED.nonce, ciphertext = EXCLUDED.ciphertext,
-				    stored_at = EXCLUDED.stored_at
-				""")
-			.param("accountId", accountId)
-			.param("keyVersion", sealed.keyVersion())
-			.param("nonce", sealed.nonce())
-			.param("ciphertext", sealed.ciphertext())
-			.param("at", Timestamp.from(at))
-			.update();
-	}
-
-	/** Deletes the account's kept GitHub token, if any. */
-	void deleteCustomerToken(UUID accountId) {
-		this.jdbc.sql("DELETE FROM identity.customer_token WHERE account_id = :id").param("id", accountId).update();
-	}
-
-	Optional<TokenCipher.Sealed> customerToken(UUID accountId) {
-		return this.jdbc.sql("SELECT key_version, nonce, ciphertext FROM identity.customer_token WHERE account_id = :id")
-			.param("id", accountId)
-			.query((rs, n) -> new TokenCipher.Sealed(rs.getInt("key_version"), rs.getBytes("nonce"),
-					rs.getBytes("ciphertext")))
-			.optional();
 	}
 
 	private static Account row(ResultSet rs, int number) throws SQLException {

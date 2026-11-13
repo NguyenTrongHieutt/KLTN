@@ -33,7 +33,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.GitHubStub.MergeInstallation;
 import vn.vibefix.github.internal.TestKeys;
-import vn.vibefix.identity.internal.CustomerTokens;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobCompletion;
@@ -139,7 +138,9 @@ class FinalMergeIT extends IntegrationTest {
 		this.hung = IdentityTestSupport.insertAccount(this.jdbc, Role.MENTOR, null);
 		long id = IDS.incrementAndGet();
 		// The Customer's own repository: GitHub shows them as its owner, and the Merge App is installed on their account.
-		this.ownerId = CustomerTokens.githubUserId(this.jdbc, this.lan);
+		this.ownerId = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id").param("id", this.lan)
+			.query(Long.class)
+			.single();
 		this.owner = "quan-may-" + id;
 		this.name = "so-dat-ban";
 		this.repository = id;

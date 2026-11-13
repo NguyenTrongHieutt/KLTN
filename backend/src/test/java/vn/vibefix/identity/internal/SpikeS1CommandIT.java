@@ -8,10 +8,9 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.UnaryOperator;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -21,27 +20,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.core.env.Environment;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.env.MockEnvironment;
 
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Story 1.14's probe (S1, AD-13): it reads each repository with the Customer's kept GitHub token
- * and prints what GitHub says about admin permission, never the token, and only on the dev stack.
+ * Story 1.14's probe (S1, AD-13): it reads each repository with the GitHub token the person running it puts in the
+ * process environment variable {@value SpikeS1Command#TOKEN_VARIABLE} (never a Spring property or argument), since
+ * vibefix keeps none (R31), and prints what GitHub says about admin permission, never the token, and only on the dev
+ * stack.
  */
 class SpikeS1CommandIT extends IntegrationTest {
 
-	private static final String TOKEN = "gho_" + "x".repeat(8) + "spike";
-
-	@Autowired
-	private JdbcClient jdbc;
-
-	@Autowired
-	private Accounts accounts;
-
-	@Autowired
-	private TokenCipher cipher;
+	private static final String TOKEN = String.join("", "gh", "o_", "x".repeat(8), "spike");
 
 	@Autowired
 	private AdministratorBootstrap bootstrap;
@@ -55,10 +46,7 @@ class SpikeS1CommandIT extends IntegrationTest {
 	private final ByteArrayOutputStream err = new ByteArrayOutputStream();
 
 	@BeforeEach
-	void aCustomerWithAStoredTokenAndAStubGitHub() throws IOException {
-		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		this.jdbc.sql("UPDATE identity.account SET github_login = 'Lan-Owner' WHERE id = :id").param("id", customer).update();
-		this.accounts.storeCustomerToken(customer, this.cipher.seal(TOKEN, customer.toString()), Instant.now());
+	void aStubGitHub() throws IOException {
 		this.github = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 		this.github.createContext("/repos/", this::answer);
 		this.github.start();
@@ -73,8 +61,8 @@ class SpikeS1CommandIT extends IntegrationTest {
 	void printsTheAdminPermissionOfEachRepositoryAndNeverTheToken() {
 		SpikeS1Command command = command(dev());
 
-		command.run(new DefaultApplicationArguments("--github-login=lan-owner", "--repo=lan-owner/shop",
-				"--repo=vibefix-dev/restricted", "--repo=vibefix-dev/member-admin"));
+		command.run(new DefaultApplicationArguments("--repo=lan-owner/shop", "--repo=vibefix-dev/restricted",
+				"--repo=vibefix-dev/member-admin"));
 
 		String printed = this.out.toString(StandardCharsets.UTF_8);
 		assertThat(printed).contains("lan-owner/shop").containsPattern("HTTP 200  owner=User  permissions.admin=true");
@@ -89,26 +77,29 @@ class SpikeS1CommandIT extends IntegrationTest {
 	void anErrorFromGitHubIsShownAndFailsTheRun() {
 		SpikeS1Command command = command(dev());
 
-		command.run(new DefaultApplicationArguments("--github-login=lan-owner", "--repo=vibefix-dev/gone"));
+		command.run(new DefaultApplicationArguments("--repo=vibefix-dev/gone"));
 
 		assertThat(this.out.toString(StandardCharsets.UTF_8)).containsPattern("vibefix-dev/gone\\s+HTTP 404");
 		assertThat(command.getExitCode()).isOne();
 	}
 
 	@Test
-	void itRefusesProdAnUnknownCustomerAndAWrongInvocation() {
+	void itRefusesProdAMissingTokenAndAWrongInvocation() {
 		MockEnvironment prod = dev();
 		prod.setActiveProfiles("prod", "cli");
 		SpikeS1Command onProd = command(prod);
-		onProd.run(new DefaultApplicationArguments("--github-login=lan-owner", "--repo=lan-owner/shop"));
+		onProd.run(new DefaultApplicationArguments("--repo=lan-owner/shop"));
 		assertThat(onProd.getExitCode()).isOne();
 
-		SpikeS1Command unknown = command(dev());
-		unknown.run(new DefaultApplicationArguments("--github-login=nobody", "--repo=lan-owner/shop"));
-		assertThat(unknown.getExitCode()).isOne();
+		// Only the process's environment variable counts: a Spring property or argument of that name is no token.
+		MockEnvironment asProperty = dev().withProperty(SpikeS1Command.TOKEN_VARIABLE, TOKEN);
+		SpikeS1Command withoutToken = command(asProperty, name -> null);
+		withoutToken.run(new DefaultApplicationArguments("--repo=lan-owner/shop", "--" + SpikeS1Command.TOKEN_VARIABLE + "=" + TOKEN));
+		assertThat(withoutToken.getExitCode()).isOne();
+		assertThat(this.err.toString(StandardCharsets.UTF_8)).contains(SpikeS1Command.TOKEN_VARIABLE);
 
 		SpikeS1Command wrong = command(dev());
-		wrong.run(new DefaultApplicationArguments("--github-login=lan-owner", "--repo=not a repository"));
+		wrong.run(new DefaultApplicationArguments("--repo=not a repository"));
 		assertThat(wrong.getExitCode()).isEqualTo(2);
 		assertThat(this.authorizations).isEmpty();
 	}
@@ -118,15 +109,19 @@ class SpikeS1CommandIT extends IntegrationTest {
 		BootstrapCommand bootstrapCommand = new BootstrapCommand(this.bootstrap, dev(), () -> new char[0],
 				new PrintStream(this.out, true, StandardCharsets.UTF_8), new PrintStream(this.err, true, StandardCharsets.UTF_8));
 
-		bootstrapCommand.run(new DefaultApplicationArguments("--github-login=lan-owner", "--repo=lan-owner/shop"));
+		bootstrapCommand.run(new DefaultApplicationArguments("--repo=lan-owner/shop"));
 
 		assertThat(bootstrapCommand.getExitCode()).isZero();
 		assertThat(this.err.toString(StandardCharsets.UTF_8)).isEmpty();
 	}
 
+	/** The command, with {@value SpikeS1Command#TOKEN_VARIABLE} set in its process environment. */
 	private SpikeS1Command command(Environment environment) {
-		return new SpikeS1Command(this.jdbc, this.accounts, this.cipher, environment,
-				URI.create("http://127.0.0.1:" + this.github.getAddress().getPort()),
+		return command(environment, name -> SpikeS1Command.TOKEN_VARIABLE.equals(name) ? TOKEN : null);
+	}
+
+	private SpikeS1Command command(Environment environment, UnaryOperator<String> variables) {
+		return new SpikeS1Command(environment, variables, URI.create("http://127.0.0.1:" + this.github.getAddress().getPort()),
 				new PrintStream(this.out, true, StandardCharsets.UTF_8), new PrintStream(this.err, true, StandardCharsets.UTF_8));
 	}
 

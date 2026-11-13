@@ -13,9 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Duration;
-import java.util.HexFormat;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,8 +35,8 @@ import vn.vibefix.support.IntegrationTest;
 /**
  * Story 16.2 (NFR-11, AD-24, SG-9): a person downloads their own data and requests their account's deletion
  * once; Administrators hear of it; while a Job runs the request waits and lists its blocker; once nothing blocks,
- * the Administrator confirms it behind the step-up, every participant erases the account, its Products go, and
- * the sign-in grant's revocation is queued with the kept token sealed.
+ * the Administrator confirms it behind the step-up, every participant erases the account, and its Products go. No
+ * GitHub token is kept (R31), so the erasure revokes nothing on GitHub.
  */
 class DataRequestIT extends IntegrationTest {
 
@@ -53,12 +51,6 @@ class DataRequestIT extends IntegrationTest {
 
 	@Autowired
 	private ApplicationContext context;
-
-	@Autowired
-	private Accounts accounts;
-
-	@Autowired
-	private TokenCipher cipher;
 
 	private HeldCrewJob world;
 
@@ -85,14 +77,11 @@ class DataRequestIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/account/data").with(as(this.world.vy(), Role.STUDENT)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.deletionRequestedAt").doesNotExist())
-			.andExpect(jsonPath("$.tokenKept").value(false));
+			.andExpect(jsonPath("$.tokenKept").doesNotExist());
 	}
 
 	@Test
 	void theRequestWaitsForTheRunningJobAndThenTheAdministratorErasesTheAccount() throws Exception {
-		String token = "gho_" + HexFormat.of().formatHex(randomBytes());
-		this.accounts.storeCustomerToken(this.world.lan(), this.cipher.seal(token, this.world.lan().toString()),
-				this.clock.instant());
 		erase().andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("NO_DELETION_REQUEST"));
 
 		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.lan(), Role.CUSTOMER)).with(csrf()))
@@ -100,8 +89,7 @@ class DataRequestIT extends IntegrationTest {
 			.andExpect(jsonPath("$.deletionRequestedAt").exists())
 			.andExpect(jsonPath("$.blockers[0].reason").value("JOB_RUNNING"))
 			.andExpect(jsonPath("$.blockers[0].jobId").value(this.world.job().toString()))
-			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"))
-			.andExpect(jsonPath("$.tokenKept").value(true));
+			.andExpect(jsonPath("$.blockers[0].name").value("Sửa lỗi đặt bàn"));
 		this.mvc.perform(post("/api/v1/account/deletion-request").with(as(this.world.lan(), Role.CUSTOMER)).with(csrf()))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("ALREADY_REQUESTED"));
@@ -125,11 +113,9 @@ class DataRequestIT extends IntegrationTest {
 			.isOne();
 		assertThat(count("SELECT count(*) FROM identity.deletion_request WHERE account_id = '" + this.world.lan()
 				+ "' AND completed_at IS NOT NULL")).isOne();
-		assertThat(count("SELECT count(*) FROM identity.customer_token WHERE account_id = '" + this.world.lan() + "'")).isZero();
-		String sealed = this.jdbc.sql("""
-				SELECT personal_data::text FROM operations.external_operation WHERE type = 'identity.revoke_oauth_grant'
-				""").query(String.class).single();
-		assertThat(sealed).contains("ciphertext").doesNotContain(token);
+		assertThat(count("SELECT count(*) FROM operations.external_operation WHERE type = 'identity.revoke_oauth_grant'"))
+			.as("no token is kept, so the erasure has nothing to revoke on GitHub")
+			.isZero();
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'identity.account_erased'")).isOne();
 		await().atMost(Duration.ofSeconds(15))
 			.until(() -> count("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL") == 0);
@@ -289,12 +275,6 @@ class DataRequestIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/admin/users/" + account + "/erase").with(admin()).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"stepUpCode\":\"" + AdministratorTestSupport.code(this.ha, this.clock.instant()) + "\"}"));
-	}
-
-	private static byte[] randomBytes() {
-		byte[] bytes = new byte[18];
-		ThreadLocalRandom.current().nextBytes(bytes);
-		return bytes;
 	}
 
 	private long count(String sql) {

@@ -131,15 +131,21 @@ production still refuses to start without them. Without them, ACC-2 says linking
    Apps and VNPay.
 
 The app asks only for `read:user` and `user:email` (FR-80), with PKCE and a `state` bound to the
-session. vibefix keeps the token only for the owner of a live Product, or for a link started from
-CUS-3 step 2 (a first Product), encrypted with `secrets/identity-token-key-1`, which `dev-secrets.sh`
-creates; deleting that key makes every kept token unreadable. Every token vibefix does not keep is
-revoked alone on GitHub (`DELETE /applications/{client_id}/token`, through the
-`identity.revoke_oauth_grant` operation): the token of a link that needs none, the one a re-link
-replaces, the one forgotten when the last live Product is deleted, the one dropped by an unlink on
-ACC-2, and, by a daily sweep, one kept for a registration that no live Product needs after 24 hours.
-The app's grant stays, so a newer token keeps working; only an account's deletion revokes the whole
-grant. A person can remove vibefix themselves on GitHub under Settings › Applications.
+session. Since Story 23.5d (R31) the link keeps identity only, as Google's sign-in does: as soon as
+GitHub issues a token, the callback asks for the whole grant to be revoked on GitHub
+(`DELETE /applications/{client_id}/grant`, through the `identity.revoke_oauth_grant` operation, which
+carries the token sealed with `secrets/identity-token-key-1` until it runs), reads the person with
+it once, and stores it nowhere. So a link made since this story leaves vibefix authorized on nobody's
+GitHub account, and linking again shows GitHub's consent screen again. Revocations queued before this
+story for one token alone were changed by its migration to revoke the whole grant. Repositories are
+read through the Source App, never with this token. No token is held any more, so an unlink or an
+account's deletion has nothing to revoke; a person who linked before this story can remove vibefix on
+GitHub under Settings › Applications.
+
+**Author action for Story 23.5d:** the dev OAuth App's authorizations granted before this story (the
+tokens vibefix used to keep, which its migration deleted without revoking them) stay listed on your
+GitHub account, and on any test account that linked, until you revoke them there: Settings ›
+Applications › Authorized OAuth Apps, then Revoke on the dev app. Nothing in vibefix holds them.
 
 ## The first Administrator
 
@@ -227,9 +233,19 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
 
 ## Spike S1: the admin check for organization-owned repositories
 
-Story 1.14 asks whether a Customer's kept GitHub token sees `permissions.admin` on a repository
-owned by an organization (AD-13, S1). Only the author can run it, on GitHub, with the dev OAuth App
-registered ("Linking GitHub locally" above).
+**Historical:** S1 closed on 2026-10-19 (organization-owned repositories are accepted through
+AD-13's path), and since Story 23.5 the admin check reads through the Source App. The probe is kept
+only to repeat the experiment.
+
+Story 1.14 asks whether a Customer's GitHub token sees `permissions.admin` on a repository owned by
+an organization (AD-13, S1). Only the author can run it, on GitHub, with the dev OAuth App
+registered ("Linking GitHub locally" above). Since Story 23.5d vibefix keeps no GitHub token, so the
+probe never reads one from storage: it reads with the token in the process environment variable
+`VIBEFIX_SPIKE_S1_TOKEN` only (never a `--` argument), and never prints it. That token must be a
+user token of the dev OAuth App, obtained by hand through that app's web flow: authorize the app in
+the browser, then exchange the code at `https://github.com/login/oauth/access_token` with the app's
+client ID and secret. vibefix's own linking cannot give you one any more, since it revokes the grant
+at once, and another app's token (such as the GitHub CLI's) would not test this app's access.
 
 1. In `vibefix-dev`, create four public test repositories:
    - one owned by your own GitHub user (`<you>/s1-user`);
@@ -238,13 +254,15 @@ registered ("Linking GitHub locally" above).
      Third-party access → OAuth application policy), without approving the dev OAuth App;
    - `vibefix-dev/s1-member-admin`, where a second GitHub account that is **not** an organization
      owner has the admin role on that repository only.
-2. Sign in on http://localhost:5173 as a Customer with each account whose token you want to test,
-   so its token is stored.
-3. Run the probe for each Customer. It reads the repositories with that stored token and prints
-   the owner type, the HTTP status, and `permissions.admin`; it never prints the token.
+2. Get a dev OAuth App user token by hand, as above, for each account you want to test.
+3. Run the probe for each account. Set the token without echoing it or leaving it in your shell
+   history, then pass the variable by name. The probe reads the repositories with that token and
+   prints the owner type, the HTTP status, and `permissions.admin`; it never prints the token.
 
    ```sh
-   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli backend   --vibefix.cli.command=spike-s1 --github-login=<Customer> --repo=<you>/s1-user --repo=vibefix-dev/s1-open --repo=vibefix-dev/s1-member-admin
+   read -rs VIBEFIX_SPIKE_S1_TOKEN && export VIBEFIX_SPIKE_S1_TOKEN
+   docker compose -f deploy/compose.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli -e VIBEFIX_SPIKE_S1_TOKEN backend   --vibefix.cli.command=spike-s1 --repo=<you>/s1-user --repo=vibefix-dev/s1-open --repo=vibefix-dev/s1-member-admin
+   unset VIBEFIX_SPIKE_S1_TOKEN
    ```
 
    Turn the restrictions on, then run it again with `--repo=vibefix-dev/s1-restricted`.

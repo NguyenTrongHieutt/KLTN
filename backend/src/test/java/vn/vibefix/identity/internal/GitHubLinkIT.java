@@ -11,6 +11,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,13 +43,15 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.support.Browser;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.PostgresTestDatabase;
 
 /**
  * Story 19.2 (FR-80, R14, AD-10, AD-19, AD-22, AD-24, AD-42): linking GitHub to a signed-in Google account
  * against a stub GitHub, through the start, GitHub's page (skipped), and the callback. N-24 first; one
- * GitHub ID per account and nothing merged; a re-link only of the same ID; the token kept only for a first
- * Product or a live Product's owner; unlinking only without blockers; and the commands that create work
- * refused without a link. Logins by ID are {@code repo}'s ({@code JobSetupIT}).
+ * GitHub ID per account and nothing merged; a re-link only of the same ID; unlinking only without blockers; and
+ * the commands that create work refused without a link. Since Story 23.5d (R31) the token is used once in the
+ * callback and stored nowhere, and each callback that got one requests one revocation of its whole grant, whatever
+ * it led to; an unlink revokes nothing. Logins by ID are {@code repo}'s ({@code JobSetupIT}).
  */
 class GitHubLinkIT extends IntegrationTest {
 
@@ -66,9 +71,6 @@ class GitHubLinkIT extends IntegrationTest {
 
 	@Autowired
 	private TokenCipher cipher;
-
-	@Autowired
-	private TokenRenewals renewals;
 
 	@Autowired
 	private SessionRepository<? extends Session> sessions;
@@ -104,13 +106,14 @@ class GitHubLinkIT extends IntegrationTest {
 	@AfterEach
 	void reset() {
 		github.refusesCodes(false);
+		github.userAnswers(200);
 	}
 
 	@Test
 	void theStartRecordsN24AndAsksGitHubForExactlyReadUserAndUserEmailWithPkce() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 
-		MvcResult start = start(this.browser, "1.0", "PROFILE", null);
+		MvcResult start = start(this.browser, "1.1", null);
 
 		assertThat(start.getResponse().getStatus()).isEqualTo(200);
 		String url = JSON.readTree(start.getResponse().getContentAsString()).path("authorizationUrl").asString();
@@ -126,17 +129,17 @@ class GitHubLinkIT extends IntegrationTest {
 		assertThat(query.get("code_challenge")).matches("[A-Za-z0-9_-]{43}");
 		assertThat(this.jdbc.sql("""
 				SELECT notice || ' ' || notice_version FROM identity.acknowledgment WHERE account_id = :id ORDER BY notice
-				""").param("id", lan).query(String.class).list()).containsExactly("LINK_GITHUB 1.0", "PRIVACY 3.1");
+				""").param("id", lan).query(String.class).list()).containsExactly("LINK_GITHUB 1.1", "PRIVACY 3.1");
 		assertThat(github.tokenRequests()).as("nothing is exchanged before GitHub returns").isEmpty();
 	}
 
 	@Test
-	void linkingRecordsTheGitHubAccountItsVerifiedEmailsAndClosesTheToDo() throws Exception {
+	void linkingRecordsTheGitHubAccountItsVerifiedEmailsClosesTheToDoAndRevokesTheGrant() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 		assertThat(openTodos(lan, "identity.link_github")).isOne();
 		assertThat(sessionAccount().path("capabilities").path("githubVerified").asBoolean()).isFalse();
 
-		Map<String, String> authorization = authorization(this.browser, "PROFILE", null);
+		Map<String, String> authorization = authorization(this.browser, null);
 		String target = callback(this.browser, authorization.get("state"));
 
 		assertThat(target).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
@@ -157,16 +160,19 @@ class GitHubLinkIT extends IntegrationTest {
 				"http://localhost/link/oauth2/code/github");
 		assertThat(GitHubLinkController.challenge(exchange.get("code_verifier"))).as("the PKCE verifier arrives")
 			.isEqualTo(authorization.get("code_challenge"));
-		assertThat(keptToken(lan)).as("ACC-2 keeps no token for an account without a live Product").isNull();
+		assertThat(revokedGrants(lan)).as("one revocation of the whole grant, with the token sealed")
+			.containsExactly(github.lastToken());
+		assertThat(tokenRevocations()).as("never a token alone").isZero();
+		assertThat(noTokenTable()).as("no table keeps a GitHub token").isTrue();
 
 		JsonNode row = read(this.browser);
 		assertThat(row.path("linked").asBoolean()).isTrue();
 		assertThat(row.path("login").asString()).isEqualTo("lan-dev");
 		assertThat(Instant.parse(row.path("linkedAt").asString())).isEqualTo(this.clock.instant());
-		assertThat(row.path("relinkNeeded").asBoolean()).isFalse();
-		assertThat(row.path("repositoryTokenKept").asBoolean()).isFalse();
+		assertThat(row.has("relinkNeeded")).as("no re-link state").isFalse();
+		assertThat(row.has("repositoryTokenKept")).isFalse();
 		assertThat(row.path("blockers").size()).isZero();
-		assertThat(row.path("noticeVersion").asString()).isEqualTo("1.0");
+		assertThat(row.path("noticeVersion").asString()).isEqualTo("1.1");
 		JsonNode session = JSON.readTree(this.browser.perform(get("/api/v1/session")).getResponse().getContentAsString());
 		assertThat(session.path("status").asString()).as("linking signs nobody in or out").isEqualTo("SIGNED_IN");
 		assertThat(session.path("account").path("id").asString()).isEqualTo(lan.toString());
@@ -178,43 +184,41 @@ class GitHubLinkIT extends IntegrationTest {
 	}
 
 	@Test
-	void aLinkStartedForAFirstProductKeepsTheTokenSealedWithTheAccountIdAndReturnsWhereItStarted() throws Exception {
+	void aLinkFromTheGateReturnsWhereItStartedAndALiveProductsOwnerKeepsNoTokenEither() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 
-		String target = callback(this.browser, authorization(this.browser, "PRODUCT", "/san-pham/moi").get("state"));
+		String target = callback(this.browser, authorization(this.browser, "/san-pham/moi").get("state"));
 
 		assertThat(target).isEqualTo("/san-pham/moi");
-		TokenCipher.Sealed sealed = keptToken(lan);
-		assertThat(sealed).isNotNull();
-		assertThat(this.cipher.open(sealed, lan.toString())).isEqualTo(github.lastToken());
-		assertThatThrownBy(() -> this.cipher.open(sealed, UUID.randomUUID().toString()))
+		String first = github.lastToken();
+		String sealed = this.jdbc.sql("""
+				SELECT personal_data::text FROM operations.external_operation
+				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id
+				""").param("id", lan).query(String.class).single();
+		assertThat(sealed).contains("ciphertext").doesNotContain(first);
+		assertThatThrownBy(() -> revokedGrants(UUID.randomUUID(), lan))
 			.as("sealed with the account ID as associated data")
 			.isInstanceOf(IllegalStateException.class);
-		assertThat(read(this.browser).path("repositoryTokenKept").asBoolean()).isTrue();
-	}
-
-	@Test
-	void aProfileLinkKeepsTheTokenOnlyForALiveProductsOwner() throws Exception {
-		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
-		assertThat(keptToken(lan)).isNull();
 
 		liveProduct(lan, "Sổ đặt bàn Quán Mây");
-		link(this.browser, "PROFILE");
+		assertThat(link(this.browser)).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
 
-		assertThat(keptToken(lan)).as("the owner of a live Product keeps it").isNotNull();
-		assertThat(this.cipher.open(keptToken(lan), lan.toString())).isEqualTo(github.lastToken());
+		assertThat(revokedGrants(lan)).as("the owner of a live Product keeps nothing either")
+			.containsExactlyInAnyOrder(first, github.lastToken());
+		assertThat(tokenRevocations()).isZero();
+		assertThat(sessionsHold(first) || sessionsHold(github.lastToken())).as("nor does the session").isFalse();
 	}
 
 	@Test
 	void anOldOrMissingN24VersionOrAReturnOutsideTheSpaStartsNothing() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 
-		assertProblem(start(this.browser, "0.9", "PROFILE", null), 409, "STALE", null);
+		assertProblem(start(this.browser, "0.9", null), 409, "STALE", null);
 		assertProblem(this.browser.command(post("/api/v1/identity/github/link").contentType(MediaType.APPLICATION_JSON)
-			.content("{\"purpose\":\"PROFILE\"}")), 400, "VALIDATION", null);
-		assertProblem(start(this.browser, "1.0", "PROFILE", "https://evil.example/"), 400, "VALIDATION", null);
-		assertProblem(start(this.browser, "1.0", "PROFILE", "//evil.example/"), 400, "VALIDATION", null);
+			.content("{\"returnTo\":\"/san-pham/moi\"}")), 400, "VALIDATION", null);
+		assertProblem(start(this.browser, "1.0", null), 409, "STALE", null);
+		assertProblem(start(this.browser, "1.1", "https://evil.example/"), 400, "VALIDATION", null);
+		assertProblem(start(this.browser, "1.1", "//evil.example/"), 400, "VALIDATION", null);
 
 		assertThat(callback(this.browser, "any-state")).as("no link is pending").isEqualTo("/ho-so/xac-minh?loi=that-bai");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM identity.acknowledgment WHERE account_id = :id AND notice = 'LINK_GITHUB'")
@@ -226,26 +230,26 @@ class GitHubLinkIT extends IntegrationTest {
 	void aWrongExpiredOrReusedStateARefusedCodeOrAnotherSessionWritesNothing() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
 
-		String state = authorization(this.browser, "PROFILE", null).get("state");
+		String state = authorization(this.browser, null).get("state");
 		assertThat(callback(this.browser, state + "x")).isEqualTo("/ho-so/xac-minh?loi=that-bai");
 		assertThat(callback(this.browser, state)).as("a state is used once, even after a wrong one")
 			.isEqualTo("/ho-so/xac-minh?loi=that-bai");
 
-		state = authorization(this.browser, "PROFILE", null).get("state");
+		state = authorization(this.browser, null).get("state");
 		this.clock.advance(Duration.ofMinutes(10));
 		assertThat(callback(this.browser, state)).as("10 minutes old").isEqualTo("/ho-so/xac-minh?loi=that-bai");
 
-		state = authorization(this.browser, "PROFILE", null).get("state");
+		state = authorization(this.browser, null).get("state");
 		MvcResult denied = this.browser.perform(get("/link/oauth2/code/github").param("error", "access_denied")
 			.param("state", state));
 		assertThat(denied.getResponse().getRedirectedUrl()).isEqualTo("/ho-so/xac-minh?loi=that-bai");
 
 		github.refusesCodes(true);
-		state = authorization(this.browser, "PROFILE", null).get("state");
+		state = authorization(this.browser, null).get("state");
 		assertThat(callback(this.browser, state)).isEqualTo("/ho-so/xac-minh?loi=that-bai");
 		github.refusesCodes(false);
 
-		state = authorization(this.browser, "PROFILE", null).get("state");
+		state = authorization(this.browser, null).get("state");
 		Browser stranger = new Browser(this.mvc);
 		assertThat(callback(stranger, state)).as("no session").isEqualTo("/ho-so/xac-minh?loi=that-bai");
 		Browser other = new Browser(this.mvc);
@@ -254,59 +258,100 @@ class GitHubLinkIT extends IntegrationTest {
 		assertThat(githubId(lan)).isNull();
 		assertThat(signals(lan)).isZero();
 		assertThat(githubAudits()).doesNotContain("identity.github_linked");
+		assertThat(revokedGrants(lan)).as("no token was issued, so nothing to revoke").isEmpty();
 
 		assertThat(callback(this.browser, state)).as("the right session still finishes")
 			.isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
 		assertThat(githubId(lan)).isEqualTo(4242L);
+		assertThat(revokedGrants(lan)).containsExactly(github.lastToken());
+	}
+
+	/** R31: GitHub issued a token but its user read failed, so nothing links, and the token's grant is revoked all the same. */
+	@Test
+	void aUserReadThatFailsAfterTheExchangeLinksNothingAndStillRevokesTheGrant() throws Exception {
+		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		github.userAnswers(500);
+
+		assertThat(link(this.browser)).isEqualTo("/ho-so/xac-minh?loi=that-bai");
+
+		assertThat(githubId(lan)).isNull();
+		assertThat(signals(lan)).isZero();
+		assertThat(revokedGrants(lan)).as("one whole-grant revocation of the issued token").containsExactly(github.lastToken());
+		assertThat(tokenRevocations()).isZero();
+	}
+
+	/**
+	 * R31: the revocation is requested in a transaction of its own before the link, so a link that throws (here the
+	 * duplicate-key race, then any other failure, forced by a test-only trigger on the account row) never rolls it
+	 * back. The trigger goes with the database, which every test recreates from its template.
+	 */
+	@Test
+	void aLinkThatThrowsKeepsItsGrantRevocation() throws Exception {
+		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
+		refuseLinks("unique_violation");
+
+		assertThat(link(this.browser)).as("the duplicate-key race").isEqualTo("/ho-so/xac-minh?loi=da-lien-ket-tai-khoan-khac");
+		String raced = github.lastToken();
+		assertThat(revokedGrants(lan)).containsExactly(raced);
+
+		refuseLinks("raise_exception");
+		assertThat(link(this.browser)).as("any other failure").isEqualTo("/ho-so/xac-minh?loi=that-bai");
+
+		assertThat(githubId(lan)).isNull();
+		assertThat(githubAudits()).doesNotContain("identity.github_linked");
+		assertThat(revokedGrants(lan)).containsExactlyInAnyOrder(raced, github.lastToken());
 	}
 
 	@Test
 	void aGitHubAccountLinkedToAnotherAccountIsRefusedAndNothingIsMerged() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
+		link(this.browser);
 		Browser second = new Browser(this.mvc);
 		UUID other = signIn(second, "google-lan-2", "lan.work@gmail.test", "Lan Nguyễn");
 
-		String target = callback(second, authorization(second, "PRODUCT", "/san-pham/moi").get("state"));
+		String target = callback(second, authorization(second, "/san-pham/moi").get("state"));
 
 		assertThat(target).isEqualTo("/ho-so/xac-minh?loi=da-lien-ket-tai-khoan-khac");
 		assertThat(githubId(other)).isNull();
 		assertThat(githubId(lan)).isEqualTo(4242L);
 		assertThat(signals(other)).as("no signal links the two accounts by itself").isZero();
-		assertThat(keptToken(other)).isNull();
+		assertThat(revokedGrants(other)).as("a refused link leaves nothing authorized either")
+			.containsExactly(github.lastToken());
 		assertThat(openTodos(other, "identity.link_github")).isOne();
 		assertThat(read(second).path("linked").asBoolean()).isFalse();
 	}
 
 	@Test
-	void reLinkingTheSameGitHubAccountRefreshesItAndAnotherOneIsRefused() throws Exception {
+	void reLinkingTheSameGitHubAccountRefreshesItAndAnotherOneIsRefusedEachRevokingItsGrant() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
-		this.renewals.ask(lan);
-		assertThat(read(this.browser).path("relinkNeeded").asBoolean()).as("ACC-2's Cần liên kết lại").isTrue();
+		link(this.browser);
+		String first = github.lastToken();
 		this.clock.advance(Duration.ofDays(30));
 		github.signsInAs(4242, "lan-moi");
 
-		assertThat(link(this.browser, "PROFILE")).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
+		assertThat(link(this.browser)).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
 
 		assertThat(this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", lan)
 			.query(String.class).single()).isEqualTo("lan-moi");
 		assertThat(linkedAt(lan)).isEqualTo(this.clock.instant());
-		assertThat(openTodos(lan, "identity.relink_github")).isZero();
-		assertThat(read(this.browser).path("relinkNeeded").asBoolean()).isFalse();
 		assertThat(githubAudits()).contains("identity.github_relinked");
+		String relinked = github.lastToken();
+		assertThat(revokedGrants(lan)).containsExactlyInAnyOrder(first, relinked);
 
 		github.signsInAs(5151, "someone-else");
-		assertThat(link(this.browser, "PROFILE")).isEqualTo("/ho-so/xac-minh?loi=sai-tai-khoan");
+		assertThat(link(this.browser)).isEqualTo("/ho-so/xac-minh?loi=sai-tai-khoan");
 		assertThat(githubId(lan)).isEqualTo(4242L);
 		assertThat(this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", lan)
 			.query(String.class).single()).isEqualTo("lan-moi");
+		assertThat(revokedGrants(lan)).as("the refused one's grant too")
+			.containsExactlyInAnyOrder(first, relinked, github.lastToken());
+		assertThat(tokenRevocations()).isZero();
 	}
 
 	@Test
 	void unlinkingIsRefusedWhileALiveProductARoleInARunningJobOrAnOpenBidKeepsTheLink() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
+		link(this.browser);
 
 		UUID product = liveProduct(lan, "Sổ đặt bàn Quán Mây");
 		JsonNode blockers = read(this.browser).path("blockers");
@@ -344,10 +389,10 @@ class GitHubLinkIT extends IntegrationTest {
 	}
 
 	@Test
-	void unlinkingRemovesTheLinkAtOnceDeletesTheTokenRevokesItsGrantAndKeepsTheSignals() throws Exception {
+	void unlinkingRemovesTheLinkAtOnceRevokesNothingAndKeepsTheSignals() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PRODUCT");
-		assertThat(keptToken(lan)).isNotNull();
+		link(this.browser);
+		assertThat(revocationCount(lan)).as("the link's own grant revocation").isOne();
 
 		MvcResult unlinked = this.browser.command(delete("/api/v1/identity/github"));
 
@@ -357,42 +402,16 @@ class GitHubLinkIT extends IntegrationTest {
 				FROM identity.account WHERE id = :id
 				""").param("id", lan).query().singleRow();
 		assertThat(account.values()).containsOnlyNulls();
-		assertThat(keptToken(lan)).isNull();
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM operations.external_operation
-				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND personal_data IS NOT NULL
-				""").param("id", lan).query(Long.class).single()).as("the grant is revoked with the kept token").isOne();
+		assertThat(revocationCount(lan)).as("no token is kept, so the unlink has nothing to revoke").isOne();
 		assertThat(openTodos(lan, "identity.link_github")).isOne();
 		assertThat(githubAudits()).contains("identity.github_unlinked");
 		assertThat(signals(lan)).as("the signals stay (AD-24)").isEqualTo(2);
 		assertThat(read(this.browser).path("linked").asBoolean()).isFalse();
 		assertProblem(this.browser.command(delete("/api/v1/identity/github")), 404, "NOT_FOUND", null);
 
-		assertThat(link(this.browser, "PROFILE")).as("the same GitHub account links again")
+		assertThat(link(this.browser)).as("the same GitHub account links again")
 			.isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
-	}
-
-	/**
-	 * A live Product's owner asked to re-link reads it on ACC-2 until they do. Since Story 23.5b no path reads with the
-	 * kept token, so nothing asks any more; {@link TokenRenewals} stays until Story 23.5d retires the token.
-	 */
-	@Test
-	void aReLinkAskShowsOnAcc2UntilTheOwnerReLinks() throws Exception {
-		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
-		liveProduct(lan, "Sổ đặt bàn Quán Mây");
-
-		this.renewals.ask(lan);
-
-		assertThat(openTodos(lan, "identity.relink_github")).isOne();
-		assertThat(this.jdbc.sql("""
-				SELECT link FROM notification.notification WHERE type = 'identity.relink_github' AND account_id = :id
-				""").param("id", lan).query(String.class).single()).isEqualTo("/ho-so/xac-minh");
-		assertThat(read(this.browser).path("relinkNeeded").asBoolean()).isTrue();
-
-		link(this.browser, "PROFILE");
-		assertThat(openTodos(lan, "identity.relink_github")).isZero();
-		assertThat(keptToken(lan)).isNotNull();
+		assertThat(revocationCount(lan)).isEqualTo(2);
 	}
 
 	@Test
@@ -462,28 +481,9 @@ class GitHubLinkIT extends IntegrationTest {
 	}
 
 	@Test
-	void aProductLinkThenAProfileLinkWithNoLiveProductDiscardsTheTokenAndRevokesEachOneAlone() throws Exception {
-		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PRODUCT");
-		String first = github.lastToken();
-		link(this.browser, "PRODUCT");
-		assertThat(revokedTokens(lan)).as("the token a re-link replaced").containsExactly(first);
-
-		link(this.browser, "PROFILE");
-
-		assertThat(keptToken(lan)).as("no live Product needs one").isNull();
-		assertThat(revokedTokens(lan)).as("the dropped token and the discarded one, never the grant")
-			.containsExactlyInAnyOrder(first, previousToken(), github.lastToken());
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM operations.external_operation
-				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND payload ->> 'revoke' IS NULL
-				""").param("id", lan).query(Long.class).single()).isZero();
-	}
-
-	@Test
 	void aMentorOnARunningJobAndAnUnreleasedCrewRowKeepTheLinkAndAReleasedRowOrAClosedJobDoNot() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
+		link(this.browser);
 		UUID mentored = job("STARTING", lan);
 		assertThat(blockerReasons()).containsExactly("JOB_ROLE");
 
@@ -553,11 +553,11 @@ class GitHubLinkIT extends IntegrationTest {
 	@Test
 	void aReLinkWhileGitHubDoesNotListTheEmailsSucceedsAndKeepsTheAddressOnFile() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		link(this.browser, "PROFILE");
+		link(this.browser);
 		github.signsInAs(4242, "lan-moi");
 		github.emailsAnswer(500);
 
-		assertThat(link(this.browser, "PROFILE")).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
+		assertThat(link(this.browser)).isEqualTo("/ho-so/xac-minh?ket-qua=da-lien-ket");
 
 		assertThat(this.jdbc.sql("SELECT github_login || ' ' || github_email FROM identity.account WHERE id = :id")
 			.param("id", lan).query(String.class).single()).isEqualTo("lan-moi lan-dev@example.test");
@@ -567,7 +567,7 @@ class GitHubLinkIT extends IntegrationTest {
 	@Test
 	void signingInAsAnotherAccountInTheSameSessionForgetsAPendingLink() throws Exception {
 		UUID lan = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		String state = authorization(this.browser, "PROFILE", null).get("state");
+		String state = authorization(this.browser, null).get("state");
 		UUID ha = signIn(this.browser, "google-ha", "ha.phuong@gmail.test", "Hà Phương");
 
 		assertThat(this.jdbc.sql("""
@@ -580,7 +580,7 @@ class GitHubLinkIT extends IntegrationTest {
 	}
 
 	@Test
-	void anyUserLinksForAProductWhateverRoleTheRowStores() throws Exception {
+	void anyUserLinksWhateverRoleTheRowStores() throws Exception {
 		this.browser.perform(get("/api/v1/session"));
 		for (Role role : List.of(Role.MENTOR, Role.STUDENT, Role.CUSTOMER)) {
 			UUID account = unlinked(role);
@@ -589,13 +589,13 @@ class GitHubLinkIT extends IntegrationTest {
 					VALUES (:ack, :id, 'PRIVACY', '3.1', :now)
 					""").param("ack", UUID.randomUUID()).param("id", account)
 				.param("now", Timestamp.from(this.clock.instant())).update();
-			MvcResult started = as(account, role, post("/api/v1/identity/github/link"), null, "{\"noticeVersion\":\"1.0\","
-					+ "\"purpose\":\"PRODUCT\"}");
+			MvcResult started = as(account, role, post("/api/v1/identity/github/link"), null,
+					"{\"noticeVersion\":\"1.1\",\"returnTo\":\"/san-pham/moi\"}");
 			// An account holds no role (Story 20.3): anyone may register a Product, so anyone links for one.
 			assertThat(started.getResponse().getStatus()).as(role.name()).isEqualTo(200);
 		}
 		UUID google = signIn(this.browser, "google-lan", "lan.nguyen@gmail.test", "Nguyễn Thị Lan");
-		assertThat(start(this.browser, "1.0", "PRODUCT", null).getResponse().getStatus()).as("no role").isEqualTo(200);
+		assertThat(start(this.browser, "1.1", "/san-pham/moi").getResponse().getStatus()).as("no role").isEqualTo(200);
 		assertThat(githubId(google)).isNull();
 	}
 
@@ -619,23 +619,61 @@ class GitHubLinkIT extends IntegrationTest {
 		return reasons;
 	}
 
-	/** The tokens queued for revocation alone, opened from the operations' sealed personal data. */
-	private List<String> revokedTokens(UUID account) {
+	/** The tokens whose whole grant is queued for revocation, opened from the operations' sealed personal data. */
+	private List<String> revokedGrants(UUID account) {
+		return revokedGrants(account, account);
+	}
+
+	/** {@link #revokedGrants(UUID)} for {@code account}, opened with {@code associated} as the associated data. */
+	private List<String> revokedGrants(UUID associated, UUID account) {
 		return this.jdbc.sql("""
 				SELECT personal_data ->> 'keyVersion' AS version, personal_data ->> 'nonce' AS nonce,
 				       personal_data ->> 'ciphertext' AS ciphertext
 				FROM operations.external_operation
-				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND payload ->> 'revoke' = 'TOKEN'
+				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id AND payload ->> 'revoke' IS NULL
 				""").param("id", account).query((rs, n) -> this.cipher.open(new TokenCipher.Sealed(
 						Integer.parseInt(rs.getString("version")), java.util.Base64.getDecoder().decode(rs.getString("nonce")),
-						java.util.Base64.getDecoder().decode(rs.getString("ciphertext"))), account.toString()))
+						java.util.Base64.getDecoder().decode(rs.getString("ciphertext"))), associated.toString()))
 			.list();
 	}
 
-	/** The token issued just before the last one. */
-	private static String previousToken() {
-		String last = github.lastToken();
-		return "gho_stub_" + (Integer.parseInt(last.substring("gho_stub_".length())) - 1);
+	/** Every revocation queued for the account, whatever its mode. */
+	private long revocationCount(UUID account) {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'identity.revoke_oauth_grant' AND account_id = :id
+				""").param("id", account).query(Long.class).single();
+	}
+
+	/** Revocations of one token alone, which linking no longer asks for. */
+	private long tokenRevocations() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'identity.revoke_oauth_grant' AND payload ->> 'revoke' IS NOT NULL
+				""").query(Long.class).single();
+	}
+
+	/** Whether the retired token table is gone (Story 23.5d). */
+	private boolean noTokenTable() {
+		return this.jdbc.sql("SELECT to_regclass('identity.customer_token') IS NULL").query(Boolean.class).single();
+	}
+
+	/**
+	 * A test-only trigger, as the migration role: every link's write of the GitHub ID to the account row fails with
+	 * {@code condition}, as a duplicate-key race or any other failure would.
+	 */
+	private static void refuseLinks(String condition) throws SQLException {
+		try (Connection connection = PostgresTestDatabase.instance().migratorConnection(PostgresTestDatabase.DATABASE);
+				Statement statement = connection.createStatement()) {
+			statement.execute("""
+					CREATE OR REPLACE FUNCTION identity.test_refuse_link() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+					BEGIN
+					    RAISE EXCEPTION USING ERRCODE = TG_ARGV[0], MESSAGE = 'a link refused by the test';
+					END $$""");
+			statement.execute("DROP TRIGGER IF EXISTS test_refuse_link ON identity.account");
+			statement.execute("CREATE TRIGGER test_refuse_link BEFORE UPDATE OF github_user_id ON identity.account"
+					+ " FOR EACH ROW EXECUTE FUNCTION identity.test_refuse_link('" + condition + "')");
+		}
 	}
 
 	/** An account with a role and no GitHub link: the shim's, keyed by a Google subject instead. */
@@ -703,8 +741,8 @@ class GitHubLinkIT extends IntegrationTest {
 			.query(UUID.class).single();
 	}
 
-	private MvcResult start(Browser browser, String version, String purpose, @Nullable String returnTo) throws Exception {
-		Map<String, String> body = new HashMap<>(Map.of("noticeVersion", version, "purpose", purpose));
+	private MvcResult start(Browser browser, String version, @Nullable String returnTo) throws Exception {
+		Map<String, String> body = new HashMap<>(Map.of("noticeVersion", version));
 		if (returnTo != null) {
 			body.put("returnTo", returnTo);
 		}
@@ -713,8 +751,8 @@ class GitHubLinkIT extends IntegrationTest {
 	}
 
 	/** The start, then GitHub's authorization page's query, decoded. */
-	private Map<String, String> authorization(Browser browser, String purpose, @Nullable String returnTo) throws Exception {
-		MvcResult start = start(browser, "1.0", purpose, returnTo);
+	private Map<String, String> authorization(Browser browser, @Nullable String returnTo) throws Exception {
+		MvcResult start = start(browser, "1.1", returnTo);
 		assertThat(start.getResponse().getStatus()).as("the start").isEqualTo(200);
 		return query(JSON.readTree(start.getResponse().getContentAsString()).path("authorizationUrl").asString());
 	}
@@ -727,8 +765,8 @@ class GitHubLinkIT extends IntegrationTest {
 		return callback.getResponse().getRedirectedUrl();
 	}
 
-	private String link(Browser browser, String purpose) throws Exception {
-		return callback(browser, authorization(browser, purpose, null).get("state"));
+	private String link(Browser browser) throws Exception {
+		return callback(browser, authorization(browser, null).get("state"));
 	}
 
 	private JsonNode read(Browser browser) throws Exception {
@@ -759,14 +797,6 @@ class GitHubLinkIT extends IntegrationTest {
 			.query(Long.class)
 			.list()
 			.getFirst();
-	}
-
-	private TokenCipher.@Nullable Sealed keptToken(UUID account) {
-		return this.jdbc.sql("SELECT key_version, nonce, ciphertext FROM identity.customer_token WHERE account_id = :id")
-			.param("id", account)
-			.query((rs, n) -> new TokenCipher.Sealed(rs.getInt("key_version"), rs.getBytes("nonce"), rs.getBytes("ciphertext")))
-			.optional()
-			.orElse(null);
 	}
 
 	private @Nullable Instant linkedAt(UUID account) {

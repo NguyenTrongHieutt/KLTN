@@ -10,8 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 /**
- * AD-22, SG-9: a kept token is AES-GCM encrypted under the versioned keyring, bound to its associated
- * data (the account ID), and an older key still opens what it sealed.
+ * AD-22, SG-9: a sealed secret (such as the GitHub token a grant-revocation operation carries until it runs; no
+ * Customer token is kept since R31) is AES-GCM encrypted under the versioned keyring, bound to its associated data
+ * (the account ID), and an older key still opens what it sealed.
  */
 class TokenCipherTest {
 

@@ -7,14 +7,13 @@ import { SESSION_QUERY_KEY } from './api'
 
 export type GitHubLink = components['schemas']['GitHubLinkView']
 export type GitHubLinkBlocker = components['schemas']['GitHubLinkBlockerView']
-export type GitHubLinkPurpose = components['schemas']['GitHubLinkRequest']['purpose']
 
 /** N-24's version as the SPA shows it; the backend refuses any other one (`STALE`). */
 export const GITHUB_NOTICE_VERSION = (vi as { notice: { github: { version: string } } }).notice.github.version
 
 export const GITHUB_LINK_QUERY_KEY = ['identity', 'github'] as const
 
-/** ACC-2's GitHub row (FR-80): linked or not, re-link needed, the token kept, and what blocks "Bỏ liên kết". */
+/** ACC-2's GitHub row (FR-80): linked or not, and what blocks "Bỏ liên kết". */
 export function useGitHubLink() {
   return useQuery({
     queryKey: GITHUB_LINK_QUERY_KEY,
@@ -29,10 +28,10 @@ export function useGitHubLink() {
  */
 export function useStartGitHubLink() {
   return useMutation({
-    mutationFn: ({ purpose, returnTo }: { purpose: GitHubLinkPurpose; returnTo?: string }) =>
+    mutationFn: ({ returnTo }: { returnTo?: string }) =>
       unwrap(
         apiClient.POST('/api/v1/identity/github/link', {
-          body: { noticeVersion: GITHUB_NOTICE_VERSION, purpose, returnTo },
+          body: { noticeVersion: GITHUB_NOTICE_VERSION, returnTo },
         }),
       ),
   })

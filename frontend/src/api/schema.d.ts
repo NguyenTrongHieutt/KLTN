@@ -5731,8 +5731,6 @@ export interface components {
         };
         GitHubLinkRequest: {
             noticeVersion: string;
-            /** @enum {string} */
-            purpose: "PROFILE" | "PRODUCT";
             returnTo?: string;
         };
         GitHubLinkStartView: {
@@ -5746,8 +5744,6 @@ export interface components {
             linkedAt?: string;
             login?: string;
             noticeVersion: string;
-            relinkNeeded: boolean;
-            repositoryTokenKept: boolean;
         };
         HandoverCheckRequest: {
             comment?: string;
@@ -6511,7 +6507,6 @@ export interface components {
             deletionCompletedAt?: string;
             /** Format: date-time */
             deletionRequestedAt?: string;
-            tokenKept: boolean;
         };
         MyJobView: {
             /** @enum {string} */

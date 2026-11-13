@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
  * fails closed;</li>
  * <li>what the daily drift poll reads (FR-20, R7, Story 23.5b).</li>
  * </ul>
- * No path reads a Source Repository with the Customer's linking token. Each read records what it found of the Source
+ * vibefix keeps no GitHub linking token (R31). Each read records what it found of the Source
  * App and the workflow as the Product's status, in a transaction of its own, opening or closing the Customer's to-dos
  * on a change (Story 23.5c): the check and the re-confirmation for their Source App and workflow part, the drift read,
  * and the contributor read when the binding refuses. A GitHub failure records nothing.
@@ -41,13 +41,7 @@ public interface ProductSources {
 		WORKFLOW_MISMATCH,
 
 		/** The Customer no longer administers it. */
-		NO_ADMIN_PERMISSION,
-
-		/**
-		 * The Customer's kept token is missing or refused (AD-10). No longer returned since Story 23.5, which reads
-		 * through the Source App; it stays until Story 23.5d retires the linking token.
-		 */
-		RELINK_GITHUB
+		NO_ADMIN_PERMISSION
 
 	}
 

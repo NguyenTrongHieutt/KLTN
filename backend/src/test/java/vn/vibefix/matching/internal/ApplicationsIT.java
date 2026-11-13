@@ -227,16 +227,15 @@ class ApplicationsIT extends IntegrationTest {
 			.allSatisfy(grant -> assertThat(grant)
 				.isEqualTo("{\"repository_ids\":[" + repository(this.job) + "],\"permissions\":{\"metadata\":\"read\"}}"));
 		assertThat(SOURCE.revoked).as("each token revoked after the read").containsExactlyInAnyOrderElementsOf(SOURCE.grants.keySet());
-		assertThat(relinkGitHub()).as("no linking token is read, so nobody is asked to re-link").isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application").query(Long.class).single())
 			.as("only the two accepted bids are written; no refusal writes one").isEqualTo(2);
 	}
 
 	/**
 	 * Story 23.5b: a contributor read that cannot say who contributed fails closed, never as "not a contributor":
-	 * GitHub answering 5xx or 404 on the contributors, or the Customer's Source App uninstalled. Nobody is asked to
-	 * re-link GitHub, since no linking token is read; a refused binding is recorded as the Product's status, so the
-	 * Customer is asked once to install the Source App again (Story 23.5c), and a GitHub failure records nothing.
+	 * GitHub answering 5xx or 404 on the contributors, or the Customer's Source App uninstalled. A refused binding is
+	 * recorded as the Product's status, so the Customer is asked once to install the Source App again (Story 23.5c), and
+	 * a GitHub failure records nothing.
 	 */
 	@Test
 	void anUnknownContributorReadFailsClosed() throws Exception {
@@ -266,7 +265,6 @@ class ApplicationsIT extends IntegrationTest {
 				SELECT count(*) FROM notification.notification WHERE type = 'repo.workflow_check_failed' AND account_id = :lan
 				""").param("lan", this.lan).query(Long.class).single()).as("once, though two bids found it").isOne();
 
-		assertThat(relinkGitHub()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).as("no refusal writes a bid").isZero();
 		SOURCE.reinstall(repository(this.job));
@@ -302,13 +300,6 @@ class ApplicationsIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM matching.application WHERE job_id = :job").param("job", own)
 			.query(Long.class).single()).as("a refusal writes nothing").isZero();
 		apply(hung, this.job, true).andExpect(status().isCreated());
-	}
-
-	private long relinkGitHub() {
-		return this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo WHERE todo_key = 'identity.relink_github' AND account_id = :lan
-				    AND closed_at IS NULL
-				""").param("lan", this.lan).query(Long.class).single();
 	}
 
 	@Test

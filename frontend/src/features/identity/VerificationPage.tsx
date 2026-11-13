@@ -25,8 +25,8 @@ const ERRORS = ['da-lien-ket-tai-khoan-khac', 'sai-tai-khoan', 'that-bai']
 /**
  * ACC-2 (`/ho-so/xac-minh`, FR-80, UX-DR91, UX-DR93): the verification hub. The GitHub row, "Bắt buộc":
  * not linked, it starts linking after N-24; linked, it shows the username and "Xác minh qua GitHub ·
- * {tháng/năm}"; "Cần liên kết lại" when the kept token stopped working (`identity.relink_github`, which
- * replaced the `/dang-nhap-lai` page). "Bỏ liên kết" is disabled while something keeps the link
+ * {tháng/năm}". The link keeps identity only (R31): no token is kept, so it never needs linking again.
+ * "Bỏ liên kết" is disabled while something keeps the link
  * (`GITHUB_CHANGE_BLOCKED`, R14) and confirmed otherwise. GitHub's return shows its result or its error at
  * the top. The student email row follows, for every person (Story 19.4); the LinkedIn row comes with
  * Story 19.6.
@@ -73,8 +73,7 @@ export function VerificationPage() {
 
 function GitHubRow({ link }: { link: GitHubLink }) {
   const [notice, setNotice] = useState(false)
-  const relink = link.linked && link.relinkNeeded
-  const status = !link.linked ? 'notLinked' : relink ? 'relink' : 'linked'
+  const status = link.linked ? 'linked' : 'notLinked'
   return (
     <section aria-labelledby="github-heading" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-center gap-2">
@@ -88,7 +87,6 @@ function GitHubRow({ link }: { link: GitHubLink }) {
           className={cn(
             'rounded-full px-2 py-0.5 text-caption font-semibold',
             status === 'linked' && 'bg-success-soft text-success',
-            status === 'relink' && 'bg-warning-soft text-warning',
             status === 'notLinked' && 'bg-muted text-foreground',
           )}
         >
@@ -111,20 +109,10 @@ function GitHubRow({ link }: { link: GitHubLink }) {
               month: link.linkedAt ? formatMonthYear(link.linkedAt) : '',
             })}
           </p>
-          {relink && (
-            <div className="flex flex-col gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
-              <p className="text-body-sm">{t('screen.verification.github.linkExpired')}</p>
-              <p className="text-body-sm text-muted-foreground">{t('screen.verification.github.relinkSafe')}</p>
-              <Button type="button" className="self-start" onClick={() => setNotice(true)}>
-                {t('screen.verification.github.relinkButton')}
-                <ExternalLink aria-hidden="true" className="size-4" />
-              </Button>
-            </div>
-          )}
           <Unlink blockers={link.blockers} />
         </div>
       )}
-      <GitHubNoticeDialog open={notice} onOpenChange={setNotice} purpose="PROFILE" relink={relink} />
+      <GitHubNoticeDialog open={notice} onOpenChange={setNotice} />
     </section>
   )
 }

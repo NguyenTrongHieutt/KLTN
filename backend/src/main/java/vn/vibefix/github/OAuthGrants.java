@@ -1,9 +1,10 @@
 package vn.vibefix.github;
 
 /**
- * The linking OAuth App's grants and tokens (SG-9, AD-10): a single token is revoked once vibefix no longer
- * keeps it, and the whole grant when an account is deleted, with the App's own credentials. Upper modules hold
- * the credentials and the token; this module only calls.
+ * The linking OAuth App's grants and tokens (SG-9, AD-10, R31): the whole grant is revoked right after a link
+ * reads the person, since vibefix keeps no linking token, with the App's own credentials; a single token is revoked
+ * only for a revocation recorded before Story 23.5d. Upper modules hold the credentials and the token; this module
+ * only calls.
  */
 public interface OAuthGrants {
 

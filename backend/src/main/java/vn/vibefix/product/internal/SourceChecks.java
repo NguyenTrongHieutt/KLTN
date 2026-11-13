@@ -18,7 +18,7 @@ import vn.vibefix.github.GitHubRepositories;
 import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.github.SourceApp;
 import vn.vibefix.github.SourceApp.WorkflowCheck;
-import vn.vibefix.identity.CustomerRepositories;
+import vn.vibefix.identity.GitHubAccountIds;
 import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.internal.SourceAppBindings.Bound;
 import vn.vibefix.product.internal.SourceAppBindings.Checked;
@@ -85,13 +85,13 @@ class SourceChecks implements ProductSources {
 
 	private final GitHubRepositories repositories;
 
-	private final CustomerRepositories customers;
+	private final GitHubAccountIds customers;
 
 	private final JdbcClient jdbc;
 
 	private final SourceStatuses statuses;
 
-	SourceChecks(SourceAppBindings bindings, SourceApp app, GitHubRepositories repositories, CustomerRepositories customers,
+	SourceChecks(SourceAppBindings bindings, SourceApp app, GitHubRepositories repositories, GitHubAccountIds customers,
 			JdbcClient jdbc, SourceStatuses statuses) {
 		this.bindings = bindings;
 		this.app = app;

@@ -15,8 +15,8 @@ import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PersonalDataParticipantContract;
 
 /**
- * AD-24: {@code identity} exports the account's own data and erases its GitHub identity and kept
- * token, keeping the row and the acknowledgments as the record of what it agreed to.
+ * AD-24: {@code identity} exports the account's own data and erases its GitHub identity, keeping the row and
+ * the acknowledgments as the record of what it agreed to. No GitHub token is kept to erase (R31).
  */
 class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataParticipantContract {
 
@@ -27,9 +27,6 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 
 	@Autowired
 	private Accounts accounts;
-
-	@Autowired
-	private TokenCipher cipher;
 
 	@Autowired
 	private JdbcClient jdbc;
@@ -52,7 +49,6 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				SELECT count(*) FROM identity.account
 				WHERE id = :id AND (github_user_id IS NOT NULL OR github_email IS NOT NULL OR github_linked_at IS NOT NULL)
 				""").param("id", accountId).query(Long.class).single() > 0
-				|| this.accounts.customerToken(accountId).isPresent()
 				|| this.jdbc.sql("""
 						SELECT (SELECT count(*) FROM identity.profile WHERE account_id = :id)
 						     + (SELECT count(*) FROM identity.profile_link WHERE account_id = :id)
@@ -160,7 +156,6 @@ class IdentityPersonalDataIT extends IntegrationTest implements PersonalDataPart
 				VALUES (:id, 'USER', :githubId, :login, :login || '@example.test', :now, :now)
 				""").param("id", id).param("githubId", githubId).param("login", login).param("now", now).update();
 		this.accounts.insertAcknowledgment(UUID.randomUUID(), id, "PRIVACY", "2.0", this.clock.instant());
-		this.accounts.storeCustomerToken(id, this.cipher.seal("gho_" + login, id.toString()), this.clock.instant());
 		this.jdbc.sql("""
 				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, phone, experience,
 				    years_of_experience, skill_ids, skill_names, student_school, updated_at)

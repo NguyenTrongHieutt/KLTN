@@ -62,12 +62,11 @@ class JobSetups {
 
 	/**
 	 * Why a Setup stopped on something the Customer can fix (FR-18): {@code product}'s Source checks, through the
-	 * Source App since Story 23.5. {@code RELINK_GITHUB} is no longer answered and stays until Story 23.5d.
+	 * Source App since Story 23.5.
 	 */
 	enum Block {
 
-		SOURCE_APP_MISSING, SOURCE_APP_WRONG_REPOSITORY, WORKFLOW_MISSING, WORKFLOW_MISMATCH, NO_ADMIN_PERMISSION,
-		RELINK_GITHUB
+		SOURCE_APP_MISSING, SOURCE_APP_WRONG_REPOSITORY, WORKFLOW_MISSING, WORKFLOW_MISMATCH, NO_ADMIN_PERMISSION
 
 	}
 
@@ -104,8 +103,7 @@ class JobSetups {
 			Block.SOURCE_APP_WRONG_REPOSITORY, "ứng dụng vibefix phải được cài cho đúng một kho là dự án gốc",
 			Block.WORKFLOW_MISSING, "dự án gốc chưa có file workflow vibefix.yml",
 			Block.WORKFLOW_MISMATCH, "file workflow vibefix.yml trong dự án gốc khác bản vibefix công bố",
-			Block.NO_ADMIN_PERMISSION, "tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc",
-			Block.RELINK_GITHUB, "khách hàng cần liên kết lại GitHub để vibefix kiểm tra dự án gốc");
+			Block.NO_ADMIN_PERMISSION, "tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc");
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, status, blocked_reason, source_full_name, default_branch, approved_sha,

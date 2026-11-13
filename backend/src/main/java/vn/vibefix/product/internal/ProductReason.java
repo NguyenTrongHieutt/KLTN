@@ -42,12 +42,6 @@ enum ProductReason {
 	/** GitHub could not be read just now, or the Source App is not configured. */
 	GITHUB_UNAVAILABLE,
 
-	/**
-	 * No kept GitHub token reads the Customer's repositories (AD-10). {@code product} reads repositories through the
-	 * Source App since Story 23.5 and no longer answers it; it stays until Story 23.5d retires the linking token.
-	 */
-	RELINK_GITHUB,
-
 	/** A Job in Selecting to Closing pins the Product (FR-7, AD-3). */
 	PRODUCT_HAS_ACTIVE_JOB,
 

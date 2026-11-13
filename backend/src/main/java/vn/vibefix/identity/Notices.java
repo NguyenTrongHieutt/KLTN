@@ -21,8 +21,11 @@ public interface Notices {
 	/** N-24: what vibefix receives from GitHub when an account links it, and what the link then holds. */
 	String LINK_GITHUB = "LINK_GITHUB";
 
-	/** N-24's current version; the SPA shows the same one ({@code vi.json} {@code notice.github.version}). */
-	String LINK_GITHUB_VERSION = "1.0";
+	/**
+	 * N-24's current version; the SPA shows the same one ({@code vi.json} {@code notice.github.version}). 1.1 (Story
+	 * 23.5d, R31): vibefix keeps no GitHub token and revokes its access right after linking.
+	 */
+	String LINK_GITHUB_VERSION = "1.1";
 
 	/** N-26: what vibefix keeps of a student email verification, and that the declared name and major lock. */
 	String VERIFY_STUDENT = "VERIFY_STUDENT";

@@ -139,14 +139,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType SCHOOL_EMAIL_CODE = new NotificationType("identity.school_email_code",
 			Set.of(Audience.SUBJECT), Channel.EMAIL_ONLY, EmailClass.ONE_TIME_CODE, "mail", Set.of("code"));
 
-	/** A live Product's owner's kept GitHub token is gone or refused (FR-13, AD-10): they re-link GitHub. */
-	static final NotificationType IDENTITY_RELINK_GITHUB = new NotificationType("identity.relink_github",
-			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of());
-
-	/** The owner re-links GitHub so the AD-13 re-checks can run (FR-13, AD-10, UX-DR91): until GitHub is linked again. */
-	static final TodoType IDENTITY_RELINK_GITHUB_TODO = new TodoType("identity.relink_github", Set.of(Audience.SUBJECT), 1,
-			Set.of());
-
 	/** 14 days before a Student's verification expires (FR-5, UX-DR16): a reminder, with the last valid day. */
 	static final NotificationType VERIFICATION_EXPIRING = new NotificationType("identity.verification_expiring",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("date"));
@@ -899,7 +891,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<NotificationType> notificationTypes() {
-		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, IDENTITY_RELINK_GITHUB, ADMIN_SIGN_IN_LOCKED,
+		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
@@ -945,7 +937,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	@Override
 	public List<TodoType> todoTypes() {
-		return List.of(IDENTITY_LINK_GITHUB, IDENTITY_RELINK_GITHUB_TODO, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
+		return List.of(IDENTITY_LINK_GITHUB, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
 				REPO_ACCEPT_GITHUB_INVITATION, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,

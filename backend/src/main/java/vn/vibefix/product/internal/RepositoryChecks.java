@@ -16,7 +16,7 @@ import vn.vibefix.github.GitHubRepositories.RepositoryMetadata;
 import vn.vibefix.github.SourceApp;
 import vn.vibefix.github.SourceApp.WorkflowCheck;
 import vn.vibefix.github.SourceApp.WorkflowVerdict;
-import vn.vibefix.identity.CustomerRepositories;
+import vn.vibefix.identity.GitHubAccountIds;
 import vn.vibefix.product.internal.SourceAppBindings.Bound;
 import vn.vibefix.product.internal.SourceAppBindings.Found;
 import vn.vibefix.product.internal.SourceAppBindings.Lookup;
@@ -54,12 +54,12 @@ class RepositoryChecks {
 
 	private final GitHubRepositories repositories;
 
-	private final CustomerRepositories customers;
+	private final GitHubAccountIds customers;
 
 	private final JdbcClient jdbc;
 
 	RepositoryChecks(SourceAppBindings bindings, SourceApp app, GitHubRepositories repositories,
-			CustomerRepositories customers, JdbcClient jdbc) {
+			GitHubAccountIds customers, JdbcClient jdbc) {
 		this.bindings = bindings;
 		this.app = app;
 		this.repositories = repositories;
@@ -180,7 +180,7 @@ class RepositoryChecks {
 	 * without a GitHub call, its current login read with the token, and the collaborator-permission endpoint.
 	 * @throws GitHubException when GitHub cannot answer
 	 */
-	static boolean administers(CustomerRepositories customers, GitHubRepositories repositories, UUID customerId,
+	static boolean administers(GitHubAccountIds customers, GitHubRepositories repositories, UUID customerId,
 			InstallationToken token, String fullName) {
 		Long githubId = customers.githubUserId(customerId).orElse(null);
 		if (githubId == null) {

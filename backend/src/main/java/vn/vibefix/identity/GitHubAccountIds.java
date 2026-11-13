@@ -4,10 +4,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * An account's GitHub account as other modules need it (AD-10, AD-13). Source Repositories and their contributors are
- * read through the Source App (Stories 23.5 and 23.5b), never with the Customer's linking token.
+ * An account's linked GitHub numeric ID, as other modules need it (AD-10, AD-13). The link keeps identity only: no
+ * GitHub token is kept (R31), and Source Repositories and their contributors are read through the Source App.
  */
-public interface CustomerRepositories {
+public interface GitHubAccountIds {
 
 	/**
 	 * The account's numeric GitHub user ID, with no GitHub call (AD-10): a Merge App installation made without the

@@ -3,26 +3,24 @@ import { ExternalLink, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
-import { GITHUB_NOTICE_VERSION, leaveForGitHub, useStartGitHubLink, type GitHubLinkPurpose } from './githubApi'
+import { GITHUB_NOTICE_VERSION, leaveForGitHub, useStartGitHubLink } from './githubApi'
 
 /**
  * N-24 (FR-80, NFR-9, UX-DR94), shown before the browser leaves for GitHub, from ACC-2's GitHub row and
  * from the GitHub gate: what vibefix receives from GitHub and what the link holds, with the notice's
- * version. Going ahead records the version, then opens GitHub's page in this tab.
+ * version. Since version 1.1 (R31) it says that vibefix now keeps no GitHub access and revokes it right after
+ * linking, and that anyone who linked earlier can remove vibefix on GitHub under Settings › Applications.
+ * Going ahead records the version, then opens GitHub's page in this tab.
  */
 export function GitHubNoticeDialog({
   open,
   onOpenChange,
-  purpose,
   returnTo,
-  relink = false,
   beforeLeaving,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  purpose: GitHubLinkPurpose
   returnTo?: string
-  relink?: boolean
   /** Runs once the link has started, just before the browser leaves: the gate keeps its draft here. */
   beforeLeaving?: () => void
 }) {
@@ -71,7 +69,7 @@ export function GitHubNoticeDialog({
               disabled={start.isPending || start.isSuccess}
               onClick={() =>
                 start.mutate(
-                  { purpose, returnTo },
+                  { returnTo },
                   {
                     onSuccess: (started) => {
                       beforeLeaving?.()
@@ -83,7 +81,7 @@ export function GitHubNoticeDialog({
             >
               {start.isPending || start.isSuccess
                 ? t('screen.verification.github.opening')
-                : t(relink ? 'notice.github.relinkButton' : 'notice.github.button')}
+                : t('notice.github.button')}
               {!start.isPending && !start.isSuccess && <ExternalLink aria-hidden="true" className="size-4" />}
             </Button>
           </div>
