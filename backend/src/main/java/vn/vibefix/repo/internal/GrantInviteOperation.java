@@ -15,8 +15,8 @@ import vn.vibefix.operations.Outcome;
 import vn.vibefix.repo.internal.JobGrants.Grant;
 
 /**
- * {@value JobGrants#INVITE} (AD-11): one invitation to the Working Repository, with read permission, as a
- * consequence operation that never takes the busy marker. The invitee's login is resolved from their
+ * {@value JobGrants#INVITE} (AD-11): one invitation to the Working Repository, or the Customer's to the Intermediary
+ * Repository (R5), with read permission, as a consequence operation that never takes the busy marker. The invitee's login is resolved from their
  * numeric GitHub ID just before sending (AD-10 "Logins by ID"), so a renamed GitHub account is still the one
  * invited; a GitHub account that is gone cannot be invited. A 204 means GitHub added an organization
  * member at once ({@code MEMBER_DRIFT}). Collaborators are looked up on use.

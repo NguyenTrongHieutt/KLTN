@@ -1,0 +1,8 @@
+subject: Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}
+---
+Xin chào,
+
+vibefix đã mời bạn vào kho trung gian của {job} trên GitHub, với quyền đọc: bạn xem, tải và clone được mã, nhưng không sửa được.
+Lời mời này không bắt buộc. Công việc vẫn bắt đầu khi bạn chưa chấp nhận, và bạn vẫn xem, nghiệm thu bàn giao trên vibefix.
+Nếu muốn nhận, trước hết hãy bật xác thực hai lớp cho tài khoản GitHub của bạn tại https://github.com/settings/security. Khi chưa bật, GitHub làm mờ nút chấp nhận lời mời.
+Lời mời hết hạn sau 7 ngày, và vibefix gửi lại. Bạn giữ quyền đọc khi vibefix còn giữ kho trung gian, thường đến 30 ngày sau khi công việc kết thúc.

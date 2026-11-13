@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +31,8 @@ import vn.vibefix.operations.OperationRequest;
  * The platform repositories' deletion (FR-21, FR-38, NFR-10). Thirty days after the Job is Closed or
  * Cancelled, {@value #DELETE} stores the final ZIP of the Intermediary Repository's default branch,
  * owned by the Customer with purpose {@value #ZIP_PURPOSE}, and only then deletes both repositories and
- * reads them back as gone. Deleting the Product requests the same deletion at once, without a ZIP; its
- * payload names the repositories, so the rows may go first.
+ * reads them back as gone, which ends the Customer's read of the Intermediary Repository (R5). Deleting the Product
+ * requests the same deletion at once, without a ZIP; its payload names the repositories, so the rows may go first.
  */
 @Component
 class RepositoryDeletions {
@@ -59,14 +60,19 @@ class RepositoryDeletions {
 
 	private final StoredFiles files;
 
+	/** Looked up on use: the deletion ends the Customer's read grant (Story 23.7). */
+	private final ObjectProvider<JobGrants> grants;
+
 	private final AuditLog auditLog;
 
 	private final Clock clock;
 
-	RepositoryDeletions(JdbcClient jdbc, ExternalOperations operations, StoredFiles files, AuditLog auditLog, Clock clock) {
+	RepositoryDeletions(JdbcClient jdbc, ExternalOperations operations, StoredFiles files, ObjectProvider<JobGrants> grants,
+			AuditLog auditLog, Clock clock) {
 		this.jdbc = jdbc;
 		this.operations = operations;
 		this.files = files;
+		this.grants = grants;
 		this.auditLog = auditLog;
 		this.clock = clock;
 	}
@@ -147,15 +153,22 @@ class RepositoryDeletions {
 		return true;
 	}
 
-	/** Both repositories read back as gone. A Setup row already deleted with its Product changes nothing. */
+	/**
+	 * Both repositories read back as gone, which ends the Customer's read of the Intermediary Repository (R5). A Setup
+	 * row already deleted with its Product changes nothing.
+	 * @param intermediaryId the deleted Intermediary Repository's numeric ID, when the Setup had one
+	 */
 	@Transactional
-	void deleted(UUID setupId, UUID jobId) {
+	void deleted(UUID setupId, UUID jobId, @Nullable Long intermediaryId) {
 		int updated = this.jdbc.sql("UPDATE repo.job_setup SET deleted_at = :now WHERE id = :id AND deleted_at IS NULL")
 			.param("now", Timestamp.from(this.clock.instant()))
 			.param("id", setupId)
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), updated == 1 ? "repo.repositories_deleted"
 				: "repo.repositories_deleted_with_product", AuditObject.of("repo.job_setup", setupId)).forJob(jobId));
+		if (intermediaryId != null) {
+			this.grants.getObject().intermediaryDeleted(intermediaryId);
+		}
 	}
 
 	/** The final ZIPs of the Product's Setups, for its deletion (NFR-10). */

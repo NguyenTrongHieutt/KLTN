@@ -1,5 +1,6 @@
 package vn.vibefix.repo.internal;
 
+import java.time.Clock;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -34,7 +35,10 @@ import vn.vibefix.shared.ProcessedEvents;
  * organization member who has left the organization loses any direct grant and is invited again. Then
  * Verify may start (Starting), or an accepted late member is raised (Active). It also grants a counted person with no
  * grant once the Job's Setup is done, as a late member, so a signature that committed during Setup's resolving
- * transaction is not missed.
+ * transaction is not missed. The Customer's read on the Intermediary Repository (R5, Story 23.7) is read back the same
+ * way in any Job state until the repositories are deleted, and a {@code member} event on the Intermediary hints it; it
+ * is never raised and never holds Verify back. A Customer who declined the invitation (none pending, no collaborator) or
+ * left after accepting (no collaborator) lapses.
  */
 @Component
 class GrantChecks {
@@ -51,23 +55,30 @@ class GrantChecks {
 
 	private final ProcessedEvents processedEvents;
 
+	private final Clock clock;
+
 	GrantChecks(JobGrants grants, JobSetups setups, JobBusy busy, PlatformRepositories repositories,
-			ProcessedEvents processedEvents) {
+			ProcessedEvents processedEvents, Clock clock) {
 		this.grants = grants;
 		this.setups = setups;
 		this.busy = busy;
 		this.repositories = repositories;
 		this.processedEvents = processedEvents;
+		this.clock = clock;
 	}
 
-	/** Reads the Job's grants back and acts on what changed. */
+	/**
+	 * Reads the Job's grants back and acts on what changed: the team's while the Job is Starting or Active, the
+	 * Customer's read in any state until the repositories are deleted (R5).
+	 */
 	void check(UUID jobId) {
 		BusyJob job = this.busy.job(jobId).orElse(null);
-		if (job == null || !("STARTING".equals(job.state()) || "ACTIVE".equals(job.state()))) {
+		if (job == null) {
 			return;
 		}
+		boolean running = "STARTING".equals(job.state()) || "ACTIVE".equals(job.state());
 		Setup setup = this.setups.latest(jobId).orElse(null);
-		if (job.code() && setup != null && "DONE".equals(setup.status()) && setup.working() != null) {
+		if (running && job.code() && setup != null && "DONE".equals(setup.status()) && setup.working() != null) {
 			// grantAll read the Crew before such a signature, and its listener found Setup not done. An existing grant stays.
 			for (Person person : this.grants.counted(job)) {
 				this.grants.grant(job, person, setup.working(), true);
@@ -75,16 +86,27 @@ class GrantChecks {
 		}
 		Map<Long, Set<Long>> collaborators = new HashMap<>();
 		for (Grant grant : this.grants.ofJob(jobId)) {
+			if (!running && grant.team()) {
+				continue;
+			}
 			switch (grant.status()) {
 				case "INVITED" -> {
-					Long id = this.grants.githubUserId(grant);
-					boolean accepted = id != null
-							? collaborators
-								.computeIfAbsent(grant.repositoryId(), repository -> this.repositories.collaboratorIds(grant.repository()))
-								.contains(id)
-							: this.repositories.collaborator(grant.repository(), grant.login());
-					if (accepted) {
+					// R5: the Customer may decline. Their pending invitations are read before the collaborators, so an
+					// acceptance in between reads as an acceptance, never as a decline; an expired one is the renewal's.
+					boolean unexpired = grant.expiresAt() != null && this.clock.instant().isBefore(grant.expiresAt());
+					Set<String> pending = grant.customer() && unexpired ? this.repositories.pendingInvitees(grant.repository())
+							: null;
+					if (collaborator(grant, collaborators)) {
 						this.grants.accepted(grant);
+					}
+					else if (pending != null && !pending.contains(currentLogin(grant).toLowerCase(Locale.ROOT))) {
+						this.grants.lapse(grant, JobGrants.DECLINED);
+					}
+				}
+				case "ACCEPTED" -> {
+					// R5: a Customer who left the Intermediary after accepting reads it no more.
+					if (grant.customer() && !collaborator(grant, collaborators)) {
+						this.grants.lapse(grant, JobGrants.LEFT);
 					}
 				}
 				case "MEMBER_DRIFT" -> {
@@ -102,6 +124,9 @@ class GrantChecks {
 		}
 		Map<Long, String> withoutTwoFactor = null;
 		for (Grant grant : this.grants.ofJob(jobId)) {
+			if (!running && grant.team()) {
+				continue;
+			}
 			if ("ACCEPTED".equals(grant.status()) || "WRITE".equals(grant.status())) {
 				if (withoutTwoFactor == null) {
 					withoutTwoFactor = this.repositories.withoutTwoFactor();
@@ -116,7 +141,7 @@ class GrantChecks {
 		// operation's key is fixed, and asked too early it would end obsolete and never run again.
 		if ("ACTIVE".equals(job.state())) {
 			for (Grant grant : this.grants.ofJob(jobId)) {
-				if (grant.crewChange() && "ACCEPTED".equals(grant.status()) && !grant.twoFactorMissing()) {
+				if (grant.team() && grant.crewChange() && "ACCEPTED".equals(grant.status()) && !grant.twoFactorMissing()) {
 					this.grants.requestRaise(grant);
 				}
 			}
@@ -126,7 +151,27 @@ class GrantChecks {
 		}
 	}
 
-	/** A {@code member} event on a Working Repository is a hint: read that Job's grants back. */
+	/** Whether GitHub shows the grant's person as a collaborator now: by numeric ID (AD-10), else by login. */
+	private boolean collaborator(Grant grant, Map<Long, Set<Long>> collaborators) {
+		Long id = this.grants.githubUserId(grant);
+		return id != null
+				? collaborators
+					.computeIfAbsent(grant.repositoryId(), repository -> this.repositories.collaboratorIds(grant.repository()))
+					.contains(id)
+				: this.repositories.collaborator(grant.repository(), grant.login());
+	}
+
+	/** The login GitHub uses now for the grant's person (AD-10), stored when it changed; the last one when it is gone. */
+	private String currentLogin(Grant grant) {
+		String login = this.grants.currentLogin(grant, this.repositories).orElse(grant.login());
+		this.grants.renamed(grant, login);
+		return login;
+	}
+
+	/**
+	 * A {@code member} event on a Working Repository, or on an Intermediary Repository the Customer is invited to, is a
+	 * hint: read that Job's grants back.
+	 */
 	@ApplicationModuleListener
 	void onWebhook(GitHubWebhookReceived event) {
 		hinted(event);

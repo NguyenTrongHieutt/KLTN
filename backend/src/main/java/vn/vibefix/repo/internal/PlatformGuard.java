@@ -45,16 +45,18 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.shared.ProcessedEvents;
 
 /**
- * The Intermediary Repository stays System-only (FR-19, AD-12, SG-16, SG-22, SM-2). Both Job repositories
- * are private and take no ruleset on GitHub Free, so the guarantee is read back from collaborators and
- * invitations. A pull request the System did not open on an Intermediary Repository is closed. A
- * {@code pull_request}, {@code member}, or {@code repository} event on a platform repository whose sender is
- * neither the Platform App's bot nor a person granted on it alerts every Administrator; the operator account's
- * use alerts them too. Every 10 minutes the sweep reads the organization, the runner, the
- * installation, and each running Job's repositories (private, features and forking off, Actions disabled,
- * and the expected collaborators and invitations) back against what vibefix expects, and alerts any
- * difference once a day; an ended Job's repositories are read until they are deleted, and a revocation in
- * progress may go either way. Every closing and alert is audited.
+ * The Intermediary Repository stays System-only (FR-19, AD-12, SG-16, SG-22, SM-2): nobody but the System writes to it,
+ * and its only grantee is the Customer, with read (R5). Both Job repositories are private and take no ruleset on GitHub
+ * Free, so the guarantee is read back from collaborators and invitations. A pull request the System did not open on an
+ * Intermediary Repository is closed. A {@code pull_request}, {@code member}, or {@code repository} event on a platform
+ * repository whose sender is neither the Platform App's bot nor a person granted on that repository alerts every
+ * Administrator; the Customer counts only for {@code member} events on their Intermediary Repository. The operator
+ * account's use alerts them too. Every 10 minutes the sweep reads the organization, the runner, the installation, and
+ * each running Job's repositories (private, features and forking off, Actions disabled, and the expected collaborators
+ * and invitations: the Customer's read on the Intermediary until it is deleted, the team's grants on the Working
+ * Repository until J8 or J10) back against what vibefix expects, and alerts any difference once a day; an ended Job's
+ * repositories are read until they are deleted, and a revocation in progress may go either way. Every closing and alert
+ * is audited.
  */
 @Component
 class PlatformGuard {
@@ -86,9 +88,15 @@ class PlatformGuard {
 
 	private static final Logger log = LoggerFactory.getLogger(PlatformGuard.class);
 
-	/** One of a running Job's platform repositories. */
-	record PlatformRepo(UUID jobId, PlatformRepository repository, boolean intermediary) {
+	/**
+	 * One of a running Job's platform repositories.
+	 * @param teamEnded the Job is past J8 or J10 (Closing, Closed or Cancelled), so the team holds nothing on it (R17)
+	 */
+	record PlatformRepo(UUID jobId, PlatformRepository repository, boolean intermediary, boolean teamEnded) {
 	}
+
+	/** The states after J8 or J10, in which the Mentor and the Crew hold no access (FR-21, R17). */
+	private static final Set<String> TEAM_ENDED = Set.of("CLOSING", "CLOSED", "CANCELLED");
 
 	private final JdbcClient jdbc;
 
@@ -160,8 +168,9 @@ class PlatformGuard {
 
 	/**
 	 * AD-12: the sender of a {@code pull_request}, {@code member}, or {@code repository} event must be the bot or
-	 * someone granted on the repository, matched by the sender's numeric GitHub ID (AD-10 "Logins by ID");
-	 * nobody is granted on an Intermediary Repository yet (Story 23.7 adds the Customer's read). The operator
+	 * someone granted on the repository, matched by the sender's numeric GitHub ID (AD-10 "Logins by ID"). On an
+	 * Intermediary Repository only the Customer is granted, and only for a {@code member} event, such as the one their
+	 * acceptance sends (Story 23.7); a pull request or a repository change of theirs there still alerts. The operator
 	 * account always alerts.
 	 */
 	private void actor(GitHubWebhookReceived event, PlatformRepo repo) {
@@ -178,8 +187,7 @@ class PlatformGuard {
 			audit("repo.operator_account_used", repo.jobId());
 			return;
 		}
-		if (!ACTOR_CHECKED.contains(event.event())
-				|| (!repo.intermediary() && granted(repo.jobId(), event.senderId(), login))) {
+		if (!ACTOR_CHECKED.contains(event.event()) || granted(repo, event.event(), event.senderId(), login)) {
 			return;
 		}
 		alert(UNEXPECTED, UUID.nameUUIDFromBytes(event.deliveryId().getBytes(StandardCharsets.UTF_8)), params);
@@ -247,52 +255,82 @@ class PlatformGuard {
 	}
 
 	/**
-	 * One repository read back: private, the features and forking off, and Actions disabled (AD-11); then, on
-	 * the Intermediary, no collaborator, no invitation, and no recent change but the System's (FR-19, SM-2), which
-	 * is what keeps it System-only without a ruleset; on the Working Repository, exactly the expected grants.
+	 * One repository read back: private, the features and forking off, and Actions disabled (AD-11); then exactly the
+	 * expected grants of that repository. On the Intermediary that is the Customer's live read, as an invitation or a
+	 * read collaborator, and nobody else, with no recent change but the System's and the live Customer's acceptance
+	 * ({@code MemberEvent}) (FR-19, SM-2), which is what keeps it System-only without a ruleset; on the Working
+	 * Repository, the team's grants, none after J8 or J10 (R17). A lapsed read expects nothing; the invitation GitHub still
+	 * lists once it expired is no difference.
 	 */
 	private List<String> repositoryDifferences(PlatformRepo repo, String bot) {
 		List<String> differences = new ArrayList<>(this.repositories.settingsDifferences(repo.repository()));
 		Map<String, String> collaborators = new TreeMap<>(this.repositories.directCollaborators(repo.repository()));
 		Set<String> invitees = new TreeSet<>(this.repositories.pendingInvitees(repo.repository()));
 		String name = repo.repository().fullName();
-		if (repo.intermediary()) {
-			// FR-19: nobody but the System writes here, and nobody is a collaborator.
-			if (!collaborators.isEmpty()) {
-				differences.add(name + ": collaborators " + collaborators.keySet() + " on the Intermediary Repository");
-			}
-			if (!invitees.isEmpty()) {
-				differences.add(name + ": invitations for " + invitees + " on the Intermediary Repository");
-			}
-			Set<String> actors = new TreeSet<>(this.repositories.recentActors(repo.repository()));
-			actors.remove(bot);
-			if (!actors.isEmpty()) {
-				differences.add(name + ": recent changes by " + actors + ", not the System (SM-2)");
-			}
-			return differences;
-		}
 		Map<String, String> expected = new TreeMap<>();
 		Set<String> invited = new TreeSet<>();
+		// The live Customer's logins on this Intermediary, whose acceptance there is their own MemberEvent.
+		Set<String> readers = new TreeSet<>();
 		for (Grant grant : this.grants.ofJob(repo.jobId())) {
+			if (grant.repositoryId() != repo.repository().id()) {
+				continue;
+			}
 			String login = currentLogin(grant).toLowerCase(Locale.ROOT);
+			// R5: the Customer's read belongs on the Intermediary only; R17: the team's on Working, until J8 or J10.
+			boolean belongs = grant.customer() ? repo.intermediary() : !repo.intermediary() && !repo.teamEnded();
+			if (grant.customer() && ("INVITED".equals(grant.status()) || "ACCEPTED".equals(grant.status()))) {
+				readers.add(login);
+			}
 			switch (grant.status()) {
-				case "WRITE" -> expected.put(login, "write");
-				case "ACCEPTED" -> expected.put(login, "read");
-				case "INVITED" -> invited.add(login);
+				case "WRITE" -> {
+					if (belongs && grant.team()) {
+						expected.put(login, "write");
+					}
+				}
+				case "ACCEPTED" -> {
+					if (belongs) {
+						expected.put(login, "read");
+					}
+				}
+				case "INVITED" -> {
+					if (belongs) {
+						invited.add(login);
+					}
+				}
 				case "REVOKING" -> {
 					// Its operation is removing the access: either way is expected until it reads back.
 					collaborators.remove(login);
+					invitees.remove(login);
+				}
+				case "LAPSED" -> {
+					// R5: the renewals ran out, and GitHub still lists the expired invitation, which nobody can accept.
 					invitees.remove(login);
 				}
 				default -> {
 				}
 			}
 		}
+		String where = repo.intermediary() ? " on the Intermediary Repository" : "";
 		if (!collaborators.equals(expected)) {
-			differences.add(name + ": collaborators " + collaborators + " instead of " + expected);
+			differences.add(name + ": collaborators " + collaborators + where + " instead of " + expected);
 		}
 		if (!invitees.equals(invited)) {
-			differences.add(name + ": invitations for " + invitees + " instead of " + invited);
+			differences.add(name + ": invitations for " + invitees + where + " instead of " + invited);
+		}
+		if (repo.intermediary()) {
+			// FR-19, SM-2: nobody but the System changes it; the live Customer's acceptance is a MemberEvent of theirs.
+			Map<String, Set<String>> actors = new TreeMap<>(this.repositories.recentActors(repo.repository()));
+			actors.remove(bot);
+			for (String reader : readers) {
+				actors.computeIfPresent(reader, (login, types) -> {
+					Set<String> rest = new TreeSet<>(types);
+					rest.remove("MemberEvent");
+					return rest.isEmpty() ? null : rest;
+				});
+			}
+			if (!actors.isEmpty()) {
+				differences.add(name + ": recent changes by " + actors.keySet() + ", not the System (SM-2)");
+			}
 		}
 		return differences;
 	}
@@ -317,31 +355,34 @@ class PlatformGuard {
 		for (UUID jobId : this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE status = 'DONE' AND deleted_at IS NULL")
 			.query(UUID.class)
 			.list()) {
-			boolean running = this.busy.job(jobId)
-				.map(job -> RUNNING.contains(job.state()) || ENDED.contains(job.state()))
-				.orElse(false);
+			String state = this.busy.job(jobId).map(JobBusy.BusyJob::state).orElse("");
+			boolean running = RUNNING.contains(state) || ENDED.contains(state);
 			Setup setup = running ? this.setups.latest(jobId).orElse(null) : null;
 			if (setup == null || !"DONE".equals(setup.status())) {
 				continue;
 			}
+			boolean teamEnded = TEAM_ENDED.contains(state);
 			if (setup.intermediary() != null) {
-				repos.add(new PlatformRepo(jobId, setup.intermediary(), true));
+				repos.add(new PlatformRepo(jobId, setup.intermediary(), true, teamEnded));
 			}
 			if (setup.working() != null) {
-				repos.add(new PlatformRepo(jobId, setup.working(), false));
+				repos.add(new PlatformRepo(jobId, setup.working(), false, teamEnded));
 			}
 		}
 		return repos;
 	}
 
 	/**
-	 * Whether the sender holds a grant on the Job: by numeric GitHub ID, or by login for a grant whose ID is
-	 * unknown (one from before Story 19.2 whose account no longer matches) or an event without a sender ID.
+	 * Whether the sender holds a live grant on this repository: by numeric GitHub ID, or by login for a grant whose ID is
+	 * unknown (one from before Story 19.2 whose account no longer matches) or an event without a sender ID. The
+	 * Customer's read counts for a {@code member} event on their Intermediary Repository only (Story 23.7).
 	 */
-	private boolean granted(UUID jobId, @Nullable Long senderId, String senderLogin) {
-		return this.grants.ofJob(jobId)
+	private boolean granted(PlatformRepo repo, String event, @Nullable Long senderId, String senderLogin) {
+		return this.grants.ofJob(repo.jobId())
 			.stream()
-			.filter(grant -> !"REVOKED".equals(grant.status()))
+			.filter(grant -> grant.repositoryId() == repo.repository().id() && !"REVOKED".equals(grant.status())
+					&& !"LAPSED".equals(grant.status()))
+			.filter(grant -> grant.team() || "member".equals(event))
 			.anyMatch(grant -> sameAccount(grant, senderId, senderLogin));
 	}
 

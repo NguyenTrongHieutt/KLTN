@@ -702,13 +702,15 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public Set<String> recentActors(PlatformRepository repository) {
+	public Map<String, Set<String>> recentActors(PlatformRepository repository) {
 		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("metadata", "read"), token -> {
-			Set<String> actors = new java.util.TreeSet<>();
+			Map<String, Set<String>> actors = new java.util.TreeMap<>();
 			GitHubHttp.Answer answer = http().send("GET", "/repos/" + repository.fullName() + "/events?per_page=30",
 					token.value(), null);
 			for (JsonNode event : require(answer, "list the events of " + repository.fullName())) {
-				actors.add(event.path("actor").path("login").asString("").toLowerCase(Locale.ROOT));
+				actors.computeIfAbsent(event.path("actor").path("login").asString("").toLowerCase(Locale.ROOT),
+						login -> new java.util.TreeSet<>())
+					.add(event.path("type").asString(""));
 			}
 			return actors;
 		});

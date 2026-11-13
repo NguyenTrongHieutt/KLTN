@@ -55,9 +55,11 @@ class JobSetupController {
 	}
 
 	/**
-	 * One person under "Mời người hướng dẫn và nhóm trên GitHub".
-	 * @param role {@code MENTOR} or {@code CREW}
-	 * @param name the Mentor's name; a Crew member's GitHub username for the Customer, else their name
+	 * One person under "Mời trên GitHub": the Mentor and each Crew member on the Working Repository, then the Customer,
+	 * with read, on the Intermediary Repository (R5, Story 23.7).
+	 * @param role {@code MENTOR}, {@code CREW}, or {@code CUSTOMER}
+	 * @param name the Mentor's name; a Crew member's GitHub username for the Customer, else their name; the Customer's
+	 * own GitHub username on their own row, and nothing for the team, who read "Khách hàng"
 	 * @param state {@code INVITING}, {@code INVITED}, {@code TWO_FACTOR_MISSING}, {@code ACCEPTED},
 	 * {@code WRITE}, or {@code MEMBER_DRIFT}
 	 * @param expiresAt a pending invitation's expiry
@@ -272,14 +274,17 @@ class JobSetupController {
 					"NONE", pending, null, false, List.of(), null, null, null, null);
 		}
 		boolean customer = role.isCustomer();
-		// A revoked grant is nobody's access any more (Story 7.7): it neither shows nor holds the Invite step.
+		// A revoked grant is nobody's access any more (Story 7.7), nor is a lapsed read (Story 23.7): it neither shows nor
+		// holds the Invite step.
 		List<Grant> grants = this.grants.ofJob(job.jobId())
 			.stream()
-			.filter(grant -> !"REVOKING".equals(grant.status()) && !"REVOKED".equals(grant.status()))
+			.filter(grant -> !List.of("REVOKING", "REVOKED", "LAPSED").contains(grant.status()))
 			.toList();
 		boolean active = !"STARTING".equals(job.state());
 		boolean done = "DONE".equals(setup.status());
-		boolean invited = done && !grants.isEmpty() && (active || grants.stream().allMatch(Grant::ready));
+		// R5: the Customer's read invitation never holds "Mời trên GitHub"; only the Mentor's and the Crew's count.
+		List<Grant> team = grants.stream().filter(Grant::team).toList();
+		boolean invited = done && !team.isEmpty() && (active || team.stream().allMatch(Grant::ready));
 		boolean[] finished = { setup.checkedAt() != null, setup.confirmedAt() != null, setup.workingAt() != null || done,
 				setup.copiedAt() != null || done, invited || active, active };
 		// No step is done past the last one reached: a Setup that ended waiting shows nothing after its wait as done.
@@ -328,7 +333,10 @@ class JobSetupController {
 		return new SetupRunView(setup.runStatus() == null ? "DISPATCHED" : setup.runStatus(), setup.runConclusion(), url);
 	}
 
-	/** UX-DR23: the Customer sees the Mentor's name and the Crew's GitHub usernames only. */
+	/**
+	 * UX-DR23: the Customer sees the Mentor's name and the Crew's GitHub usernames only. UX-DR114: the Customer's own
+	 * read row names their GitHub username to them; the team reads it as "Khách hàng", with no name from here.
+	 */
 	private List<SetupPersonView> people(List<Grant> grants, Caller caller, boolean customer) {
 		Map<UUID, String> names = new HashMap<>();
 		List<UUID> mentorIds = grants.stream().filter(grant -> "MENTOR".equals(grant.role())).map(Grant::accountId).toList();
@@ -341,9 +349,11 @@ class JobSetupController {
 		}
 		List<SetupPersonView> people = new ArrayList<>();
 		for (Grant grant : grants) {
-			String name = names.getOrDefault(grant.accountId(), "@" + grant.login());
-			String state = grant.twoFactorMissing() ? "TWO_FACTOR_MISSING" : grant.status();
 			boolean own = grant.accountId().equals(caller.accountId());
+			String name = grant.customer() ? (own ? "@" + grant.login() : "")
+					: names.getOrDefault(grant.accountId(), "@" + grant.login());
+			// Two-factor authentication holds back the team's write only; the Customer's row shows their read as it stands.
+			String state = grant.team() && grant.twoFactorMissing() ? "TWO_FACTOR_MISSING" : grant.status();
 			String url = !own ? null
 					: "INVITED".equals(grant.status()) ? this.links.invitations(grant.repositoryName())
 							: this.links.repository(grant.repositoryName());

@@ -12,13 +12,17 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-21): a revocation still retrying 15 minutes after its trigger alerts every
  * Administrator with {@value Revocations#DELAYED}; the operation keeps trying. Not pausable: a frozen
- * Job's access ends all the same. A grant read back as revoked leaves it {@code OBSOLETE}.
+ * Job's access ends all the same. A grant read back as revoked leaves it {@code OBSOLETE}. An erased Customer's
+ * revocation (generation {@value #ERASED}) has no grant row left: its operation says whether it read back.
  * Collaborators are looked up on use.
  */
 @Component
 class RevocationDelay implements DeadlineHandler {
 
 	static final String KEY = "repo.revocation_delay";
+
+	/** The generation of an erased Customer's revocation, whose subject is the grant that went with the account. */
+	static final String ERASED = "erased";
 
 	static final DeadlineKind KIND = new DeadlineKind(KEY, false, true);
 
@@ -38,6 +42,14 @@ class RevocationDelay implements DeadlineHandler {
 
 	@Override
 	public DeadlineOutcome handle(DueDeadline deadline) {
+		if (ERASED.equals(deadline.generation())) {
+			Revocations revocations = this.revocations.getObject();
+			if (deadline.jobId() == null || revocations.erasedRevocationDone(deadline.subjectId())) {
+				return DeadlineOutcome.OBSOLETE;
+			}
+			revocations.erasureDelayed(deadline.subjectId(), deadline.jobId());
+			return DeadlineOutcome.FIRED;
+		}
 		Grant grant = this.grants.getObject().find(deadline.subjectId()).orElse(null);
 		if (grant == null || !"REVOKING".equals(grant.status())) {
 			return DeadlineOutcome.OBSOLETE;

@@ -31,18 +31,21 @@ import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
+import vn.vibefix.operations.OperationStatus;
 import vn.vibefix.repo.internal.JobGrants.Grant;
 import vn.vibefix.shared.ProcessedEvents;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * Revocation (FR-21, FR-59, FR-82, AD-11, AD-19). J8 or J10 revokes every grant of the Job; a locked
- * account revokes that person's grants on every Job; a member who leaves, or whose lock counted as leaving, revokes their
- * own on that Job. A revoked grant is {@code REVOKING} at once, which supersedes its pending invitation or raise, since those
- * act only on their own status; its operation removes the access and reads the removal back, and
- * Administrators hear if it is still not done 15 minutes later. Reaching Closed or Cancelled also
- * schedules the repositories' deletion 30 days later. Unlocking restores nothing.
+ * Revocation (FR-21, FR-59, FR-82, AD-11, AD-19, R17). J8 or J10 revokes every grant of the Mentor and the Crew on the
+ * Job, read included, and leaves the Customer's read on the Intermediary Repository (R5), which lasts until the
+ * repositories are deleted; a locked account revokes that person's grants on every Job, the Customer's read included; a
+ * member who leaves, or whose lock counted as leaving, revokes their own on that Job; an erased Customer's read is
+ * revoked before its rows go. A revoked grant is {@code REVOKING} at once, which supersedes its pending invitation or
+ * raise, since those act only on their own status; its operation removes the access and reads the removal back, and
+ * Administrators hear if it is still not done 15 minutes later. Reaching Closed or Cancelled also schedules the
+ * repositories' deletion 30 days later. Unlocking restores nothing.
  */
 @Component
 class Revocations {
@@ -117,7 +120,8 @@ class Revocations {
 			return;
 		}
 		if (revoke) {
-			this.grants.ofJob(event.jobId()).forEach(this::revoke);
+			// R17: the team loses every access; the Customer keeps reading the Intermediary until it is deleted (R5).
+			this.grants.ofJob(event.jobId()).stream().filter(Grant::team).forEach(this::revoke);
 		}
 		if (ended && !this.deletions.pending(event.jobId()).isEmpty()) {
 			this.deadlines.schedule(new DeadlineRequest(RepositoryDeletion.KEY, event.jobId(), "0", event.jobId(),
@@ -136,7 +140,9 @@ class Revocations {
 		if (!this.processedEvents.markProcessed("repo.Revocations.onAccountLocked", event.eventId())) {
 			return;
 		}
-		this.jdbc.sql("SELECT id FROM repo.job_grant WHERE account_id = :account AND status NOT IN ('REVOKING', 'REVOKED')")
+		this.jdbc.sql("""
+				SELECT id FROM repo.job_grant WHERE account_id = :account AND status NOT IN ('REVOKING', 'REVOKED', 'LAPSED')
+				""")
 			.param("account", event.accountId())
 			.query(UUID.class)
 			.list()
@@ -159,27 +165,98 @@ class Revocations {
 		}
 		this.grants.ofJob(event.jobId())
 			.stream()
-			.filter(grant -> grant.accountId().equals(event.studentId()))
+			.filter(grant -> grant.team() && grant.accountId().equals(event.studentId()))
 			.forEach(this::revoke);
 	}
+
+	/**
+	 * The account is being erased (AD-24, FR-59): before {@code repo}'s erasure deletes its rows, every live read the
+	 * Customer holds on an Intermediary Repository is revoked on GitHub and read back. The operation keeps no name: its
+	 * payload holds the grant, the Job, and the repository, never the person, and an Intermediary Repository's only
+	 * grantee is its Customer, so it removes every collaborator and invitation there and reads it back empty (FR-19).
+	 * Nothing is told to the person. As for any revocation, Administrators hear if it is still not done 15 minutes later:
+	 * that Deadline names the grant and reads the operation, since no grant row is left to read.
+	 */
+	@Transactional
+	void erased(UUID accountId) {
+		List<UUID> live = this.jdbc.sql("""
+				SELECT id FROM repo.job_grant WHERE account_id = :account AND role = 'CUSTOMER' AND status NOT IN ('REVOKED', 'LAPSED')
+				""").param("account", accountId).query(UUID.class).list();
+		for (UUID grantId : live) {
+			Grant grant = this.grants.find(grantId).orElse(null);
+			if (grant == null) {
+				continue;
+			}
+			audit("repo.grant_revoking", grant);
+			this.todos.close(grant.acceptTodo(), grant.accountId(), grant.id());
+			Map<String, Object> payload = Map.of("grantId", grant.id().toString(), "jobId", grant.jobId().toString(),
+					"repositoryId", grant.repositoryId(), "repositoryName", grant.repositoryName());
+			this.operations.request(new OperationRequest(REVOKE, erasedCause(grant.id()), payload, null, null, 0));
+			this.deadlines.schedule(new DeadlineRequest(RevocationDelay.KEY, grant.id(), RevocationDelay.ERASED,
+					grant.jobId(), this.clock.instant().plus(DELAY)));
+		}
+	}
+
+	/** The causing record of an erased Customer's revocation, which keys its operation. */
+	static UUID erasedCause(UUID grantId) {
+		return key(grantId + ":erased");
+	}
+
+	/** Whether an erased Customer's revocation of {@code grantId} read back as gone. */
+	boolean erasedRevocationDone(UUID grantId) {
+		return this.operations.find(REVOKE + ":" + erasedCause(grantId))
+			.map(ticket -> ticket.status() == OperationStatus.SUCCEEDED)
+			.orElse(true);
+	}
+
+	/**
+	 * An erased Customer's read on the Intermediary Repository read back as gone: audited by the grant and the Job, whose
+	 * {@code repo.grant_revoking} entry names the account.
+	 */
+	@Transactional
+	void erasedRevoked(UUID grantId, UUID jobId) {
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), "repo.grant_revoked", AuditObject.of("repo.job_grant", grantId))
+			.forJob(jobId));
+	}
+
+	/**
+	 * An erased Customer's revocation still not read back 15 minutes after the erasure: every Administrator hears, once,
+	 * as for any delayed revocation; the person is named by no login, since their account is erased.
+	 */
+	@Transactional
+	void erasureDelayed(UUID grantId, UUID jobId) {
+		this.auditLog.record(AuditEntry.of(AuditActor.system(), "repo.revocation_delayed",
+				AuditObject.of("repo.job_grant", grantId)).forJob(jobId));
+		List<Recipient> admins = this.administrators.activeIds().stream().map(id -> new Recipient(id, Audience.ADMIN)).toList();
+		if (!admins.isEmpty()) {
+			this.notifications.send(new NotificationRequest(DELAYED, key(grantId + ":erased:delayed"), admins,
+					Map.of("login", ERASED_LOGIN, "job", title(jobId)), "/quan-tri", null, null));
+		}
+	}
+
+	/** What a delayed revocation's alert names in place of an erased Customer's GitHub login. */
+	static final String ERASED_LOGIN = "khach-hang-da-xoa-tai-khoan";
 
 	/** The grant ends: {@code REVOKING} at once, its invitation to-do closed, the operation, and the alert. */
 	private void revoke(Grant grant) {
 		int updated = this.jdbc.sql("""
-				UPDATE repo.job_grant SET status = 'REVOKING' WHERE id = :id AND status NOT IN ('REVOKING', 'REVOKED')
+				UPDATE repo.job_grant SET status = 'REVOKING' WHERE id = :id AND status NOT IN ('REVOKING', 'REVOKED', 'LAPSED')
 				""").param("id", grant.id()).update();
 		if (updated == 0) {
 			return;
 		}
 		audit("repo.grant_revoking", grant);
-		this.todos.close(JobGrants.ACCEPT_TODO, grant.accountId(), grant.id());
+		this.todos.close(grant.acceptTodo(), grant.accountId(), grant.id());
 		this.operations.request(new OperationRequest(REVOKE, key(grant.id() + ":revoke"),
 				Map.of("grantId", grant.id().toString()), null, null, 0));
 		this.deadlines.schedule(new DeadlineRequest(RevocationDelay.KEY, grant.id(), "0", grant.jobId(),
 				this.clock.instant().plus(DELAY)));
 	}
 
-	/** Read back as gone: {@code REVOKED}, audited per person and repository, and the person hears. */
+	/**
+	 * Read back as gone: {@code REVOKED}, audited per person and repository, and the person hears; the Customer, whose
+	 * read only a lock revokes this way, is not told (no {@value #REVOKED}: that text is about the Working Repository).
+	 */
 	@Transactional
 	void revoked(Grant grant) {
 		int updated = this.jdbc.sql("""
@@ -189,6 +266,9 @@ class Revocations {
 			return;
 		}
 		audit("repo.grant_revoked", grant);
+		if (grant.customer()) {
+			return;
+		}
 		Audience audience = "MENTOR".equals(grant.role()) ? Audience.MENTOR : Audience.CREW_EVER_ACTIVE;
 		this.notifications.send(new NotificationRequest(REVOKED, key(grant.id() + ":revoked"),
 				List.of(new Recipient(grant.accountId(), audience)), Map.of("job", title(grant.jobId())),

@@ -90,7 +90,7 @@ class RepositoryDeleteOperation implements OperationHandler {
 		catch (GitHubException failed) {
 			return new Outcome.Transient(failed.status() == 0 ? "GITHUB_UNAVAILABLE" : "GITHUB_HTTP_" + failed.status());
 		}
-		deletions.deleted(setupId, jobId);
+		deletions.deleted(setupId, jobId, intermediary == null ? null : intermediary.id());
 		return Outcome.succeeded();
 	}
 

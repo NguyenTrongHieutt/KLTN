@@ -223,7 +223,10 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
     expect(await within(section).findByText('Trần Thảo Vy: xác nhận đã xóa dữ liệu của khách hàng')).toBeInTheDocument()
     expect(within(section).queryByRole('button', { name: 'Xác nhận kết thúc' })).toBeNull()
-    const done = within(section).getByRole('checkbox', { name: /Đã xóa bản sao mã nguồn và dữ liệu của khách hàng/ })
+    // R18 (Story 23.7): the item names the local clones and copies of the Customer's private code.
+    const done = within(section).getByRole('checkbox', {
+      name: /Đã xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của tôi/,
+    })
     expect(done).toBeChecked()
     expect(done).toBeDisabled()
     await user.click(within(section).getByRole('checkbox', { name: 'Đã xóa các bản xem thử tôi đã triển khai' }))
@@ -277,7 +280,7 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
       await screen.findByText('Bạn không còn tham gia công việc này. Bạn chỉ xem được nội dung trong thời gian đã tham gia.'),
     ).toBeInTheDocument()
     const section = (await screen.findByRole('heading', { level: 2, name: 'Công việc đã hoàn thành' })).closest('section')!
-    expect(await within(section).findByRole('checkbox', { name: /Đã xóa bản sao mã nguồn và dữ liệu của khách hàng/ })).toBeEnabled()
+    expect(await within(section).findByRole('checkbox', { name: /Đã xóa mọi bản clone và bản sao mã riêng tư/ })).toBeEnabled()
     expect(await screen.findByRole('group', { name: 'Đánh giá kín người hướng dẫn' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Các giai đoạn' })).not.toBeInTheDocument()
   })
