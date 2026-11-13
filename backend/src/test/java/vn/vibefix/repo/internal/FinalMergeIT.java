@@ -178,11 +178,11 @@ class FinalMergeIT extends IntegrationTest {
 				""").param("id", this.job).param("product", product).param("owner", this.lan).param("mentor", this.hung)
 			.param("application", UUID.randomUUID()).param("now", now).update();
 		this.jdbc.sql("""
-				INSERT INTO repo.job_setup (id, job_id, product_id, status, source_full_name, default_branch, approved_sha,
-				    intermediary_github_id, intermediary_name, working_github_id, working_name, checked_at, intermediary_at,
-				    working_at, started_at, finished_at)
-				VALUES (:id, :job, :product, 'DONE', :source, 'main', :sha, :intermediaryId, :intermediary, :workingId, :working,
-				    :now, :now, :now, :now, :now)
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, source_full_name, default_branch, head_sha,
+				    head_read_at, approved_sha, confirmed_at, intermediary_github_id, intermediary_name, working_github_id,
+				    working_name, checked_at, intermediary_at, working_at, copied_at, started_at, finished_at)
+				VALUES (:id, :job, :product, 'DONE', :source, 'main', :sha, :now, :sha, :now, :intermediaryId, :intermediary,
+				    :workingId, :working, :now, :now, :now, :now, :now, :now)
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("product", product)
 			.param("source", this.owner + "/" + this.name).param("sha", approved).param("intermediaryId", intermediaryId)
 			.param("intermediary", GitHubStub.ORGANIZATION + "/" + this.intermediary).param("workingId", workingId)

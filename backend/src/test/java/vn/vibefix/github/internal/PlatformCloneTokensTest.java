@@ -1,7 +1,6 @@
 package vn.vibefix.github.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import vn.vibefix.github.GitHubApps.App;
-import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 import vn.vibefix.shared.SandboxJobResult;
@@ -105,13 +103,6 @@ class PlatformCloneTokensTest {
 	}
 
 	@Test
-	void aCopyFromThePublicSourceSendsNoReadToken() {
-		this.repositories.copy("lan-dev/quan-may", this.head, "main", this.working);
-
-		assertThat(onlyJob(RepositoryCopyJobHandler.TYPE).has("sourceToken")).isFalse();
-	}
-
-	@Test
 	void theZipClonesWithAReadTokenNarrowedToTheRepository() {
 		this.repositories.zip(this.intermediary, "main");
 
@@ -137,13 +128,12 @@ class PlatformCloneTokensTest {
 	}
 
 	@Test
-	void theWorkingHeadIsReadWithATokenNarrowedToItAndAnUnnarrowedReadSeesNothing() {
+	void theWorkingHeadIsReadWithATokenNarrowedToIt() {
 		assertThat(this.repositories.branchHead(this.working, "main")).isEqualTo(this.head);
-		assertThatThrownBy(() -> this.repositories.branchHead("vibefix-dev/job-1-working", "main"))
-			.as("the organization-read token holds no contents read, so a private ref is hidden")
-			.isInstanceOf(GitHubException.class)
-			.extracting(failed -> ((GitHubException) failed).status())
-			.isEqualTo(404);
+		assertThat(this.github.seen).filteredOn(request -> request.path().endsWith("/access_tokens"))
+			.last()
+			.satisfies(request -> assertThat(request.body().path("repository_ids").toString())
+				.isEqualTo("[" + this.working.id() + "]"));
 	}
 
 	@Test

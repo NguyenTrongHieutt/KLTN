@@ -190,6 +190,35 @@ class GitHubActionsRuns implements ActionsRuns {
 		return Optional.of(run);
 	}
 
+	@Override
+	public void close(UUID correlation) {
+		ExchangeCorrelations.Row row = this.correlations.find(correlation).orElse(null);
+		if (row == null) {
+			return;
+		}
+		Boolean closed = this.transactions.execute(status -> this.correlations.close(correlation));
+		Long runId = row.runId();
+		log.info("Correlation {} given up: {}; its run {} is cancelled", correlation,
+				Boolean.TRUE.equals(closed) ? "closed" : "no longer open (" + row.status() + ")", runId == null ? "(not found)" : runId);
+		if (runId == null) {
+			return;
+		}
+		App app = row.dispatchingApp();
+		Map<String, String> cancel = app == App.SOURCE ? DispatchingApps.SOURCE_DISPATCH : Map.of("actions", "write");
+		try {
+			int status = this.dispatching.withToken(row, cancel, token -> this.apps.http()
+				.send("POST", "/repos/" + row.repository() + "/actions/runs/" + runId + "/cancel", token.value(), null)
+				.status());
+			if (status >= 300 && status != 409) {
+				// 409: the run already completed. Anything else leaves it to its own timeout.
+				log.warn("GitHub refused to cancel run {} of correlation {}: HTTP {}", runId, correlation, status);
+			}
+		}
+		catch (GitHubException failed) {
+			log.warn("Run {} of correlation {} was not cancelled: HTTP {}", runId, correlation, failed.status());
+		}
+	}
+
 	/** What a run read found: the run looked up by its title, when it was not known yet, and the run read. */
 	private record Read(@Nullable Found found, @Nullable Run run) {
 

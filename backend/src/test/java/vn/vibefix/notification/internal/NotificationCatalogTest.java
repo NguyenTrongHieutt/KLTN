@@ -27,8 +27,8 @@ import vn.vibefix.notification.TodoType;
  * The registry and its texts agree (AD-27, AD-20, UX-DR15, UX-DR16): every notification type has its
  * in-app title in {@code vi.json} and, when it sends email, a template whose subject is that title;
  * every to-do key has its strip text; and each text uses exactly the declared parameters. Every entry
- * is rendered with canary values for each audience class it allows: each canary shows where its
- * parameter is, and nothing is left unfilled.
+ * (a notification's title with its body line, when it has one) is rendered with canary values for each audience
+ * class it allows: each canary shows where its parameter is, and nothing is left unfilled.
  */
 class NotificationCatalogTest {
 
@@ -106,8 +106,10 @@ class NotificationCatalogTest {
 				assertThat(template.render(canaries, "https://vibefix.vn").subject()).as("the subject is the title")
 					.isEqualTo(fill(title, canaries));
 			}
+			// What the item shows: its title and, when it has one, its body line (Story 23.6b: a body may name a parameter).
+			String shown = body == null ? title : title + " " + body.asString();
 			for (Audience audience : type.audiences()) {
-				assertRendersEveryCanary(type.key() + " for " + audience, title, type.params());
+				assertRendersEveryCanary(type.key() + " for " + audience, shown, type.params());
 			}
 		}
 	}

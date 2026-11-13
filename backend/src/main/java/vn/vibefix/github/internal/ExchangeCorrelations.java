@@ -212,6 +212,13 @@ class ExchangeCorrelations {
 				""").param("id", id).update() == 1;
 	}
 
+	/** @return whether the open correlation, which its caller gave up on, is {@code EXPIRED} now */
+	boolean close(UUID id) {
+		return this.jdbc.sql("UPDATE github.exchange_correlation SET status = 'EXPIRED' WHERE id = :id AND status = 'OPEN'")
+			.param("id", id)
+			.update() == 1;
+	}
+
 	/** Open correlations past their expiry become {@code EXPIRED}; returns how many. */
 	int expire(Instant now) {
 		return this.jdbc.sql("""

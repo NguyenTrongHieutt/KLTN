@@ -5628,6 +5628,43 @@
         "tags" : [ "job-setup-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/setup/confirmation" : {
+      "post" : {
+        "operationId" : "confirmSourceClean",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetupConfirmationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "job-setup-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/setup/retry" : {
       "post" : {
         "operationId" : "retry",
@@ -18233,6 +18270,46 @@
         },
         "required" : [ "privacyNoticeVersion", "status" ]
       },
+      "SetupConfirmationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "noticeVersion" : {
+            "type" : "string",
+            "pattern" : "[0-9]{1,3}\\.[0-9]{1,3}"
+          },
+          "sha" : {
+            "type" : "string",
+            "pattern" : "[0-9a-f]{40}"
+          }
+        },
+        "required" : [ "noticeVersion", "sha" ]
+      },
+      "SetupConfirmationView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sha" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "confirmedAt", "sha" ]
+      },
+      "SetupHeadView" : {
+        "type" : "object",
+        "properties" : {
+          "readAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sha" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "readAt", "sha" ]
+      },
       "SetupPersonView" : {
         "type" : "object",
         "properties" : {
@@ -18255,6 +18332,21 @@
         },
         "required" : [ "name", "role", "state" ]
       },
+      "SetupRunView" : {
+        "type" : "object",
+        "properties" : {
+          "conclusion" : {
+            "type" : "string"
+          },
+          "htmlUrl" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "state" ]
+      },
       "SetupStepView" : {
         "type" : "object",
         "properties" : {
@@ -18276,6 +18368,15 @@
           "canRetry" : {
             "type" : "boolean"
           },
+          "confirmation" : {
+            "$ref" : "#/components/schemas/SetupConfirmationView"
+          },
+          "exchangeReason" : {
+            "type" : "string"
+          },
+          "head" : {
+            "$ref" : "#/components/schemas/SetupHeadView"
+          },
           "jobId" : {
             "type" : "string",
             "format" : "uuid"
@@ -18288,6 +18389,9 @@
             "items" : {
               "$ref" : "#/components/schemas/SetupPersonView"
             }
+          },
+          "run" : {
+            "$ref" : "#/components/schemas/SetupRunView"
           },
           "status" : {
             "type" : "string"

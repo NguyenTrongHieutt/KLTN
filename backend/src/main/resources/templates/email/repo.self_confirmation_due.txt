@@ -1,0 +1,7 @@
+subject: Hãy xác nhận dự án gốc đã sạch để bắt đầu {job}
+---
+Xin chào,
+
+Công việc {job} đang chờ bạn xác nhận lần lưu mới nhất của dự án gốc: {sha}.
+vibefix không quét mã của bạn. Trước khi xác nhận, hãy chắc rằng mọi khóa bí mật trong lịch sử dự án đã được thu hồi hoặc đổi, và dữ liệu cá nhân của người dùng đã được xóa.
+Mở trang công việc trên vibefix để xác nhận. Khi bạn xác nhận, vibefix sao chép đúng lần lưu đó bằng GitHub Actions của dự án.

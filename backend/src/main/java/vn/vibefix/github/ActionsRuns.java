@@ -298,4 +298,13 @@ public interface ActionsRuns {
 	 */
 	Optional<Run> run(UUID correlation);
 
+	/**
+	 * Closes a correlation whose run the caller gave up on, such as one still out after {@link #RUN_TIMEOUT}, so that it
+	 * never trades for a token beside the run that replaces it (Story 23.6b): an {@link Status#OPEN} correlation becomes
+	 * {@link Status#EXPIRED}, which the exchange refuses, and its run, once known, is cancelled best-effort through its
+	 * dispatching App with Actions write, narrowed to the target and revoked after use. A cancel GitHub refuses or does
+	 * not answer is logged, never thrown; a correlation already exchanged keeps its token until the revocation.
+	 */
+	void close(UUID correlation);
+
 }

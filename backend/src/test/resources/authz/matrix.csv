@@ -2596,7 +2596,9 @@ POST /github/actions/exchange,ADMINISTRATOR,,actions-exchange.json,403 FORBIDDEN
 POST /github/actions/exchange,ACTIONS_RUN,,actions-exchange.json,403 FORBIDDEN SIGNATURE
 
 # Story 7.2 (UX-DR23, AD-11): the step tracker; the Customer reads it on the Draft, and the crew Job's Customer,
-# Mentor and ACTIVE members on the crew Job (job=crew); "Thử lại" needs a blocked Setup.
+# Mentor and ACTIVE members on the crew Job (job=crew); "Thử lại" needs a blocked Setup. Story 23.6b (R4, UX-DR114): the
+# view also holds the head to confirm, the confirmation, the copy run (its page for the Customer only) and the
+# exchange's refusal; the self-confirmation is the Customer's alone, and needs a Setup waiting for one.
 GET /api/v1/jobs/{jobId}/setup,ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId}/setup,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/setup,USER,job=crew,,404 NOT_FOUND
@@ -2622,6 +2624,18 @@ POST /api/v1/jobs/{jobId}/setup/retry,CREW_ACTIVE,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,CREW_FORMER,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,CROSS_ROLE,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/setup/retry,ADMINISTRATOR,job=crew,,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,ANONYMOUS,,setup-confirmation.json,401
+POST /api/v1/jobs/{jobId}/setup/confirmation,USER_UNVERIFIED,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,USER,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,LOCKED,job=crew,setup-confirmation.json,401
+POST /api/v1/jobs/{jobId}/setup/confirmation,CUSTOMER,job=crew,setup-confirmation.json,409 CONFLICT SETUP_NOT_CONFIRMING
+POST /api/v1/jobs/{jobId}/setup/confirmation,MENTOR,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,BIDDER,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,CREW_ASSIGNED,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,CREW_ACTIVE,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,CREW_FORMER,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,CROSS_ROLE,job=crew,setup-confirmation.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/setup/confirmation,ADMINISTRATOR,job=crew,setup-confirmation.json,404 NOT_FOUND
 
 # Story 8.1 (FR-66, UX-DR83): External Access after confirmation. The Draft has no confirmed Agreement, so nobody
 # reads, enters, or ticks anything there; on the crew Job (job=crew) its Customer, Mentor and active Crew

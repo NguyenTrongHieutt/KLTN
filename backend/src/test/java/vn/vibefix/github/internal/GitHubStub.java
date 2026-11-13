@@ -471,6 +471,35 @@ public final class GitHubStub implements AutoCloseable {
 		return id;
 	}
 
+	/**
+	 * What J7's copy run on the Customer's GitHub Actions leaves behind, since the stub runs no workflow (Story 23.6b):
+	 * exactly {@code sha} of {@code fromOwner/fromName} on {@code branch} of the organization repository {@code toName},
+	 * with the commit IDs kept, as {@code git push SHA:refs/heads/BRANCH} would.
+	 */
+	public void copyCommit(String fromOwner, String fromName, String sha, String toName, String branch) throws Exception {
+		try (Git git = Git.open(this.gitRoot.resolve(ORGANIZATION).resolve(toName + ".git").toFile())) {
+			git.fetch()
+				.setRemote(this.gitRoot.resolve(fromOwner).resolve(fromName + ".git").toUri().toString())
+				.setRefSpecs(new org.eclipse.jgit.transport.RefSpec("+refs/heads/*:refs/copied/*"))
+				.call();
+			Repository repository = git.getRepository();
+			org.eclipse.jgit.lib.RefUpdate update = repository.updateRef("refs/heads/" + branch);
+			update.setNewObjectId(org.eclipse.jgit.lib.ObjectId.fromString(sha));
+			update.setForceUpdate(true);
+			org.eclipse.jgit.lib.RefUpdate.Result result = update.update();
+			if (!java.util.Set.of(org.eclipse.jgit.lib.RefUpdate.Result.NEW, org.eclipse.jgit.lib.RefUpdate.Result.FORCED,
+					org.eclipse.jgit.lib.RefUpdate.Result.FAST_FORWARD, org.eclipse.jgit.lib.RefUpdate.Result.NO_CHANGE)
+				.contains(result)) {
+				throw new IllegalStateException("The copy of " + sha + " to " + toName + " " + branch + " was refused: " + result);
+			}
+			for (org.eclipse.jgit.lib.Ref copied : repository.getRefDatabase().getRefsByPrefix("refs/copied/")) {
+				org.eclipse.jgit.lib.RefUpdate delete = repository.updateRef(copied.getName());
+				delete.setForceUpdate(true);
+				delete.delete();
+			}
+		}
+	}
+
 	/** The head of {@code branch}, or none. */
 	public String head(String owner, String name, String branch) throws IOException {
 		try (Repository repository = repository(owner, name)) {
@@ -530,6 +559,23 @@ public final class GitHubStub implements AutoCloseable {
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/workflows/([^/]+)/dispatches").matcher(path))
 					.matches()) {
 			dispatch(exchange, matcher.group(1), matcher.group(2), matcher.group(3), body);
+		}
+		else if (method.equals("POST")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/runs/(\\d+)/cancel").matcher(path)).matches()) {
+			// A run cancelled (Story 23.6b): 202, and it concludes cancelled; 409 once it completed, as GitHub answers.
+			long id = Long.parseLong(matcher.group(3));
+			Map<String, Object> run = this.runs.get(id);
+			boolean here = run != null && (matcher.group(1) + "/" + matcher.group(2)).equals(run.get("repository_full_name"));
+			if (!here) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			if ("completed".equals(run.get("status"))) {
+				send(exchange, 409, "{\"message\":\"Cannot cancel a workflow run that is completed.\"}");
+				return;
+			}
+			completeRun(id, "cancelled");
+			send(exchange, 202, "{}");
 		}
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/runs/(\\d+)").matcher(path)).matches()) {

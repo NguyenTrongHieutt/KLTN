@@ -113,16 +113,6 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
-	public void copy(String sourceFullName, String sha, String branch, PlatformRepository target) {
-		copy(sourceFullName, sha, branch, branch, target);
-	}
-
-	@Override
-	public void copy(String sourceFullName, String sha, String sourceBranch, String branch, PlatformRepository target) {
-		push(sourceFullName, null, sha, sourceBranch, branch, target);
-	}
-
-	@Override
 	public void copy(PlatformRepository source, String sha, String sourceBranch, String branch, PlatformRepository target) {
 		// The private source is cloned with its own token, narrowed to it with contents read.
 		this.apps.withToken(App.PLATFORM, List.of(source.id()), Map.of("contents", "read"), read -> {
@@ -133,10 +123,10 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	/**
 	 * The sandbox copy: {@code sha} read on {@code sourceBranch} and pushed to {@code branch} of the target with
-	 * a token narrowed to it; {@code sourceToken} clones a private source, none a public one.
+	 * a token narrowed to it; {@code sourceToken} clones the private source.
 	 */
-	private void push(String sourceFullName, @Nullable InstallationToken sourceToken, String sha, String sourceBranch,
-			String branch, PlatformRepository target) {
+	private void push(String sourceFullName, InstallationToken sourceToken, String sha, String sourceBranch, String branch,
+			PlatformRepository target) {
 		this.apps.withToken(App.PLATFORM, List.of(target.id()), Map.of("contents", "write", "workflows", "write"), token -> {
 			ObjectNode input = JsonNodeFactory.instance.objectNode();
 			input.put("source", sourceFullName);
@@ -145,9 +135,7 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			input.put("branch", branch);
 			input.put("target", target.fullName());
 			input.put("token", token.value());
-			if (sourceToken != null) {
-				input.put("sourceToken", sourceToken.value());
-			}
+			input.put("sourceToken", sourceToken.value());
 			JsonNode output;
 			try {
 				output = this.sandbox.run(RepositoryCopyJobHandler.TYPE, input).output();
@@ -724,11 +712,6 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			}
 			return actors;
 		});
-	}
-
-	@Override
-	public String branchHead(String fullName, String branch) {
-		return this.apps.withUnnarrowed(App.PLATFORM, Unnarrowed.ORGANIZATION_READ, token -> head(fullName, branch, token));
 	}
 
 	@Override

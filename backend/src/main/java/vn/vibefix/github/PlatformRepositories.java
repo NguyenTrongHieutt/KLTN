@@ -11,11 +11,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A Job's repositories in the platform organization (AD-11, AD-10, D1, D5): the Intermediary Repository and
- * the Working Repository, two private copies of the Source Repository at one approved commit. There is no
- * fork, and GitHub Free takes no ruleset on a private repository, so "only the System writes the
- * Intermediary" is read back from its collaborators and invitations. Every call mints a token for its one
- * step, narrowed as AD-10 lists, and revokes it; the copy itself runs in the sandbox (AD-32), and a clone
- * of a private platform repository gets a token narrowed to it with {@code contents} read.
+ * the Working Repository, two private copies of the Source Repository at one approved commit, which J7 copies on the
+ * Customer's own GitHub Actions (Story 23.6b), never in vibefix's sandbox. There is no fork, and GitHub Free takes no
+ * ruleset on a private repository, so "only the System writes the Intermediary" is read back from its collaborators
+ * and invitations. Every call mints a token for its one step, narrowed as AD-10 lists, and revokes it; a copy between
+ * platform repositories runs in the sandbox (AD-32), and a clone of a private platform repository gets a token
+ * narrowed to it with {@code contents} read.
  * @throws GitHubException from every method when GitHub refuses or cannot be reached
  */
 public interface PlatformRepositories {
@@ -35,23 +36,11 @@ public interface PlatformRepositories {
 	PlatformRepository create(String name);
 
 	/**
-	 * Pushes exactly {@code sha} of the public {@code sourceFullName} to {@code branch} of {@code target},
-	 * keeping the commit IDs: a bare clone and a push in the sandbox, with one token narrowed to
-	 * {@code target}. A push of a commit the branch already holds changes nothing, so a retry is a no-op.
-	 */
-	void copy(String sourceFullName, String sha, String branch, PlatformRepository target);
-
-	/**
-	 * As {@link #copy(String, String, String, PlatformRepository)}, with {@code sha} read on
-	 * {@code sourceBranch} of the source and pushed to {@code branch} of the target.
-	 */
-	void copy(String sourceFullName, String sha, String sourceBranch, String branch, PlatformRepository target);
-
-	/**
-	 * As {@link #copy(String, String, String, String, PlatformRepository)} from a private platform repository,
-	 * such as a Handover Commit on the Working Repository's default branch to {@code handover/{handoverId}} of
-	 * the Intermediary (AD-11): the sandbox clones {@code source} with a second token, narrowed to it with
-	 * {@code contents} read.
+	 * Pushes exactly {@code sha}, read on {@code sourceBranch} of the private platform repository {@code source}, to
+	 * {@code branch} of {@code target}, keeping the commit IDs, such as a Handover Commit on the Working Repository's
+	 * default branch to {@code handover/{handoverId}} of the Intermediary (AD-11): a bare clone and a push in the
+	 * sandbox, the clone with a token narrowed to {@code source} with {@code contents} read and the push with one narrowed
+	 * to {@code target}. A push of a commit the branch already holds changes nothing, so a retry is a no-op.
 	 */
 	void copy(PlatformRepository source, String sha, String sourceBranch, String branch, PlatformRepository target);
 
@@ -249,16 +238,10 @@ public interface PlatformRepositories {
 	Set<String> recentActors(PlatformRepository repository);
 
 	/**
-	 * The commit SHA {@code branch} of the public Source Repository points at now
-	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}), which J7 copies until Story 23.6's
-	 * self-confirmation.
-	 */
-	String branchHead(String fullName, String branch);
-
-	/**
-	 * The commit SHA {@code branch} of a private platform repository points at now, such as the Working
-	 * Repository's default branch that a handover reads, with a token narrowed to it holding {@code contents}
-	 * read.
+	 * The commit SHA {@code branch} of a private platform repository points at now
+	 * ({@code GET /repos/{fullName}/git/ref/heads/{branch}}), such as the Working Repository's default branch that a
+	 * handover reads, or both repositories read back after J7's copy, with a token narrowed to it holding
+	 * {@code contents} read.
 	 */
 	String branchHead(PlatformRepository repository, String branch);
 

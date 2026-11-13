@@ -198,6 +198,9 @@ vibefix:
     platform-sweep: PT10M
     # FR-20, AD-12 (Vietnam time): the daily Source Repository drift poll of every running Code Job.
     drift-cron: "0 0 5 * * *"
+    # R4 (Story 23.6b): N-32's current version, which the Customer's J7 self-confirmation names and records; the SPA
+    # shows the same one (Story 23.6c).
+    self-confirmation-notice-version: "1.0"
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m
