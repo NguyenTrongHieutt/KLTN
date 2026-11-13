@@ -211,6 +211,41 @@ class RunnerWorkflowsTest {
 				"trycloudflare.com", "vibefix.vn");
 	}
 
+	/**
+	 * Story 23.6c (deferred-work 650): the copy keeps git's object checks on and lets through, on fetch only, exactly the
+	 * messages a legacy history written by older tools holds, with that rationale and its assumption in the file. Any
+	 * other object error fails the run, and so does a failed push, each with every line git wrote (GitHub's
+	 * {@code remote:} lines too) as {@code ::error::} lines. {@code CopyStepsHarnessTest} runs it.
+	 */
+	@Test
+	void theCopyChecksEveryObjectAndLetsThroughOnlyTheNamedLegacyMessages() throws IOException {
+		String copy = String.valueOf(step(jobSteps(asMap(asMap(load(text(CUSTOMER)).get("jobs")).get("copy"))),
+				"Copy the commit").get("run"));
+		Matcher list = Pattern.compile("(?m)^for message in ([A-Za-z ]+); do$").matcher(copy);
+		String check = "git -C \"$repository\" config transfer.fsckObjects true\n";
+		String ignore = "  git -C \"$repository\" config \"fetch.fsck.$message\" ignore\ndone\n";
+		String fetch = "fetch --quiet --no-tags";
+
+		assertThat(list.find()).as("the copy names its ignore list").isTrue();
+		assertThat(list.group(1).split(" ")).containsExactly("zeroPaddedFilemode", "badDate", "badDateOverflow",
+				"badTimezone", "missingSpaceBeforeDate");
+		assertThat(copy).contains(check, ignore);
+		assertThat(copy.indexOf(check)).as("the checks are on before the list").isLessThan(list.start());
+		assertThat(copy.indexOf(ignore)).as("the list is set before the fetch").isLessThan(copy.indexOf(fetch));
+		assertThat(count(copy, "fsck")).as("no other object-check setting: no skip list, nothing turned off").isEqualTo(2);
+		assertThat(copy).doesNotContain("skipList", "receive.fsck", "fsckObjects false", "-c fetch.fsck");
+		assertThat(copy.substring(0, list.start())).as("the list's rationale and its assumption")
+			.contains("still reads the same way", "[ASSUMPTION; Story 23.12 confirms on real GitHub]");
+		assertThat(copy).as("a failed fetch or push says why with every line git wrote")
+			.contains("git_errors() { grep -v '^[[:space:]]*$' \"$1\" | sed 's/^/::error::/' || true; }\n",
+					"2> \"$RUNNER_TEMP/fetch.log\" || fetched=$?\nif [ \"$fetched\" != 0 ]; then\n"
+							+ "  git_errors \"$RUNNER_TEMP/fetch.log\"\n"
+							+ "  echo \"::error::the fetch of the default branch failed (git exit $fetched)\"\n  exit 1\nfi\n",
+					"\"$SHA:refs/heads/$BRANCH\" 2> \"$RUNNER_TEMP/push.log\" || pushed=$?\n  if [ \"$pushed\" != 0 ]; then\n"
+							+ "    git_errors \"$RUNNER_TEMP/push.log\"\n"
+							+ "    echo \"::error::the push to $target failed (git exit $pushed)\"\n    exit 1\n  fi\n");
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { CUSTOMER, RUNNER })
 	void theJobIsBoundedWithOnlyThePermissionsItNeeds(String file) throws IOException {

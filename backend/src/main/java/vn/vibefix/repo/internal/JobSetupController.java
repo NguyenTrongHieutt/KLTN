@@ -29,6 +29,7 @@ import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.ProductSources.Head;
+import vn.vibefix.product.ProductSources.Registered;
 import vn.vibefix.repo.internal.JobGrants.Grant;
 import vn.vibefix.repo.internal.JobSetups.Block;
 import vn.vibefix.repo.internal.JobSetups.Setup;
@@ -87,6 +88,22 @@ class JobSetupController {
 	}
 
 	/**
+	 * Who reads the step tracker, by their role in the Job (AD-43), which picks its words and its actions. An
+	 * Administrator holds no role in any Job (FR-2), so this endpoint, which serves the Job's roles, never answers one.
+	 */
+	enum Viewer {
+
+		CUSTOMER, MENTOR, CREW, ADMINISTRATOR
+
+	}
+
+	/**
+	 * @param viewer the caller's role in the Job
+	 * @param productId the Job's Product, whose page fixes the Source App (CUS-4)
+	 * @param sourceFullName the Source Repository's {@code owner/name}: as the Setup read it with the head, else as the
+	 * Product registered it
+	 * @param defaultBranch its default branch, from the same read
+	 * @param sourceUrl its page on GitHub
 	 * @param status {@code NONE} before any Setup, else the latest attempt's {@code CONFIRMING} (waiting for the
 	 * Customer's self-confirmation), {@code RUNNING}, {@code DONE}, {@code BLOCKED}, {@code FAILED}, or {@code ENDED}
 	 * (the Job left Starting while it waited)
@@ -98,8 +115,9 @@ class JobSetupController {
 	 * @param exchangeReason the exchange's refusal: of a block {@code EXCHANGE_REFUSED} (such as {@code blob}), or
 	 * {@code sha} while the Setup waits for a confirmation of the head that moved
 	 */
-	record SetupView(UUID jobId, String jobState, String status, List<SetupStepView> steps, @Nullable String blockedReason,
-			boolean canRetry, List<SetupPersonView> people, @Nullable SetupHeadView head,
+	record SetupView(UUID jobId, String jobState, Viewer viewer, UUID productId, @Nullable String sourceFullName,
+			@Nullable String defaultBranch, @Nullable String sourceUrl, String status, List<SetupStepView> steps,
+			@Nullable String blockedReason, boolean canRetry, List<SetupPersonView> people, @Nullable SetupHeadView head,
 			@Nullable SetupConfirmationView confirmation, @Nullable SetupRunView run, @Nullable String exchangeReason) {
 	}
 
@@ -233,14 +251,27 @@ class JobSetupController {
 
 	private SetupView view(BusyJob job, Caller caller) {
 		Setup setup = this.setups.latest(job.jobId()).orElse(null);
+		JobRole role = this.roles.roleOf(job.jobId(), caller);
+		Viewer viewer = caller.isAdministrator() ? Viewer.ADMINISTRATOR
+				: role.isCustomer() ? Viewer.CUSTOMER : role.isMentor() ? Viewer.MENTOR : Viewer.CREW;
+		// The name the Setup read with the head, which the confirmation is for; before any read, the registered one.
+		String sourceFullName = setup == null ? null : setup.sourceFullName();
+		String defaultBranch = setup == null ? null : setup.defaultBranch();
+		if (sourceFullName == null || defaultBranch == null) {
+			Registered registered = this.sources.registered(job.productId()).orElse(null);
+			sourceFullName = registered == null ? null : registered.repositoryFullName();
+			defaultBranch = registered == null ? null : registered.defaultBranch();
+		}
+		String sourceUrl = sourceFullName == null ? null : this.links.repository(sourceFullName);
 		if (setup == null) {
 			List<SetupStepView> pending = new ArrayList<>();
 			for (Step step : Step.values()) {
 				pending.add(new SetupStepView(step.name(), "PENDING"));
 			}
-			return new SetupView(job.jobId(), job.state(), "NONE", pending, null, false, List.of(), null, null, null, null);
+			return new SetupView(job.jobId(), job.state(), viewer, job.productId(), sourceFullName, defaultBranch, sourceUrl,
+					"NONE", pending, null, false, List.of(), null, null, null, null);
 		}
-		boolean customer = customer(job, caller);
+		boolean customer = role.isCustomer();
 		// A revoked grant is nobody's access any more (Story 7.7): it neither shows nor holds the Invite step.
 		List<Grant> grants = this.grants.ofJob(job.jobId())
 			.stream()
@@ -282,9 +313,9 @@ class JobSetupController {
 				: new SetupHeadView(setup.headSha(), setup.headReadAt());
 		SetupConfirmationView confirmation = setup.approvedSha() == null || setup.confirmedAt() == null ? null
 				: new SetupConfirmationView(setup.approvedSha(), setup.confirmedAt());
-		return new SetupView(job.jobId(), job.state(), setup.status(), steps,
-				setup.block() == null ? null : setup.block().name(), canRetry, people(job, grants, caller), head, confirmation,
-				run(setup, customer), setup.exchangeReason());
+		return new SetupView(job.jobId(), job.state(), viewer, job.productId(), sourceFullName, defaultBranch, sourceUrl,
+				setup.status(), steps, setup.block() == null ? null : setup.block().name(), canRetry,
+				people(grants, caller, customer), head, confirmation, run(setup, customer), setup.exchangeReason());
 	}
 
 	/** The copy run dispatched last, as the Setup last read it; its page for the Customer, in whose repository it ran. */
@@ -298,8 +329,7 @@ class JobSetupController {
 	}
 
 	/** UX-DR23: the Customer sees the Mentor's name and the Crew's GitHub usernames only. */
-	private List<SetupPersonView> people(BusyJob job, List<Grant> grants, Caller caller) {
-		boolean customer = customer(job, caller);
+	private List<SetupPersonView> people(List<Grant> grants, Caller caller, boolean customer) {
 		Map<UUID, String> names = new HashMap<>();
 		List<UUID> mentorIds = grants.stream().filter(grant -> "MENTOR".equals(grant.role())).map(Grant::accountId).toList();
 		this.mentors.cards(mentorIds).forEach(card -> names.put(card.accountId(), card.displayName()));

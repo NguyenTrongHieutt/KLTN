@@ -57,8 +57,12 @@ public interface ProductSources {
 			String repositoryFullName, long repositoryGithubId, String defaultBranch) {
 	}
 
-	/** The Source Repository as the Product registered it: its permanent ID and the name it is used by. */
-	record Registered(UUID productId, UUID customerId, long repositoryGithubId, String repositoryFullName) {
+	/**
+	 * The Source Repository as the Product registered it: its permanent ID, the name it is used by, and its default
+	 * branch as last recorded.
+	 */
+	record Registered(UUID productId, UUID customerId, long repositoryGithubId, String repositoryFullName,
+			String defaultBranch) {
 	}
 
 	java.util.Optional<Registered> registered(UUID productId);

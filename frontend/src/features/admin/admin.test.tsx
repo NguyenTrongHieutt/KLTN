@@ -78,7 +78,8 @@ describe('PUB-6 Administrator sign-in (FR-2, AD-19)', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/quan-tri'))
     expect(await screen.findByRole('heading', { level: 1, name: 'Tổng quan' })).toBeInTheDocument()
-    expect(await screen.findByText('Thao tác lỗi')).toBeInTheDocument()
+    // ADM-1's failed-operations card; the sidebar may already name the same page.
+    expect((await screen.findAllByText('Thao tác lỗi')).length).toBeGreaterThan(0)
     expect(screen.queryByText(/lần thực hiện phân xử bị lỗi/)).toBeNull()
     const request = seen.find((entry) => entry.url.endsWith('/api/v1/admin/sign-in'))!
     expect(await request.clone().json()).toEqual({

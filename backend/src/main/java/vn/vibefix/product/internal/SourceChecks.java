@@ -111,10 +111,12 @@ class SourceChecks implements ProductSources {
 	@Override
 	public Optional<Registered> registered(UUID productId) {
 		return this.jdbc.sql("""
-				SELECT customer_account_id, repository_github_id, repository_full_name FROM product.product
+				SELECT customer_account_id, repository_github_id, repository_full_name, repository_default_branch
+				FROM product.product
 				WHERE id = :id AND deleted_at IS NULL
 				""").param("id", productId).query((rs, n) -> new Registered(productId, rs.getObject("customer_account_id", UUID.class),
-				rs.getLong("repository_github_id"), rs.getString("repository_full_name"))).optional();
+				rs.getLong("repository_github_id"), rs.getString("repository_full_name"),
+				rs.getString("repository_default_branch"))).optional();
 	}
 
 	@Override

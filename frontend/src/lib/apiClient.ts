@@ -60,6 +60,8 @@ export interface Problem {
   repository?: string
   /** `WORKFLOW_MISMATCH`: the file holds a carriage return, so the copy warns about line endings (AD-45). */
   lineEndings?: boolean
+  /** `STALE` of a J7 self-confirmation: the Source Repository's head read now, which moved since the page showed it. */
+  head?: string
 }
 
 export class ApiError extends Error {

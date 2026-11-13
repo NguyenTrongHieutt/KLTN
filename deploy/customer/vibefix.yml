@@ -172,16 +172,39 @@ jobs:
         run: |
           set -euo pipefail
           export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          # A failed command's own words, every line of them (GitHub's remote: lines too), as ::error:: lines.
+          git_errors() { grep -v '^[[:space:]]*$' "$1" | sed 's/^/::error::/' || true; }
           repository="$RUNNER_TEMP/copy.git"
           git init --quiet --bare "$repository"
+          # git checks every object it fetches. Histories that older git versions and other tools wrote can hold
+          # entries git now reports but still reads the same way: tree modes written with a leading zero, and author
+          # or committer lines whose date or time zone is malformed or too large. None of them changes a file's
+          # content, name or mode, so only these are let through [ASSUMPTION; Story 23.12 confirms on real GitHub];
+          # any other object error fails the copy with git's own words.
           git -C "$repository" config transfer.fsckObjects true
+          for message in zeroPaddedFilemode badDate badDateOverflow badTimezone missingSpaceBeforeDate; do
+            git -C "$repository" config "fetch.fsck.$message" ignore
+          done
+          fetched=0
           VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
-            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "+$GITHUB_REF:refs/heads/vibefix-source"
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "+$GITHUB_REF:refs/heads/vibefix-source" \
+            2> "$RUNNER_TEMP/fetch.log" || fetched=$?
+          if [ "$fetched" != 0 ]; then
+            git_errors "$RUNNER_TEMP/fetch.log"
+            echo "::error::the fetch of the default branch failed (git exit $fetched)"
+            exit 1
+          fi
           git -C "$repository" cat-file -e "$SHA^{commit}"
           git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-source
           for target in "$INTERMEDIARY" "$WORKING"; do
+            pushed=0
             VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= push --quiet \
-              "$GITHUB_SERVER_URL/$target.git" "$SHA:refs/heads/$BRANCH"
+              "$GITHUB_SERVER_URL/$target.git" "$SHA:refs/heads/$BRANCH" 2> "$RUNNER_TEMP/push.log" || pushed=$?
+            if [ "$pushed" != 0 ]; then
+              git_errors "$RUNNER_TEMP/push.log"
+              echo "::error::the push to $target failed (git exit $pushed)"
+              exit 1
+            fi
             head="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= ls-remote \
               "$GITHUB_SERVER_URL/$target.git" "refs/heads/$BRANCH" | cut -f1)"
             [ "$head" = "$SHA" ] || { echo "::error::$target reads back another commit on $BRANCH"; exit 1; }

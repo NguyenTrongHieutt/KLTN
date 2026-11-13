@@ -7456,15 +7456,22 @@ export interface components {
             blockedReason?: string;
             canRetry: boolean;
             confirmation?: components["schemas"]["SetupConfirmationView"];
+            defaultBranch?: string;
             exchangeReason?: string;
             head?: components["schemas"]["SetupHeadView"];
             /** Format: uuid */
             jobId: string;
             jobState: string;
             people: components["schemas"]["SetupPersonView"][];
+            /** Format: uuid */
+            productId: string;
             run?: components["schemas"]["SetupRunView"];
+            sourceFullName?: string;
+            sourceUrl?: string;
             status: string;
             steps: components["schemas"]["SetupStepView"][];
+            /** @enum {string} */
+            viewer: "CUSTOMER" | "MENTOR" | "CREW" | "ADMINISTRATOR";
         };
         ShareRequest: {
             /** Format: int32 */
