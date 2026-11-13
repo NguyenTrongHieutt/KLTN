@@ -44,8 +44,9 @@ import tools.jackson.databind.JsonNode;
  * redelivery, and the webhook's configuration. Its compare lists 300 files at most, as GitHub's does, and
  * its {@code POST /graphql} answers {@code object(expression:)} reads of commits and paths. For the Actions
  * exchange (Story 23.4) it serves a file's contents with its blob SHA, workflow dispatches and their runs, an
- * OIDC key set, and a revocation that can fail. For the Source App (Stories 23.5 and 23.5b) it serves a Customer's
- * installations, a repository's contributors, and a renamed repository's 301 to its ID. A test may
+ * OIDC key set, and a revocation that can fail; a run's triggering actor is the bot of the App whose token dispatched
+ * it, and its jobs show whether any started (Story 23.6a). For the Source App (Stories 23.5 and 23.5b) it serves a
+ * Customer's installations, a repository's contributors, and a renamed repository's 301 to its ID. A test may
  * answer what the platform no longer calls, such as Spike S4's forks and rulesets, through {@link #extra}.
  */
 public final class GitHubStub implements AutoCloseable {
@@ -537,8 +538,44 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, here ? 200 : 404, here ? GitHubHttp.JSON.writeValueAsString(run) : "{\"message\":\"Not Found\"}");
 		}
 		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/runs/(\\d+)/jobs").matcher(path)).matches()) {
+			// A run's jobs (Story 23.6a): a failure none of whose jobs started is a run Actions' quota stopped.
+			long id = Long.parseLong(matcher.group(3));
+			Map<String, Object> run = this.runs.get(id);
+			boolean here = run != null && (matcher.group(1) + "/" + matcher.group(2)).equals(run.get("repository_full_name"));
+			if (!here) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			List<Map<String, Object>> jobs = jobsOf(id);
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", jobs.size(), "jobs", jobs)));
+		}
+		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/runs/(\\d+)/attempts/(\\d+)(/jobs)?").matcher(path))
+					.matches()) {
+			// One attempt of a run, or its jobs (Story 23.6a): the latest as the run shows it, the first as it was before
+			// a re-run.
+			long id = Long.parseLong(matcher.group(3));
+			int attempt = Integer.parseInt(matcher.group(4));
+			Map<String, Object> run = this.runs.get(id);
+			boolean here = run != null && (matcher.group(1) + "/" + matcher.group(2)).equals(run.get("repository_full_name"));
+			int latest = here ? ((Number) run.getOrDefault("run_attempt", 1)).intValue() : 0;
+			Map<String, Object> shown = !here ? null : attempt == latest ? run : attempt == 1 ? this.firstAttempts.get(id) : null;
+			if (shown == null) {
+				send(exchange, 404, "{\"message\":\"Not Found\"}");
+				return;
+			}
+			if (matcher.group(5) == null) {
+				send(exchange, 200, GitHubHttp.JSON.writeValueAsString(shown));
+				return;
+			}
+			List<Map<String, Object>> jobs = attempt == latest ? jobsOf(id) : this.firstAttemptJobs.getOrDefault(id, List.of());
+			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", jobs.size(), "jobs", jobs)));
+		}
+		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/workflows/([^/]+)/runs").matcher(path))
 					.matches()) {
+			this.runListQueries.add(query == null ? "" : query);
 			String repository = matcher.group(1) + "/" + matcher.group(2);
 			String workflowPath = ".github/workflows/" + matcher.group(3);
 			List<Map<String, Object>> listed = new ArrayList<>();
@@ -1087,8 +1124,12 @@ public final class GitHubStub implements AutoCloseable {
 				.toList()));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
-			// A private repository is hidden from a token that reads neither its metadata nor its contents.
+			// A private repository is hidden from a token that reads neither its metadata nor its contents, and every
+			// repository from a token narrowed to others (Story 23.6a).
 			Long id = isPrivate(matcher.group(1)) && !readsMetadata(exchange) ? null : this.repositories.get(matcher.group(1));
+			if (id != null && method.equals("GET") && !reaches(exchange, id)) {
+				id = null;
+			}
 			send(exchange, id == null ? 404 : 200, id == null ? "{\"message\":\"Not Found\"}"
 					: organizationRepository(matcher.group(1), id));
 		}
@@ -1096,12 +1137,14 @@ public final class GitHubStub implements AutoCloseable {
 			long id = Long.parseLong(matcher.group(1));
 			Published repository = this.published.get(id);
 			String platform = organizationRepositoryName(id);
-			if (repository == null && platform != null && (!isPrivate(platform) || readsMetadata(exchange))) {
+			boolean reached = reaches(exchange, id);
+			if (repository == null && platform != null && reached && (!isPrivate(platform) || readsMetadata(exchange))) {
 				// An organization repository by its ID, as the Actions dispatch reads its target (Story 23.4).
 				send(exchange, 200, organizationRepository(platform, id));
 				return;
 			}
-			boolean visible = repository != null && repository.publicRepository();
+			// A private one shows to a token that reads its metadata, as the Source App's dispatch reads its target (Story 23.6a).
+			boolean visible = repository != null && reached && (repository.publicRepository() || readsMetadata(exchange));
 			send(exchange, visible ? 200 : 404, visible ? repository.json() : "{\"message\":\"Not Found\"}");
 		}
 		else if (method.equals("GET")
@@ -1156,7 +1199,9 @@ public final class GitHubStub implements AutoCloseable {
 			graphql(exchange, body);
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)").matcher(path)).matches()) {
-			Published repository = published(matcher.group(1), matcher.group(2));
+			Published found = published(matcher.group(1), matcher.group(2));
+			// Hidden from a token narrowed to other repositories (Story 23.6a).
+			Published repository = found != null && reaches(exchange, found.id()) ? found : null;
 			send(exchange, repository == null ? 404 : 200, repository == null ? "{\"message\":\"Not Found\"}" : repository.json());
 		}
 		else {
@@ -1288,17 +1333,116 @@ public final class GitHubStub implements AutoCloseable {
 	/** Which mint requests of {@link #INSTALLATION}, by their body, GitHub answers 500. */
 	public volatile java.util.function.Predicate<JsonNode> mintRefused = body -> false;
 
-	/** The run is over, with {@code conclusion}. */
+	/**
+	 * Each run's jobs, as {@code GET /repos/{owner}/{name}/actions/runs/{id}/jobs} lists them (Story 23.6a): a dispatch
+	 * adds one, queued, with no steps and no runner; it gets a runner and steps once the run starts.
+	 */
+	public final Map<Long, List<Map<String, Object>>> runJobs = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** Each re-run run's first attempt as it was before the re-run, and its jobs. */
+	private final Map<Long, Map<String, Object>> firstAttempts = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	private final Map<Long, List<Map<String, Object>>> firstAttemptJobs = Collections.synchronizedMap(new LinkedHashMap<>());
+
+	/** The query of each list of a workflow's runs, in order, as GitHub received it. */
+	public final List<String> runListQueries = Collections.synchronizedList(new ArrayList<>());
+
+	/**
+	 * Someone re-runs the run on GitHub, as a Customer may on their own Actions: its latest attempt, which
+	 * {@code /actions/runs/{id}} shows, starts again on a runner; its first attempt stays as it was.
+	 */
+	public void rerun(long id) {
+		Map<String, Object> run = this.runs.get(id);
+		synchronized (run) {
+			this.firstAttempts.putIfAbsent(id, new LinkedHashMap<>(run));
+		}
+		List<Map<String, Object>> first = new ArrayList<>();
+		jobsOf(id).forEach(job -> {
+			synchronized (job) {
+				first.add(new LinkedHashMap<>(job));
+			}
+		});
+		this.firstAttemptJobs.putIfAbsent(id, first);
+		run.put("run_attempt", ((Number) run.getOrDefault("run_attempt", 1)).intValue() + 1);
+		run.put("status", "in_progress");
+		run.put("conclusion", null);
+		Map<String, Object> job = Collections.synchronizedMap(new LinkedHashMap<>());
+		job.put("id", this.ids.incrementAndGet());
+		job.put("run_id", id);
+		job.put("name", run.get("name"));
+		job.put("status", "in_progress");
+		job.put("conclusion", null);
+		onARunner(job);
+		this.runJobs.put(id, Collections.synchronizedList(new ArrayList<>(List.of(job))));
+	}
+
+	/** The run starts: in progress, its job on a runner. */
+	public void startRun(long id) {
+		this.runs.get(id).put("status", "in_progress");
+		jobsOf(id).forEach(job -> {
+			job.put("status", "in_progress");
+			onARunner(job);
+		});
+	}
+
+	/** The run is over, with {@code conclusion}, its job having run on a runner. */
 	public void completeRun(long id, String conclusion) {
 		Map<String, Object> run = this.runs.get(id);
 		run.put("status", "completed");
 		run.put("conclusion", conclusion);
+		jobsOf(id).forEach(job -> {
+			job.put("status", "completed");
+			job.put("conclusion", conclusion);
+			onARunner(job);
+		});
+	}
+
+	/**
+	 * The run fails before any of its jobs starts, as GitHub ends a run whose account has no Actions minutes or spending
+	 * left: the run and its job concluded {@code failure}, the job with no steps and no runner.
+	 */
+	public void failBeforeAnyJob(long id) {
+		Map<String, Object> run = this.runs.get(id);
+		run.put("status", "completed");
+		run.put("conclusion", "failure");
+		jobsOf(id).forEach(job -> {
+			job.put("status", "completed");
+			job.put("conclusion", "failure");
+		});
+	}
+
+	private List<Map<String, Object>> jobsOf(long id) {
+		List<Map<String, Object>> jobs = this.runJobs.get(id);
+		if (jobs == null) {
+			return List.of();
+		}
+		synchronized (jobs) {
+			return List.copyOf(jobs);
+		}
+	}
+
+	private static void onARunner(Map<String, Object> job) {
+		job.put("runner_id", 1);
+		job.put("runner_name", "GitHub Actions 1");
+		job.put("steps", List.of(Map.of("name", "Set up job", "status", "completed", "conclusion", "success", "number", 1)));
+	}
+
+	/**
+	 * The slug of the App whose installation token made the request: the Source App's for a token of one of its
+	 * installations (Story 23.6a), the Platform App's for any other.
+	 */
+	private String slugOf(HttpExchange exchange) {
+		String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+		Long installation = authorization == null ? null : this.tokenInstallations.get(authorization.replaceFirst("^Bearer ", ""));
+		MergeInstallation installed = installation == null ? null : this.mergeInstallations.get(installation);
+		boolean source = installed != null && installed.appId != null && installed.appId == SOURCE_APP;
+		return GitHubHttp.JSON.readTree(source ? this.sourceApp : this.app).path("slug").asString();
 	}
 
 	/**
 	 * {@code POST /repos/{owner}/{name}/actions/workflows/{workflow}/dispatches}: a run of the workflow at the
-	 * head of {@code ref}, titled as the published files' {@code run-name} titles it. 404 when the workflow is not
-	 * on that branch, as GitHub answers.
+	 * head of {@code ref}, titled as the published files' {@code run-name} titles it, and triggered by the bot of the App
+	 * whose token dispatched it. 404 when the workflow is not on that branch, as GitHub answers.
 	 */
 	private void dispatch(HttpExchange exchange, String owner, String name, String workflow, JsonNode body)
 			throws IOException {
@@ -1324,13 +1468,25 @@ public final class GitHubStub implements AutoCloseable {
 		run.put("conclusion", null);
 		run.put("display_title", stem + (operation.isEmpty() ? "" : " " + operation) + " "
 				+ inputs.path("correlation").asString(""));
-		run.put("triggering_actor", Map.of("login", GitHubHttp.JSON.readTree(this.app).path("slug").asString() + "[bot]"));
+		run.put("triggering_actor", Map.of("login", slugOf(exchange) + "[bot]", "type", "Bot"));
 		run.put("repository_full_name", owner + "/" + name);
+		run.put("html_url", "https://github.com/" + owner + "/" + name + "/actions/runs/" + id);
+		run.put("run_attempt", 1);
 		run.put("inputs", GitHubHttp.JSON.convertValue(inputs, Map.class));
+		Map<String, Object> job = Collections.synchronizedMap(new LinkedHashMap<>());
+		job.put("id", this.ids.incrementAndGet());
+		job.put("run_id", id);
+		job.put("name", stem);
+		job.put("status", "queued");
+		job.put("conclusion", null);
+		job.put("steps", List.of());
+		job.put("runner_id", null);
+		job.put("runner_name", null);
+		this.runJobs.put(id, Collections.synchronizedList(new ArrayList<>(List.of(job))));
 		this.runs.put(id, run);
 		if (this.runDetails && body.path("return_run_details").asBoolean(false)) {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("workflow_run_id", id, "run_url",
-					apiUrl() + "/repos/" + owner + "/" + name + "/actions/runs/" + id)));
+					apiUrl() + "/repos/" + owner + "/" + name + "/actions/runs/" + id, "html_url", run.get("html_url"))));
 		}
 		else {
 			send(exchange, 204, "");
@@ -1679,6 +1835,24 @@ public final class GitHubStub implements AutoCloseable {
 		String authorization = exchange.getRequestHeaders().getFirst("Authorization");
 		JsonNode grant = authorization == null ? null : this.grants.get(authorization.replaceFirst("^Bearer ", ""));
 		return grant == null ? GitHubHttp.JSON.createObjectNode() : grant;
+	}
+
+	/**
+	 * Whether the request's credential reaches the repository: a token this stub minted with {@code repository_ids}
+	 * reaches only those, as on GitHub (Story 23.6a); an unnarrowed one, a JWT, or a token of no installation here reaches
+	 * any.
+	 */
+	private boolean reaches(HttpExchange exchange, long repositoryId) {
+		JsonNode narrowed = grant(exchange).path("repository_ids");
+		if (!narrowed.isArray() || narrowed.isEmpty()) {
+			return true;
+		}
+		for (JsonNode id : narrowed) {
+			if (id.asLong() == repositoryId) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Whether the request's token reads contents, as a private repository's refs and pull requests need. */

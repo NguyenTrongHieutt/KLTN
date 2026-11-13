@@ -103,4 +103,32 @@ class GitHubRepositoriesClientTest {
 			.isInstanceOf(GitHubException.class);
 	}
 
+	/**
+	 * Story 23.6a: J7's head read is the branch's ref alone, with the caller's token, a branch with a slash read as a
+	 * nested ref; no such branch is a 404, and GitHub down an exception.
+	 */
+	@Test
+	void theHeadIsTheBranchRefReadWithTheCallersToken() throws Exception {
+		this.github.source("lan", "quan");
+		String head = this.github.head("lan", "quan", "main");
+		try (org.eclipse.jgit.lib.Repository repository = this.github.repository("lan", "quan")) {
+			var create = repository.updateRef("refs/heads/release/v1");
+			create.setNewObjectId(repository.resolve("refs/heads/main"));
+			create.update();
+		}
+		String release = this.github.push("lan", "quan", "release/v1", "notes.txt", "v1\n");
+
+		assertThat(this.repositories.head(TOKEN, "lan/quan", "main")).isEqualTo(head);
+		assertThat(this.repositories.head(TOKEN, "lan/quan", "release/v1")).isEqualTo(release);
+		assertThat(this.github.seen).filteredOn(request -> request.path().startsWith("/repos/lan/quan/git/ref/heads/"))
+			.extracting(GitHubStub.Seen::path, GitHubStub.Seen::authorization)
+			.containsExactly(org.assertj.core.groups.Tuple.tuple("/repos/lan/quan/git/ref/heads/main", "Bearer " + TOKEN),
+					org.assertj.core.groups.Tuple.tuple("/repos/lan/quan/git/ref/heads/release/v1", "Bearer " + TOKEN));
+		assertThatThrownBy(() -> this.repositories.head(TOKEN, "lan/quan", "gone"))
+			.isInstanceOfSatisfying(GitHubException.class, refused -> assertThat(refused.status()).isEqualTo(404));
+		this.github.unavailable.add("GET /repos/lan/quan/git/ref/");
+		assertThatThrownBy(() -> this.repositories.head(TOKEN, "lan/quan", "main"))
+			.isInstanceOfSatisfying(GitHubException.class, refused -> assertThat(refused.status()).isEqualTo(502));
+	}
+
 }

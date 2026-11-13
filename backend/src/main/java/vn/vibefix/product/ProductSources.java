@@ -16,12 +16,15 @@ import org.jspecify.annotations.Nullable;
  * on its default branch;</li>
  * <li>its contributors, for the guard of bids, Crew Applications and signatures (FR-13, FR-81, Story 23.5b), which
  * fails closed;</li>
- * <li>what the daily drift poll reads (FR-20, R7, Story 23.5b).</li>
+ * <li>what the daily drift poll reads (FR-20, R7, Story 23.5b);</li>
+ * <li>for J7 (Story 23.6a): the default branch's head the Customer confirms, and the installation and repository a
+ * run of {@code vibefix.yml} is dispatched through ({@link vn.vibefix.github.ActionsRuns.Dispatch}).</li>
  * </ul>
  * vibefix keeps no GitHub linking token (R31). Each read records what it found of the Source
  * App and the workflow as the Product's status, in a transaction of its own, opening or closing the Customer's to-dos
  * on a change (Story 23.5c): the check and the re-confirmation for their Source App and workflow part, the drift read,
- * and the contributor read when the binding refuses. A GitHub failure records nothing.
+ * the head read and the dispatch target, and the contributor read when the binding refuses. A GitHub failure records
+ * nothing.
  */
 public interface ProductSources {
 
@@ -117,11 +120,77 @@ public interface ProductSources {
 	 * (so a Source transferred to an account with the App is bound there, and shows its new owner), then one token
 	 * narrowed to the repository (Contents read, Metadata read), revoked after use, reads the repository, its
 	 * {@code vibefix.yml} and the commits on its default branch after {@code copiedSha}. The drift poll no longer reads
-	 * through the Platform App (J7's head read still does until Story 23.6).
+	 * through the Platform App (J7's head read moves to {@link #head} in Story 23.6b).
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product
 	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now, or the Source App is not configured:
 	 * nothing is known, so the poll tries again the next day
 	 */
 	Drift drift(UUID productId, String copiedSha);
+
+	/**
+	 * The Source Repository's default-branch head as read now (Story 23.6a).
+	 * @param block why the Source App cannot read it: {@link Block#SOURCE_APP_MISSING} or
+	 * {@link Block#SOURCE_APP_WRONG_REPOSITORY}; none while the binding holds
+	 * @param sha the head commit, 40 hex; none when there is a {@code block}
+	 * @param branch the default branch as GitHub names it now; the Product's recorded one when there is a {@code block}
+	 * @param fullName the repository's full name as GitHub shows it now; the registered one when there is a {@code block}
+	 */
+	record Head(@Nullable Block block, @Nullable String sha, String branch, String fullName) {
+
+		public Head {
+			if ((block == null) == (sha == null)) {
+				throw new IllegalArgumentException("A head is a commit, or a block");
+			}
+		}
+
+	}
+
+	/**
+	 * Reads the Product's Source Repository's default-branch head now, the commit J7 asks the Customer to confirm (Story
+	 * 23.6a): the binding is taken on a fresh read, then one Contents-read token narrowed to the repository, revoked
+	 * after use, reads the repository (which must be the registered one), its {@code vibefix.yml}, and the branch's ref.
+	 * What it found of the Source App and the workflow is recorded, best-effort; a {@code vibefix.yml} that is no
+	 * published version blocks no head read.
+	 * @return the head, or the binding's block, with no token minted
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product
+	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now, a 404 to the branch included, or the
+	 * Source App is not configured: nothing is recorded
+	 */
+	Head head(UUID productId);
+
+	/**
+	 * Where a run of {@code vibefix.yml} is dispatched, as read now (Story 23.6a): what
+	 * {@link vn.vibefix.github.ActionsRuns.Dispatch} names for {@link vn.vibefix.github.GitHubApps.App#SOURCE}.
+	 * @param block why the Source App cannot reach it: {@link Block#SOURCE_APP_MISSING} or
+	 * {@link Block#SOURCE_APP_WRONG_REPOSITORY}; none while the binding holds
+	 * @param installationId the Customer's installation of the Source App that the binding holds; 0 when there is a
+	 * {@code block}
+	 * @param repositoryId the repository's permanent numeric ID, the registered one
+	 * @param fullName the repository's full name as GitHub shows it now; the registered one when there is a {@code block}
+	 * @param defaultBranch its default branch as GitHub names it now; the Product's recorded one when there is a
+	 * {@code block}
+	 */
+	record DispatchTarget(@Nullable Block block, long installationId, long repositoryId, String fullName,
+			String defaultBranch) {
+
+		public DispatchTarget {
+			if ((block == null) != (installationId > 0)) {
+				throw new IllegalArgumentException("A dispatch target names its installation, or a block");
+			}
+		}
+
+	}
+
+	/**
+	 * The installation and the repository a run of {@code vibefix.yml} is dispatched through, read now (Story 23.6a):
+	 * the binding is taken on a fresh read, then one token narrowed to the repository (Contents read, Metadata read),
+	 * revoked after use, reads the repository, which must be the registered one, and its {@code vibefix.yml}. What it
+	 * found of the Source App and the workflow is recorded, best-effort; the dispatch checks the workflow file itself.
+	 * @return the target, or the binding's block, with no token minted
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product
+	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now, or the Source App is not configured:
+	 * nothing is recorded
+	 */
+	DispatchTarget dispatchTarget(UUID productId);
 
 }

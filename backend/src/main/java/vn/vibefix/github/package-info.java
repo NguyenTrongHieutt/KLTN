@@ -16,7 +16,8 @@
  * {@link vn.vibefix.github.GitHubRepositories}
  * (read-only metadata with a caller's credential), {@link vn.vibefix.github.OAuthGrants} (revoking a token the
  * linking App issued once vibefix stops keeping it, and the App's grant when an account is deleted, SG-9),
- * {@link vn.vibefix.github.ActionsRuns} (dispatching exchange runs, and their correlations), and the events
+ * {@link vn.vibefix.github.ActionsRuns} (dispatching exchange runs through the Platform App or a Customer's Source App
+ * installation, reading them, and their correlations, Stories 23.4 and 23.6a), and the events
  * {@link vn.vibefix.github.GitHubWebhookReceived}, {@link vn.vibefix.github.GitHubConfigurationDrift},
  * {@link vn.vibefix.github.GitHubExchangeIssued}, {@link vn.vibefix.github.GitHubExchangeRefused},
  * {@link vn.vibefix.github.GitHubExchangeRevoked} and {@link vn.vibefix.github.GitHubExchangeRevokeUnknown}, which

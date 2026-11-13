@@ -932,6 +932,88 @@ class ProductRegistrationIT extends IntegrationTest {
 	}
 
 	/**
+	 * Story 23.6a: J7's head read and dispatch target go through the Product's binding on a fresh read, each with one
+	 * token narrowed to the repository (Contents read) and revoked, and record what they found of the Source App and the
+	 * workflow; a workflow that differs blocks neither. GitHub down is a {@code GitHubException} that records nothing, a
+	 * repository whose ID is not the registered one answers {@code SOURCE_APP_WRONG_REPOSITORY}, and a refused binding
+	 * answers its block with no token minted.
+	 */
+	@Test
+	void theHeadAndTheDispatchTargetAreReadThroughTheBindingAndAnswerItsBlockWhenItRefuses() throws Exception {
+		GITHUB.source("lan-nguyen", "dau-nguon");
+		long installation = ready("lan-nguyen/dau-nguon", 4021, this.lanGithubId, "User", true, 10, "");
+		UUID id = registered("https://github.com/lan-nguyen/dau-nguon");
+		String workflow = "lan-nguyen/dau-nguon:" + WORKFLOW;
+		String sha = GITHUB.head("lan-nguyen", "dau-nguon", "main");
+		int minted = GITHUB.tokensOf(installation).size();
+		GITHUB.seen.clear();
+
+		assertThat(this.sources.head(id)).isEqualTo(new ProductSources.Head(null, sha, "main", "lan-nguyen/dau-nguon"));
+		assertThat(this.sources.dispatchTarget(id))
+			.isEqualTo(new ProductSources.DispatchTarget(null, installation, 4021, "lan-nguyen/dau-nguon", "main"));
+
+		String refToken = GITHUB.seen.stream()
+			.filter(request -> request.path().equals("/repos/lan-nguyen/dau-nguon/git/ref/heads/main"))
+			.map(request -> request.authorization().replaceFirst("^Bearer ", ""))
+			.findFirst()
+			.orElseThrow();
+		List<String> tokens = GITHUB.tokensOf(installation);
+		// The binding's fresh read mints its own unnarrowed selection read; every other token is narrowed to the Source.
+		assertThat(tokens.subList(minted, tokens.size()))
+			.filteredOn(token -> !GITHUB.grantOf(token).path("repository_ids").isEmpty())
+			.hasSize(2)
+			.contains(refToken)
+			.allSatisfy(token -> {
+				assertThat(GITHUB.grantOf(token).path("repository_ids").toString()).isEqualTo("[4021]");
+				assertThat(GITHUB.grantOf(token).path("permissions").path("contents").asString()).isEqualTo("read");
+			});
+		assertThat(GITHUB.revokedTokens).containsAll(tokens.subList(minted, tokens.size()));
+		assertThat(sourceStatus(id)).isEqualTo("READY");
+
+		GITHUB.sourceFiles.put(workflow, published() + "# changed\n");
+		assertThat(this.sources.head(id).sha()).as("a workflow that differs blocks no head read").isEqualTo(sha);
+		assertThat(sourceStatus(id)).as("but is recorded").isEqualTo("WORKFLOW_MISMATCH");
+		GITHUB.sourceFiles.put(workflow, published());
+		assertThat(this.sources.dispatchTarget(id).block()).isNull();
+		assertThat(sourceStatus(id)).isEqualTo("READY");
+
+		GITHUB.sourceFiles.put(workflow, published() + "# changed\n");
+		GITHUB.unavailable.add("GET /repos/lan-nguyen/dau-nguon/git/ref/");
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> this.sources.head(id))
+			.isInstanceOf(vn.vibefix.github.GitHubException.class);
+		assertThat(sourceStatus(id)).as("GitHub down records nothing").isEqualTo("READY");
+		GITHUB.unavailable.clear();
+		GITHUB.sourceFiles.put(workflow, published());
+
+		// The name the installation selects now shows another repository than the registered one.
+		repository("lan-nguyen/dau-nguon", 4999, this.lanGithubId, "User", true, 10, "");
+		assertThat(this.sources.head(id)).isEqualTo(new ProductSources.Head(
+				ProductSources.Block.SOURCE_APP_WRONG_REPOSITORY, null, "main", "lan-nguyen/dau-nguon"));
+		assertThat(this.sources.dispatchTarget(id)).isEqualTo(new ProductSources.DispatchTarget(
+				ProductSources.Block.SOURCE_APP_WRONG_REPOSITORY, 0, 4021, "lan-nguyen/dau-nguon", "main"));
+		assertThat(sourceStatus(id)).isEqualTo("SOURCE_APP_WRONG_REPOSITORY");
+		repository("lan-nguyen/dau-nguon", 4021, this.lanGithubId, "User", true, 10, "");
+		assertThat(this.sources.head(id).sha()).isEqualTo(sha);
+		assertThat(sourceStatus(id)).isEqualTo("READY");
+
+		GITHUB.mergeInstallations.remove(installation);
+		GITHUB.repositoryInstallations.values().remove(installation);
+		GITHUB.seen.clear();
+		assertThat(this.sources.head(id))
+			.isEqualTo(new ProductSources.Head(ProductSources.Block.SOURCE_APP_MISSING, null, "main", "lan-nguyen/dau-nguon"));
+		assertThat(this.sources.dispatchTarget(id)).isEqualTo(new ProductSources.DispatchTarget(
+				ProductSources.Block.SOURCE_APP_MISSING, 0, 4021, "lan-nguyen/dau-nguon", "main"));
+		assertThat(GITHUB.seen).as("no token is minted").noneMatch(request -> request.path().endsWith("/access_tokens"));
+		assertThat(sourceStatus(id)).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(openTodos(id)).containsExactly("product.install_source_app");
+	}
+
+	private String sourceStatus(UUID productId) {
+		return this.jdbc.sql("SELECT source_status FROM product.product WHERE id = :id").param("id", productId)
+			.query(String.class).single();
+	}
+
+	/**
 	 * A repository ready to register: described, the Source App on exactly it, the Customer its admin, and the
 	 * published {@code vibefix.yml} on its default branch.
 	 * @return the installation

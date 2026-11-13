@@ -20,9 +20,14 @@ import org.jspecify.annotations.Nullable;
  * operation's permissions, at {@code POST /github/actions/exchange}, and that token is revoked when the run
  * completes, or {@link #RUN_TIMEOUT} after it was issued. Nothing here holds a token or a JWT.
  * <p>
- * The Platform App is the only dispatching App so far (the runner's handover copy); Story 23.5 wires the
- * Source App for the Customer's {@code vibefix.yml}.
- * @throws GitHubException from {@link #dispatch} when GitHub refuses or cannot be reached
+ * Two Apps dispatch runs. The Platform App dispatches the runner's handover copy. The Source App dispatches the
+ * published {@code vibefix.yml} in a Customer's Source Repository, through that Customer's own installation (Story
+ * 23.6a): the target and its workflow file are read, the run is dispatched, found, read back by the exchange and
+ * polled with tokens from that installation, each narrowed to the Source Repository and revoked after use. Whatever
+ * dispatched the run, the token it gets is minted by the Platform App, since every grant names platform repositories
+ * (the Intermediary, the Working Repository, the runner): no Source App token ever reaches a platform repository, and
+ * no Platform token a Customer's.
+ * @throws GitHubException from {@link #dispatch} and {@link #run} when GitHub refuses or cannot be reached
  */
 public interface ActionsRuns {
 
@@ -129,23 +134,36 @@ public interface ActionsRuns {
 
 	/**
 	 * One run to dispatch.
+	 * @param app the App that dispatches it, whose tokens read the target and find and read back the run:
+	 * {@link GitHubApps.App#PLATFORM} for the runner, {@link GitHubApps.App#SOURCE} for a Customer's Source
+	 * Repository; never the Merge App
+	 * @param sourceInstallationId for {@link GitHubApps.App#SOURCE} only, and then required: the Customer's installation,
+	 * as {@code product}'s binding names it (Story 23.6a)
 	 * @param targetId the numeric ID of the repository the workflow runs in, such as the runner
 	 * @param workflow the workflow file in its {@code .github/workflows/}, for example {@code s6-copy.yml}
 	 * @param inputs the workflow's inputs; the dispatch adds {@code correlation} itself (and, on the dev stack,
 	 * {@code exchange_url})
 	 * @param grant the repositories the exchanged token is narrowed to; never the target itself, whose contents and
-	 * workflow file the token would then write
-	 * @param confirmedHeadSha for {@code copy}, the head the Customer confirmed (Story 23.6): a run at another
-	 * head is refused {@code sha}
+	 * workflow file the token would then write (for {@link GitHubApps.App#SOURCE}, the Customer's own repository)
+	 * @param confirmedHeadSha for {@code copy}, and required there: the head the Customer confirmed (Story 23.6), so a
+	 * run at another head is refused {@code sha}; none for any other operation
 	 */
-	record Dispatch(Operation operation, long targetId, String workflow, Map<String, String> inputs, Set<Long> grant,
-			@Nullable String confirmedHeadSha) {
+	record Dispatch(GitHubApps.App app, @Nullable Long sourceInstallationId, Operation operation, long targetId,
+			String workflow, Map<String, String> inputs, Set<Long> grant, @Nullable String confirmedHeadSha) {
 
 		private static final Pattern WORKFLOW = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,99}\\.ya?ml");
 
 		private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
 
 		public Dispatch {
+			Objects.requireNonNull(app, "app");
+			if (app == GitHubApps.App.MERGE) {
+				throw new IllegalArgumentException("Only the Platform App and the Source App dispatch a run");
+			}
+			if ((app == GitHubApps.App.SOURCE) != (sourceInstallationId != null)
+					|| (sourceInstallationId != null && sourceInstallationId <= 0)) {
+				throw new IllegalArgumentException("A run the Source App dispatches names its installation, and only such a run");
+			}
 			Objects.requireNonNull(operation, "operation");
 			if (targetId <= 0) {
 				throw new IllegalArgumentException("A target is a repository ID");
@@ -162,10 +180,12 @@ public interface ActionsRuns {
 				throw new IllegalArgumentException("A grant names 1 to " + GitHubApps.MAX_REPOSITORIES + " repository IDs");
 			}
 			if (grant.contains(targetId)) {
+				// Never the repository the run is in: for the Source App, the Customer's own.
 				throw new IllegalArgumentException("A grant never names the repository the run is in");
 			}
-			if (confirmedHeadSha != null && (operation != Operation.COPY || !SHA.matcher(confirmedHeadSha).matches())) {
-				throw new IllegalArgumentException("A confirmed head is a 40-hex SHA, for copy only");
+			if ((operation == Operation.COPY) != (confirmedHeadSha != null)
+					|| (confirmedHeadSha != null && !SHA.matcher(confirmedHeadSha).matches())) {
+				throw new IllegalArgumentException("A copy names the 40-hex head the Customer confirmed, and only a copy");
 			}
 		}
 
@@ -188,16 +208,71 @@ public interface ActionsRuns {
 	 * @param repository the target's {@code owner/name}
 	 * @param refusal the reason the run's ID token was refused, for {@link Status#REFUSED}
 	 * @param runId the run, once known
+	 * @param app the App that dispatched the run
+	 * @param runHtmlUrl the run's page on GitHub, once it is found
+	 * @param runConclusion GitHub's conclusion of the run's first attempt, once a read ({@link #run}) found it completed
 	 */
 	record Correlation(UUID id, Operation operation, String repository, long repositoryId, String workflowPath,
 			Set<Long> grant, @Nullable String confirmedHeadSha, Status status, @Nullable ExchangeReason refusal,
 			@Nullable Long runId, Instant createdAt, Instant expiresAt, @Nullable Instant issuedAt,
-			@Nullable Instant revokedAt) {
+			@Nullable Instant revokedAt, GitHubApps.App app, @Nullable String runHtmlUrl, @Nullable String runConclusion) {
 
 		public Correlation {
 			grant = Set.copyOf(grant);
 		}
 
+	}
+
+	/** Where a run stands, as GitHub shows it. */
+	enum RunStatus {
+
+		/** Not started yet: GitHub's {@code queued}, and its {@code requested}, {@code waiting} and {@code pending}. */
+		QUEUED,
+
+		/** {@code in_progress}. */
+		IN_PROGRESS,
+
+		/** {@code completed}, with a conclusion. */
+		COMPLETED;
+
+		/** GitHub's {@code status} of a workflow run; none, or one not known here, is {@link #QUEUED}. */
+		public static RunStatus of(@Nullable String status) {
+			if (status == null) {
+				return QUEUED;
+			}
+			return switch (status) {
+				case "completed" -> COMPLETED;
+				case "in_progress" -> IN_PROGRESS;
+				default -> QUEUED;
+			};
+		}
+
+	}
+
+	/** What a run's conclusion alone does not say. */
+	enum RunMarker {
+
+		/**
+		 * The run concluded {@code failure} and none of its jobs started: every job shows no steps and no runner, as GitHub
+		 * ends a run its account's Actions minutes or spending limit stopped (Story 23.6's {@code ACTIONS_QUOTA})
+		 * {@code [ASSUMPTION; Story 23.12 confirms it on real GitHub]}. A failed run that lists no job is no such run.
+		 */
+		ACTIONS_QUOTA
+
+	}
+
+	/**
+	 * A run's first attempt as its dispatching App reads it (Story 23.6a): a Customer's re-run changes nothing here.
+	 * @param id the run GitHub gave it
+	 * @param htmlUrl its page on GitHub; none when GitHub showed none
+	 * @param status where its first attempt stands
+	 * @param conclusion GitHub's conclusion once it completed ({@code success}, {@code failure}, {@code cancelled}…);
+	 * none before
+	 * @param marker {@link RunMarker#ACTIONS_QUOTA} for a failure none of whose jobs started; none otherwise, and none
+	 * when its jobs could not be read
+	 */
+	record Run(long id, @Nullable String htmlUrl, RunStatus status, @Nullable String conclusion,
+			@Nullable RunMarker marker) {
 	}
 
 	/**
@@ -210,5 +285,17 @@ public interface ActionsRuns {
 
 	/** The correlation, if it exists: a waiting operation reads a refusal here as {@code EXCHANGE_REFUSED}. */
 	Optional<Correlation> correlation(UUID id);
+
+	/**
+	 * The correlation's run, its first attempt, as its dispatching App reads it now with a token narrowed to the target
+	 * (Story 23.6a). A correlation whose run is not known yet looks once at the workflow's runs dispatched since the
+	 * correlation was recorded for the one whose title holds it and whose triggering actor is the App's bot, and records
+	 * it. The run's page, and its conclusion and marker once it completed, are recorded on the correlation, best-effort;
+	 * a run whose conclusion is recorded is answered from the correlation, with no GitHub call. A failed run is marked
+	 * {@link RunMarker#ACTIONS_QUOTA} when none of its jobs started; when its jobs cannot be read it is not marked.
+	 * @return empty for no such correlation, or while no run shows under it yet
+	 * @throws GitHubException when GitHub refuses or cannot be reached
+	 */
+	Optional<Run> run(UUID correlation);
 
 }

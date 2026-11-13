@@ -33,14 +33,17 @@ import vn.vibefix.shared.ErrorCode;
  * admin through the collaborator-permission endpoint, and a published {@code vibefix.yml} on its default branch. The
  * token is revoked after the reads. The contributor read (FR-13, FR-81) and the drift read (FR-20, R7) take the
  * binding the same way (Story 23.5b); the contributor read answers "unknown" rather than throwing, and the drift read
- * reads no admin right. No path reads a repository with the Customer's linking token. A GitHub failure is a
- * {@link GitHubException}, which the caller retries.
+ * reads no admin right. J7's head read and dispatch target (Story 23.6a) take it the same way too, read the repository
+ * and its workflow with one token, and read no admin right; the head read then reads the default branch's ref. No path
+ * reads a repository with the Customer's linking token. A GitHub failure is a {@link GitHubException}, which the caller
+ * retries.
  * <p>
  * Each read records what it found of the Source App and the workflow in {@link SourceStatuses} (Story 23.5c), so CUS-2
  * shows it without a GitHub call, with the default branch it read when that moved: the check and the re-confirmation
  * (whose admin right is no status, so their workflow is read even when the admin right is not held), the drift read,
- * and a contributor read whose binding refuses record it best-effort, so a failed side effect never changes what they
- * answer; CUS-4's "Kiểm tra lại" ({@link #refresh}) fails with it. A GitHub failure records nothing.
+ * J7's head read and dispatch target, and a contributor read whose binding refuses record it best-effort, so a failed
+ * side effect never changes what they answer; CUS-4's "Kiểm tra lại" ({@link #refresh}) fails with it. A GitHub failure
+ * records nothing.
  */
 @Component
 class SourceChecks implements ProductSources {
@@ -77,6 +80,10 @@ class SourceChecks implements ProductSources {
 
 	/** What the drift read found, and the status it records. */
 	private record DriftRead(Drift drift, Status status, @Nullable String blob, @Nullable String branchRead) {
+	}
+
+	/** What a J7 read found (Story 23.6a): its answer, and the status it records. */
+	private record J7Read<T>(T answer, Status status, @Nullable String blob, @Nullable String branchRead) {
 	}
 
 	private final SourceAppBindings bindings;
@@ -202,6 +209,56 @@ class SourceChecks implements ProductSources {
 				token -> drift(product, bound, token, copiedSha));
 		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
 		return read.drift();
+	}
+
+	@Override
+	public Head head(UUID productId) {
+		Row product = row(productId);
+		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
+		if (checked.refusal() != null) {
+			Block block = Block.valueOf(checked.refusal().name());
+			recordQuietly(productId, Status.valueOf(block.name()), null, null);
+			return new Head(block, null, product.defaultBranch(), product.fullName());
+		}
+		Bound bound = checked.bound();
+		J7Read<Head> read = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ, token -> {
+			Found found = found(product, bound, token);
+			RepositoryMetadata repository = found.repository();
+			if (repository == null) {
+				return new J7Read<>(new Head(Block.SOURCE_APP_WRONG_REPOSITORY, null, product.defaultBranch(), product.fullName()),
+						found.status(), null, null);
+			}
+			String sha = this.repositories.head(token.value(), repository.fullName(), repository.defaultBranch());
+			return new J7Read<>(new Head(null, sha, repository.defaultBranch(), repository.fullName()), found.status(),
+					found.blob(), repository.defaultBranch());
+		});
+		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
+		return read.answer();
+	}
+
+	@Override
+	public DispatchTarget dispatchTarget(UUID productId) {
+		Row product = row(productId);
+		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
+		if (checked.refusal() != null) {
+			Block block = Block.valueOf(checked.refusal().name());
+			recordQuietly(productId, Status.valueOf(block.name()), null, null);
+			return new DispatchTarget(block, 0, product.githubId(), product.fullName(), product.defaultBranch());
+		}
+		Bound bound = checked.bound();
+		J7Read<DispatchTarget> read = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
+				token -> {
+					Found found = found(product, bound, token);
+					RepositoryMetadata repository = found.repository();
+					if (repository == null) {
+						return new J7Read<>(new DispatchTarget(Block.SOURCE_APP_WRONG_REPOSITORY, 0, product.githubId(),
+								product.fullName(), product.defaultBranch()), found.status(), null, null);
+					}
+					return new J7Read<>(new DispatchTarget(null, bound.installationId(), repository.id(), repository.fullName(),
+							repository.defaultBranch()), found.status(), found.blob(), repository.defaultBranch());
+				});
+		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
+		return read.answer();
 	}
 
 	/**
