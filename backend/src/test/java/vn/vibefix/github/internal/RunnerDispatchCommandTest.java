@@ -21,6 +21,7 @@ import vn.vibefix.github.ActionsRuns;
 import vn.vibefix.github.ActionsRuns.Dispatch;
 import vn.vibefix.github.ActionsRuns.Dispatched;
 import vn.vibefix.github.ActionsRuns.Operation;
+import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 
@@ -51,6 +52,8 @@ class RunnerDispatchCommandTest {
 		assertThat(command.getExitCode()).isZero();
 		assertThat(RunnerDispatchCommand.COMMAND).as("the name BootstrapCommand lets run").isEqualTo("runner-dispatch");
 		assertThat(this.dispatched).singleElement().satisfies(dispatch -> {
+			assertThat(dispatch.app()).as("the runner's run is the Platform App's").isEqualTo(App.PLATFORM);
+			assertThat(dispatch.sourceInstallationId()).isNull();
 			assertThat(dispatch.operation()).isEqualTo(Operation.HANDOVER_COPY);
 			assertThat(dispatch.targetId()).isEqualTo(9);
 			assertThat(dispatch.workflow()).isEqualTo("s6-copy.yml");
@@ -130,6 +133,11 @@ class RunnerDispatchCommandTest {
 
 			@Override
 			public Optional<Correlation> correlation(UUID id) {
+				return Optional.empty();
+			}
+
+			@Override
+			public Optional<Run> run(UUID correlation) {
 				return Optional.empty();
 			}
 

@@ -65,6 +65,14 @@ public interface GitHubRepositories {
 	List<String> commitsSince(String bearer, String fullName, String baseSha, String branch);
 
 	/**
+	 * The head commit of {@code branch} ({@code GET /repos/{fullName}/git/ref/heads/{branch}}, Contents read): the
+	 * branch's ref alone, never a tag of the same name, and no commit body (Story 23.6a).
+	 * @throws GitHubException when GitHub refuses, a 404 included (no such branch, or an empty repository), cannot be
+	 * reached, or names no commit SHA
+	 */
+	String head(String bearer, String fullName, String branch);
+
+	/**
 	 * The current login of the GitHub account with this numeric ID ({@code GET /user/{id}}), for the admin check
 	 * by ID (AD-13): a renamed account keeps its ID.
 	 * @return empty when GitHub answers 404 (the account is gone)

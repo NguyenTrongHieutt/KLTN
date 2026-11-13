@@ -1,9 +1,9 @@
 package vn.vibefix.github.internal;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -25,23 +25,33 @@ import vn.vibefix.shared.IdGenerator;
 
 /**
  * Revokes the tokens the Actions exchange issued (AD-44, AD-46): every poll, each exchanged correlation's run
- * is read by its ID with the dispatching App's token, and its token is revoked once the run completed, or
+ * is read by its ID with the dispatching App's token ({@link DispatchingApps}: a run the Source App dispatched is read
+ * through the Customer's installation, Story 23.6a), and its token is revoked once the run completed, or
  * {@link ActionsRuns#RUN_TIMEOUT} after it was issued. Revoked, the correlation becomes {@code REVOKED} and
  * {@link GitHubExchangeRevoked} is published; a revocation GitHub does not confirm is tried again next poll.
  * A correlation whose token is not in memory, because vibefix restarted while it was out, becomes
  * {@code REVOKE_UNKNOWN} once, with {@link GitHubExchangeRevokeUnknown}: GitHub expires that token within the
- * hour. Open correlations past their expiry become {@code EXPIRED}.
+ * hour. Open correlations past their expiry become {@code EXPIRED}, and correlations {@link #RETENTION} past their
+ * expiry are deleted, unless their token is still out.
  */
 @Component
 class ExchangeRevocations {
 
 	private static final Logger log = LoggerFactory.getLogger(ExchangeRevocations.class);
 
+	/**
+	 * How long a correlation is kept after its expiry {@code [ASSUMPTION]}: a Source App row names the Customer's Source
+	 * Repository and links its run (Story 23.6a).
+	 */
+	static final Duration RETENTION = Duration.ofDays(30);
+
 	private final ExchangeCorrelations correlations;
 
 	private final IssuedTokens issued;
 
 	private final GitHubAppsClient apps;
+
+	private final DispatchingApps dispatching;
 
 	private final ApplicationEventPublisher events;
 
@@ -52,10 +62,12 @@ class ExchangeRevocations {
 	private final Clock clock;
 
 	ExchangeRevocations(ExchangeCorrelations correlations, IssuedTokens issued, GitHubAppsClient apps,
-			ApplicationEventPublisher events, PlatformTransactionManager transactionManager, IdGenerator ids, Clock clock) {
+			DispatchingApps dispatching, ApplicationEventPublisher events, PlatformTransactionManager transactionManager,
+			IdGenerator ids, Clock clock) {
 		this.correlations = correlations;
 		this.issued = issued;
 		this.apps = apps;
+		this.dispatching = dispatching;
 		this.events = events;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.ids = ids;
@@ -67,6 +79,11 @@ class ExchangeRevocations {
 		Integer expired = this.transactions.execute(status -> this.correlations.expire(this.clock.instant()));
 		if (expired != null && expired > 0) {
 			log.info("{} exchange correlation(s) expired unused", expired);
+		}
+		Integer purged = this.transactions
+			.execute(status -> this.correlations.purge(this.clock.instant().minus(RETENTION)));
+		if (purged != null && purged > 0) {
+			log.info("{} exchange correlation(s) deleted {} days after their expiry", purged, RETENTION.toDays());
 		}
 		List<ExchangeCorrelations.Row> out = this.correlations.exchanged();
 		for (ExchangeCorrelations.Row row : out) {
@@ -111,19 +128,25 @@ class ExchangeRevocations {
 		log.info("The token of correlation {} was revoked: its run {}", row.id(), timedOut ? "timed out" : "completed");
 	}
 
-	/** Whether the run completed, as the dispatching App reads it; false when it cannot be read. */
+	/**
+	 * Whether the run completed, as the dispatching App reads it: the Platform App's token, or for a run the Source App
+	 * dispatched, a token from the Customer's installation the correlation records (Story 23.6a), each narrowed to the
+	 * target. False when it cannot be read. Nothing is recorded here: {@link ActionsRuns#run} records the conclusion.
+	 */
 	private boolean completed(ExchangeCorrelations.Row row) {
-		if (row.runId() == null || !App.PLATFORM.name().equals(row.app())) {
+		Long runId = row.runId();
+		if (runId == null) {
 			return false;
 		}
 		try {
-			return this.apps.withToken(App.PLATFORM, List.of(row.repositoryId()), Map.of("actions", "read"), token -> {
+			App app = row.dispatchingApp();
+			return this.dispatching.withToken(row, DispatchingApps.runRead(app), token -> {
 				GitHubHttp.Answer run = this.apps.http()
-					.send("GET", "/repos/" + row.repository() + "/actions/runs/" + row.runId(), token.value(), null);
+					.send("GET", "/repos/" + row.repository() + "/actions/runs/" + runId, token.value(), null);
 				return run.ok() && "completed".equals(run.body().path("status").asString(""));
 			});
 		}
-		catch (GitHubException ex) {
+		catch (GitHubException | IllegalArgumentException ex) {
 			return false;
 		}
 	}

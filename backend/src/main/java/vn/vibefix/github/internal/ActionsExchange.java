@@ -3,7 +3,6 @@ package vn.vibefix.github.internal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -31,7 +30,6 @@ import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.GitHubExchangeIssued;
 import vn.vibefix.github.GitHubExchangeRefused;
-import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -46,11 +44,17 @@ import vn.vibefix.shared.IdGenerator;
  * <li>{@code repository} and {@code repository_id} the target's; {@code event} {@code workflow_dispatch};
  * {@code runner} {@code github-hosted};</li>
  * <li>{@code run}: read back with the dispatching App's token, its workflow path, {@code head_sha} equal to
- * {@code workflow_sha}, the App's bot as triggering actor, and the correlation in its title;</li>
+ * {@code workflow_sha}, the dispatching App's bot as triggering actor, and the correlation in its title;</li>
  * <li>{@code blob}: the workflow file at {@code workflow_sha} an accepted blob ({@link AcceptedWorkflows});</li>
  * <li>{@code sha}: for {@code copy} with a confirmed SHA, the run's head is that commit;</li>
  * <li>{@code ref}: the target's default branch.</li>
  * </ol>
+ * The dispatching App ({@link DispatchingApps}) is the Platform App for a run on the runner, and the Source App for a
+ * run of {@code vibefix.yml} in a Customer's Source Repository (Story 23.6a): its run and workflow file are read back
+ * with a token from the Customer's installation the correlation records, narrowed to that repository, and its bot
+ * must have triggered the run. When GitHub refuses that installation's read-back token (403, 404, 422: the Customer
+ * uninstalled or suspended the App mid-run), the exchange answers as for GitHub's outage. The token issued is minted by
+ * the Platform App whatever dispatched the run, since every grant names platform repositories.
  * A refusal before verification (the first four, and an unknown or closed correlation) names nothing
  * reliably: it is only counted and logged by kind. After it, the correlation becomes {@code REFUSED}, except a
  * replay, which leaves it {@code EXCHANGED}, and {@link GitHubExchangeRefused} is published for {@code admin}
@@ -82,7 +86,7 @@ class ActionsExchange {
 
 	private final GitHubAppsClient apps;
 
-	private final PlatformRepositories repositories;
+	private final DispatchingApps dispatching;
 
 	private final AcceptedWorkflows accepted;
 
@@ -97,14 +101,14 @@ class ActionsExchange {
 	private final Map<ExchangeReason, AtomicLong> unverified = new EnumMap<>(ExchangeReason.class);
 
 	ActionsExchange(ActionsIdTokens idTokens, ExchangeCorrelations correlations, IssuedTokens issued,
-			ExchangeRateLimiter limiter, GitHubAppsClient apps, PlatformRepositories repositories,
+			ExchangeRateLimiter limiter, GitHubAppsClient apps, DispatchingApps dispatching,
 			ApplicationEventPublisher events, PlatformTransactionManager transactionManager, IdGenerator ids, Clock clock) {
 		this.idTokens = idTokens;
 		this.correlations = correlations;
 		this.issued = issued;
 		this.limiter = limiter;
 		this.apps = apps;
-		this.repositories = repositories;
+		this.dispatching = dispatching;
 		this.accepted = new AcceptedWorkflows(apps.properties(), clock);
 		this.events = events;
 		this.transactions = new TransactionTemplate(transactionManager);
@@ -198,7 +202,7 @@ class ActionsExchange {
 			reads = read(row, Long.parseLong(runId), workflowSha);
 		}
 		catch (GitHubException ex) {
-			if (unavailable(ex.status())) {
+			if (unavailable(ex.status()) || sourceAppGone(row, ex.status())) {
 				throw githubUnavailable(row, "mint the read-back token", ex.status());
 			}
 			log.warn("The Actions exchange could not read run {} of correlation {} back: HTTP {}", runId, row.id(),
@@ -214,7 +218,7 @@ class ActionsExchange {
 		JsonNode run = reads.run().status() == 200 ? reads.run().body() : null;
 		if (run == null || !row.workflowPath().equals(run.path("path").asString(""))
 				|| !workflowSha.equals(run.path("head_sha").asString(""))
-				|| !this.repositories.botLogin().equalsIgnoreCase(run.path("triggering_actor").path("login").asString(""))
+				|| !reads.bot().equalsIgnoreCase(run.path("triggering_actor").path("login").asString(""))
 				|| !run.path("display_title").asString("").contains(row.id().toString())) {
 			return ExchangeReason.RUN;
 		}
@@ -241,13 +245,25 @@ class ActionsExchange {
 		return null;
 	}
 
-	/** GitHub's answers for the run, and for its workflow file at {@code workflow_sha}, read with the dispatching App. */
-	private record Reads(GitHubHttp.Answer run, GitHubHttp.Answer file) {
+	/**
+	 * GitHub's answers for the run, and for its workflow file at {@code workflow_sha}, read with the dispatching App,
+	 * and that App's bot.
+	 */
+	private record Reads(GitHubHttp.Answer run, GitHubHttp.Answer file, String bot) {
 	}
 
 	/** No answer, or a server error: GitHub's outage, which refuses nothing. */
 	private static boolean unavailable(int status) {
 		return status == 0 || status >= 500;
+	}
+
+	/**
+	 * A Source App read-back token GitHub refuses as it refuses an installation the Customer uninstalled or suspended
+	 * mid-run (403, 404, 422): no fault of the run, so it is answered as GitHub's outage and refuses nothing (Story
+	 * 23.6a).
+	 */
+	private static boolean sourceAppGone(ExchangeCorrelations.Row row, int status) {
+		return App.SOURCE.name().equals(row.app()) && (status == 403 || status == 404 || status == 422);
 	}
 
 	/**
@@ -259,22 +275,29 @@ class ActionsExchange {
 		return new ResponseStatusException(HttpStatus.BAD_GATEWAY);
 	}
 
+	/**
+	 * The run and its workflow file read back with a token of the dispatching App narrowed to the target: the Source
+	 * App's from the Customer's installation the correlation records, else the Platform App's.
+	 */
 	private Reads read(ExchangeCorrelations.Row row, long runId, String workflowSha) {
-		App app = dispatching(row);
-		return this.apps.withToken(app, List.of(row.repositoryId()), Map.of("actions", "read", "contents", "read"), token -> {
-			GitHubHttp.Answer run = this.apps.http()
-				.send("GET", "/repos/" + row.repository() + "/actions/runs/" + runId, token.value(), null);
-			GitHubHttp.Answer file = this.apps.http()
-				.send("GET", "/repos/" + row.repository() + "/contents/" + row.workflowPath() + "?ref=" + workflowSha,
-						token.value(), null);
-			return new Reads(run, file);
-		});
+		App app = dispatchingApp(row);
+		String bot = this.dispatching.botLogin(app);
+		return this.dispatching.withToken(app, row.sourceInstallationId(), row.repositoryId(),
+				Map.of("actions", "read", "contents", "read"), token -> {
+					GitHubHttp.Answer run = this.apps.http()
+						.send("GET", "/repos/" + row.repository() + "/actions/runs/" + runId, token.value(), null);
+					GitHubHttp.Answer file = this.apps.http()
+						.send("GET", "/repos/" + row.repository() + "/contents/" + row.workflowPath() + "?ref=" + workflowSha,
+								token.value(), null);
+					return new Reads(run, file, bot);
+				});
 	}
 
 	/**
-	 * The token, once the correlation is locked and still open: minted narrowed to the grant with exactly the
-	 * operation's permissions, kept in memory, the row {@code EXCHANGED}, and {@link GitHubExchangeIssued}
-	 * published, all in one transaction. A token minted for a transaction that then fails is revoked at once.
+	 * The token, once the correlation is locked and still open: minted by the Platform App, whatever dispatched the
+	 * run, since the grant names platform repositories only, narrowed to the grant with exactly the operation's
+	 * permissions, kept in memory, the row {@code EXCHANGED}, and {@link GitHubExchangeIssued} published, all in one
+	 * transaction. A token minted for a transaction that then fails is revoked at once.
 	 */
 	private InstallationToken issue(ExchangeCorrelations.Row checked, long runId) {
 		InstallationToken[] minted = { null };
@@ -289,7 +312,8 @@ class ActionsExchange {
 				if (!row.open(now)) {
 					return ExchangeReason.CORRELATION;
 				}
-				InstallationToken token = this.apps.token(dispatching(row), row.grant(), row.operation().permissions());
+				// The Platform App's, never the Source App's: every grant names platform repositories (Story 23.6a).
+				InstallationToken token = this.apps.token(App.PLATFORM, row.grant(), row.operation().permissions());
 				minted[0] = token;
 				this.issued.put(row.id(), token);
 				this.correlations.exchanged(row.id(), runId, now);
@@ -349,13 +373,16 @@ class ActionsExchange {
 		return new ApiException(ErrorCode.FORBIDDEN, reason);
 	}
 
-	/** The App that dispatched the run, whose token reads it back. */
-	private static App dispatching(ExchangeCorrelations.Row row) {
-		if (!App.PLATFORM.name().equals(row.app())) {
-			// Story 23.5 wires the Source App; until then nothing dispatches with it.
-			throw new IllegalArgumentException("No token of the " + row.app() + " App is wired yet");
+	/**
+	 * The App that dispatched the run, whose token reads it back: the Platform App or the Source App.
+	 * @throws IllegalArgumentException for any other, which the check refuses {@code run}
+	 */
+	private static App dispatchingApp(ExchangeCorrelations.Row row) {
+		App app = row.dispatchingApp();
+		if (app != App.PLATFORM && app != App.SOURCE) {
+			throw new IllegalArgumentException("The " + app + " App dispatches no Actions run");
 		}
-		return App.PLATFORM;
+		return app;
 	}
 
 }

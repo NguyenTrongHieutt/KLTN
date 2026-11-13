@@ -17,8 +17,8 @@ import vn.vibefix.github.GitHubRepositories;
 /**
  * {@link GitHubRepositories} on GitHub's REST API: the repository, then two small files of its
  * default branch that reveal submodules and Git LFS (AD-13). Three requests, all reads; the admin check reads
- * an account's login and its collaborator permission, the contributor read pages through the contributors, and the
- * drift poll compares the default branch with the copied commit.
+ * an account's login and its collaborator permission, the contributor read pages through the contributors, the
+ * drift poll compares the default branch with the copied commit, and J7 reads the default branch's head (Story 23.6a).
  */
 @Component
 class GitHubRepositoriesClient implements GitHubRepositories {
@@ -114,6 +114,24 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 			commits.add(commit.path("sha").asString(""));
 		}
 		return commits;
+	}
+
+	@Override
+	public String head(String bearer, String fullName, String branch) {
+		StringBuilder ref = new StringBuilder();
+		for (String segment : branch.split("/", -1)) {
+			// Each segment of the branch's name encoded on its own: a branch with a slash names a nested ref.
+			ref.append(ref.isEmpty() ? "" : "/").append(URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20"));
+		}
+		GitHubHttp.Answer answer = this.http.send("GET", "/repos/" + fullName + "/git/ref/heads/" + ref, bearer, null);
+		if (answer.status() != 200) {
+			throw new GitHubException(answer.status(), "GitHub refused the head read of " + fullName + ": HTTP " + answer.status());
+		}
+		String sha = answer.body().path("object").path("sha").asString("");
+		if (!sha.matches("[0-9a-f]{40}")) {
+			throw new GitHubException(0, "The head of " + fullName + " was not a commit SHA");
+		}
+		return sha;
 	}
 
 	@Override

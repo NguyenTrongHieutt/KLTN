@@ -23,6 +23,7 @@ import vn.vibefix.github.ActionsRuns.Dispatch;
 import vn.vibefix.github.ActionsRuns.Dispatched;
 import vn.vibefix.github.ActionsRuns.Operation;
 import vn.vibefix.github.ActionsRuns.WorkflowRefused;
+import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
@@ -123,8 +124,9 @@ class RunnerDispatchCommand implements ApplicationRunner, ExitCodeGenerator {
 			inputs.put("sha", sha);
 			inputs.put("target_repository", intermediary.fullName());
 			inputs.put("target_branch", targetBranch);
-			Dispatched dispatched = this.runs.dispatch(new Dispatch(Operation.HANDOVER_COPY, runnerRepository.id(),
-					GitHubPlatformRepositories.RUNNER_WORKFLOW, inputs, Set.of(working.id(), intermediary.id()), null));
+			Dispatched dispatched = this.runs.dispatch(new Dispatch(App.PLATFORM, null, Operation.HANDOVER_COPY,
+					runnerRepository.id(), GitHubPlatformRepositories.RUNNER_WORKFLOW, inputs,
+					Set.of(working.id(), intermediary.id()), null));
 			this.out.println("Dispatched " + GitHubPlatformRepositories.RUNNER_WORKFLOW + " on " + runnerRepository.fullName()
 					+ " under correlation " + dispatched.correlation() + ", "
 					+ (dispatched.runId() > 0 ? "run " + dispatched.runId() : "no run shown yet")

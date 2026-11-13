@@ -5,12 +5,17 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +32,18 @@ import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubException;
 
 /**
- * {@link ActionsRuns} with the Platform App, promoted from Spike S6's dispatch and run lookup (AD-44, AD-46).
- * Every call to GitHub uses a token of the dispatching App narrowed to the target: Metadata and Contents read
- * for the target and its workflow file, Actions write for the dispatch. The run is dispatched with
- * {@code return_run_details}; when GitHub names no run, it is found by its title, which holds the correlation,
- * for up to {@link ActionsRuns#FIND_WINDOW}. On the {@code dev} profile the dispatch also names
- * {@code exchange_url}, the cloudflared quick tunnel ({@code vibefix.github.exchange.public-url}); no other
+ * {@link ActionsRuns}, promoted from Spike S6's dispatch and run lookup (AD-44, AD-46). Every call to GitHub uses a
+ * token of the dispatching App ({@link DispatchingApps}) narrowed to the target: Metadata and Contents read for the
+ * target and its workflow file; for the dispatch, Actions write, with Contents read for the Source App (Story 23.6a);
+ * for a run lookup or read, Actions read, with Contents read for the Source App. The Source App's tokens come from the
+ * Customer's installation the dispatch names, which the correlation records. The run is dispatched with
+ * {@code return_run_details}; when GitHub names no run, it is found by its title, which holds the correlation, among
+ * the workflow's runs dispatched since the correlation was recorded and triggered by the App's bot, for up to
+ * {@link ActionsRuns#FIND_WINDOW}. Once GitHub accepted the dispatch, a lookup that fails leaves the run to
+ * {@link #run}: the dispatch does not fail, since a retry would start a second run. A run is read by its first attempt,
+ * so a Customer's re-run changes nothing vibefix reads, and once its conclusion is recorded it is answered from the
+ * correlation. The correlation's writes after the dispatch are best-effort. On the {@code dev} profile the dispatch
+ * also names {@code exchange_url}, the cloudflared quick tunnel ({@code vibefix.github.exchange.public-url}); no other
  * environment knows an exchange URL yet (Story 13.1 owns the production host), so there nothing is dispatched.
  */
 @Component
@@ -43,6 +54,18 @@ class GitHubActionsRuns implements ActionsRuns {
 	/** How long a correlation stays open: the find window, the run's timeout, and the queue before it. */
 	static final Duration CORRELATION_LIFETIME = FIND_WINDOW.plus(RUN_TIMEOUT).plusMinutes(3);
 
+	/** How much earlier than the correlation a run is looked for, for the clocks of vibefix and GitHub to differ. */
+	static final Duration CLOCK_SKEW = Duration.ofMinutes(1);
+
+	/** The target's read, and its workflow file's. */
+	private static final Map<String, String> TARGET_READ = Map.of("metadata", "read", "contents", "read");
+
+	/** A run's page as GitHub links it: an absolute http(s) URL without spaces, which the table keeps. */
+	private static final Pattern HTML_URL = Pattern.compile("https?://[^\\s\\p{Cntrl}]{1,2040}");
+
+	/** A conclusion as GitHub names it, for example {@code success} or {@code timed_out}. */
+	private static final Pattern CONCLUSION = Pattern.compile("[a-z_]{1,40}");
+
 	/** How the dispatch waits for its run to show: each look, and how long in all. */
 	record Waits(Duration findPoll, Duration findWindow) {
 
@@ -51,6 +74,8 @@ class GitHubActionsRuns implements ActionsRuns {
 	}
 
 	private final GitHubAppsClient apps;
+
+	private final DispatchingApps dispatching;
 
 	private final ExchangeCorrelations correlations;
 
@@ -65,14 +90,15 @@ class GitHubActionsRuns implements ActionsRuns {
 	private final Waits waits;
 
 	@Autowired
-	GitHubActionsRuns(GitHubAppsClient apps, ExchangeCorrelations correlations, PlatformTransactionManager transactionManager,
-			Environment environment, Clock clock) {
-		this(apps, correlations, transactionManager, environment, clock, Waits.GITHUB);
+	GitHubActionsRuns(GitHubAppsClient apps, DispatchingApps dispatching, ExchangeCorrelations correlations,
+			PlatformTransactionManager transactionManager, Environment environment, Clock clock) {
+		this(apps, dispatching, correlations, transactionManager, environment, clock, Waits.GITHUB);
 	}
 
-	GitHubActionsRuns(GitHubAppsClient apps, ExchangeCorrelations correlations, PlatformTransactionManager transactionManager,
-			Environment environment, Clock clock, Waits waits) {
+	GitHubActionsRuns(GitHubAppsClient apps, DispatchingApps dispatching, ExchangeCorrelations correlations,
+			PlatformTransactionManager transactionManager, Environment environment, Clock clock, Waits waits) {
 		this.apps = apps;
+		this.dispatching = dispatching;
 		this.correlations = correlations;
 		this.accepted = new AcceptedWorkflows(apps.properties(), clock);
 		this.transactions = new TransactionTemplate(transactionManager);
@@ -84,26 +110,44 @@ class GitHubActionsRuns implements ActionsRuns {
 	@Override
 	public Dispatched dispatch(Dispatch dispatch) {
 		String exchangeUrl = exchangeUrl();
-		App app = App.PLATFORM;
-		Target target = this.apps.withToken(app, List.of(dispatch.targetId()), Map.of("metadata", "read", "contents", "read"),
+		App app = dispatch.app();
+		Long installation = dispatch.sourceInstallationId();
+		Target target = this.dispatching.withToken(app, installation, dispatch.targetId(), TARGET_READ,
 				token -> target(dispatch, token));
 		UUID id = UUID.randomUUID();
 		Instant now = this.clock.instant();
 		// Committed before the dispatch, so the run's exchange finds it.
 		this.transactions.executeWithoutResult(status -> this.correlations.insert(new ExchangeCorrelations.Row(id,
 				dispatch.operation(), target.fullName(), dispatch.targetId(), target.defaultBranch(), dispatch.workflowPath(),
-				app.name(), dispatch.grant(), dispatch.operation().permissions(), dispatch.confirmedHeadSha(),
-				Status.OPEN, null, null, now, now.plus(CORRELATION_LIFETIME), null, null)));
+				app.name(), installation, dispatch.grant(), dispatch.operation().permissions(), dispatch.confirmedHeadSha(),
+				Status.OPEN, null, null, null, null, null, now, now.plus(CORRELATION_LIFETIME), null, null)));
 		Map<String, String> inputs = new LinkedHashMap<>(dispatch.inputs());
 		inputs.put("correlation", id.toString());
 		inputs.put("exchange_url", exchangeUrl);
-		long runId = this.apps.withToken(app, List.of(dispatch.targetId()), Map.of("actions", "write"),
-				token -> dispatchAndFind(target, dispatch.workflow(), id, inputs, token));
-		if (runId > 0) {
-			this.transactions.executeWithoutResult(status -> this.correlations.runFound(id, runId));
+		Found found;
+		if (app == App.SOURCE) {
+			// The Source App's dispatch token writes Actions and reads Contents; its lookup reads both, with a token of its own.
+			Found answered = this.dispatching.withToken(app, installation, dispatch.targetId(), DispatchingApps.SOURCE_DISPATCH,
+					token -> dispatched(target, dispatch.workflow(), inputs, token));
+			found = answered.runId() > 0 ? answered
+					: afterDispatch(id, () -> this.dispatching.withToken(app, installation, dispatch.targetId(),
+							DispatchingApps.SOURCE_RUN_READ, token -> findByTitle(target.fullName(), dispatch.workflow(), id, now,
+									this.dispatching.botLogin(app), token)));
 		}
-		log.info("Dispatched {} on {} under correlation {}: run {}", dispatch.workflow(), target.fullName(), id,
-				runId > 0 ? runId : "not found yet");
+		else {
+			found = this.dispatching.withToken(app, installation, dispatch.targetId(), Map.of("actions", "write"), token -> {
+				Found answered = dispatched(target, dispatch.workflow(), inputs, token);
+				return answered.runId() > 0 ? answered
+						: afterDispatch(id, () -> findByTitle(target.fullName(), dispatch.workflow(), id, now,
+								this.dispatching.botLogin(app), token));
+			});
+		}
+		long runId = found.runId();
+		if (runId > 0) {
+			recordQuietly(id, "run", () -> this.correlations.runFound(id, runId, found.htmlUrl()));
+		}
+		log.info("Dispatched {} on {} through the {} App under correlation {}: run {}", dispatch.workflow(), target.fullName(),
+				app, id, runId > 0 ? runId : "not found yet");
 		return new Dispatched(id, runId);
 	}
 
@@ -112,8 +156,103 @@ class GitHubActionsRuns implements ActionsRuns {
 		return this.correlations.find(id).map(ExchangeCorrelations.Row::correlation);
 	}
 
+	@Override
+	public Optional<Run> run(UUID correlation) {
+		ExchangeCorrelations.Row row = this.correlations.find(correlation).orElse(null);
+		if (row == null) {
+			return Optional.empty();
+		}
+		Long known = row.runId();
+		if (known != null && row.runConclusion() != null) {
+			// The first attempt's conclusion never changes: GitHub is not asked again.
+			return Optional.of(new Run(known, row.runHtmlUrl(), RunStatus.COMPLETED, row.runConclusion(), row.runMarker()));
+		}
+		App app = row.dispatchingApp();
+		Read read = this.dispatching.withToken(row, DispatchingApps.runRead(app), token -> {
+			if (known != null) {
+				return new Read(null, read(row.repository(), known, row.runHtmlUrl(), token));
+			}
+			Found lookedUp = titled(row.repository(), workflowFile(row.workflowPath()), row.id(), row.createdAt(),
+					this.dispatching.botLogin(app), token);
+			return lookedUp.runId() == 0 ? Read.NONE
+					: new Read(lookedUp, read(row.repository(), lookedUp.runId(), lookedUp.htmlUrl(), token));
+		});
+		Found found = read.found();
+		if (found != null) {
+			recordQuietly(row.id(), "run", () -> this.correlations.runFound(row.id(), found.runId(), found.htmlUrl()));
+		}
+		Run run = read.run();
+		if (run == null) {
+			return Optional.empty();
+		}
+		recordQuietly(row.id(), "run read",
+				() -> this.correlations.runRead(row.id(), run.id(), run.htmlUrl(), run.conclusion(), run.marker()));
+		return Optional.of(run);
+	}
+
+	/** What a run read found: the run looked up by its title, when it was not known yet, and the run read. */
+	private record Read(@Nullable Found found, @Nullable Run run) {
+
+		static final Read NONE = new Read(null, null);
+
+	}
+
+	/**
+	 * The run's first attempt as GitHub shows it now ({@code /actions/runs/{id}/attempts/1}), with the quota marker read
+	 * from that attempt's jobs for a failure. Jobs that cannot be read leave the run unmarked.
+	 * @param knownUrl the page recorded when the run was found, kept before the attempt's own
+	 * @throws GitHubException when GitHub refuses the attempt or cannot be reached
+	 */
+	private Run read(String repository, long runId, @Nullable String knownUrl, InstallationToken token) {
+		String attempt = "/repos/" + repository + "/actions/runs/" + runId + "/attempts/1";
+		GitHubHttp.Answer answer = this.apps.http().send("GET", attempt, token.value(), null);
+		if (!answer.ok()) {
+			throw new GitHubException(answer.status(), "GitHub refused to read run " + runId + " of " + repository + ": HTTP "
+					+ answer.status());
+		}
+		JsonNode run = answer.body();
+		JsonNode shown = run.path("status");
+		RunStatus status = RunStatus.of(shown.isString() ? shown.asString() : null);
+		String conclusion = status == RunStatus.COMPLETED ? conclusion(run) : null;
+		RunMarker marker = null;
+		if ("failure".equals(conclusion)) {
+			GitHubHttp.Answer jobs = this.apps.http().send("GET", attempt + "/jobs?per_page=100", token.value(), null);
+			if (jobs.ok()) {
+				marker = noJobStarted(jobs.body().path("jobs")) ? RunMarker.ACTIONS_QUOTA : null;
+			}
+			else {
+				log.warn("The jobs of run {} of {} were not read: HTTP {}; the failure is not marked", runId, repository,
+						jobs.status());
+			}
+		}
+		String htmlUrl = knownUrl != null ? knownUrl : htmlUrl(run);
+		return new Run(runId, htmlUrl, status, conclusion, marker);
+	}
+
+	/** Whether the jobs listed are some, and none of them started: no steps, and no runner. */
+	private static boolean noJobStarted(JsonNode jobs) {
+		if (!jobs.isArray() || jobs.isEmpty()) {
+			return false;
+		}
+		for (JsonNode job : jobs) {
+			boolean steps = job.path("steps").isArray() && !job.path("steps").isEmpty();
+			boolean runner = job.path("runner_id").asLong(0) > 0 || !text(job.path("runner_name")).isBlank();
+			if (steps || runner) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** The target as the dispatching App reads it, with its workflow file accepted on the default branch. */
 	private record Target(String fullName, String defaultBranch) {
+	}
+
+	/** A run GitHub named, or found by its title: its ID (0 for none) and its page. */
+	private record Found(long runId, @Nullable String htmlUrl) {
+
+		static final Found NONE = new Found(0, null);
+
 	}
 
 	private Target target(Dispatch dispatch, InstallationToken token) {
@@ -142,15 +281,13 @@ class GitHubActionsRuns implements ActionsRuns {
 		return new Target(fullName, branch);
 	}
 
-	/** The run's ID: GitHub's answer to the dispatch, else the run whose title holds the correlation; 0 for none. */
-	private long dispatchAndFind(Target target, String workflow, UUID id, Map<String, String> inputs,
-			InstallationToken token) {
-		String actions = "/repos/" + target.fullName() + "/actions";
+	/** Dispatches the run: GitHub's answer names it, or {@link Found#NONE} when GitHub answers 204. */
+	private Found dispatched(Target target, String workflow, Map<String, String> inputs, InstallationToken token) {
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("ref", target.defaultBranch());
 		body.put("inputs", inputs);
 		body.put("return_run_details", true);
-		String path = actions + "/workflows/" + workflow + "/dispatches";
+		String path = "/repos/" + target.fullName() + "/actions/workflows/" + workflow + "/dispatches";
 		GitHubHttp.Answer dispatched = this.apps.http().send("POST", path, token.value(), body);
 		if (dispatched.status() == 422 && dispatched.body().path("message").asString("").contains("return_run_details")) {
 			body.remove("return_run_details");
@@ -161,7 +298,23 @@ class GitHubActionsRuns implements ActionsRuns {
 					+ target.fullName() + ": HTTP " + dispatched.status() + " " + dispatched.body().path("message").asString(""));
 		}
 		long runId = runId(dispatched.body());
-		return runId > 0 ? runId : findByTitle(actions, workflow, id, token);
+		return runId > 0 ? new Found(runId, htmlUrl(dispatched.body())) : Found.NONE;
+	}
+
+	/**
+	 * The lookup after a dispatch GitHub accepted: the run is live and its correlation open, so a lookup that fails
+	 * (its token, or GitHub's answer) leaves the run for {@link #run} to find, rather than failing the dispatch, which a
+	 * caller's retry would turn into a second run.
+	 */
+	private static Found afterDispatch(UUID id, Supplier<Found> lookup) {
+		try {
+			return lookup.get();
+		}
+		catch (GitHubException ex) {
+			log.warn("The run dispatched under correlation {} was not looked up: HTTP {}; a run read finds it later", id,
+					ex.status());
+			return Found.NONE;
+		}
 	}
 
 	/** The run ID a 200 from the dispatch carries. */
@@ -176,24 +329,75 @@ class GitHubActionsRuns implements ActionsRuns {
 		return nested.isIntegralNumber() ? Math.max(0, nested.longValue()) : 0;
 	}
 
-	/** The run whose title holds the correlation, looked for every {@code findPoll} for {@code findWindow}. */
-	private long findByTitle(String actions, String workflow, UUID id, InstallationToken token) {
+	/** The run {@link #titled} finds, looked for every {@code findPoll} for {@code findWindow}. */
+	private Found findByTitle(String repository, String workflow, UUID id, Instant since, String bot,
+			InstallationToken token) {
 		long waited = 0;
 		while (true) {
-			GitHubHttp.Answer runs = this.apps.http()
-				.send("GET", actions + "/workflows/" + workflow + "/runs?event=workflow_dispatch&per_page=30", token.value(),
-						null);
-			for (JsonNode run : runs.body().path("workflow_runs")) {
-				if (run.path("display_title").asString(run.path("name").asString("")).contains(id.toString())) {
-					return run.path("id").asLong();
-				}
-			}
-			if (waited >= this.waits.findWindow().toMillis()) {
-				return 0;
+			Found found = titled(repository, workflow, id, since, bot, token);
+			if (found.runId() > 0 || waited >= this.waits.findWindow().toMillis()) {
+				return found;
 			}
 			sleep(this.waits.findPoll());
 			waited += Math.max(1, this.waits.findPoll().toMillis());
 		}
+	}
+
+	/**
+	 * One look at the workflow's runs dispatched since the correlation was recorded ({@code since}, less
+	 * {@link #CLOCK_SKEW}), up to 100, for the one whose title holds the correlation and whose triggering actor is the
+	 * dispatching App's bot: a run someone else dispatched with the correlation copied into its title is not it.
+	 * @throws GitHubException when GitHub refuses the list or cannot be reached
+	 */
+	private Found titled(String repository, String workflow, UUID id, Instant since, String bot, InstallationToken token) {
+		String created = URLEncoder.encode(">=" + DateTimeFormatter.ISO_INSTANT.format(since.minus(CLOCK_SKEW)
+			.truncatedTo(ChronoUnit.SECONDS)), StandardCharsets.UTF_8);
+		GitHubHttp.Answer runs = this.apps.http()
+			.send("GET", "/repos/" + repository + "/actions/workflows/" + workflow + "/runs?event=workflow_dispatch&created="
+					+ created + "&per_page=100", token.value(), null);
+		if (!runs.ok()) {
+			throw new GitHubException(runs.status(), "GitHub refused to list the runs of " + workflow + " on " + repository
+					+ ": HTTP " + runs.status());
+		}
+		for (JsonNode run : runs.body().path("workflow_runs")) {
+			if (run.path("display_title").asString(run.path("name").asString("")).contains(id.toString())
+					&& bot.equalsIgnoreCase(text(run.path("triggering_actor").path("login")))) {
+				return new Found(run.path("id").asLong(), htmlUrl(run));
+			}
+		}
+		return Found.NONE;
+	}
+
+	/** The workflow's file name, from its path in {@code .github/workflows/}. */
+	private static String workflowFile(String workflowPath) {
+		return workflowPath.substring(workflowPath.lastIndexOf('/') + 1);
+	}
+
+	/** A write to the correlation after the dispatch, best-effort: what GitHub said is answered anyway. */
+	private void recordQuietly(UUID id, String what, Runnable write) {
+		try {
+			this.transactions.executeWithoutResult(status -> write.run());
+		}
+		catch (RuntimeException failed) {
+			log.warn("The {} of correlation {} was not recorded: {}", what, id, failed.getClass().getSimpleName());
+		}
+	}
+
+	/** The {@code html_url} GitHub showed, when it is one the table keeps; none otherwise. */
+	private static @Nullable String htmlUrl(JsonNode body) {
+		String url = text(body.path("html_url"));
+		return HTML_URL.matcher(url).matches() ? url : null;
+	}
+
+	/** The run's {@code conclusion}, when GitHub named one the table keeps; none otherwise. */
+	private static @Nullable String conclusion(JsonNode run) {
+		String conclusion = text(run.path("conclusion"));
+		return CONCLUSION.matcher(conclusion).matches() ? conclusion : null;
+	}
+
+	/** A string node's text; empty for anything else, {@code null} included. */
+	private static String text(JsonNode node) {
+		return node.isString() ? node.asString() : "";
 	}
 
 	/**
