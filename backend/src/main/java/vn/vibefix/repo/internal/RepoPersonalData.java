@@ -19,9 +19,10 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code repo}'s part in exports, erasure, and Product deletion (AD-24): a person exports their
- * data-deletion confirmations, their access grants, and the Revocation Checklist rows naming them after they left; erasing
- * them deletes the first two (the Audit Log keeps when each grant was made) and anonymizes the rows, whose to-dos close;
- * deleting a Product deletes its Jobs' rows and Setups, requests the deletion of
+ * data-deletion confirmations, their access grants, their J7 self-confirmations (Story 23.6b), and the Revocation
+ * Checklist rows naming them after they left; erasing them deletes the first two (the Audit Log keeps when each grant
+ * was made) and anonymizes the self-confirmations, which stay the Job's record of what was confirmed, and the rows,
+ * whose to-dos close; deleting a Product deletes its Jobs' rows, self-confirmations and Setups, requests the deletion of
  * the platform repositories still there at once, without a ZIP, and deletes any final ZIP (FR-21, NFR-10).
  */
 @Component
@@ -47,7 +48,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("repo.data_deletion_confirmation", "repo.job_grant", "repo.final_merge_authorization",
-				"repo.revocation_item");
+				"repo.revocation_item", "repo.source_confirmation");
 	}
 
 	@Override
@@ -104,7 +105,18 @@ class RepoPersonalData implements PersonalDataParticipant {
 			row.put("at", rs.getTimestamp("created_at").toInstant().toString());
 			return row;
 		}).list();
-		if (confirmations.isEmpty() && grants.isEmpty() && revocations.isEmpty()) {
+		List<Map<String, Object>> selfConfirmations = this.jdbc.sql("""
+				SELECT job_id, head_sha, notice_version, confirmed_at FROM repo.source_confirmation WHERE account_id = :id
+				ORDER BY confirmed_at, id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("headSha", rs.getString("head_sha"));
+			row.put("noticeVersion", rs.getString("notice_version"));
+			row.put("at", rs.getTimestamp("confirmed_at").toInstant().toString());
+			return row;
+		}).list();
+		if (confirmations.isEmpty() && grants.isEmpty() && revocations.isEmpty() && selfConfirmations.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -117,6 +129,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 		if (!revocations.isEmpty()) {
 			data.put("revocationItems", revocations);
 		}
+		if (!selfConfirmations.isEmpty()) {
+			data.put("sourceSelfConfirmations", selfConfirmations);
+		}
 		return Optional.of(new PersonalDataSection("repo", data));
 	}
 
@@ -124,6 +139,9 @@ class RepoPersonalData implements PersonalDataParticipant {
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("UPDATE repo.source_confirmation SET account_id = NULL WHERE account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("UPDATE repo.final_merge_authorization SET customer_account_id = NULL WHERE customer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -155,6 +173,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.final_merge WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM repo.source_confirmation WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}
 

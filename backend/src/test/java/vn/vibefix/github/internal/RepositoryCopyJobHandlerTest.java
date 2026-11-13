@@ -20,7 +20,10 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
-/** AD-11, AD-32: the copy pushes exactly the approved commit, keeping its ID, and nothing else. */
+/**
+ * AD-11, AD-32: the copy pushes exactly the approved commit, keeping its ID, and nothing else. Its source is always a
+ * private platform repository read with its own token (Story 23.6b): nothing is cloned anonymously.
+ */
 class RepositoryCopyJobHandlerTest {
 
 	@TempDir
@@ -93,6 +96,17 @@ class RepositoryCopyJobHandlerTest {
 		assertThatThrownBy(() -> this.handler.handle(blankSourceToken)).isInstanceOf(IllegalArgumentException.class);
 	}
 
+	/** Story 23.6b: no source is cloned anonymously any more, so input without a source token is refused. */
+	@Test
+	void aCopyWithoutASourceTokenIsRefusedBeforeAnythingIsCloned() throws Exception {
+		ObjectNode anonymous = input(this.head);
+		anonymous.remove("sourceToken");
+
+		assertThatThrownBy(() -> this.handler.handle(anonymous)).isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("sourceToken is required");
+		assertThat(this.git.head("vibefix-dev", "job-intermediary", "main")).as("nothing was pushed").isNull();
+	}
+
 	/**
 	 * Story 23.3: a private platform source is cloned with its own read token. A {@code file://} remote takes no
 	 * credentials, so this shows the handler accepts the token and copies as before; the narrowing is shown where
@@ -100,7 +114,7 @@ class RepositoryCopyJobHandlerTest {
 	 */
 	@Test
 	void aPrivateSourceIsClonedWithItsOwnReadToken() throws Exception {
-		JsonNode output = this.handler.handle(input(this.head).put("sourceToken", String.join("", "gh", "s_", "r".repeat(36))));
+		JsonNode output = this.handler.handle(input(this.head));
 
 		assertThat(output.path("pushed").asString()).isEqualTo(this.head);
 		assertThat(output.toString()).as("no token in the output").doesNotContain("rrrrrrrr");
@@ -114,6 +128,7 @@ class RepositoryCopyJobHandlerTest {
 		input.put("branch", "main");
 		// A fake token, built at run time: file:// remotes ignore it.
 		input.put("token", String.join("", "gh", "s_", "x".repeat(36)));
+		input.put("sourceToken", String.join("", "gh", "s_", "r".repeat(36)));
 		return input;
 	}
 

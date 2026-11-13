@@ -2532,6 +2532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/setup/confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmSourceClean"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/setup/retry": {
         parameters: {
             query?: never;
@@ -7405,12 +7421,31 @@ export interface components {
             status: "ANONYMOUS" | "SIGNING_UP" | "LOCKED" | "SIGNED_IN";
             supportEmail?: string;
         };
+        SetupConfirmationRequest: {
+            noticeVersion: string;
+            sha: string;
+        };
+        SetupConfirmationView: {
+            /** Format: date-time */
+            confirmedAt: string;
+            sha: string;
+        };
+        SetupHeadView: {
+            /** Format: date-time */
+            readAt: string;
+            sha: string;
+        };
         SetupPersonView: {
             /** Format: date-time */
             expiresAt?: string;
             githubUrl?: string;
             name: string;
             role: string;
+            state: string;
+        };
+        SetupRunView: {
+            conclusion?: string;
+            htmlUrl?: string;
             state: string;
         };
         SetupStepView: {
@@ -7420,10 +7455,14 @@ export interface components {
         SetupView: {
             blockedReason?: string;
             canRetry: boolean;
+            confirmation?: components["schemas"]["SetupConfirmationView"];
+            exchangeReason?: string;
+            head?: components["schemas"]["SetupHeadView"];
             /** Format: uuid */
             jobId: string;
             jobState: string;
             people: components["schemas"]["SetupPersonView"][];
+            run?: components["schemas"]["SetupRunView"];
             status: string;
             steps: components["schemas"]["SetupStepView"][];
         };
@@ -12444,6 +12483,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupView"];
+                };
+            };
+        };
+    };
+    confirmSourceClean: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupConfirmationRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

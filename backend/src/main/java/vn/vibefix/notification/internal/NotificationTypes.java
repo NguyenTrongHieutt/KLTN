@@ -37,6 +37,14 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of("job"));
 
 	/**
+	 * J7's self-confirmation (R4, UX-DR118, Story 23.6b): once the Source App and {@code vibefix.yml} check passed, and
+	 * again when the head moved after a confirmation, the Customer confirms the default branch's head is clean (N-32),
+	 * by the FR-40 Starting stall; it closes on the confirmation, a block, or the Job leaving Starting.
+	 */
+	static final TodoType REPO_CONFIRM_SOURCE_CLEAN = new TodoType("repo.confirm_source_clean", Set.of(Audience.CUSTOMER),
+			2, Set.of("job"));
+
+	/**
 	 * After registration, a check finds the Source App uninstalled or no longer on exactly the Source Repository (R2,
 	 * R7, Story 23.5c): the Product's owner, until a check finds it ready. The CUSTOMER audience in a Job is Story 23.6's.
 	 */
@@ -421,7 +429,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType OPERATIONS_REVOCATION_DELAYED = new NotificationType("operations.revocation_delayed",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("login", "job"));
 
-	/** A Code Job's Setup stopped on something the Customer can fix (FR-18): the Customer, and the Mentor to know. */
+	/**
+	 * J7 waits for the Customer's self-confirmation of the head (R4, UX-DR118, Story 23.6b): once the Source App and
+	 * {@code vibefix.yml} check passed, and again for a new head when the head moved after a confirmation. The body names
+	 * the head's short SHA and says vibefix scans no code.
+	 */
+	static final NotificationType REPO_SELF_CONFIRMATION_DUE = new NotificationType("repo.self_confirmation_due",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "sha"));
+
+	/**
+	 * A Code Job's Setup stopped on something the Customer can fix, or its copy run on the Customer's GitHub Actions
+	 * could not finish (FR-18, Story 23.6b): the Customer, and the Mentor to know.
+	 */
 	static final NotificationType REPO_JOB_START_BLOCKED = new NotificationType("repo.job_start_blocked",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("job", "reason"));
@@ -894,7 +913,8 @@ class NotificationTypes implements NotificationCatalog {
 		return List.of(SCHOOL_EMAIL_CODE, VERIFICATION_EXPIRING, VERIFICATION_EXPIRED, ADMIN_SIGN_IN_LOCKED,
 				OPERATIONS_OPERATION_FAILED, OPERATIONS_EMAIL_OPERATION_FAILED, OPERATIONS_EVENT_PUBLICATION_STALLED,
 				OPERATIONS_BUSY_MARKER_STUCK,
-				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_JOB_START_BLOCKED, JOB_JOB_STARTED,
+				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_SELF_CONFIRMATION_DUE, REPO_JOB_START_BLOCKED,
+				JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
 				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
@@ -938,7 +958,7 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(IDENTITY_LINK_GITHUB, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
-				REPO_ACCEPT_GITHUB_INVITATION, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
+				REPO_CONFIRM_SOURCE_CLEAN, REPO_ACCEPT_GITHUB_INVITATION, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,

@@ -1481,6 +1481,9 @@
       "setup": {
         "title": "Chuẩn bị kho mã",
         "stepCHECK": "Kiểm tra lại dự án gốc",
+        "stepCONFIRM": "Xác nhận dự án gốc đã sạch",
+        "stepREPOSITORIES": "Tạo kho riêng tư",
+        "stepCOPY": "Sao chép trên GitHub Actions của bạn",
         "stepINTERMEDIARY": "Tạo kho trung gian",
         "stepWORKING": "Tạo kho làm việc",
         "stepINVITE": "Mời người hướng dẫn và nhóm trên GitHub",
@@ -1508,7 +1511,11 @@
         "blockedWORKFLOW_MISSING": "Dự án gốc chưa có file workflow vibefix.yml. Hãy thêm lại file trên GitHub rồi bấm Thử lại.",
         "blockedWORKFLOW_MISMATCH": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố. Hãy thêm lại file đúng nội dung rồi bấm Thử lại.",
         "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.",
+        "blockedEXCHANGE_REFUSED": "GitHub chưa xác nhận được lần chạy sao chép. vibefix đã báo quản trị viên; bạn chưa cần làm gì.",
+        "blockedRUN_FAILED": "Lần chạy trên GitHub Actions chưa xong: sao chép dự án gốc. vibefix đã báo quản trị viên.",
+        "blockedACTIONS_QUOTA": "GitHub Actions của dự án gốc đã hết số phút trong tháng, nên việc sao chép chưa chạy được. Hãy thử lại khi GitHub cấp thêm phút, hoặc nâng gói trên GitHub.",
         "blockedOther": "Đang chờ khách hàng xử lý ở dự án gốc.",
+        "staleHead": "Dự án gốc có lần lưu mới sau khi trang này hiện lần lưu cần xác nhận. Hãy tải lại trang.",
         "failed": "Chưa tạo được kho mã. Quản trị viên đã được báo; bạn chưa cần làm gì.",
         "retry": "Thử lại"
       },
@@ -4159,6 +4166,7 @@
       "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
       "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
+      "confirm_source_clean": "Xác nhận dự án gốc của {job} đã sạch khóa bí mật",
       "authorize_final_merge": "Cho phép hợp nhất vào dự án của bạn",
       "revocation_item": "Thu hồi quyền {system}",
       "revocation_item_member": "Thu hồi quyền {system} của @{login}"
@@ -4567,6 +4575,10 @@
       "job_start_blocked": {
         "title": "Chưa thể bắt đầu {job}: {reason}"
       },
+      "self_confirmation_due": {
+        "title": "Hãy xác nhận dự án gốc đã sạch để bắt đầu {job}",
+        "body": "Lần lưu mới nhất của dự án gốc: {sha}. vibefix không quét mã của bạn: hãy chắc rằng mọi khóa bí mật trong lịch sử dự án đã được thu hồi hoặc đổi, và dữ liệu cá nhân của người dùng đã được xóa, rồi xác nhận."
+      },
       "github_invitation_sent": {
         "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}"
       },
@@ -4878,6 +4890,10 @@
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",
+      "SELF_CONFIRMATION_MISSING": "Bạn chưa xác nhận dự án gốc đã sạch khóa bí mật và dữ liệu cá nhân.",
+      "SETUP_NOT_CONFIRMING": "Việc chuẩn bị kho mã không còn chờ bạn xác nhận. Hãy tải lại trang.",
+      "NOTICE_REQUIRED": "Hãy đọc và đánh dấu đồng ý với thông báo mới nhất rồi xác nhận lại.",
+      "GITHUB_UNAVAILABLE": "Chưa đọc được dự án gốc trên GitHub. Hãy thử lại sau ít phút.",
       "JOB_NOT_STARTING": "Công việc không còn ở bước chờ bắt đầu.",
       "JOB_FROZEN": "Công việc đang tranh chấp, nên chưa thử lại được.",
       "NOTHING_TO_RECONFIRM": "Không có dự án gốc nào cần xác nhận lại.",

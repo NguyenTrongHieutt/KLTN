@@ -31,15 +31,15 @@ import vn.vibefix.shared.SandboxJobHandler;
  * {@value #TYPE} (AD-11, AD-32): the copy into a private platform repository. It bare-clones the source's
  * branch, with the object checker on, no submodules, and nothing checked out, and pushes exactly the
  * approved commit to the target's branch with the token it was given for the target, never forced. The
- * commit IDs are kept and no fork network is shared. A source that is itself a private platform
- * repository is cloned with its own token, narrowed to it with {@code contents} read; the public Source
- * Repository is cloned without one (until Story 23.6). Like every handler, a plain class that only the
- * sandbox worker (or the in-process stand-in) creates.
+ * commit IDs are kept and no fork network is shared. The source is always a private platform repository
+ * (the Source Repository is copied on the Customer's own GitHub Actions since Story 23.6b), cloned with its own
+ * token, narrowed to it with {@code contents} read; input without one is refused, so nothing is ever cloned
+ * anonymously. Like every handler, a plain class that only the sandbox worker (or the in-process stand-in) creates.
  * <p>
  * Input: {@code source} and {@code target} ({@code owner/name}), {@code sha}, {@code branch}, and
  * {@code token}; {@code sourceBranch} when the commit is read on another branch than the one pushed, such
- * as a Handover Commit on the Working Repository's default branch (AD-11); {@code sourceToken} for a
- * private source. Output: {@code pushed} (the SHA), or {@code refused}: {@value #SHA_NOT_FOUND} when the
+ * as a Handover Commit on the Working Repository's default branch (AD-11); and {@code sourceToken}, the
+ * source's read token. Output: {@code pushed} (the SHA), or {@code refused}: {@value #SHA_NOT_FOUND} when the
  * branch no longer holds the commit, or {@value #PUSH_REFUSED}.
  */
 final class RepositoryCopyJobHandler implements SandboxJobHandler {
@@ -87,9 +87,9 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 		if (token.isBlank()) {
 			throw new IllegalArgumentException("token is required");
 		}
-		String sourceToken = input.has("sourceToken") ? input.path("sourceToken").asString("") : null;
-		if (sourceToken != null && sourceToken.isBlank()) {
-			throw new IllegalArgumentException("sourceToken is blank");
+		String sourceToken = input.path("sourceToken").asString("");
+		if (sourceToken.isBlank()) {
+			throw new IllegalArgumentException("sourceToken is required");
 		}
 		Path directory;
 		try {
@@ -112,10 +112,8 @@ final class RepositoryCopyJobHandler implements SandboxJobHandler {
 				transport.setCheckFetchedObjects(true);
 				transport.setObjectChecker(checker);
 			});
-		if (sourceToken != null) {
-			// A private platform repository: read with its own token, which only the credentials provider holds.
-			clone.setCredentialsProvider(new UsernamePasswordCredentialsProvider("x-access-token", sourceToken));
-		}
+		// A private platform repository: read with its own token, which only the credentials provider holds.
+		clone.setCredentialsProvider(new UsernamePasswordCredentialsProvider("x-access-token", sourceToken));
 		try (Git git = clone.call()) {
 			ObjectId commit = ObjectId.fromString(sha);
 			if (!onBranch(git, sourceBranch, commit)) {

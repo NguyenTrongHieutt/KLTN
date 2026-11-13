@@ -141,6 +141,10 @@ class RunnerDispatchCommandTest {
 				return Optional.empty();
 			}
 
+			@Override
+			public void close(UUID correlation) {
+			}
+
 		};
 	}
 

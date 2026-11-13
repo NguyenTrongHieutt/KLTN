@@ -12,6 +12,18 @@ enum RepoReason {
 	/** "Thử lại" starts a new Setup only after a block (Story 7.2). */
 	SETUP_NOT_BLOCKED,
 
+	/** The Setup waits for the Customer's self-confirmation of the head before anything is copied (R4, Story 23.6b). */
+	SELF_CONFIRMATION_MISSING,
+
+	/** A self-confirmation is recorded only while the Setup waits for one, its head read (Story 23.6b). */
+	SETUP_NOT_CONFIRMING,
+
+	/** A self-confirmation names N-32's current version (Story 23.6b). */
+	NOTICE_REQUIRED,
+
+	/** GitHub could not be read now, so nothing was recorded; try again (Story 23.6b). */
+	GITHUB_UNAVAILABLE,
+
 	/** A Setup runs only while a Code Job is Starting (AD-11). */
 	JOB_NOT_STARTING,
 
