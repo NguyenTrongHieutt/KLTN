@@ -1478,6 +1478,13 @@
         "reconfirm": "Xác nhận lại dự án gốc",
         "reconfirmAction": "xác nhận lại dự án gốc"
       },
+      "intermediary": {
+        "title": "Lời mời đọc kho trung gian",
+        "opening": "Đang mở lời mời trên GitHub…",
+        "open": "Mở trên GitHub (github.com)",
+        "none": "Bạn không có lời mời đọc kho trung gian nào đang mở ở công việc này.",
+        "back": "Về trang công việc"
+      },
       "setup": {
         "title": "Chuẩn bị kho mã",
         "stepCHECK": "Kiểm tra ứng dụng vibefix và file workflow",
@@ -1494,6 +1501,10 @@
         "personACCEPTED": "đã chấp nhận",
         "personWRITE": "đã có quyền ghi",
         "personMEMBER_DRIFT": "đang chờ quản trị viên xử lý trên GitHub",
+        "personCustomer": "Khách hàng",
+        "personCustomerOwn": "{login} (bạn)",
+        "customerRead": "quyền đọc kho trung gian",
+        "customerOptional": "Không bắt buộc: công việc vẫn bắt đầu khi bạn chưa chấp nhận, và bạn vẫn xem bàn giao trên vibefix.",
         "openGitHub": "Mở trên GitHub",
         "stateDONE": "Xong",
         "stateCURRENT": "Đang làm",
@@ -2958,9 +2969,9 @@
         "CREW": "{name}: xác nhận đã xóa dữ liệu của khách hàng",
         "TEAM": "Nhóm thực hiện của người hướng dẫn: xác nhận đã xóa dữ liệu của khách hàng",
         "mine": "Xác nhận đã xóa dữ liệu",
-        "lead": "Công việc đã kết thúc. Hãy xóa dữ liệu của khách hàng rồi đánh dấu từng mục.",
+        "lead": "Công việc đã kết thúc. Hãy xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của bạn, cùng dữ liệu của họ, rồi đánh dấu từng mục.",
         "notYet": "Bạn đánh dấu được sau khi công việc bắt đầu kết thúc.",
-        "NON_CODE_DATA": "Đã xóa bản sao mã nguồn và dữ liệu của khách hàng trên máy của tôi: mã, khóa, bản sao cơ sở dữ liệu, tệp",
+        "NON_CODE_DATA": "Đã xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của tôi, cùng dữ liệu của họ: khóa, bản sao cơ sở dữ liệu, tệp",
         "PREVIEWS": "Đã xóa các bản xem thử tôi đã triển khai",
         "confirmedAt": "Đã xác nhận {time}",
         "dialogTitle": "Xác nhận đã xóa?",
@@ -4211,8 +4222,9 @@
       "approve_follow_ups": "Xem các công việc tiếp theo cho {job}"
     },
     "repo": {
-      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu và bản xem thử của {job}",
+      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu, bản sao mã trên máy và bản xem thử của {job}",
       "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
+      "accept_intermediary_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời đọc kho trung gian của {job} (không bắt buộc)",
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
       "confirm_source_clean": "Xác nhận dự án gốc của {job} đã sạch khóa bí mật",
       "authorize_final_merge": "Cho phép hợp nhất vào dự án của bạn",
@@ -4629,6 +4641,10 @@
       },
       "github_invitation_sent": {
         "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}"
+      },
+      "intermediary_invitation_sent": {
+        "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
+        "body": "Lời mời cho bạn quyền đọc kho trung gian trên GitHub: xem, tải và clone mã, không sửa được. Lời mời không bắt buộc: bạn vẫn xem và nghiệm thu bàn giao trên vibefix khi chưa chấp nhận. Bạn giữ quyền đọc khi vibefix còn giữ kho trung gian, thường đến 30 ngày sau khi công việc kết thúc."
       },
       "two_factor_required": {
         "title": "Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}"

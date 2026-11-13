@@ -269,26 +269,57 @@ class JobSetupIT extends IntegrationTest {
 	void everyoneAcceptsWithTwoFactorOnThenWriteIsReadBackAndOnlyThenJ7Applies() throws Exception {
 		String mentorLogin = TestPeople.login(this.jdbc, this.mentor);
 		String crewLogin = TestPeople.login(this.jdbc, this.crew);
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
 		setUpTheRepositories();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
 		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("INVITED");
-		assertThat(this.grants.ofJob(this.job)).hasSize(2).allSatisfy(grant -> assertThat(grant.expiresAt())
+		assertThat(this.grants.ofJob(this.job)).hasSize(3).allSatisfy(grant -> assertThat(grant.expiresAt())
 			.isEqualTo(this.clock.instant().plus(Duration.ofDays(7))));
-		assertThat(notices("repo.github_invitation_sent")).isEqualTo(2);
+		// Story 23.7 (R5): the team on the Working Repository, the Customer with read on the Intermediary.
+		assertThat(teamGrants()).extracting(JobGrants.Grant::repositoryName)
+			.containsOnly(GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job));
+		assertThat(customerGrant().repositoryName()).isEqualTo(GitHubStub.ORGANIZATION + "/" + JobSetups.intermediaryName(this.job));
+		assertThat(customerGrant().role()).isEqualTo("CUSTOMER");
+		assertThat(GITHUB.seen).as("invited with read, like everyone")
+			.anyMatch(seen -> seen.method().equals("PUT")
+					&& seen.path().equals("/repos/" + GitHubStub.ORGANIZATION + "/" + JobSetups.intermediaryName(this.job)
+							+ "/collaborators/" + customerLogin)
+					&& seen.body().path("permission").asString("").equals("pull"));
+		assertThat(notices("repo.github_invitation_sent")).as("the team's").isEqualTo(2);
+		assertThat(this.jdbc.sql("""
+				SELECT account_id || ' ' || link FROM notification.notification WHERE type = 'repo.intermediary_invitation_sent'
+				""").query(String.class).list()).as("the Customer's own, leading on to GitHub's invitation")
+			.containsExactly(this.customer + " /cong-viec/" + this.job + "/kho-trung-gian");
+		assertThat(this.jdbc.sql("SELECT link FROM notification.todo WHERE todo_key = 'repo.accept_intermediary_invitation'")
+			.query(String.class).single()).isEqualTo("/cong-viec/" + this.job + "/kho-trung-gian");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.accept_github_invitation'")
 			.query(Long.class).single()).isEqualTo(2);
+		assertThat(this.jdbc.sql("""
+				SELECT deadline_at FROM notification.todo
+				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
+				""").param("customer", this.customer).query(Timestamp.class).single().toInstant())
+			.as("the Customer's own to-do, due at the invitation's expiry")
+			.isCloseTo(this.clock.instant().plus(Duration.ofDays(7)),
+					org.assertj.core.api.Assertions.within(1, java.time.temporal.ChronoUnit.SECONDS));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.steps[4].key").value("INVITE"))
 			.andExpect(jsonPath("$.steps[4].state").value("CURRENT"))
 			.andExpect(jsonPath("$.people[0].name").value("Đỗ Mạnh Hùng"))
 			.andExpect(jsonPath("$.people[1].name").value("@" + crewLogin))
 			.andExpect(jsonPath("$.people[1].state").value("INVITED"))
-			.andExpect(jsonPath("$.people[1].githubUrl").doesNotExist());
+			.andExpect(jsonPath("$.people[1].githubUrl").doesNotExist())
+			.andExpect(jsonPath("$.people[2].role").value("CUSTOMER"))
+			.andExpect(jsonPath("$.people[2].name").value("@" + customerLogin))
+			.andExpect(jsonPath("$.people[2].state").value("INVITED"))
+			.andExpect(jsonPath("$.people[2].githubUrl").value(org.hamcrest.Matchers.endsWith("-intermediary/invitations")));
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.crew, Role.STUDENT)))
 			.andExpect(jsonPath("$.people[1].name").value("Lê Thảo Vy"))
 			.andExpect(jsonPath("$.people[1].githubUrl").value(org.hamcrest.Matchers.endsWith("-working/invitations")))
-			.andExpect(jsonPath("$.people[0].githubUrl").doesNotExist());
+			.andExpect(jsonPath("$.people[0].githubUrl").doesNotExist())
+			.andExpect(jsonPath("$.people[2].role").value("CUSTOMER"))
+			.andExpect(jsonPath("$.people[2].name").value(""))
+			.andExpect(jsonPath("$.people[2].githubUrl").doesNotExist());
 
 		GITHUB.accept(mentorLogin);
 		this.checks.check(this.job);
@@ -303,17 +334,58 @@ class JobSetupIT extends IntegrationTest {
 
 		GITHUB.withoutTwoFactor.clear();
 		this.checks.check(this.job);
-		assertThat(this.busy.job(this.job).orElseThrow().busy()).hasValueSatisfying(
-				marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the Customer's pending read holds nothing back (R5)")
+			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
 		assertThat(this.busy.job(this.job).orElseThrow().state()).as("not Active before the read-back").isEqualTo("STARTING");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.steps[4].state").value("DONE"))
+			.andExpect(jsonPath("$.people[2].state").value("INVITED"));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
-		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("WRITE");
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("WRITE");
+		assertThat(customerGrant().status()).as("never raised, never waited for").isEqualTo("INVITED");
 		assertThat(notices("job.job_started")).as("the Customer, the Mentor, and the Crew").isEqualTo(3);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_raised' AND job_id = :job")
 			.param("job", this.job).query(Long.class).single()).isEqualTo(2);
+
+		// After J7 the Customer accepts: ACCEPTED is their settled state, read only, and their to-do closes.
+		GITHUB.accept(customerLogin);
+		this.checks.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
+				vn.vibefix.github.GitHubApps.App.PLATFORM, "member", "added", 7L, List.of(customerGrant().repositoryId()), 1L,
+				null));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
+		assertThat(GITHUB.seen).as("the Customer is never raised on the Intermediary")
+			.noneMatch(seen -> seen.method().equals("PUT") && seen.path().endsWith("/collaborators/" + customerLogin)
+					&& seen.body().path("permission").asString("").equals("push"));
+		assertThat(this.grants.unsettledJobs()).as("settled at ACCEPTED").doesNotContain(this.job);
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo
+				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
+				""").param("customer", this.customer).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry e
+				WHERE e.action = 'repo.grant_accepted' AND e.job_id = :job
+				""").param("job", this.job).query(Long.class).single()).as("the Customer's acceptance, beside the team's")
+			.isEqualTo(3);
+		assertThat(sweep()).as("the Customer's read collaborator on the Intermediary is expected").isEmpty();
+
+		// The Customer's two-factor authentication off: audited only, never told, and their row reads its status.
+		GITHUB.withoutTwoFactor.add(customerLogin.toLowerCase(java.util.Locale.ROOT));
+		this.checks.check(this.job);
+		assertThat(customerGrant().twoFactorMissing()).isTrue();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'repo.grant_two_factor_missing' AND o.object_id = :grant
+				""").param("grant", customerGrant().id()).query(Long.class).single()).isOne();
+		assertThat(notices("repo.two_factor_required")).as("the Crew member's, earlier, only").isOne();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.people[2].role").value("CUSTOMER"))
+			.andExpect(jsonPath("$.people[2].state").value("ACCEPTED"));
+		GITHUB.withoutTwoFactor.clear();
 		awaitListeners();
 	}
 
@@ -638,6 +710,16 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(notices("github.operator_account_used")).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.foreign_pull_request_closed'")
 			.query(Long.class).single()).isOne();
+
+		// Story 23.7 (AD-12): the Customer counts as granted for member events on their Intermediary only.
+		long customerId = githubUserId(this.customer);
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		this.guard.hinted(webhook("member", intermediaryId, customerLogin, customerId));
+		assertThat(notices("github.unexpected_actor")).as("the Customer's acceptance on their Intermediary").isEqualTo(4);
+		this.guard.hinted(webhook("pull_request", intermediaryId, customerLogin, customerId));
+		assertThat(notices("github.unexpected_actor")).as("but not their pull request there").isEqualTo(5);
+		this.guard.hinted(webhook("member", workingId, customerLogin, customerId));
+		assertThat(notices("github.unexpected_actor")).as("nor anything on the Working Repository").isEqualTo(6);
 		awaitListeners();
 	}
 
@@ -675,7 +757,7 @@ class JobSetupIT extends IntegrationTest {
 
 		List<String> differences = sweep();
 
-		assertThat(differences).anyMatch(difference -> difference.contains("collaborators [mallory] on the Intermediary"))
+		assertThat(differences).anyMatch(difference -> difference.contains("collaborators {mallory=write} on the Intermediary"))
 			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + working + ": has_issues is on"))
 			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + working + ": public instead of private"))
 			.anyMatch(difference -> difference.equals(GitHubStub.ORGANIZATION + "/" + intermediary
@@ -794,18 +876,26 @@ class JobSetupIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/**
+	 * FR-21, R17: J8 revokes the Mentor's and the Crew's grants, read back; Story 23.7 (R5): the Customer's read of the
+	 * Intermediary stays, and "all revoked" does not count it.
+	 */
 	@Test
-	void j8RevokesEveryGrantAndReadsItBackWhileTheAdministratorsHearOfOneGitHubKeepsRefusing() throws Exception {
+	void j8RevokesEveryTeamGrantAndReadsItBackWhileTheAdministratorsHearOfOneGitHubKeepsRefusing() throws Exception {
 		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		active();
+		GITHUB.accept(TestPeople.login(this.jdbc, this.customer));
+		this.checks.check(this.job);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
 		GITHUB.unavailable.add("DELETE /repos/" + GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job)
 				+ "/collaborators/" + crewLogin);
 		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
 
 		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J8", "USER",
 				"ACTIVE", "CLOSING", 6, 1, Map.of()));
-		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("REVOKING");
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("REVOKING");
+		assertThat(customerGrant().status()).as("the Customer keeps reading the Intermediary").isEqualTo("ACCEPTED");
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
 		assertThat(grantStatus(this.mentor)).isEqualTo("REVOKED");
@@ -816,17 +906,39 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(notices("operations.revocation_delayed")).as("the Administrator, for the Crew member only").isOne();
 
 		GITHUB.unavailable.clear();
+		assertThat(this.context.getBean(FinalMerges.class).revoked(this.job)).as("one team grant is still revoking").isFalse();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
-		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
-		assertThat(this.grants.ofJob(this.job)).allSatisfy(grant -> assertThat(this.jdbc
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
+		assertThat(teamGrants()).allSatisfy(grant -> assertThat(this.jdbc
 			.sql("SELECT revoked_at FROM repo.job_grant WHERE id = :id").param("id", grant.id()).query(Timestamp.class).single())
 			.isNotNull());
-		assertThat(notices("repo.access_revoked")).isEqualTo(2);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
+		assertThat(this.context.getBean(FinalMerges.class).revoked(this.job)).as("the Customer's live read is not counted")
+			.isTrue();
+		assertThat(notices("repo.access_revoked")).as("the team only").isEqualTo(2);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_revoked' AND job_id = :job")
 			.param("job", this.job).query(Long.class).single()).as("per person and repository").isEqualTo(2);
-		assertThat(sweep()).as("nobody is left on the repositories").isEmpty();
+		assertThat(sweep()).as("nobody of the team is left, and the Customer reads the Intermediary").isEmpty();
 		awaitListeners();
+	}
+
+	/**
+	 * Story 23.7 (R17, AD-12): after J8 the sweep expects no team grant on the Working Repository, whatever the rows still
+	 * say, while the Customer's read on the Intermediary stays expected.
+	 */
+	@Test
+	void afterJ8TheSweepExpectsNoTeamGrantOnTheWorkingRepository() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		active();
+		String working = GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job);
+		assertThat(sweep()).as("Active: the team writes, the Customer is invited to read").isEmpty();
+
+		// J8 committed, and its revocation has not run: the team's rows still say WRITE.
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
+
+		assertThat(sweep()).singleElement().asString().startsWith(working + ": collaborators {").endsWith(" instead of {}");
+		assertThat(notices("github.platform_drift")).isOne();
 	}
 
 	@Test
@@ -855,10 +967,236 @@ class JobSetupIT extends IntegrationTest {
 				SELECT count(*) FROM notification.todo
 				WHERE todo_key = 'repo.accept_github_invitation' AND account_id = :account AND closed_at IS NULL
 				""").param("account", hai).query(Long.class).single()).isZero();
+		assertThat(customerGrant().status()).as("a member's lock or leaving revokes only their own").isEqualTo("INVITED");
 		assertThat(sweep()).as("no collaborator or invitation is left behind").isEmpty();
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.people.length()").value(1))
-			.andExpect(jsonPath("$.people[0].name").value("Đỗ Mạnh Hùng"));
+			.andExpect(jsonPath("$.people.length()").value(2))
+			.andExpect(jsonPath("$.people[0].name").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.people[1].role").value("CUSTOMER"));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.7 (FR-59, AD-19): a Customer's lock revokes their read on every Intermediary, read back, audited, with no
+	 * {@code repo.access_revoked}; their erasure revokes it too before the rows go, from a payload that names nobody.
+	 */
+	@Test
+	void aLockedOrErasedCustomerLosesTheirReadOnTheIntermediaryReadBack() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		active();
+		GITHUB.accept(customerLogin);
+		this.checks.check(this.job);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
+
+		this.revocations.locked(new AccountLocked(UUID.randomUUID(), this.customer, this.clock.instant()));
+		assertThat(customerGrant().status()).isEqualTo("REVOKING");
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).as("the team keeps working").containsOnly("WRITE");
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(customerGrant().status()).isEqualTo("REVOKED");
+		assertThat(GITHUB.seen).anyMatch(seen -> seen.method().equals("DELETE")
+				&& seen.path().equals("/repos/" + GitHubStub.ORGANIZATION + "/" + intermediary + "/collaborators/" + customerLogin));
+		assertThat(notices("repo.access_revoked")).as("the Customer is not told").isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_revoked' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).isOne();
+		assertThat(sweep()).as("nobody reads the Intermediary now").isEmpty();
+
+		// As if the read were live again (an unlocked Customer reads no more, so only a test brings it back): the
+		// Customer's erasure revokes it on GitHub before the rows go.
+		this.jdbc.sql("UPDATE repo.job_grant SET status = 'ACCEPTED', revoked_at = NULL WHERE id = :id")
+			.param("id", customerGrant().id()).update();
+		GITHUB.addCollaborator(intermediary, customerLogin, "read");
+		UUID grantId = customerGrant().id();
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.personalData.eraseAccount(this.customer));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_grant WHERE account_id = :id").param("id", this.customer)
+			.query(Long.class).single()).isZero();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.jdbc.sql("""
+				SELECT status || ' ' || payload::text FROM operations.external_operation
+				WHERE type = 'repo.grant_revoke' AND payload ->> 'grantId' = :grant AND payload ->> 'repositoryId' IS NOT NULL
+				""").param("grant", grantId.toString()).query(String.class).single())
+			.as("read back, from a payload naming the repository, never the person")
+			.startsWith("SUCCEEDED ")
+			.doesNotContain(customerLogin);
+		assertThat(sweep()).as("the Intermediary holds nobody").isEmpty();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.grant_revoked' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).isEqualTo(2);
+		this.clock.advance(Revocations.DELAY.plusSeconds(1));
+		this.deadlines.runDue();
+		assertThat(notices("operations.revocation_delayed")).as("both read back in time").isZero();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.7 (FR-21, AD-24): an erased Customer's revocation still not read back 15 minutes later alerts the
+	 * Administrators as any delayed revocation does, with no grant row and no login of theirs; once the repository is
+	 * gone, GitHub refuses a token narrowed to it (422), which means nothing is left to revoke.
+	 */
+	@Test
+	void anErasedCustomersRevocationAlertsWhenDelayedAndEndsOnARepositoryThatIsGone() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		active();
+		GITHUB.accept(customerLogin);
+		this.checks.check(this.job);
+		UUID grantId = customerGrant().id();
+		long intermediaryId = customerGrant().repositoryId();
+		GITHUB.unavailable.add("GET /repos/" + GitHubStub.ORGANIZATION + "/" + intermediary + "/collaborators");
+
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.personalData.eraseAccount(this.customer));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(erasureRevocation(grantId)).isEqualTo("PENDING");
+		this.clock.advance(Revocations.DELAY.plusSeconds(1));
+		this.deadlines.runDue();
+
+		assertThat(this.jdbc.sql("SELECT params ->> 'login' FROM notification.notification WHERE type = 'operations.revocation_delayed'")
+			.query(String.class).list()).as("the Administrator, naming no erased login").containsExactly(Revocations.ERASED_LOGIN);
+		assertThat(audits("repo.revocation_delayed")).isOne();
+
+		// The repository went meanwhile: a token narrowed to it is refused, so there is nothing to revoke.
+		GITHUB.unavailable.clear();
+		GITHUB.extra = (exchange, request, query) -> {
+			if (request.method().equals("POST") && request.path().endsWith("/access_tokens")
+					&& request.body().path("repository_ids").toString().equals("[" + intermediaryId + "]")) {
+				byte[] body = "{\"message\":\"There is at least one repository that does not exist\"}"
+					.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+				exchange.getResponseHeaders().add("Content-Type", "application/json");
+				exchange.sendResponseHeaders(422, body.length);
+				exchange.getResponseBody().write(body);
+				exchange.close();
+				return true;
+			}
+			return false;
+		};
+		try {
+			this.clock.advance(GrantRevokeOperation.RETRY.plusSeconds(1));
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		finally {
+			GITHUB.extra = (exchange, request, query) -> false;
+		}
+
+		assertThat(erasureRevocation(grantId)).isEqualTo("SUCCEEDED");
+		assertThat(audits("repo.grant_revoked")).isOne();
+		awaitListeners();
+	}
+
+	/** The status of the erased Customer's revocation of {@code grantId}. */
+	private String erasureRevocation(UUID grantId) {
+		return this.jdbc.sql("""
+				SELECT status FROM operations.external_operation
+				WHERE type = 'repo.grant_revoke' AND payload ->> 'grantId' = :grant AND payload ->> 'repositoryId' IS NOT NULL
+				""").param("grant", grantId.toString()).query(String.class).single();
+	}
+
+	/**
+	 * Story 23.7 (FR-19, SM-2, AD-12): on the Intermediary the live Customer's acceptance, their own {@code MemberEvent},
+	 * changes nothing, but any other event of theirs is reported; and the Customer as a collaborator on the Working
+	 * Repository is drift.
+	 */
+	@Test
+	void theSweepExemptsOnlyTheLiveCustomersMemberEventAndReportsTheCustomerOnWorking() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		String working = JobSetups.workingName(this.job);
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(customerLogin);
+		this.checks.check(this.job);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
+
+		GITHUB.eventActors.put(intermediary, List.of("vibefix-dev-platform[bot]", "MemberEvent:" + customerLogin));
+		assertThat(sweep()).as("the bot, and the Customer's acceptance").isEmpty();
+
+		GITHUB.eventActors.put(intermediary,
+				List.of("vibefix-dev-platform[bot]", "MemberEvent:" + customerLogin, "PushEvent:" + customerLogin));
+		assertThat(sweep()).singleElement().asString().isEqualTo(GitHubStub.ORGANIZATION + "/" + intermediary
+				+ ": recent changes by [" + customerLogin + "], not the System (SM-2)");
+		GITHUB.eventActors.remove(intermediary);
+
+		GITHUB.addCollaborator(working, customerLogin, "read");
+		assertThat(sweep()).singleElement().asString()
+			.startsWith(GitHubStub.ORGANIZATION + "/" + working + ": collaborators {")
+			.contains(customerLogin + "=read");
+		awaitListeners();
+	}
+
+	/** Story 23.7 (R5, FR-80): a Customer with no linked GitHub account is not invited; the team still is. */
+	@Test
+	void aCustomerWithNoLinkedGitHubIsNotInvitedAndTheTeamStillIs() throws Exception {
+		confirmTheHead();
+		run();
+		this.jdbc.sql("""
+				UPDATE identity.account SET github_user_id = NULL, github_login = NULL, github_linked_at = NULL,
+				    google_sub = :sub WHERE id = :id
+				""").param("sub", "google-" + this.customer).param("id", this.customer).update();
+		copyRunSucceeds();
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::role).containsExactly("MENTOR", "CREW");
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("INVITED");
+		assertThat(notices("repo.github_invitation_sent")).isEqualTo(2);
+		assertThat(notices("repo.intermediary_invitation_sent")).isZero();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.7 (AD-24): the Customer's export holds their read of the Intermediary with the role CUSTOMER, beside the
+	 * Mentor's grant on the Working Repository with the role MENTOR.
+	 */
+	@Test
+	void theCustomersReadIsExportedWithItsRoleAndRepository() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.personalData.export(this.customer).orElseThrow().data()).extractingByKey("repositoryGrants")
+			.asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
+			.singleElement()
+			.asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+			.containsEntry("role", "CUSTOMER")
+			.containsEntry("repository", GitHubStub.ORGANIZATION + "/" + JobSetups.intermediaryName(this.job))
+			.containsEntry("status", "INVITED");
+		assertThat(this.personalData.export(this.mentor).orElseThrow().data()).extractingByKey("repositoryGrants")
+			.asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
+			.singleElement()
+			.asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+			.containsEntry("role", "MENTOR")
+			.containsEntry("repository", GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job));
+	}
+
+	/**
+	 * Story 23.7: an ended Job is swept for the Customer's pending read only; a team member it counts is never granted
+	 * again, even with their revoked row gone, and nothing is sent to the Working Repository.
+	 */
+	@Test
+	void anEndedJobSweptForTheCustomersPendingReadGrantsNobodyOfTheTeamAgain() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+				"STARTING", "CANCELLED", 4, 1, Map.of()));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
+		this.jdbc.sql("DELETE FROM repo.job_grant WHERE job_id = :job AND account_id = :crew").param("job", this.job)
+			.param("crew", this.crew).update();
+		assertThat(this.grants.unsettledJobs()).as("the Customer's pending read").contains(this.job);
+		GITHUB.seen.clear();
+
+		this.checks.sweep();
+
+		assertThat(this.grants.ofJob(this.job)).noneMatch(grant -> grant.accountId().equals(this.crew));
+		assertThat(GITHUB.seen).noneMatch(seen -> seen.method().equals("PUT") && seen.path()
+			.startsWith("/repos/" + GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job) + "/collaborators/"));
 		awaitListeners();
 	}
 
@@ -873,18 +1211,35 @@ class JobSetupIT extends IntegrationTest {
 		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
 				"STARTING", "CANCELLED", 4, 1, Map.of()));
 		this.worker.runDue(Lane.GITHUB_SHORT);
-		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
-		assertThat(sweep()).as("the ended Job's repositories are still read, and hold nobody").isEmpty();
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("REVOKED");
+		assertThat(customerGrant().status()).as("the Customer reads until the deletion (R5)").isEqualTo("INVITED");
+		assertThat(sweep()).as("the ended Job's repositories are still read: nobody of the team, the Customer invited")
+			.isEmpty();
+		// Accepted on a Cancelled Job: recorded all the same until the deletion.
+		GITHUB.accept(TestPeople.login(this.jdbc, this.customer));
+		this.checks.sweep();
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
 		this.clock.advance(Duration.ofDays(29));
 		this.deadlines.runDue();
 		this.worker.runDue(Lane.GITHUB_LONG);
 		assertThat(GITHUB.deleted).doesNotContain(working, intermediary);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
 
 		this.clock.advance(Duration.ofDays(1).plusMinutes(1));
 		this.deadlines.runDue();
 		this.worker.runDue(Lane.GITHUB_LONG);
 
 		assertThat(GITHUB.deleted).containsSubsequence(working, intermediary);
+		// The deletion ends the Customer's read without a GitHub call: audited, its to-do closed.
+		assertThat(customerGrant().status()).isEqualTo("REVOKED");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry a
+				WHERE a.action = 'repo.grant_revoked' AND a.job_id = :job
+				""").param("job", this.job).query(Long.class).single()).as("the team's two and the Customer's").isEqualTo(3);
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo
+				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
+				""").param("customer", this.customer).query(Long.class).single()).isZero();
 		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
 			.param("job", this.job).query(UUID.class).single();
 		assertThat(this.jdbc.sql("SELECT purpose || ' ' || account_id || ' ' || kind FROM files.stored_file WHERE id = :id")
@@ -908,6 +1263,8 @@ class JobSetupIT extends IntegrationTest {
 	@Test
 	void deletingTheProductDeletesItsRepositoriesAtOnceWithoutAZipAndAnyStoredZip() throws Exception {
 		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		UUID customerRead = customerGrant().id();
 		Setup setup = this.setups.latest(this.job).orElseThrow();
 		org.springframework.transaction.support.TransactionTemplate transaction =
 				new org.springframework.transaction.support.TransactionTemplate(this.transactions);
@@ -928,6 +1285,15 @@ class JobSetupIT extends IntegrationTest {
 			.query(Timestamp.class).single()).isNotNull();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.repositories_deleted_with_product'"
 				+ " AND job_id = :job").param("job", this.job).query(Long.class).single()).isOne();
+		// Story 23.7 (R5): the Customer's read ended with the Product, audited before its row went, and its to-do closed.
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_grant WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT e.action FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action IN ('repo.grant_ended_with_product', 'repo.grant_revoked') AND o.object_id = :grant
+				""").param("grant", customerRead).query(String.class).list())
+			.as("not revoked by a read-back: ended with the Product").containsExactly("repo.grant_ended_with_product");
+		assertThat(openCustomerTodos()).isZero();
 	}
 
 	/** Setup, the invitations, both acceptances, and Verify: an Active Job whose Mentor and Crew hold write. */
@@ -1006,7 +1372,7 @@ class JobSetupIT extends IntegrationTest {
 			this.worker.runDue(Lane.GITHUB_SHORT);
 
 			assertThat(this.busy.job(this.job).orElseThrow().state()).as("the acceptance was matched by ID").isEqualTo("ACTIVE");
-			assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("WRITE");
+			assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("WRITE");
 
 			long workingId = GITHUB.organizationRepositoryId(JobSetups.workingName(this.job));
 			this.guard.hinted(webhook("pull_request", workingId, "thao-vy-moi", crewId));
@@ -1288,6 +1654,16 @@ class JobSetupIT extends IntegrationTest {
 			.orElseThrow();
 	}
 
+	/** The Mentor's and the Crew's grants on the Working Repository. */
+	private List<JobGrants.Grant> teamGrants() {
+		return this.grants.ofJob(this.job).stream().filter(JobGrants.Grant::team).toList();
+	}
+
+	/** The Customer's read grant on the Intermediary Repository (Story 23.7). */
+	private JobGrants.Grant customerGrant() {
+		return this.grants.ofJob(this.job).stream().filter(JobGrants.Grant::customer).findFirst().orElseThrow();
+	}
+
 	@Test
 	void theDailyPollWarnsOncePerChangeAndARenameWaitsForTheCustomersReconfirmation() throws Exception {
 		setUpTheRepositories();
@@ -1564,7 +1940,8 @@ class JobSetupIT extends IntegrationTest {
 		setUpTheRepositories();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
-		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsExactly("INVITED", "MEMBER_DRIFT");
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status)
+			.containsExactly("INVITED", "MEMBER_DRIFT", "INVITED");
 		assertThat(notices("repo.member_drift")).isOne();
 		GITHUB.accept(mentorLogin);
 		this.checks.check(this.job);
@@ -1574,7 +1951,8 @@ class JobSetupIT extends IntegrationTest {
 		this.checks.check(this.job);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
-		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsExactly("ACCEPTED", "INVITED");
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status)
+			.as("the Mentor, the Crew member, and the Customer last").containsExactly("ACCEPTED", "INVITED", "INVITED");
 		assertThat(this.grants.ofJob(this.job).get(1).renewals()).isOne();
 		awaitListeners();
 	}
@@ -1588,12 +1966,135 @@ class JobSetupIT extends IntegrationTest {
 		this.deadlines.runDue();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
-		assertThat(this.grants.ofJob(this.job)).allSatisfy(grant -> {
+		assertThat(this.grants.ofJob(this.job)).hasSize(3).allSatisfy(grant -> {
 			assertThat(grant.status()).isEqualTo("INVITED");
 			assertThat(grant.renewals()).isOne();
 		});
 		assertThat(notices("repo.github_invitation_sent")).as("each renewal is told").isEqualTo(4);
+		assertThat(notices("repo.intermediary_invitation_sent")).as("the Customer hears of the first only").isOne();
+		assertThat(customerTodoDue()).as("a renewal moves the Customer's to-do to its new expiry")
+			.isCloseTo(this.clock.instant().plus(Duration.ofDays(7)),
+					org.assertj.core.api.Assertions.within(1, java.time.temporal.ChronoUnit.SECONDS));
 		awaitListeners();
+	}
+
+	/**
+	 * Story 23.7 (AD-7, R5): the Customer's read invitation is renewed with read in any Job state, here after the Job
+	 * ended, at most {@value JobGrants#CUSTOMER_RENEWALS} times, each moving the to-do's due date and telling nobody; then
+	 * it stops quietly as {@code LAPSED}: its to-do closes, the event is audited, nobody is alerted, and it is settled.
+	 */
+	@Test
+	void theCustomersReadInvitationIsRenewedInAnyStateAtMostTwelveTimesThenStopsQuietly() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		active();
+		// J8, its revocation read back, then Closed: no deletion is scheduled within the renewals.
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING' WHERE id = :id").param("id", this.job).update();
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J8", "USER",
+				"ACTIVE", "CLOSING", 6, 1, Map.of()));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED' WHERE id = :id").param("id", this.job).update();
+		GITHUB.seen.clear();
+
+		for (int renewal = 1; renewal <= JobGrants.CUSTOMER_RENEWALS; renewal++) {
+			this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+			this.deadlines.runDue();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+			assertThat(customerGrant().renewals()).isEqualTo(renewal);
+			assertThat(customerGrant().status()).isEqualTo("INVITED");
+			assertThat(customerTodoDue()).isEqualTo(customerGrant().expiresAt());
+		}
+		assertThat(notices("repo.intermediary_invitation_sent")).as("the first invitation only").isOne();
+		assertThat(GITHUB.seen).as("each renewal is read only")
+			.filteredOn(seen -> seen.method().equals("PUT") && seen.path().endsWith("/collaborators/" + customerLogin))
+			.hasSize(JobGrants.CUSTOMER_RENEWALS)
+			.allSatisfy(seen -> assertThat(seen.body().path("permission").asString("")).isEqualTo("pull"));
+
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(customerGrant().status()).isEqualTo("LAPSED");
+		assertThat(customerGrant().renewals()).as("no more renewals").isEqualTo(JobGrants.CUSTOMER_RENEWALS);
+		assertThat(notices("repo.intermediary_invitation_sent")).isOne();
+		assertThat(openCustomerTodos()).as("its to-do closes").isZero();
+		assertThat(audits("repo.grant_renewals_exhausted")).isOne();
+		assertThat(notices("repo.invitation_renewals_exhausted")).as("nobody is alerted").isZero();
+		assertThat(sweep()).as("settled: the expired invitation GitHub still lists is no drift").isEmpty();
+		assertThat(this.grants.unsettledJobs()).doesNotContain(this.job);
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+		assertThat(customerGrant().renewals()).as("never renewed again").isEqualTo(JobGrants.CUSTOMER_RENEWALS);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.7 (R5): a Customer who declines the read invitation on GitHub (no invitation left, no collaborator) lapses,
+	 * quietly and settled; so does one who leaves the Intermediary after accepting. Neither is drift afterwards.
+	 */
+	@Test
+	void aCustomerWhoDeclinesOrLeavesTheirReadLapsesQuietly() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		active();
+		this.checks.check(this.job);
+		assertThat(customerGrant().status()).as("a pending invitation is no decline").isEqualTo("INVITED");
+		long told = this.jdbc.sql("SELECT count(*) FROM notification.notification").query(Long.class).single();
+
+		GITHUB.decline(customerLogin);
+		this.checks.check(this.job);
+
+		assertThat(customerGrant().status()).isEqualTo("LAPSED");
+		assertThat(audits("repo.grant_declined")).isOne();
+		assertThat(openCustomerTodos()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification").query(Long.class).single())
+			.as("nobody is told").isEqualTo(told);
+		assertThat(sweep()).isEmpty();
+		assertThat(this.grants.unsettledJobs()).doesNotContain(this.job);
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(customerGrant().status()).as("never renewed").isEqualTo("LAPSED");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.people[?(@.role == 'CUSTOMER')]").isEmpty());
+
+		// Accepted, then left: the same, read on the member event GitHub sends.
+		this.jdbc.sql("UPDATE repo.job_grant SET status = 'ACCEPTED', accepted_at = now() WHERE id = :id")
+			.param("id", customerGrant().id()).update();
+		GITHUB.addCollaborator(JobSetups.intermediaryName(this.job), customerLogin, "read");
+		assertThat(sweep()).as("a read collaborator").isEmpty();
+		GITHUB.leave(JobSetups.intermediaryName(this.job), customerLogin);
+		this.checks.hinted(new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
+				vn.vibefix.github.GitHubApps.App.PLATFORM, "member", "removed", 7L, List.of(customerGrant().repositoryId()), 1L,
+				null));
+
+		assertThat(customerGrant().status()).isEqualTo("LAPSED");
+		assertThat(audits("repo.grant_left")).isOne();
+		assertThat(sweep()).isEmpty();
+		assertThat(this.grants.unsettledJobs()).doesNotContain(this.job);
+		awaitListeners();
+	}
+
+	/** Story 23.7: the Customer's open read-invitation to-do, due at the invitation's expiry. */
+	private Instant customerTodoDue() {
+		return this.jdbc.sql("""
+				SELECT deadline_at FROM notification.todo
+				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
+				""").param("customer", this.customer).query(Timestamp.class).single().toInstant();
+	}
+
+	/** Story 23.7: the Customer's open read-invitation to-dos. */
+	private long openCustomerTodos() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo
+				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
+				""").param("customer", this.customer).query(Long.class).single();
+	}
+
+	/** The Audit Log's entries of {@code action} on the Job. */
+	private long audits(String action) {
+		return this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = :action AND job_id = :job")
+			.param("action", action).param("job", this.job).query(Long.class).single();
 	}
 
 	/**
@@ -1771,7 +2272,7 @@ class JobSetupIT extends IntegrationTest {
 			.noneMatch(request -> request.path().endsWith("/forks") || request.path().contains("/rulesets"));
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the resolving transaction cleared it").isEmpty();
 		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 waits for Verify").isEqualTo("STARTING");
-		assertThat(this.grants.ofJob(this.job)).as("the Invitations start").hasSize(2);
+		assertThat(this.grants.ofJob(this.job)).as("the Invitations start: the team, and the Customer's read").hasSize(3);
 		assertThat(this.jdbc.sql("""
 				SELECT action FROM audit.audit_entry WHERE job_id = :job AND (action LIKE 'repo.%' OR action LIKE 'job.busy_%')
 				ORDER BY occurred_at, action

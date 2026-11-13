@@ -540,6 +540,100 @@ describe('JOB-H step tracker while Starting (UX-DR114, AD-11, Story 23.6c)', () 
     expect(screen.getByText('Mời trên GitHub: Đang làm')).toHaveAttribute('aria-live', 'polite')
   })
 
+  it('shows the Customer their own read row on the Intermediary, with the 2FA note and that it is not required', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          setup('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'CURRENT', 'PENDING'], {
+            people: [
+              { role: 'MENTOR', name: 'Đỗ Mạnh Hùng', state: 'ACCEPTED' },
+              { role: 'CREW', name: '@thao-vy', state: 'INVITED', expiresAt: '2026-10-28T03:00:00Z' },
+              {
+                role: 'CUSTOMER',
+                name: '@lan-dev',
+                state: 'INVITED',
+                expiresAt: '2026-10-28T03:00:00Z',
+                githubUrl: 'https://github.com/vibefix-dev/job-1-intermediary/invitations',
+              },
+            ],
+          }),
+        ),
+    })
+    renderTracker()
+
+    const own = (await screen.findByText('@lan-dev (bạn)')).closest('li')!
+    expect(within(own).getByText('· quyền đọc kho trung gian')).toBeInTheDocument()
+    expect(within(own).getByText('· chờ chấp nhận lời mời · hết hạn 28/10')).toBeInTheDocument()
+    expect(within(own).getByRole('link', { name: /Mở trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/vibefix-dev/job-1-intermediary/invitations',
+    )
+    expect(within(own).getByText(/Bật xác thực hai lớp trên GitHub trước \(nếu chưa bật\)/)).toBeInTheDocument()
+    expect(within(own).getByRole('link', { name: /^Bật xác thực hai lớp/ })).toHaveAttribute(
+      'href',
+      'https://github.com/settings/security',
+    )
+    expect(
+      within(own).getByText(
+        'Không bắt buộc: công việc vẫn bắt đầu khi bạn chưa chấp nhận, và bạn vẫn xem bàn giao trên vibefix.',
+      ),
+    ).toBeInTheDocument()
+    // Only the viewer's own row carries a link: the Crew member's row has none.
+    expect(screen.getAllByRole('link', { name: /Mở trên GitHub/ })).toHaveLength(1)
+  })
+
+  it('says nothing optional once the Customer accepted their read invitation', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          setup('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'CURRENT', 'PENDING'], {
+            people: [
+              { role: 'MENTOR', name: 'Đỗ Mạnh Hùng', state: 'INVITED', expiresAt: '2026-10-28T03:00:00Z' },
+              {
+                role: 'CUSTOMER',
+                name: '@lan-dev',
+                state: 'ACCEPTED',
+                githubUrl: 'https://github.com/vibefix-dev/job-1-intermediary',
+              },
+            ],
+          }),
+        ),
+    })
+    renderTracker()
+
+    const own = (await screen.findByText('@lan-dev (bạn)')).closest('li')!
+    expect(within(own).getByText('· đã chấp nhận')).toBeInTheDocument()
+    expect(screen.queryByText(/^Không bắt buộc:/)).toBeNull()
+    expect(screen.queryByText(/Bật xác thực hai lớp trên GitHub trước/)).toBeNull()
+    expect(screen.getByText('Bạn không cần làm gì.')).toBeInTheDocument()
+  })
+
+  it('shows the team the Customer\'s read row as "Khách hàng", with no link or note of theirs', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          setup('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'CURRENT', 'PENDING'], {
+            ...mentor,
+            people: [
+              { role: 'MENTOR', name: 'Đỗ Mạnh Hùng', state: 'ACCEPTED' },
+              { role: 'CREW', name: 'Lê Thảo Vy', state: 'ACCEPTED' },
+              { role: 'CUSTOMER', name: '', state: 'INVITED', expiresAt: '2026-10-28T03:00:00Z' },
+            ],
+          }),
+        ),
+    })
+    renderTracker()
+
+    const row = (await screen.findByText('Khách hàng')).closest('li')!
+    expect(within(row).getByText('· quyền đọc kho trung gian')).toBeInTheDocument()
+    expect(within(row).getByText('· chờ chấp nhận lời mời · hết hạn 28/10')).toBeInTheDocument()
+    expect(within(row).queryByRole('link')).toBeNull()
+    expect(screen.queryByText(/^Không bắt buộc:/)).toBeNull()
+    expect(screen.queryByText(/Bật xác thực hai lớp trên GitHub trước/)).toBeNull()
+    // The Customer's pending read is not the Mentor's to act on.
+    expect(screen.getByText('Bạn không cần làm gì.')).toBeInTheDocument()
+  })
+
   it('says the start ended, not that administrators were told', async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () => json(setup('ENDED', ['DONE', 'PENDING'], { head: { sha: HEAD, readAt: READ_AT } })),

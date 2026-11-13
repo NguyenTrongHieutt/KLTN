@@ -234,8 +234,11 @@ public interface PlatformRepositories {
 	/** How the Platform App's installation differs from AD-10's: All repositories, not suspended. */
 	List<String> installationDifferences();
 
-	/** The lower-case logins behind the repository's recent events (SM-2, SG-22). */
-	Set<String> recentActors(PlatformRepository repository);
+	/**
+	 * The lower-case logins behind the repository's recent events (SM-2, SG-22), each with the types of the events they
+	 * caused, as GitHub names them ({@code PushEvent}, {@code MemberEvent}, and so on).
+	 */
+	Map<String, Set<String>> recentActors(PlatformRepository repository);
 
 	/**
 	 * The commit SHA {@code branch} of a private platform repository points at now

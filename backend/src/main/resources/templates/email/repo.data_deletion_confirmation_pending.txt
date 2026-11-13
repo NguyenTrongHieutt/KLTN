@@ -2,4 +2,4 @@ subject: Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}
 ---
 Xin chào,
 
-Công việc {job} đã kết thúc, hoặc bạn đã rời công việc này. Hãy xóa bản sao mã nguồn và dữ liệu của khách hàng trên máy của bạn (mã, khóa, bản sao cơ sở dữ liệu, tệp của khách) và các bản xem thử bạn đã triển khai, rồi xác nhận trên vibefix.
+Công việc {job} đã kết thúc, hoặc bạn đã rời công việc này. Hãy xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của bạn, cùng dữ liệu của họ (khóa, bản sao cơ sở dữ liệu, tệp của khách), và các bản xem thử bạn đã triển khai, rồi xác nhận trên vibefix.

@@ -50,6 +50,10 @@ class GrantRaiseOperation implements OperationHandler {
 		if (grant == null) {
 			return new Outcome.Obsolete("GRANT_GONE");
 		}
+		if (grant.customer()) {
+			// R5: the Customer reads the Intermediary Repository and never writes to it.
+			return new Outcome.Obsolete("READ_ONLY_GRANT");
+		}
 		if ("WRITE".equals(grant.status())) {
 			return Outcome.succeeded();
 		}

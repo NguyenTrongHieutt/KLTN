@@ -73,7 +73,7 @@ class JobVerifyOperation implements OperationHandler {
 		if (job.frozen()) {
 			return new Outcome.Deferred(this.clock.instant().plus(FROZEN_WAIT));
 		}
-		List<Grant> all = grants.ofJob(jobId);
+		List<Grant> all = grants.ofJob(jobId).stream().filter(Grant::team).toList();
 		List<Person> people = this.setups.getObject()
 			.latest(jobId)
 			.map(setup -> grants.verifying(job, setup, all))
@@ -81,6 +81,7 @@ class JobVerifyOperation implements OperationHandler {
 		PlatformRepositories repositories = this.repositories.getObject();
 		try {
 			for (Person person : people) {
+				// The team's grants on the Working Repository only (`all`): the Customer's read is never raised (R5).
 				Grant grant = all.stream()
 					.filter(found -> found.accountId().equals(person.accountId()) && found.ready())
 					.findFirst()

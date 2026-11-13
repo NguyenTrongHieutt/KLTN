@@ -64,6 +64,10 @@ import vn.vibefix.timers.Deadlines;
  * resolving transaction applies J7 through {@code job}. A member a Crew change adds to an Active Job is
  * granted the same way and raised on acceptance without a state change. Every step is audited per person
  * and repository.
+ * <p>
+ * The Customer (R5, AD-11, Story 23.7) is granted read on the Intermediary Repository in the same transaction, with a
+ * to-do and a notification of their own; their grant is never counted toward Verify, never raised, and settles at
+ * {@code ACCEPTED}. It is renewed in any Job state until the repositories are deleted, which ends it.
  */
 @Component
 class JobGrants {
@@ -78,17 +82,39 @@ class JobGrants {
 
 	static final String ACCEPT_TODO = "repo.accept_github_invitation";
 
+	/** The Customer's notification of their read invitation to the Intermediary Repository (R5, UX-DR118). */
+	static final String SENT_CUSTOMER = "repo.intermediary_invitation_sent";
+
+	/** The Customer's to-do for their read invitation to the Intermediary Repository: tier 3, never blocking (R5). */
+	static final String ACCEPT_TODO_CUSTOMER = "repo.accept_intermediary_invitation";
+
 	static final String TWO_FACTOR = "repo.two_factor_required";
 
 	static final String DRIFT = "repo.member_drift";
 
 	static final String EXHAUSTED = "repo.invitation_renewals_exhausted";
 
+	/** The role of the Customer's read grant on the Intermediary Repository (R5). */
+	static final String CUSTOMER = "CUSTOMER";
+
+	/**
+	 * The Job's page, after {@code /cong-viec/{jobId}}, that sends the Customer on to their read invitation on GitHub, or
+	 * to the Intermediary Repository once accepted.
+	 */
+	static final String CUSTOMER_LINK = "/kho-trung-gian";
+
 	/** FR-75: a Crew change member's invitation is renewed at most this often. */
 	static final int CREW_CHANGE_RENEWALS = 3;
 
 	/**
-	 * One person's access to one Working Repository.
+	 * AD-7, R5: the Customer's read invitation is renewed at most this often, in any Job state, then stops quietly
+	 * {@code [ASSUMPTION]}.
+	 */
+	static final int CUSTOMER_RENEWALS = 12;
+
+	/**
+	 * One person's access to one platform repository: the Mentor's or a Crew member's to the Working Repository, or the
+	 * Customer's read to the Intermediary Repository (role {@value JobGrants#CUSTOMER}).
 	 * @param login the GitHub login last used for the person
 	 * @param githubUserId the person's permanent numeric GitHub ID (AD-10); {@code null} on a grant from before
 	 * Story 19.2 until {@link JobGrants#githubUserId} finds it
@@ -104,7 +130,26 @@ class JobGrants {
 		}
 
 		Audience audience() {
-			return "MENTOR".equals(this.role) ? Audience.MENTOR : Audience.CREW_ACTIVE;
+			return switch (this.role) {
+				case "MENTOR" -> Audience.MENTOR;
+				case CUSTOMER -> Audience.CUSTOMER;
+				default -> Audience.CREW_ACTIVE;
+			};
+		}
+
+		/** The Customer's read on the Intermediary Repository (R5): it never gates anything the team's grants do. */
+		boolean customer() {
+			return CUSTOMER.equals(this.role);
+		}
+
+		/** The Mentor's or a Crew member's grant on the Working Repository. */
+		boolean team() {
+			return !customer();
+		}
+
+		/** The to-do that asks the person to accept this grant's invitation. */
+		String acceptTodo() {
+			return customer() ? ACCEPT_TODO_CUSTOMER : ACCEPT_TODO;
 		}
 
 		/** Counted toward Verify: accepted, two-factor authentication on. */
@@ -116,7 +161,7 @@ class JobGrants {
 
 	/**
 	 * A person the Job counts (AD-41): the Mentor, or an active Crew member, with an unlocked account and a
-	 * linked GitHub account, known by its numeric ID (AD-10).
+	 * linked GitHub account, known by its numeric ID (AD-10); or, granted apart and never counted, the Customer.
 	 */
 	record Person(UUID accountId, String role, long githubUserId, String login) {
 	}
@@ -176,17 +221,27 @@ class JobGrants {
 		this.clock = clock;
 	}
 
-	/** Setup's resolving transaction: everyone the Job counts is granted on the Working Repository. */
+	/**
+	 * Setup's resolving transaction: everyone the Job counts is granted on the Working Repository, and the Customer, with
+	 * read, on the Intermediary Repository (R5), through the same invitation operation; theirs never holds the start.
+	 */
 	void grantAll(Setup setup, PlatformRepository working) {
 		BusyJob job = this.busy.job(setup.jobId()).orElseThrow();
 		for (Person person : counted(job)) {
 			grant(job, person, working, false);
 		}
+		PlatformRepository intermediary = setup.intermediary();
+		if (intermediary != null) {
+			customer(job).ifPresent(person -> grant(job, person, intermediary, false));
+		}
 	}
 
-	/** One person's grant and its first invitation, unless they have one on this repository. */
+	/**
+	 * One person's grant and its first invitation, unless they have one on this repository: the Working Repository for the
+	 * team, the Intermediary Repository for the Customer.
+	 */
 	@Transactional
-	void grant(BusyJob job, Person person, PlatformRepository working, boolean crewChange) {
+	void grant(BusyJob job, Person person, PlatformRepository repository, boolean crewChange) {
 		UUID id = this.ids.newId();
 		int inserted = this.jdbc.sql("""
 				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, github_user_id,
@@ -197,8 +252,8 @@ class JobGrants {
 				""")
 			.param("id", id).param("job", job.jobId()).param("product", job.productId()).param("account", person.accountId())
 			.param("role", person.role()).param("login", person.login()).param("githubUserId", person.githubUserId())
-			.param("repository", working.id())
-			.param("name", working.fullName()).param("change", crewChange).param("now", Timestamp.from(this.clock.instant()))
+			.param("repository", repository.id())
+			.param("name", repository.fullName()).param("change", crewChange).param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		if (inserted == 1) {
 			requestInvite(id, 0);
@@ -241,6 +296,18 @@ class JobGrants {
 			}
 		}
 		return people;
+	}
+
+	/**
+	 * The Job's Customer, for their read on the Intermediary Repository (R5): with an unlocked, unerased account and a
+	 * linked GitHub account, known by its numeric ID (AD-10), as for anyone. Without a link they are not invited.
+	 */
+	Optional<Person> customer(BusyJob job) {
+		return this.people.cards(List.of(job.customerId()))
+			.stream()
+			.filter(card -> card.available() && card.githubUserId() != null && card.githubLogin() != null)
+			.findFirst()
+			.map(card -> new Person(card.accountId(), CUSTOMER, card.githubUserId(), card.githubLogin()));
 	}
 
 	/**
@@ -323,7 +390,10 @@ class JobGrants {
 
 	/**
 	 * The invitation was sent: the person hears of it, gets the to-do, and the renewal is scheduled. A grant
-	 * revoked meanwhile stays revoking; the platform sweep reads a late invitation back as drift.
+	 * revoked meanwhile stays revoking; the platform sweep reads a late invitation back as drift. The Customer's read
+	 * invitation has its own notification and its own tier-3 to-do, due at the expiry and never blocking (R5); they hear
+	 * of the first invitation only, and a renewal only moves the to-do's due date. Both lead to {@link #CUSTOMER_LINK},
+	 * which sends them on to the invitation on GitHub.
 	 */
 	@Transactional
 	void invited(Grant grant, Invited invited) {
@@ -338,13 +408,28 @@ class JobGrants {
 		}
 		audit("repo.grant_invited", grant);
 		String title = title(grant.jobId());
-		this.notifications.send(new NotificationRequest(SENT, key(grant.id() + ":sent:" + grant.renewals()),
-				List.of(new Recipient(grant.accountId(), grant.audience())), Map.of("job", title), "/cong-viec/" + grant.jobId(),
-				grant.jobId(), null));
-		this.todos.open(new TodoRequest(ACCEPT_TODO, grant.accountId(), grant.audience(), grant.id(), Map.of("job", title),
-				"/cong-viec/" + grant.jobId(), invited.expiresAt(), grant.jobId()));
+		String link = link(grant);
+		if (grant.team() || grant.renewals() == 0) {
+			this.notifications.send(new NotificationRequest(grant.customer() ? SENT_CUSTOMER : SENT,
+					key(grant.id() + ":sent:" + grant.renewals()), List.of(new Recipient(grant.accountId(), grant.audience())),
+					Map.of("job", title), link, grant.jobId(), null));
+		}
+		else {
+			// The renewed invitation is due later: the open to-do closes, and the same to-do opens with the new due date.
+			this.todos.close(grant.acceptTodo(), grant.accountId(), grant.id());
+		}
+		this.todos.open(new TodoRequest(grant.acceptTodo(), grant.accountId(), grant.audience(), grant.id(),
+				Map.of("job", title), link, invited.expiresAt(), grant.jobId()));
 		this.deadlines.schedule(new DeadlineRequest(InvitationRenewal.KEY, grant.id(), String.valueOf(grant.renewals()),
 				grant.jobId(), invited.expiresAt()));
+	}
+
+	/**
+	 * Where the grant's to-do and notification lead: the Job for the team; for the Customer, a vibefix path (a to-do and a
+	 * notification link only inside vibefix) that sends them on to their invitation on GitHub.
+	 */
+	private static String link(Grant grant) {
+		return "/cong-viec/" + grant.jobId() + (grant.customer() ? CUSTOMER_LINK : "");
 	}
 
 	/** GitHub added an organization member at once (AD-11): not an acceptance; Administrators remove them. */
@@ -372,11 +457,14 @@ class JobGrants {
 				""").param("now", Timestamp.from(this.clock.instant())).param("id", grant.id()).update();
 		if (updated == 1) {
 			audit("repo.grant_accepted", grant);
-			this.todos.close(ACCEPT_TODO, grant.accountId(), grant.id());
+			this.todos.close(grant.acceptTodo(), grant.accountId(), grant.id());
 		}
 	}
 
-	/** Two-factor authentication read back; the person hears once when it is missing. */
+	/**
+	 * Two-factor authentication read back; the person hears once when it is missing. The Customer does not: that text is
+	 * about write access, which their read never reaches (R5), so it is only audited.
+	 */
 	@Transactional
 	void twoFactor(Grant grant, boolean missing) {
 		if (grant.twoFactorMissing() == missing) {
@@ -388,6 +476,9 @@ class JobGrants {
 			.update();
 		if (missing) {
 			audit("repo.grant_two_factor_missing", grant);
+			if (grant.customer()) {
+				return;
+			}
 			this.notifications.send(new NotificationRequest(TWO_FACTOR, key(grant.id() + ":two-factor"),
 					List.of(new Recipient(grant.accountId(), grant.audience())), Map.of("job", title(grant.jobId())),
 					"/cong-viec/" + grant.jobId(), grant.jobId(), null));
@@ -422,6 +513,71 @@ class JobGrants {
 				Map.of("login", grant.login(), "job", job.title()), "/cong-viec/" + grant.jobId(), grant.jobId(), null));
 	}
 
+	/** The Customer's renewals ran out (AD-7, R5): their read invitation stops quietly, {@code LAPSED}. */
+	static final String RENEWALS_EXHAUSTED = "repo.grant_renewals_exhausted";
+
+	/** The Customer declined their read invitation on GitHub: no invitation is pending, and they are no collaborator. */
+	static final String DECLINED = "repo.grant_declined";
+
+	/** The Customer left the Intermediary Repository after accepting: they are no collaborator any more. */
+	static final String LEFT = "repo.grant_left";
+
+	/**
+	 * The Customer's read ended without a revocation (R5): they declined it, left the repository, or the renewals ran
+	 * out. The grant settles as {@code LAPSED}: never renewed, read back, or expected on GitHub again. The move is audited
+	 * by its {@code action} and the to-do closes; nobody is told, since the read is optional and reviewing on vibefix
+	 * works without it.
+	 */
+	@Transactional
+	void lapse(Grant grant, String action) {
+		int updated = this.jdbc.sql("""
+				UPDATE repo.job_grant SET status = 'LAPSED' WHERE id = :id AND role = 'CUSTOMER' AND status IN ('INVITED', 'ACCEPTED')
+				""").param("id", grant.id()).update();
+		if (updated == 1) {
+			audit(action, grant);
+			this.todos.close(grant.acceptTodo(), grant.accountId(), grant.id());
+		}
+	}
+
+	/**
+	 * The Intermediary Repository is deleted (FR-21, NFR-10), 30 days after the Job ended. The Customer's read on it ends
+	 * without a GitHub call, since nothing is left to read: {@code REVOKED}, audited as any revocation, and the to-do
+	 * closes. A revocation in progress ends here too; a lapsed read has ended already.
+	 */
+	@Transactional
+	void intermediaryDeleted(long repositoryId) {
+		ended(this.jdbc.sql("SELECT " + COLUMNS + " FROM repo.job_grant WHERE repository_github_id = :repository"
+				+ " AND role = 'CUSTOMER' AND status NOT IN ('REVOKED', 'LAPSED') ORDER BY created_at, id")
+			.param("repository", repositoryId)
+			.query(JobGrants::grant)
+			.list(), "repo.grant_revoked");
+	}
+
+	/**
+	 * As {@link #intermediaryDeleted}, for every Customer read of the Product, whose rows go now and whose repositories
+	 * go by an operation afterwards: audited as {@code repo.grant_ended_with_product}, since nothing is read back yet.
+	 */
+	@Transactional
+	void productDeleted(UUID productId) {
+		ended(this.jdbc.sql("SELECT " + COLUMNS + " FROM repo.job_grant WHERE product_id = :product"
+				+ " AND role = 'CUSTOMER' AND status NOT IN ('REVOKED', 'LAPSED') ORDER BY created_at, id")
+			.param("product", productId)
+			.query(JobGrants::grant)
+			.list(), "repo.grant_ended_with_product");
+	}
+
+	private void ended(List<Grant> grants, String action) {
+		for (Grant grant : grants) {
+			int updated = this.jdbc.sql("""
+					UPDATE repo.job_grant SET status = 'REVOKED', revoked_at = :now WHERE id = :id AND status <> 'REVOKED'
+					""").param("now", Timestamp.from(this.clock.instant())).param("id", grant.id()).update();
+			if (updated == 1) {
+				audit(action, grant);
+				this.todos.close(grant.acceptTodo(), grant.accountId(), grant.id());
+			}
+		}
+	}
+
 	/** A Crew change member accepted on an Active Job (FR-75): the raise is a consequence, not busy. */
 	@Transactional
 	void requestRaise(Grant grant) {
@@ -443,7 +599,8 @@ class JobGrants {
 	/**
 	 * Verify starts once every counted grant is ready and none drifted, on a Starting Job whose Setup is done
 	 * (AD-11): {@code JOB_VERIFY} is reserved and the operation requested. A busy Job waits for the next look, and a late
-	 * member's grant, drifted or not, never holds Verify back (Story 21.5).
+	 * member's grant, drifted or not, never holds Verify back (Story 21.5); nor does the Customer's read, whatever its
+	 * state (R5).
 	 * @return whether Verify was requested now
 	 */
 	@Transactional
@@ -453,7 +610,7 @@ class JobGrants {
 				|| !"DONE".equals(setup.status())) {
 			return false;
 		}
-		List<Grant> grants = ofJob(jobId);
+		List<Grant> grants = ofJob(jobId).stream().filter(Grant::team).toList();
 		if (grants.stream().anyMatch(grant -> "MEMBER_DRIFT".equals(grant.status()) && !grant.crewChange())) {
 			return false;
 		}
@@ -500,16 +657,24 @@ class JobGrants {
 			.optional();
 	}
 
+	/** The Job's grants: the Mentor's, then the Crew's, then the Customer's, each in the order they were made. */
 	List<Grant> ofJob(UUID jobId) {
-		return this.jdbc.sql("SELECT " + COLUMNS + " FROM repo.job_grant WHERE job_id = :job ORDER BY role DESC, created_at, id")
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM repo.job_grant WHERE job_id = :job"
+				+ " ORDER BY CASE role WHEN 'MENTOR' THEN 0 WHEN 'CREW' THEN 1 ELSE 2 END, created_at, id")
 			.param("job", jobId)
 			.query(JobGrants::grant)
 			.list();
 	}
 
-	/** Jobs with a grant still to settle, for the sweep. */
+	/**
+	 * Jobs with a grant still to settle, for the sweep. The Customer's read settles at {@code ACCEPTED} (R5): it is never
+	 * raised.
+	 */
 	List<UUID> unsettledJobs() {
-		return this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_grant WHERE status IN ('INVITED', 'MEMBER_DRIFT', 'ACCEPTED')")
+		return this.jdbc.sql("""
+				SELECT DISTINCT job_id FROM repo.job_grant
+				WHERE status IN ('INVITED', 'MEMBER_DRIFT') OR (status = 'ACCEPTED' AND role <> 'CUSTOMER')
+				""")
 			.query(UUID.class)
 			.list();
 	}

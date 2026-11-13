@@ -266,10 +266,15 @@ class FinalMerges {
 				""").param("job", jobId).query(String.class).optional().orElse(approvedSha);
 	}
 
-	/** Every Mentor's and Crew member's access read back as revoked (FR-21). */
+	/**
+	 * Every Mentor's and Crew member's access read back as revoked (FR-21, R17). The Customer's read of the Intermediary
+	 * Repository is not counted: it lasts until the repositories are deleted (R5).
+	 */
 	@Transactional(readOnly = true)
 	boolean revoked(UUID jobId) {
-		return this.jdbc.sql("SELECT NOT EXISTS (SELECT 1 FROM repo.job_grant WHERE job_id = :job AND status <> 'REVOKED')")
+		return this.jdbc.sql("""
+				SELECT NOT EXISTS (SELECT 1 FROM repo.job_grant WHERE job_id = :job AND role <> 'CUSTOMER' AND status <> 'REVOKED')
+				""")
 			.param("job", jobId)
 			.query(Boolean.class)
 			.single();

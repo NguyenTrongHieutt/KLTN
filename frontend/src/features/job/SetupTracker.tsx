@@ -84,7 +84,8 @@ const TONES: Record<string, string> = {
  * EXPERIENCE.md's order: "Kiểm tra ứng dụng vibefix và file workflow", the self-confirmation (the Customer's SHA
  * confirmation card with N-32; everyone else waits for it, then reads the confirmed head), "Tạo kho trung gian và kho
  * làm việc (riêng tư)", the copy on the Customer's GitHub Actions with its Actions run status row, "Mời trên GitHub"
- * with a sub-row per person, and "Cấp quyền ghi và kiểm tra", each done, current, pending, blocked, or failed, read
+ * with a sub-row per person (the Customer's read of the Intermediary Repository last, never holding the step, Story
+ * 23.7), and "Cấp quyền ghi và kiểm tra", each done, current, pending, blocked, or failed, read
  * every 3 s. The viewer's role in the Job comes with the Setup, so the words never wait on another read. The current
  * step is announced politely. A block reads its reason in the words of the viewer's role: the Customer reads what to do
  * with the means to do it and, where it helps, "Thử lại"; the Mentor and the Crew read the same reason without the
@@ -195,7 +196,7 @@ function Steps({ setup }: { setup: Setup }) {
                   }
                 />
               )}
-              {step.key === 'INVITE' && setup.people.length > 0 && <People people={setup.people} />}
+              {step.key === 'INVITE' && setup.people.length > 0 && <People people={setup.people} customer={customer} />}
             </li>
           )
         })}
@@ -536,13 +537,36 @@ function runState(setup: Setup, state: string): RunState | undefined {
   return !run || run.state === 'DISPATCHED' || run.state === 'QUEUED' ? 'WAITING' : 'RUNNING'
 }
 
-/** UX-DR23's sub-rows: one per person, with their state and, on their own row, the GitHub link. */
-function People({ people }: { people: Person[] }) {
+/** The states of an invitation the person has accepted, after which the Customer's optional note says nothing new. */
+const ACCEPTED_STATES = ['ACCEPTED', 'TWO_FACTOR_MISSING', 'WRITE']
+
+/**
+ * A sub-row's name. The Customer's read row (R5, Story 23.7) is their own to them, named by their GitHub username, and
+ * reads "Khách hàng" to the Mentor and the Crew, who are never told the Customer's username.
+ */
+function personName(person: Person, customer: boolean): string {
+  if (person.role !== 'CUSTOMER') {
+    return person.name
+  }
+  return customer && person.name
+    ? t('screen.job.setup.personCustomerOwn', { login: person.name })
+    : t('screen.job.setup.personCustomer')
+}
+
+/**
+ * UX-DR23's sub-rows: one per person, with their state and, on their own row, the GitHub link. The Customer's row
+ * (UX-DR114) shows their read of the Intermediary Repository; on their own row it adds the 2FA note, as every own
+ * pending row does, and that the invitation is not required, since it never holds the start (R5).
+ */
+function People({ people, customer }: { people: Person[]; customer: boolean }) {
   return (
     <ul className="flex w-full flex-col gap-1 pl-7">
       {people.map((person, index) => (
         <li key={`${person.role}-${index}`} className="flex flex-wrap items-center gap-1.5 text-caption">
-          <span className="font-semibold break-words">{person.name}</span>
+          <span className="font-semibold break-words">{personName(person, customer)}</span>
+          {person.role === 'CUSTOMER' && (
+            <span className="text-muted-foreground">· {t('screen.job.setup.customerRead')}</span>
+          )}
           <span className="text-muted-foreground">
             ·{' '}
             {t(`screen.job.setup.person${person.state}` as MessageKey, {
@@ -574,6 +598,9 @@ function People({ people }: { people: Person[] }) {
               </a>
               <span className="text-muted-foreground">{t('screen.job.setup.githubDomain')}</span>
             </p>
+          )}
+          {customer && person.role === 'CUSTOMER' && !ACCEPTED_STATES.includes(person.state) && (
+            <p className="w-full text-muted-foreground">{t('screen.job.setup.customerOptional')}</p>
           )}
         </li>
       ))}

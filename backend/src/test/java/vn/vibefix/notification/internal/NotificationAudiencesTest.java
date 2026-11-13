@@ -79,6 +79,25 @@ class NotificationAudiencesTest {
 			.doesNotContainAnyElementsOf(CREW_DURING_THE_JOB);
 	}
 
+	/**
+	 * Story 23.7 (R5, UX-DR118): the Customer's read invitation to the Intermediary has a to-do and a notification of its
+	 * own, tier 3 and for the Customer only, since the catalog binds one tier and one text to a key; the team's keep
+	 * theirs, and neither the two-factor notice (about write) nor the revocation notice reaches the Customer.
+	 */
+	@Test
+	void theCustomersReadInvitationHasKeysOfItsOwn() {
+		assertThat(todo("repo.accept_intermediary_invitation").audiences()).containsExactly(Audience.CUSTOMER);
+		assertThat(todo("repo.accept_intermediary_invitation").tier()).isEqualTo(3);
+		assertThat(type("repo.intermediary_invitation_sent").audiences()).containsExactly(Audience.CUSTOMER);
+		assertThat(type("repo.intermediary_invitation_sent").channel()).isEqualTo(vn.vibefix.notification.Channel.IN_APP_AND_EMAIL);
+		assertThat(todo("repo.accept_github_invitation").audiences()).containsExactlyInAnyOrder(Audience.MENTOR,
+				Audience.CREW_ACTIVE);
+		assertThat(todo("repo.accept_github_invitation").tier()).isEqualTo(2);
+		for (String team : List.of("repo.github_invitation_sent", "repo.two_factor_required", "repo.access_revoked")) {
+			assertThat(type(team).audiences()).as(team).doesNotContain(Audience.CUSTOMER);
+		}
+	}
+
 	@Test
 	void splitNoticesReachTheSplitPartiesOnly() {
 		assertThat(type("job.split_pending").audiences()).containsExactly(Audience.SPLIT_PARTY);

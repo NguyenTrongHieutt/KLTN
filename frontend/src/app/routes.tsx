@@ -148,6 +148,13 @@ export const routes: RouteObject[] = [
         path: 'cong-viec/:jobId/sua',
         lazy: async () => ({ Component: (await import('@/features/job/JobFormPage')).JobFormPage }),
       },
+      {
+        // Where the Customer's read invitation to-do leads (Story 23.7): on to the Intermediary's invitation on GitHub.
+        path: 'cong-viec/:jobId/kho-trung-gian',
+        lazy: async () => ({
+          Component: (await import('@/features/job/IntermediaryInvitationPage')).IntermediaryInvitationPage,
+        }),
+      },
     ],
   },
   {

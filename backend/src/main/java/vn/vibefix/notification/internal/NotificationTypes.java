@@ -98,6 +98,14 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job"));
 
+	/**
+	 * The Customer's read invitation to the Intermediary Repository (R5, UX-DR118, Story 23.7): due at its expiry, never
+	 * blocking; it closes on acceptance or when the grant ends. EXPERIENCE.md gives the Customer another tier and text
+	 * than {@code repo.accept_github_invitation}, so it is a key of its own.
+	 */
+	static final TodoType REPO_ACCEPT_INTERMEDIARY_INVITATION = new TodoType("repo.accept_intermediary_invitation",
+			Set.of(Audience.CUSTOMER), 3, Set.of("job"));
+
 	/** J4 started the Agreement draft (FR-16): the Mentor, due at the Agreement deadline. */
 	static final TodoType JOB_DRAFT_AGREEMENT = new TodoType("job.draft_agreement", Set.of(Audience.MENTOR), 2,
 			Set.of("job"));
@@ -405,6 +413,14 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_GITHUB_INVITATION_SENT = new NotificationType("repo.github_invitation_sent",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
 			Set.of("job"));
+
+	/**
+	 * The Customer's read invitation to the Intermediary Repository was sent or renewed (R5, UX-DR118, Story 23.7): the
+	 * team's title, and a body saying the invitation gives read access, is not required, and that reviewing on vibefix
+	 * works without it; the email links GitHub's security settings.
+	 */
+	static final NotificationType REPO_INTERMEDIARY_INVITATION_SENT = new NotificationType("repo.intermediary_invitation_sent",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
 	/** An accepted collaborator without GitHub two-factor authentication (FR-18): that person. */
 	static final NotificationType REPO_TWO_FACTOR_REQUIRED = new NotificationType("repo.two_factor_required",
@@ -915,7 +931,8 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_SELF_CONFIRMATION_DUE, REPO_JOB_START_BLOCKED,
 				JOB_JOB_STARTED,
-				REPO_GITHUB_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT, REPO_INVITATION_RENEWALS_EXHAUSTED,
+				REPO_GITHUB_INVITATION_SENT, REPO_INTERMEDIARY_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT,
+				REPO_INVITATION_RENEWALS_EXHAUSTED,
 				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
@@ -958,7 +975,8 @@ class NotificationTypes implements NotificationCatalog {
 	@Override
 	public List<TodoType> todoTypes() {
 		return List.of(IDENTITY_LINK_GITHUB, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
-				REPO_CONFIRM_SOURCE_CLEAN, REPO_ACCEPT_GITHUB_INVITATION, REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
+				REPO_CONFIRM_SOURCE_CLEAN, REPO_ACCEPT_GITHUB_INVITATION, REPO_ACCEPT_INTERMEDIARY_INVITATION,
+				REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,

@@ -360,6 +360,22 @@ class FinalMergeIT extends IntegrationTest {
 			.query(String.class).single()).isEqualTo("PENDING");
 	}
 
+	/** Story 23.7 (R5): the Customer's read of the Intermediary lasts until the deletion, so "all revoked" ignores it. */
+	@Test
+	void theCustomersLiveReadIsNotCountedAmongTheRevokedAccesses() throws Exception {
+		this.jdbc.sql("""
+				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, repository_github_id,
+				    repository_name, crew_change, status, accepted_at, created_at)
+				SELECT :id, :job, product_id, :customer, 'CUSTOMER', 'lan', 2, 'x/intermediary', false, 'ACCEPTED', now(), now()
+				FROM job.job WHERE id = :job
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("customer", this.lan).update();
+		bind();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("READY"));
+	}
+
 	@Test
 	void anUninstalledSourceAppMakesTheCheckWaitForTheCustomerWithNoZip() throws Exception {
 		bind();

@@ -19,11 +19,13 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code repo}'s part in exports, erasure, and Product deletion (AD-24): a person exports their
- * data-deletion confirmations, their access grants, their J7 self-confirmations (Story 23.6b), and the Revocation
- * Checklist rows naming them after they left; erasing them deletes the first two (the Audit Log keeps when each grant
- * was made) and anonymizes the self-confirmations, which stay the Job's record of what was confirmed, and the rows,
- * whose to-dos close; deleting a Product deletes its Jobs' rows, self-confirmations and Setups, requests the deletion of
- * the platform repositories still there at once, without a ZIP, and deletes any final ZIP (FR-21, NFR-10).
+ * data-deletion confirmations, their access grants (the Customer's read of the Intermediary Repository included, Story
+ * 23.7), their J7 self-confirmations (Story 23.6b), and the Revocation Checklist rows naming them after they left;
+ * erasing them first revokes on GitHub any read they still hold as a Customer, then deletes the first two (the Audit Log
+ * keeps when each grant was made) and anonymizes the self-confirmations, which stay the Job's record of what was
+ * confirmed, and the rows, whose to-dos close; deleting a Product ends its Customer's reads, deletes its Jobs' rows,
+ * self-confirmations and Setups, requests the deletion of the platform repositories still there at once, without a ZIP,
+ * and deletes any final ZIP (FR-21, NFR-10).
  */
 @Component
 class RepoPersonalData implements PersonalDataParticipant {
@@ -37,12 +39,20 @@ class RepoPersonalData implements PersonalDataParticipant {
 
 	private final ObjectProvider<Todos> todos;
 
+	/** Looked up on use, as the deletions are: an erasure revokes the Customer's read before its rows go. */
+	private final ObjectProvider<Revocations> revocations;
+
+	/** Looked up on use: a Product deletion ends its Customer's reads before its rows go. */
+	private final ObjectProvider<JobGrants> grants;
+
 	RepoPersonalData(JdbcClient jdbc, ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<StoredFiles> files,
-			ObjectProvider<Todos> todos) {
+			ObjectProvider<Todos> todos, ObjectProvider<Revocations> revocations, ObjectProvider<JobGrants> grants) {
 		this.jdbc = jdbc;
 		this.deletions = deletions;
 		this.files = files;
 		this.todos = todos;
+		this.revocations = revocations;
+		this.grants = grants;
 	}
 
 	@Override
@@ -64,13 +74,15 @@ class RepoPersonalData implements PersonalDataParticipant {
 			return row;
 		}).list();
 		List<Map<String, Object>> grants = this.jdbc.sql("""
-				SELECT job_id, repository_name, github_login, github_user_id, status, invited_at, accepted_at, write_at,
+				SELECT job_id, role, repository_name, github_login, github_user_id, status, invited_at, accepted_at, write_at,
 				       revoked_at
 				FROM repo.job_grant
 				WHERE account_id = :id ORDER BY created_at, id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> row = new LinkedHashMap<>();
 			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			// MENTOR or CREW on the Working Repository, CUSTOMER for the read of the Intermediary Repository (Story 23.7).
+			row.put("role", rs.getString("role"));
 			row.put("repository", rs.getString("repository_name"));
 			row.put("githubLogin", rs.getString("github_login"));
 			if (rs.getObject("github_user_id") != null) {
@@ -138,6 +150,8 @@ class RepoPersonalData implements PersonalDataParticipant {
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE account_id = :id").param("id", accountId).update();
+		// FR-59, Story 23.7: a read the person still holds on an Intermediary Repository is revoked first, read back.
+		this.revocations.getObject().erased(accountId);
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE repo.source_confirmation SET account_id = NULL WHERE account_id = :id")
 			.param("id", accountId)
@@ -168,6 +182,8 @@ class RepoPersonalData implements PersonalDataParticipant {
 		deletions.ofProduct(productId).forEach(pending -> deletions.request(pending, null, false));
 		deletions.archivesOfProduct(productId).forEach(this.files.getObject()::delete);
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE product_id = :id").param("id", productId).update();
+		// R5: the repositories go, and with them the Customer's read, audited and its to-do closed before the rows go.
+		this.grants.getObject().productDeleted(productId);
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.zip_fallback WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();

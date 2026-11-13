@@ -157,7 +157,7 @@ public final class GitHubStub implements AutoCloseable {
 	/** The pull requests closed, as {@code name#number}. */
 	public final List<String> closedPulls = Collections.synchronizedList(new ArrayList<>());
 
-	/** The actors of each repository's recent events. */
+	/** The actors of each repository's recent events: a login (a PushEvent), or {@code {type}:{login}}. */
 	public final Map<String, List<String>> eventActors = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	/** {@code GET /app/installations/{id}}'s repository selection. */
@@ -1164,9 +1164,13 @@ public final class GitHubStub implements AutoCloseable {
 		}
 		else if (method.equals("GET") && (matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)/events").matcher(path))
 			.matches()) {
+			// An entry is an actor's login, a PushEvent of theirs, or "{type}:{login}" for another event type.
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(this.eventActors.getOrDefault(matcher.group(1), List.of())
 				.stream()
-				.map(login -> Map.of("type", "PushEvent", "actor", Map.of("login", login)))
+				.map(entry -> entry.contains(":")
+						? Map.of("type", entry.substring(0, entry.indexOf(':')), "actor",
+								Map.of("login", entry.substring(entry.indexOf(':') + 1)))
+						: Map.of("type", "PushEvent", "actor", Map.of("login", entry)))
 				.toList()));
 		}
 		else if ((matcher = Pattern.compile("/repos/" + ORGANIZATION + "/([^/]+)").matcher(path)).matches()) {
@@ -1346,6 +1350,18 @@ public final class GitHubStub implements AutoCloseable {
 				}
 			});
 		}
+	}
+
+	/** The invitee declines, on every repository that invited them: no invitation is left, and no collaborator. */
+	public void decline(String login) {
+		synchronized (this.invitations) {
+			this.invitations.values().forEach(pending -> pending.remove(login));
+		}
+	}
+
+	/** The collaborator leaves the repository. */
+	public void leave(String repository, String login) {
+		collaboratorsOf(repository).remove(login);
 	}
 
 	/** Requests answered 502, as GitHub down: each a prefix of {@code "METHOD /path"}. */
