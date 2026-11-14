@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -18,7 +19,8 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonth } from '@/lib/dates'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { useHandover, useHandovers, type HandoverList } from './deliveryApi'
+import { CopyRunBanner } from './CopyRunBanner'
+import { useCopyingHandover, useHandover, useHandovers, type HandoverList } from './deliveryApi'
 import { DeliveryReportView } from './DeliveryReportView'
 
 /**
@@ -118,7 +120,10 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
       <RegionState query={list} skeleton={<Skeleton className="h-48 w-full" />}>
         {list.data && (
           <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <HandoverListPanel list={list.data} jobId={jobId} current={handoverId} />
+            <div className="flex flex-col gap-3">
+              {list.data.audience !== 'CUSTOMER' && !list.data.assessment && <CopyingHandover jobId={jobId} />}
+              <HandoverListPanel list={list.data} jobId={jobId} current={handoverId} />
+            </div>
             <div className="min-w-0">
               {handoverId ? (
                 <RegionState query={report} skeleton={<Skeleton className="h-96 w-full" />}>
@@ -135,6 +140,33 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
       </RegionState>
     </div>
   )
+}
+
+/**
+ * The handover the runner is copying, for the Mentor and the Crew of a Code Job (UX-DR115, AD-46, Story 23.8b):
+ * the Busy banner's visual with the Actions run status row, read again every 3 s while the copy is pending. The
+ * Customer hears nothing until the pull request is open, so this is never rendered for them, and an Assessment
+ * Job hands over no code, so it never has a submission to read. When the copy ends, the Job's handovers are read
+ * again, because that list does not poll: the handover the copy recorded shows without a reload.
+ */
+function CopyingHandover({ jobId }: { jobId: string }) {
+  const client = useQueryClient()
+  const submission = useCopyingHandover(jobId)
+  const state = submission.data?.state
+  const copying = state === 'PENDING' ? submission.data : undefined
+  const settled = useRef(false)
+  useEffect(() => {
+    if (state === undefined || state === 'PENDING') {
+      settled.current = false
+      return
+    }
+    if (settled.current) {
+      return
+    }
+    settled.current = true
+    void client.invalidateQueries({ queryKey: ['handovers', jobId], exact: true })
+  }, [client, jobId, state])
+  return copying ? <CopyRunBanner submission={copying} /> : null
 }
 
 function HandoverListPanel({ list, jobId, current }: { list: HandoverList; jobId: string; current: string | undefined }) {

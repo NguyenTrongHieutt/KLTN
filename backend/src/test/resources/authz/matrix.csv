@@ -1973,13 +1973,13 @@ GET /api/v1/boards/{boardId}/handovers/submission,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/handovers/submission,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,USER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,LOCKED,,,401
-GET /api/v1/boards/{boardId}/handovers/submission,CUSTOMER,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,CUSTOMER,,,403 FORBIDDEN TEAM_ONLY
 GET /api/v1/boards/{boardId}/handovers/submission,MENTOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,BIDDER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/handovers/submission,CREW_ACTIVE,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_ACTIVE,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/handovers/submission,CROSS_ROLE,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,CROSS_ROLE,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/submission,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/handovers,ANONYMOUS,,handover.json,401

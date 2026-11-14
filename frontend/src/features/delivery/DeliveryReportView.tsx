@@ -18,7 +18,10 @@ import { SensitiveChangeList } from './SensitiveChangeList'
  * with the commits, all rendered as text (NFR-3). While it waits for the Customer, they get "Kiểm tra
  * từng tiêu chí" and the Revision Rounds left; once decided, everyone sees the Customer's marks. A Code
  * Job's acceptance says while it merges, and when the merge did not go through (FR-33). A handover voided at
- * acceptance says why, and tells the Customer the Milestone's money is still held (M3).
+ * acceptance says why, and tells the Customer the Milestone's money is still held (M3). Above the Customer's
+ * decision, a handover that holds the Mentor's N-33 confirmation quotes it: vibefix scans no team code, and the
+ * Mentor confirmed this one holds none (FR-33, R28, Story 23.8b). A handover recorded before that story holds no
+ * confirmation, so it says nothing, and an erased Mentor is named by the word for a deleted account.
  */
 export function DeliveryReportView({ report }: { report: DeliveryReport }) {
   const customer = report.audience === 'CUSTOMER'
@@ -54,6 +57,15 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
           <span>{t('reason.delivery.HANDOVER_VOIDED')}</span>
           {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
+        </p>
+      )}
+      {/*
+        N-33 (FR-33, R28, Story 23.8b): a statement of fact above the decision, shown and never acknowledged, and
+        only where the handover really holds the Mentor's confirmation.
+      */}
+      {customer && report.code?.teamCodeConfirmedAt && (
+        <p className="rounded-md border border-border bg-muted p-3 text-body-sm break-words">
+          {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
         </p>
       )}
       {report.decision && (
@@ -198,8 +210,14 @@ function PreviewSection({ report }: { report: DeliveryReport }) {
   )
 }
 
-/** A Code Job's part of the report (FR-32, AD-33, UX-DR53). */
+/**
+ * A Code Job's part of the report (FR-32, AD-33, UX-DR53, UX-DR115). "Chi tiết kỹ thuật" adds the two GitHub
+ * links of Story 23.8b, each with its domain: the pull request's changes and the `handover/{id}` branch in the
+ * Intermediary Repository. The Customer reads them through the read invitation they accept on GitHub, so their
+ * line says so and points at the invitation page (Story 23.7).
+ */
 function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) {
+  const customer = report.audience === 'CUSTOMER'
   return (
     <>
       <SensitiveChangeList changes={code.sensitiveChanges} headingId="delivery-sensitive" />
@@ -241,6 +259,37 @@ function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) 
               </li>
             ))}
           </ul>
+          {(code.diff ?? code.branch) && (
+            <div className="flex flex-col gap-1.5">
+              {code.diff && (
+                <OutsideLink
+                  url={code.diff.url}
+                  domain={code.diff.domain}
+                  label={t('screen.handover.code.openDiff')}
+                  warning={false}
+                />
+              )}
+              {code.branch && (
+                <OutsideLink
+                  url={code.branch.url}
+                  domain={code.branch.domain}
+                  label={t('screen.handover.code.openBranch')}
+                  warning={false}
+                />
+              )}
+              {customer && (
+                <p className="flex flex-col gap-0.5 text-caption text-muted-foreground">
+                  <span>{t('screen.handover.code.linksCustomer')}</span>
+                  <Link
+                    to={`/cong-viec/${report.jobId}/kho-trung-gian`}
+                    className="w-fit text-primary underline-offset-4 hover:underline"
+                  >
+                    {t('screen.handover.code.openInvitation')}
+                  </Link>
+                </p>
+              )}
+            </div>
+          )}
           <p className="text-caption text-muted-foreground">{t('screen.handover.code.pull', { n: code.pullNumber })}</p>
           {code.unattributed > 0 && (
             <p className="text-caption text-muted-foreground">{t('screen.handover.code.unattributed', { n: code.unattributed })}</p>

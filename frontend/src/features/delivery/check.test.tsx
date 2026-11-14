@@ -165,11 +165,22 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
   it('says a Code Job acceptance merges first, and pays once the merge is done (FR-33)', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
-    const merging = report({ assessment: false, acceptance: 'MERGING', decision: null })
+    const code = {
+      handoverCommit: '9c41a02' + '0'.repeat(33),
+      pullNumber: 101,
+      commits: [],
+      unattributed: 0,
+      truncated: false,
+      sensitiveChanges: [],
+      sensitiveChangeCount: 0,
+      pages: [],
+      teamCodeConfirmedAt: '2026-10-20T02:55:00Z',
+    }
+    const merging = report({ assessment: false, code, acceptance: 'MERGING', decision: null })
     let accepted = false
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/handovers/h1': () => json(accepted ? merging : report({ assessment: false })),
+      'GET /api/v1/handovers/h1': () => json(accepted ? merging : report({ assessment: false, code })),
       'POST /api/v1/handovers/h1/accept': () => {
         accepted = true
         return json(merging)
@@ -184,6 +195,11 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     await user.click(screen.getByRole('button', { name: 'Tiếp' }))
     await user.click(await screen.findByRole('button', { name: 'Nghiệm thu giai đoạn' }))
     const dialog = await screen.findByRole('dialog', { name: 'Nghiệm thu Giai đoạn 1?' })
+    // N-33 (FR-33, R28, Story 23.8b): the dialog states it with the Mentor's name, and asks nothing.
+    expect(
+      within(dialog).getByText(/vibefix không quét mã của nhóm\. Người hướng dẫn Đỗ Mạnh Hùng đã xác nhận/),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
 
     const lines = await screen.findAllByText('Đang hợp nhất bàn giao Giai đoạn 1. Tiền được chuyển ngay khi hợp nhất xong.')

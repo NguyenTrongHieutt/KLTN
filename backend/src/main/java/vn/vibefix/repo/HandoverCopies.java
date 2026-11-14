@@ -27,12 +27,14 @@ public interface HandoverCopies {
 	/**
 	 * What to copy.
 	 * @param submissionId the pending submission, which is also the handover's ID once it is recorded
+	 * @param milestoneNumber the Milestone handed over, which the Administrator alert of a failed run names (R30)
 	 * @param fromSha where the handover's range starts: the previous Handover Commit, or the commit Setup copied
 	 * @param handoverCommit the Handover Commit, the Working default branch's head when the Mentor sent it
 	 * @param title the pull request's title
 	 * @param body the pull request's body
 	 */
-	record Request(UUID submissionId, UUID jobId, String fromSha, String handoverCommit, String title, String body) {
+	record Request(UUID submissionId, UUID jobId, int milestoneNumber, String fromSha, String handoverCommit, String title,
+			String body) {
 	}
 
 	/** Why a copy ended without a handover (FR-32, FR-64). */
@@ -76,5 +78,19 @@ public interface HandoverCopies {
 
 	/** How the submission's copy ended, or empty while it is still running or was never asked for. */
 	Optional<Result> result(UUID submissionId);
+
+	/**
+	 * The copy's run on the runner as vibefix last read it (AD-46, Story 23.8b), for the Actions run status row the
+	 * Mentor and the Crew see on JOB-5.
+	 * @param status GitHub's own status of the run dispatched last ({@code QUEUED}, {@code IN_PROGRESS},
+	 * {@code COMPLETED}); {@code null} before a run is dispatched, or before one was read
+	 * @param conclusion what GitHub concluded, once it completed or vibefix stopped waiting for it; {@code null}
+	 * before. No run link is named: a run on the runner is linked for an Administrator alone
+	 */
+	record RunState(@Nullable String status, @Nullable String conclusion) {
+	}
+
+	/** Where the submission's copy run stands, or empty when no copy was ever asked for. */
+	Optional<RunState> runState(UUID submissionId);
 
 }

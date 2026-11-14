@@ -140,6 +140,12 @@ vibefix:
     # AD-12, SG-18 (Vietnam time): failed deliveries are redelivered, then each App is compared with AD-10.
     redelivery-cron: "0 0 4 * * *"
     configuration-check-cron: "0 10 4 * * *"
+    # AD-46, D1, R30 (Story 23.8b, Vietnam time): the runner's GitHub Actions minutes this month, summed daily
+    # from its run timings. Handover copies are the only runs vibefix pays for (the J7 copy and the Final Merge
+    # run on the Customer's own account), GitHub Free gives the organization 2,000 minutes a month, and past 80%
+    # of them every Administrator gets github.runner_minutes_80, once that month.
+    runner-minutes-budget: 2000
+    runner-minutes-cron: "0 30 4 * * *"
     # AD-44, AD-45 (Story 23.4): the Actions token exchange, POST /github/actions/exchange. A run of a
     # published workflow trades its OIDC ID token there for one token narrowed to its correlation's grant.
     exchange:
@@ -210,6 +216,11 @@ vibefix:
     # R4 (Story 23.6b): N-32's current version, which the Customer's J7 self-confirmation names and records; the SPA
     # shows the same one (Story 23.6c).
     self-confirmation-notice-version: "1.0"
+  # FR-25, R28 (Story 23.8b): N-33's current version, the Mentor's duty confirmation that a handover's commits hold
+  # no credential and no real data, since vibefix scans no team code. The SPA shows the same one
+  # (frontend/src/i18n/vi.json notice.teamCode.version), and each handover records the version it was sent under.
+  delivery:
+    team-code-notice-version: "1.0"
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m

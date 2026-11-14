@@ -107,10 +107,11 @@ class CodeHandovers {
 	 * "Gửi bàn giao" for a Code Job: the drafted handover, checked again on the live head, kept pending, and the
 	 * copy asked for on the runner. No handover exists until the copy ends.
 	 * @return the submission, which is the handover's own ID once it is recorded
+	 * @param teamCode the Mentor's N-33 duty confirmation, recorded with the handover (FR-25, R28, Story 23.8b)
 	 * @throws ApiException {@code GUARD_FAILED} with the first of the check's problems; and the busy marker's
 	 * refusals ({@code JOB_BUSY}, {@code STALE}, {@code CONFLICT JOB_FROZEN})
 	 */
-	UUID handOver(Viewer mentor, Draft draft, long version) {
+	UUID handOver(Viewer mentor, Draft draft, long version, Handovers.@Nullable TeamCodeConfirmation teamCode) {
 		UUID jobId = mentor.job().jobId();
 		Check check = check(jobId);
 		List<String> problems = check.problems();
@@ -118,7 +119,7 @@ class CodeHandovers {
 			String reason = problems.isEmpty() ? DeliveryReason.REPOSITORY_UNREADABLE.name() : problems.get(0);
 			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.valueOf(reason));
 		}
-		Pending pending = Pending.of(mentor, draft, version, this.ids.newId());
+		Pending pending = Pending.of(mentor, draft, version, this.ids.newId(), teamCode);
 		return this.submissions.submit(pending, check.rangeStart(), check.head().headSha(),
 				"Bàn giao Giai đoạn " + pending.milestoneNumber() + ": " + pending.milestoneTitle(),
 				"Bàn giao " + pending.id() + " của vibefix: lần lưu " + check.head().headSha() + ".");

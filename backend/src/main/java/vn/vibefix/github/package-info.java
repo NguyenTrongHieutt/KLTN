@@ -10,6 +10,11 @@
  * {@code POST /github/actions/exchange} (AD-44, Story 23.4): a GitHub Actions run it dispatched trades its
  * OIDC ID token for one token narrowed to its correlation's grant, which is revoked when the run ends.
  * <p>
+ * A daily job sums the runner's own GitHub Actions minutes for the month in Vietnam time (AD-46, D1, R30, Story
+ * 23.8b), handover copies being the only runs vibefix pays for: past the alert share of
+ * {@code vibefix.github.runner-minutes-budget} it publishes {@link vn.vibefix.github.GitHubRunnerMinutes}, once
+ * that month.
+ * <p>
  * Public API: {@link vn.vibefix.github.GitHubApps}, {@link vn.vibefix.github.MergeApp} (the Customers'
  * Merge App installations, Story 8.7), {@link vn.vibefix.github.SourceApp} (the Customers' Source App
  * installations, which have no webhook, the published {@code vibefix.yml}, and its check, Story 23.5),
@@ -20,7 +25,9 @@
  * installation, reading them, and their correlations, Stories 23.4 and 23.6a), and the events
  * {@link vn.vibefix.github.GitHubWebhookReceived}, {@link vn.vibefix.github.GitHubConfigurationDrift},
  * {@link vn.vibefix.github.GitHubExchangeIssued}, {@link vn.vibefix.github.GitHubExchangeRefused},
- * {@link vn.vibefix.github.GitHubExchangeRevoked} and {@link vn.vibefix.github.GitHubExchangeRevokeUnknown}, which
+ * {@link vn.vibefix.github.GitHubExchangeRevoked}, {@link vn.vibefix.github.GitHubExchangeRevokeUnknown} and
+ * {@link vn.vibefix.github.GitHubRunnerMinutes} (the runner's monthly Actions minutes past their alert share,
+ * Story 23.8b), which
  * {@code admin} audits and alerts on. Story 2.1's {@code spike-s4} probe, Spike S6's {@code spike-s6}, Story 23.4's
  * {@code runner-dispatch}, the webhook endpoint and the exchange endpoint are wiring in {@code github.internal}.
  */

@@ -52,7 +52,7 @@ const mentorJob = {
   agreementConfirmed: true,
 }
 
-/** The pending submission a Code Job's "Gửi bàn giao" answers with (Story 23.8a). */
+/** The pending submission a Code Job's "Gửi bàn giao" answers with (Stories 23.8a and 23.8b). */
 const submission = (overrides: object = {}) => ({
   id: 's1',
   jobId: 'j1',
@@ -62,8 +62,13 @@ const submission = (overrides: object = {}) => ({
   reason: null,
   reasonModule: null,
   handoverId: null,
+  runStatus: null,
+  runConclusion: null,
   ...overrides,
 })
+
+/** N-33's Mentor checkbox, which a Code Job's "Gửi bàn giao" waits for (FR-25, R28, Story 23.8b). */
+const teamCode = () => screen.getByRole('checkbox', { name: /vibefix không quét mã của nhóm/ })
 
 const list = (overrides: object = {}) => ({
   jobId: 'j1',
@@ -315,6 +320,17 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
               truncated: false,
               sensitiveChanges: [{ path: 'package.json', kind: 'DEPENDENCIES' }],
               pages: [{ pageId: 'p2', title: 'Hướng dẫn dùng', versionNo: 2 }],
+              diff: {
+                url: 'https://github.com/vibefix-dev/job-1-intermediary/pull/101/files',
+                domain: 'github.com',
+                checkedAt: null,
+              },
+              branch: {
+                url: 'https://github.com/vibefix-dev/job-1-intermediary/tree/handover/h1',
+                domain: 'github.com',
+                checkedAt: null,
+              },
+              teamCodeConfirmedAt: '2026-10-20T02:55:00Z',
             },
           }),
         ),
@@ -324,11 +340,33 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     const sensitive = (await screen.findByText('package.json')).closest('section')!
     expect(within(sensitive).getByText(/Danh sách thư viện mà ứng dụng dùng/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Hướng dẫn dùng · phiên bản 2' })).toHaveAttribute('href', '/cong-viec/j1/tai-lieu/p2')
+    // N-33 (FR-33, R28, Story 23.8b): the Customer reads it above their decision, and never ticks it.
+    expect(
+      screen.getByText(/vibefix không quét mã của nhóm\. Người hướng dẫn Đỗ Mạnh Hùng đã xác nhận/),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(screen.getByText('Chi tiết kỹ thuật'))
     expect(screen.getByText('Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.')).toBeInTheDocument()
     expect(screen.getByText('SDB-1')).toBeInTheDocument()
     expect(screen.getByText('Yêu cầu hợp nhất #101 trong kho trung gian')).toBeInTheDocument()
     expect(screen.getByText('1 lần lưu không gắn với tài khoản GitHub nào.')).toBeInTheDocument()
+    // FR-32 (Story 23.8b): the two GitHub links, each with its domain, and the Customer's invitation line.
+    expect(screen.getByRole('link', { name: /Xem thay đổi trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/vibefix-dev/job-1-intermediary/pull/101/files',
+    )
+    expect(screen.getByRole('link', { name: /Xem nhánh bàn giao/ })).toHaveAttribute(
+      'href',
+      'https://github.com/vibefix-dev/job-1-intermediary/tree/handover/h1',
+    )
+    expect(screen.getAllByText('(github.com)')).toHaveLength(2)
+    expect(
+      screen.getByText('Hai liên kết trên chỉ mở được sau khi bạn chấp nhận lời mời đọc kho trung gian trên GitHub.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở lời mời đọc kho trung gian' })).toHaveAttribute(
+      'href',
+      '/cong-viec/j1/kho-trung-gian',
+    )
     for (const payload of PAYLOADS) {
       expect(screen.getAllByText(payload, { exact: false }).length).toBeGreaterThan(0)
     }
@@ -404,6 +442,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(send).toBeDisabled()
     await user.type(screen.getByRole('textbox', { name: 'Vì sao không làm được bản xem thử' }), 'Chỉ chạy trên máy của quán')
     await user.type(screen.getByRole('textbox', { name: 'Đường dẫn video quay màn hình (https)' }), 'https://www.loom.com/share/abc')
+    await user.click(teamCode())
     await user.click(send)
 
     await waitFor(() => expect(sent).toBeDefined())
@@ -414,6 +453,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   it('waits on the form while the runner copies a Code Job handover, then opens its report (Story 23.8a)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let reads = 0
+    let sent: Record<string, unknown> | undefined
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/boards/j1/handovers/preflight': () =>
@@ -424,9 +464,16 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
             workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
           }),
         ),
-      'POST /api/v1/boards/j1/handovers': () => json(submission(), 202),
+      'POST /api/v1/boards/j1/handovers': async (request) => {
+        sent = (await request.json()) as Record<string, unknown>
+        return json(submission(), 202)
+      },
       'GET /api/v1/boards/j1/handovers/submission': () =>
-        json(reads++ === 0 ? submission() : submission({ state: 'DONE', handoverId: 'h1' })),
+        json(
+          reads++ === 0
+            ? submission({ runStatus: 'IN_PROGRESS' })
+            : submission({ state: 'DONE', handoverId: 'h1', runStatus: 'COMPLETED', runConclusion: 'success' }),
+        ),
       'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false, report: null })),
       'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
     })
@@ -435,10 +482,18 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
     await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
     const send = screen.getByRole('button', { name: 'Gửi bàn giao' })
+    // FR-25, R28 (Story 23.8b): N-33's duty confirmation is the last thing the form waits for.
+    expect(send).toBeDisabled()
+    await user.click(teamCode())
     await user.click(send)
 
     expect(await screen.findByText('Đang sao chép bàn giao Giai đoạn 1…')).toBeInTheDocument()
     expect(send).toBeDisabled()
+    expect(sent).toMatchObject({ teamCodeNoticeVersion: '1.0' })
+    // Story 23.8b: the Actions run status row says where the runner's run stands, and links nothing.
+    const row = await screen.findByRole('group', { name: 'Sao chép bàn giao Giai đoạn 1' })
+    expect(within(row).getByText('Đang chạy')).toBeInTheDocument()
+    expect(within(row).queryByRole('link')).not.toBeInTheDocument()
     // The form reads the submission again every 3 s until the copy is over, then opens the Delivery Report.
     expect(await screen.findByText('Đã bàn giao Giai đoạn 1.', {}, { timeout: 15_000 })).toBeInTheDocument()
     expect(screen.queryByText('Đang sao chép bàn giao Giai đoạn 1…')).not.toBeInTheDocument()
@@ -469,6 +524,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
     await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    await user.click(teamCode())
     await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
 
     expect(await screen.findByRole('alert', {}, { timeout: 15_000 })).toHaveTextContent(
@@ -496,12 +552,112 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
     await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    await user.click(teamCode())
     await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
 
     expect(await screen.findByRole('alert', {}, { timeout: 15_000 })).toHaveTextContent(
       'Chưa đọc được trạng thái lần sao chép. Hãy tải lại trang sau ít phút.',
     )
     expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeEnabled()
+  })
+
+  /** FR-25, R28 (Story 23.8b): a reworded N-33 is read again, so the form offers a reload and sends nothing more. */
+  it('offers a reload when N-33 was reworded while the form was open (Story 23.8b)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(
+          preflight({
+            assessment: false,
+            report: null,
+            workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
+          }),
+        ),
+      'POST /api/v1/boards/j1/handovers': () =>
+        json({ status: 400, code: 'VALIDATION', reason: 'NOTICE_REQUIRED' }, 400),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    expect(await screen.findByText(/Lưu ý về mã của nhóm · phiên bản 1\.0/)).toBeInTheDocument()
+    await user.click(teamCode())
+    await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
+
+    expect(await screen.findByRole('alert', {}, { timeout: 15_000 })).toHaveTextContent(
+      'Lưu ý về mã của nhóm vừa được cập nhật. Hãy tải lại trang để đọc bản mới rồi gửi lại.',
+    )
+    expect(screen.getByRole('button', { name: 'Tải lại trang' })).toBeEnabled()
+  })
+
+  /** UX-DR115 (Story 23.8b): JOB-5 shows the team the copy's run row while a submission is pending. */
+  it('shows the team the copy run on JOB-5 while a handover is being copied (Story 23.8b)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['BUG_FIX'], codeJob: true }),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
+      'GET /api/v1/boards/j1/handovers/submission': () => json(submission({ number: 2, runStatus: 'QUEUED' })),
+    })
+    renderAt('/cong-viec/j1/ban-giao')
+
+    const row = await screen.findByRole('group', { name: 'Sao chép bàn giao Giai đoạn 2' }, { timeout: 15_000 })
+    expect(within(row).getByText('Đang chờ GitHub')).toBeInTheDocument()
+    expect(within(row).queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByText('Đang sao chép bàn giao Giai đoạn 2…')).toBeInTheDocument()
+  })
+
+  /**
+   * AD-46 (Story 23.8b): a run GitHub concluded as anything but a success, while the copy is still pending, is
+   * what the team reads through the retry window; it is "Không chạy được", and still never a link.
+   */
+  it('says a copy run that GitHub failed is not running, with no link (Story 23.8b)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['BUG_FIX'], codeJob: true }),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
+      'GET /api/v1/boards/j1/handovers/submission': () =>
+        json(submission({ number: 2, runStatus: 'COMPLETED', runConclusion: 'failure' })),
+    })
+    renderAt('/cong-viec/j1/ban-giao')
+
+    const row = await screen.findByRole('group', { name: 'Sao chép bàn giao Giai đoạn 2' }, { timeout: 15_000 })
+    expect(within(row).getByText('Không chạy được')).toBeInTheDocument()
+    expect(within(row).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  /**
+   * R28 (Story 23.8b): a handover recorded before N-33 existed holds no confirmation, so the Customer is told of
+   * none.
+   */
+  it('quotes N-33 only where the handover holds the confirmation (Story 23.8b)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json({ ...customerJob, title: 'Sửa lỗi đặt bàn', jobTypes: ['BUG_FIX'] }),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER', assessment: false })),
+      'GET /api/v1/handovers/h1': () =>
+        json(
+          report({
+            assessment: false,
+            report: null,
+            code: {
+              handoverCommit: '9c41a02' + '0'.repeat(33),
+              pullNumber: 101,
+              commits: [],
+              unattributed: 0,
+              truncated: false,
+              sensitiveChanges: [],
+              sensitiveChangeCount: 0,
+              pages: [],
+              teamCodeConfirmedAt: null,
+            },
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    expect(await screen.findByText('Chi tiết kỹ thuật')).toBeInTheDocument()
+    expect(screen.queryByText(/vibefix không quét mã của nhóm/)).not.toBeInTheDocument()
   })
 
   it('tells the Customer a handover voided at acceptance changed on GitHub (FR-33, M3)', { timeout: 20_000 }, async () => {

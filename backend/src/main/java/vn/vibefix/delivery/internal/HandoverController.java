@@ -2,6 +2,7 @@ package vn.vibefix.delivery.internal;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +45,8 @@ import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.MilestoneHandovers.Rounds;
 import vn.vibefix.files.PreparedFile;
 import vn.vibefix.payment.Ledger;
+import vn.vibefix.repo.HandoverBranches;
+import vn.vibefix.repo.HandoverCopies;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -150,10 +153,16 @@ class HandoverController {
 	 * @param unattributed commits whose author GitHub resolved to no account
 	 * @param truncated GitHub listed only part of the commits; the changed paths are the run's own full list
 	 * @param sensitiveChangeCount how many Sensitive Changes the range held, which may be more than are listed
+	 * @param diff the pull request's changes on GitHub, for the Customer, the Mentor and the Crew (FR-32, Story 23.8b)
+	 * @param branch {@code handover/{id}} in the Intermediary Repository; both are empty while vibefix keeps no
+	 * record of the Intermediary
+	 * @param teamCodeConfirmedAt when the Mentor ticked N-33 (FR-25, R28, Story 23.8b), so the Customer's own line
+	 * quotes a confirmation this handover really holds; empty for one recorded before that story
 	 */
 	record HandoverCodeView(String handoverCommit, int pullNumber, List<HandoverCommitView> commits, int unattributed,
 			boolean truncated, List<SensitiveChangeView> sensitiveChanges, int sensitiveChangeCount,
-			List<HandoverPageView> pages) {
+			List<HandoverPageView> pages, @Nullable HandoverLinkView diff, @Nullable HandoverLinkView branch,
+			@Nullable Instant teamCodeConfirmedAt) {
 	}
 
 	/**
@@ -164,9 +173,14 @@ class HandoverController {
 	 * @param reasonModule the module whose reason enum {@code reason} belongs to, so the screen reads it from
 	 * {@code reason.{module}} (AD-23): {@code delivery} for the copy's own refusals, {@code job} for M2's
 	 * @param handoverId the handover recorded from it, for {@code DONE}
+	 * @param runStatus the copy run on the runner as vibefix last read it ({@code QUEUED}, {@code IN_PROGRESS},
+	 * {@code COMPLETED}); none before the run is dispatched (Story 23.8b)
+	 * @param runConclusion what GitHub concluded, once it completed or vibefix stopped waiting for it. No run link
+	 * is ever named here: nobody but an Administrator is linked to a run on the runner (AD-46)
 	 */
 	record HandoverSubmissionView(UUID id, UUID jobId, UUID milestoneId, int number, String state, @Nullable String reason,
-			@Nullable String reasonModule, @Nullable UUID handoverId) {
+			@Nullable String reasonModule, @Nullable UUID handoverId, @Nullable String runStatus,
+			@Nullable String runConclusion) {
 	}
 
 	record HandoverCriterionMarkRequest(@NotNull UUID criterionId, boolean met,
@@ -180,6 +194,8 @@ class HandoverController {
 	 * "Gửi bàn giao".
 	 * @param version the Job's version the form loaded
 	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning
+	 * @param teamCodeNoticeVersion the version of N-33's Mentor checkbox the form showed, which a Code Job's
+	 * handover must name and records (FR-25, R28); an Assessment Job hands over no code and sends none
 	 */
 	record HandoverRequest(@NotNull UUID milestoneId, @NotNull Long version,
 			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria,
@@ -187,7 +203,8 @@ class HandoverController {
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String previewUrl,
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String recordingUrl,
 			@Nullable @Size(max = 500) String noPreviewReason,
-			@Nullable @Size(max = HandoverScreenshots.MAX) List<@NotNull UUID> screenshotIds) {
+			@Nullable @Size(max = HandoverScreenshots.MAX) List<@NotNull UUID> screenshotIds,
+			@Nullable @Pattern(regexp = Handovers.NOTICE_VERSION_PATTERN) String teamCodeNoticeVersion) {
 	}
 
 	/** One criterion as the Mentor marked it: their own statement, never a criterion done (AD-33). */
@@ -274,9 +291,16 @@ class HandoverController {
 
 	private final AcceptanceMerges merges;
 
+	private final HandoverBranches branches;
+
+	private final Clock clock;
+
 	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
 			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, HandoverSubmissions submissions,
-			IdGenerator ids, PreviewChecks previews, HandoverScreenshots screenshots, AcceptanceMerges merges) {
+			IdGenerator ids, PreviewChecks previews, HandoverScreenshots screenshots, AcceptanceMerges merges,
+			HandoverBranches branches, Clock clock) {
+		this.branches = branches;
+		this.clock = clock;
 		this.merges = merges;
 		this.code = code;
 		this.submissions = submissions;
@@ -384,11 +408,23 @@ class HandoverController {
 	 * "Gửi bàn giao" (FR-32, AD-11, AD-46, Story 23.8a). An Assessment Job's handover is recorded at once, with M2.
 	 * A Code Job's is kept pending: the runner copies the Handover Commit into {@code handover/{id}} of the
 	 * Intermediary, and M2 follows when it has, so the answer is the submission and its state.
+	 * @throws ApiException {@code VALIDATION NOTICE_REQUIRED} when a Code Job's request names another version of
+	 * N-33 than the one in force, so the Mentor reads the current text and ticks it again (FR-25, R28)
 	 */
 	@PostMapping("/api/v1/boards/{boardId}/handovers")
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	HandoverSubmissionView handOver(@PathVariable("boardId") UUID jobId, @Valid @RequestBody HandoverRequest body) {
 		Viewer mentor = this.access.maker(jobId, this.callers.get());
+		// N-33 (FR-25, FR-32, R28): vibefix scans no team code, so a Code Job's handover carries the Mentor's duty
+		// confirmation at the version in force. An Assessment Job hands over no code and confirms nothing.
+		Handovers.TeamCodeConfirmation teamCode = null;
+		if (!mentor.job().assessment()) {
+			if (!this.handovers.noticeVersion().equals(body.teamCodeNoticeVersion())) {
+				throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.NOTICE_REQUIRED);
+			}
+			teamCode = new Handovers.TeamCodeConfirmation(mentor.accountId(), this.handovers.noticeVersion(),
+					this.clock.instant());
+		}
 		Draft draft = this.handovers.draft(mentor, body.milestoneId(),
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
 				body.itemNotes() == null ? List.of()
@@ -405,29 +441,37 @@ class HandoverController {
 			}
 		}
 		if (mentor.job().assessment()) {
-			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId()), null);
+			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId(), null), null);
 			return new HandoverSubmissionView(handover.id(), jobId, handover.milestoneId(), handover.number(), "DONE", null,
-					null, handover.id());
+					null, handover.id(), null, null);
 		}
 		// A Code Job's Handover Commit is copied on the runner's Actions between the draft and M2 (AD-11, AD-46).
-		UUID submission = this.code.handOver(mentor, draft, body.version());
+		UUID submission = this.code.handOver(mentor, draft, body.version(), teamCode);
 		return submissionView(this.submissions.find(submission).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
 	}
 
 	/**
-	 * The Job's latest handover submission, for the form that sent it (Story 23.8a): pending while the runner
-	 * copies, refused with its reason, or done with the handover's ID.
+	 * The Job's latest handover submission, for the form that sent it and for JOB-5's run status row (Stories 23.8a
+	 * and 23.8b): pending with the copy run's state, refused with its reason, or done with the handover's ID. The
+	 * Mentor and the Crew read it; the Customer is told nothing until the pull request is open (UX-DR115).
+	 * @throws ApiException {@code FORBIDDEN TEAM_ONLY} for the Customer
 	 */
 	@GetMapping("/api/v1/boards/{boardId}/handovers/submission")
 	HandoverSubmissionView submission(@PathVariable("boardId") UUID jobId) {
-		this.access.maker(jobId, this.callers.get());
+		Viewer viewer = this.access.reader(jobId, this.callers.get());
+		if (viewer.kind() == Kind.CUSTOMER) {
+			throw new ApiException(ErrorCode.FORBIDDEN, DeliveryReason.TEAM_ONLY);
+		}
 		return submissionView(this.submissions.latest(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
 	}
 
-	private static HandoverSubmissionView submissionView(HandoverSubmissions.Submission submission) {
+	private HandoverSubmissionView submissionView(HandoverSubmissions.Submission submission) {
+		// AD-46: the run's own state, never its link; nobody but an Administrator is linked to a run on the runner.
+		HandoverCopies.RunState run = this.submissions.runState(submission.id()).orElse(null);
 		return new HandoverSubmissionView(submission.id(), submission.jobId(), submission.milestoneId(),
 				submission.milestoneNumber(), submission.status(), submission.reason(), submission.reasonModule(),
-				"DONE".equals(submission.status()) ? submission.id() : null);
+				"DONE".equals(submission.status()) ? submission.id() : null, run == null ? null : run.status(),
+				run == null ? null : run.conclusion());
 	}
 
 	/** The Delivery Report (UX-DR53). */
@@ -496,7 +540,11 @@ class HandoverController {
 					.stream()
 					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
 					.toList(),
-				handover.auto(), this.handovers.code(handover.id()).map(found -> codeView(viewer, found)).orElse(null),
+				handover.auto(),
+				this.handovers.code(handover.id())
+					.map(found -> codeView(viewer, handover.id(), found, this.branches.intermediaryUrl(handover.jobId())
+						.orElse(null)))
+					.orElse(null),
 				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null, null))),
 				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(), acceptance);
 	}
@@ -513,7 +561,14 @@ class HandoverController {
 				preview.noPreviewReason());
 	}
 
-	private static HandoverCodeView codeView(Viewer viewer, CodeRecord code) {
+	/**
+	 * A Code handover's part of the report (FR-32, Story 23.8b), with the two GitHub links "Chi tiết kỹ thuật"
+	 * shows everyone who reads it: the pull request's changes and the {@code handover/{id}} branch, each in the
+	 * Intermediary Repository.
+	 * @param intermediary the Intermediary's page on GitHub, or {@code null} while vibefix keeps no record of it
+	 */
+	private static HandoverCodeView codeView(Viewer viewer, UUID handoverId, CodeRecord code,
+			@Nullable String intermediary) {
 		return new HandoverCodeView(code.commit(), code.pullNumber(),
 				code.commits().stream().map(c -> new HandoverCommitView(c.sha(), c.message(), c.workItemKeys())).toList(),
 				code.unattributed(), code.truncated(),
@@ -522,7 +577,15 @@ class HandoverController {
 					.stream()
 					.filter(page -> viewer.kind() != Kind.CUSTOMER || page.customerVisible())
 					.map(page -> new HandoverPageView(page.pageId(), page.title(), page.versionNo()))
-					.toList());
+					.toList(),
+				outside(intermediary == null ? null : intermediary + "/pull/" + code.pullNumber() + "/files"),
+				outside(intermediary == null ? null : intermediary + "/tree/" + HandoverCopies.branch(handoverId)),
+				code.teamCodeConfirmedAt());
+	}
+
+	/** An outside link with its domain beside it, as every other one shows it (AD-35); none for no URL. */
+	private static @Nullable HandoverLinkView outside(@Nullable String url) {
+		return url == null ? null : new HandoverLinkView(url, PreviewChecks.domain(url), null);
 	}
 
 }

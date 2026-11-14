@@ -207,6 +207,22 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("operation", "correlation"));
 
+	/**
+	 * A handover copy run on the runner failed, timed out, was refused a token, or reported no readable path list
+	 * (AD-46, FR-64, R30, Story 23.8b): every Administrator, once per copy, with the run's page on GitHub, which
+	 * nobody else is ever given, or its correlation when GitHub showed no run.
+	 */
+	static final NotificationType GITHUB_RUNNER_RUN_FAILED = new NotificationType("github.runner_run_failed",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job", "n", "run", "reason"));
+
+	/**
+	 * The runner's GitHub Actions minutes this month passed their alert share (AD-46, D1, R30, Story 23.8b): every
+	 * Administrator, once a month.
+	 */
+	static final NotificationType GITHUB_RUNNER_MINUTES_80 = new NotificationType("github.runner_minutes_80",
+			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("used", "budget"));
+
 	/** The Source Repository changed during the Job (FR-20): the Customer and the Mentor, once per change. */
 	static final NotificationType REPO_DRIFT_DETECTED = new NotificationType("repo.drift_detected",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
@@ -937,7 +953,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
 				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
-				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN,
+				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN, GITHUB_RUNNER_RUN_FAILED, GITHUB_RUNNER_MINUTES_80,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,

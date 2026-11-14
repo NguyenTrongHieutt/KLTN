@@ -135,7 +135,8 @@ class HandoverSubmissions {
 			// The partial unique index: this Milestone already has a submission waiting for its copy.
 			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.HANDOVER_COPYING);
 		}
-		this.copies.start(new Request(pending.id(), pending.jobId(), rangeStart, handoverCommit, title, body));
+		this.copies.start(new Request(pending.id(), pending.jobId(), pending.milestoneNumber(), rangeStart, handoverCommit,
+				title, body));
 		this.auditLog.record(AuditEntry
 			.of(AuditActor.user(pending.mentorId()), "delivery.handover_submitted",
 					AuditObject.of("delivery.handover_submission", pending.id()))
@@ -181,6 +182,14 @@ class HandoverSubmissions {
 			.param("job", jobId)
 			.query(HandoverSubmissions::submission)
 			.optional();
+	}
+
+	/**
+	 * The submission's copy run as vibefix last read it (AD-46, Story 23.8b), for JOB-5's Actions run status row:
+	 * empty when no copy was ever asked for, and never a run link, which only an Administrator is given.
+	 */
+	Optional<HandoverCopies.RunState> runState(UUID submissionId) {
+		return this.copies.runState(submissionId);
 	}
 
 	/** Whether the Job has a submission waiting for its copy, whichever Milestone it hands over. */

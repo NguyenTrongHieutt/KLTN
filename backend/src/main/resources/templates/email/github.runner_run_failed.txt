@@ -1,0 +1,7 @@
+subject: Lần sao chép bàn giao trên kho chạy thất bại: {job}, Giai đoạn {n}
+---
+Xin chào,
+
+GitHub Actions trên kho chạy của vibefix đã không sao chép xong một lần bàn giao của công việc "{job}" (Giai đoạn {n}). Lý do vibefix ghi lại: {reason}.
+Người hướng dẫn thấy báo lỗi này trên trang bàn giao và gửi lại được. Lần chạy: {run}
+Hãy mở trang quản trị của vibefix để xem các thao tác lỗi.

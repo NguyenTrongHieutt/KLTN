@@ -99,6 +99,9 @@ class CodeHandoverIT extends IntegrationTest {
 	/** How long the copy operation waits before it reads its run again (Story 23.8a). */
 	private static final Duration RUN_POLL = Duration.ofSeconds(11);
 
+	/** N-33's version in force, which "Gửi bàn giao" names and the handover records (FR-25, R28, Story 23.8b). */
+	private static final String TEAM_CODE_NOTICE = "1.0";
+
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("code-handover-");
@@ -152,6 +155,9 @@ class CodeHandoverIT extends IntegrationTest {
 
 	private UUID hung;
 
+	/** The Job's one {@code ACTIVE} Crew member, who reads the copy's run row on JOB-5 (Story 23.8b). */
+	private UUID vy;
+
 	private UUID job;
 
 	private UUID milestone;
@@ -187,8 +193,9 @@ class CodeHandoverIT extends IntegrationTest {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT),
 				"React");
-		UUID vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
+		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
+		UUID vy = this.vy;
 		long id = REPOSITORY_IDS.incrementAndGet();
 		String source = "so-dat-ban-" + id;
 		GITHUB.source("lan-dev", source);
@@ -364,6 +371,7 @@ class CodeHandoverIT extends IntegrationTest {
 	 */
 	@Test
 	void aWorkflowChangeHiddenBehind300ListedFilesIsRefusedByTheRunsReport() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "quan.le@vibefix.test", "Lê Quân").accountId();
 		Map<String, String> files = padding("pad");
 		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
 		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử",
@@ -386,6 +394,9 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.state").value("REFUSED"))
 			.andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"))
 			.andExpect(jsonPath("$.reasonModule").value("delivery"));
+		// N-16 is the handover's own content, not the runner going wrong: no Administrator is alerted (R30).
+		awaitPublications();
+		assertThat(runnerAlerts(admin)).isEmpty();
 		assertThat(head).isNotBlank();
 	}
 
@@ -408,9 +419,93 @@ class CodeHandoverIT extends IntegrationTest {
 				""").param("id", submission).query(String.class).list()).containsExactly("package.json DEPENDENCIES");
 	}
 
+	/**
+	 * FR-25, R28 (Story 23.8b): vibefix scans no team code, so a Code Job's handover carries N-33's Mentor
+	 * confirmation at the version in force. One missing or stale answers {@code NOTICE_REQUIRED} and writes
+	 * nothing; the one that passes is recorded with the handover, and so is the account that ticked it.
+	 */
+	@Test
+	void theMentorsDutyConfirmationIsRequiredAtItsVersionAndRecordedWithTheHandover() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+
+		handOver(5, null).andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
+		handOver(5, "0.9").andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover_submission").query(Long.class).single()).isZero();
+
+		UUID handover = copied(5, head, List.of("src/booking.js"));
+
+		assertThat(this.jdbc.sql("""
+				SELECT team_code_notice_version || ' ' || (team_code_account_id = :mentor)
+				    || ' ' || (team_code_confirmed_at IS NOT NULL)
+				FROM delivery.handover WHERE id = :id
+				""").param("mentor", this.hung).param("id", handover).query(String.class).single())
+			.isEqualTo(TEAM_CODE_NOTICE + " true true");
+	}
+
+	/**
+	 * UX-DR115, AD-46 (Story 23.8b): while the runner copies, the Mentor and the Crew read the run's own state on
+	 * JOB-5, with no run link, and the Customer is told nothing until the pull request is open.
+	 */
+	@Test
+	void theCopysRunStateIsReadByTheTeamAndNeverByTheCustomer() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.runStatus").doesNotExist())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+
+		dispatchCopy();
+
+		// Dispatched but not read yet: the row shows no state, which the status row reads as "Đang chờ GitHub".
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.state").value("PENDING"))
+			.andExpect(jsonPath("$.number").value(1))
+			.andExpect(jsonPath("$.runStatus").doesNotExist());
+		pollCopy();
+
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.state").value("PENDING"))
+			.andExpect(jsonPath("$.runStatus").value("QUEUED"))
+			.andExpect(jsonPath("$.runConclusion").doesNotExist());
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.vy, Role.STUDENT)))
+			.andExpect(jsonPath("$.runStatus").value("QUEUED"));
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("TEAM_ONLY"));
+
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.vy, Role.STUDENT)))
+			.andExpect(jsonPath("$.state").value("DONE"))
+			.andExpect(jsonPath("$.runStatus").value("COMPLETED"))
+			.andExpect(jsonPath("$.runConclusion").value("success"));
+	}
+
+	/**
+	 * FR-32 (Story 23.8b): "Chi tiết kỹ thuật" links the pull request's changes and the {@code handover/{id}}
+	 * branch in the Intermediary, with their domain, for the Customer and for the team alike; the Customer's own
+	 * line tells them to accept the read invitation first, which the SPA adds.
+	 */
+	@Test
+	void theReportLinksThePullRequestsChangesAndTheHandoverBranch() throws Exception {
+		UUID handover = handedOver();
+		String intermediary = "https://github.com/" + GitHubStub.ORGANIZATION + "/" + this.intermediary;
+
+		for (UUID reader : List.of(this.lan, this.hung, this.vy)) {
+			Role role = reader.equals(this.lan) ? Role.CUSTOMER : reader.equals(this.hung) ? Role.MENTOR : Role.STUDENT;
+			this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(reader, role)))
+				.andExpect(jsonPath("$.code.diff.url").value(intermediary + "/pull/" + pull(handover) + "/files"))
+				.andExpect(jsonPath("$.code.diff.domain").value("github.com"))
+				.andExpect(jsonPath("$.code.branch.url").value(intermediary + "/tree/handover/" + handover))
+				.andExpect(jsonPath("$.code.branch.domain").value("github.com"));
+		}
+	}
+
 	/** A run that failed after its attempts, and one the exchange refused, each end the submission with its reason. */
 	@Test
 	void aFailedRunEndsTheSubmissionWithItsReasonAndNoHandover() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "quan.le@vibefix.test", "Lê Quân").accountId();
 		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
 				"Sửa lỗi", "hung@example.test");
 		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
@@ -425,6 +520,8 @@ class CodeHandoverIT extends IntegrationTest {
 		awaitPublications();
 
 		assertThat(submissionState(submission)).isEqualTo("REFUSED:RUN_FAILED");
+		// R30, AD-46: every Administrator hears it once, with the Milestone and the run's own page on GitHub.
+		assertThat(runnerAlerts(admin)).containsExactly("1 RUN_FAILED true");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).isZero();
 		assertThat(this.jdbc.sql("""
@@ -601,6 +698,7 @@ class CodeHandoverIT extends IntegrationTest {
 	/** A correlation the exchange refused ends the submission: a second run would be refused the same way. */
 	@Test
 	void aCorrelationTheExchangeRefusesEndsTheSubmission() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "quan.le@vibefix.test", "Lê Quân").accountId();
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
 				"Sửa lỗi", "hung@example.test");
 		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
@@ -621,11 +719,15 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(submissionState(submission)).isEqualTo("REFUSED:EXCHANGE_REFUSED");
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
 		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + submission)).isNull();
+		// R30, AD-46: a run that never got its token is the runner going wrong, so every Administrator hears it.
+		awaitPublications();
+		assertThat(runnerAlerts(admin)).containsExactly("1 EXCHANGE_REFUSED true");
 	}
 
 	/** FR-32: a run that pushed but reported no readable list records no handover and opens no pull request. */
 	@Test
 	void aRunWithNoReadableReportEndsTheSubmissionAndOpensNoPullRequest() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "quan.le@vibefix.test", "Lê Quân").accountId();
 		for (boolean corrupt : new boolean[] { false, true }) {
 			String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
 					"export const free = " + corrupt + ";\n", "Sửa lỗi", "hung@example.test");
@@ -659,6 +761,9 @@ class CodeHandoverIT extends IntegrationTest {
 			// A list that does not read back is read before the pull request, so none was opened to close.
 			assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).as("corrupt: %s", corrupt).isEmpty();
 		}
+		// R30, AD-46: both runs brought back no readable list, which is the runner going wrong: one alert each.
+		awaitPublications();
+		assertThat(runnerAlerts(admin)).containsExactly("1 PATH_LIST_UNREADABLE true", "1 PATH_LIST_UNREADABLE true");
 	}
 
 	/**
@@ -786,7 +891,8 @@ class CodeHandoverIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":5,\"criteria\":[{\"criterionId\":\"" + this.criterion
-					+ "\",\"met\":true,\"note\":\"Đạt.\"}]" + evidence + "}"));
+					+ "\",\"met\":true,\"note\":\"Đạt.\"}],\"teamCodeNoticeVersion\":\"" + TEAM_CODE_NOTICE + "\"" + evidence
+					+ "}"));
 	}
 
 	@Test
@@ -1374,6 +1480,17 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("type", type).param("account", account).query(Long.class).single();
 	}
 
+	/**
+	 * The {@code github.runner_run_failed} alerts one Administrator got (R30, AD-46), each as its Milestone, its
+	 * reason, and whether it names the run's own page on GitHub.
+	 */
+	private List<String> runnerAlerts(UUID admin) {
+		return this.jdbc.sql("""
+				SELECT (params ->> 'n') || ' ' || (params ->> 'reason') || ' ' || (params ->> 'run' LIKE 'http%')
+				FROM notification.notification WHERE type = 'github.runner_run_failed' AND account_id = :admin
+				""").param("admin", admin).query(String.class).list();
+	}
+
 	/** The acceptance merge's status and its last error code. */
 	private String mergeOperation(UUID handover) {
 		return this.jdbc.sql("""
@@ -1480,10 +1597,16 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	private ResultActions handOver(long version) throws Exception {
+		return handOver(version, TEAM_CODE_NOTICE);
+	}
+
+	/** "Gửi bàn giao" naming N-33's version as the form sent it (Story 23.8b); {@code null} leaves it out. */
+	private ResultActions handOver(long version, String notice) throws Exception {
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":" + version + ",\"criteria\":[{\"criterionId\":\""
 					+ this.criterion + "\",\"met\":true,\"note\":\"Đạt: không còn đặt trùng.\"}],"
+					+ (notice == null ? "" : "\"teamCodeNoticeVersion\":\"" + notice + "\",")
 					+ "\"previewUrl\":\"https://so-dat-ban-gd1.vercel.app\"}"));
 	}
 

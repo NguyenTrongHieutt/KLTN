@@ -109,10 +109,23 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			}).list());
 			return decision;
 		}).list();
-		if (handovers.isEmpty() && decisions.isEmpty()) {
+		// N-33 (FR-25, R28, Story 23.8b): the Mentor's duty confirmations, each with the version of the text they read.
+		List<Map<String, Object>> teamCode = this.jdbc.sql("""
+				SELECT job_id, milestone_number, team_code_notice_version, team_code_confirmed_at FROM delivery.handover
+				WHERE team_code_account_id = :id ORDER BY seq
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("milestone", rs.getInt("milestone_number"));
+			row.put("noticeVersion", rs.getString("team_code_notice_version"));
+			row.put("at", rs.getTimestamp("team_code_confirmed_at").toInstant().toString());
+			return row;
+		}).list();
+		if (handovers.isEmpty() && decisions.isEmpty() && teamCode.isEmpty()) {
 			return Optional.empty();
 		}
-		return Optional.of(new PersonalDataSection("delivery", Map.of("handovers", handovers, "decisions", decisions)));
+		return Optional.of(new PersonalDataSection("delivery",
+				Map.of("handovers", handovers, "decisions", decisions, "teamCodeConfirmations", teamCode)));
 	}
 
 	@Override
@@ -129,6 +142,10 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET mentor_account_id = NULL WHERE mentor_account_id = :id")
+			.param("id", accountId)
+			.update();
+		// N-33 (Story 23.8b): the Mentor's duty confirmation stays, without the person who ticked it.
+		this.jdbc.sql("UPDATE delivery.handover SET team_code_account_id = NULL WHERE team_code_account_id = :id")
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET decided_by = NULL WHERE decided_by = :id").param("id", accountId).update();

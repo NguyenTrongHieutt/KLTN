@@ -5806,7 +5806,9 @@ export interface components {
             met: boolean;
         };
         HandoverCodeView: {
+            branch?: components["schemas"]["HandoverLinkView"];
             commits: components["schemas"]["HandoverCommitView"][];
+            diff?: components["schemas"]["HandoverLinkView"];
             handoverCommit: string;
             pages: components["schemas"]["HandoverPageView"][];
             /** Format: int32 */
@@ -5814,6 +5816,8 @@ export interface components {
             /** Format: int32 */
             sensitiveChangeCount: number;
             sensitiveChanges: components["schemas"]["SensitiveChangeView"][];
+            /** Format: date-time */
+            teamCodeConfirmedAt?: string;
             truncated: boolean;
             /** Format: int32 */
             unattributed: number;
@@ -5948,6 +5952,7 @@ export interface components {
             screenshotIds?: string[];
             /** @enum {string} */
             sensitive?: "CHECK" | "MASK";
+            teamCodeNoticeVersion?: string;
             /** Format: int64 */
             version: number;
         };
@@ -5971,6 +5976,8 @@ export interface components {
             number: number;
             reason?: string;
             reasonModule?: string;
+            runConclusion?: string;
+            runStatus?: string;
             state: string;
         };
         HandoverSummaryView: {

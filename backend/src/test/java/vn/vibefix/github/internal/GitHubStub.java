@@ -618,6 +618,26 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", jobs.size(), "jobs", jobs)));
 		}
 		else if (method.equals("GET")
+				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/runs").matcher(path)).matches()) {
+			// AD-46, R30 (Story 23.8b): every run of one repository, whichever workflow, for its monthly minutes,
+			// one page at a time as GitHub pages a listing.
+			this.runListQueries.add(query == null ? "" : query);
+			String repository = matcher.group(1) + "/" + matcher.group(2);
+			List<Map<String, Object>> listed = new ArrayList<>();
+			synchronized (this.runs) {
+				this.runs.values()
+					.stream()
+					.filter(run -> !this.runsHidden && repository.equals(run.get("repository_full_name")))
+					.forEach(listed::add);
+			}
+			int runsPerPage = Integer.parseInt(parameter(query, "per_page", "30"));
+			int runsPage = Integer.parseInt(parameter(query, "page", "1"));
+			List<Map<String, Object>> shownRuns = listed.subList(Math.min((runsPage - 1) * runsPerPage, listed.size()),
+					Math.min(runsPage * runsPerPage, listed.size()));
+			send(exchange, 200,
+					GitHubHttp.JSON.writeValueAsString(Map.of("total_count", listed.size(), "workflow_runs", shownRuns)));
+		}
+		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/actions/workflows/([^/]+)/runs").matcher(path))
 					.matches()) {
 			this.runListQueries.add(query == null ? "" : query);
