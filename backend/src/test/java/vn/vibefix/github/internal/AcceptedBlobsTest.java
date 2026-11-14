@@ -106,7 +106,7 @@ class AcceptedBlobsTest {
 			accepted.add(new AcceptedBlob(String.valueOf(blob.get("path")), String.valueOf(blob.get("blob")), null));
 		}
 		GitHubProperties properties = new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null,
-				null, null, null, new Exchange(accepted, null, null, null));
+				null, null, new Exchange(accepted, null, null, null));
 		Clock clock = Clock.fixed(Instant.parse("2026-11-12T03:00:00Z"), ZoneOffset.UTC);
 		SourceApp.PublishedWorkflow published = new GitHubSourceApp(new GitHubAppsClient(properties, clock), clock)
 			.publishedWorkflow();
@@ -181,7 +181,7 @@ class AcceptedBlobsTest {
 
 	private static AcceptedWorkflows workflows(List<AcceptedBlob> accepted, String now) {
 		GitHubProperties properties = new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null, null,
-				null, null, new Exchange(accepted, null, null, null));
+				null, new Exchange(accepted, null, null, null));
 		return new AcceptedWorkflows(properties, Clock.fixed(Instant.parse(now), ZoneOffset.UTC));
 	}
 

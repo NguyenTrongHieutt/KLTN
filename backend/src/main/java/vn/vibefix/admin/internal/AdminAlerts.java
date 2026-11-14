@@ -172,7 +172,6 @@ class AdminAlerts {
 			UUID cause = UUID.nameUUIDFromBytes((event.app() + ":" + event.day()).getBytes(StandardCharsets.UTF_8));
 			String app = switch (event.app()) {
 				case PLATFORM -> "Platform App";
-				case MERGE -> "Merge App";
 				case SOURCE -> "Source App";
 			};
 			alert(CONFIGURATION_DRIFT, cause, Map.of("app", app, "differences", String.join("; ", event.differences())),

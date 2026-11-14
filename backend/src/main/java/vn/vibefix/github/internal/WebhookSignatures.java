@@ -113,7 +113,6 @@ class WebhookSignatures {
 	private @Nullable AppProperties configured(App app) {
 		return switch (app) {
 			case PLATFORM -> this.properties.platformApp();
-			case MERGE -> this.properties.mergeApp();
 			case SOURCE -> null;
 		};
 	}

@@ -32,10 +32,11 @@ import vn.vibefix.shared.SandboxJobResult;
  * Story 23.3 (D1, AD-10, deferred-work 659): the platform repositories are private. Every pull-request call holds
  * {@code contents} read besides its {@code pull_requests} permission, which the stub requires on a private
  * repository as GitHub does (Spike S6 Part C); the Working head is read with a token narrowed to it; and every
- * sandbox clone of a platform repository (the Final Merge push, {@code REPOSITORY_ZIP}) gets a token narrowed to
+ * sandbox clone of a platform repository ({@code REPOSITORY_ZIP}, the only one left) gets a token narrowed to
  * that repository with {@code contents} read; the handover copy runs on the runner's Actions instead (AD-46, Story
- * 23.8a), and Story 23.9a retired the trial merge with the Merge App's Final Merge. The
- * stub's {@code file://} hosting takes no credentials, so these show the job receives the narrowed token.
+ * 23.8a), Story 23.9a retired the trial merge with the Merge App's Final Merge, and Story 23.9b took that App's
+ * own push with it. The stub's {@code file://} hosting takes no credentials, so these show the job receives the
+ * narrowed token.
  */
 class PlatformCloneTokensTest {
 
@@ -47,8 +48,6 @@ class PlatformCloneTokensTest {
 	private GitHubAppsClient apps;
 
 	private GitHubPlatformRepositories repositories;
-
-	private GitHubMergeApp mergeApp;
 
 	/** Each sandbox job sent, with its input. */
 	private final List<JsonNode> jobs = Collections.synchronizedList(new ArrayList<>());
@@ -71,17 +70,15 @@ class PlatformCloneTokensTest {
 		Path key = Files.writeString(this.directory.resolve("github-platform-app-key"), TestKeys.pkcs1());
 		Clock clock = Clock.fixed(Instant.parse("2026-11-12T03:00:00Z"), ZoneOffset.UTC);
 		this.apps = new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), this.github.gitUrl(),
-				GitHubStub.ORGANIZATION, new AppProperties(123456L, GitHubStub.INSTALLATION, key), null), clock);
+				GitHubStub.ORGANIZATION, new AppProperties(123456L, GitHubStub.INSTALLATION, key)), clock);
 		vn.vibefix.shared.SandboxJobs sandbox = (type, input) -> {
 			this.jobs.add(JsonNodeFactory.instance.objectNode().put("type", type).set("input", input.deepCopy()));
 			return new SandboxJobResult(type, switch (type) {
-				case RepositoryCopyJobHandler.TYPE -> JsonNodeFactory.instance.objectNode().put("pushed", input.path("sha").asString());
 				case RepositoryZipJobHandler.TYPE -> JsonNodeFactory.instance.objectNode().put("zip", "UEs=");
 				default -> JsonNodeFactory.instance.objectNode().put("clean", true);
 			});
 		};
 		this.repositories = new GitHubPlatformRepositories(this.apps, sandbox, clock);
-		this.mergeApp = new GitHubMergeApp(this.apps, sandbox);
 	}
 
 	@AfterEach
@@ -97,17 +94,6 @@ class PlatformCloneTokensTest {
 
 		assertThat(grant(onlyJob(RepositoryZipJobHandler.TYPE).path("token").asString()))
 			.isEqualTo(narrowed(this.intermediary, Map.of("contents", "read")));
-	}
-
-	@Test
-	void theFinalMergePushReadsTheIntermediaryWithATokenNarrowedToIt() {
-		var merge = this.apps.token(App.PLATFORM, List.of(1L), Map.of("contents", "write"));
-		this.mergeApp.push(merge, this.intermediary, "main", this.head, "lan-dev/quan-may", "vibefix/final-1");
-
-		JsonNode push = onlyJob(RepositoryCopyJobHandler.TYPE);
-		assertThat(push.path("source").asString()).isEqualTo("vibefix-dev/job-1-intermediary");
-		assertThat(grant(push.path("sourceToken").asString())).isEqualTo(narrowed(this.intermediary, Map.of("contents", "read")));
-		assertThat(push.path("token").asString()).isEqualTo(merge.value());
 	}
 
 	@Test

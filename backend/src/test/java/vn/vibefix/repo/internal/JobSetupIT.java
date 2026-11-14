@@ -1337,7 +1337,7 @@ class JobSetupIT extends IntegrationTest {
 	private static vn.vibefix.github.GitHubWebhookReceived webhook(String event, long repository, String login,
 			long senderId) {
 		return new vn.vibefix.github.GitHubWebhookReceived(UUID.randomUUID(), UUID.randomUUID().toString(),
-				vn.vibefix.github.GitHubApps.App.PLATFORM, event, "opened", 7L, List.of(repository), senderId, null, login);
+				vn.vibefix.github.GitHubApps.App.PLATFORM, event, "opened", 7L, List.of(repository), senderId, login);
 	}
 
 	/**

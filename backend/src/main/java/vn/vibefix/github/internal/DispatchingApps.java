@@ -37,7 +37,7 @@ class DispatchingApps {
 	/**
 	 * Mints the dispatching App's token narrowed to {@code repositoryId}, runs one operation with it, and revokes it.
 	 * @param installationId the Customer's installation, for {@link App#SOURCE}
-	 * @throws IllegalArgumentException for the Merge App, or a Source App run without its installation
+	 * @throws IllegalArgumentException for a Source App run without its installation
 	 * @throws vn.vibefix.github.GitHubException when the App is not configured or GitHub refuses the token
 	 */
 	<T> T withToken(App app, @Nullable Long installationId, long repositoryId, Map<String, String> permissions,
@@ -50,7 +50,6 @@ class DispatchingApps {
 				}
 				yield this.source.withToken(installationId, repositoryId, permissions, operation);
 			}
-			case MERGE -> throw new IllegalArgumentException("The Merge App dispatches no Actions run");
 		};
 	}
 
@@ -67,7 +66,6 @@ class DispatchingApps {
 		return switch (app) {
 			case PLATFORM -> this.platform.botLogin();
 			case SOURCE -> this.source.botLogin();
-			case MERGE -> throw new IllegalArgumentException("The Merge App dispatches no Actions run");
 		};
 	}
 

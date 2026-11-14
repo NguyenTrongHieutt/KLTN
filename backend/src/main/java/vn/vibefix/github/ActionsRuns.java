@@ -137,7 +137,7 @@ public interface ActionsRuns {
 	 * One run to dispatch.
 	 * @param app the App that dispatches it, whose tokens read the target and find and read back the run:
 	 * {@link GitHubApps.App#PLATFORM} for the runner, {@link GitHubApps.App#SOURCE} for a Customer's Source
-	 * Repository; never the Merge App
+	 * Repository, the only two there are (Story 23.9b)
 	 * @param sourceInstallationId for {@link GitHubApps.App#SOURCE} only, and then required: the Customer's installation,
 	 * as {@code product}'s binding names it (Story 23.6a)
 	 * @param targetId the numeric ID of the repository the workflow runs in, such as the runner
@@ -158,9 +158,6 @@ public interface ActionsRuns {
 
 		public Dispatch {
 			Objects.requireNonNull(app, "app");
-			if (app == GitHubApps.App.MERGE) {
-				throw new IllegalArgumentException("Only the Platform App and the Source App dispatch a run");
-			}
 			if ((app == GitHubApps.App.SOURCE) != (sourceInstallationId != null)
 					|| (sourceInstallationId != null && sourceInstallationId <= 0)) {
 				throw new IllegalArgumentException("A run the Source App dispatches names its installation, and only such a run");

@@ -30,8 +30,8 @@ import vn.vibefix.shared.IdGenerator;
 
 /**
  * Source App bindings (AD-10, AD-13, R2, Story 23.5): a Customer's pair (installation, repository), owned by
- * {@code product}. It re-implements the Merge App's patterns of {@code repo} (L7), which {@code product} (L5) may not
- * call:
+ * {@code product}. It re-implements the install-and-bind patterns the retired Merge App had in {@code repo} (L7),
+ * which {@code product} (L5) may not call:
  * <ul>
  * <li>"Cài ứng dụng vibefix trên GitHub ↗" mints a single-use {@code state} for the pasted repository, kept only as
  * its SHA-256 and valid for {@link #STATE_LIFETIME};</li>

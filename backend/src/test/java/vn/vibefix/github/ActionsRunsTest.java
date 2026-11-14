@@ -44,15 +44,13 @@ class ActionsRunsTest {
 	}
 
 	@Test
-	void onlyASourceRunNamesAnInstallationAndTheMergeAppDispatchesNone() {
+	void onlyASourceRunNamesAnInstallation() {
 		assertThatThrownBy(() -> new Dispatch(App.SOURCE, null, Operation.COPY, SOURCE, "vibefix.yml", Map.of(),
 				Set.of(WORKING), SHA)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new Dispatch(App.SOURCE, 0L, Operation.COPY, SOURCE, "vibefix.yml", Map.of(),
 				Set.of(WORKING), SHA)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new Dispatch(App.PLATFORM, INSTALLATION, Operation.HANDOVER_COPY, 9, "s6-copy.yml",
 				Map.of(), Set.of(WORKING), null)).isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> new Dispatch(App.MERGE, null, Operation.COPY, SOURCE, "vibefix.yml", Map.of(),
-				Set.of(WORKING), SHA)).isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test

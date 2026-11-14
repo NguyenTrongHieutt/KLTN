@@ -18,8 +18,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  * @param apiUrl GitHub's REST API
  * @param gitUrl where repositories are cloned from and pushed to
  * @param organization the platform organization (AD-25)
- * @param webhookUrl where both Apps' webhooks must point ({@code https://…/webhooks}); the daily
- * configuration check compares it when set
+ * @param webhookUrl where the Platform App's webhook must point ({@code https://…/webhooks}), the only one
+ * left (Story 23.9b); the daily configuration check compares it when set
  * @param runnerRepository the one repository of the organization that may run GitHub Actions, by name
  * (AD-46, D5): required since 2026-11-12. AD-11's read-back wants the organization's Actions on that
  * repository only, and the runner private, holding only the published copy workflow, with no
@@ -31,8 +31,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  */
 @ConfigurationProperties("vibefix.github")
 record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-		@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository, Exchange exchange,
-		@Nullable AppProperties sourceApp) {
+		@Nullable URI webhookUrl, @Nullable String runnerRepository, Exchange exchange, @Nullable AppProperties sourceApp) {
 
 	/** A repository name, as GitHub allows it inside an organization. */
 	private static final Pattern REPOSITORY_NAME = Pattern.compile("[A-Za-z0-9._-]{1,100}");
@@ -179,24 +178,22 @@ record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @
 	}
 
 	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-			@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository,
-			@Nullable Exchange exchange) {
-		this(apiUrl, gitUrl, organization, platformApp, mergeApp, webhookUrl, runnerRepository, exchange, null);
+			@Nullable URI webhookUrl, @Nullable String runnerRepository, @Nullable Exchange exchange) {
+		this(apiUrl, gitUrl, organization, platformApp, webhookUrl, runnerRepository, exchange, null);
 	}
 
 	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-			@Nullable AppProperties mergeApp, @Nullable URI webhookUrl, @Nullable String runnerRepository) {
-		this(apiUrl, gitUrl, organization, platformApp, mergeApp, webhookUrl, runnerRepository, null);
+			@Nullable URI webhookUrl, @Nullable String runnerRepository) {
+		this(apiUrl, gitUrl, organization, platformApp, webhookUrl, runnerRepository, null);
 	}
 
 	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-			@Nullable AppProperties mergeApp, @Nullable URI webhookUrl) {
-		this(apiUrl, gitUrl, organization, platformApp, mergeApp, webhookUrl, null, null);
+			@Nullable URI webhookUrl) {
+		this(apiUrl, gitUrl, organization, platformApp, webhookUrl, null, null);
 	}
 
-	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
-			@Nullable AppProperties mergeApp) {
-		this(apiUrl, gitUrl, organization, platformApp, mergeApp, null, null, null);
+	GitHubProperties(URI apiUrl, @Nullable URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp) {
+		this(apiUrl, gitUrl, organization, platformApp, null, null, null);
 	}
 
 }

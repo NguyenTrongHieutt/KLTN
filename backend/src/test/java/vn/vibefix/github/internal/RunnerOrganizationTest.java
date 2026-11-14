@@ -191,10 +191,10 @@ class RunnerOrganizationTest {
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("vibefix.github.runner-repository");
 		}
-		assertThat(new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null, null).runnerRepository())
+		assertThat(new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null).runnerRepository())
 			.as("the shorter constructors leave it unset")
 			.isNull();
-		assertThat(new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null, null, null)
+		assertThat(new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null, null)
 			.runnerRepository()).isNull();
 	}
 
@@ -221,7 +221,7 @@ class RunnerOrganizationTest {
 		}
 		return new GitHubProperties(this.github == null ? URI.create("https://api.github.com") : this.github.apiUrl(),
 				this.github == null ? null : this.github.gitUrl(), GitHubStub.ORGANIZATION,
-				new AppProperties(123456L, GitHubStub.INSTALLATION, this.key), null, null, runner,
+				new AppProperties(123456L, GitHubStub.INSTALLATION, this.key), null, runner,
 				new GitHubProperties.Exchange(List.of(new GitHubProperties.AcceptedBlob(".github/workflows/s6-copy.yml", published,
 						null)), null, null, null));
 	}

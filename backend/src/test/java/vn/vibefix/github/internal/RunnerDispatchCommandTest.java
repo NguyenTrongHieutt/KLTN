@@ -129,7 +129,7 @@ class RunnerDispatchCommandTest {
 	}
 
 	private static GitHubProperties properties() {
-		return new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null, null, null,
+		return new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null, null,
 				"vibefix-runner");
 	}
 

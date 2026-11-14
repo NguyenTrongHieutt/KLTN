@@ -4,7 +4,7 @@
  * {@code repository_ids} and by the permissions that operation needs, and revoked after use. There is
  * no machine account and no personal access token. The key files are secrets (AD-22).
  * <p>
- * It also receives both Apps' webhooks at {@code POST /webhooks} (AD-12): the signature is checked over
+ * It also receives the Platform App's webhooks at {@code POST /webhooks} (AD-12): the signature is checked over
  * the raw bytes, each delivery ID is accepted once, failed deliveries are redelivered daily, and a daily
  * check compares each App with AD-10 (SG-18). And it serves the Actions token exchange at
  * {@code POST /github/actions/exchange} (AD-44, Story 23.4): a GitHub Actions run it dispatched trades its
@@ -15,8 +15,7 @@
  * {@code vibefix.github.runner-minutes-budget} it publishes {@link vn.vibefix.github.GitHubRunnerMinutes}, once
  * that month.
  * <p>
- * Public API: {@link vn.vibefix.github.GitHubApps}, {@link vn.vibefix.github.MergeApp} (the Customers'
- * Merge App installations, Story 8.7), {@link vn.vibefix.github.SourceApp} (the Customers' Source App
+ * Public API: {@link vn.vibefix.github.GitHubApps}, {@link vn.vibefix.github.SourceApp} (the Customers' Source App
  * installations, which have no webhook, the published {@code vibefix.yml}, and its check, Story 23.5),
  * {@link vn.vibefix.github.GitHubRepositories}
  * (read-only metadata with a caller's credential), {@link vn.vibefix.github.OAuthGrants} (revoking a token the

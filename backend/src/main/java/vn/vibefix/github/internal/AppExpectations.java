@@ -37,10 +37,6 @@ final class AppExpectations {
 	static final Set<String> PLATFORM_EVENTS = Set.of("pull_request", "repository", "member", "membership",
 			"organization");
 
-	/** AD-10's Merge App: one Final Merge's permissions, and no event subscriptions. */
-	static final Map<String, String> MERGE_PERMISSIONS = Map.of("contents", "write", "pull_requests", "write", "metadata",
-			"read");
-
 	/**
 	 * AD-10's Source App (Story 23.5): it reads the Source Repository's code and metadata and dispatches
 	 * {@code vibefix.yml}, and it subscribes to no event and has no webhook.
@@ -58,7 +54,6 @@ final class AppExpectations {
 	static Map<String, String> permissions(App app) {
 		return switch (app) {
 			case PLATFORM -> PLATFORM_PERMISSIONS;
-			case MERGE -> MERGE_PERMISSIONS;
 			case SOURCE -> SOURCE_PERMISSIONS;
 		};
 	}
@@ -66,17 +61,17 @@ final class AppExpectations {
 	static Set<String> events(App app) {
 		return switch (app) {
 			case PLATFORM -> PLATFORM_EVENTS;
-			case MERGE, SOURCE -> Set.of();
+			case SOURCE -> Set.of();
 		};
 	}
 
 	/**
-	 * Whether AD-10 gives the App a webhook: the Platform App's and the Merge App's reach {@code POST /webhooks}; the
-	 * Source App has none, so the daily check and the redelivery leave its webhook alone.
+	 * Whether AD-10 gives the App a webhook: the Platform App's reaches {@code POST /webhooks}, and it is the only
+	 * one (Story 23.9b); the Source App has none, so the daily check and the redelivery leave its webhook alone.
 	 */
 	static boolean webhook(App app) {
 		return switch (app) {
-			case PLATFORM, MERGE -> true;
+			case PLATFORM -> true;
 			case SOURCE -> false;
 		};
 	}

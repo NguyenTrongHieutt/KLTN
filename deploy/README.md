@@ -174,20 +174,19 @@ Google sign-in and GitHub linking, intake, an Assessment Job, a Code Job with tw
 Milestone's split (confirmed by the Crew member, or decided by an Administrator), and closure with a
 Final Merge. Roles belong to each Job, never to an account. Beyond the stack above it needs the dev
 Google client ("Signing in with Google locally"), the dev GitHub OAuth App with its linking callback
-("Linking GitHub locally"), the dev Platform App, the dev Merge App, the dev Source App ("The Source App on
-the dev stack", below), and the dev VNPay sandbox merchant. Until Story 23.6 moves the J7 copy onto the
-Customer's Actions, the Source Repository of a Code Job must be public: Setup still reads its head with the
-Platform App and clones it without a token.
+("Linking GitHub locally"), the dev Platform App, the dev Source App ("The Source App on the dev stack",
+below), and the dev VNPay sandbox merchant. Since Stories 23.6a and 23.6b the Source Repository of a Code
+Job may be private: the Customer's own Actions run the J7 copy, and vibefix reads the repository only
+through their own Source App installation.
 
 A database from before Epics 19–22 cannot run this path: its accounts have no Google subject, and Story
 22.4's ledger check stops the backend at boot while `RELEASE_HELD` rows remain. Reset it first (an
 author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml down -v`.
 
-1. **Give the backend the four accounts.** Copy `.env.example` to `deploy/.env` and fill in the App
+1. **Give the backend the three accounts.** Copy `.env.example` to `deploy/.env` and fill in the App
    IDs (the Source App's too, `VIBEFIX_SOURCE_APP_ID`), the Platform App's installation ID on `vibefix-dev`,
    and the VNPay terminal code. The keys stay in `deploy/secrets/` as `github-platform-app-key.pem`,
-   `github-merge-app-key.pem`, `github-source-app-key.pem`, and `vnpay-hash-secret`. Then start the stack with
-   both files:
+   `github-source-app-key.pem`, and `vnpay-hash-secret`. Then start the stack with both files:
 
    ```sh
    docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait
@@ -263,9 +262,9 @@ at once, and another app's token (such as the GitHub CLI's) would not test this 
    ```
 
    Turn the restrictions on, then run it again with `--repo=vibefix-dev/s1-restricted`.
-4. As the non-owner repository admin, try to install the dev Merge App on `s1-member-admin` only,
-   and note whether GitHub allows it or asks an organization owner (SG-21). The Merge App is
-   registered in Epic 2; if it does not exist yet, record that this check waits for it.
+4. As the non-owner repository admin, try to install the Customer-facing App on `s1-member-admin` only,
+   and note whether GitHub allows it or asks an organization owner (SG-21). That App is the Source App
+   ("The Source App on the dev stack", below); if it does not exist yet, record that this check waits for it.
 5. Record the results, and the decision they lead to, in the spine's memlog: accept
    organization-owned repositories through the AD-13 path, or refuse them with
    `ORG_REPO_UNSUPPORTED`. A result that contradicts AD-10 or AD-13 goes to `bmad-architecture`
@@ -333,15 +332,20 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    read-only token.
 5. **Repeat with "All repositories"**: change the installation's repository access, run step 3
    again with another `--prefix`, and note whether any result changed (SG-21).
-6. **Check the registrations** (SG-20): register the dev Merge App too (Contents and Pull requests
-   write, Metadata read, no events), then run the tagged suite. It fails if either App's permissions
-   or events differ from AD-10's list. `GET /app` never lists the global `meta` event, even when the
-   App subscribes to it, so check the Meta box on the Platform App's "Permissions & events" page by eye.
+6. **Check the registrations** (SG-20): register the dev Source App too ("The Source App on the dev
+   stack", below), then run the tagged suite. It fails if either App's permissions or events differ from
+   AD-10's list. `GET /app` never lists the global `meta` event, even when the App subscribes to it, so
+   check the Meta box on the Platform App's "Permissions & events" page by eye.
 
    ```sh
-   VIBEFIX_DEV_PLATFORM_APP_ID=<id> VIBEFIX_DEV_PLATFORM_APP_KEY_FILE=../deploy/secrets/github-platform-app-key.pem VIBEFIX_DEV_MERGE_APP_ID=<id> VIBEFIX_DEV_MERGE_APP_KEY_FILE=../deploy/secrets/github-merge-app-key.pem ./mvnw -B test -Pvibefix-dev
+   VIBEFIX_DEV_PLATFORM_APP_ID=<id> VIBEFIX_DEV_PLATFORM_APP_KEY_FILE=../deploy/secrets/github-platform-app-key.pem VIBEFIX_DEV_SOURCE_APP_ID=<id> VIBEFIX_DEV_SOURCE_APP_KEY_FILE=../deploy/secrets/github-source-app-key.pem ./mvnw -B test -Pvibefix-dev
    ```
 
+   Story 23.9b retired the third App this step used to register, and the only call that could uninstall it
+   went with it, so nothing in the code can. It is an author action on GitHub: uninstall it from both dev
+   Customer accounts and delete the App, then delete its `.pem` key file from `deploy/secrets/` and its
+   `_APP_ID` line from `deploy/.env` — each named after the App, beside the Platform App's and the Source
+   App's, and neither in git.
 7. **Record the outcome** of every check, and of the "All repositories" run, in the spine's memlog.
    An operation that fails goes to `bmad-architecture` before Epic 7, because AD-10 and AD-11
    depend on it; then tell Amelia, who records it and closes Story 2.1.
@@ -753,7 +757,7 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
      permissions", and leave "Allow GitHub Actions to create and approve pull requests" unticked.
    - Set `VIBEFIX_GITHUB_RUNNER_REPOSITORY=vibefix-runner` in `deploy/.env`, and restart the stack with
      both files (`docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build
-     --wait`): `compose.yaml` alone recreates the backend without the Platform App, Merge App and VNPay. With
+     --wait`): `compose.yaml` alone recreates the backend without the Platform App, Source App and VNPay. With
      it, the dev stack's Job setup and platform guard expect exactly these Actions settings, and the
      daily check expects the Platform App to hold Actions write. Without it, they report both as
      differences. The probe's commands below read it from `deploy/.env` too, as the stack does.

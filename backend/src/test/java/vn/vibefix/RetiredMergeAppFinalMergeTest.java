@@ -26,9 +26,14 @@ import org.junit.jupiter.api.Test;
  * <li>the branch vibefix pushed and merged itself: {@code BRANCH_PREFIX} and {@code final_merge.pull_url};</li>
  * <li>the four retired notifications and the widened-selection warning.</li>
  * </ul>
+ * Story 23.9b (R1, R16, AD-9, AD-10) then retired the App itself, so these are gone too: {@code MergeApp},
+ * {@code GitHubMergeApp}, {@code App.MERGE} and {@code repo.merge_installation}. An environment has two GitHub
+ * Apps and only the Platform App has a webhook, so no file names {@code vibefix.github.merge-app.*},
+ * {@code VIBEFIX_GITHUB_MERGEAPP_*}, {@code VIBEFIX_MERGE_APP_ID} or {@code github-merge-app-key.pem}
+ * ({@code deploy/.env.example} is read too).
+ * <p>
  * Tests may name them, a migration test seeds them, and {@code .backups} copies keep them. The Source App keeps its
- * own install link and single-use state (Story 23.5), and what Story 23.9b retires stays: {@code MergeApp},
- * {@code GitHubMergeApp}, {@code App.MERGE}, {@code repo.merge_installation} and the Final Merge's bash harness.
+ * own install link and single-use state (Story 23.5), and the Final Merge's bash harness stays for Story 23.9c.
  */
 class RetiredMergeAppFinalMergeTest {
 
@@ -36,7 +41,11 @@ class RetiredMergeAppFinalMergeTest {
 			+ "|FinalMergeTrialJobHandler|FINAL_MERGE_TRIAL|trialMerge|TrialMerge|MERGE_APP_WRONG_REPOSITORY"
 			+ "|merge_app_selection_widened|merge_app_request_refused|final_merge_authorization_pending"
 			+ "|final_merge_authorization_reminder|final_merge_authorized|final_merge_reminder|BRANCH_PREFIX"
-			+ "|merge-app/setup|final-merge/install-link|bindReturn|bindEvent|removeIfUnneeded|final_merge\\.pull_url");
+			+ "|merge-app/setup|final-merge/install-link|bindReturn|bindEvent|removeIfUnneeded|final_merge\\.pull_url"
+			// Story 23.9b: the App itself, its implementation, its enum value, its table, and every spelling of it
+			// that an environment's configuration or run book used.
+			+ "|MergeApp|GitHubMergeApp|App\\.MERGE|repo\\.merge_installation|merge-app\\.|merge-app-key|MERGEAPP_"
+			+ "|VIBEFIX_MERGE_APP_ID");
 
 	@Test
 	void nothingLiveNamesTheMergeAppMachineryTheRunReplaced() {
@@ -66,14 +75,21 @@ class RetiredMergeAppFinalMergeTest {
 				"FinalMergeOperation.BRANCH_PREFIX + id", "POST /api/v1/jobs/{jobId}/final-merge/install-link",
 				"GET /api/v1/github/merge-app/setup", "SELECT final_merge.pull_url FROM repo.final_merge",
 				"this.bindings.bindReturn(authorization, installationId)", "this.bindings.bindEvent(id, requester)",
-				"bindings.removeIfUnneeded(installation)")) {
+				"bindings.removeIfUnneeded(installation)",
+				// Story 23.9b: the App itself, its implementation, its enum value, its table and its configuration.
+				"import vn.vibefix.github.MergeApp;", "class GitHubMergeApp implements MergeApp {", "App.MERGE",
+				"DROP TABLE repo.merge_installation", "vibefix.github.merge-app.id",
+				"      VIBEFIX_GITHUB_MERGEAPP_ID: ${VIBEFIX_MERGE_APP_ID}", "VIBEFIX_MERGE_APP_ID=",
+				"    file: ./secrets/github-merge-app-key.pem")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
-		for (String text : List.of("import vn.vibefix.github.MergeApp;", "class GitHubMergeApp implements MergeApp {",
-				"App.MERGE", "repo.merge_installation", "repo.final_merge_deadline", "repo.final_merge_completed",
+		for (String text : List.of("repo.final_merge_deadline", "repo.final_merge_completed",
 				"repo.final_branch_ready", "FinalMerges.branch(jobId)", "Operation.FINAL_MERGE",
 				"JobBusy.Purpose.FINAL_MERGE", "record SourceAppInstallLinkView(String url) {",
-				"@PostMapping(\"/source-app/install-link\")", "SET state_hash = NULL")) {
+				"@PostMapping(\"/source-app/install-link\")", "SET state_hash = NULL",
+				// Story 23.9b: what keeps the Source App's own names and the two Apps that stay.
+				"import vn.vibefix.github.SourceApp;", "case SOURCE -> false;",
+				"vibefix.github.source-app.key-file", "github-source-app-key.pem")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
 	}
