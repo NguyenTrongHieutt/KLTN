@@ -43,8 +43,9 @@ import vn.vibefix.timers.Deadlines;
  * <p>
  * Story 23.9a retired the Merge App (R1, D7): there is no app to install at the end, so the {@code BOUND} state, the
  * install link's single-use {@code state}, the installation, the organization's install request and its refusal are
- * all gone. The row stays because {@link vn.vibefix.repo.FinalMergeAuthorizationEnded} is what starts Story 8.9's
- * closure fallback, which Story 23.10 replaces with the self-download path.
+ * all gone, and Story 23.9b dropped the installation table and {@code bound_at} with the App itself. The row stays
+ * because {@link vn.vibefix.repo.FinalMergeAuthorizationEnded} is what starts Story 8.9's closure fallback, which
+ * Story 23.10 replaces with the self-download path.
  */
 @Component
 class FinalMergeAuthorizations {

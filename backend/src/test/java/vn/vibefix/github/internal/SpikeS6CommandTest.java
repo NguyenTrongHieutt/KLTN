@@ -1171,7 +1171,7 @@ class SpikeS6CommandTest {
 
 	private GitHubAppsClient apps(Path platformKey, String runner) {
 		return new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), null, SpikeS6Stub.ORGANIZATION,
-				new AppProperties(SpikeS6Stub.PLATFORM_APP, SpikeS6Stub.PLATFORM_INSTALLATION, platformKey), null, null, runner),
+				new AppProperties(SpikeS6Stub.PLATFORM_APP, SpikeS6Stub.PLATFORM_INSTALLATION, platformKey), null, runner),
 				CLOCK);
 	}
 

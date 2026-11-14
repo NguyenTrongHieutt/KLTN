@@ -40,7 +40,7 @@ class GitHubRepositoriesClientTest {
 	void aStubGitHub() throws Exception {
 		this.github = new GitHubStub(Files.createDirectories(this.directory.resolve("git")));
 		this.repositories = new GitHubRepositoriesClient(new GitHubProperties(this.github.apiUrl(),
-				URI.create("https://github.com"), "vibefix-dev", null, null, null, null, null, null));
+				URI.create("https://github.com"), "vibefix-dev", null, null, null, null, null));
 	}
 
 	@AfterEach

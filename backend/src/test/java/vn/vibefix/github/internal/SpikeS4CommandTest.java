@@ -53,7 +53,7 @@ class SpikeS4CommandTest {
 		this.github.source("octo", "quan-may");
 		Path key = Files.writeString(this.directory.resolve("github-platform-app-key"), TestKeys.pkcs1());
 		this.apps = new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), this.github.gitUrl(), GitHubStub.ORGANIZATION,
-				new AppProperties(123456L, GitHubStub.INSTALLATION, key), null),
+				new AppProperties(123456L, GitHubStub.INSTALLATION, key)),
 				Clock.fixed(Instant.parse("2026-10-19T03:00:00Z"), ZoneOffset.UTC));
 	}
 

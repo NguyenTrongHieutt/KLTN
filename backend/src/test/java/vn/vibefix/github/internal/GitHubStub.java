@@ -779,13 +779,6 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(Map.of("total_count", repositories.size(), "repositories",
 					repositories)));
 		}
-		else if (method.equals("GET") && path.equals("/app/installation-requests")) {
-			List<Map<String, Object>> requests;
-			synchronized (this.installationRequests) {
-				requests = List.copyOf(this.installationRequests);
-			}
-			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(requests));
-		}
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contents/\\.github/workflows").matcher(path)).matches()) {
 			// A Source Repository's workflows (SG-19), or a platform repository's, such as the runner's one workflow.
@@ -1579,9 +1572,10 @@ public final class GitHubStub implements AutoCloseable {
 	public final Map<String, Long> userIds = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	/**
-	 * A Customer's installation of the Merge App (Story 8.7) or the Source App (Story 23.5): its account, its
-	 * selection, the permissions it accepted, and whether it is suspended. Tests change it to show a wider selection,
-	 * a suspension, or a permission not accepted.
+	 * An installation the installation endpoints serve: the Platform App's own on the organization, and a Customer's
+	 * of the Source App (Story 23.5). Its account, its selection, the permissions it accepted, and whether it is
+	 * suspended. Tests change it to show a wider selection, a suspension, or a permission not accepted. The name is
+	 * the retired Merge App's (Story 23.9b); renaming it reaches about forty call sites and is deferred work.
 	 */
 	public static final class MergeInstallation {
 
@@ -1592,7 +1586,7 @@ public final class GitHubStub implements AutoCloseable {
 		/** {@code User} or {@code Organization}. */
 		public volatile String accountType = "User";
 
-		/** The App it belongs to, whose JWT alone reads it and mints its tokens; none for the Merge App's, read by any. */
+		/** The App it belongs to, whose JWT alone reads it and mints its tokens; unset, any JWT reads it. */
 		public volatile @org.jspecify.annotations.Nullable Long appId;
 
 		public volatile boolean all;
@@ -1698,16 +1692,13 @@ public final class GitHubStub implements AutoCloseable {
 	 */
 	public final Map<String, Integer> mergeRefusals = Collections.synchronizedMap(new LinkedHashMap<>());
 
-	/** The Merge App's installations on Customers' accounts, by installation ID. */
+	/** The Source App's installations on Customers' accounts, by installation ID (the name is the retired App's). */
 	public final Map<Long, MergeInstallation> mergeInstallations = Collections.synchronizedMap(new LinkedHashMap<>());
-
-	/** The install requests waiting for an organization owner, as {@code GET /app/installation-requests} lists them. */
-	public final List<Map<String, Object>> installationRequests = Collections.synchronizedList(new ArrayList<>());
 
 	/** The installations removed through {@code DELETE /app/installations/{id}}. */
 	public final List<Long> removedInstallations = Collections.synchronizedList(new ArrayList<>());
 
-	/** Each Merge App token's installation. */
+	/** Each installation token's installation. */
 	private final Map<String, Long> tokenInstallations = Collections.synchronizedMap(new LinkedHashMap<>());
 
 	/** The {@code repository_ids} and {@code permissions} a token was minted with, or none for an unknown token. */
@@ -1716,18 +1707,12 @@ public final class GitHubStub implements AutoCloseable {
 		return grant == null ? GitHubHttp.JSON.createObjectNode() : grant;
 	}
 
-	/** Every token minted from one Merge App installation, oldest first. */
+	/** Every token minted from one Customer's installation, oldest first. */
 	public List<String> tokensOf(long installationId) {
 		synchronized (this.tokenInstallations) {
 			return this.tokenInstallations.entrySet().stream().filter(entry -> entry.getValue() == installationId)
 				.map(Map.Entry::getKey).toList();
 		}
-	}
-
-	/** An install request for an organization, asked by {@code requesterId}. */
-	public void installationRequest(long id, long accountId, String accountLogin, long requesterId) {
-		this.installationRequests.add(Map.of("id", id, "account", Map.of("id", accountId, "login", accountLogin, "type",
-				"Organization"), "requester", Map.of("id", requesterId, "login", "requester-" + requesterId)));
 	}
 
 	/** Merged pull requests, as {@code repository#number}. */

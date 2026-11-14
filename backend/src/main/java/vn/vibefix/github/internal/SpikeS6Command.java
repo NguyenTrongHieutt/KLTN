@@ -2239,7 +2239,7 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		};
 	}
 
-	/** {@code owner/name}, refusing {@code owner/.} and {@code owner/..}, as RepositoryCopyJobHandler does. */
+	/** {@code owner/name}, refusing {@code owner/.} and {@code owner/..}, as the sandbox copy handler did. */
 	private static boolean repository(@Nullable String value) {
 		return matches(REPOSITORY, value) && !value.endsWith("/.") && !value.endsWith("/..");
 	}

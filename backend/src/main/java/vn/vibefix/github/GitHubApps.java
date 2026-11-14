@@ -21,9 +21,6 @@ public interface GitHubApps {
 		/** Installed only on the platform organization: private copies, invitations, pull requests, the runner. */
 		PLATFORM,
 
-		/** Installed by a Customer on their Source Repository for one Final Merge. */
-		MERGE,
-
 		/**
 		 * Installed by each Customer on exactly their Source Repository (AD-10, AD-13, Story 23.5): Contents and
 		 * Metadata read and Actions write, and no webhook. Each installation is a Customer's own, so none is
@@ -38,7 +35,7 @@ public interface GitHubApps {
 
 	/**
 	 * AD-10's unnarrowed tokens, each for one call and with its fixed permissions (Spike S4).
-	 * The Merge App's selection read names a Customer's installation, so it lives in {@link MergeApp}.
+	 * The Source App's reads name a Customer's installation, so they live in {@link SourceApp}.
 	 */
 	enum Unnarrowed {
 
@@ -93,6 +90,8 @@ public interface GitHubApps {
 
 	/**
 	 * Mints a token of the App's installation for one operation on existing repositories.
+	 * @param app {@link App#PLATFORM} only, which every caller passes since Story 23.9b: the platform has no
+	 * installation of the Source App, whose tokens come from a Customer's own installation ({@link SourceApp})
 	 * @param repositoryIds the numeric repository IDs it may reach: 1 to {@value #MAX_REPOSITORIES}
 	 * @param permissions only what the operation needs, for example {@code contents: write}
 	 * @throws IllegalArgumentException for no repository, or more than {@value #MAX_REPOSITORIES}: an empty set

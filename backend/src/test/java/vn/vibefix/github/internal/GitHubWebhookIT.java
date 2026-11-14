@@ -43,18 +43,19 @@ import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Story 7.1 (AD-12, SG-18): both Apps' webhooks at {@code POST /webhooks}, with no session and no CSRF
- * token. A delivery signed by its App is kept once and published; any other is refused unread. Failed
- * deliveries of the last 3 days are redelivered once from their latest attempt, kept delivery IDs are
- * forgotten after 30 days, and an App unlike AD-10 alerts every Administrator. GitHub is
- * {@link GitHubStub}; the webhook secrets are fake, built at run time.
+ * Story 7.1 (AD-12, SG-18): the Platform App's webhooks at {@code POST /webhooks}, with no session and no
+ * CSRF token; since Story 23.9b it is the only App with one. A delivery signed by its App is kept once and
+ * published; any other is refused unread. Failed deliveries of the last 3 days are redelivered once from
+ * their latest attempt, kept delivery IDs are forgotten after 30 days, and an App unlike AD-10 alerts
+ * every Administrator. GitHub is {@link GitHubStub}; the webhook secrets are fake, built at run time.
  */
 @RecordApplicationEvents
 class GitHubWebhookIT extends IntegrationTest {
 
 	private static final byte[] PLATFORM_SECRET = ("platform-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
 
-	private static final byte[] MERGE_SECRET = ("merge-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+	/** A secret no App of this environment has, as another sender's would be. */
+	private static final byte[] OTHER_SECRET = ("other-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
 
 	private static final Path DIRECTORY;
 
@@ -68,7 +69,6 @@ class GitHubWebhookIT extends IntegrationTest {
 			GITHUB.runner("vibefix-runner");
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 			Files.write(DIRECTORY.resolve("platform-webhook-secret"), PLATFORM_SECRET);
-			Files.write(DIRECTORY.resolve("merge-webhook-secret"), MERGE_SECRET);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);
@@ -108,9 +108,6 @@ class GitHubWebhookIT extends IntegrationTest {
 		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
 		registry.add("vibefix.github.platform-app.webhook-secret-file",
 				() -> DIRECTORY.resolve("platform-webhook-secret").toString());
-		registry.add("vibefix.github.merge-app.id", () -> "654321");
-		registry.add("vibefix.github.merge-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
-		registry.add("vibefix.github.merge-app.webhook-secret-file", () -> DIRECTORY.resolve("merge-webhook-secret").toString());
 		// Story 23.5: the Source App, which has no webhook.
 		registry.add("vibefix.github.source-app.id", () -> String.valueOf(GitHubStub.SOURCE_APP));
 		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
@@ -148,30 +145,8 @@ class GitHubWebhookIT extends IntegrationTest {
 			assertThat(received.installationId()).isEqualTo(7L);
 			assertThat(received.repositoryIds()).containsExactly(1001L);
 			assertThat(received.senderId()).isEqualTo(42L);
-			assertThat(received.requesterId()).isNull();
 		});
 		assertThat(kept()).containsExactly(delivery + " PLATFORM push");
-	}
-
-	@Test
-	void aMergeAppInstallationNamesEveryRepositoryAndItsRequester() throws Exception {
-		String delivery = UUID.randomUUID().toString();
-		byte[] added = """
-				{"action":"added","installation":{"id":88},"repositories_added":[{"id":2001},{"id":2002}],
-				"repositories_removed":[{"id":2003},{"id":2001}],"requester":{"id":77},"sender":{"id":78}}"""
-			.getBytes(StandardCharsets.UTF_8);
-
-		this.mvc.perform(webhook("654321", delivery, "installation_repositories", added, MERGE_SECRET))
-			.andExpect(status().isAccepted());
-
-		assertThat(this.events.stream(GitHubWebhookReceived.class)).singleElement().satisfies(received -> {
-			assertThat(received.app()).isEqualTo(App.MERGE);
-			assertThat(received.action()).isEqualTo("added");
-			assertThat(received.installationId()).isEqualTo(88L);
-			assertThat(received.repositoryIds()).containsExactly(2001L, 2002L, 2003L);
-			assertThat(received.requesterId()).isEqualTo(77L);
-			assertThat(received.senderId()).isEqualTo(78L);
-		});
 	}
 
 	@Test
@@ -180,7 +155,7 @@ class GitHubWebhookIT extends IntegrationTest {
 
 		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", body, null))
 			.andExpect(status().isUnauthorized());
-		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", body, MERGE_SECRET))
+		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", body, OTHER_SECRET))
 			.andExpect(status().isUnauthorized());
 		this.mvc.perform(webhook("999999", UUID.randomUUID().toString(), "ping", body, PLATFORM_SECRET))
 			.andExpect(status().isUnauthorized());
@@ -287,7 +262,7 @@ class GitHubWebhookIT extends IntegrationTest {
 	void anInactiveWebhookIsADifference() {
 		GITHUB.hookConfig = null;
 
-		assertThat(this.check.check(App.MERGE)).contains("GET /app/hook/config: HTTP 404 (no active webhook)");
+		assertThat(this.check.check(App.PLATFORM)).contains("GET /app/hook/config: HTTP 404 (no active webhook)");
 		awaitListeners();
 	}
 
@@ -307,7 +282,7 @@ class GitHubWebhookIT extends IntegrationTest {
 		this.redeliveries.daily();
 
 		assertThat(GITHUB.seen).filteredOn(request -> request.path().startsWith("/app/hook/deliveries"))
-			.as("the Platform App's and the Merge App's deliveries only")
+			.as("the Platform App's deliveries only")
 			.isNotEmpty()
 			.noneMatch(request -> Long.valueOf(GitHubStub.SOURCE_APP).equals(GitHubStub.issuerOf(request.authorization())));
 	}

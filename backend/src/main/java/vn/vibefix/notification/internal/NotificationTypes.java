@@ -90,7 +90,7 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType DISPUTE_ANSWER_TEAM_ISSUE = new TodoType("dispute.answer_team_issue", Set.of(Audience.MENTOR), 1,
 			Set.of("name"));
 
-	/** FR-37, AD-10: the Final Merge authorization waits for the Customer's Merge App install; its deadline from J8. */
+	/** FR-37: the Final Merge authorization waits for the Customer's choice of how to receive the code; deadline from J8. */
 	static final TodoType REPO_AUTHORIZE_FINAL_MERGE = new TodoType("repo.authorize_final_merge", Set.of(Audience.CUSTOMER),
 			1, Set.of());
 

@@ -80,7 +80,7 @@ class ActionsIdTokensTest {
 		this.issuer.start();
 		this.issuerName = "http://127.0.0.1:" + this.issuer.getAddress().getPort();
 		this.tokens = new ActionsIdTokens(new GitHubProperties(URI.create("https://api.github.com"), null, "vibefix-dev", null,
-				null, null, null, new GitHubProperties.Exchange(null, null, null, this.issuerName)), this.clock);
+				null, null, new GitHubProperties.Exchange(null, null, null, this.issuerName)), this.clock);
 		this.claims.put("iss", this.issuerName);
 		this.claims.put("aud", ActionsIdTokens.AUDIENCE);
 		this.claims.put("iat", Date.from(NOW.minusSeconds(5)));

@@ -45,7 +45,7 @@ class GitHubAppsClientTest {
 		this.github = new GitHubStub(Files.createDirectories(this.directory.resolve("git")));
 		Path key = Files.writeString(this.directory.resolve("github-platform-app-key"), TestKeys.pkcs1());
 		this.client = new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), this.github.gitUrl(), "vibefix-dev",
-				new AppProperties(123456L, GitHubStub.INSTALLATION, key), null),
+				new AppProperties(123456L, GitHubStub.INSTALLATION, key)),
 				Clock.fixed(Instant.parse("2026-10-19T03:00:00Z"), ZoneOffset.UTC));
 	}
 
@@ -124,10 +124,25 @@ class GitHubAppsClientTest {
 
 	@Test
 	void anAppThatIsNotConfiguredIsRefusedByName() {
-		assertThatThrownBy(() -> this.client.token(App.MERGE, List.of(1001L), Map.of())).isInstanceOf(GitHubException.class)
-			.hasMessageContaining("vibefix.github.merge-app.id");
-		assertThat(this.client.isConfigured(App.MERGE)).isFalse();
+		assertThatThrownBy(() -> this.client.token(App.SOURCE, List.of(1001L), Map.of())).isInstanceOf(GitHubException.class)
+			.hasMessageContaining("vibefix.github.source-app.id");
+		assertThat(this.client.isConfigured(App.SOURCE)).isFalse();
 		assertThat(this.client.isConfigured(App.PLATFORM)).isTrue();
+	}
+
+	/**
+	 * Story 23.9b: with the Merge App gone, every production call passes the Platform App, because the platform
+	 * holds no installation of the Source App (AD-10). A Source App that is configured is refused for that reason,
+	 * not for a missing property, so the message above pins the unconfigured path alone.
+	 */
+	@Test
+	void aConfiguredSourceAppHasNoInstallationOfThePlatformsOwn() {
+		GitHubAppsClient configured = new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), this.github.gitUrl(),
+				"vibefix-dev", null, null, null, null, new AppProperties(GitHubStub.SOURCE_APP, null, null)),
+				Clock.systemUTC());
+
+		assertThatThrownBy(() -> configured.token(App.SOURCE, List.of(1001L), Map.of())).isInstanceOf(GitHubException.class)
+			.hasMessage("vibefix.github.source-app has no installation of the platform's own");
 	}
 
 	private static Map<String, String> permissions(JsonNode permissions) {

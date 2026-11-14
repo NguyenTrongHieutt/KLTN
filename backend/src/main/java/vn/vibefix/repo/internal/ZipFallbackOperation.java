@@ -27,8 +27,8 @@ import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
 /**
  * {@value ZipFallbacks#BUILD} (FR-38, AD-32, NFR-10): the ZIP of the Intermediary default branch, built in
  * the sandbox as Story 7.7's final ZIP and stored once on the Setup, owned by the Customer; then the whole
- * Job's Sensitive Changes and the resolving transaction's J9. A frozen Job waits. Story 23.9a retired the Merge App
- * (R1), so there is no installation left to remove here. Collaborators are looked up on use.
+ * Job's Sensitive Changes and the resolving transaction's J9. A frozen Job waits. Stories 23.9a and 23.9b retired
+ * the Merge App (R1), so there is no installation left to remove here. Collaborators are looked up on use.
  */
 @Component
 class ZipFallbackOperation implements OperationHandler {

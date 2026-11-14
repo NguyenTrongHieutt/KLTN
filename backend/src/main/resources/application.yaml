@@ -124,14 +124,14 @@ vibefix:
   github:
     # GitHub's REST API (AD-10, AD-13); Story 1.14's spike-s1 probe reads repositories from it.
     api-url: https://api.github.com
-    # Where repositories are cloned from and pushed to (AD-11). The Apps' IDs and key files
-    # (vibefix.github.platform-app.*, merge-app.*, source-app.*) are set where a story needs them; see
+    # Where repositories are cloned from and pushed to (AD-11). The two Apps' IDs and key files
+    # (vibefix.github.platform-app.*, source-app.*) are set where a story needs them; see
     # deploy/README.md "Spike S4" and "The Source App". The Source App (Story 23.5) takes its ID and key file
     # only: each Customer installs it, so it has no installation of the platform's own, and it has no webhook.
     # Unset, registration and the Source checks answer GITHUB_UNAVAILABLE.
     git-url: https://github.com
-    # AD-12: both Apps' webhooks reach POST /webhooks, signed with each App's secret file
-    # (platform-app.webhook-secret-file, merge-app.webhook-secret-file). Set webhook-url to
+    # AD-12: the Platform App's webhooks reach POST /webhooks, signed with its secret file
+    # (platform-app.webhook-secret-file); since Story 23.9b it is the only App with one. Set webhook-url to
     # https://<host>/webhooks where it is known, and the daily configuration check compares it.
     # AD-46 (Story 23.3): runner-repository names the one repository of the organization that may run
     # GitHub Actions (deploy/compose.yaml passes VIBEFIX_GITHUB_RUNNER_REPOSITORY). It is required: unset,

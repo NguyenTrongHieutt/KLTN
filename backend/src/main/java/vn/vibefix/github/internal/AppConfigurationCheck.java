@@ -24,10 +24,10 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * SG-18's daily configuration check (AD-10): for each configured App, {@code GET /app} against AD-10's
  * permissions and events ({@link AppExpectations}), and {@code GET /app/hook/config}: the webhook is
- * active at {@code vibefix.github.webhook-url} when that is set (the Merge App's too, though it subscribes
- * to no event), sends JSON, and verifies SSL. The Source App has no webhook (Story 23.5), so only its
- * registration is compared. Any difference publishes {@link GitHubConfigurationDrift}, which {@code admin}
- * turns into an alert for every Administrator.
+ * active at {@code vibefix.github.webhook-url} when that is set, sends JSON, and verifies SSL. Since Story
+ * 23.9b the loop reads two Apps and only the Platform App has a webhook: the Source App has none (Story
+ * 23.5), so only its registration is compared. Any difference publishes {@link GitHubConfigurationDrift},
+ * which {@code admin} turns into an alert for every Administrator.
  */
 @Component
 class AppConfigurationCheck {

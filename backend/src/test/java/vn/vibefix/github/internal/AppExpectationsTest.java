@@ -23,29 +23,35 @@ class AppExpectationsTest {
 
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(AppExpectations.PLATFORM_EVENTS))).isEmpty();
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(withMeta))).isEmpty();
-		assertThat(AppExpectations.differences(App.MERGE,
-				new Registration("vibefix-dev-merge", AppExpectations.MERGE_PERMISSIONS, Set.of())))
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of())))
 			.isEmpty();
-		assertThat(AppExpectations.differences(App.MERGE,
-				new Registration("vibefix-dev-merge", AppExpectations.MERGE_PERMISSIONS, Set.of("installation_target"))))
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("installation_target"))))
 			.isEmpty();
 	}
 
+	/**
+	 * The two kinds of difference, on the App that has both permissions and events; the Source App's own pair is in
+	 * {@link #theSourceAppReadsContentsAndMetadataDispatchesActionsAndHasNoWebhook}.
+	 */
 	@Test
 	void aMissingEventOrAnExtraPermissionIsADifference() {
 		Set<String> noMember = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
 		noMember.remove("member");
-		Map<String, String> issues = new HashMap<>(AppExpectations.MERGE_PERMISSIONS);
+		Map<String, String> issues = new HashMap<>(AppExpectations.PLATFORM_PERMISSIONS);
 		issues.put("issues", "write");
 
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(noMember))).singleElement()
 			.asString()
 			.startsWith("events: ")
 			.doesNotContain("permissions");
-		assertThat(AppExpectations.differences(App.MERGE, new Registration("vibefix-dev-merge", issues, Set.of("push"))))
-			.hasSize(2)
-			.anySatisfy(difference -> assertThat(difference).startsWith("permissions: ").contains("issues=write"))
-			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of []"));
+		assertThat(AppExpectations.differences(App.PLATFORM,
+				new Registration("vibefix-dev-platform", issues, AppExpectations.PLATFORM_EVENTS)))
+			.singleElement()
+			.asString()
+			.startsWith("permissions: ")
+			.contains("issues=write");
 	}
 
 	/** 2026-11-12 (AD-10, AD-12, R9): the Platform App no longer subscribes to push or repository_ruleset. */
@@ -71,8 +77,6 @@ class AppExpectationsTest {
 
 		assertThat(AppExpectations.permissions(App.PLATFORM)).containsEntry("actions", "write")
 			.containsEntry("workflows", "write");
-		assertThat(AppExpectations.permissions(App.MERGE)).as("the Merge App never dispatches")
-			.isEqualTo(AppExpectations.MERGE_PERMISSIONS);
 		assertThat(AppExpectations.differences(App.PLATFORM,
 				new Registration("vibefix-dev-platform", withoutActions, AppExpectations.PLATFORM_EVENTS)))
 			.singleElement()
@@ -90,8 +94,7 @@ class AppExpectationsTest {
 		assertThat(AppExpectations.permissions(App.SOURCE)).isEqualTo(Map.of("contents", "read", "metadata", "read",
 				"actions", "write"));
 		assertThat(AppExpectations.webhook(App.SOURCE)).isFalse();
-		assertThat(AppExpectations.webhook(App.PLATFORM)).isTrue();
-		assertThat(AppExpectations.webhook(App.MERGE)).isTrue();
+		assertThat(AppExpectations.webhook(App.PLATFORM)).as("the only App with a webhook (Story 23.9b)").isTrue();
 		assertThat(AppExpectations.differences(App.SOURCE,
 				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("meta"))))
 			.isEmpty();
@@ -99,6 +102,12 @@ class AppExpectationsTest {
 			.hasSize(2)
 			.anySatisfy(difference -> assertThat(difference).startsWith("permissions: ").contains("contents=write"))
 			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of []"));
+	}
+
+	/** Story 23.9b (R1, R16, AD-10): the Merge App is retired, so an environment has exactly these two Apps. */
+	@Test
+	void anEnvironmentHasExactlyThePlatformAppAndTheSourceApp() {
+		assertThat(App.values()).containsExactly(App.PLATFORM, App.SOURCE);
 	}
 
 	private static Registration platform(Set<String> events) {

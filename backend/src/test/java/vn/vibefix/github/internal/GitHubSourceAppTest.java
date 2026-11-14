@@ -57,7 +57,7 @@ class GitHubSourceAppTest {
 		Path key = Files.writeString(this.directory.resolve("source-app-key"), TestKeys.pkcs1());
 		this.published = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW);
 		GitHubProperties properties = new GitHubProperties(this.github.apiUrl(), URI.create("https://github.com"),
-				"vibefix-dev", null, null, null, null,
+				"vibefix-dev", null, null, null,
 				new Exchange(List.of(new AcceptedBlob(PATH, AcceptedWorkflows.blobSha(this.published), null)), null, null, null),
 				new AppProperties(GitHubStub.SOURCE_APP, null, key));
 		this.app = new GitHubSourceApp(new GitHubAppsClient(properties, CLOCK), CLOCK);
@@ -67,7 +67,7 @@ class GitHubSourceAppTest {
 	private GitHubSourceApp signedAsAnotherApp() throws Exception {
 		Path key = Files.writeString(this.directory.resolve("other-app-key"), TestKeys.pkcs1());
 		GitHubProperties properties = new GitHubProperties(this.github.apiUrl(), URI.create("https://github.com"),
-				"vibefix-dev", null, null, null, null, null, new AppProperties(123456L, null, key));
+				"vibefix-dev", null, null, null, null, new AppProperties(123456L, null, key));
 		return new GitHubSourceApp(new GitHubAppsClient(properties, CLOCK), CLOCK);
 	}
 
@@ -169,7 +169,7 @@ class GitHubSourceAppTest {
 		String runnerOnly = AcceptedWorkflows.blobSha(this.published + "# runner\n");
 		Path key = Files.writeString(this.directory.resolve("dated-key"), TestKeys.pkcs1());
 		GitHubProperties properties = new GitHubProperties(this.github.apiUrl(), URI.create("https://github.com"),
-				"vibefix-dev", null, null, null, null,
+				"vibefix-dev", null, null, null,
 				new Exchange(List.of(new AcceptedBlob(PATH, current, null),
 						new AcceptedBlob(PATH, older, java.time.LocalDate.parse("2026-11-20")),
 						new AcceptedBlob(PATH, older, java.time.LocalDate.parse("2026-11-25")),

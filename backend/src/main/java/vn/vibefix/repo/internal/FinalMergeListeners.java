@@ -12,7 +12,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * What moves a Job's Final Merge (FR-37, FR-67): the first closure proposal opens its row and a declined one ends it
  * while the Job is still Active; J8 sets the FR-37 deadline and starts the check, and J10 ends it. Story 23.9a
  * retired the Merge App (R1), so no {@code installation} or {@code installation_repositories} webhook and no daily
- * reconciliation is listened for any more: there is no app to install at the end.
+ * reconciliation is listened for any more: there is no app to install at the end, and Story 23.9b took the App and
+ * those deliveries away altogether.
  */
 @Component
 class FinalMergeListeners {

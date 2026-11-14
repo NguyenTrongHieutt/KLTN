@@ -75,9 +75,8 @@ class GitHubAppsClient implements GitHubApps {
 	}
 
 	/**
-	 * Mints a token from one installation, unchecked: the Merge App's and the Source App's installations are the
-	 * Customers' (AD-10), so {@link GitHubMergeApp} and {@link GitHubSourceApp} name the installation and hold
-	 * its rules.
+	 * Mints a token from one installation, unchecked: the Source App's installations are the Customers' own
+	 * (AD-10), so {@link GitHubSourceApp} names the installation and holds its rules.
 	 */
 	InstallationToken mintFrom(App app, long installationId, Collection<Long> repositoryIds, Map<String, String> permissions) {
 		Map<String, Object> body = new LinkedHashMap<>();
@@ -183,7 +182,6 @@ class GitHubAppsClient implements GitHubApps {
 	private @Nullable AppProperties properties(App app) {
 		return switch (app) {
 			case PLATFORM -> this.properties.platformApp();
-			case MERGE -> this.properties.mergeApp();
 			case SOURCE -> this.properties.sourceApp();
 		};
 	}
@@ -191,7 +189,6 @@ class GitHubAppsClient implements GitHubApps {
 	private static String propertyName(App app) {
 		return switch (app) {
 			case PLATFORM -> "vibefix.github.platform-app";
-			case MERGE -> "vibefix.github.merge-app";
 			case SOURCE -> "vibefix.github.source-app";
 		};
 	}

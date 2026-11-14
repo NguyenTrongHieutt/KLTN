@@ -2,7 +2,6 @@ package vn.vibefix.github.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -27,12 +26,12 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * {@code POST /webhooks} (AD-12, SG-18): both Apps' webhooks. Anyone may call it, since the signature
- * proves who sent it: a delivery is accepted only with a valid {@code X-Hub-Signature-256} for the App
- * {@code X-GitHub-Hook-Installation-Target-ID} names, and otherwise answers 401 without reading it. A
- * delivery seen before answers 200 and publishes nothing; a new one is kept and published as
- * {@link GitHubWebhookReceived} in one transaction and answers 202 at once, while the listeners run after
- * commit. The body is never logged: it may name people.
+ * {@code POST /webhooks} (AD-12, SG-18): the Platform App's webhooks, the only ones left (Story 23.9b).
+ * Anyone may call it, since the signature proves who sent it: a delivery is accepted only with a valid
+ * {@code X-Hub-Signature-256} for the App {@code X-GitHub-Hook-Installation-Target-ID} names, and
+ * otherwise answers 401 without reading it. A delivery seen before answers 200 and publishes nothing; a
+ * new one is kept and published as {@link GitHubWebhookReceived} in one transaction and answers 202 at
+ * once, while the listeners run after commit. The body is never logged: it may name people.
  */
 @RestController
 @Access(Gate.PUBLIC)
@@ -98,31 +97,22 @@ class WebhookController {
 			if (kept == 1) {
 				this.events.publishEvent(new GitHubWebhookReceived(this.ids.newId(), deliveryId, app, event,
 						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(json),
-						number(json.path("sender").path("id")), number(json.path("requester").path("id")),
-							text(json.path("sender").path("login"))));
+						number(json.path("sender").path("id")), text(json.path("sender").path("login"))));
 			}
 			return kept == 1;
 		});
 		return ResponseEntity.status(Boolean.TRUE.equals(fresh) ? HttpStatus.ACCEPTED : HttpStatus.OK).build();
 	}
 
-	/** Every repository the payload names, in its order and once each. */
+	/**
+	 * The repository the payload names, if any. Every event the Platform App subscribes to
+	 * ({@link AppExpectations#PLATFORM_EVENTS}) names one repository at most, in {@code repository}; the
+	 * {@code installation} and {@code installation_repositories} deliveries that carried a list were the retired
+	 * Merge App's (Story 23.9b).
+	 */
 	static List<Long> repositoryIds(JsonNode json) {
-		List<Long> ids = new ArrayList<>();
-		add(ids, json.path("repository").path("id"));
-		for (String list : List.of("repositories", "repositories_added", "repositories_removed")) {
-			for (JsonNode repository : json.path(list)) {
-				add(ids, repository.path("id"));
-			}
-		}
-		return ids;
-	}
-
-	private static void add(List<Long> ids, JsonNode id) {
-		Long value = number(id);
-		if (value != null && !ids.contains(value)) {
-			ids.add(value);
-		}
+		Long id = number(json.path("repository").path("id"));
+		return id == null ? List.of() : List.of(id);
 	}
 
 	private static @Nullable Long number(JsonNode node) {

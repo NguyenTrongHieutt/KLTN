@@ -216,8 +216,9 @@ class RetiredScanningTest {
 
 	private static boolean isText(Path file) {
 		String name = file.getFileName().toString();
+		// .example is deploy/.env.example, the only one: the configuration half of a retirement is named there too.
 		return Stream.of(".java", ".ts", ".tsx", ".json", ".txt", ".sql", ".yaml", ".yml", ".properties", ".css", ".html", ".mjs",
-				".js", ".sh", ".md", ".toml", ".conf").anyMatch(name::endsWith) || name.equals("Caddyfile");
+				".js", ".sh", ".md", ".toml", ".conf", ".example").anyMatch(name::endsWith) || name.equals("Caddyfile");
 	}
 
 	private static String packageInfo(String module) {
