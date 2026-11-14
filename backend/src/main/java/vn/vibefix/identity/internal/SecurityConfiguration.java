@@ -53,6 +53,9 @@ class SecurityConfiguration {
 	/** AD-44's Actions token exchange in {@code github} (Story 23.4), which no session or CSRF token reaches. */
 	static final String ACTIONS_EXCHANGE = "/github/actions/exchange";
 
+	/** AD-11's path report of a handover copy (Story 23.8a), posted by the run the exchange already proved. */
+	static final String ACTIONS_REPORT = "/github/actions/report";
+
 	/**
 	 * The session cookie (AD-19): {@code HttpOnly}, {@code Secure} (browsers accept it on
 	 * http://localhost, which they treat as secure), and {@code SameSite=Lax}. Declared here, not as
@@ -76,7 +79,7 @@ class SecurityConfiguration {
 			.securityContext(context -> context.securityContextRepository(contexts))
 			// AD-12: GitHub's webhooks carry no session; their HMAC signature proves the sender. AD-44: an Actions
 			// run carries none either; its OIDC ID token proves it.
-			.csrf(csrf -> csrf.spa().ignoringRequestMatchers("/webhooks", ACTIONS_EXCHANGE))
+			.csrf(csrf -> csrf.spa().ignoringRequestMatchers("/webhooks", ACTIONS_EXCHANGE, ACTIONS_REPORT))
 			.headers(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)

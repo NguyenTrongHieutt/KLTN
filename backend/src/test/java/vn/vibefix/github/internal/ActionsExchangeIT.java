@@ -184,6 +184,9 @@ class ActionsExchangeIT extends IntegrationTest {
 	private ExchangeCorrelations correlations;
 
 	@Autowired
+	private ActionsReports reports;
+
+	@Autowired
 	private DispatchingApps dispatching;
 
 	@Autowired
@@ -1089,6 +1092,121 @@ class ActionsExchangeIT extends IntegrationTest {
 		assertThat(output.getAll()).contains("The Actions exchange issued correlation " + dispatched.correlation());
 	}
 
+	/**
+	 * Story 23.8a (AD-11, FR-32): a {@code handover-copy} run posts its path report once, with a fresh ID token and
+	 * the same correlation. It is taken only for an exchanged correlation whose run it names; a second post is a
+	 * replay, and a body whose count disagrees with its list is refused without any of it being logged.
+	 */
+	@Test
+	void aRunReportsItsChangedPathsOnceAfterItsExchange() throws Exception {
+		Dispatched dispatched = handover();
+		List<String> paths = List.of("src/booking.js", "package.json", "th\u01b0 m\u1ee5c/t\u00ean c\u00f3 d\u1ea5u.txt");
+
+		this.mvc.perform(report(dispatched, false, paths, "198.51.100.1")).andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("CORRELATION"));
+		this.mvc.perform(exchange(sign(claims(dispatched, RUNNER_ID)), dispatched.correlation(), "198.51.100.2"))
+			.andExpect(status().isOk());
+
+		this.mvc.perform(report(dispatched, false, paths, "198.51.100.3")).andExpect(status().isNoContent());
+
+		assertThat(this.runs.report(dispatched.correlation())).hasValueSatisfying(report -> {
+			assertThat(report.correlation()).isEqualTo(dispatched.correlation());
+			assertThat(report.workflowsChanged()).isFalse();
+			assertThat(report.paths()).containsExactlyElementsOf(paths);
+		});
+		this.mvc.perform(report(dispatched, true, List.of(".github/workflows/ci.yml"), "198.51.100.4"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("REPLAY"));
+		assertThat(this.runs.report(dispatched.correlation()).orElseThrow().paths()).isEqualTo(paths);
+	}
+
+	@Test
+	void aMalformedReportOrOneThatNamesAnotherRunIsRefused() throws Exception {
+		Dispatched dispatched = handover();
+		this.mvc.perform(exchange(sign(claims(dispatched, RUNNER_ID)), dispatched.correlation(), "198.51.100.5"))
+			.andExpect(status().isOk());
+		String idToken = sign(claims(dispatched, RUNNER_ID));
+
+		Map<String, Object> missingFields = new LinkedHashMap<>();
+		missingFields.put("id_token", idToken);
+		missingFields.put("correlation", dispatched.correlation().toString());
+		String correlation = dispatched.correlation().toString();
+		// A list that expands past the cap: 32 MiB of one byte, which gzips to almost nothing.
+		byte[] huge = new byte[ActionsReports.MAX_PATH_BYTES + 1];
+		java.util.Arrays.fill(huge, (byte) 'a');
+		for (Map<String, Object> body : List.of(
+				ActionsExchangeSupport.reportBody(idToken, correlation, false, List.of("a.txt"), 7),
+				ActionsExchangeSupport.reportBody(idToken, correlation, false, "not-base64!", 1),
+				ActionsExchangeSupport.reportBody(idToken, correlation, false,
+						ActionsExchangeSupport.gzipped(new byte[] { 0, 'a', 0 }), 2),
+				ActionsExchangeSupport.reportBody(idToken, correlation, false, ActionsExchangeSupport.gzipped(huge), 1),
+				missingFields)) {
+			this.mvc.perform(ActionsExchangeSupport.report(body, "198.51.100.6"))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.reason").value("REPORT"));
+		}
+		Map<String, Object> other = claims(dispatched, RUNNER_ID);
+		other.put("run_id", String.valueOf(dispatched.runId() + 1));
+		this.mvc
+			.perform(ActionsExchangeSupport.report(ActionsExchangeSupport.reportBody(sign(other), correlation, false,
+					List.of("a.txt"), 1), "198.51.100.7"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("RUN"));
+		assertThat(this.runs.report(dispatched.correlation())).isEmpty();
+	}
+
+	/** The report a run posts, as {@link ActionsExchangeSupport} builds it, from {@code address}. */
+	private MockHttpServletRequestBuilder report(Dispatched dispatched, boolean workflowsChanged, List<String> paths,
+			String address) throws JOSEException {
+		return ActionsExchangeSupport.report(sign(claims(dispatched, RUNNER_ID)), dispatched.correlation(),
+				workflowsChanged, paths, address);
+	}
+
+	/**
+	 * Story 23.8a: a report refused from {@code REPLAY} on names a correlation whose token is GitHub's, so it is
+	 * counted, audited and alerted, as the exchange's own refusal is; and a report is rate limited on counters of
+	 * its own, so a run's exchange and its report never use up each other's budget (AD-34).
+	 */
+	@Test
+	void aReportRefusedPastTheCorrelationIsAuditedAndAlertedAndTheLimitsAreItsOwn() throws Exception {
+		AdministratorTestSupport.Administrator ha = AdministratorTestSupport.create(this.context, "ha.report@vibefix.test",
+				"Hà Báo");
+		Dispatched dispatched = handover();
+		long before = this.reports.refusedCounts().get(ExchangeReason.REPLAY);
+		this.mvc.perform(exchange(sign(claims(dispatched, RUNNER_ID)), dispatched.correlation(), "198.51.100.11"))
+			.andExpect(status().isOk());
+		this.mvc.perform(report(dispatched, false, List.of("src/booking.js"), "198.51.100.12"))
+			.andExpect(status().isNoContent());
+
+		this.mvc.perform(report(dispatched, false, List.of("src/booking.js"), "198.51.100.13"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("REPLAY"));
+
+		awaitListeners();
+		assertThat(this.reports.refusedCounts().get(ExchangeReason.REPLAY)).isEqualTo(before + 1);
+		assertThat(audited(dispatched.correlation())).contains("github.exchange_refused_replay");
+		assertThat(alerts(ha.accountId())).contains(Map.of("operation", "handover-copy", "reason", "replay",
+				"correlation", dispatched.correlation().toString()));
+		// One more post than the address may make, each refused before any token is verified, is rate limited.
+		Map<String, Object> malformed = ActionsExchangeSupport.reportBody(sign(claims(dispatched, RUNNER_ID)),
+				dispatched.correlation().toString(), false, "not-base64!", 0);
+		malformed.remove("count");
+		for (int call = 1; call <= ExchangeRateLimiter.PER_ADDRESS; call++) {
+			this.mvc.perform(ActionsExchangeSupport.report(malformed, "198.51.100.14"))
+				.andExpect(status().isForbidden())
+				.andExpect(header().doesNotExist("Retry-After"))
+				.andExpect(jsonPath("$.reason").value("REPORT"));
+		}
+		this.mvc.perform(ActionsExchangeSupport.report(malformed, "198.51.100.14"))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("RATE_LIMITED"))
+			.andExpect(header().exists("Retry-After"));
+		// The exchange's own budget from that address is untouched, since the report counts on its own.
+		this.mvc.perform(exchange(sign(claims(dispatched, RUNNER_ID)), dispatched.correlation(), "198.51.100.14"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("REPLAY"));
+	}
+
 	// Helpers.
 
 	private Dispatched handover() {
@@ -1120,8 +1238,9 @@ class ActionsExchangeIT extends IntegrationTest {
 
 	/** The dispatch with a find window of 30 ms, for a run that does not show. */
 	private GitHubActionsRuns quick() {
-		return new GitHubActionsRuns(this.apps, this.dispatching, this.correlations, this.transactionManager,
-				this.environment, this.clock, new GitHubActionsRuns.Waits(Duration.ofMillis(10), Duration.ofMillis(30)));
+		return new GitHubActionsRuns(this.apps, this.dispatching, this.correlations, this.reports,
+				this.transactionManager, this.environment, this.clock,
+				new GitHubActionsRuns.Waits(Duration.ofMillis(10), Duration.ofMillis(30)));
 	}
 
 	/** The requests GitHub received since the {@code from}-th, with this method and a path starting with {@code pathPrefix}. */

@@ -33,6 +33,7 @@ import vn.vibefix.delivery.internal.Handovers.Draft;
 import vn.vibefix.delivery.internal.Handovers.Evidence;
 import vn.vibefix.delivery.internal.Handovers.Handover;
 import vn.vibefix.delivery.internal.Handovers.ItemNote;
+import vn.vibefix.delivery.internal.Handovers.Pending;
 import vn.vibefix.delivery.internal.Handovers.Preflight;
 import vn.vibefix.delivery.internal.Handovers.Preview;
 import vn.vibefix.delivery.internal.HandoverScreenshots.Screenshot;
@@ -145,12 +146,27 @@ class HandoverController {
 	}
 
 	/**
-	 * What a Code Job's handover pinned (FR-32, AD-11, AD-33).
+	 * What a Code Job's handover copied (FR-32, AD-11, AD-33).
 	 * @param unattributed commits whose author GitHub resolved to no account
-	 * @param truncated GitHub listed only part of the range
+	 * @param truncated GitHub listed only part of the commits; the changed paths are the run's own full list
+	 * @param sensitiveChangeCount how many Sensitive Changes the range held, which may be more than are listed
 	 */
 	record HandoverCodeView(String handoverCommit, int pullNumber, List<HandoverCommitView> commits, int unattributed,
-			boolean truncated, List<SensitiveChangeView> sensitiveChanges, List<HandoverPageView> pages) {
+			boolean truncated, List<SensitiveChangeView> sensitiveChanges, int sensitiveChangeCount,
+			List<HandoverPageView> pages) {
+	}
+
+	/**
+	 * A handover the Mentor sent, while the runner copies it and once it ended (FR-32, AD-46, Story 23.8a).
+	 * @param id the submission, which is the handover's own ID once it is recorded
+	 * @param state {@code PENDING}, {@code DONE}, or {@code REFUSED}
+	 * @param reason why it was refused, as a reason code
+	 * @param reasonModule the module whose reason enum {@code reason} belongs to, so the screen reads it from
+	 * {@code reason.{module}} (AD-23): {@code delivery} for the copy's own refusals, {@code job} for M2's
+	 * @param handoverId the handover recorded from it, for {@code DONE}
+	 */
+	record HandoverSubmissionView(UUID id, UUID jobId, UUID milestoneId, int number, String state, @Nullable String reason,
+			@Nullable String reasonModule, @Nullable UUID handoverId) {
 	}
 
 	record HandoverCriterionMarkRequest(@NotNull UUID criterionId, boolean met,
@@ -219,7 +235,7 @@ class HandoverController {
 	 * @param decision for the Customer while the handover waits for them
 	 * @param checks the Customer's marks once decided
 	 * @param auto accepted by Auto-acceptance (FR-35)
-	 * @param code a Code Job's pinned commit, its range, Sensitive Changes, and updated Pages
+	 * @param code a Code Job's Handover Commit, its range, Sensitive Changes, and updated Pages
 	 * @param acceptance a Code Job's acceptance while the handover waits: {@code MERGING} under the busy
 	 * marker, {@code FAILED} when its merge did not go through (FR-33), or {@code VOIDED} when its merge
 	 * answered 409 and M3 applied, until the handover itself shows {@code VOIDED}
@@ -248,6 +264,8 @@ class HandoverController {
 
 	private final CodeHandovers code;
 
+	private final HandoverSubmissions submissions;
+
 	private final IdGenerator ids;
 
 	private final PreviewChecks previews;
@@ -257,10 +275,11 @@ class HandoverController {
 	private final AcceptanceMerges merges;
 
 	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
-			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, IdGenerator ids, PreviewChecks previews,
-			HandoverScreenshots screenshots, AcceptanceMerges merges) {
+			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, HandoverSubmissions submissions,
+			IdGenerator ids, PreviewChecks previews, HandoverScreenshots screenshots, AcceptanceMerges merges) {
 		this.merges = merges;
 		this.code = code;
+		this.submissions = submissions;
 		this.ids = ids;
 		this.previews = previews;
 		this.screenshots = screenshots;
@@ -361,10 +380,14 @@ class HandoverController {
 		return new HandoverScreenshotView(screenshot.fileId(), screenshot.fileName(), screenshot.size());
 	}
 
-	/** "Gửi bàn giao": M2 with the Delivery Report (FR-32). */
+	/**
+	 * "Gửi bàn giao" (FR-32, AD-11, AD-46, Story 23.8a). An Assessment Job's handover is recorded at once, with M2.
+	 * A Code Job's is kept pending: the runner copies the Handover Commit into {@code handover/{id}} of the
+	 * Intermediary, and M2 follows when it has, so the answer is the submission and its state.
+	 */
 	@PostMapping("/api/v1/boards/{boardId}/handovers")
-	@ResponseStatus(HttpStatus.CREATED)
-	DeliveryReportView handOver(@PathVariable("boardId") UUID jobId, @Valid @RequestBody HandoverRequest body) {
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	HandoverSubmissionView handOver(@PathVariable("boardId") UUID jobId, @Valid @RequestBody HandoverRequest body) {
 		Viewer mentor = this.access.maker(jobId, this.callers.get());
 		Draft draft = this.handovers.draft(mentor, body.milestoneId(),
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
@@ -373,7 +396,7 @@ class HandoverController {
 				body.sensitive() == null ? Resolution.CHECK : body.sensitive(),
 				new Evidence(body.previewUrl(), body.recordingUrl(), body.noPreviewReason(),
 						body.screenshotIds() == null ? List.of() : body.screenshotIds()));
-		// AD-32: the preview responds now, or nothing is pinned or written.
+		// AD-32: the preview responds now, or nothing is written and nothing is copied.
 		if (draft.previewUrl() != null) {
 			PreviewChecks.Result result = this.previews.check(draft.previewUrl());
 			if (!result.reachable()) {
@@ -381,11 +404,30 @@ class HandoverController {
 						java.util.Map.of("domain", result.domain()));
 			}
 		}
-		// A Code Job's commit is pinned on GitHub between the draft and M2 (AD-11).
-		Handover handover = mentor.job().assessment()
-				? this.handovers.record(mentor, draft, body.version(), this.ids.newId(), null)
-				: this.code.handOver(mentor, draft, body.version());
-		return report(mentor, handover);
+		if (mentor.job().assessment()) {
+			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId()), null);
+			return new HandoverSubmissionView(handover.id(), jobId, handover.milestoneId(), handover.number(), "DONE", null,
+					null, handover.id());
+		}
+		// A Code Job's Handover Commit is copied on the runner's Actions between the draft and M2 (AD-11, AD-46).
+		UUID submission = this.code.handOver(mentor, draft, body.version());
+		return submissionView(this.submissions.find(submission).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
+	}
+
+	/**
+	 * The Job's latest handover submission, for the form that sent it (Story 23.8a): pending while the runner
+	 * copies, refused with its reason, or done with the handover's ID.
+	 */
+	@GetMapping("/api/v1/boards/{boardId}/handovers/submission")
+	HandoverSubmissionView submission(@PathVariable("boardId") UUID jobId) {
+		this.access.maker(jobId, this.callers.get());
+		return submissionView(this.submissions.latest(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)));
+	}
+
+	private static HandoverSubmissionView submissionView(HandoverSubmissions.Submission submission) {
+		return new HandoverSubmissionView(submission.id(), submission.jobId(), submission.milestoneId(),
+				submission.milestoneNumber(), submission.status(), submission.reason(), submission.reasonModule(),
+				"DONE".equals(submission.status()) ? submission.id() : null);
 	}
 
 	/** The Delivery Report (UX-DR53). */
@@ -476,7 +518,7 @@ class HandoverController {
 				code.commits().stream().map(c -> new HandoverCommitView(c.sha(), c.message(), c.workItemKeys())).toList(),
 				code.unattributed(), code.truncated(),
 				code.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
-				code.pages()
+				code.sensitiveCount(), code.pages()
 					.stream()
 					.filter(page -> viewer.kind() != Kind.CUSTOMER || page.customerVisible())
 					.map(page -> new HandoverPageView(page.pageId(), page.title(), page.versionNo()))

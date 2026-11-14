@@ -55,7 +55,7 @@ import vn.vibefix.work.MilestoneWork.ReportVersion;
  * a note for it, and each Acceptance Criterion marked with a note; the notes pass FR-47. {@code job}
  * applies M2 first, on the version the form loaded, so nothing is written when it refuses; then the
  * handover, its criteria, and its notes are stored, an Assessment Job's with the Report version current
- * then, a Code Job's with its pinned commit and range (Story 8.2), and the to-dos move from the Mentor to
+ * then, a Code Job's with its Handover Commit and range (Story 8.2), and the to-dos move from the Mentor to
  * the Customer.
  */
 @Component
@@ -66,6 +66,12 @@ class Handovers {
 	static final String REVIEW_HANDOVER = "delivery.review_handover";
 
 	static final int MAX_NOTE = 2000;
+
+	/**
+	 * How many Sensitive Changes one handover stores (FR-32, Story 23.8a): the run reports every changed path, up
+	 * to 100,000, and the Delivery Report lists the first of them with the full count beside it {@code [ASSUMPTION]}.
+	 */
+	static final int MAX_SENSITIVE_ROWS = 300;
 
 	/** The Milestone states a handover leaves (M2). */
 	static final Set<String> HANDABLE = Set.of("FUNDED", "REVISION_REQUESTED");
@@ -120,6 +126,55 @@ class Handovers {
 			@Nullable String noPreviewReason, List<UUID> screenshotIds) {
 	}
 
+	/** One Acceptance Criterion as the Mentor marked it, ready to store. */
+	record PendingCriterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
+	}
+
+	/** One note on a Work Item that was not done, ready to store. */
+	record PendingItemNote(UUID workItemId, String key, String title, String status, String note) {
+	}
+
+	/**
+	 * Everything a handover stores, checked and masked, before M2 applies (FR-32, Story 23.8a). A Code Job keeps
+	 * it in {@code delivery.handover_submission} while the runner copies the Handover Commit, so what the Mentor
+	 * sent is recorded as they sent it, whatever moves meanwhile.
+	 * @param id the handover's ID, which for a Code Job is also its submission's and its branch's
+	 * @param version the Job's version M2 is applied on (AD-23)
+	 */
+	record Pending(UUID id, UUID jobId, UUID productId, UUID customerId, UUID mentorId, long version, UUID milestoneId,
+			int milestoneNumber, String milestoneTitle, List<PendingCriterion> criteria, List<PendingItemNote> itemNotes,
+			@Nullable UUID reportPageId, @Nullable Integer reportVersionNo, @Nullable String previewUrl,
+			@Nullable String recordingUrl, @Nullable String noPreviewReason, List<UUID> screenshotIds) {
+
+		Pending {
+			criteria = List.copyOf(criteria);
+			itemNotes = List.copyOf(itemNotes);
+			screenshotIds = List.copyOf(screenshotIds);
+		}
+
+		/** What the Mentor's drafted handover will store, under {@code id}. */
+		static Pending of(Viewer mentor, Draft draft, long version, UUID id) {
+			ReportVersion report = draft.report();
+			return new Pending(id, mentor.job().jobId(), mentor.job().productId(), mentor.job().customerId(),
+					mentor.accountId(), version, draft.milestone().milestoneId(), draft.milestone().number(),
+					draft.milestone().title(),
+					draft.criteria()
+						.stream()
+						.map(criterion -> new PendingCriterion(criterion.criterionId(), criterion.number(),
+								criterion.statement(), criterion.checkSteps(), draft.met().get(criterion.criterionId()),
+								draft.criterionNotes().get(criterion.criterionId())))
+						.toList(),
+					draft.unfinished()
+						.stream()
+						.map(item -> new PendingItemNote(item.id(), item.key(), item.title(), item.status(),
+								draft.itemNotes().get(item.id())))
+						.toList(),
+					report == null ? null : report.pageId(), report == null ? null : report.versionNo(), draft.previewUrl(),
+					draft.recordingUrl(), draft.noPreviewReason(), draft.screenshotIds());
+		}
+
+	}
+
 	/** The preview link, or a recording with its reason, for "Gửi bàn giao" (FR-32, AD-35). */
 	record Evidence(@Nullable String previewUrl, @Nullable String recordingUrl, @Nullable String noPreviewReason,
 			List<UUID> screenshotIds) {
@@ -134,9 +189,11 @@ class Handovers {
 	}
 
 	/**
-	 * A Code Job's handover as {@code repo} pinned it (AD-11, AD-33).
+	 * A Code Job's handover as the copy run on the runner left it (AD-11, AD-33, Story 23.8a).
 	 * @param commit the Handover Commit
 	 * @param rangeStart the previous Handover Commit, or the commit Setup copied
+	 * @param truncated whether GitHub's compare cut the commit list, which it does past 250 commits; the changed
+	 * paths come from the run's own report and are never cut, so {@code sensitive} covers the whole range (FR-32)
 	 */
 	record Code(String commit, String rangeStart, int pullNumber, List<Commit> commits, boolean truncated,
 			List<SensitiveChange> sensitive) {
@@ -146,9 +203,13 @@ class Handovers {
 	record RecordedCommit(String sha, String message, List<String> workItemKeys) {
 	}
 
-	/** What a Code Job's handover recorded, for its Delivery Report. */
+	/**
+	 * What a Code Job's handover recorded, for its Delivery Report.
+	 * @param sensitive the Sensitive Changes stored, at most {@value #MAX_SENSITIVE_ROWS} of them
+	 * @param sensitiveCount how many the run's full list held, which the report's caption names
+	 */
 	record CodeRecord(String commit, int pullNumber, int unattributed, boolean truncated, List<RecordedCommit> commits,
-			List<SensitiveChange> sensitive, List<PageUpdate> pages) {
+			List<SensitiveChange> sensitive, int sensitiveCount, List<PageUpdate> pages) {
 	}
 
 	private static final String COLUMNS = """
@@ -231,7 +292,7 @@ class Handovers {
 
 	/**
 	 * "Gửi bàn giao", first step: everything the handover will store, checked and masked, before anything
-	 * is written or pinned. A Code Job's handover pins its commit between this and {@link #record}.
+	 * is written or copied. A Code Job's commit is copied on the runner between this and {@link #record}.
 	 * @throws ApiException {@code NOT_FOUND} for a Milestone not in force; {@code GUARD_FAILED
 	 * MILESTONE_NOT_HELD}, {@code WORK_ITEMS_NOT_DONE} (with
 	 * {@code n}), {@code REPORT_MISSING}, or {@code SENSITIVE_CONTENT} (with the matches, under
@@ -303,44 +364,43 @@ class Handovers {
 
 	/**
 	 * "Gửi bàn giao", last step: M2 on {@code version} with the drafted handover, then its rows; a Code
-	 * Job's with its pinned commit, range, Sensitive Changes, updated Pages, and the Work Items its commits
+	 * Job's with its Handover Commit, range, Sensitive Changes, updated Pages, and the Work Items its commits
 	 * mention (FR-23).
 	 * @throws ApiException M2's refusals, {@code STALE} among them; nothing is written then
 	 */
 	@Transactional
-	Handover record(Viewer mentor, Draft draft, long version, UUID id, @Nullable Code code) {
-		UUID jobId = mentor.job().jobId();
-		MilestoneInForce milestone = draft.milestone();
-		UUID milestoneId = milestone.milestoneId();
-		Submitted submitted = this.jobs.submit(jobId, milestoneId, mentor.accountId(), version, id,
+	Handover record(Pending pending, @Nullable Code code) {
+		UUID jobId = pending.jobId();
+		UUID id = pending.id();
+		UUID milestoneId = pending.milestoneId();
+		Submitted submitted = this.jobs.submit(jobId, milestoneId, pending.mentorId(), pending.version(), id,
 				code == null ? null : code.commit());
 		int round = this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE milestone_id = :milestone")
 			.param("milestone", milestoneId)
 			.query(Integer.class)
 			.single() + 1;
 		Instant now = this.clock.instant();
-		ReportVersion report = draft.report();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, report_page_id, report_version_no, check_by, created_at,
-				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated, preview_url,
-				    preview_checked_at, recording_url, no_preview_reason)
+				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated,
+				    sensitive_change_count, preview_url, preview_checked_at, recording_url, no_preview_reason)
 				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :mentor, 'SUBMITTED', :version, :transition,
-				    :page, :pageVersion, :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated, :preview,
-				    :previewChecked, :recording, :reason)
+				    :page, :pageVersion, :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated, :sensitiveCount,
+				    :preview, :previewChecked, :recording, :reason)
 				""")
 			.param("id", id)
 			.param("job", jobId)
-			.param("product", mentor.job().productId())
+			.param("product", pending.productId())
 			.param("milestone", milestoneId)
-			.param("number", milestone.number())
-			.param("title", milestone.title())
+			.param("number", pending.milestoneNumber())
+			.param("title", pending.milestoneTitle())
 			.param("round", round)
-			.param("mentor", mentor.accountId())
+			.param("mentor", pending.mentorId())
 			.param("version", submitted.version())
 			.param("transition", submitted.transitionId())
-			.param("page", report == null ? null : report.pageId())
-			.param("pageVersion", report == null ? null : report.versionNo())
+			.param("page", pending.reportPageId())
+			.param("pageVersion", pending.reportVersionNo())
 			.param("checkBy", Timestamp.from(submitted.checkBy()))
 			.param("now", Timestamp.from(now))
 			.param("commit", code == null ? null : code.commit())
@@ -348,14 +408,15 @@ class Handovers {
 			.param("pull", code == null ? null : code.pullNumber())
 			.param("unattributed", code == null ? 0 : (int) code.commits().stream().filter(c -> c.authorId() == null).count())
 			.param("truncated", code != null && code.truncated())
+			.param("sensitiveCount", code == null ? 0 : code.sensitive().size())
 			// The caller checked the preview link just before (AD-32): that check is the one stored.
-			.param("preview", draft.previewUrl())
-			.param("previewChecked", draft.previewUrl() == null ? null : Timestamp.from(now))
-			.param("recording", draft.recordingUrl())
-			.param("reason", draft.noPreviewReason())
+			.param("preview", pending.previewUrl())
+			.param("previewChecked", pending.previewUrl() == null ? null : Timestamp.from(now))
+			.param("recording", pending.recordingUrl())
+			.param("reason", pending.noPreviewReason())
 			.update();
-		this.screenshots.attach(id, jobId, mentor.accountId(), draft.screenshotIds());
-		for (CriterionInForce criterion : draft.criteria()) {
+		this.screenshots.attach(id, jobId, pending.mentorId(), pending.screenshotIds());
+		for (PendingCriterion criterion : pending.criteria()) {
 			this.jdbc.sql("""
 					INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 					VALUES (:id, :criterion, :number, :statement, :steps, :met, :note)
@@ -365,29 +426,29 @@ class Handovers {
 				.param("number", criterion.number())
 				.param("statement", criterion.statement())
 				.param("steps", criterion.checkSteps())
-				.param("met", draft.met().get(criterion.criterionId()))
-				.param("note", draft.criterionNotes().get(criterion.criterionId()))
+				.param("met", criterion.met())
+				.param("note", criterion.note())
 				.update();
 		}
-		for (ItemState item : draft.unfinished()) {
+		for (PendingItemNote item : pending.itemNotes()) {
 			this.jdbc.sql("""
 					INSERT INTO delivery.handover_item_note (handover_id, work_item_id, item_key, title, status, note)
 					VALUES (:id, :item, :key, :title, :status, :note)
 					""")
 				.param("id", id)
-				.param("item", item.id())
+				.param("item", item.workItemId())
 				.param("key", item.key())
 				.param("title", item.title())
 				.param("status", item.status())
-				.param("note", draft.itemNotes().get(item.id()))
+				.param("note", item.note())
 				.update();
 		}
 		if (code != null) {
 			recordCode(jobId, id, code);
 		}
-		this.todos.close(HAND_OVER, mentor.accountId(), milestoneId);
-		this.todos.open(new TodoRequest(REVIEW_HANDOVER, mentor.job().customerId(), Audience.CUSTOMER, id,
-				Map.of("n", String.valueOf(milestone.number()), "date", dayMonth(submitted.checkBy())),
+		this.todos.close(HAND_OVER, pending.mentorId(), milestoneId);
+		this.todos.open(new TodoRequest(REVIEW_HANDOVER, pending.customerId(), Audience.CUSTOMER, id,
+				Map.of("n", String.valueOf(pending.milestoneNumber()), "date", dayMonth(submitted.checkBy())),
 				"/cong-viec/" + jobId + "/ban-giao/" + id, submitted.checkBy(), jobId));
 		this.deadlines.schedule(new DeadlineRequest(AutoAcceptance.KEY, id, id.toString(), jobId, submitted.checkBy()));
 		this.deadlines.schedule(new DeadlineRequest(AcceptanceReminder.KEY, id, "1", jobId, submitted.firstReminderAt()));
@@ -415,16 +476,20 @@ class Handovers {
 				.param("keys", linked.getOrDefault(commit.sha(), List.of()).toArray(String[]::new))
 				.update();
 		}
-		for (int position = 0; position < code.sensitive().size(); position++) {
-			SensitiveChange change = code.sensitive().get(position);
+		// One statement, whatever the run reported: a range of 100,000 paths is thousands of Sensitive Changes.
+		List<SensitiveChange> stored = code.sensitive().size() > MAX_SENSITIVE_ROWS
+				? code.sensitive().subList(0, MAX_SENSITIVE_ROWS) : code.sensitive();
+		if (!stored.isEmpty()) {
 			this.jdbc.sql("""
 					INSERT INTO delivery.handover_sensitive_change (handover_id, position, path, kind)
-					VALUES (:id, :position, :path, :kind)
+					SELECT :id, row.position - 1, row.path, row.kind
+					FROM unnest(CAST(:paths AS TEXT[]), CAST(:kinds AS TEXT[])) WITH ORDINALITY AS row(path, kind, position)
 					""")
 				.param("id", id)
-				.param("position", position)
-				.param("path", change.path().length() > 1000 ? change.path().substring(0, 1000) : change.path())
-				.param("kind", change.kind().name())
+				.param("paths", stored.stream()
+					.map(change -> change.path().length() > 1000 ? change.path().substring(0, 1000) : change.path())
+					.toArray(String[]::new))
+				.param("kinds", stored.stream().map(change -> change.kind().name()).toArray(String[]::new))
 				.update();
 		}
 		// The Pages updated since the Job's previous handover, whichever Milestone it handed over.
@@ -473,11 +538,11 @@ class Handovers {
 	@Transactional(readOnly = true)
 	Optional<CodeRecord> code(UUID handoverId) {
 		return this.jdbc.sql("""
-				SELECT handover_commit, pull_number, unattributed_commits, commits_truncated FROM delivery.handover
-				WHERE id = :id AND handover_commit IS NOT NULL
+				SELECT handover_commit, pull_number, unattributed_commits, commits_truncated, sensitive_change_count
+				FROM delivery.handover WHERE id = :id AND handover_commit IS NOT NULL
 				""").param("id", handoverId).query((rs, n) -> new CodeRecord(rs.getString("handover_commit"),
 						rs.getInt("pull_number"), rs.getInt("unattributed_commits"), rs.getBoolean("commits_truncated"),
-						commits(handoverId), sensitive(handoverId), pages(handoverId)))
+						commits(handoverId), sensitive(handoverId), rs.getInt("sensitive_change_count"), pages(handoverId)))
 			.optional();
 	}
 

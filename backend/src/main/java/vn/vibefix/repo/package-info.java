@@ -12,7 +12,10 @@
  * <p>
  * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50),
  * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes, and
- * {@link vn.vibefix.repo.HandoverBranches}, a handover's range and its pinned branch (FR-32, Story 8.2).
+ * {@link vn.vibefix.repo.HandoverBranches}, a handover's range and the merge and close of its pull request
+ * (FR-32, Story 8.2), and {@link vn.vibefix.repo.HandoverCopies} with
+ * {@link vn.vibefix.repo.HandoverCopyFinished}, the copy of a Handover Commit to {@code handover/{id}} of the
+ * Intermediary on the runner's GitHub Actions and the path report it brings back (AD-46, Story 23.8a).
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "files", "identity", "notification", "job", "operations",
 		"github", "product", "scanning", "timers" })

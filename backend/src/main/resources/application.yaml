@@ -149,7 +149,11 @@ vibefix:
       # Story 23.5 split vibefix.yml's copy and final-merge into jobs of their own (deferred-work 630): its new
       # blob replaced the old one, which no Customer had added yet. Story 23.6c (deferred-work 650) gave the copy
       # a named fsck ignore list: its blob joins, and the 23.5 blob, which dev Products have added, ends on
-      # 2026-12-14 [ASSUMPTION], so their Customers get the end-date notice (R12) first.
+      # 2026-12-14 [ASSUMPTION], so their Customers get the end-date notice (R12) first. Story 23.8a gave the
+      # runner's s6-copy.yml the handover range, the new-branch guard and the path report: its blob replaces the
+      # 23.4 one, with no end date, because that file declares no from_sha, so a dispatch against it is refused by
+      # GitHub anyway. The runner is the one repository vibefix owns: until the file is re-published there, the
+      # runner check reports drift, which is the honest signal (deploy/README.md names the step).
       accepted-blobs:
         - path: .github/workflows/vibefix.yml
           blob: 4c2747e19b12d76ff7bfd0d989e325b488062595
@@ -157,7 +161,7 @@ vibefix:
           blob: db448cf8fe316ef7876e5a6b0556a554ae74c976
           ends-on: "2026-12-14"
         - path: .github/workflows/s6-copy.yml
-          blob: 82e83caca2379c6d4a1c716e41b1348429dbcf2c
+          blob: 1234b2c8957ec12d4bf6bf55e63f0ed749b289b4
       # The dev stack serves the exchange on this port too, alone, while public-url names its cloudflared
       # quick tunnel (VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL in deploy/.env). The prod profile refuses public-url.
       dev-port: 8098

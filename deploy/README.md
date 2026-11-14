@@ -436,13 +436,24 @@ exchange and answers 404 to anything else, never at 8080.
 4. Dispatch a handover copy on the runner with `runner-dispatch`, naming two repositories of `vibefix-dev`
    without their owner, for example a Job's Working and Intermediary Repositories:
    ```
-   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli backend --spring.flyway.enabled=false --vibefix.cli.command=runner-dispatch --source=<working> --source-branch=main --sha=<commit on it> --target=<intermediary> --target-branch=handover/<name>
+   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml run --rm --no-deps -e SPRING_PROFILES_ACTIVE=dev,cli backend --spring.flyway.enabled=false --vibefix.cli.command=runner-dispatch --source=<working> --source-branch=main --from-sha=<earlier commit> --sha=<commit on it> --target=<intermediary> --target-branch=handover/<uuid>
    ```
    It records the correlation, dispatches `s6-copy.yml`, prints the correlation and the run, and exits. The
    running backend exchanges the run's ID token and revokes the token once the run completes; the Audit
    Log shows `github.exchange_issued` and `github.exchange_revoked`. Exit code 1 means refused (not `dev`, no
    runner, a repository not found, the runner's `s6-copy.yml` not accepted, or GitHub's refusal), 2 a wrong
    invocation.
+
+   Since Story 23.8a the run also takes `--from-sha`, where the handover's range starts, and the target
+   branch must be a new `handover/<uuid>`: between its fetch and its push the run lists every path the range
+   changed, checks `.github/workflows` with `git diff --quiet`, and posts both to
+   `POST /github/actions/report` with a fresh ID token and the same correlation. A workflow change ends the
+   run before the push. The list never reaches a file of a platform repository and never reaches a log.
+
+   **Re-publish `deploy/runner/s6-copy.yml` on the runner before the first handover of a Code Job.** Only its
+   new blob is accepted (`vibefix.github.exchange.accepted-blobs`), and the file it replaces declares no
+   `from_sha`, so nothing can be dispatched against it. Until it is re-published, the runner check reports
+   drift and the 10-minute sweep alerts `github.platform_drift`.
 
 Spike S6's probe still serves its own exchange on 8099 for its parts b and c: it answers the published
 workflows' new path, `/github/actions/exchange`, too.
@@ -659,10 +670,11 @@ what a scan costs in Actions minutes is dropped with the scan. In this design:
   Merge (the Intermediary Repository to a new `vibefix/…` branch of the Customer's repository) run on
   GitHub Actions in the Customer's own repository. They come from one file the Customer adds:
   `deploy/customer/vibefix.yml`, as `.github/workflows/vibefix.yml`. The Source App dispatches it;
-- the handover copy (the Working Repository to `handover/…` on the Intermediary Repository) runs in
-  `vibefix-dev/vibefix-runner`, the only repository of `vibefix-dev` whose Actions may run
-  ("Selected repositories"). The Platform App dispatches `deploy/runner/s6-copy.yml` there. There is no
-  Runner App and no second organization;
+- the handover copy (the Working Repository to a new `handover/<uuid>` branch of the Intermediary
+  Repository) runs in `vibefix-dev/vibefix-runner`, the only repository of `vibefix-dev` whose Actions may
+  run ("Selected repositories"). The Platform App dispatches `deploy/runner/s6-copy.yml` there, and the run
+  posts the handover's changed paths back at `POST /github/actions/report`. There is no Runner App and no
+  second organization;
 - no workflow holds a secret. Each run asks GitHub Actions for an OIDC ID token with the audience
   `vibefix`, and exchanges it at vibefix for a Platform App token narrowed to its repositories. During
   the spike the probe serves that exchange itself, reached through a cloudflared quick tunnel;

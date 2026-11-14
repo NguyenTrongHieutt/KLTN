@@ -34,6 +34,11 @@ class RunnerDispatchCommandTest {
 
 	private static final String SHA = "1f".repeat(20);
 
+	private static final String FROM_SHA = "2e".repeat(20);
+
+	/** AD-11: the run pushes a new handover/<uuid> branch only. */
+	private static final String BRANCH = "handover/" + UUID.fromString("6f1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d");
+
 	private final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
 	private final ByteArrayOutputStream err = new ByteArrayOutputStream();
@@ -46,8 +51,8 @@ class RunnerDispatchCommandTest {
 	void itDispatchesAHandoverCopyOnTheRunnerWithTheGrantOfBothRepositories() {
 		RunnerDispatchCommand command = command("dev", "cli");
 
-		command.run(arguments("--source=job-1-working", "--source-branch=main", "--sha=" + SHA, "--target=job-1-intermediary",
-				"--target-branch=handover/h1"));
+		command.run(arguments("--source=job-1-working", "--source-branch=main", "--from-sha=" + FROM_SHA, "--sha=" + SHA,
+				"--target=job-1-intermediary", "--target-branch=" + BRANCH));
 
 		assertThat(command.getExitCode()).isZero();
 		assertThat(RunnerDispatchCommand.COMMAND).as("the name BootstrapCommand lets run").isEqualTo("runner-dispatch");
@@ -58,8 +63,9 @@ class RunnerDispatchCommandTest {
 			assertThat(dispatch.targetId()).isEqualTo(9);
 			assertThat(dispatch.workflow()).isEqualTo("s6-copy.yml");
 			assertThat(dispatch.grant()).containsExactlyInAnyOrder(7L, 8L);
-			assertThat(dispatch.inputs()).isEqualTo(Map.of("source_repository", "vibefix-dev/job-1-working", "source_branch", "main",
-					"sha", SHA, "target_repository", "vibefix-dev/job-1-intermediary", "target_branch", "handover/h1"));
+			assertThat(dispatch.inputs()).isEqualTo(Map.of("source_repository", "vibefix-dev/job-1-working", "source_branch",
+					"main", "from_sha", FROM_SHA, "sha", SHA, "target_repository", "vibefix-dev/job-1-intermediary",
+					"target_branch", BRANCH));
 		});
 		assertThat(this.out.toString(StandardCharsets.UTF_8)).contains(this.correlation.toString(), "run 4242",
 				"vibefix-dev/vibefix-runner");
@@ -69,8 +75,8 @@ class RunnerDispatchCommandTest {
 	void anyStackButDevIsRefused() {
 		RunnerDispatchCommand command = command("prod", "cli");
 
-		command.run(arguments("--source=job-1-working", "--source-branch=main", "--sha=" + SHA, "--target=job-1-intermediary",
-				"--target-branch=handover/h1"));
+		command.run(arguments("--source=job-1-working", "--source-branch=main", "--from-sha=" + FROM_SHA, "--sha=" + SHA,
+				"--target=job-1-intermediary", "--target-branch=" + BRANCH));
 
 		assertThat(command.getExitCode()).isOne();
 		assertThat(this.dispatched).isEmpty();
@@ -79,13 +85,18 @@ class RunnerDispatchCommandTest {
 	@Test
 	void aWrongInvocationOrAMissingRepositoryIsRefused() {
 		RunnerDispatchCommand wrong = command("dev", "cli");
-		wrong.run(arguments("--source=vibefix-dev/job-1-working", "--source-branch=main", "--sha=" + SHA,
-				"--target=job-1-intermediary", "--target-branch=../main"));
+		wrong.run(arguments("--source=vibefix-dev/job-1-working", "--source-branch=main", "--from-sha=" + FROM_SHA,
+				"--sha=" + SHA, "--target=job-1-intermediary", "--target-branch=../main"));
 		assertThat(wrong.getExitCode()).isEqualTo(2);
 
-		RunnerDispatchCommand missing = command("dev", "cli");
-		missing.run(arguments("--source=job-gone-working", "--source-branch=main", "--sha=" + SHA,
+		RunnerDispatchCommand loose = command("dev", "cli");
+		loose.run(arguments("--source=job-1-working", "--source-branch=main", "--from-sha=" + FROM_SHA, "--sha=" + SHA,
 				"--target=job-1-intermediary", "--target-branch=handover/h1"));
+		assertThat(loose.getExitCode()).as("a target branch that is no handover/<uuid>").isEqualTo(2);
+
+		RunnerDispatchCommand missing = command("dev", "cli");
+		missing.run(arguments("--source=job-gone-working", "--source-branch=main", "--from-sha=" + FROM_SHA,
+				"--sha=" + SHA, "--target=job-1-intermediary", "--target-branch=" + BRANCH));
 		assertThat(missing.getExitCode()).isOne();
 		assertThat(this.err.toString(StandardCharsets.UTF_8)).contains("no repository job-gone-working");
 		assertThat(this.dispatched).isEmpty();
@@ -138,6 +149,11 @@ class RunnerDispatchCommandTest {
 
 			@Override
 			public Optional<Run> run(UUID correlation) {
+				return Optional.empty();
+			}
+
+			@Override
+			public Optional<Report> report(UUID correlation) {
 				return Optional.empty();
 			}
 

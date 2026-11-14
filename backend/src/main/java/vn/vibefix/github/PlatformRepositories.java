@@ -3,7 +3,6 @@ package vn.vibefix.github;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -14,9 +13,9 @@ import org.jspecify.annotations.Nullable;
  * the Working Repository, two private copies of the Source Repository at one approved commit, which J7 copies on the
  * Customer's own GitHub Actions (Story 23.6b), never in vibefix's sandbox. There is no fork, and GitHub Free takes no
  * ruleset on a private repository, so "only the System writes the Intermediary" is read back from its collaborators
- * and invitations. Every call mints a token for its one step, narrowed as AD-10 lists, and revokes it; a copy between
- * platform repositories runs in the sandbox (AD-32), and a clone of a private platform repository gets a token
- * narrowed to it with {@code contents} read.
+ * and invitations. Every call mints a token for its one step, narrowed as AD-10 lists, and revokes it. Nothing here
+ * copies code: a handover's copy runs on the runner's GitHub Actions (AD-46, Story 23.8a), and vibefix only reads the
+ * branch back and opens the pull request.
  * @throws GitHubException from every method when GitHub refuses or cannot be reached
  */
 public interface PlatformRepositories {
@@ -36,13 +35,13 @@ public interface PlatformRepositories {
 	PlatformRepository create(String name);
 
 	/**
-	 * Pushes exactly {@code sha}, read on {@code sourceBranch} of the private platform repository {@code source}, to
-	 * {@code branch} of {@code target}, keeping the commit IDs, such as a Handover Commit on the Working Repository's
-	 * default branch to {@code handover/{handoverId}} of the Intermediary (AD-11): a bare clone and a push in the
-	 * sandbox, the clone with a token narrowed to {@code source} with {@code contents} read and the push with one narrowed
-	 * to {@code target}. A push of a commit the branch already holds changes nothing, so a retry is a no-op.
+	 * The runner (AD-46), the one repository of the organization whose GitHub Actions may run: empty when none is
+	 * configured, which {@link #organizationDifferences()} reports, or when GitHub does not show it.
 	 */
-	void copy(PlatformRepository source, String sha, String sourceBranch, String branch, PlatformRepository target);
+	Optional<PlatformRepository> runner();
+
+	/** The one workflow the runner holds, a file name in its {@code .github/workflows/} (AD-45, AD-46). */
+	String runnerWorkflow();
 
 	/**
 	 * How the organization differs from AD-11's settings: two-factor authentication required, base permission
@@ -177,7 +176,8 @@ public interface PlatformRepositories {
 	/**
 	 * What {@code base...head} holds (FR-32, AD-18).
 	 * @param commits oldest first, at most 250
-	 * @param files every path a commit added, changed, removed, or renamed (both names), at most 300
+	 * @param files every path a commit added, changed, removed, or renamed (both names), at most 300; a handover
+	 * reads its full list from the copy run's report instead (FR-32, Story 23.8a), and this one is a hint
 	 * @param truncated whether GitHub cut either list
 	 */
 	record Comparison(List<ComparedCommit> commits, List<String> files, boolean truncated) {
@@ -191,29 +191,6 @@ public interface PlatformRepositories {
 
 	/** The commits and changed paths from {@code baseSha} to {@code headSha} of the repository. */
 	Comparison compare(PlatformRepository repository, String baseSha, String headSha);
-
-	/**
-	 * The object one path names at two commits (FR-32, AD-18): a file's blob or a folder's tree. Unlike
-	 * {@link Comparison#files()}, it has no length limit, so a change under the path cannot hide behind
-	 * 300 other files.
-	 * @param base the object's ID at the base commit, {@code null} when the path does not exist there
-	 * @param head the object's ID at the head commit, {@code null} when the path does not exist there
-	 */
-	record PathObjects(@Nullable String base, @Nullable String head) {
-
-		/** Whether the path is the same at both commits: absent from both, or the same object at each. */
-		public boolean same() {
-			return Objects.equals(this.base, this.head);
-		}
-
-	}
-
-	/**
-	 * What {@code path} names at {@code baseSha} and at {@code headSha}, read in one GraphQL query that
-	 * also reads both commits (contents read). A commit GitHub does not know, or a query GitHub answers
-	 * with errors, is a {@link GitHubException}.
-	 */
-	PathObjects pathObjects(PlatformRepository repository, String baseSha, String headSha, String path);
 
 	/** The repository's direct collaborators, lower-case login to role ({@code read}, {@code write}, and so on). */
 	Map<String, String> directCollaborators(PlatformRepository repository);

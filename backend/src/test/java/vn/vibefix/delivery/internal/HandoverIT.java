@@ -109,17 +109,21 @@ class HandoverIT extends IntegrationTest {
 		handOver(this.lan, Role.CUSTOMER, 5, "Đạt.", "Sau.", null).andExpect(status().isForbidden());
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 
+		// Story 23.8a: "Gửi bàn giao" answers 202 with the submission; an Assessment Job's is done at once.
 		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", "Phần phụ lục làm ở giai đoạn sau.",
 				null)
-			.andExpect(status().isCreated())
+			.andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.state").value("DONE"))
+			.andExpect(jsonPath("$.number").value(1))
+			.andReturn().getResponse().getContentAsString(), "$.handoverId");
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.status").value("SUBMITTED"))
 			.andExpect(jsonPath("$.round").value(1))
 			.andExpect(jsonPath("$.criteria[0].met").value(true))
 			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
 			.andExpect(jsonPath("$.itemNotes[0].key").value("BCD-2"))
-			.andExpect(jsonPath("$.report.versionNo").value(1))
-			.andReturn().getResponse().getContentAsString(), "$.id");
+			.andExpect(jsonPath("$.report.versionNo").value(1));
 		assertThat(this.jdbc.sql("SELECT state || ':' || handover_id FROM job.milestone WHERE id = :id")
 			.param("id", this.milestone).query(String.class).single()).isEqualTo("SUBMITTED:" + handover);
 		assertThat(count("SELECT version FROM job.job WHERE id = '" + this.job + "'")).isEqualTo(6);
@@ -165,7 +169,7 @@ class HandoverIT extends IntegrationTest {
 		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "Sau.", null).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("SENSITIVE_CONTENT"))
 			.andExpect(jsonPath("$.matches[0].kind").value("CREDENTIAL"));
-		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "Sau.", "MASK").andExpect(status().isCreated());
+		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "Sau.", "MASK").andExpect(status().isAccepted());
 		assertThat(this.jdbc.sql("SELECT note FROM delivery.handover_criterion").query(String.class).single())
 			.startsWith("Khóa thử ").doesNotContain(fakeToken());
 	}

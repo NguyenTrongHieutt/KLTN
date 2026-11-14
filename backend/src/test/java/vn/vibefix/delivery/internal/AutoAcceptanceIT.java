@@ -381,7 +381,7 @@ class AutoAcceptanceIT extends IntegrationTest {
 		return JsonPath.read(this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR))
 			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content(json)).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.id");
+			.content(json)).andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString(), "$.handoverId");
 	}
 
 	private long count(String sql) {

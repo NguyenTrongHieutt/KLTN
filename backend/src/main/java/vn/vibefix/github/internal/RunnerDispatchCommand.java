@@ -29,10 +29,10 @@ import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 
 /**
- * Story 23.4's dev command: under {@code dev} with {@code cli},
- * {@code --vibefix.cli.command=runner-dispatch --source=<Working> --source-branch=<branch> --sha=<commit>
- * --target=<Intermediary> --target-branch=<handover/…>} records a handover-copy correlation for the two
- * repositories of the platform organization, named without their owner, and dispatches
+ * Story 23.4's dev command, with Story 23.8a's range: under {@code dev} with {@code cli},
+ * {@code --vibefix.cli.command=runner-dispatch --source=<Working> --source-branch=<branch> --from-sha=<commit>
+ * --sha=<commit> --target=<Intermediary> --target-branch=handover/<uuid>} records a handover-copy correlation for
+ * the two repositories of the platform organization, named without their owner, and dispatches
  * {@value GitHubPlatformRepositories#RUNNER_WORKFLOW} on the runner ({@code vibefix.github.runner-repository})
  * with the Platform App. It then exits: the running dev backend serves the exchange through the cloudflared
  * quick tunnel ({@code vibefix.github.exchange.public-url}, which this command needs too), and revokes the
@@ -49,6 +49,10 @@ class RunnerDispatchCommand implements ApplicationRunner, ExitCodeGenerator {
 	private static final Pattern NAME = Pattern.compile("[A-Za-z0-9._-]{1,100}");
 
 	private static final Pattern BRANCH = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._/-]{0,199}");
+
+	/** AD-11: the run pushes a new {@code handover/<uuid>} branch only, as the workflow checks too. */
+	private static final Pattern HANDOVER_BRANCH = Pattern
+		.compile("handover/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
 	private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
 
@@ -95,14 +99,16 @@ class RunnerDispatchCommand implements ApplicationRunner, ExitCodeGenerator {
 		}
 		String source = single(args, "source");
 		String sourceBranch = single(args, "source-branch");
+		String fromSha = single(args, "from-sha");
 		String sha = single(args, "sha");
 		String target = single(args, "target");
 		String targetBranch = single(args, "target-branch");
-		if (!matches(NAME, source) || !branch(sourceBranch) || !matches(SHA, sha) || !matches(NAME, target)
-				|| !branch(targetBranch)) {
+		if (!matches(NAME, source) || !branch(sourceBranch) || !matches(SHA, fromSha) || !matches(SHA, sha)
+				|| fromSha.equals(sha) || !matches(NAME, target) || !branch(targetBranch)
+				|| !matches(HANDOVER_BRANCH, targetBranch)) {
 			this.err.println("Usage: --spring.profiles.active=dev,cli --vibefix.cli.command=" + COMMAND
-					+ " --source=<Working Repository> --source-branch=<branch> --sha=<40-hex commit>"
-					+ " --target=<Intermediary Repository> --target-branch=<handover/…>"
+					+ " --source=<Working Repository> --source-branch=<branch> --from-sha=<40-hex commit>"
+					+ " --sha=<40-hex commit> --target=<Intermediary Repository> --target-branch=handover/<uuid>"
 					+ " (repositories of the platform organization, named without their owner)");
 			this.exitCode = 2;
 			return;
@@ -121,6 +127,7 @@ class RunnerDispatchCommand implements ApplicationRunner, ExitCodeGenerator {
 			Map<String, String> inputs = new LinkedHashMap<>();
 			inputs.put("source_repository", working.fullName());
 			inputs.put("source_branch", sourceBranch);
+			inputs.put("from_sha", fromSha);
 			inputs.put("sha", sha);
 			inputs.put("target_repository", intermediary.fullName());
 			inputs.put("target_branch", targetBranch);

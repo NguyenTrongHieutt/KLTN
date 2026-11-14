@@ -49,12 +49,28 @@ enum DeliveryReason {
 	NO_NEW_COMMITS,
 
 	/**
-	 * The {@code .github/workflows} folder differs between the range's two ends: added, removed, or changed,
-	 * read from the list of changed files or from the folder's tree (FR-32, AD-18, N-16).
+	 * The {@code .github/workflows} folder differs between the range's two ends: added, removed, or changed. The
+	 * form reads GitHub's compare, a hint capped at 300 files; the copy run's own {@code git diff --quiet} over
+	 * the full history decides, and its report refuses the handover (FR-32, AD-18, N-16, Story 23.8a).
 	 */
 	WORKFLOW_FILES_CHANGED,
 
-	/** GitHub did not answer while the handover read or pinned the Working Repository; try again shortly. */
+	/** A handover of this Job is being copied onto {@code handover/{id}}; its copy finishes first (Story 23.8a). */
+	HANDOVER_COPYING,
+
+	/** The copy run on the runner failed, timed out, or did not read back after its attempts (FR-64, AD-46). */
+	RUN_FAILED,
+
+	/** vibefix's Actions token exchange refused the copy run's ID token, so it copied nothing (AD-44). */
+	EXCHANGE_REFUSED,
+
+	/**
+	 * The copy run reported no readable list of changed paths, so the Sensitive Changes cannot be classified; a
+	 * handover is never recorded from an incomplete list (FR-32).
+	 */
+	PATH_LIST_UNREADABLE,
+
+	/** GitHub did not answer while the handover read the Working Repository; try again shortly. */
 	REPOSITORY_UNREADABLE,
 
 	/** The Code Job has no Working Repository yet: J7's Setup is not done (FR-18, FR-32). */

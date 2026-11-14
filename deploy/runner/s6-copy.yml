@@ -1,4 +1,4 @@
-# The handover copy (AD-11, AD-46): copies one Handover Commit from a Job's Working Repository to a
+# The handover copy (AD-11, AD-46): copies one Handover Commit from a Job's Working Repository to a new
 # handover/ branch of its Intermediary Repository, inside GitHub Actions of the runner: the one
 # repository of the platform organization whose Actions may run ("Selected repositories"). The
 # runner's .github/workflows/ holds this file alone, and the Platform App dispatches it.
@@ -10,6 +10,12 @@
 # ID token and the token are masked before anything else runs. Inputs reach the scripts through env:
 # only and are checked first; git reads the token from a file through GIT_ASKPASS, never pushes with
 # force, and reads the branch back.
+#
+# Between the fetch and the push the run reports what the handover changes (FR-32, AD-11): every path
+# between from_sha and sha, with rename detection off, and whether .github/workflows differs. The list
+# is gzipped, base64 encoded and posted to vibefix (POST /github/actions/report) with a fresh ID token
+# and the same correlation, so it never reaches a file of a platform repository or a run log. A
+# workflow change ends the run before the push, and vibefix refuses the handover.
 name: s6-copy
 run-name: s6-copy ${{ inputs.correlation }}
 
@@ -32,6 +38,10 @@ on:
         description: The branch the commit must be on
         required: true
         type: string
+      from_sha:
+        description: Where the handover's range starts, 40 hex digits
+        required: true
+        type: string
       sha:
         description: The commit copied, 40 hex digits
         required: true
@@ -41,7 +51,7 @@ on:
         required: true
         type: string
       target_branch:
-        description: The branch the commit is pushed to, without force
+        description: The new handover/<uuid> branch the commit is pushed to, without force
         required: true
         type: string
 
@@ -64,6 +74,7 @@ jobs:
           EXCHANGE_URL: ${{ inputs.exchange_url }}
           SOURCE_REPOSITORY: ${{ inputs.source_repository }}
           SOURCE_BRANCH: ${{ inputs.source_branch }}
+          FROM_SHA: ${{ inputs.from_sha }}
           SHA: ${{ inputs.sha }}
           TARGET_REPOSITORY: ${{ inputs.target_repository }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
@@ -73,6 +84,7 @@ jobs:
           url_re='^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$'
           repository_re='^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$'
           branch_re='^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'
+          handover_re='^handover/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
           sha_re='^[0-9a-f]{40}$'
           [[ "$CORRELATION" =~ $correlation_re ]] || { echo "::error::correlation is not a correlation ID"; exit 1; }
           [[ "$EXCHANGE_URL" =~ $url_re ]] || { echo "::error::exchange_url is not an https origin"; exit 1; }
@@ -82,7 +94,12 @@ jobs:
           for value in "$SOURCE_BRANCH" "$TARGET_BRANCH"; do
             [[ "$value" =~ $branch_re && "$value" != *..* && "$value" != *//* && "$value" != */ && "$value" != *.lock ]] || { echo "::error::a branch name is refused"; exit 1; }
           done
-          [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
+          # The copy only ever opens a new handover branch of one handover (AD-11, AD-46).
+          [[ "$TARGET_BRANCH" =~ $handover_re ]] || { echo "::error::target_branch is not handover/<uuid>"; exit 1; }
+          for value in "$FROM_SHA" "$SHA"; do
+            [[ "$value" =~ $sha_re ]] || { echo "::error::a commit is not 40 hex digits"; exit 1; }
+          done
+          [ "$FROM_SHA" != "$SHA" ] || { echo "::error::the handover range starts at its own commit"; exit 1; }
 
       - name: Exchange the ID token
         env:
@@ -128,25 +145,118 @@ jobs:
           ASKPASS
           chmod 700 "$RUNNER_TEMP/askpass.sh"
 
-      - name: Copy the commit
+      - name: Fetch the commit
         env:
           SOURCE_REPOSITORY: ${{ inputs.source_repository }}
           SOURCE_BRANCH: ${{ inputs.source_branch }}
+          FROM_SHA: ${{ inputs.from_sha }}
           SHA: ${{ inputs.sha }}
           TARGET_REPOSITORY: ${{ inputs.target_repository }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           set -euo pipefail
           export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh" VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token"
+          # A failed command's own words, every line of them (GitHub's remote: lines too), as ::error:: lines.
+          git_errors() { grep -v '^[[:space:]]*$' "$1" | sed 's/^/::error::/' || true; }
           repository="$RUNNER_TEMP/copy.git"
           git init --quiet --bare "$repository"
+          # git checks every object it fetches. Histories that older git versions and other tools wrote can hold
+          # entries git now reports but still reads the same way: tree modes written with a leading zero, and author
+          # or committer lines whose date or time zone is malformed or too large. None of them changes a file's
+          # content, name or mode, so only these are let through [ASSUMPTION; Story 23.12 confirms on real GitHub];
+          # any other object error fails the copy with git's own words.
           git -C "$repository" config transfer.fsckObjects true
+          for message in zeroPaddedFilemode badDate badDateOverflow badTimezone missingSpaceBeforeDate; do
+            git -C "$repository" config "fetch.fsck.$message" ignore
+          done
+          fetched=0
           git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
-            "$GITHUB_SERVER_URL/$SOURCE_REPOSITORY.git" "+refs/heads/$SOURCE_BRANCH:refs/heads/vibefix-source"
+            "$GITHUB_SERVER_URL/$SOURCE_REPOSITORY.git" "+refs/heads/$SOURCE_BRANCH:refs/heads/vibefix-source" \
+            2> "$RUNNER_TEMP/fetch.log" || fetched=$?
+          if [ "$fetched" != 0 ]; then
+            git_errors "$RUNNER_TEMP/fetch.log"
+            echo "::error::the fetch of $SOURCE_BRANCH failed (git exit $fetched)"
+            exit 1
+          fi
           git -C "$repository" cat-file -e "$SHA^{commit}"
+          git -C "$repository" cat-file -e "$FROM_SHA^{commit}"
           git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-source
+          git -C "$repository" merge-base --is-ancestor "$FROM_SHA" "$SHA"
+          # AD-11: the handover branch is new, so nothing on the Intermediary is replaced or built upon.
+          existing="$(git -C "$repository" -c credential.helper= ls-remote \
+            "$GITHUB_SERVER_URL/$TARGET_REPOSITORY.git" "refs/heads/$TARGET_BRANCH")"
+          [ -z "$existing" ] || { echo "::error::$TARGET_BRANCH exists on $TARGET_REPOSITORY already"; exit 1; }
+
+      - name: Report the changed paths
+        env:
+          CORRELATION: ${{ inputs.correlation }}
+          EXCHANGE_URL: ${{ inputs.exchange_url }}
+          FROM_SHA: ${{ inputs.from_sha }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          repository="$RUNNER_TEMP/copy.git"
+          # Every path the range changed, renames read as a removal and an addition, NUL separated so that a
+          # path holding a newline or a quote stays one entry. Nothing of it is printed.
+          git -C "$repository" diff --no-renames --name-only -z "$FROM_SHA" "$SHA" > "$RUNNER_TEMP/paths"
+          count="$(tr -cd '\0' < "$RUNNER_TEMP/paths" | wc -c | tr -d ' ')"
+          [ "$count" -le 100000 ] || { echo "::error::the handover changes $count paths, more than vibefix takes"; exit 1; }
+          gzip -9 -c "$RUNNER_TEMP/paths" | base64 -w0 > "$RUNNER_TEMP/paths.b64"
+          rm -f "$RUNNER_TEMP/paths"
+          workflows=0
+          git -C "$repository" diff --quiet "$FROM_SHA" "$SHA" -- .github/workflows || workflows=$?
+          case "$workflows" in
+            0) changed=false ;;
+            1) changed=true ;;
+            *) echo "::error::the .github/workflows check failed (git exit $workflows)"; exit 1 ;;
+          esac
+          printf 'Authorization: bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" > "$RUNNER_TEMP/oidc-header"
+          id_token="$(curl -sS --fail --max-time 30 -H @"$RUNNER_TEMP/oidc-header" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vibefix" | jq -r '.value // empty')"
+          rm -f "$RUNNER_TEMP/oidc-header"
+          echo "::add-mask::$id_token"
+          [ -n "$id_token" ] || { echo "::error::GitHub gave no ID token"; exit 1; }
+          ID_TOKEN="$id_token" COUNT="$count" CHANGED="$changed" jq -n --rawfile paths "$RUNNER_TEMP/paths.b64" \
+            '{id_token: env.ID_TOKEN, correlation: env.CORRELATION, workflows_changed: (env.CHANGED == "true"),
+              paths: $paths, count: (env.COUNT | tonumber)}' > "$RUNNER_TEMP/report.json"
+          unset id_token
+          rm -f "$RUNNER_TEMP/paths.b64"
+          size="$(wc -c < "$RUNNER_TEMP/report.json" | tr -d ' ')"
+          [ "$size" -le 2097152 ] || { echo "::error::the path report is $size bytes, more than vibefix takes"; exit 1; }
+          status="$(curl -sS --max-time 60 -o "$RUNNER_TEMP/reported.json" -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/report.json" "$EXCHANGE_URL/github/actions/report")"
+          rm -f "$RUNNER_TEMP/report.json"
+          if [ "$status" != 204 ]; then
+            reason="$(jq -r '.reason // "-"' "$RUNNER_TEMP/reported.json" 2>/dev/null || echo -)"
+            rm -f "$RUNNER_TEMP/reported.json"
+            echo "::error::vibefix refused the path report: HTTP $status $reason"
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/reported.json"
+          echo "VIBEFIX_REPORT paths=$count workflows_changed=$changed"
+          if [ "$changed" = true ]; then
+            echo "::error::the handover changes files under .github/workflows, so nothing is pushed"
+            exit 1
+          fi
+
+      - name: Push the commit
+        env:
+          SHA: ${{ inputs.sha }}
+          TARGET_REPOSITORY: ${{ inputs.target_repository }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="$RUNNER_TEMP/askpass.sh" VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token"
+          git_errors() { grep -v '^[[:space:]]*$' "$1" | sed 's/^/::error::/' || true; }
+          repository="$RUNNER_TEMP/copy.git"
+          pushed=0
           git -C "$repository" -c credential.helper= push --quiet \
-            "$GITHUB_SERVER_URL/$TARGET_REPOSITORY.git" "$SHA:refs/heads/$TARGET_BRANCH"
+            "$GITHUB_SERVER_URL/$TARGET_REPOSITORY.git" "$SHA:refs/heads/$TARGET_BRANCH" 2> "$RUNNER_TEMP/push.log" || pushed=$?
+          if [ "$pushed" != 0 ]; then
+            git_errors "$RUNNER_TEMP/push.log"
+            echo "::error::the push to $TARGET_REPOSITORY failed (git exit $pushed)"
+            exit 1
+          fi
           head="$(git -C "$repository" -c credential.helper= ls-remote \
             "$GITHUB_SERVER_URL/$TARGET_REPOSITORY.git" "refs/heads/$TARGET_BRANCH" | cut -f1)"
           [ "$head" = "$SHA" ] || { echo "::error::$TARGET_REPOSITORY reads back another commit on $TARGET_BRANCH"; exit 1; }
@@ -155,4 +265,5 @@ jobs:
         if: always()
         run: |
           rm -f "$RUNNER_TEMP/vibefix-token" "$RUNNER_TEMP/askpass.sh" "$RUNNER_TEMP/oidc-header" \
-            "$RUNNER_TEMP/exchange.json" "$RUNNER_TEMP/exchanged.json"
+            "$RUNNER_TEMP/exchange.json" "$RUNNER_TEMP/exchanged.json" "$RUNNER_TEMP/paths" \
+            "$RUNNER_TEMP/paths.b64" "$RUNNER_TEMP/report.json" "$RUNNER_TEMP/reported.json"

@@ -1,5 +1,6 @@
 package vn.vibefix.github.internal;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -16,11 +17,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 import org.jspecify.annotations.Nullable;
 
@@ -79,6 +83,12 @@ import vn.vibefix.github.GitHubApps.InstallationToken;
  * {@code POST}, 413 {@code too_large} for a body over 16 KB, 502 {@code jwks} when the key set cannot be
  * read, and 502 {@code mint} when GitHub will not mint the token.
  * <p>
+ * Since Story 23.8a the handover copy also posts its path report to {@code POST /report} or
+ * {@code POST /github/actions/report} ({@code {id_token, correlation, workflows_changed, paths, count}}),
+ * which answers 204 once: the ID token verifies the same way, the run must be the one the correlation's
+ * token was issued to, and the list is read back from the run's own gzipped bytes and kept on the
+ * correlation for {@link #reported}. Nothing of a report is printed or logged here either.
+ * <p>
  * The probe ends a correlation with {@link #finish} once its run is over: the token issued to it is
  * revoked then, and the correlation takes no further exchange; a token minted after that is revoked at
  * once. {@link #close} finishes every one still open, also from a shutdown hook. Nothing here prints or
@@ -104,10 +114,24 @@ final class OidcExchange implements AutoCloseable {
 	 */
 	static final String PRODUCTION_PATH = "/github/actions/exchange";
 
+	/** The path report's own path, and the one the published handover copy posts to since Story 23.8a. */
+	static final String REPORT_PATH = "/report";
+
+	static final String PRODUCTION_REPORT_PATH = "/github/actions/report";
+
 	/** How many refusals one correlation keeps; later ones are only counted. */
 	static final int MAX_REFUSALS = 32;
 
 	private static final int MAX_BODY_BYTES = 16 * 1024;
+
+	/** A path report's body, as the workflow caps it before it posts. */
+	private static final int MAX_REPORT_BYTES = 2 * 1024 * 1024;
+
+	/** The paths a report may name, as the workflow and vibefix both cap them. */
+	private static final int MAX_PATHS = 100_000;
+
+	/** How far a report's list may unpack: 32 MiB of names, which no handover of a Job reaches. */
+	private static final int MAX_PATH_BYTES = 32 * 1024 * 1024;
 
 	private static final int MAX_JWKS_BYTES = 1024 * 1024;
 
@@ -185,6 +209,30 @@ final class OidcExchange implements AutoCloseable {
 	record Answer(int status, @Nullable String reason, @Nullable InstallationToken token) {
 	}
 
+	/**
+	 * The path report one run posted between its fetch and its push (FR-32): every path its range changes, and
+	 * whether {@code .github/workflows} differs. The probe prints the names, which are the ones it committed
+	 * itself; nothing of a report is logged.
+	 */
+	record Report(int count, boolean workflowsChanged, List<String> paths) {
+
+		Report {
+			paths = List.copyOf(paths);
+		}
+
+	}
+
+	/** An ID token checked on its own, before any correlation: its claims, or the answer that refuses it. */
+	private sealed interface Checked {
+
+		record Claims(JWTClaimsSet claims) implements Checked {
+		}
+
+		record Refusal(Answer answer) implements Checked {
+		}
+
+	}
+
 	private static final class Entry {
 
 		final Expected expected;
@@ -194,6 +242,8 @@ final class OidcExchange implements AutoCloseable {
 		int dropped;
 
 		@Nullable InstallationToken token;
+
+		@Nullable Report report;
 
 		boolean used;
 
@@ -382,18 +432,27 @@ final class OidcExchange implements AutoCloseable {
 		try {
 			Answer answer;
 			String path = http.getRequestURI().getPath();
-			if (!PATH.equals(path) && !PRODUCTION_PATH.equals(path)) {
+			boolean reporting = REPORT_PATH.equals(path) || PRODUCTION_REPORT_PATH.equals(path);
+			if (!reporting && !PATH.equals(path) && !PRODUCTION_PATH.equals(path)) {
 				answer = new Answer(404, "not_found", null);
 			}
 			else if (!"POST".equals(http.getRequestMethod())) {
 				answer = new Answer(405, "method", null);
 			}
 			else {
+				int max = reporting ? MAX_REPORT_BYTES : MAX_BODY_BYTES;
 				byte[] body;
 				try (InputStream in = http.getRequestBody()) {
-					body = in.readNBytes(MAX_BODY_BYTES + 1);
+					body = in.readNBytes(max + 1);
 				}
-				answer = body.length > MAX_BODY_BYTES ? new Answer(413, "too_large", null) : exchange(body);
+				answer = body.length > max ? new Answer(413, "too_large", null)
+						: reporting ? report(body) : exchange(body);
+			}
+			if (answer.status() == 204) {
+				// A report is taken whole or refused: 204 carries nothing back to the run.
+				http.getResponseHeaders().add("Cache-Control", "no-store");
+				http.sendResponseHeaders(204, -1);
+				return;
 			}
 			Map<String, Object> json = new LinkedHashMap<>();
 			if (answer.token() != null) {
@@ -430,44 +489,14 @@ final class OidcExchange implements AutoCloseable {
 			return unverified("malformed");
 		}
 		String correlation = request.path("correlation").stringValue();
-		String idToken = request.path("id_token").stringValue();
 		if (!CORRELATION.matcher(correlation).matches()) {
 			return unverified("malformed");
 		}
-		SignedJWT jwt;
-		JWTClaimsSet claims;
-		try {
-			jwt = SignedJWT.parse(idToken);
-			claims = jwt.getJWTClaimsSet();
+		Checked checked = verify(request.path("id_token").stringValue());
+		if (checked instanceof Checked.Refusal refusal) {
+			return refusal.answer();
 		}
-		catch (ParseException | RuntimeException ex) {
-			return unverified("malformed");
-		}
-		if (!JWSAlgorithm.RS256.equals(jwt.getHeader().getAlgorithm())) {
-			return unverified("algorithm");
-		}
-		if (this.keys == null && load() == null) {
-			return new Answer(502, "jwks", null);
-		}
-		RSAKey key = key(jwt.getHeader().getKeyID());
-		try {
-			if (key == null || !jwt.verify(new RSASSAVerifier(key))) {
-				return unverified("signature");
-			}
-		}
-		catch (JOSEException | RuntimeException ex) {
-			return unverified("signature");
-		}
-		if (!this.issuer.issuer().equals(claims.getIssuer())) {
-			return unverified("issuer");
-		}
-		if (claims.getAudience() == null || !List.of(AUDIENCE).equals(claims.getAudience())) {
-			return unverified("audience");
-		}
-		String timing = timing(claims);
-		if (timing != null) {
-			return unverified(timing);
-		}
+		JWTClaimsSet claims = ((Checked.Claims) checked).claims();
 		// Verified from here on: refusals are kept on the correlation the token names.
 		Entry entry;
 		synchronized (this) {
@@ -572,6 +601,157 @@ final class OidcExchange implements AutoCloseable {
 			return new Answer(403, "correlation", null);
 		}
 		return new Answer(200, null, token);
+	}
+
+	/**
+	 * One path report: {@code {id_token, correlation, workflows_changed, paths, count}} in, 204 or a reason code
+	 * out, as vibefix's own {@code POST /github/actions/report} answers it. The list is read back from the run's
+	 * own gzipped bytes and kept on the correlation. A correlation takes one report, from the run its token was
+	 * issued to, after its exchange and before its {@link #finish}.
+	 */
+	Answer report(byte[] body) {
+		JsonNode request;
+		try {
+			request = GitHubHttp.JSON.readTree(body);
+		}
+		catch (RuntimeException ex) {
+			return unverified("malformed");
+		}
+		if (request == null || !request.isObject() || !request.path("id_token").isString()
+				|| !request.path("correlation").isString() || !request.path("workflows_changed").isBoolean()
+				|| !request.path("paths").isString() || !request.path("count").isIntegralNumber()) {
+			return unverified("malformed");
+		}
+		String correlation = request.path("correlation").stringValue();
+		if (!CORRELATION.matcher(correlation).matches()) {
+			return unverified("malformed");
+		}
+		Checked checked = verify(request.path("id_token").stringValue());
+		if (checked instanceof Checked.Refusal refusal) {
+			return refusal.answer();
+		}
+		JWTClaimsSet claims = ((Checked.Claims) checked).claims();
+		Entry entry;
+		synchronized (this) {
+			entry = this.entries.get(correlation);
+			if (entry == null || entry.closed) {
+				this.unmatched++;
+				return new Answer(403, "correlation", null);
+			}
+		}
+		if (!entry.expected.repository().equalsIgnoreCase(claim(claims, "repository"))) {
+			return refuse(entry, "repository");
+		}
+		synchronized (this) {
+			if (entry.runId == 0 || !String.valueOf(entry.runId).equals(claim(claims, "run_id"))) {
+				// Only the run the token was issued to reports, so no other run's list is taken for this one's.
+				return refuse(entry, "run");
+			}
+			if (entry.report != null) {
+				return refuse(entry, "replay");
+			}
+		}
+		List<String> paths = paths(request.path("paths").stringValue(), request.path("count").asLong());
+		if (paths == null) {
+			return refuse(entry, "report");
+		}
+		synchronized (this) {
+			if (entry.closed || entry.report != null) {
+				return refuse(entry, "correlation");
+			}
+			entry.report = new Report(paths.size(), request.path("workflows_changed").asBoolean(), paths);
+		}
+		return new Answer(204, null, null);
+	}
+
+	/** The path report one correlation's run posted, if one read back. */
+	synchronized Optional<Report> reported(String correlation) {
+		Entry entry = this.entries.get(correlation);
+		return Optional.ofNullable(entry == null ? null : entry.report);
+	}
+
+	/**
+	 * The list a report posted: base64 that decodes, gzip that unpacks within {@link #MAX_PATH_BYTES}, and
+	 * exactly {@code count} NUL-separated paths, as {@code git diff -z} writes them.
+	 * @return the paths, or {@code null} for anything else, which is no list of this range
+	 */
+	private static @Nullable List<String> paths(String encoded, long count) {
+		if (count < 0 || count > MAX_PATHS) {
+			return null;
+		}
+		byte[] gzip;
+		try {
+			gzip = Base64.getDecoder().decode(encoded);
+		}
+		catch (IllegalArgumentException notBase64) {
+			return null;
+		}
+		byte[] plain;
+		try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(gzip))) {
+			plain = in.readNBytes(MAX_PATH_BYTES + 1);
+		}
+		catch (IOException | RuntimeException notGzip) {
+			return null;
+		}
+		if (plain.length > MAX_PATH_BYTES) {
+			return null;
+		}
+		List<String> paths = new ArrayList<>();
+		int start = 0;
+		for (int at = 0; at < plain.length; at++) {
+			if (plain[at] != 0) {
+				continue;
+			}
+			if (at == start) {
+				// An empty path: a leading or doubled NUL, which git never writes.
+				return null;
+			}
+			paths.add(new String(plain, start, at - start, StandardCharsets.UTF_8));
+			start = at + 1;
+		}
+		if (start < plain.length) {
+			paths.add(new String(plain, start, plain.length - start, StandardCharsets.UTF_8));
+		}
+		return paths.size() == count ? paths : null;
+	}
+
+	/** An ID token on its own: the signature, the issuer, the audience and the times, within {@link #SKEW}. */
+	private Checked verify(String idToken) {
+		SignedJWT jwt;
+		JWTClaimsSet claims;
+		try {
+			jwt = SignedJWT.parse(idToken);
+			claims = jwt.getJWTClaimsSet();
+		}
+		catch (ParseException | RuntimeException ex) {
+			return new Checked.Refusal(unverified("malformed"));
+		}
+		if (!JWSAlgorithm.RS256.equals(jwt.getHeader().getAlgorithm())) {
+			return new Checked.Refusal(unverified("algorithm"));
+		}
+		if (this.keys == null && load() == null) {
+			return new Checked.Refusal(new Answer(502, "jwks", null));
+		}
+		RSAKey key = key(jwt.getHeader().getKeyID());
+		try {
+			if (key == null || !jwt.verify(new RSASSAVerifier(key))) {
+				return new Checked.Refusal(unverified("signature"));
+			}
+		}
+		catch (JOSEException | RuntimeException ex) {
+			return new Checked.Refusal(unverified("signature"));
+		}
+		if (!this.issuer.issuer().equals(claims.getIssuer())) {
+			return new Checked.Refusal(unverified("issuer"));
+		}
+		if (claims.getAudience() == null || !List.of(AUDIENCE).equals(claims.getAudience())) {
+			return new Checked.Refusal(unverified("audience"));
+		}
+		String timing = timing(claims);
+		if (timing != null) {
+			return new Checked.Refusal(unverified(timing));
+		}
+		return new Checked.Claims(claims);
 	}
 
 	/** Revokes a token this exchange issued; a status other than 204 is counted in {@link #unrevoked}. */

@@ -2856,7 +2856,11 @@
         "incomplete": "Hãy hoàn tất các mục trên trước khi gửi.",
         "send": "Gửi bàn giao",
         "sent": "Đã bàn giao Giai đoạn {n}.",
-        "stale": "Công việc vừa thay đổi. Biểu mẫu đã tải lại, hãy kiểm tra rồi gửi lại."
+        "stale": "Công việc vừa thay đổi. Biểu mẫu đã tải lại, hãy kiểm tra rồi gửi lại.",
+        "copying": "Đang sao chép bàn giao Giai đoạn {n}…",
+        "copyFailed": "Lần sao chép bàn giao không hoàn tất.",
+        "notRead": "Chưa đọc được trạng thái lần sao chép. Hãy tải lại trang sau ít phút.",
+        "notCopied": "Chưa sao chép được bàn giao: {reason} Hãy thử gửi lại."
       },
       "check": {
         "title": "Kiểm tra bàn giao",
@@ -4950,7 +4954,11 @@
       "TOO_MANY_SCREENSHOTS": "Mỗi lần bàn giao có tối đa 5 ảnh chụp màn hình.",
       "SCREENSHOT_UNKNOWN": "Có ảnh chụp không còn trong danh sách. Hãy tải lại trang.",
       "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB.",
-      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại."
+      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.",
+      "HANDOVER_COPYING": "Một bàn giao khác đang được sao chép sang kho trung gian. Hãy đợi xong rồi gửi tiếp.",
+      "RUN_FAILED": "Lần sao chép bàn giao trên GitHub Actions không chạy xong.",
+      "EXCHANGE_REFUSED": "Lần sao chép bàn giao không được vibefix cấp quyền.",
+      "PATH_LIST_UNREADABLE": "Không đọc được danh sách tệp đã thay đổi, nên vibefix không tạo bàn giao."
     },
     "repo": {
       "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",

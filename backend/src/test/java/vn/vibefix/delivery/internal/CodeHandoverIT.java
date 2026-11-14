@@ -39,8 +39,11 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.jayway.jsonpath.JsonPath;
+
 import tools.jackson.databind.JsonNode;
 import vn.vibefix.dispute.internal.DisputeTestSupport;
+import vn.vibefix.github.internal.ActionsExchangeSupport;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
@@ -78,16 +81,34 @@ class CodeHandoverIT extends IntegrationTest {
 
 	private static final AtomicLong REPOSITORY_IDS = new AtomicLong(990000);
 
+	/** One client address per call of a run, so the exchange's abuse limits never cross tests (AD-34). */
+	private static final AtomicLong ADDRESSES = new AtomicLong();
+
 	/** The title the handover's pull request opens with: the Milestone's number and title. */
 	private static final String PULL_TITLE = "Bàn giao Giai đoạn 1: Chặn đặt trùng bàn";
+
+	/** AD-46: the one repository of the organization whose GitHub Actions may run. */
+	private static final String RUNNER = "vibefix-runner";
+
+	/** The runner's numeric ID, which the copy run's ID token names (Story 23.8a). */
+	private static final long RUNNER_ID;
+
+	/** The dev stack's exchange host, which every dispatch names (AD-44). */
+	private static final String TUNNEL = "https://exchange.example.test";
+
+	/** How long the copy operation waits before it reads its run again (Story 23.8a). */
+	private static final Duration RUN_POLL = Duration.ofSeconds(11);
 
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("code-handover-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
-			// AD-46: the runner the organization read-back requires (Story 23.3).
-			GITHUB.runner("vibefix-runner");
+			// AD-46: the runner the organization read-back requires (Story 23.3), which runs the handover copy.
+			GITHUB.runner(RUNNER);
+			RUNNER_ID = GITHUB.organizationRepositoryId(RUNNER);
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
+			// The stand-in for GitHub Actions' OIDC issuer, whose ID tokens a copy run exchanges (Story 23.4).
+			ActionsExchangeSupport.issue(GITHUB);
 		}
 		catch (Exception ex) {
 			throw new IllegalStateException(ex);
@@ -124,6 +145,9 @@ class CodeHandoverIT extends IntegrationTest {
 	@Autowired
 	private ApplicationContext context;
 
+	@Autowired
+	private vn.vibefix.github.ActionsRuns runs;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -147,7 +171,10 @@ class CodeHandoverIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.id", () -> "123456");
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
-		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
+		registry.add("vibefix.github.runner-repository", () -> RUNNER);
+		// Story 23.8a: the handover copy runs on the runner's Actions, which reach the exchange through the dev tunnel.
+		registry.add("vibefix.github.exchange.public-url", () -> TUNNEL);
+		registry.add("vibefix.github.exchange.issuer", () -> GITHUB.apiUrl().toString());
 	}
 
 	@AfterAll
@@ -249,7 +276,7 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	@Test
-	void theHeadIsPinnedAndHandedOverWithItsCommitsSensitiveChangesAndPages() throws Exception {
+	void theHandoverIsCopiedOnTheRunnerAndRecordedWithItsCommitsSensitiveChangesAndPages() throws Exception {
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("NO_NEW_COMMITS")));
 		// NFR-3: a commit message is text, wherever it shows.
 		String message = "SDB-1 Chặn đặt trùng bàn <img src=x onerror=alert(1)>";
@@ -263,7 +290,45 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.sensitiveChanges[0].path").value("package.json"))
 			.andExpect(jsonPath("$.sensitiveChanges[0].kind").value("DEPENDENCIES"));
 
-		String report = handOver(5).andExpect(status().isCreated())
+		// Story 23.8a: "Gửi bàn giao" answers 202 with its pending submission; no handover exists yet.
+		String handover = JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.state").value("PENDING"))
+			.andExpect(jsonPath("$.handoverId").doesNotExist())
+			.andReturn().getResponse().getContentAsString(), "$.id");
+		UUID submission = UUID.fromString(handover);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).as("no handover before the copy").isZero();
+		// AD-46: the copy holds no busy marker, so acceptance, chat and work go on while the runner copies.
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/busy").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.busy").value(false));
+
+		dispatchCopy();
+		UUID correlation = correlation(submission);
+		Map<String, Object> run = GITHUB.runs.get(runId(correlation));
+		assertThat(run.get("repository_full_name")).isEqualTo(GitHubStub.ORGANIZATION + "/" + RUNNER);
+		assertThat(inputs(run)).containsEntry("source_repository", GitHubStub.ORGANIZATION + "/" + this.working)
+			.containsEntry("target_repository", GitHubStub.ORGANIZATION + "/" + this.intermediary)
+			.containsEntry("target_branch", "handover/" + submission)
+			.containsEntry("sha", head)
+			.containsEntry("from_sha", startSha());
+		copyRunSucceeds(submission, head, List.of("src/booking.js", "package.json"));
+
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + submission)).isEqualTo(head);
+		assertThat(submissionState(submission)).isEqualTo("DONE");
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.state").value("DONE"))
+			.andExpect(jsonPath("$.handoverId").value(handover));
+		int pull = pull(submission);
+		assertThat(GITHUB.pullHeads.get(this.intermediary)).containsEntry(pull, "handover/" + submission);
+		assertThat(this.jdbc.sql("SELECT author_github_id FROM delivery.handover_commit WHERE handover_id = :id ORDER BY position")
+			.param("id", submission).query(Long.class).list()).containsExactly(4242L, null);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM work.work_item_commit WHERE work_item_id = :item").param("item", this.story)
+			.query(Long.class).single()).isOne();
+		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
+			.query(String.class).single()).isEqualTo("SUBMITTED");
+		assertThat(this.jdbc.sql("SELECT commits_truncated FROM delivery.handover WHERE id = :id").param("id", submission)
+			.query(Boolean.class).single()).as("a reported list is never truncated").isFalse();
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.code.handoverCommit").value(head))
 			.andExpect(jsonPath("$.code.commits.length()").value(2))
 			.andExpect(jsonPath("$.code.commits[0].message").value(message))
@@ -271,102 +336,170 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.code.unattributed").value(1))
 			.andExpect(jsonPath("$.preview.preview.domain").value("so-dat-ban-gd1.vercel.app"))
 			.andExpect(jsonPath("$.preview.preview.checkedAt").exists())
-			.andReturn().getResponse().getContentAsString();
-		String handover = com.jayway.jsonpath.JsonPath.read(report, "$.id");
-		int pull = com.jayway.jsonpath.JsonPath.read(report, "$.code.pullNumber");
-
-		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + handover)).isEqualTo(head);
-		// Story 23.3: the pin clones the private Working Repository with a read token narrowed to it, minted just
-		// before the push token on the Intermediary.
-		long workingId = GITHUB.organizationRepositoryId(this.working);
-		long intermediaryId = GITHUB.organizationRepositoryId(this.intermediary);
-		List<GitHubStub.Seen> seen;
-		synchronized (GITHUB.seen) {
-			seen = List.copyOf(GITHUB.seen);
-		}
-		int push = -1;
-		for (int index = 0; index < seen.size() && push < 0; index++) {
-			GitHubStub.Seen request = seen.get(index);
-			if (request.path().endsWith("/access_tokens")
-					&& request.body().path("repository_ids").toString().equals("[" + intermediaryId + "]")
-					&& request.body().path("permissions").path("workflows").asString("").equals("write")) {
-				push = index;
-			}
-		}
-		assertThat(push).as("the pin's push token on the Intermediary").isPositive();
-		assertThat(seen.get(push).body().path("permissions").path("contents").asString()).isEqualTo("write");
-		assertThat(seen.get(push - 1).path()).endsWith("/access_tokens");
-		assertThat(seen.get(push - 1).body().path("repository_ids").toString()).isEqualTo("[" + workingId + "]");
-		assertThat(seen.get(push - 1).body().path("permissions").toString()).isEqualTo("{\"contents\":\"read\"}");
-		assertThat(GITHUB.pullHeads.get(this.intermediary)).containsEntry(pull, "handover/" + handover);
-		assertThat(this.jdbc.sql("SELECT author_github_id FROM delivery.handover_commit WHERE handover_id = :id ORDER BY position")
-			.param("id", UUID.fromString(handover)).query(Long.class).list()).containsExactly(4242L, null);
-		assertThat(this.jdbc.sql("SELECT count(*) FROM work.work_item_commit WHERE work_item_id = :item").param("item", this.story)
-			.query(Long.class).single()).isOne();
-		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
-			.query(String.class).single()).isEqualTo("SUBMITTED");
+			.andExpect(jsonPath("$.code.pages.length()").value(2));
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.preview.preview.url").value("https://so-dat-ban-gd1.vercel.app"))
 			.andExpect(jsonPath("$.preview.preview.checkedAt").doesNotExist())
 			.andExpect(jsonPath("$.code.pages.length()").value(1))
 			.andExpect(jsonPath("$.code.pages[0].title").value("Hướng dẫn dùng"))
-			.andExpect(jsonPath("$.code.sensitiveChanges[0].kind").value("DEPENDENCIES"));
-		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.code.pages.length()").value(2));
+			.andExpect(jsonPath("$.code.sensitiveChanges[0].kind").value("DEPENDENCIES"))
+			.andExpect(jsonPath("$.code.sensitiveChangeCount").value(1));
 	}
 
+	/** The form's own hint: GitHub's compare shows the change, so "Gửi bàn giao" never starts a copy. */
 	@Test
-	void aChangeUnderTheWorkflowsFolderIsRefusedAndNothingIsPinned() throws Exception {
+	void aChangeTheCompareShowsUnderTheWorkflowsFolderIsRefusedOnTheForm() throws Exception {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", ".github/workflows/ci.yml", "on: [push, pull_request]\n",
 				"Chạy kiểm thử", "hung@example.test");
-		preflight();
 
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
 		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
-		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).isZero();
-		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
-		assertThat(graphql()).as("the list shows the change, so no GraphQL call").isEmpty();
-	}
-
-	/** GitHub's compare lists 300 files at most, so the folder's tree at both ends decides. */
-	@Test
-	void aWorkflowChangeHiddenBehind300ListedFilesIsRefusedAndNothingIsPinned() throws Exception {
-		Map<String, String> files = padding("pad");
-		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử", "hung@example.test");
-		preflight();
-
-		int before = graphql().size();
-		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
-		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
-		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
-		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover_submission").query(Long.class).single()).isZero();
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
 	}
 
+	/**
+	 * FR-32, N-16: GitHub's compare lists 300 files at most, so a workflow change can hide past it. The run reads the
+	 * whole range with {@code git diff --quiet} and reports it; the submission is refused and nothing is pushed.
+	 */
 	@Test
-	void afterAHandoverTheTreeIsComparedFromItsHandoverCommit() throws Exception {
-		UUID handover = handedOver();
-		String first = this.jdbc.sql("SELECT handover_commit FROM delivery.handover WHERE id = :id").param("id", handover)
-			.query(String.class).single();
+	void aWorkflowChangeHiddenBehind300ListedFilesIsRefusedByTheRunsReport() throws Exception {
 		Map<String, String> files = padding("pad");
 		files.put(".github/workflows/ci.yml", "on: [push, pull_request]\n");
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử", "hung@example.test");
-		preflight();
-		assertThat(milestoneState()).as("a push to the Working Repository voids nothing").isEqualTo("SUBMITTED");
-		// Only the handover branch moving makes the acceptance merge answer 409, and M3 void the handover.
-		voidAtAcceptance(handover);
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Chạy kiểm thử",
+				"hung@example.test");
 
-		int before = graphql().size();
-		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
-		List<GitHubStub.Seen> reads = graphql();
-		assertThat(reads).as("the list did not show it").hasSize(before + 1);
-		assertThat(reads.getLast().body().path("variables").path("base").asString()).isEqualTo(first);
-		handOver(version()).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
-		assertThat(GITHUB.pullHeads.get(this.intermediary)).as("only the first handover is pinned").hasSize(1);
+		preflight().andExpect(jsonPath("$.problems").isEmpty());
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		copyRunReports(submission, true, List.of(".github/workflows/ci.yml"));
+		GITHUB.completeRun(runId(correlation(submission)), "failure");
+		pollCopy();
+
+		assertThat(submissionState(submission)).isEqualTo("REFUSED:WORKFLOW_FILES_CHANGED");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + submission)).isNull();
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.state").value("REFUSED"))
+			.andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"))
+			.andExpect(jsonPath("$.reasonModule").value("delivery"));
+		assertThat(head).isNotBlank();
+	}
+
+	/** FR-32: the Sensitive Changes come from the run's full list, not from the compare's 300. */
+	@Test
+	void theSensitiveChangesComeFromTheRunsFullList() throws Exception {
+		Map<String, String> files = padding("pad");
+		files.put("package.json", "{\"name\":\"quan-may\"}\n");
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Dọn dẹp",
+				"hung@example.test");
+		preflight().andExpect(jsonPath("$.sensitiveChanges").isEmpty());
+
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		copyRunSucceeds(submission, head, List.of("-pad/000.txt", "package.json"));
+
+		assertThat(this.jdbc.sql("""
+				SELECT path || ' ' || kind FROM delivery.handover_sensitive_change WHERE handover_id = :id ORDER BY position
+				""").param("id", submission).query(String.class).list()).containsExactly("package.json DEPENDENCIES");
+	}
+
+	/** A run that failed after its attempts, and one the exchange refused, each end the submission with its reason. */
+	@Test
+	void aFailedRunEndsTheSubmissionWithItsReasonAndNoHandover() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+
+		for (int attempt = 1; attempt <= 8 && "PENDING".equals(submissionState(submission)); attempt++) {
+			dispatchCopy();
+			GITHUB.completeRun(runId(correlation(submission)), "failure");
+			pollCopy();
+			this.clock.advance(Duration.ofHours(1));
+		}
+		awaitPublications();
+
+		assertThat(submissionState(submission)).isEqualTo("REFUSED:RUN_FAILED");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT status FROM operations.external_operation WHERE type = 'repo.handover_copy'
+				    AND payload ->> 'submissionId' = :id
+				""").param("id", submission.toString()).query(String.class).single()).as("FR-64").isEqualTo("FAILED");
+		assertThat(head).isNotBlank();
+		// The Mentor sends it again once the runner works.
+		preflight().andExpect(jsonPath("$.problems").isEmpty());
+	}
+
+	/** A push to Working after the submission changes nothing: the run copies exactly the Handover Commit. */
+	@Test
+	void theRunCopiesTheCommitTheMentorSentEvenAfterAPush() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = 'later';\n",
+				"Sửa thêm", "hung@example.test");
+
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		assertThat(handoverCommit(submission)).isEqualTo(head);
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + submission)).isEqualTo(head);
+	}
+
+	/** M2 refused at the end of the copy: the submission ends with its reason and the pull request is closed again. */
+	@Test
+	void whenM2RefusesTheSubmissionEndsAndThePullRequestIsClosedAgain() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		// The Job's version moved while the runner copied, so M2 answers STALE.
+		this.jdbc.sql("UPDATE job.job SET version = version + 1 WHERE id = :id").param("id", this.job).update();
+
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		assertThat(submissionState(submission)).isEqualTo("REFUSED:STATE_CHANGED");
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.reason").value("STATE_CHANGED"))
+			// M2's own reason, which the screen reads in job's catalogue, not delivery's.
+			.andExpect(jsonPath("$.reasonModule").value("job"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+		assertThat(GITHUB.pullHeads.get(this.intermediary)).hasSize(1);
+		int pull = GITHUB.pullHeads.get(this.intermediary).keySet().iterator().next();
+		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull);
+	}
+
+	/** A report vibefix refuses is no report: the run fails, and the handover is never recorded from a part list. */
+	@Test
+	void aSecondReportOfOneRunIsARefusedReplay() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		UUID correlation = correlation(submission);
+		exchangeIdToken(correlation);
+
+		report(correlation, false, List.of("src/booking.js")).andExpect(status().isNoContent());
+		report(correlation, true, List.of(".github/workflows/ci.yml")).andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("REPLAY"));
+
+		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+		GITHUB.completeRun(runId(correlation), "success");
+		pollCopy();
+		awaitHandover(submission);
+		assertThat(this.jdbc.sql("""
+				SELECT path FROM delivery.handover_sensitive_change WHERE handover_id = :id
+				""").param("id", submission).query(String.class).list()).as("the first report decides").isEmpty();
 	}
 
 	@Test
@@ -376,82 +509,187 @@ class CodeHandoverIT extends IntegrationTest {
 				"Bỏ thư mục cấu hình", "hung@example.test"));
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
-		preflight();
 
-		int before = graphql().size();
 		preflight().andExpect(jsonPath("$.problems").isEmpty());
-		assertThat(graphql()).hasSize(before + 1);
-		handOver(5).andExpect(status().isCreated());
+		handOver(5).andExpect(status().isAccepted());
 	}
 
 	@Test
-	void aWorkflowsFolderRemovedOrAddedBehind300ListedFilesIsRefused() throws Exception {
-		// Removed: the folder is at the range's start only.
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", padding("pad"), List.of(".github/workflows"), "Dọn dẹp",
-				"hung@example.test");
-		preflight();
-		int before = graphql().size();
-		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
-		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
-
-		// Added: the folder is at the head only.
-		startAt(GITHUB.head(GitHubStub.ORGANIZATION, this.working, "main"));
-		Map<String, String> files = padding("pad again");
-		files.put(".github/workflows/ci.yml", "on: push\n");
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", files, List.of(), "Thêm lại", "hung@example.test");
-		preflight();
-		before = graphql().size();
-		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("WORKFLOW_FILES_CHANGED")));
-		assertThat(graphql()).as("the list did not show it").hasSize(before + 1);
-		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
-		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
-	}
-
-	@Test
-	void theSameWorkflowsTreeIsAllowedAfterOneGraphQLReadThatCarriesVariablesOnly() throws Exception {
-		String start = GITHUB.head(GitHubStub.ORGANIZATION, this.working, "main");
-		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
-				"Sửa lỗi", "hung@example.test");
-		preflight();
-
-		int before = graphql().size();
-		preflight().andExpect(jsonPath("$.problems").isEmpty());
-		List<GitHubStub.Seen> reads = graphql();
-		assertThat(reads).hasSize(before + 1);
-		JsonNode read = reads.getLast().body();
-		assertThat(read.path("query").asString()).doesNotContain(start, head, this.working, GitHubStub.ORGANIZATION, "\"");
-		assertThat(read.path("variables").path("owner").asString()).isEqualTo(GitHubStub.ORGANIZATION);
-		assertThat(read.path("variables").path("base").asString()).isEqualTo(start);
-		assertThat(read.path("variables").path("head").asString()).isEqualTo(head);
-		assertThat(read.path("variables").path("headEntry").asString()).isEqualTo(head + ":.github/workflows");
-		handOver(5).andExpect(status().isCreated()).andExpect(jsonPath("$.code.handoverCommit").value(head));
-	}
-
-	@Test
-	void whenGitHubCannotReadTheWorkflowsTreeTheRepositoryIsUnreadableAndNothingIsPinned() throws Exception {
+	void whenGitHubCannotReadTheRangeTheRepositoryIsUnreadableAndNothingIsSubmitted() throws Exception {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
-		preflight();
 
-		GITHUB.graphqlErrors.add(this.working);
+		GITHUB.unavailable.add("GET /repos/" + GitHubStub.ORGANIZATION + "/" + this.working + "/compare/");
 		try {
 			preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("REPOSITORY_UNREADABLE")));
-			handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("REPOSITORY_UNREADABLE"));
+			handOver(5).andExpect(status().isUnprocessableEntity())
+				.andExpect(jsonPath("$.reason").value("REPOSITORY_UNREADABLE"));
 		}
 		finally {
-			GITHUB.graphqlErrors.remove(this.working);
+			GITHUB.unavailable.remove("GET /repos/" + GitHubStub.ORGANIZATION + "/" + this.working + "/compare/");
 		}
-		GITHUB.unavailable.add("POST /graphql");
-		try {
-			preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("REPOSITORY_UNREADABLE")));
-		}
-		finally {
-			GITHUB.unavailable.remove("POST /graphql");
-		}
-		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover_submission").query(Long.class).single()).isZero();
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
 		preflight().andExpect(jsonPath("$.problems").isEmpty());
+	}
+
+	/** One copy at a time: a second "Gửi bàn giao" while the runner copies is refused. */
+	@Test
+	void aSecondHandoverWhileTheRunnerCopiesIsRefused() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
+				"hung@example.test");
+		handOver(5).andExpect(status().isAccepted());
+
+		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("HANDOVER_COPYING")));
+		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("HANDOVER_COPYING"));
+	}
+
+	/**
+	 * The workflow's new-branch guard refuses every later run once {@code handover/{id}} exists, so a run that
+	 * pushed and then failed is not copied again: the next attempt reads the branch back and carries on.
+	 */
+	@Test
+	void aRunThatPushedAndThenFailedReachesThePullRequestOnTheNextAttempt() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		UUID first = correlation(submission);
+		copyRunReports(submission, false, List.of("src/booking.js"));
+		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+		// The run pushed, then its own read-back step failed, so GitHub shows it failed.
+		GITHUB.completeRun(runId(first), "failure");
+		pollCopy();
+		assertThat(submissionState(submission)).as("the attempt is spent, not refused").isEqualTo("PENDING");
+
+		this.clock.advance(Duration.ofMinutes(5));
+		this.worker.runDue(Lane.GITHUB_LONG);
+		awaitSubmission(submission);
+
+		assertThat(correlation(submission)).as("no second run was dispatched").isEqualTo(first);
+		assertThat(submissionState(submission)).isEqualTo("DONE");
+		assertThat(GITHUB.pullHeads.get(this.intermediary)).containsEntry(pull(submission), "handover/" + submission);
+		assertThat(handoverCommit(submission)).isEqualTo(head);
+	}
+
+	/** AD-46: a run that says success but left another commit on the branch opens nothing and records nothing. */
+	@Test
+	void aSuccessfulRunWhoseBranchHoldsAnotherCommitIsNotReadBack() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		String other = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = 'other';\n", "Sửa thêm", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		copyRunReports(submission, false, List.of("src/booking.js"));
+		// The run pushed another commit than the Handover Commit, so the read-back differs.
+		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+		GITHUB.completeRun(runId(correlation(submission)), "success");
+		pollCopy();
+
+		assertThat(other).isNotEqualTo(head);
+		assertThat(handoverCommitOf(submission)).as("the Mentor sent the later head").isEqualTo(other);
+		assertThat(runConclusion(submission)).isEqualTo("not_read_back");
+		assertThat(submissionState(submission)).isEqualTo("PENDING");
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+	}
+
+	/** A correlation the exchange refused ends the submission: a second run would be refused the same way. */
+	@Test
+	void aCorrelationTheExchangeRefusesEndsTheSubmission() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		UUID correlation = correlation(submission);
+		// The run's ID token names another runner than the correlation's target, as a forged one would.
+		this.mvc
+			.perform(ActionsExchangeSupport.exchange(
+					ActionsExchangeSupport.idToken(GITHUB, this.clock.instant(), runId(correlation), RUNNER_ID + 1),
+					correlation, address()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("REPOSITORY"));
+		GITHUB.completeRun(runId(correlation), "failure");
+		pollCopy();
+		awaitSubmission(submission);
+
+		assertThat(submissionState(submission)).isEqualTo("REFUSED:EXCHANGE_REFUSED");
+		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + submission)).isNull();
+	}
+
+	/** FR-32: a run that pushed but reported no readable list records no handover and opens no pull request. */
+	@Test
+	void aRunWithNoReadableReportEndsTheSubmissionAndOpensNoPullRequest() throws Exception {
+		for (boolean corrupt : new boolean[] { false, true }) {
+			String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+					"export const free = " + corrupt + ";\n", "Sửa lỗi", "hung@example.test");
+			UUID submission = UUID.fromString(JsonPath.read(handOver(version()).andExpect(status().isAccepted())
+				.andReturn().getResponse().getContentAsString(), "$.id"));
+			dispatchCopy();
+			UUID correlation = correlation(submission);
+			if (corrupt) {
+				// A report that was taken whole and no longer reads back: its stored bytes are not gzip any more.
+				copyRunReports(submission, false, List.of("src/booking.js"));
+				this.jdbc.sql("DELETE FROM github.exchange_report WHERE correlation_id = :id")
+					.param("id", correlation)
+					.update();
+				this.jdbc.sql("""
+						INSERT INTO github.exchange_report (correlation_id, workflows_changed, paths_gzip, path_count,
+						    reported_at)
+						VALUES (:id, FALSE, :bytes, 1, now())
+						""").param("id", correlation).param("bytes", new byte[] { 1, 2, 3 }).update();
+			}
+			else {
+				exchangeIdToken(correlation);
+			}
+			GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+			GITHUB.completeRun(runId(correlation), "success");
+			pollCopy();
+			awaitSubmission(submission);
+
+			assertThat(submissionState(submission)).as("corrupt: %s", corrupt).isEqualTo("REFUSED:PATH_LIST_UNREADABLE");
+			assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE id = :id").param("id", submission)
+				.query(Long.class).single()).isZero();
+			// A list that does not read back is read before the pull request, so none was opened to close.
+			assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).as("corrupt: %s", corrupt).isEmpty();
+		}
+	}
+
+	/**
+	 * The partial unique index is what keeps a second copy of one Milestone out, now that no busy marker does
+	 * (AD-46): a submission the preflight did not see, as a race would leave it, is refused rather than a 500.
+	 */
+	@Test
+	void aSecondSubmissionOfOneMilestoneIsRefusedByItsIndex() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		// A pending submission of this Milestone under another Job, which copying(jobId) does not see.
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_submission (id, job_id, product_id, milestone_id, milestone_number,
+				    mentor_account_id, customer_account_id, job_version, range_start, handover_commit, draft, status, created_at)
+				VALUES (:id, :job, :product, :milestone, 1, :mentor, :customer, 5, :from, :commit, '{}'::JSONB, 'PENDING', now())
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", UUID.randomUUID())
+			.param("product", UUID.randomUUID())
+			.param("milestone", this.milestone)
+			.param("mentor", this.hung)
+			.param("customer", this.lan)
+			.param("from", "1f".repeat(20))
+			.param("commit", "2e".repeat(20))
+			.update();
+
+		handOver(5).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("HANDOVER_COPYING"));
+
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM delivery.handover_submission WHERE job_id = :job
+				""").param("job", this.job).query(Long.class).single()).as("nothing was written").isZero();
 	}
 
 	/** 300 files whose paths sort before {@code .github}, so GitHub's compare lists them and stops. */
@@ -469,28 +707,10 @@ class CodeHandoverIT extends IntegrationTest {
 			.update();
 	}
 
-	/** The GraphQL requests that read this Job's Working Repository, oldest first. */
-	private List<GitHubStub.Seen> graphql() {
-		return List.copyOf(GITHUB.seen)
-			.stream()
-			.filter(request -> request.path().equals("/graphql")
-					&& this.working.equals(request.body().path("variables").path("name").asString("")))
-			.toList();
-	}
-
-	@Test
-	void whenM2RefusesThePullRequestIsClosedAgain() throws Exception {
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
-				"hung@example.test");
-		preflight();
-
-		handOver(4).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE"));
-
-		assertThat(GITHUB.pullHeads.get(this.intermediary)).hasSize(1);
-		int pull = GITHUB.pullHeads.get(this.intermediary).keySet().iterator().next();
-		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull);
-		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).isZero();
+	/** Where the Job's first handover range starts: the commit Setup copied. */
+	private String startSha() {
+		return this.jdbc.sql("SELECT approved_sha FROM repo.job_setup WHERE job_id = :job").param("job", this.job)
+			.query(String.class).single();
 	}
 
 	@Test
@@ -521,20 +741,22 @@ class CodeHandoverIT extends IntegrationTest {
 		String first = upload();
 		String second = upload();
 		preflight().andExpect(jsonPath("$.screenshots.length()").value(2));
-		String report = handOverWith(",\"recordingUrl\":\"https://www.loom.com/share/abc\",\"noPreviewReason\":\"Ứng dụng chỉ chạy"
-				+ " trên máy của quán\",\"screenshotIds\":[\"" + second + "\",\"" + first + "\"]")
-			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.preview.preview").doesNotExist())
-			.andExpect(jsonPath("$.preview.recording.domain").value("www.loom.com"))
-			.andExpect(jsonPath("$.preview.noPreviewReason").value("Ứng dụng chỉ chạy trên máy của quán"))
-			.andExpect(jsonPath("$.screenshots[0].fileId").value(second))
-			.andReturn().getResponse().getContentAsString();
-		String handover = com.jayway.jsonpath.JsonPath.read(report, "$.id");
+		UUID submission = UUID.fromString(JsonPath.read(
+				handOverWith(",\"recordingUrl\":\"https://www.loom.com/share/abc\",\"noPreviewReason\":\"Ứng dụng chỉ chạy"
+						+ " trên máy của quán\",\"screenshotIds\":[\"" + second + "\",\"" + first + "\"]")
+					.andExpect(status().isAccepted())
+					.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		copyRunSucceeds(submission, GITHUB.head(GitHubStub.ORGANIZATION, this.working, "main"), List.of("src/booking.js"));
 		this.mvc.perform(get("/api/v1/files/" + first).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
 		UUID outsider = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/files/" + first).with(as(outsider, Role.CUSTOMER))).andExpect(status().isNotFound());
 		preflight().andExpect(jsonPath("$.screenshots.length()").value(0));
-		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+		this.mvc.perform(get("/api/v1/handovers/" + submission).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.preview.preview").doesNotExist())
+			.andExpect(jsonPath("$.preview.recording.domain").value("www.loom.com"))
+			.andExpect(jsonPath("$.preview.noPreviewReason").value("Ứng dụng chỉ chạy trên máy của quán"))
+			.andExpect(jsonPath("$.screenshots[0].fileId").value(second))
 			.andExpect(jsonPath("$.screenshots.length()").value(2));
 	}
 
@@ -557,7 +779,7 @@ class CodeHandoverIT extends IntegrationTest {
 			.file(new MockMultipartFile("file", "dat-ban.png", "image/png", png)).with(as(this.hung, Role.MENTOR)).with(csrf()))
 			.andExpect(status().isCreated())
 			.andReturn().getResponse().getContentAsString();
-		return com.jayway.jsonpath.JsonPath.read(body, "$.fileId");
+		return JsonPath.read(body, "$.fileId");
 	}
 
 	private ResultActions handOverWith(String evidence) throws Exception {
@@ -751,11 +973,10 @@ class CodeHandoverIT extends IntegrationTest {
 		UUID first = handedOver();
 		requestRevision(first).andExpect(status().isOk());
 		closePullRequests(first);
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = 'again';\n",
-				"Sửa theo yêu cầu", "hung@example.test");
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = 'again';\n", "Sửa theo yêu cầu", "hung@example.test");
 		preflight();
-		String report = handOver(version()).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-		UUID second = UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+		UUID second = copied(version(), head, List.of("src/booking.js"));
 		requestRevision(second).andExpect(status().isOk());
 		closePullRequests(second);
 
@@ -993,13 +1214,116 @@ class CodeHandoverIT extends IntegrationTest {
 			.param("id", handover).query().singleRow();
 	}
 
-	/** The handover of one commit. */
+	/** The handover of one commit, copied on the runner and recorded. */
 	private UUID handedOver() throws Exception {
-		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
-				"hung@example.test");
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
 		preflight();
-		String report = handOver(5).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-		return UUID.fromString(com.jayway.jsonpath.JsonPath.read(report, "$.id"));
+		return copied(version(), head, List.of("src/booking.js"));
+	}
+
+	/** "Gửi bàn giao" and the whole copy on the runner: the handover's ID, which is its submission's. */
+	private UUID copied(long version, String head, List<String> paths) throws Exception {
+		UUID submission = UUID.fromString(JsonPath.read(handOver(version)
+			.andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		copyRunSucceeds(submission, head, paths);
+		return submission;
+	}
+
+	/** The copy operation's first attempt: it dispatches the run on the runner. */
+	private void dispatchCopy() {
+		this.worker.runDue(Lane.GITHUB_LONG);
+	}
+
+	/** The copy operation's next attempt, once its run is over. */
+	private void pollCopy() {
+		this.clock.advance(RUN_POLL);
+		this.worker.runDue(Lane.GITHUB_LONG);
+		awaitPublications();
+	}
+
+	/**
+	 * What the copy run on the runner does, and the stub does not: its ID token exchanged, its path report posted,
+	 * the Handover Commit pushed to {@code handover/{id}}, and the run concluded. Then the operation reads it, opens
+	 * the pull request, and {@code delivery} records the handover.
+	 */
+	private void copyRunSucceeds(UUID submission, String head, List<String> paths) throws Exception {
+		copyRunReports(submission, false, paths);
+		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+		GITHUB.completeRun(runId(correlation(submission)), "success");
+		pollCopy();
+		awaitSubmission(submission);
+	}
+
+	/** The run exchanges its ID token and posts its path report. */
+	private void copyRunReports(UUID submission, boolean workflowsChanged, List<String> paths) throws Exception {
+		UUID correlation = correlation(submission);
+		exchangeIdToken(correlation);
+		report(correlation, workflowsChanged, paths).andExpect(status().isNoContent());
+	}
+
+	private void exchangeIdToken(UUID correlation) throws Exception {
+		this.mvc
+			.perform(ActionsExchangeSupport.exchange(
+					ActionsExchangeSupport.idToken(GITHUB, this.clock.instant(), runId(correlation), RUNNER_ID), correlation,
+					address()))
+			.andExpect(status().isOk());
+	}
+
+	private ResultActions report(UUID correlation, boolean workflowsChanged, List<String> paths) throws Exception {
+		return this.mvc.perform(ActionsExchangeSupport.report(
+				ActionsExchangeSupport.idToken(GITHUB, this.clock.instant(), runId(correlation), RUNNER_ID), correlation,
+				workflowsChanged, paths, address()));
+	}
+
+	/**
+	 * AD-34: the exchange's abuse limits count per client address and per minute, in memory for the whole test
+	 * JVM, while every test starts at the same instant. Each call comes from an address of its own, and the minute
+	 * moves on, so one test's runs never use up another's budget.
+	 */
+	private String address() {
+		this.clock.advance(Duration.ofSeconds(61));
+		return "198.51.100." + (ADDRESSES.incrementAndGet() % 250 + 1);
+	}
+
+	/** The exchange correlation of the run dispatched last for the submission. */
+	private UUID correlation(UUID submission) {
+		return this.jdbc.sql("SELECT correlation_id FROM repo.handover_copy WHERE submission_id = :id")
+			.param("id", submission)
+			.query(UUID.class)
+			.single();
+	}
+
+	private long runId(UUID correlation) {
+		Long id = this.runs.correlation(correlation).orElseThrow().runId();
+		assertThat(id).as("the run was found").isNotNull();
+		return id;
+	}
+
+	/** The submission's state, with its reason when it was refused. */
+	private String submissionState(UUID submission) {
+		return this.jdbc.sql("""
+				SELECT status || coalesce(':' || reason, '') FROM delivery.handover_submission WHERE id = :id
+				""").param("id", submission).query(String.class).single();
+	}
+
+	private void awaitSubmission(UUID submission) {
+		org.awaitility.Awaitility.await()
+			.atMost(Duration.ofSeconds(15))
+			.until(() -> !"PENDING".equals(submissionState(submission)));
+	}
+
+	private void awaitHandover(UUID submission) {
+		org.awaitility.Awaitility.await()
+			.atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE id = :id").param("id", submission)
+				.query(Long.class).single() == 1);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Map<String, Object> inputs(Map<String, Object> run) {
+		return (Map<String, Object>) run.get("inputs");
 	}
 
 	/** Someone writes to {@code handover/{id}} in the Intermediary, so it no longer holds the Handover Commit. */
@@ -1061,6 +1385,22 @@ class CodeHandoverIT extends IntegrationTest {
 	private int pull(UUID handover) {
 		return this.jdbc.sql("SELECT pull_number FROM delivery.handover WHERE id = :id").param("id", handover)
 			.query(Integer.class).single();
+	}
+
+	/** The Handover Commit the submission carries, before any handover row exists. */
+	private String handoverCommitOf(UUID submission) {
+		return this.jdbc.sql("SELECT handover_commit FROM delivery.handover_submission WHERE id = :id")
+			.param("id", submission)
+			.query(String.class)
+			.single();
+	}
+
+	/** What the copy last read of its run. */
+	private String runConclusion(UUID submission) {
+		return this.jdbc.sql("SELECT run_conclusion FROM repo.handover_copy WHERE submission_id = :id")
+			.param("id", submission)
+			.query(String.class)
+			.single();
 	}
 
 	private String handoverCommit(UUID handover) {

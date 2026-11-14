@@ -107,7 +107,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["report"];
+        get: operations["report_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1359,6 +1359,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["removeScreenshot_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}/handovers/submission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["submission"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4020,6 +4036,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/github/actions/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks": {
         parameters: {
             query?: never;
@@ -5779,6 +5811,8 @@ export interface components {
             pages: components["schemas"]["HandoverPageView"][];
             /** Format: int32 */
             pullNumber: number;
+            /** Format: int32 */
+            sensitiveChangeCount: number;
             sensitiveChanges: components["schemas"]["SensitiveChangeView"][];
             truncated: boolean;
             /** Format: int32 */
@@ -5923,6 +5957,21 @@ export interface components {
             fileName: string;
             /** Format: int64 */
             size: number;
+        };
+        HandoverSubmissionView: {
+            /** Format: uuid */
+            handoverId?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            milestoneId: string;
+            /** Format: int32 */
+            number: number;
+            reason?: string;
+            reasonModule?: string;
+            state: string;
         };
         HandoverSummaryView: {
             auto: boolean;
@@ -8402,7 +8451,7 @@ export interface operations {
             };
         };
     };
-    report: {
+    report_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -10377,13 +10426,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created */
-            201: {
+            /** @description Accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeliveryReportView"];
+                    "application/json": components["schemas"]["HandoverSubmissionView"];
                 };
             };
         };
@@ -10485,6 +10534,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    submission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverSubmissionView"];
+                };
             };
         };
     };
@@ -14907,6 +14978,24 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+        };
+    };
+    report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

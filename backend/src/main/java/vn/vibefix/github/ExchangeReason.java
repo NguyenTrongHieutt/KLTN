@@ -3,11 +3,11 @@ package vn.vibefix.github;
 import java.util.Locale;
 
 /**
- * Why the Actions token exchange refused a run's ID token (AD-44), one per check, in the order the
- * exchange runs them. The first five come before the ID token is verified and the correlation is known
- * to be open: a forged token names nothing reliably, so they are only counted and logged by kind. From
- * {@link #REPLAY} on, the token is GitHub's and names an open or exchanged correlation: the refusal is
- * recorded on it, audited, and alerted.
+ * Why the Actions token exchange refused a run's ID token, or the path report that follows it (AD-44,
+ * Story 23.8a), one per check, in the order they are run. The first six come before the ID token is
+ * verified and the correlation is known to be open: a forged token names nothing reliably, so they are
+ * only counted and logged by kind. From {@link #REPLAY} on, the token is GitHub's and names an open or
+ * exchanged correlation: the refusal is recorded on it, audited, and alerted.
  */
 public enum ExchangeReason {
 
@@ -22,6 +22,13 @@ public enum ExchangeReason {
 
 	/** {@code exp}, {@code nbf} or {@code iat} missing or outside 60 s of skew. */
 	EXPIRY,
+
+	/**
+	 * A path report whose body is malformed: not the five fields, a list that is no gzipped base64, more
+	 * paths than vibefix takes, or a count that disagrees with the list (Story 23.8a). The report itself is
+	 * never logged.
+	 */
+	REPORT,
 
 	/** A correlation that is unknown, or no longer open. */
 	CORRELATION,

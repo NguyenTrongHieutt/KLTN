@@ -41,8 +41,11 @@ class MatrixFilesTest {
 	static final Set<MatrixCaller> GLOBAL = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER_UNVERIFIED,
 			MatrixCaller.USER, MatrixCaller.ADMINISTRATOR, MatrixCaller.CUSTOMER);
 
-	/** AD-44's Actions token exchange (Story 23.4): the one endpoint {@link MatrixCaller#ACTIONS_RUN} calls. */
-	static final String ACTIONS_EXCHANGE = "POST /github/actions/exchange";
+	/**
+	 * AD-44's Actions token exchange (Story 23.4) and AD-11's path report of a handover copy (Story 23.8a): the
+	 * only endpoints {@link MatrixCaller#ACTIONS_RUN} calls.
+	 */
+	static final Set<String> ACTIONS_ENDPOINTS = Set.of("POST /github/actions/exchange", "POST /github/actions/report");
 
 	/** A Job-scoped endpoint's callers on top of {@link #GLOBAL}. */
 	static final Set<MatrixCaller> PER_JOB = EnumSet.of(MatrixCaller.CUSTOMER, MatrixCaller.MENTOR, MatrixCaller.BIDDER,
@@ -105,7 +108,10 @@ class MatrixFilesTest {
 					+ " holds no item to confirm",
 			"GET /api/v1/jobs/{jobId}/final-merge",
 			"the Final Merge authorization opens with a closure proposal or at J8 (Story 8.7): the crew Job's held"
-					+ " Milestone refuses a proposal (MILESTONE_HELD), so it has none to read");
+					+ " Milestone refuses a proposal (MILESTONE_HELD), so it has none to read",
+			"GET /api/v1/boards/{boardId}/handovers/submission",
+			"a handover submission exists only while the runner copies one, and briefly after (Story 23.8a): the crew"
+					+ " Job has handed none over through the form, so it has none to read");
 
 	/**
 	 * The four reads of a Crew Chat (review iteration 3, G5): every grant caller runs each, so a grant that reads more
@@ -356,7 +362,7 @@ class MatrixFilesTest {
 	@Test
 	void theMatrixFileParses() {
 		assertThat(MatrixRow.loadMatrix()).isNotEmpty()
-			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?|github/actions/exchange)"))
+			.allSatisfy(row -> assertThat(row.path()).matches("/(api/.+|webhooks(/.+)?|github/actions/(exchange|report))"))
 			.allSatisfy(row -> assertThat(row.callerState()).as("no caller takes a subject state: %s", row).isEmpty())
 			.allSatisfy(row -> assertThat(row.caller()).as("AUTHOR is the harness's own").isNotEqualTo(MatrixCaller.AUTHOR));
 		// The spec's "about 2,800": at most 2,850 since review iteration 4 made room for the file bindings, 2,900
@@ -396,7 +402,10 @@ class MatrixFilesTest {
 			.isEmpty();
 	}
 
-	/** Story 23.4: the Actions run is AD-20's caller of the token exchange alone, and the exchange runs it. */
+	/**
+	 * Story 23.4 and Story 23.8a: the Actions run is AD-20's caller of the token exchange and of the path report
+	 * alone, and both of them have its row.
+	 */
 	@Test
 	void theActionsRunCallsTheTokenExchangeAlone() {
 		String global = "POST /github/actions/exchange,ANONYMOUS,,,403 FORBIDDEN SIGNATURE\n"
@@ -412,7 +421,7 @@ class MatrixFilesTest {
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + "GET /api/v1/x,ANONYMOUS,,,401\nGET /api/v1/x,USER_UNVERIFIED,,,200\n"
 				+ "GET /api/v1/x,USER,,,200\nGET /api/v1/x,ADMINISTRATOR,,,404 NOT_FOUND\nGET /api/v1/x,CUSTOMER,,,200\n"
 				+ "GET /api/v1/x,ACTIONS_RUN,,,401\n")))
-			.containsExactly("GET /api/v1/x has a row for ACTIONS_RUN, which calls " + ACTIONS_EXCHANGE + " only");
+			.containsExactly("GET /api/v1/x has a row for ACTIONS_RUN, which calls " + ACTIONS_ENDPOINTS + " only");
 	}
 
 	@Test
@@ -945,8 +954,9 @@ class MatrixFilesTest {
 
 	/**
 	 * The coverage rule: every endpoint has the {@link #GLOBAL} callers' rows, every Job-scoped one also the
-	 * {@link #PER_JOB} callers', the token exchange also {@link MatrixCaller#ACTIONS_RUN}'s, which no other endpoint
-	 * has (Story 23.4), and no caller twice on one Job (a row's world-binding keys name its Job).
+	 * {@link #PER_JOB} callers', the {@link #ACTIONS_ENDPOINTS} also {@link MatrixCaller#ACTIONS_RUN}'s, which no
+	 * other endpoint has (Story 23.4, Story 23.8a), and no caller twice on one Job (a row's world-binding keys name
+	 * its Job).
 	 */
 	static List<String> coverageViolations(List<MatrixRow> rows) {
 		Map<String, List<MatrixRow>> byEndpoint = byEndpoint(rows);
@@ -961,14 +971,14 @@ class MatrixFilesTest {
 					violations.add(endpoint + " has two rows for " + row.caller());
 				}
 			}
-			if (callers.contains(MatrixCaller.ACTIONS_RUN) && !endpoint.equals(ACTIONS_EXCHANGE)) {
-				violations.add(endpoint + " has a row for ACTIONS_RUN, which calls " + ACTIONS_EXCHANGE + " only");
+			if (callers.contains(MatrixCaller.ACTIONS_RUN) && !ACTIONS_ENDPOINTS.contains(endpoint)) {
+				violations.add(endpoint + " has a row for ACTIONS_RUN, which calls " + ACTIONS_ENDPOINTS + " only");
 			}
 			Set<MatrixCaller> wanted = EnumSet.copyOf(GLOBAL);
 			if (endpointRows.stream().anyMatch(MatrixRow::jobScoped)) {
 				wanted.addAll(PER_JOB);
 			}
-			if (endpoint.equals(ACTIONS_EXCHANGE)) {
+			if (ACTIONS_ENDPOINTS.contains(endpoint)) {
 				wanted.add(MatrixCaller.ACTIONS_RUN);
 			}
 			wanted.removeAll(callers);
@@ -1348,14 +1358,16 @@ class MatrixFilesTest {
 	/**
 	 * SG-31: a caller that holds no relation to the row's objects is never refused with {@code FORBIDDEN}, which would
 	 * tell it that the object exists, except by a global gate ({@link #GATE_REASONS}). The token exchange's
-	 * {@code SIGNATURE} is such a gate (Story 23.4): its ID token is its caller's only credential, and a token that
-	 * does not verify is refused before any correlation is looked at, so the answer names no object.
+	 * {@code SIGNATURE} is such a gate (Story 23.4), and so is the path report's {@code REPORT} (Story 23.8a): an ID
+	 * token is the caller's only credential, and a body that does not parse, or a token that does not verify, is
+	 * refused before any correlation is looked at, so the answer names no object.
 	 */
 	static List<String> sg31Violations(List<MatrixRow> rows) {
 		return rows.stream()
 			.filter(row -> UNRELATED.contains(row.caller()) && row.expect().status() == 403
 					&& (row.expect().reason() == null || !GATE_REASONS.contains(row.expect().reason())))
-			.filter(row -> !(row.endpoint().equals(ACTIONS_EXCHANGE) && "SIGNATURE".equals(row.expect().reason())))
+			.filter(row -> !(ACTIONS_ENDPOINTS.contains(row.endpoint())
+					&& ("SIGNATURE".equals(row.expect().reason()) || "REPORT".equals(row.expect().reason()))))
 			.map(row -> row + ": answer NOT_FOUND (SG-31)")
 			.toList();
 	}

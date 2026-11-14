@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -31,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -158,6 +160,19 @@ final class SpikeS6Stub implements AutoCloseable {
 	record Exchanged(long runId, String correlation, int status, @Nullable String reason, @Nullable String token) {
 	}
 
+	/**
+	 * What one run's path report was answered (Story 23.8a), with the list it posted: the paths of
+	 * {@code from_sha..sha} and whether {@code .github/workflows} differs.
+	 */
+	record Reported(long runId, String correlation, int status, @Nullable String reason, List<String> paths,
+			boolean workflowsChanged) {
+
+		Reported {
+			paths = List.copyOf(paths);
+		}
+
+	}
+
 	final List<Seen> seen = Collections.synchronizedList(new ArrayList<>());
 
 	/** Every token handed out, oldest first. */
@@ -175,6 +190,9 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	/** Each answer the runs got from the exchange. */
 	final List<Exchanged> exchanged = Collections.synchronizedList(new ArrayList<>());
+
+	/** Each path report a copy run posted, with the answer it got. */
+	final List<Reported> reported = Collections.synchronizedList(new ArrayList<>());
 
 	/** Every ID token the runs were given. */
 	final List<String> idTokens = Collections.synchronizedList(new ArrayList<>());
@@ -232,7 +250,13 @@ final class SpikeS6Stub implements AutoCloseable {
 
 	volatile boolean neverCompletes;
 
-	/** A run fails at this step ({@code fetch}, {@code check}, {@code push}) after its exchange. */
+	/**
+	 * The handover's range changes a file under {@code .github/workflows}: the run reports it, and pushes
+	 * nothing (FR-32, Story 23.8a).
+	 */
+	volatile boolean workflowsInTheRange;
+
+	/** A run fails at this step ({@code fetch}, {@code check}, {@code report}, {@code push}) after its exchange. */
 	volatile @Nullable String failAtStep;
 
 	/** Whether GitHub marks an open pull request merged once a merge brings its head commit in. */
@@ -1253,19 +1277,84 @@ final class SpikeS6Stub implements AutoCloseable {
 		Repo target = repository(input(run, "target_repository"));
 		List<String> commits = source == null ? null : source.branches.get(input(run, "source_branch"));
 		String sha = input(run, "sha");
+		String from = input(run, "from_sha");
 		String branch = input(run, "target_branch");
 		if (commits == null || !allows(token, source, "contents", "read")) {
 			return "fetch";
 		}
-		if (!commits.contains(sha)) {
-			return "check";
+		// What the fetch step checks after it has both commits: the range's start is an ancestor of the commit
+		// copied, and the handover branch is not on the target yet (AD-11).
+		if (!commits.contains(sha) || !commits.contains(from) || commits.indexOf(from) >= commits.indexOf(sha)
+				|| (target != null && target.branches.containsKey(branch))) {
+			return "fetch";
 		}
 		List<String> copied = new ArrayList<>(commits.subList(0, commits.indexOf(sha) + 1));
+		Reported posted = report(run, from, sha);
+		this.reported.add(posted);
+		if (posted.status() != 204 || posted.workflowsChanged()) {
+			// vibefix refused the list, or the range changes a workflow file: nothing is pushed.
+			return "report";
+		}
 		if (target == null || !allows(token, target, "contents", "write") || !fastForward(target, branch, copied)) {
 			return "push";
 		}
 		push(target, branch, copied);
 		return null;
+	}
+
+	/**
+	 * The path report the copy posts between its fetch and its push (FR-32, Story 23.8a): every path the range
+	 * changes, NUL terminated as {@code git diff -z} writes them, gzipped and base64 encoded, with a fresh ID
+	 * token and the run's own correlation.
+	 */
+	private Reported report(Run run, String from, String sha) {
+		Map<String, String> before = this.trees.getOrDefault(from, Map.of());
+		Map<String, String> after = this.trees.getOrDefault(sha, Map.of());
+		Set<String> union = new TreeSet<>(before.keySet());
+		union.addAll(after.keySet());
+		List<String> paths = union.stream().filter(path -> !Objects.equals(before.get(path), after.get(path))).toList();
+		boolean workflows = this.workflowsInTheRange
+				|| paths.stream().anyMatch(path -> path.startsWith(".github/workflows/"));
+		ByteArrayOutputStream plain = new ByteArrayOutputStream();
+		for (String path : paths) {
+			plain.writeBytes(path.getBytes(StandardCharsets.UTF_8));
+			plain.write(0);
+		}
+		ByteArrayOutputStream gzip = new ByteArrayOutputStream();
+		try (GZIPOutputStream out = new GZIPOutputStream(gzip)) {
+			out.write(plain.toByteArray());
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException(ex);
+		}
+		String correlation = input(run, "correlation");
+		String idToken = idToken(run, this.flaw);
+		this.idTokens.add(idToken);
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("id_token", idToken);
+		body.put("correlation", correlation);
+		body.put("workflows_changed", workflows);
+		body.put("paths", Base64.getEncoder().encodeToString(gzip.toByteArray()));
+		body.put("count", paths.size());
+		String url = input(run, "exchange_url") + OidcExchange.PRODUCTION_REPORT_PATH;
+		try {
+			HttpResponse<String> response = this.client.send(HttpRequest.newBuilder(URI.create(url))
+				.timeout(Duration.ofSeconds(30))
+				.header("Content-Type", "application/json")
+				.POST(HttpRequest.BodyPublishers.ofString(GitHubHttp.JSON.writeValueAsString(body)))
+				.build(), HttpResponse.BodyHandlers.ofString());
+			JsonNode answer = response.body().isEmpty() ? null : GitHubHttp.JSON.readTree(response.body());
+			return new Reported(run.id, correlation, response.statusCode(),
+					answer != null && answer.path("reason").isString() ? answer.path("reason").stringValue() : null, paths,
+					workflows);
+		}
+		catch (IOException | RuntimeException ex) {
+			return new Reported(run.id, correlation, 0, "unreachable", paths, workflows);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			return new Reported(run.id, correlation, 0, "interrupted", paths, workflows);
+		}
 	}
 
 	/** A push without force: a new branch, or one whose head the pushed history holds. */
@@ -1367,6 +1456,11 @@ final class SpikeS6Stub implements AutoCloseable {
 	}
 
 	private static List<String> steps(Run run) {
+		if (!run.customer()) {
+			// The runner's s6-copy.yml, which since Story 23.8a reports the paths between its fetch and its push.
+			return List.of("Set up job", "Check the inputs", "Exchange the ID token", "Fetch the commit",
+					"Report the changed paths", "Push the commit", "Remove the credentials", "Complete job");
+		}
 		return switch (job(run)) {
 			case "final-merge" -> List.of("Set up job", "Check the inputs", "Exchange the ID token", "Bring the Final Merge back",
 					"Remove the credentials", "Complete job");
@@ -1382,6 +1476,15 @@ final class SpikeS6Stub implements AutoCloseable {
 		String failed = run.failedStep;
 		if (failed == null) {
 			return 0;
+		}
+		if (!run.customer()) {
+			return switch (failed) {
+				case "check" -> 2;
+				case "exchange" -> 3;
+				case "report" -> 5;
+				case "push" -> 6;
+				default -> 4;
+			};
 		}
 		return switch (failed) {
 			case "exchange" -> 3;
