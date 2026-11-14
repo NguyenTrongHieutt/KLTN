@@ -1,0 +1,7 @@
+subject: Mã của {job} đã được chép vào nhánh {branch} của dự án bạn. Hãy hợp nhất nhánh này trên GitHub
+---
+Xin chào,
+
+GitHub Actions trong dự án gốc đã chép toàn bộ mã đã nghiệm thu của công việc {job} vào một nhánh mới, {branch}.
+vibefix không ghi gì vào dự án của bạn: hãy mở công việc trên vibefix, bấm "Mở trang hợp nhất trên GitHub" và tự hợp nhất nhánh này.
+Công việc đã kết thúc. Bạn có thể chấm sao sau khi hợp nhất.

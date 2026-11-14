@@ -2,6 +2,7 @@ package vn.vibefix.github;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.SortedMap;
 
 import org.jspecify.annotations.Nullable;
 
@@ -71,6 +72,16 @@ public interface GitHubRepositories {
 	 * reached, or names no commit SHA
 	 */
 	String head(String bearer, String fullName, String branch);
+
+	/**
+	 * Every file directly under {@code .github/workflows/} at {@code ref}, with its blob SHA
+	 * ({@code GET /repos/{fullName}/contents/.github/workflows?ref=…}, Contents read), so two trees can be compared
+	 * without a byte of content being read (FR-37, Story 23.9a).
+	 * @param ref a branch's name, or a 40-hex commit
+	 * @return each file's path to its blob SHA, by path; empty when the folder is not there
+	 * @throws GitHubException for any refusal but the 404 of a missing folder, or when GitHub cannot be reached
+	 */
+	SortedMap<String, String> workflowFiles(String bearer, String fullName, String ref);
 
 	/**
 	 * The current login of the GitHub account with this numeric ID ({@code GET /user/{id}}), for the admin check

@@ -72,7 +72,10 @@ export function BusyBanner({ jobId }: { jobId: string }) {
   )
 }
 
-/** The Final Merge reads as the Customer's own project to them, and as the last merge to the team. */
+/**
+ * The Final Merge reads as the run in the Customer's own project to them (UX-DR21, revised 2026-11-12: the run is
+ * theirs on their own GitHub Actions, R1), and as that run to the team.
+ */
 function banner(view: Busy): string {
   return view.purpose === 'FINAL_MERGE' && view.audience === 'CUSTOMER' ? 'FINAL_MERGE_CUSTOMER' : (view.purpose ?? '')
 }
@@ -83,7 +86,7 @@ async function announce(before: Busy, jobId: string): Promise<{ text: string; er
   if (before.purpose === 'FINAL_MERGE' && before.audience === 'CUSTOMER') {
     try {
       const merge = await unwrap(apiClient.GET('/api/v1/jobs/{jobId}/final-merge', { params: { path: { jobId } } }))
-      return merge.merge?.status === 'MERGED' ? { text: t('screen.job.busy.mergedCustomer'), error: false } : done
+      return merge.merge?.status === 'DONE' ? { text: t('screen.job.busy.mergedCustomer'), error: false } : done
     } catch {
       return done
     }

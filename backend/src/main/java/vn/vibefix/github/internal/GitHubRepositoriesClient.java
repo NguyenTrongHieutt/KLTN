@@ -7,6 +7,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import org.springframework.stereotype.Component;
 
@@ -132,6 +134,27 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 			throw new GitHubException(0, "The head of " + fullName + " was not a commit SHA");
 		}
 		return sha;
+	}
+
+	@Override
+	public SortedMap<String, String> workflowFiles(String bearer, String fullName, String ref) {
+		GitHubHttp.Answer answer = this.http.send("GET", "/repos/" + fullName + "/contents/.github/workflows?ref="
+				+ URLEncoder.encode(ref, StandardCharsets.UTF_8).replace("+", "%20"), bearer, null);
+		SortedMap<String, String> files = new TreeMap<>();
+		if (answer.status() == 404) {
+			// No .github/workflows/ at that commit: there is nothing to compare.
+			return files;
+		}
+		if (answer.status() != 200) {
+			throw new GitHubException(answer.status(),
+					"GitHub refused the workflow folder read of " + fullName + ": HTTP " + answer.status());
+		}
+		for (JsonNode entry : answer.body()) {
+			if ("file".equals(entry.path("type").asString(""))) {
+				files.put(entry.path("path").asString(""), entry.path("sha").asString(""));
+			}
+		}
+		return files;
 	}
 
 	@Override

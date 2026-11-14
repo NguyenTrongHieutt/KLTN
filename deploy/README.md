@@ -194,10 +194,7 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
    ```
 
    Pass both files to every later `up` too; `up` with `compose.yaml` alone drops the accounts again.
-2. **Point the Merge App back at localhost.** On the Merge App's settings page, set the Setup URL to
-   `http://localhost:5173/api/v1/github/merge-app/setup` and tick "Redirect on update". GitHub sends
-   the Customer there after the install, and vibefix binds the installation to the Job.
-3. **Relay each VNPay IPN by hand.** VNPay cannot reach localhost, and the IPN is the only request that
+2. **Relay each VNPay IPN by hand.** VNPay cannot reach localhost, and the IPN is the only request that
    changes a Payment Order (AD-14). After paying, VNPay sends the browser to
    `http://localhost:5173/thanh-toan/<order>?vnp_…`; the return carries the same signed fields as the IPN.
    Within 15 minutes of creating the order, open the same query on the backend, which answers
@@ -207,11 +204,11 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
    http://localhost:8080/webhooks/vnpay/ipn?vnp_Amount=…   (everything after the "?" of the return address)
    ```
 
-4. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost either. Accepted
+3. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost either. Accepted
    invitations and organization drift are read back every 10 minutes (`vibefix.repo.grant-sweep`,
    `vibefix.repo.platform-sweep`). Pushes to the Working Repository need no webhook: vibefix reads the
    Working head live when the Mentor hands over, and compares heads only at acceptance (Story 23.2).
-5. **Use four accounts, one browser profile each.** A browser holds one vibefix session, and one
+4. **Use four accounts, one browser profile each.** A browser holds one vibefix session, and one
    signed-in GitHub account, at a time:
    - three users, each with their own Google account (a test user of the dev Google client) and their
      own linked GitHub account: the Customer, who owns the public Source Repository and has admin
@@ -226,7 +223,7 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
    take the case. Student verification is optional and gates nothing (`ten@truong.test` is a seeded
    school domain, and the code arrives in Mailpit). Verified on LinkedIn waits on Spike S5 and is not
    needed.
-6. **Clean up after a run.** The Intermediary and Working Repositories are public repositories in
+5. **Clean up after a run.** The Intermediary and Working Repositories are public repositories in
    `vibefix-dev`; delete them by hand. After the Final Merge, GitHub lists the Crew member (and the
    Mentor, if they committed) among the Source Repository's contributors, so the next run needs another
    test repository.

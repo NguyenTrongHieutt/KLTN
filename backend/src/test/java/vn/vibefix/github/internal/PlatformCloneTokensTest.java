@@ -32,9 +32,9 @@ import vn.vibefix.shared.SandboxJobResult;
  * Story 23.3 (D1, AD-10, deferred-work 659): the platform repositories are private. Every pull-request call holds
  * {@code contents} read besides its {@code pull_requests} permission, which the stub requires on a private
  * repository as GitHub does (Spike S6 Part C); the Working head is read with a token narrowed to it; and every
- * sandbox clone of a platform repository ({@code FINAL_MERGE_TRIAL}, the Final Merge push,
- * {@code REPOSITORY_ZIP}) gets a token narrowed to that repository with {@code contents} read; the handover copy
- * runs on the runner's Actions instead (AD-46, Story 23.8a). The
+ * sandbox clone of a platform repository (the Final Merge push, {@code REPOSITORY_ZIP}) gets a token narrowed to
+ * that repository with {@code contents} read; the handover copy runs on the runner's Actions instead (AD-46, Story
+ * 23.8a), and Story 23.9a retired the trial merge with the Merge App's Final Merge. The
  * stub's {@code file://} hosting takes no credentials, so these show the job receives the narrowed token.
  */
 class PlatformCloneTokensTest {
@@ -100,13 +100,7 @@ class PlatformCloneTokensTest {
 	}
 
 	@Test
-	void theFinalMergeTrialAndPushReadTheIntermediaryWithATokenNarrowedToIt() {
-		this.mergeApp.trialMerge("lan-dev/quan-may", "main", this.intermediary, "main", this.head);
-
-		assertThat(grant(onlyJob(FinalMergeTrialJobHandler.TYPE).path("intermediaryToken").asString()))
-			.isEqualTo(narrowed(this.intermediary, Map.of("contents", "read")));
-
-		this.jobs.clear();
+	void theFinalMergePushReadsTheIntermediaryWithATokenNarrowedToIt() {
 		var merge = this.apps.token(App.PLATFORM, List.of(1L), Map.of("contents", "write"));
 		this.mergeApp.push(merge, this.intermediary, "main", this.head, "lan-dev/quan-may", "vibefix/final-1");
 

@@ -28,8 +28,8 @@ import vn.vibefix.notification.TodoType;
 class NotificationAudiencesTest {
 
 	/**
-	 * The post-Job types: data deletion and the Revocation Checklist (J8 or J10), the Final Merge's pending notice,
-	 * reminder and completion and the ZIP Fallback (Closing, after J8), the Rating Window, the Ratings, private
+	 * The post-Job types: data deletion and the Revocation Checklist (J8 or J10), the Final Merge's branch-ready
+	 * notice and the closure fallback (Closing, after J8), the Rating Window, the Ratings, private
 	 * feedback and the Portfolio (J9), and the Team Issue updates, which a Rating issue also sends after the Job.
 	 * Each was checked by its senders (review iteration 4): {@code repo.access_revoked} is not one, since a lock and a
 	 * Crew change revoke grants on a running Job too.
@@ -38,8 +38,7 @@ class NotificationAudiencesTest {
 			Map.entry("repo.data_deletion_confirmation_pending", Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE)),
 			Map.entry("repo.revocation_checklist_pending", Set.of(Audience.CUSTOMER)),
 			Map.entry("repo.revocation_checklist_reminder", Set.of(Audience.CUSTOMER)),
-			Map.entry("repo.final_merge_authorization_pending", Set.of(Audience.CUSTOMER)),
-			Map.entry("repo.final_merge_authorization_reminder", Set.of(Audience.CUSTOMER)),
+			Map.entry("repo.final_branch_ready", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("repo.final_merge_completed", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("repo.zip_fallback_ready", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("reputation.rating_window_opened", Set.of(Audience.CUSTOMER, Audience.MENTOR)),

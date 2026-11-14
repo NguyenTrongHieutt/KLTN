@@ -71,28 +71,8 @@ public interface MergeApp {
 
 	}
 
-	/**
-	 * The trial merge's result.
-	 * @param moved the Intermediary branch no longer has the head that was checked
-	 */
-	record TrialMerge(boolean clean, boolean moved, List<String> conflicts) {
-
-		public TrialMerge {
-			conflicts = List.copyOf(conflicts);
-		}
-
-	}
-
 	/** The paths under {@code .github/workflows/} on {@code branch} (SG-19), with a Contents-read token. */
 	List<String> workflowFiles(InstallationToken token, String fullName, String branch);
-
-	/**
-	 * Merges {@code intermediaryBranch} of the Intermediary Repository into the Source default branch in
-	 * memory, in the sandbox, with nothing pushed (AD-11). The public Source Repository is read without a
-	 * token, and the private Intermediary with a Platform App token narrowed to it with {@code contents} read.
-	 */
-	TrialMerge trialMerge(String sourceFullName, String sourceBranch, PlatformRepository intermediary,
-			String intermediaryBranch, String sha);
 
 	/**
 	 * Pushes {@code sha}, read on {@code intermediaryBranch}, to a new branch of the Source Repository,

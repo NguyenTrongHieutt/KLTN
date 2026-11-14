@@ -109,11 +109,11 @@ class SandboxRoundTripIT {
 		assertThat(worker.containsBean("environmentGuard")).isFalse();
 		assertThat(worker.containsBean("environmentController")).isFalse();
 		// HEALTH, files' image re-encoding (AD-21), github's copy into the Intermediary Repository (AD-11) and its
-		// final ZIP (FR-21), its Final Merge's trial merge (AD-11), and delivery's preview check (AD-35); vibefix scans
-		// no code (Story 23.1). A test handler on the classpath would show here.
+		// final ZIP (FR-21), and delivery's preview check (AD-35); vibefix scans no code (Story 23.1) and no longer
+		// trial-merges (Story 23.9a). A test handler on the classpath would show here.
 		assertThat(worker.getBeansOfType(SandboxJobHandler.class).values()).extracting(SandboxJobHandler::type)
 			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE", "REPOSITORY_COPY", "REPOSITORY_ZIP",
-					"FINAL_MERGE_TRIAL", "PREVIEW_CHECK");
+					"PREVIEW_CHECK");
 	}
 
 	@Test

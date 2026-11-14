@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
 
 import org.jspecify.annotations.Nullable;
 
@@ -191,6 +192,15 @@ public interface PlatformRepositories {
 
 	/** The commits and changed paths from {@code baseSha} to {@code headSha} of the repository. */
 	Comparison compare(PlatformRepository repository, String baseSha, String headSha);
+
+	/**
+	 * Every file directly under {@code .github/workflows/} at {@code ref}, with its blob SHA, so the Final Merge's
+	 * pre-check can compare the Intermediary's tree with the Source Repository's without reading a byte of content
+	 * (FR-37, AD-11, Story 23.9a).
+	 * @param ref a branch's name, or a 40-hex commit
+	 * @return each file's path to its blob SHA, by path; empty when the folder is not there
+	 */
+	SortedMap<String, String> workflowFiles(PlatformRepository repository, String ref);
 
 	/** The repository's direct collaborators, lower-case login to role ({@code read}, {@code write}, and so on). */
 	Map<String, String> directCollaborators(PlatformRepository repository);

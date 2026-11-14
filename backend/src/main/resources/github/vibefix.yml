@@ -6,7 +6,9 @@
 #                Intermediary and Working Repositories (J7), so vibefix never downloads the code; it may
 #                only read this repository;
 #   final-merge  brings the Job's Final Merge back from the Intermediary Repository as a new vibefix/
-#                branch here, so vibefix never writes to this repository itself; it may write here;
+#                branch here, so vibefix never writes to this repository itself; it may write here. You
+#                merge that branch yourself on GitHub. GITHUB_TOKEN holds no workflows permission, so the
+#                job first refuses a range that changes any file under .github/workflows/;
 #   scan         helps the Customer with the J7 confirmation: gitleaks v8.30.1 reads the default
 #                branch's whole history here, in a job that may only read this repository and holds no
 #                id-token permission, so it gets no vibefix token. The run's summary names the commit
@@ -309,7 +311,13 @@ jobs:
           here="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           repository="$RUNNER_TEMP/final.git"
           git init --quiet --bare "$repository"
+          # git checks every object it fetches, with the copy's named exceptions: entries that older git versions and
+          # other tools wrote, which git now reports but still reads the same way, and which change no file's content,
+          # name or mode. A history vibefix already accepted at J7 is not refused at the end of the Job.
           git -C "$repository" config transfer.fsckObjects true
+          for message in zeroPaddedFilemode badDate badDateOverflow badTimezone missingSpaceBeforeDate; do
+            git -C "$repository" config "fetch.fsck.$message" ignore
+          done
           VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
             "$GITHUB_SERVER_URL/$INTERMEDIARY.git" "+HEAD:refs/heads/vibefix-intermediary"
           git -C "$repository" cat-file -e "$SHA^{commit}"
@@ -317,6 +325,21 @@ jobs:
           existing="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= ls-remote \
             "$here" "refs/heads/$BRANCH")"
           [ -z "$existing" ] || { echo "::error::$BRANCH exists here already"; exit 1; }
+          # GITHUB_TOKEN holds no workflows permission, so GitHub refuses a push whose range touches
+          # .github/workflows/ -- even a change made and reverted inside the range. The range is refused here,
+          # before anything is pushed, so the run says why instead of failing on the push.
+          # The commit pushed is a handover merge, and git shows a merge commit no diff of its own unless -m is
+          # given, while a pathspec simplifies history away as well: --full-history -m makes a workflow file changed
+          # in a merge resolution show up.
+          VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= fetch --quiet --no-tags \
+            "$here" "+$GITHUB_REF:refs/heads/vibefix-here"
+          workflows="$(git -C "$repository" log --format= --name-only --full-history -m refs/heads/vibefix-here.."$SHA" \
+            -- .github/workflows/ | grep -v '^[[:space:]]*$' | sort -u || true)"
+          if [ -n "$workflows" ]; then
+            printf '%s\n' "$workflows" | while IFS= read -r changed; do echo "::error::$changed"; done
+            echo "::error::the range changes files under .github/workflows/, which this run may not push"
+            exit 1
+          fi
           VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= push --quiet \
             "$here" "$SHA:refs/heads/$BRANCH"
           head="$(VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/github-token" git -C "$repository" -c credential.helper= ls-remote \

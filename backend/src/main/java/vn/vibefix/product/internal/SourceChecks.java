@@ -3,6 +3,8 @@ package vn.vibefix.product.internal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -34,8 +36,11 @@ import vn.vibefix.shared.ErrorCode;
  * token is revoked after the reads. The contributor read (FR-13, FR-81) and the drift read (FR-20, R7) take the
  * binding the same way (Story 23.5b); the contributor read answers "unknown" rather than throwing, and the drift read
  * reads no admin right. J7's head read and dispatch target (Story 23.6a) take it the same way too, read the repository
- * and its workflow with one token, and read no admin right; the head read then reads the default branch's ref. No path
- * reads a repository with the Customer's linking token. A GitHub failure is a {@link GitHubException}, which the caller
+ * and its workflow with one token, and read no admin right; the head read then reads the default branch's ref. The
+ * Final Merge's two reads (Story 23.9a) follow them: the files under {@code .github/workflows/} on the default branch,
+ * which it compares with the Intermediary's, and one branch's head, so {@code vibefix/final-{jobId}} can be read
+ * before the dispatch and read back after the run; a branch GitHub does not show is no failure. No path reads a
+ * repository with the Customer's linking token. A GitHub failure is a {@link GitHubException}, which the caller
  * retries.
  * <p>
  * Each read records what it found of the Source App and the workflow in {@link SourceStatuses} (Story 23.5c), so CUS-2
@@ -258,6 +263,67 @@ class SourceChecks implements ProductSources {
 					}
 					return new J7Read<>(new DispatchTarget(null, bound.installationId(), repository.id(), repository.fullName(),
 							repository.defaultBranch()), found.status(), found.blob(), repository.defaultBranch());
+				});
+		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
+		return read.answer();
+	}
+
+	@Override
+	public SourceWorkflows workflowFiles(UUID productId) {
+		Row product = row(productId);
+		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
+		if (checked.refusal() != null) {
+			Block block = Block.valueOf(checked.refusal().name());
+			recordQuietly(productId, Status.valueOf(block.name()), null, null);
+			return new SourceWorkflows(block, new TreeMap<>());
+		}
+		Bound bound = checked.bound();
+		J7Read<SourceWorkflows> read = this.app.withToken(bound.installationId(), bound.repositoryId(),
+				SourceAppBindings.READ, token -> {
+					Found found = found(product, bound, token);
+					RepositoryMetadata repository = found.repository();
+					if (repository == null) {
+						return new J7Read<>(new SourceWorkflows(Block.SOURCE_APP_WRONG_REPOSITORY, new TreeMap<>()),
+								found.status(), null, null);
+					}
+					SortedMap<String, String> files = this.repositories.workflowFiles(token.value(), repository.fullName(),
+							repository.defaultBranch());
+					return new J7Read<>(new SourceWorkflows(null, files), found.status(), found.blob(),
+							repository.defaultBranch());
+				});
+		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
+		return read.answer();
+	}
+
+	@Override
+	public SourceBranch branch(UUID productId, String branch) {
+		Row product = row(productId);
+		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
+		if (checked.refusal() != null) {
+			Block block = Block.valueOf(checked.refusal().name());
+			recordQuietly(productId, Status.valueOf(block.name()), null, null);
+			return new SourceBranch(block, null);
+		}
+		Bound bound = checked.bound();
+		J7Read<SourceBranch> read = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
+				token -> {
+					Found found = found(product, bound, token);
+					RepositoryMetadata repository = found.repository();
+					if (repository == null) {
+						return new J7Read<>(new SourceBranch(Block.SOURCE_APP_WRONG_REPOSITORY, null), found.status(), null, null);
+					}
+					String sha;
+					try {
+						sha = this.repositories.head(token.value(), repository.fullName(), branch);
+					}
+					catch (GitHubException missing) {
+						if (missing.status() != 404) {
+							throw missing;
+						}
+						// GitHub shows no such branch: the Final Merge has not pushed it, or it was removed.
+						sha = null;
+					}
+					return new J7Read<>(new SourceBranch(null, sha), found.status(), found.blob(), repository.defaultBranch());
 				});
 		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
 		return read.answer();

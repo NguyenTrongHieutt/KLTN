@@ -127,30 +127,6 @@ class GitHubMergeApp implements MergeApp {
 	}
 
 	@Override
-	public TrialMerge trialMerge(String sourceFullName, String sourceBranch, PlatformRepository intermediary,
-			String intermediaryBranch, String sha) {
-		// The private Intermediary is fetched with a Platform App token narrowed to it with contents read.
-		JsonNode output = this.apps.withToken(App.PLATFORM, List.of(intermediary.id()), INTERMEDIARY_READ, read -> {
-			ObjectNode input = JsonNodeFactory.instance.objectNode();
-			input.put("source", sourceFullName);
-			input.put("sourceBranch", sourceBranch);
-			input.put("intermediary", intermediary.fullName());
-			input.put("intermediaryBranch", intermediaryBranch);
-			input.put("sha", sha);
-			input.put("intermediaryToken", read.value());
-			try {
-				return this.sandbox.run(FinalMergeTrialJobHandler.TYPE, input).output();
-			}
-			catch (SandboxJobException ex) {
-				throw new GitHubException(0, "The trial merge into " + sourceFullName + " did not run: " + ex.getMessage());
-			}
-		});
-		List<String> conflicts = new ArrayList<>();
-		output.path("conflicts").forEach(path -> conflicts.add(path.asString("")));
-		return new TrialMerge(output.path("clean").asBoolean(false), output.path("moved").asBoolean(false), conflicts);
-	}
-
-	@Override
 	public boolean push(InstallationToken token, PlatformRepository intermediary, String intermediaryBranch, String sha,
 			String sourceFullName, String branch) {
 		return this.apps.withToken(App.PLATFORM, List.of(intermediary.id()), INTERMEDIARY_READ, read -> {

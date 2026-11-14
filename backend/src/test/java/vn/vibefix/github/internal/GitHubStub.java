@@ -476,7 +476,17 @@ public final class GitHubStub implements AutoCloseable {
 	 * with the commit IDs kept, as {@code git push SHA:refs/heads/BRANCH} would.
 	 */
 	public void copyCommit(String fromOwner, String fromName, String sha, String toName, String branch) throws Exception {
-		try (Git git = Git.open(this.gitRoot.resolve(ORGANIZATION).resolve(toName + ".git").toFile())) {
+		pushCommit(fromOwner, fromName, sha, ORGANIZATION, toName, branch);
+	}
+
+	/**
+	 * What the Final Merge run on the Customer's GitHub Actions leaves behind, since the stub runs no workflow (Story
+	 * 23.9a): exactly {@code sha} of {@code fromOwner/fromName} on {@code branch} of {@code toOwner/toName}, which may
+	 * lie outside the organization, as {@code git push SHA:refs/heads/BRANCH} would.
+	 */
+	public void pushCommit(String fromOwner, String fromName, String sha, String toOwner, String toName, String branch)
+			throws Exception {
+		try (Git git = Git.open(this.gitRoot.resolve(toOwner).resolve(toName + ".git").toFile())) {
 			git.fetch()
 				.setRemote(this.gitRoot.resolve(fromOwner).resolve(fromName + ".git").toUri().toString())
 				.setRefSpecs(new org.eclipse.jgit.transport.RefSpec("+refs/heads/*:refs/copied/*"))
@@ -779,17 +789,20 @@ public final class GitHubStub implements AutoCloseable {
 		else if (method.equals("GET")
 				&& (matcher = Pattern.compile("/repos/([^/]+)/([^/]+)/contents/\\.github/workflows").matcher(path)).matches()) {
 			// A Source Repository's workflows (SG-19), or a platform repository's, such as the runner's one workflow.
-			String branch = java.net.URLDecoder.decode(parameter(query, "ref", "main"), StandardCharsets.UTF_8);
+			// Each entry carries its blob SHA, as GitHub's contents API does, so two trees can be compared without a
+			// byte of content (Story 23.9a); ref is a branch or a 40-hex commit.
+			String ref = java.net.URLDecoder.decode(parameter(query, "ref", "main"), StandardCharsets.UTF_8);
 			List<Map<String, Object>> files = new ArrayList<>();
 			try (Repository git = repository(matcher.group(1), matcher.group(2)); RevWalk walk = new RevWalk(git)) {
-				var head = git.resolve("refs/heads/" + branch);
-				if (head != null) {
+				var head = git.resolve(ref.matches("[0-9a-f]{40}") ? ref : "refs/heads/" + ref);
+				if (head != null && git.getObjectDatabase().has(head)) {
 					try (TreeWalk tree = new TreeWalk(git)) {
 						tree.addTree(walk.parseCommit(head).getTree());
 						tree.setRecursive(true);
 						while (tree.next()) {
 							if (tree.getPathString().startsWith(".github/workflows/")) {
-								files.add(Map.of("name", tree.getNameString(), "path", tree.getPathString(), "type", "file"));
+								files.add(Map.of("name", tree.getNameString(), "path", tree.getPathString(), "type", "file", "sha",
+										tree.getObjectId(0).name()));
 							}
 						}
 					}

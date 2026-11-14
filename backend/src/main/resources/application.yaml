@@ -159,10 +159,20 @@ vibefix:
       # runner's s6-copy.yml the handover range, the new-branch guard and the path report: its blob replaces the
       # 23.4 one, with no end date, because that file declares no from_sha, so a dispatch against it is refused by
       # GitHub anyway. The runner is the one repository vibefix owns: until the file is re-published there, the
-      # runner check reports drift, which is the honest signal (deploy/README.md names the step).
+      # runner check reports drift, which is the honest signal (deploy/README.md names the step). Story 23.9a gave
+      # the final-merge job the copy's fsck ignore list and its own workflow-file guard (deferred-work 626): its blob
+      # joins, and the 23.6c blob ends on 2026-12-14 [ASSUMPTION] beside the 23.5 one, because this list gates every
+      # dispatch (the J7 copy and the handover copies, not only a Final Merge) and "Kiểm tra", so dropping it would
+      # refuse every Source Repository holding the file published until today. Until a Customer re-publishes, their
+      # Final Merge runs the old job: no fsck ignore list, so a legacy history vibefix accepted at J7 is refused at
+      # the end, and no range guard, so GitHub refuses the push itself when the accepted code touches
+      # .github/workflows/. Re-publishing before the end date is the step deploy/README.md names.
       accepted-blobs:
         - path: .github/workflows/vibefix.yml
+          blob: cab3689d63e97c75bb99608ae38d2c415d61b7e6
+        - path: .github/workflows/vibefix.yml
           blob: 4c2747e19b12d76ff7bfd0d989e325b488062595
+          ends-on: "2026-12-14"
         - path: .github/workflows/vibefix.yml
           blob: db448cf8fe316ef7876e5a6b0556a554ae74c976
           ends-on: "2026-12-14"

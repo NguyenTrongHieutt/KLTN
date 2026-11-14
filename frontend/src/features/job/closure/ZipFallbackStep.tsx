@@ -58,7 +58,7 @@ export function ZipFallbackStep({ jobId, merge }: { jobId: string; merge: FinalM
 }
 
 /**
- * "Nhận mã dạng ZIP" (FR-37, FR-38): offered with "Cho phép hợp nhất" until the merge is confirmed,
+ * "Nhận mã dạng ZIP" (FR-37, FR-38): offered beside the Final Merge until the Customer sets its run going,
  * after a Confirmation dialog saying vibefix will not merge into the repository, a request approved later
  * is no longer used, the Job ends when the ZIP is ready, and the choice cannot be undone.
  */

@@ -12,15 +12,16 @@ import vn.vibefix.product.ProductSources.SourceCheck;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 
 /**
- * What the Final Merge checks before acting (FR-37, NFR-6, AD-11, SG-9), outside any transaction:
+ * What the Final Merge checks before acting (FR-37, NFR-6, AD-11, AD-13, AD-45, SG-9), outside any transaction:
  * <ul>
- * <li>the Source Repository, read again by its permanent ID through the Customer's Source App binding (Story
- * 23.5): every block (the Source App missing, suspended, or on the wrong repositories, a missing or different
- * {@code vibefix.yml}, or a lost admin right) waits for the Customer, who can fix it or choose the ZIP
- * themselves; no Source block routes to the ZIP Fallback;</li>
+ * <li>the Source Repository, read again by its permanent ID through the Customer's Source App binding (Story 23.5):
+ * {@code product}'s own check holds the selection rule, the Customer's admin right through the collaborator-permission
+ * endpoint (AD-13), and "Kiểm tra" of {@code vibefix.yml} (AD-45). Every block (the Source App missing, suspended, or
+ * on the wrong repositories, a missing or different {@code vibefix.yml}, or a lost admin right) waits for the
+ * Customer, who can fix it or receive the code themselves; no Source block ends the Final Merge;</li>
  * <li>every grant of the Mentor and the Crew read back as revoked, else it waits;</li>
  * <li>J9's guard: the Intermediary default branch's head is the head {@code repo} read back after its
- * last handover merge, or the J7 commit when it made none; anything else routes to the ZIP Fallback.</li>
+ * last handover merge, or the J7 commit when it made none; anything else hands the Job to the closure fallback.</li>
  * </ul>
  * Each GitHub read throws {@link vn.vibefix.github.GitHubException} when GitHub fails.
  */

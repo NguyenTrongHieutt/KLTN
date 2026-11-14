@@ -4069,40 +4069,6 @@
         "tags" : [ "follow-up-controller" ]
       }
     },
-    "/api/v1/github/merge-app/setup" : {
-      "get" : {
-        "operationId" : "setup_2",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "installation_id",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        }, {
-          "in" : "query",
-          "name" : "setup_action",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "state",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "final-merge-controller" ]
-      }
-    },
     "/api/v1/github/source-app/setup" : {
       "get" : {
         "operationId" : "setup_1",
@@ -5082,7 +5048,7 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
+          "202" : {
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -5090,7 +5056,7 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Accepted"
           }
         },
         "tags" : [ "final-merge-controller" ]
@@ -5114,33 +5080,6 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/FinalMergeView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "final-merge-controller" ]
-      }
-    },
-    "/api/v1/jobs/{jobId}/final-merge/install-link" : {
-      "post" : {
-        "operationId" : "installLink_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/InstallLinkView"
                 }
               }
             },
@@ -13293,27 +13232,12 @@
           "merge" : {
             "$ref" : "#/components/schemas/MergeView"
           },
-          "owner" : {
-            "type" : "string"
-          },
           "productId" : {
             "type" : "string",
             "format" : "uuid"
           },
-          "refusal" : {
-            "type" : "string"
-          },
           "repository" : {
             "type" : "string"
-          },
-          "requestOrg" : {
-            "type" : "string"
-          },
-          "requestRefused" : {
-            "type" : "boolean"
-          },
-          "requestWaiting" : {
-            "type" : "boolean"
           },
           "status" : {
             "type" : "string"
@@ -13322,7 +13246,7 @@
             "$ref" : "#/components/schemas/ZipView"
           }
         },
-        "required" : [ "id", "owner", "productId", "repository", "requestRefused", "requestWaiting", "status" ]
+        "required" : [ "id", "productId", "repository", "status" ]
       },
       "FitMetricsView" : {
         "type" : "object",
@@ -14448,15 +14372,6 @@
         },
         "required" : [ "githubLogin", "identifier" ]
       },
-      "InstallLinkView" : {
-        "type" : "object",
-        "properties" : {
-          "url" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "url" ]
-      },
       "InvitationsView" : {
         "type" : "object",
         "properties" : {
@@ -15525,11 +15440,20 @@
       "MergeView" : {
         "type" : "object",
         "properties" : {
-          "pullUrl" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "branchUrl" : {
+            "type" : "string"
+          },
+          "compareUrl" : {
             "type" : "string"
           },
           "refusal" : {
             "type" : "string"
+          },
+          "run" : {
+            "$ref" : "#/components/schemas/RunView"
           },
           "sensitive" : {
             "type" : "array",
@@ -18086,6 +18010,21 @@
           }
         },
         "required" : [ "history", "rules", "schoolDomains" ]
+      },
+      "RunView" : {
+        "type" : "object",
+        "properties" : {
+          "conclusion" : {
+            "type" : "string"
+          },
+          "htmlUrl" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "state" ]
       },
       "SaveRequest" : {
         "type" : "object",

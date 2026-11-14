@@ -197,4 +197,49 @@ public interface ProductSources {
 	 */
 	DispatchTarget dispatchTarget(UUID productId);
 
+	/**
+	 * The Source Repository's own {@code .github/workflows/} files, read now (FR-37, Story 23.9a): the Final Merge
+	 * compares them with the Intermediary's, because a run's {@code GITHUB_TOKEN} can never push a workflow file.
+	 * @param block why the Source App cannot read it: {@link Block#SOURCE_APP_MISSING} or
+	 * {@link Block#SOURCE_APP_WRONG_REPOSITORY}; none while the binding holds
+	 * @param files each file's path to its blob SHA, by path; empty when there is a {@code block}, and for a
+	 * repository with no such folder
+	 */
+	record SourceWorkflows(@Nullable Block block, java.util.SortedMap<String, String> files) {
+
+		public SourceWorkflows {
+			files = java.util.Collections.unmodifiableSortedMap(new java.util.TreeMap<>(files));
+		}
+
+	}
+
+	/**
+	 * Reads the files under {@code .github/workflows/} on the Product's Source Repository's default branch now, with
+	 * one Contents-read token narrowed to the repository and revoked after use. The binding is taken on a fresh read,
+	 * and what it found of the Source App and the workflow is recorded, best-effort.
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product
+	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now, or the Source App is not configured
+	 */
+	SourceWorkflows workflowFiles(UUID productId);
+
+	/**
+	 * One branch of the Source Repository as read now (FR-37, Story 23.9a): what the Final Merge reads back after its
+	 * run pushed {@code vibefix/final-{jobId}}, and what it reads before a dispatch, since the run refuses a branch
+	 * that exists.
+	 * @param block why the Source App cannot read it: {@link Block#SOURCE_APP_MISSING} or
+	 * {@link Block#SOURCE_APP_WRONG_REPOSITORY}; none while the binding holds
+	 * @param sha the branch's head commit, 40 hex; none when there is a {@code block}, and none when GitHub shows no
+	 * such branch
+	 */
+	record SourceBranch(@Nullable Block block, @Nullable String sha) {
+	}
+
+	/**
+	 * Reads one branch of the Product's Source Repository now, the same way {@link #head} reads the default branch's.
+	 * A branch GitHub does not show is no failure: it answers no commit.
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product
+	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now, or the Source App is not configured
+	 */
+	SourceBranch branch(UUID productId, String branch);
+
 }

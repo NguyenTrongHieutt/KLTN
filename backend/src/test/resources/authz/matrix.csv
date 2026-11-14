@@ -2761,18 +2761,6 @@ GET /api/v1/jobs/{jobId}/final-merge,CREW_ACTIVE,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/final-merge,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/final-merge,CROSS_ROLE,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/final-merge,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,ANONYMOUS,,,401
-POST /api/v1/jobs/{jobId}/final-merge/install-link,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,USER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,LOCKED,job=crew,,401
-POST /api/v1/jobs/{jobId}/final-merge/install-link,CUSTOMER,job=crew,,409 CONFLICT NO_AUTHORIZATION_OPEN
-POST /api/v1/jobs/{jobId}/final-merge/install-link,MENTOR,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,BIDDER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,CREW_ACTIVE,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,CREW_FORMER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,CROSS_ROLE,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/install-link,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,ANONYMOUS,,final-merge-confirm.json,401
 POST /api/v1/jobs/{jobId}/final-merge/confirm,USER_UNVERIFIED,job=crew,final-merge-confirm.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,USER,job=crew,final-merge-confirm.json,404 NOT_FOUND
@@ -2797,12 +2785,6 @@ POST /api/v1/jobs/{jobId}/final-merge/decline,CREW_ACTIVE,job=crew,,404 NOT_FOUN
 POST /api/v1/jobs/{jobId}/final-merge/decline,CREW_FORMER,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/decline,CROSS_ROLE,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/decline,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-GET /api/v1/github/merge-app/setup,ANONYMOUS,,,401
-GET /api/v1/github/merge-app/setup,USER_UNVERIFIED,,,303
-GET /api/v1/github/merge-app/setup,USER,,,303
-GET /api/v1/github/merge-app/setup,CUSTOMER,,,303
-GET /api/v1/github/merge-app/setup,CROSS_ROLE,,,303
-GET /api/v1/github/merge-app/setup,ADMINISTRATOR,,,303
 # Team Issues (FR-79, AD-40, AD-20): any unlocked user reads the STU-4 panel (Story 20.3), empty unless they
 # were ever active on a Crew; only a Crew member who was ever active raises one, about the Mentor's Rating of them:
 # the former and the cross-role member raise one about their own (rating=former, rating=cross), and the ACTIVE member,

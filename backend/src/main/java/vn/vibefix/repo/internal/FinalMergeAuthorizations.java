@@ -1,20 +1,12 @@
 package vn.vibefix.repo.internal;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.HexFormat;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,9 +25,6 @@ import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.notification.Audience;
-import vn.vibefix.notification.NotificationRequest;
-import vn.vibefix.notification.Notifications;
-import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.product.ProductSources;
@@ -46,62 +35,38 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * A Code Job's Final Merge authorization (FR-37, FR-67, AD-10), one per Job and Source Repository. It
- * opens {@code REQUESTED} at the first closure proposal or at J8, with the to-do {@value #TODO}; J8 sets
- * the FR-37 deadline from the Job's copied {@code FINAL_MERGE_AUTHORIZATION_DAYS} and schedules the
- * deadline and its reminder 2 days before. It ends {@code ENDED} when its proposal ends without J8, at J10,
- * or still {@code REQUESTED} at the deadline. The install link's {@code state} is single-use, kept only as
- * its SHA-256, and valid for an hour. {@link MergeAppBindings} binds and unbinds.
+ * A Code Job's Final Merge (FR-37, FR-67), one row per Job and Source Repository: its identity, and the anchor of the
+ * FR-37 deadline and of the closure fallback. It opens {@code REQUESTED} at the first closure proposal or at J8, with
+ * the to-do {@value #TODO}; J8 sets the FR-37 deadline from the Job's copied {@code FINAL_MERGE_AUTHORIZATION_DAYS}
+ * and schedules it. It becomes {@code USED} once the run's branch is read back (Story 23.9a) and {@code ENDED} when
+ * its proposal ends without J8, at J10, at the deadline, or when the Final Merge cannot run.
+ * <p>
+ * Story 23.9a retired the Merge App (R1, D7): there is no app to install at the end, so the {@code BOUND} state, the
+ * install link's single-use {@code state}, the installation, the organization's install request and its refusal are
+ * all gone. The row stays because {@link vn.vibefix.repo.FinalMergeAuthorizationEnded} is what starts Story 8.9's
+ * closure fallback, which Story 23.10 replaces with the self-download path.
  */
 @Component
 class FinalMergeAuthorizations {
 
 	static final String TODO = "repo.authorize_final_merge";
 
-	static final String PENDING = "repo.final_merge_authorization_pending";
-
-	static final String REMINDER = "repo.final_merge_authorization_reminder";
-
 	static final String RULE = "FINAL_MERGE_AUTHORIZATION_DAYS";
 
 	static final int DEFAULT_DAYS = 7;
 
-	static final Duration REMINDER_BEFORE = Duration.ofDays(2);
-
-	static final Duration STATE_LIFETIME = Duration.ofHours(1);
-
-	private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
-
-	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
-
-	private static final SecureRandom RANDOM = new SecureRandom();
-
 	private static final String COLUMNS = """
-			id, job_id, product_id, customer_account_id, repository_github_id, repository_name, status, installation_id,
-			deadline_at, refusal, refused_at, request_org, request_seen_at, request_refused_at, requested_at, bound_at,
-			ended_at, end_reason
+			id, job_id, product_id, customer_account_id, repository_github_id, repository_name, status, deadline_at,
+			requested_at, ended_at, end_reason
 			""";
 
-	/**
-	 * One authorization.
-	 * @param installationId the installation it is or was bound to
-	 * @param refusal the last refused installation's reason, {@code MERGE_APP_WRONG_REPOSITORY}
-	 * @param requestOrg the organization whose owner must approve the install request, once one was listed
-	 */
+	/** One Final Merge row. */
 	record Authorization(UUID id, UUID jobId, UUID productId, @Nullable UUID customerId, long repositoryId,
-			String repositoryName, String status, @Nullable Long installationId, @Nullable Instant deadlineAt,
-			@Nullable String refusal, @Nullable Instant refusedAt, @Nullable String requestOrg,
-			@Nullable Instant requestSeenAt, @Nullable Instant requestRefusedAt, Instant requestedAt,
-			@Nullable Instant boundAt, @Nullable Instant endedAt, @Nullable String endReason) {
+			String repositoryName, String status, @Nullable Instant deadlineAt, Instant requestedAt,
+			@Nullable Instant endedAt, @Nullable String endReason) {
 
 		boolean open() {
-			return "REQUESTED".equals(this.status) || "BOUND".equals(this.status);
-		}
-
-		/** The repository's owner, the account the Merge App is installed on. */
-		String owner() {
-			int slash = this.repositoryName.indexOf('/');
-			return slash < 0 ? this.repositoryName : this.repositoryName.substring(0, slash);
+			return "REQUESTED".equals(this.status);
 		}
 
 	}
@@ -116,8 +81,6 @@ class FinalMergeAuthorizations {
 
 	private final Todos todos;
 
-	private final Notifications notifications;
-
 	private final Deadlines deadlines;
 
 	private final ApplicationEventPublisher events;
@@ -129,14 +92,12 @@ class FinalMergeAuthorizations {
 	private final Clock clock;
 
 	FinalMergeAuthorizations(JdbcClient jdbc, JobBusy busy, ProductSources sources, JobRules rules, Todos todos,
-			Notifications notifications, Deadlines deadlines, ApplicationEventPublisher events, AuditLog auditLog,
-			IdGenerator ids, Clock clock) {
+			Deadlines deadlines, ApplicationEventPublisher events, AuditLog auditLog, IdGenerator ids, Clock clock) {
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.sources = sources;
 		this.rules = rules;
 		this.todos = todos;
-		this.notifications = notifications;
 		this.deadlines = deadlines;
 		this.events = events;
 		this.auditLog = auditLog;
@@ -145,9 +106,8 @@ class FinalMergeAuthorizations {
 	}
 
 	/**
-	 * Opens the Job's authorization {@code REQUESTED}, unless one is open: a Code Job that is Active or
-	 * Closing, whose Source Repository has no other open authorization (AD-13 keeps one live Product per
-	 * repository).
+	 * Opens the Job's row {@code REQUESTED}, unless one is open: a Code Job that is Active or Closing, whose Source
+	 * Repository has no other open row (AD-13 keeps one live Product per repository).
 	 */
 	@Transactional
 	Optional<Authorization> open(UUID jobId) {
@@ -186,10 +146,7 @@ class FinalMergeAuthorizations {
 		return find(id);
 	}
 
-	/**
-	 * J8: the FR-37 deadline runs from now. The to-do gets it, the deadline and its reminder are
-	 * scheduled, and a Customer who has not authorized yet hears it waits.
-	 */
+	/** J8: the FR-37 deadline runs from now. The to-do gets it, and the deadline is scheduled. */
 	@Transactional
 	void closing(UUID jobId) {
 		Authorization authorization = open(jobId).orElse(null);
@@ -207,37 +164,28 @@ class FinalMergeAuthorizations {
 			this.todos.closeAll(TODO, authorization.id());
 			this.todos.open(new TodoRequest(TODO, customer, Audience.CUSTOMER, authorization.id(), Map.of(), link(jobId),
 					deadline, jobId));
-			if ("REQUESTED".equals(authorization.status())) {
-				this.notifications.send(new NotificationRequest(PENDING, cause(authorization.id(), "pending"),
-						List.of(new Recipient(customer, Audience.CUSTOMER)), Map.of("date", dayMonth(deadline)), link(jobId),
-						jobId, null));
-			}
 		}
 		this.deadlines.schedule(new DeadlineRequest(FinalMergeDeadline.KEY, authorization.id(), authorization.id().toString(),
 				jobId, deadline));
-		this.deadlines.schedule(new DeadlineRequest(FinalMergeReminder.KEY, authorization.id(), authorization.id().toString(),
-				jobId, deadline.minus(REMINDER_BEFORE)));
 	}
 
-	/** Ends the Job's open authorization, if any. */
+	/** Ends the Job's open row, if any. */
 	@Transactional
 	void endOf(UUID jobId, String reason) {
 		openOf(jobId).ifPresent(authorization -> end(authorization.id(), reason));
 	}
 
 	/**
-	 * Ends an open authorization ({@code PROPOSAL_ENDED}, {@code CANCELLED}, {@code DEADLINE}, ...): its pair
-	 * is no longer bound, the to-do closes, and {@link FinalMergeAuthorizationEnded} tells Story 8.9's ZIP
-	 * Fallback.
+	 * Ends an open row ({@code PROPOSAL_ENDED}, {@code CANCELLED}, {@code DEADLINE}, ...): the to-do closes, and
+	 * {@link FinalMergeAuthorizationEnded} tells Story 8.9's closure fallback.
 	 * @return whether it ended it
 	 */
 	@Transactional
 	boolean end(UUID id, String reason) {
 		Authorization authorization = find(id).orElse(null);
 		int ended = this.jdbc.sql("""
-				UPDATE repo.final_merge_authorization SET status = 'ENDED', end_reason = :reason, ended_at = :now,
-				    state_hash = NULL, state_expires_at = NULL
-				WHERE id = :id AND status IN ('REQUESTED', 'BOUND')
+				UPDATE repo.final_merge_authorization SET status = 'ENDED', end_reason = :reason, ended_at = :now
+				WHERE id = :id AND status = 'REQUESTED'
 				""").param("reason", reason).param("now", Timestamp.from(this.clock.instant())).param("id", id).update();
 		if (ended == 0 || authorization == null) {
 			return false;
@@ -248,56 +196,14 @@ class FinalMergeAuthorizations {
 		return true;
 	}
 
-	/** The Final Merge was read back (Story 8.8): the pair is no longer bound and the to-do is done. */
+	/** The run's branch was read back (Story 23.9a): the row is spent and the to-do is done. */
 	@Transactional
 	void used(UUID id) {
 		this.jdbc.sql("""
-				UPDATE repo.final_merge_authorization SET status = 'USED', ended_at = :now, state_hash = NULL,
-				    state_expires_at = NULL
-				WHERE id = :id AND status = 'BOUND'
+				UPDATE repo.final_merge_authorization SET status = 'USED', ended_at = :now
+				WHERE id = :id AND status = 'REQUESTED'
 				""").param("now", Timestamp.from(this.clock.instant())).param("id", id).update();
 		this.todos.closeAll(TODO, id);
-	}
-
-	/**
-	 * A fresh install link's single-use {@code state} for the Job's open authorization.
-	 * @return the state, kept only as its SHA-256
-	 */
-	@Transactional
-	Optional<String> newState(UUID jobId) {
-		Authorization authorization = openOf(jobId).orElse(null);
-		if (authorization == null) {
-			return Optional.empty();
-		}
-		byte[] random = new byte[32];
-		RANDOM.nextBytes(random);
-		String state = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
-		this.jdbc.sql("UPDATE repo.final_merge_authorization SET state_hash = :hash, state_expires_at = :until WHERE id = :id")
-			.param("hash", hash(state))
-			.param("until", Timestamp.from(this.clock.instant().plus(STATE_LIFETIME)))
-			.param("id", authorization.id())
-			.update();
-		return Optional.of(state);
-	}
-
-	/**
-	 * Uses up a setup return's {@code state}: it is the signed-in Customer's, unexpired, and its
-	 * authorization still open. Any other state changes nothing.
-	 */
-	@Transactional
-	Optional<Authorization> consume(String state, UUID customerId) {
-		return this.jdbc.sql("""
-				UPDATE repo.final_merge_authorization SET state_hash = NULL, state_expires_at = NULL
-				WHERE state_hash = :hash AND state_expires_at > :now AND customer_account_id = :customer
-				    AND status IN ('REQUESTED', 'BOUND')
-				RETURNING id
-				""")
-			.param("hash", hash(state))
-			.param("now", Timestamp.from(this.clock.instant()))
-			.param("customer", customerId)
-			.query(UUID.class)
-			.optional()
-			.flatMap(this::find);
 	}
 
 	@Transactional(readOnly = true)
@@ -310,37 +216,23 @@ class FinalMergeAuthorizations {
 
 	@Transactional(readOnly = true)
 	Optional<Authorization> openOf(UUID jobId) {
-		return this.jdbc.sql("SELECT " + COLUMNS
-				+ " FROM repo.final_merge_authorization WHERE job_id = :job AND status IN ('REQUESTED', 'BOUND')")
+		return this.jdbc
+			.sql("SELECT " + COLUMNS + " FROM repo.final_merge_authorization WHERE job_id = :job AND status = 'REQUESTED'")
 			.param("job", jobId)
 			.query(FinalMergeAuthorizations::authorization)
 			.optional();
 	}
 
-	/** The Job's open authorization, else its latest. */
+	/** The Job's open row, else its latest. */
 	@Transactional(readOnly = true)
 	Optional<Authorization> latest(UUID jobId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + """
 				 FROM repo.final_merge_authorization WHERE job_id = :job
-				ORDER BY (status IN ('REQUESTED', 'BOUND')) DESC, requested_at DESC LIMIT 1
+				ORDER BY (status = 'REQUESTED') DESC, requested_at DESC LIMIT 1
 				""")
 			.param("job", jobId)
 			.query(FinalMergeAuthorizations::authorization)
 			.optional();
-	}
-
-	/** Every authorization in a state, for the reconciliation and the bindings. */
-	@Transactional(readOnly = true)
-	List<Authorization> inStatus(String status) {
-		return this.jdbc.sql("SELECT " + COLUMNS + " FROM repo.final_merge_authorization WHERE status = :status")
-			.param("status", status)
-			.query(FinalMergeAuthorizations::authorization)
-			.list();
-	}
-
-	/** The deadline's day and month, or none before J8. */
-	static String dayMonth(@Nullable Instant at) {
-		return at == null ? "" : DAY_MONTH.format(at.atZone(VIETNAM));
 	}
 
 	static String link(UUID jobId) {
@@ -356,24 +248,12 @@ class FinalMergeAuthorizations {
 			.forJob(jobId));
 	}
 
-	static String hash(String state) {
-		try {
-			return HexFormat.of()
-				.formatHex(MessageDigest.getInstance("SHA-256").digest(state.getBytes(StandardCharsets.UTF_8)));
-		}
-		catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException(ex);
-		}
-	}
-
 	private static Authorization authorization(ResultSet rs, int n) throws SQLException {
 		return new Authorization(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getObject("customer_account_id", UUID.class),
 				rs.getLong("repository_github_id"), rs.getString("repository_name"), rs.getString("status"),
-				rs.getObject("installation_id", Long.class), instant(rs, "deadline_at"), rs.getString("refusal"),
-				instant(rs, "refused_at"), rs.getString("request_org"), instant(rs, "request_seen_at"),
-				instant(rs, "request_refused_at"), java.util.Objects.requireNonNull(instant(rs, "requested_at")),
-				instant(rs, "bound_at"), instant(rs, "ended_at"), rs.getString("end_reason"));
+				instant(rs, "deadline_at"), java.util.Objects.requireNonNull(instant(rs, "requested_at")),
+				instant(rs, "ended_at"), rs.getString("end_reason"));
 	}
 
 	private static @Nullable Instant instant(ResultSet rs, String column) throws SQLException {
