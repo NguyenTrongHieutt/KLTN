@@ -52,6 +52,19 @@ const mentorJob = {
   agreementConfirmed: true,
 }
 
+/** The pending submission a Code Job's "Gửi bàn giao" answers with (Story 23.8a). */
+const submission = (overrides: object = {}) => ({
+  id: 's1',
+  jobId: 'j1',
+  milestoneId: 'm1',
+  number: 1,
+  state: 'PENDING',
+  reason: null,
+  reasonModule: null,
+  handoverId: null,
+  ...overrides,
+})
+
 const list = (overrides: object = {}) => ({
   jobId: 'j1',
   title: 'Đánh giá sổ đặt bàn',
@@ -133,9 +146,13 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       'GET /api/v1/boards/j1/handovers': () =>
         json(list({ handovers: [], waiting: { milestoneId: 'm1', number: 1, title: 'Báo cáo' } })),
       'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight()),
+      // Story 23.8a: the answer is the submission, done at once for an Assessment Job.
       'POST /api/v1/boards/j1/handovers': async (request) => {
         sent.push(await request.json())
-        return json(report({ audience: 'MENTOR' }), 201)
+        return json(
+          { id: 'h1', jobId: 'j1', milestoneId: 'm1', number: 1, state: 'DONE', reason: null, handoverId: 'h1' },
+          202,
+        )
       },
       'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR' })),
     })
@@ -364,10 +381,12 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         ),
       'POST /api/v1/boards/j1/handovers/preview-check': () =>
         json({ reachable: false, domain: 'dead.vercel.app', reason: 'NO_RESPONSE' }),
+      // Story 23.8a: a Code Job's handover waits for the runner, so the answer is its pending submission.
       'POST /api/v1/boards/j1/handovers': async (request) => {
         sent = (await request.json()) as Record<string, unknown>
-        return json(report({ assessment: false, report: null }), 201)
+        return json(submission(), 202)
       },
+      'GET /api/v1/boards/j1/handovers/submission': () => json(submission()),
       'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false, report: null })),
       'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
     })
@@ -390,6 +409,99 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await waitFor(() => expect(sent).toBeDefined())
     expect(sent).toMatchObject({ recordingUrl: 'https://www.loom.com/share/abc', noPreviewReason: 'Chỉ chạy trên máy của quán' })
     expect(sent).not.toHaveProperty('previewUrl')
+  })
+
+  it('waits on the form while the runner copies a Code Job handover, then opens its report (Story 23.8a)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(
+          preflight({
+            assessment: false,
+            report: null,
+            workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
+          }),
+        ),
+      'POST /api/v1/boards/j1/handovers': () => json(submission(), 202),
+      'GET /api/v1/boards/j1/handovers/submission': () =>
+        json(reads++ === 0 ? submission() : submission({ state: 'DONE', handoverId: 'h1' })),
+      'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false, report: null })),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    const send = screen.getByRole('button', { name: 'Gửi bàn giao' })
+    await user.click(send)
+
+    expect(await screen.findByText('Đang sao chép bàn giao Giai đoạn 1…')).toBeInTheDocument()
+    expect(send).toBeDisabled()
+    // The form reads the submission again every 3 s until the copy is over, then opens the Delivery Report.
+    expect(await screen.findByText('Đã bàn giao Giai đoạn 1.', {}, { timeout: 15_000 })).toBeInTheDocument()
+    expect(screen.queryByText('Đang sao chép bàn giao Giai đoạn 1…')).not.toBeInTheDocument()
+  })
+
+  it('names why a copy was refused, in the module its reason belongs to (Story 23.8a, AD-23)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(
+          preflight({
+            assessment: false,
+            report: null,
+            workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
+          }),
+        ),
+      'POST /api/v1/boards/j1/handovers': () => json(submission(), 202),
+      'GET /api/v1/boards/j1/handovers/submission': () =>
+        json(
+          reads++ === 0
+            ? submission()
+            : submission({ state: 'REFUSED', reason: 'STATE_CHANGED', reasonModule: 'job' }),
+        ),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
+
+    expect(await screen.findByRole('alert', {}, { timeout: 15_000 })).toHaveTextContent(
+      'Chưa sao chép được bàn giao: Công việc vừa đổi trạng thái. Hãy thử gửi lại.',
+    )
+    expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeEnabled()
+  })
+
+  it('says so when the copy state cannot be read (Story 23.8a)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(
+          preflight({
+            assessment: false,
+            report: null,
+            workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
+          }),
+        ),
+      'POST /api/v1/boards/j1/handovers': () => json(submission(), 202),
+      'GET /api/v1/boards/j1/handovers/submission': () => new Response('', { status: 503 }),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
+
+    expect(await screen.findByRole('alert', {}, { timeout: 15_000 })).toHaveTextContent(
+      'Chưa đọc được trạng thái lần sao chép. Hãy tải lại trang sau ít phút.',
+    )
+    expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeEnabled()
   })
 
   it('tells the Customer a handover voided at acceptance changed on GitHub (FR-33, M3)', { timeout: 20_000 }, async () => {

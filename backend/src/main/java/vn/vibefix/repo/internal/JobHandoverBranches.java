@@ -19,11 +19,12 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
 
 /**
  * {@link HandoverBranches} over the Job's done Setup (AD-11): the Working head is read live from GitHub on
- * every call, never recorded (D9), and the pin reuses the copy into the Intermediary Repository with the
- * Working default branch as its source. Both repositories are private, so the head read and the pin's clone
- * use tokens narrowed to the Working Repository with contents read. The merge's 409 is {@link HeadMoved};
- * the close after M3 or M4 marks its comment with the handover, so a retry posts it once. Nothing here runs
- * in a transaction, so nothing is audited here: {@code delivery} audits the handover it records.
+ * every call, never recorded (D9), and its range comes from GitHub's compare, whose 300-file list is the form's
+ * hint only (Story 23.8a). Both repositories are private, so the head read uses a token narrowed to the Working
+ * Repository with contents read. Nothing here clones or pushes: the Handover Commit reaches
+ * {@code handover/{handoverId}} on the runner's Actions. The merge's 409 is {@link HeadMoved}; the close after M3
+ * or M4 marks its comment with the handover, so a retry posts it once. Nothing here runs in a transaction, so
+ * nothing is audited here: {@code delivery} audits the handover it records.
  */
 @Component
 class JobHandoverBranches implements HandoverBranches {
@@ -76,42 +77,13 @@ class JobHandoverBranches implements HandoverBranches {
 	}
 
 	@Override
-	public boolean pathChanged(UUID jobId, String fromSha, String toSha, String path) {
-		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
-		try {
-			return !this.repositories.pathObjects(setup.working(), fromSha, toSha, path).same();
-		}
-		catch (GitHubException failed) {
-			throw new Unavailable(path + " of Job " + jobId + " was not read", failed);
-		}
-	}
-
-	@Override
-	public int pin(UUID jobId, UUID handoverId, String sha, String title) {
-		Setup setup = done(jobId).orElseThrow(() -> new IllegalStateException("Job " + jobId + " has no done Setup"));
-		String branch = "handover/" + handoverId;
-		int number;
-		try {
-			// The private Working Repository is cloned with a token narrowed to it with contents read.
-			this.repositories.copy(setup.working(), sha, setup.defaultBranch(), branch, setup.intermediary());
-			number = this.repositories.openPullRequest(setup.intermediary(), branch, setup.defaultBranch(), title,
-					"Bàn giao " + handoverId + " của vibefix: lần lưu " + sha + ".");
-		}
-		catch (GitHubException failed) {
-			throw new Unavailable("The Handover Commit of Job " + jobId + " was not pinned", failed);
-		}
-		// delivery audits the handover in the transaction that records it.
-		return number;
-	}
-
-	@Override
-	public void unpin(UUID jobId, int pullNumber) {
+	public void closeAfterRefusal(UUID jobId, int pullNumber) {
 		done(jobId).ifPresent(setup -> {
 			try {
 				this.repositories.closePullRequest(setup.intermediary(), pullNumber);
 			}
 			catch (GitHubException failed) {
-				log.warn("Pull request {} of Job {} was not closed after its handover failed: {}", pullNumber, jobId,
+				log.warn("Pull request {} of Job {} was not closed after its handover was refused: {}", pullNumber, jobId,
 						failed.getMessage());
 			}
 		});

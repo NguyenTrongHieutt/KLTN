@@ -829,11 +829,17 @@ class SpikeS6CommandTest {
 		String h1 = commits.get(commits.size() - 2);
 		String h2 = commits.getLast();
 		String merge = intermediary.branches.get("main").getLast();
+		String first = SpikeS6Command.handoverBranch("s6-hand", 1);
+		String second = SpikeS6Command.handoverBranch("s6-hand", 2);
 		assertThat(output).contains("is a collaborator", "Intermediary permission=read role_name=read; Working HTTP 404",
 				"H1=" + shortSha(h1), "H2=" + shortSha(h2) + " on vibefix-dev/s6-hand-working/main, parent " + shortSha(h1) + " (H1)",
-				"logs deleted HTTP 204, read back vibefix-dev/s6-hand-intermediary handover/s6-hand-1=" + shortSha(h1)
+				// Story 23.8a: the run reports the paths of from_sha..sha before it pushes, and the probe says so.
+				"logs deleted HTTP 204, report 1 path [spike-s6/handover-1-",
+				"] workflows_changed=false, read back vibefix-dev/s6-hand-intermediary " + first + "=" + shortSha(h1)
 						+ ", pull request #1",
-				"read back vibefix-dev/s6-hand-intermediary handover/s6-hand-2=" + shortSha(h2) + ", pull request #2",
+				"report 1 path [spike-s6/handover-2-",
+				"] workflows_changed=false, read back vibefix-dev/s6-hand-intermediary " + second + "=" + shortSha(h2)
+						+ ", pull request #2",
 				"#2 merge_method=merge sha=" + shortSha(h2) + ": merged=true commit=" + shortSha(merge),
 				"after #2 merged, #1 state=open merged=false; commented HTTP 201, closed HTTP 200, read back state=closed",
 				"logs kept (a Customer's run), read back with the Source App " + SpikeS6Stub.SOURCE + " vibefix/final-s6-hand="
@@ -853,9 +859,21 @@ class SpikeS6CommandTest {
 			assertThat(handover.path("ref").asString()).isEqualTo("main");
 			List<String> inputs = new ArrayList<>();
 			handover.path("inputs").properties().forEach(input -> inputs.add(input.getKey()));
-			assertThat(inputs).containsExactly("correlation", "exchange_url", "source_repository", "source_branch", "sha",
-					"target_repository", "target_branch");
+			assertThat(inputs).containsExactly("correlation", "exchange_url", "source_repository", "source_branch",
+					"from_sha", "sha", "target_repository", "target_branch");
 		}
+		// The first range starts where the Working Repository started, the second at the first Handover Commit.
+		assertThat(handovers.getFirst().path("inputs").path("from_sha").asString())
+			.isEqualTo(commits.get(commits.size() - 3));
+		assertThat(handovers.getFirst().path("inputs").path("target_branch").asString()).isEqualTo(first);
+		assertThat(handovers.getLast().path("inputs").path("from_sha").asString()).isEqualTo(h1);
+		assertThat(handovers.getLast().path("inputs").path("target_branch").asString()).isEqualTo(second);
+		assertThat(this.github.reported).hasSize(2);
+		assertThat(this.github.reported).allSatisfy(posted -> {
+			assertThat(posted.status()).as("the probe's exchange took the list").isEqualTo(204);
+			assertThat(posted.workflowsChanged()).isFalse();
+			assertThat(posted.paths()).hasSize(1);
+		});
 		JsonNode finalMerge = this.github.dispatches.getLast().path("inputs");
 		assertThat(finalMerge.path("operation").asString()).isEqualTo("final-merge");
 		assertThat(finalMerge.has("working")).isFalse();
@@ -900,21 +918,46 @@ class SpikeS6CommandTest {
 		assertThat(run("dev,cli", partC("s6-twice"))).isZero();
 		this.github.accept(SpikeS6Stub.CUSTOMER);
 		SpikeS6Stub.Repo intermediary = this.github.repository("vibefix-dev/s6-twice-intermediary");
-		intermediary.branches.put("handover/s6-twice-1", new ArrayList<>(intermediary.branches.get("main")));
+		intermediary.branches.put(SpikeS6Command.handoverBranch("s6-twice", 1),
+				new ArrayList<>(intermediary.branches.get("main")));
 		int dispatches = this.github.dispatches.size();
 		this.out.reset();
 
 		int exit = run("dev,cli", partC("s6-twice"));
 
 		assertThat(exit).as(output()).isOne();
-		assertThat(line(output(), "commit H1 on Working")).contains(" FAIL ",
-				"handover/s6-twice-1 exists on vibefix-dev/s6-twice-intermediary: part c already ran on s6-twice");
+		assertThat(line(output(), "commit H1 on Working")).contains(" FAIL ", SpikeS6Command.handoverBranch("s6-twice", 1)
+				+ " exists on vibefix-dev/s6-twice-intermediary: part c already ran on s6-twice");
 		assertThat(line(output(), "copy H1 to handover, pull request")).contains("SKIPPED");
 		assertThat(line(output(), "Final Merge on Customer's Actions")).contains("SKIPPED");
 		assertThat(this.github.dispatches).as("nothing is dispatched").hasSize(dispatches);
 		assertThat(this.github.repository("vibefix-dev/s6-twice-working").branches.get("main"))
 			.as("nothing is committed")
 			.isEqualTo(intermediary.branches.get("main"));
+	}
+
+	@Test
+	void aHandoverWhoseRangeChangesAWorkflowFileIsReportedAndNothingIsPushed() throws Exception {
+		assertThat(run("dev,cli", partB("s6-flows", null))).isZero();
+		assertThat(run("dev,cli", partC("s6-flows"))).isZero();
+		this.github.accept(SpikeS6Stub.CUSTOMER);
+		this.github.workflowsInTheRange = true;
+		this.out.reset();
+
+		int exit = run("dev,cli", partC("s6-flows"));
+
+		String output = output();
+		assertThat(exit).as(output + errors()).isOne();
+		assertThat(line(output, "copy H1 to handover, pull request")).contains(" FAIL ", "failure",
+				"report 1 path [spike-s6/handover-1-", "] workflows_changed=true");
+		assertThat(line(output, "commit H2, a child of H1")).contains("SKIPPED");
+		assertThat(errors()).contains("failed step 5 (Report the changed paths)");
+		assertThat(this.github.reported).singleElement()
+			.satisfies(posted -> assertThat(posted.status()).as("vibefix took the list all the same").isEqualTo(204));
+		assertThat(this.github.repository("vibefix-dev/s6-flows-intermediary").branches)
+			.as("the handover branch is never pushed")
+			.doesNotContainKey(SpikeS6Command.handoverBranch("s6-flows", 1));
+		assertEveryTokenRevokedAndNeverPrinted();
 	}
 
 	@Test

@@ -79,6 +79,8 @@ class GitHubActionsRuns implements ActionsRuns {
 
 	private final ExchangeCorrelations correlations;
 
+	private final ActionsReports reports;
+
 	private final AcceptedWorkflows accepted;
 
 	private final TransactionTemplate transactions;
@@ -91,15 +93,17 @@ class GitHubActionsRuns implements ActionsRuns {
 
 	@Autowired
 	GitHubActionsRuns(GitHubAppsClient apps, DispatchingApps dispatching, ExchangeCorrelations correlations,
-			PlatformTransactionManager transactionManager, Environment environment, Clock clock) {
-		this(apps, dispatching, correlations, transactionManager, environment, clock, Waits.GITHUB);
+			ActionsReports reports, PlatformTransactionManager transactionManager, Environment environment, Clock clock) {
+		this(apps, dispatching, correlations, reports, transactionManager, environment, clock, Waits.GITHUB);
 	}
 
 	GitHubActionsRuns(GitHubAppsClient apps, DispatchingApps dispatching, ExchangeCorrelations correlations,
-			PlatformTransactionManager transactionManager, Environment environment, Clock clock, Waits waits) {
+			ActionsReports reports, PlatformTransactionManager transactionManager, Environment environment, Clock clock,
+			Waits waits) {
 		this.apps = apps;
 		this.dispatching = dispatching;
 		this.correlations = correlations;
+		this.reports = reports;
 		this.accepted = new AcceptedWorkflows(apps.properties(), clock);
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.environment = environment;
@@ -188,6 +192,11 @@ class GitHubActionsRuns implements ActionsRuns {
 		recordQuietly(row.id(), "run read",
 				() -> this.correlations.runRead(row.id(), run.id(), run.htmlUrl(), run.conclusion(), run.marker()));
 		return Optional.of(run);
+	}
+
+	@Override
+	public Optional<Report> report(UUID correlation) {
+		return this.reports.find(correlation);
 	}
 
 	@Override

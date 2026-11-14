@@ -190,6 +190,10 @@ class RepoPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM repo.final_merge WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.source_confirmation WHERE product_id = :id").param("id", productId).update();
+		// Story 23.8a: a handover copy hangs from its Job, which the Setup rows name.
+		this.jdbc.sql("""
+				DELETE FROM repo.handover_copy WHERE job_id IN (SELECT job_id FROM repo.job_setup WHERE product_id = :id)
+				""").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}
 

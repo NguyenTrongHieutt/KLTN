@@ -34,6 +34,12 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * uploads nothing. The Customer's {@code scan} takes only its operation and correlation, skips the
  * exchange, runs a pinned gitleaks verified by its sha256 over the default branch's whole history with
  * gitleaks' default rules and the Secret Scan's three Vietnamese rules, and logs only its count.
+ * <p>
+ * Story 23.8a: the runner's copy takes the range's start too, pushes only a new {@code handover/<uuid>} branch,
+ * keeps the customer copy's fsck ignore list, and between its fetch and its push posts the full list of changed
+ * paths, gzipped and base64 encoded, with the {@code .github/workflows} check, to
+ * {@code POST /github/actions/report}; a workflow change ends the run before the push, and no path is ever
+ * printed.
  */
 class RunnerWorkflowsTest {
 
@@ -48,6 +54,9 @@ class RunnerWorkflowsTest {
 
 	/** The Secret Scan's rules, which the Customer's gitleaks scan ports three of. */
 	private static final Path RULES = Path.of("src", "main", "resources", "scanning", "rules.yaml");
+
+	/** One newline, so a script's own line breaks can be matched inside a Java string. */
+	private static final String NEW_LINE = String.valueOf((char) 10);
 
 	/** A {@code git} command: at the start of a line or after a separator, not inside a word like GIT_ASKPASS. */
 	private static final Pattern GIT = Pattern.compile("(?m)(^|[\\s;&|(])git\\s");
@@ -246,6 +255,45 @@ class RunnerWorkflowsTest {
 							+ "    echo \"::error::the push to $target failed (git exit $pushed)\"\n    exit 1\n  fi\n");
 	}
 
+	/**
+	 * Story 23.8a (FR-32, AD-11, AD-46): the runner's copy guards the target branch, lists every changed path with
+	 * rename detection off, checks {@code .github/workflows} with {@code git diff --quiet}, posts both with a fresh
+	 * ID token, and only then pushes; a workflow change ends the run first. No path reaches the log.
+	 */
+	@Test
+	void theRunnerReportsEveryChangedPathAndTheWorkflowsCheckBeforeItPushes() throws IOException {
+		List<Map<String, Object>> steps = steps(load(text(RUNNER)));
+		String check = String.valueOf(step(steps, "Check the inputs").get("run"));
+		String fetch = String.valueOf(step(steps, "Fetch the commit").get("run"));
+		String report = String.valueOf(step(steps, "Report the changed paths").get("run"));
+		String push = String.valueOf(step(steps, "Push the commit").get("run"));
+
+		assertThat(steps).extracting(step -> step.get("name"))
+			.containsExactly("Check the inputs", "Exchange the ID token", "Fetch the commit", "Report the changed paths",
+					"Push the commit", "Remove the credentials");
+		assertThat(check).as("only a new handover branch of one handover")
+			.contains("handover_re='^handover/[0-9a-f]{8}-", "[[ \"$TARGET_BRANCH\" =~ $handover_re ]]",
+					"[ \"$FROM_SHA\" != \"$SHA\" ]");
+		assertThat(fetch).as("the range's start is in the history, and the branch is new before anything is pushed")
+			.contains("merge-base --is-ancestor \"$FROM_SHA\" \"$SHA\"", "[ -z \"$existing\" ]");
+		assertThat(fetch).as("the copy keeps git's object checks with the customer copy's ignore list")
+			.contains("git -C \"$repository\" config transfer.fsckObjects true" + NEW_LINE,
+					"for message in zeroPaddedFilemode badDate badDateOverflow badTimezone missingSpaceBeforeDate; do",
+					"git_errors() { grep -v '^[[:space:]]*$' \"$1\" | sed 's/^/::error::/' || true; }" + NEW_LINE);
+		assertThat(report).as("the full list, renames off, NUL separated, gzipped and base64 encoded")
+			.contains("diff --no-renames --name-only -z \"$FROM_SHA\" \"$SHA\"", "gzip -9 -c", "base64 -w0",
+					"git -C \"$repository\" diff --quiet \"$FROM_SHA\" \"$SHA\" -- .github/workflows",
+					"\"$EXCHANGE_URL/github/actions/report\"", "::add-mask::$id_token")
+			.doesNotContain("cat \"$RUNNER_TEMP/paths", "--arg id_token");
+		assertThat(report.indexOf("if [ \"$changed\" = true ]; then")).as("a workflow change ends the run after the report")
+			.isGreaterThan(report.indexOf("\"$EXCHANGE_URL/github/actions/report\""));
+		assertThat(report).as("the run's own caps on the list").contains("[ \"$count\" -le 100000 ]", "-le 2097152");
+		String scripts = String.join(NEW_LINE, scripts(steps));
+		assertThat(scripts.indexOf("credential.helper= push")).as("nothing is pushed before the report")
+			.isGreaterThan(scripts.indexOf("\"$EXCHANGE_URL/github/actions/report\""));
+		assertThat(push).contains("\"$SHA:refs/heads/$TARGET_BRANCH\"", "| cut -f1)");
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { CUSTOMER, RUNNER })
 	void theJobIsBoundedWithOnlyThePermissionsItNeeds(String file) throws IOException {
@@ -292,8 +340,8 @@ class RunnerWorkflowsTest {
 
 		List<String> expected = file.equals(CUSTOMER)
 				? List.of("operation", "correlation", "exchange_url", "sha", "branch", "intermediary", "working")
-				: List.of("correlation", "exchange_url", "source_repository", "source_branch", "sha", "target_repository",
-						"target_branch");
+				: List.of("correlation", "exchange_url", "source_repository", "source_branch", "from_sha", "sha",
+						"target_repository", "target_branch");
 		// A scan needs only its operation, and a Customer may start one by hand: the other inputs are optional,
 		// and each job checks them.
 		Set<String> optional = file.equals(CUSTOMER)

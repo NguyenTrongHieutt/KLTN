@@ -1,5 +1,5 @@
-import { Check, TriangleAlert } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Check, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
@@ -12,8 +12,14 @@ import { SensitiveDialog } from '@/features/work/SensitiveDialog'
 import type { SensitiveMatch } from '@/features/work/workApi'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
-import { isNotFound, problemMessage } from '@/lib/problemMessage'
-import { useHandOver, useHandoverPreflight, type HandoverPreflight } from './deliveryApi'
+import { isNotFound, problemMessage, reasonMessage, sentence } from '@/lib/problemMessage'
+import {
+  useHandOver,
+  useHandoverPreflight,
+  useHandoverSubmission,
+  type HandoverPreflight,
+  type HandoverSubmission,
+} from './deliveryApi'
 import { EvidenceFields } from './HandoverEvidence'
 import { NO_EVIDENCE, evidenceBody, evidenceReady, type Evidence } from './evidenceRules'
 import { SensitiveChangeList } from './SensitiveChangeList'
@@ -21,6 +27,17 @@ import { SensitiveChangeList } from './SensitiveChangeList'
 interface Mark {
   met?: boolean
   note: string
+}
+
+/**
+ * Why the copy was refused, in the module's own words: the submission names the module its reason belongs to
+ * (AD-23), and a reason the catalog has no text for reads as the plain fallback, never as a code.
+ */
+function refusal(submission: HandoverSubmission): string {
+  const own = submission.reason && submission.reasonModule
+    ? reasonMessage(submission.reasonModule, submission.reason)
+    : undefined
+  return own ? sentence(own) : t('screen.handover.form.copyFailed')
 }
 
 /**
@@ -56,6 +73,11 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({})
   const [error, setError] = useState<string>()
   const [matches, setMatches] = useState<SensitiveMatch[]>()
+  // Story 23.8a: a Code Job's handover waits while the runner copies it, so the form reads its submission.
+  const [copying, setCopying] = useState<string>()
+  const submission = useHandoverSubmission(jobId, copying !== undefined)
+  // Only this send's own submission decides: an earlier one the cache still holds is not it.
+  const copied = copying !== undefined && submission.data?.id === copying ? submission.data : undefined
   const [evidence, setEvidence] = useState<Evidence>(() => ({
     ...NO_EVIDENCE,
     screenshotIds: preflight.screenshots.slice(0, 5).map((upload) => upload.fileId),
@@ -69,8 +91,25 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const ready =
     preflight.problems.length === 0 && criteriaReady && itemsReady && evidenceReady(evidence, preflight.previewRequired)
 
+  // The copy is over when this send's submission is no longer pending; a refusal names its reason inline.
+  const waiting = copying !== undefined && !submission.isError && (copied === undefined || copied.state === 'PENDING')
+  const notCopied = copied?.state === 'REFUSED' ? t('screen.handover.form.notCopied', { reason: refusal(copied) }) : undefined
+  const unread = copying !== undefined && submission.isError ? t('screen.handover.form.notRead') : undefined
+
+  // Told and opened once per submission, however often the read answers while the route changes.
+  const opened = useRef<string>(undefined)
+  useEffect(() => {
+    if (copied?.state !== 'DONE' || !copied.handoverId || opened.current === copied.id) {
+      return
+    }
+    opened.current = copied.id
+    toasts.success(t('screen.handover.form.sent', { n: copied.number }))
+    void navigate(`/cong-viec/${jobId}/ban-giao/${copied.handoverId}`)
+  }, [copied, jobId, navigate, toasts])
+
   const send = (sensitive: 'CHECK' | 'MASK') => {
     setError(undefined)
+    setCopying(undefined)
     handOver.mutate(
       {
         milestoneId: preflight.milestone.milestoneId,
@@ -85,10 +124,15 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
         ...evidenceBody(evidence),
       },
       {
-        onSuccess: (report) => {
+        onSuccess: (sent) => {
           setMatches(undefined)
-          toasts.success(t('screen.handover.form.sent', { n: report.number }))
-          void navigate(`/cong-viec/${jobId}/ban-giao/${report.id}`)
+          if (sent.state === 'DONE' && sent.handoverId) {
+            toasts.success(t('screen.handover.form.sent', { n: sent.number }))
+            void navigate(`/cong-viec/${jobId}/ban-giao/${sent.handoverId}`)
+            return
+          }
+          // The read is enabled by this state, so it starts on its own: one fetch per poll, no extra one here.
+          setCopying(sent.id)
         },
         onError: (failure) => {
           if (failure instanceof ApiError && failure.problem.reason === 'SENSITIVE_CONTENT') {
@@ -262,7 +306,25 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
         {!ready && preflight.problems.length === 0 && (
           <p className="text-caption text-muted-foreground">{t('screen.handover.form.incomplete')}</p>
         )}
-        <Button type="button" disabled={!ready || handOver.isPending} onClick={() => send('CHECK')}>
+        {waiting && (
+          <p role="status" aria-live="polite" className="flex items-center gap-2 text-body-sm text-muted-foreground">
+            <LoaderCircle
+              aria-hidden="true"
+              className="size-4 shrink-0 animate-spin text-primary motion-reduce:animate-none"
+            />
+            {t('screen.handover.form.copying', { n: preflight.milestone.number })}
+          </p>
+        )}
+        {(notCopied ?? unread) && (
+          <p
+            role="alert"
+            className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-3 text-body-sm"
+          >
+            <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
+            {notCopied ?? unread}
+          </p>
+        )}
+        <Button type="button" disabled={!ready || waiting || handOver.isPending} onClick={() => send('CHECK')}>
           {t('screen.handover.form.send')}
         </Button>
       </div>

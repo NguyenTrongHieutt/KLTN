@@ -11,9 +11,13 @@
  * it is reminded twice and then accepted automatically by a pausable Deadline (FR-35, AD-7).
  * <p>
  * A Code Job's handover (Story 8.2) needs at least one commit since the previous Handover Commit, and no
- * change under {@code .github/workflows/}; vibefix scans no code (Story 23.1). {@code repo} pins the
- * Handover Commit on {@code handover/{handoverId}} with the System's pull request before M2, and the
- * Delivery Report lists the Sensitive Changes, the Pages updated, and the commits (AD-11, AD-33).
+ * change under {@code .github/workflows/}; vibefix scans no code (Story 23.1). Since Story 23.8a it is
+ * asynchronous: "Gửi bàn giao" keeps the checked handover pending and {@code repo} copies the Handover
+ * Commit to {@code handover/{id}} of the Intermediary on the runner's GitHub Actions, which reports every path
+ * the range changed and whether {@code .github/workflows/} differs. Only then does M2 apply, with the Sensitive
+ * Changes classified from that full list; a refused copy, or a list that cannot be read, ends the submission with
+ * a named reason and records no handover. The Delivery Report lists the Sensitive Changes, the Pages updated, and
+ * the commits (AD-11, AD-33, AD-46).
  * <p>
  * After an Assessment's acceptance the Mentor drafts follow-up Jobs from the Report's numbered
  * recommendations, which the Customer opens as Draft Job Posts or discards (FR-11).

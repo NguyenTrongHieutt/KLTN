@@ -27,7 +27,9 @@ import vn.vibefix.shared.PersonalDataSection;
  * an account clears it as the handover's Mentor or decider (the handover stays, without a person);
  * deleting a Product deletes its handovers. A Mentor's screenshot uploads are theirs (Story 8.3): erasure
  * deletes those no handover carries and clears them as uploader of the others; deleting a Product deletes
- * them all, files included. A running Job blocks erasure through {@code job}.
+ * them all, files included. A handover submission is working state while the runner copies it (Story 23.8a): its
+ * draft names the Mentor and the Customer, so an erasure and a Product deletion both delete the row whole, and a
+ * retirement does too. A running Job blocks erasure through {@code job}.
  * <p>
  * While a Milestone Split of a Job is not final, its Handover Commit authors stay as evidence a Split Resolution reads,
  * with the handover rows they hang from (AD-24, A-01): the rest goes, a row in {@code delivery.split_deferral} says what
@@ -55,7 +57,8 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
 				"delivery.handover_check", "delivery.follow_up", "delivery.handover_commit", "delivery.handover_sensitive_change",
-				"delivery.handover_page", "delivery.handover_screenshot", "delivery.handover_acceptance");
+				"delivery.handover_page", "delivery.handover_screenshot", "delivery.handover_acceptance",
+				"delivery.handover_submission");
 	}
 
 	@Override
@@ -135,6 +138,10 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE delivery.follow_up SET mentor_account_id = NULL WHERE mentor_account_id = :id")
 			.param("id", accountId)
 			.update();
+		// A submission is working state (Story 23.8a): its draft names the Mentor and the Customer, so it goes whole.
+		this.jdbc.sql("""
+				DELETE FROM delivery.handover_submission WHERE mentor_account_id = :id OR customer_account_id = :id
+				""").param("id", accountId).update();
 	}
 
 	@Override
@@ -160,6 +167,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		Set<UUID> open = this.splits.openSplitJobs(productId);
 		open.forEach(job -> defer(job, productId, waiting));
 		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM delivery.handover_submission WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id")
 			.param("id", productId)
 			.query(UUID.class)

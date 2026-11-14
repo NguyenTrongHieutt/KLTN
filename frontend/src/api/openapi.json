@@ -136,7 +136,7 @@
     },
     "/api/v1/admin/abuse-reports/{reportId}" : {
       "get" : {
-        "operationId" : "report",
+        "operationId" : "report_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "reportId",
@@ -2750,15 +2750,15 @@
           "required" : true
         },
         "responses" : {
-          "201" : {
+          "202" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/DeliveryReportView"
+                  "$ref" : "#/components/schemas/HandoverSubmissionView"
                 }
               }
             },
-            "description" : "Created"
+            "description" : "Accepted"
           }
         },
         "tags" : [ "handover-controller" ]
@@ -2902,6 +2902,33 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
+    "/api/v1/boards/{boardId}/handovers/submission" : {
+      "get" : {
+        "operationId" : "submission",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "boardId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandoverSubmissionView"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "handover-controller" ]
@@ -8716,6 +8743,17 @@
         "tags" : [ "actions-exchange-controller" ]
       }
     },
+    "/github/actions/report" : {
+      "post" : {
+        "operationId" : "report",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "actions-report-controller" ]
+      }
+    },
     "/webhooks" : {
       "post" : {
         "operationId" : "webhook",
@@ -13667,6 +13705,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "sensitiveChangeCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "sensitiveChanges" : {
             "type" : "array",
             "items" : {
@@ -13681,7 +13723,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "commits", "handoverCommit", "pages", "pullNumber", "sensitiveChanges", "truncated", "unattributed" ]
+        "required" : [ "commits", "handoverCommit", "pages", "pullNumber", "sensitiveChangeCount", "sensitiveChanges", "truncated", "unattributed" ]
       },
       "HandoverCommitView" : {
         "type" : "object",
@@ -14101,6 +14143,41 @@
           }
         },
         "required" : [ "fileId", "fileName", "size" ]
+      },
+      "HandoverSubmissionView" : {
+        "type" : "object",
+        "properties" : {
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jobId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "milestoneId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "reasonModule" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "jobId", "milestoneId", "number", "state" ]
       },
       "HandoverSummaryView" : {
         "type" : "object",

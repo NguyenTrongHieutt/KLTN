@@ -10,6 +10,10 @@ export type HandoverRequest = components['schemas']['HandoverRequest']
 export type DeliveryReport = components['schemas']['DeliveryReportView']
 export type HandoverScreenshot = components['schemas']['HandoverScreenshotView']
 export type PreviewCheck = components['schemas']['PreviewCheckView']
+export type HandoverSubmission = components['schemas']['HandoverSubmissionView']
+
+/** How often the form reads the submission again while the runner copies the handover (Story 23.8a). */
+const SUBMISSION_POLL_MS = 3_000
 
 /** JOB-5's list of the Job's handovers (FR-32); a Board's ID is its Job's. */
 export function useHandovers(jobId: string | undefined) {
@@ -33,20 +37,41 @@ export function useHandoverPreflight(jobId: string | undefined) {
   })
 }
 
-/** "Gửi bàn giao": M2 on the loaded Job version (AD-23); it refreshes the list, JOB-1, and the to-dos. */
+/**
+ * "Gửi bàn giao" on the loaded Job version (AD-23). It answers 202 with the submission: an Assessment Job's
+ * is done at once, and a Code Job's waits while the runner copies the Handover Commit (Story 23.8a). It
+ * refreshes the list, JOB-1, the to-dos, and the busy marker the copy sets.
+ */
 export function useHandOver(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: HandoverRequest) =>
       unwrap(apiClient.POST('/api/v1/boards/{boardId}/handovers', { params: { path: { boardId: jobId } }, body })),
-    onSuccess: async (report) => {
-      queryClient.setQueryData(['handover', report.id], report)
+    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['handovers', jobId] }),
         queryClient.invalidateQueries({ queryKey: ['progress', jobId] }),
+        queryClient.invalidateQueries({ queryKey: busyKey(jobId) }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
       ])
     },
+  })
+}
+
+/**
+ * The Job's latest handover submission, read again every 3 s while the runner copies it (Story 23.8a); the form
+ * that sent it waits here for the handover, or for the reason the copy was refused.
+ */
+export function useHandoverSubmission(jobId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['handovers', jobId, 'submission'],
+    queryFn: () =>
+      unwrap(apiClient.GET('/api/v1/boards/{boardId}/handovers/submission', { params: { path: { boardId: jobId } } })),
+    enabled,
+    retry: 2,
+    // While the read has no answer yet, or its answer is pending: a failed read is shown and tried again.
+    refetchInterval: (query) =>
+      query.state.data === undefined || query.state.data.state === 'PENDING' ? SUBMISSION_POLL_MS : false,
   })
 }
 

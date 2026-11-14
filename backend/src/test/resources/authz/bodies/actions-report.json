@@ -1,0 +1,2 @@
+{"_why": "Story 23.8a: three of the five fields a run posts, so the shape check refuses every caller alike (REPORT) before any ID token is verified; paths and count are left out on purpose.",
+ "id_token": "not-an-id-token", "correlation": "no-correlation-at-all", "workflows_changed": false}

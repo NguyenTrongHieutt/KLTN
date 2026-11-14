@@ -843,6 +843,24 @@ class CrossRoleIT extends IntegrationTest {
 					    :at, :at)
 					""").param("id", handover).param("job", this.job).param("product", product).param("milestone", milestone)
 				.param("mentor", mentor).param("transition", UUID.randomUUID()).param("at", written).update();
+			// Story 23.8a: the submission that handover was recorded under, which the Mentor alone reads back. It
+			// is DONE, as a recorded handover's is, and carries the handover's own ID: nothing is being copied, so
+			// the form's own checks are what they were. Its view holds IDs, a state and a number, no canary.
+			String draft = """
+					{"id":"%s","jobId":"%s","productId":"%s","customerId":"%s","mentorId":"%s","version":5,
+					 "milestoneId":"%s","milestoneNumber":2,"milestoneTitle":"Sửa lỗi trùng giờ",
+					 "criteria":[],"itemNotes":[],"screenshotIds":[]}
+					""".formatted(handover, this.job, product, customer, mentor, milestone);
+			jdbc.sql("""
+					INSERT INTO delivery.handover_submission (id, job_id, product_id, milestone_id, milestone_number,
+					    mentor_account_id, customer_account_id, job_version, range_start, handover_commit, draft, status,
+					    created_at, finished_at)
+					VALUES (:id, :job, :product, :milestone, 2, :mentor, :customer, 5, :from, :commit, CAST(:draft AS JSONB),
+					    'DONE', :at, :at)
+					""").param("id", handover).param("job", this.job).param("product", product)
+				.param("milestone", milestone).param("mentor", mentor).param("customer", customer)
+				.param("from", "1f".repeat(20)).param("commit", "2e".repeat(20)).param("draft", draft)
+				.param("at", written).update();
 			// No follow-up: only an Assessment's accepted Report has them (FR-11), and no read names one (G9).
 			UUID changeRequest = UUID.randomUUID();
 			jdbc.sql("""

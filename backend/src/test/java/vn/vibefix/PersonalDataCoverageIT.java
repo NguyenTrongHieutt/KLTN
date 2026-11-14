@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -584,6 +585,33 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'RELEASE'")).isEqualTo(2);
 	}
 
+	/**
+	 * Story 23.8a: a handover submission is working state whose draft names the Mentor and the Customer, so an
+	 * erasure of either deletes the row whole, and a Product deletion takes it with the copy it asked {@code repo}
+	 * for, which hangs from the Job's Setup.
+	 */
+	@Test
+	void anErasureAndAProductDeletionTakeAHandoverSubmissionAndItsCopy() {
+		HeldCrewJob world = closedJob();
+		submissionAndCopy(world, world.hung(), world.lan());
+		submissionAndCopy(world, world.hung(), world.lan());
+
+		assertThat(count("SELECT count(*) FROM delivery.handover_submission")).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM repo.handover_copy")).isEqualTo(2);
+		assertThat(erase(world.lan())).isInstanceOf(ErasureOutcome.Erased.class);
+		assertThat(count("SELECT count(*) FROM delivery.handover_submission")).as("the Customer's go whole").isZero();
+
+		submissionAndCopy(world, world.hung(), null);
+		assertThat(erase(world.hung())).isInstanceOf(ErasureOutcome.Erased.class);
+		assertThat(count("SELECT count(*) FROM delivery.handover_submission")).as("and so do the Mentor's").isZero();
+
+		submissionAndCopy(world, null, null);
+		this.transactions.executeWithoutResult(status -> this.personalData.deleteProduct(world.product()));
+
+		assertThat(count("SELECT count(*) FROM delivery.handover_submission")).isZero();
+		assertThat(count("SELECT count(*) FROM repo.handover_copy")).isZero();
+	}
+
 	/** What a split's evidence hangs from, and the stored files of what waits and of what does not. */
 	private record Evidence(UUID item, UUID handover, UUID crewChatFile, UUID attachmentFile, UUID jobChatFile, UUID screenshotFile) {
 	}
@@ -712,6 +740,46 @@ class PersonalDataCoverageIT extends IntegrationTest {
 				.as(table)
 				.isEqualTo(world.job() + ":" + world.product() + ":" + waiting);
 		}
+	}
+
+	/**
+	 * One pending handover submission of the Job and the copy it asked {@code repo} for, which the Job's Setup row
+	 * names (Story 23.8a). The draft is left empty: what it holds is covered by the handover's own rows.
+	 */
+	private void submissionAndCopy(HeldCrewJob world, @Nullable UUID mentor, @Nullable UUID customer) {
+		UUID submission = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_submission (id, job_id, product_id, milestone_id, milestone_number,
+				    mentor_account_id, customer_account_id, job_version, range_start, handover_commit, draft, status,
+				    created_at, finished_at)
+				VALUES (:id, :job, :product, :milestone, 1, :mentor, :customer, 5, :from, :commit, '{}'::JSONB, 'DONE',
+				    now(), now())
+				""")
+			.param("id", submission)
+			.param("job", world.job())
+			.param("product", world.product())
+			.param("milestone", world.milestone())
+			.param("mentor", mentor)
+			.param("customer", customer)
+			.param("from", "1f".repeat(20))
+			.param("commit", "2e".repeat(20))
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, started_at)
+				VALUES (:id, :job, :product, 'CONFIRMING', now())
+				ON CONFLICT DO NOTHING
+				""").param("id", UUID.randomUUID()).param("job", world.job()).param("product", world.product()).update();
+		this.jdbc.sql("""
+				INSERT INTO repo.handover_copy (operation_key, submission_id, job_id, from_sha, handover_commit, pull_title,
+				    pull_body, status, pull_number, requested_at, finished_at)
+				VALUES (:key, :submission, :job, :from, :commit, 'Bàn giao', 'Nội dung', 'DONE', 7, now(), now())
+				""")
+			.param("key", "repo.handover_copy:" + submission)
+			.param("submission", submission)
+			.param("job", world.job())
+			.param("from", "1f".repeat(20))
+			.param("commit", "2e".repeat(20))
+			.update();
 	}
 
 	private void assertNoDeferrals() {

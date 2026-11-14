@@ -1966,6 +1966,22 @@ GET /api/v1/boards/{boardId}/handovers/preflight,CREW_FORMER,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/preflight,CROSS_ROLE,,,403 FORBIDDEN MENTOR_ONLY
 GET /api/v1/boards/{boardId}/handovers/preflight,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers/preflight,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
+
+# Story 23.8a (FR-32, AD-46): the Job's latest handover submission, which the Mentor's form reads while the runner
+# copies the Handover Commit. Only the Mentor reads it, and the matrix world has none, so their row finds nothing.
+GET /api/v1/boards/{boardId}/handovers/submission,ANONYMOUS,,,401
+GET /api/v1/boards/{boardId}/handovers/submission,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,USER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,LOCKED,,,401
+GET /api/v1/boards/{boardId}/handovers/submission,CUSTOMER,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,MENTOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,BIDDER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_ACTIVE,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CROSS_ROLE,,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/handovers,ANONYMOUS,,handover.json,401
 POST /api/v1/boards/{boardId}/handovers,USER_UNVERIFIED,,handover.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/handovers,USER,,handover.json,404 NOT_FOUND
@@ -2594,6 +2610,16 @@ POST /github/actions/exchange,USER,,actions-exchange.json,403 FORBIDDEN SIGNATUR
 POST /github/actions/exchange,CUSTOMER,,actions-exchange.json,403 FORBIDDEN SIGNATURE
 POST /github/actions/exchange,ADMINISTRATOR,,actions-exchange.json,403 FORBIDDEN SIGNATURE
 POST /github/actions/exchange,ACTIONS_RUN,,actions-exchange.json,403 FORBIDDEN SIGNATURE
+
+# Story 23.8a (AD-11, AD-44): the handover copy's path report takes no session and no CSRF token either. A row's
+# body holds no path list, so every caller is refused alike before any token is verified; CodeHandoverIT runs a
+# genuine run's report end to end.
+POST /github/actions/report,ANONYMOUS,,actions-report.json,403 FORBIDDEN REPORT
+POST /github/actions/report,USER_UNVERIFIED,,actions-report.json,403 FORBIDDEN REPORT
+POST /github/actions/report,USER,,actions-report.json,403 FORBIDDEN REPORT
+POST /github/actions/report,CUSTOMER,,actions-report.json,403 FORBIDDEN REPORT
+POST /github/actions/report,ADMINISTRATOR,,actions-report.json,403 FORBIDDEN REPORT
+POST /github/actions/report,ACTIONS_RUN,,actions-report.json,403 FORBIDDEN REPORT
 
 # Story 7.2 (UX-DR23, AD-11): the step tracker; the Customer reads it on the Draft, and the crew Job's Customer,
 # Mentor and ACTIVE members on the crew Job (job=crew); "Thử lại" needs a blocked Setup. Story 23.6b (R4, UX-DR114): the

@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -90,9 +91,13 @@ import vn.vibefix.github.PlatformRepositories;
  * own run's report, not evidence the platform checked;</li>
  * <li>{@code c}: the Customer invited to the Intermediary with {@code pull} (a pending invitation stops
  * the run: "accept, then run again", exit 0), the permissions read back, two Contents-API commits on the
- * Working Repository each copied by the runner to {@code handover/{prefix}-n} with a pull request, the
- * second merged at its commit, the first one's state, and the Final Merge brought back by the Customer's
- * Actions as {@code vibefix/final-{prefix}}, read back with the Source App.</li>
+ * Working Repository each copied by the runner to a new {@code handover/<uuid>} branch with a pull
+ * request, the second merged at its commit, the first one's state, and the Final Merge brought back by
+ * the Customer's Actions as {@code vibefix/final-{prefix}}, read back with the Source App. Since Story
+ * 23.8a each copy is dispatched with {@code from_sha}, where the handover's range starts (the commit the
+ * Working Repository started from, then the first Handover Commit), and the run posts the paths that
+ * range changes to the probe's own {@code POST /github/actions/report} before it pushes: what that
+ * report said is printed beside the branch it read back.</li>
  * </ul>
  * <b>Tokens.</b> Every token the probe mints is for one check or one run, and revoked after it through
  * {@code DELETE /installation/token}, whose answer is read: anything but 204 is printed ("token not
@@ -450,6 +455,9 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		@Nullable Ran j7;
 
 		boolean invitationPending;
+
+		/** Where the first handover's range starts: the commit the Working Repository started from. */
+		@Nullable String base;
 
 		@Nullable String h1;
 
@@ -1422,6 +1430,7 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 			boolean made = put.status() == 201 && SHA.matcher(sha).matches();
 			if (made && handover == 1) {
 				state.h1 = sha;
+				state.base = parent;
 			}
 			else if (made) {
 				state.h2 = sha;
@@ -1435,9 +1444,10 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 	}
 
 	/**
-	 * Copies H{@code n} to {@code handover/{prefix}-n} of the Intermediary with the runner's
-	 * {@value #COPY_WORKFLOW}, its token narrowed to the Working and Intermediary Repositories, reads the
-	 * branch back, and opens its pull request.
+	 * Copies H{@code n} to this handover's new {@code handover/<uuid>} branch of the Intermediary with the
+	 * runner's {@value #COPY_WORKFLOW}, its token narrowed to the Working and Intermediary Repositories: the run
+	 * posts the paths of {@code from_sha..sha} to the probe's exchange before it pushes, and the probe reads the
+	 * branch back, prints what the report said, and opens the pull request.
 	 */
 	private Check handover(int number, String name, int handover, String prefix, String organization, String runnerName,
 			String exchangeUrl, Inputs inputs, OidcExchange exchange, State state) {
@@ -1445,28 +1455,37 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		Repo working = state.working;
 		Repo intermediary = state.intermediary;
 		String sha = handover == 1 ? state.h1 : state.h2;
+		// The range the handover hands over: the Working Repository's first commit, then the first Handover Commit.
+		String from = handover == 1 ? state.base : state.h1;
 		String branch = handoverBranch(prefix, handover);
 		String correlation = correlation("handover-" + handover);
+		// AD-11: the copy only ever opens a new branch, so the workflow is dispatched for one that is not there.
+		if (!head(intermediary, branch).isEmpty()) {
+			return new Check(number, name, Outcome.FAIL, 200, branch + " exists on " + intermediary.fullName()
+					+ " already: nothing is dispatched");
+		}
 		Map<String, String> workflowInputs = new LinkedHashMap<>();
 		workflowInputs.put("correlation", correlation);
 		workflowInputs.put("exchange_url", exchangeUrl);
 		workflowInputs.put("source_repository", working.fullName());
 		workflowInputs.put("source_branch", working.defaultBranch());
+		workflowInputs.put("from_sha", from);
 		workflowInputs.put("sha", sha);
 		workflowInputs.put("target_repository", intermediary.fullName());
 		workflowInputs.put("target_branch", branch);
 		Ran ran = runWorkflow(where, DISPATCH_REF, correlation, workflowInputs,
 				new OidcExchange.Grant(Set.of(working.id(), intermediary.id()), COPY_PERMISSIONS), exchange);
 		state.timings.add("handover-" + handover, ran);
+		String reported = reported(exchange, correlation);
 		if (!ran.ok()) {
-			return new Check(number, name, Outcome.FAIL, ran.status(), ran.describe());
+			return new Check(number, name, Outcome.FAIL, ran.status(), ran.describe() + ", " + reported);
 		}
 		String head = head(intermediary, branch);
 		if (!sha.equals(head)) {
-			return new Check(number, name, Outcome.FAIL, ran.status(), ran.describe() + ", read back " + intermediary.fullName()
-					+ " " + branch + "=" + shortSha(head) + " instead of " + shortSha(sha));
+			return new Check(number, name, Outcome.FAIL, ran.status(), ran.describe() + ", " + reported + ", read back "
+					+ intermediary.fullName() + " " + branch + "=" + shortSha(head) + " instead of " + shortSha(sha));
 		}
-		StringBuilder detail = new StringBuilder(ran.describe()).append(", read back ")
+		StringBuilder detail = new StringBuilder(ran.describe()).append(", ").append(reported).append(", read back ")
 			.append(intermediary.fullName())
 			.append(' ')
 			.append(branch)
@@ -1500,6 +1519,17 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		boolean ok = opened.status() == 201 && pull > 0;
 		detail.append(ok ? ", pull request #" + pull : ", pull request refused: " + message(opened));
 		return new Check(number, name, ok ? Outcome.OK : Outcome.FAIL, opened.status(), detail.toString());
+	}
+
+	/**
+	 * The path report the run posted (FR-32), as the probe's own exchange took it: the range's paths are the
+	 * files the probe committed itself, so naming them here tells the author the run read the right range.
+	 */
+	private static String reported(OidcExchange exchange, String correlation) {
+		return exchange.reported(correlation)
+			.map(report -> "report " + report.count() + (report.count() == 1 ? " path " : " paths ") + report.paths()
+					+ " workflows_changed=" + report.workflowsChanged())
+			.orElse("no path report");
 	}
 
 	private GitHubHttp.Answer openPull(Repo intermediary, Map<String, String> permissions, Map<String, Object> request) {
@@ -2371,8 +2401,11 @@ class SpikeS6Command implements ApplicationRunner, ExitCodeGenerator {
 		return kind + "-" + HEX.formatHex(bytes);
 	}
 
-	private static String handoverBranch(String prefix, int handover) {
-		return "handover/" + prefix + "-" + handover;
+	static String handoverBranch(String prefix, int handover) {
+		// The workflow takes handover/<uuid> alone (AD-11), so the name is the UUID of this prefix's handover:
+		// the same on every run of one prefix, which is how a part c run twice is caught before it dispatches.
+		return "handover/"
+				+ UUID.nameUUIDFromBytes(("spike-s6:" + prefix + ":" + handover).getBytes(StandardCharsets.UTF_8));
 	}
 
 	private void sleep(Duration duration) {

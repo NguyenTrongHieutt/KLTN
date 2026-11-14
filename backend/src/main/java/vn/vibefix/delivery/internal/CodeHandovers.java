@@ -5,14 +5,11 @@ import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
-import vn.vibefix.delivery.internal.Handovers.Code;
 import vn.vibefix.delivery.internal.Handovers.Draft;
-import vn.vibefix.delivery.internal.Handovers.Handover;
+import vn.vibefix.delivery.internal.Handovers.Pending;
 import vn.vibefix.repo.HandoverBranches;
 import vn.vibefix.repo.HandoverBranches.Range;
 import vn.vibefix.repo.HandoverBranches.Unavailable;
@@ -24,11 +21,14 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * A Code Job's handover on GitHub (FR-32, AD-11, AD-18), outside any transaction: the Working
- * Repository's head read back, its range from the previous Handover Commit (or the commit Setup copied),
- * and the checks it must pass. "Gửi bàn giao" checks again on the live head, pins that commit through
- * {@code repo}, and only then lets {@link Handovers#record} apply M2; if that fails, the pull request is
- * closed again.
+ * A Code Job's handover on GitHub (FR-32, AD-11, AD-18, Story 23.8a), outside any transaction: the Working
+ * Repository's head read back, its range from the previous Handover Commit (or the commit Setup copied), and
+ * the checks the form shows. GitHub's compare lists at most 300 changed files, so what it says about
+ * {@code .github/workflows/} is a hint on the form; the copy run itself lists every path with full history and
+ * checks the folder with {@code git diff --quiet}, and its report decides (N-16).
+ * <p>
+ * "Gửi bàn giao" checks again on the live head and keeps the handover pending ({@link HandoverSubmissions}): the
+ * runner copies the Handover Commit, and only then is the handover recorded with M2. Nothing is pushed here.
  */
 @Component
 class CodeHandovers {
@@ -43,19 +43,21 @@ class CodeHandovers {
 			List<String> problems) {
 	}
 
-	private static final Logger log = LoggerFactory.getLogger(CodeHandovers.class);
-
 	private final HandoverBranches branches;
 
 	private final Handovers handovers;
+
+	private final HandoverSubmissions submissions;
 
 	private final SensitiveChanges sensitiveChanges;
 
 	private final IdGenerator ids;
 
-	CodeHandovers(HandoverBranches branches, Handovers handovers, SensitiveChanges sensitiveChanges, IdGenerator ids) {
+	CodeHandovers(HandoverBranches branches, Handovers handovers, HandoverSubmissions submissions,
+			SensitiveChanges sensitiveChanges, IdGenerator ids) {
 		this.branches = branches;
 		this.handovers = handovers;
+		this.submissions = submissions;
 		this.sensitiveChanges = sensitiveChanges;
 		this.ids = ids;
 	}
@@ -63,6 +65,10 @@ class CodeHandovers {
 	/** The checks of the next handover of the Job, on its head as GitHub shows it now. */
 	Check check(UUID jobId) {
 		List<String> problems = new ArrayList<>();
+		if (this.submissions.copying(jobId)) {
+			// One copy at a time: the Job is busy until the runner's run ends (AD-28).
+			return new Check(null, null, null, List.of(), List.of(DeliveryReason.HANDOVER_COPYING.name()));
+		}
 		WorkingHead head;
 		try {
 			head = this.branches.working(jobId).orElse(null);
@@ -91,55 +97,31 @@ class CodeHandovers {
 		}
 		List<SensitiveChange> sensitive = this.sensitiveChanges.classify(range.paths());
 		if (range.paths().stream().anyMatch(SensitiveChanges::workflow)) {
+			// The hint from the compare; the copy run's own check is what refuses the handover.
 			problems.add(DeliveryReason.WORKFLOW_FILES_CHANGED.name());
-		}
-		else {
-			// GitHub lists at most 300 changed files, so the folder's tree at both ends decides (AD-18).
-			try {
-				if (this.branches.pathChanged(jobId, start, head.headSha(), SensitiveChanges.WORKFLOWS_DIRECTORY)) {
-					problems.add(DeliveryReason.WORKFLOW_FILES_CHANGED.name());
-				}
-			}
-			catch (Unavailable unavailable) {
-				log.warn("The workflows folder of Job {} was not read", jobId, unavailable);
-				problems.add(DeliveryReason.REPOSITORY_UNREADABLE.name());
-			}
 		}
 		return new Check(head, start, range, sensitive, problems);
 	}
 
 	/**
-	 * "Gửi bàn giao" for a Code Job: the drafted handover, checked again on the live head, pinned, then
-	 * recorded with M2.
-	 * @throws ApiException {@code GUARD_FAILED} with the first of the check's problems, or
-	 * {@code REPOSITORY_UNREADABLE} when the pin fails; and {@link Handovers#record}'s refusals
+	 * "Gửi bàn giao" for a Code Job: the drafted handover, checked again on the live head, kept pending, and the
+	 * copy asked for on the runner. No handover exists until the copy ends.
+	 * @return the submission, which is the handover's own ID once it is recorded
+	 * @throws ApiException {@code GUARD_FAILED} with the first of the check's problems; and the busy marker's
+	 * refusals ({@code JOB_BUSY}, {@code STALE}, {@code CONFLICT JOB_FROZEN})
 	 */
-	Handover handOver(Viewer mentor, Draft draft, long version) {
+	UUID handOver(Viewer mentor, Draft draft, long version) {
 		UUID jobId = mentor.job().jobId();
 		Check check = check(jobId);
 		List<String> problems = check.problems();
-		if (!problems.isEmpty() || check.head() == null || check.range() == null) {
+		if (!problems.isEmpty() || check.head() == null || check.range() == null || check.rangeStart() == null) {
 			String reason = problems.isEmpty() ? DeliveryReason.REPOSITORY_UNREADABLE.name() : problems.get(0);
 			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.valueOf(reason));
 		}
-		UUID id = this.ids.newId();
-		String commit = check.head().headSha();
-		int pull;
-		try {
-			pull = this.branches.pin(jobId, id, commit,
-					"Bàn giao Giai đoạn " + draft.milestone().number() + ": " + draft.milestone().title());
-		}
-		catch (Unavailable unavailable) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.REPOSITORY_UNREADABLE);
-		}
-		try {
-			return this.handovers.record(mentor, draft, version, id, new Code(commit, check.rangeStart(), pull,
-					check.range().commits(), check.range().truncated(), check.sensitive()));
-		}
-		catch (RuntimeException refused) {
-			this.branches.unpin(jobId, pull);
-			throw refused;
-		}
+		Pending pending = Pending.of(mentor, draft, version, this.ids.newId());
+		return this.submissions.submit(pending, check.rangeStart(), check.head().headSha(),
+				"Bàn giao Giai đoạn " + pending.milestoneNumber() + ": " + pending.milestoneTitle(),
+				"Bàn giao " + pending.id() + " của vibefix: lần lưu " + check.head().headSha() + ".");
 	}
 
 }

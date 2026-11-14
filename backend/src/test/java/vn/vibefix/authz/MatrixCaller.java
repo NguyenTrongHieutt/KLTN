@@ -104,7 +104,8 @@ public enum MatrixCaller {
 
 	/**
 	 * AD-20's caller "Actions run" (AD-44, Story 23.4): a GitHub Actions run posting its OIDC ID token to the token
-	 * exchange, with no session and no CSRF token. Its rows cover {@code POST /github/actions/exchange} only, where
+	 * exchange, with no session and no CSRF token. Its rows cover {@code POST /github/actions/exchange} and
+	 * {@code POST /github/actions/report} only, where
 	 * the ID token, not an account, decides; {@code ActionsExchangeIT} runs a genuine run end to end.
 	 */
 	ACTIONS_RUN,

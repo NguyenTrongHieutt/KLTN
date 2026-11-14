@@ -2,6 +2,7 @@ package vn.vibefix.github;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -297,6 +298,33 @@ public interface ActionsRuns {
 	 * @throws GitHubException when GitHub refuses or cannot be reached
 	 */
 	Optional<Run> run(UUID correlation);
+
+	/**
+	 * What a {@code handover-copy} run reported of its range before it pushed (AD-11, FR-32, Story 23.8a): every path
+	 * it changed, with rename detection off, and whether {@code .github/workflows} differs over the range. The list is
+	 * never written to a platform repository and never logged.
+	 * @param paths the changed paths, in the order {@code git diff} listed them, each once; always {@code count}
+	 * of them, since a list that no longer reads back as the run wrote it is answered as no report at all
+	 * @param count how many paths the run reported
+	 * @param reportedAt when vibefix took the report
+	 */
+	record Report(UUID correlation, boolean workflowsChanged, List<String> paths, int count, Instant reportedAt) {
+
+		public Report {
+			paths = List.copyOf(paths);
+			if (paths.size() != count) {
+				throw new IllegalArgumentException("A report's list holds exactly the paths it counted");
+			}
+		}
+
+	}
+
+	/**
+	 * The correlation's path report, once its run posted one and it still reads back whole: empty while none was
+	 * taken, after the correlation is purged, and for stored bytes that are no longer the list the run counted, so
+	 * that no caller ever sees a part of a range (FR-32).
+	 */
+	Optional<Report> report(UUID correlation);
 
 	/**
 	 * Closes a correlation whose run the caller gave up on, such as one still out after {@link #RUN_TIMEOUT}, so that it

@@ -32,8 +32,9 @@ import vn.vibefix.shared.SandboxJobResult;
  * Story 23.3 (D1, AD-10, deferred-work 659): the platform repositories are private. Every pull-request call holds
  * {@code contents} read besides its {@code pull_requests} permission, which the stub requires on a private
  * repository as GitHub does (Spike S6 Part C); the Working head is read with a token narrowed to it; and every
- * sandbox clone of a platform repository (the handover pin from Working, {@code FINAL_MERGE_TRIAL}, the Final
- * Merge push, {@code REPOSITORY_ZIP}) gets a token narrowed to that repository with {@code contents} read. The
+ * sandbox clone of a platform repository ({@code FINAL_MERGE_TRIAL}, the Final Merge push,
+ * {@code REPOSITORY_ZIP}) gets a token narrowed to that repository with {@code contents} read; the handover copy
+ * runs on the runner's Actions instead (AD-46, Story 23.8a). The
  * stub's {@code file://} hosting takes no credentials, so these show the job receives the narrowed token.
  */
 class PlatformCloneTokensTest {
@@ -88,18 +89,6 @@ class PlatformCloneTokensTest {
 		this.github.close();
 		RepositoryCache.clear();
 		WindowCache.reconfigure(new WindowCacheConfig());
-	}
-
-	@Test
-	void theHandoverPinClonesWorkingWithAReadTokenNarrowedToIt() {
-		this.repositories.copy(this.working, this.head, "main", "handover/h1", this.intermediary);
-
-		JsonNode input = onlyJob(RepositoryCopyJobHandler.TYPE);
-		assertThat(input.path("source").asString()).isEqualTo("vibefix-dev/job-1-working");
-		assertThat(grant(input.path("sourceToken").asString())).isEqualTo(narrowed(this.working, Map.of("contents", "read")));
-		assertThat(grant(input.path("token").asString()))
-			.isEqualTo(narrowed(this.intermediary, Map.of("contents", "write", "workflows", "write")));
-		assertThat(this.github.revoked).as("both tokens are revoked").hasValue(this.github.tokens.size());
 	}
 
 	@Test

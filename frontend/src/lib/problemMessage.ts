@@ -80,6 +80,15 @@ export function problemMessage(error: unknown, context: ProblemContext = {}): Pr
   }
 }
 
+/**
+ * The Vietnamese sentence for one module's reason, for a state a screen reads rather than a failed request
+ * (AD-23, Story 23.8a): `undefined` when the catalog holds no text for it, so the caller shows its own fallback
+ * and never the raw code.
+ */
+export function reasonMessage(module: string, reason: string): string | undefined {
+  return reasonFor({ module }, reason)
+}
+
 /** Whether the answer is `NOT_FOUND`, which a screen shows as the one not-found screen (SG-31). */
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.problem.code === 'NOT_FOUND'
