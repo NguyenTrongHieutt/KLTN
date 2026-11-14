@@ -15,6 +15,7 @@ import {
   type Closure,
   type DataDeletion,
 } from './closureApi'
+import { ClosingChoice } from './ClosingChoice'
 import { FinalMergeStep } from './FinalMergeStep'
 import { RevocationChecklist } from './RevocationChecklist'
 
@@ -24,8 +25,9 @@ type Action = 'propose' | 'confirm' | 'decline'
  * JOB-1's closure section (FR-37, FR-67, UX-DR55): "Đề nghị kết thúc công việc" when the Customer or
  * the Mentor may propose it; the open proposal with its date and "Xác nhận kết thúc" or "Từ chối" for
  * whoever is to answer; and, from the proposal through Closed, each party's steps done or pending, the
- * data-deletion ones from `repo` (FR-66), with the Customer's "Chọn cách nhận mã" on a Code Job (FR-37) and,
- * once the Job ends, their Revocation Checklist (FR-66).
+ * data-deletion ones from `repo` (FR-66), with "Chọn cách nhận mã" on a Code Job (FR-37, FR-38) -- the Closing
+ * choice cards for the Customer, above the Final Merge's own states, and the read-only line in their place for the
+ * Mentor -- and, once the Job ends, their Revocation Checklist (FR-66).
  * A Crew member sees their own step only. The Mentor and the Crew
  * tick their data-deletion Checklist once the Job has ended. Proposing, confirming, and each tick ask
  * for confirmation first.
@@ -115,6 +117,10 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           ))}
         </ul>
       )}
+      {(closure.audience === 'CUSTOMER' || closure.audience === 'MENTOR')
+        && (closure.steps.length > 0 || closure.state !== 'ACTIVE') && (
+          <ClosingChoice jobId={jobId} version={closure.version} />
+        )}
       {closure.audience === 'CUSTOMER' && (closure.steps.length > 0 || closure.state !== 'ACTIVE') && (
         <FinalMergeStep jobId={jobId} />
       )}

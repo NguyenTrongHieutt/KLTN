@@ -26,6 +26,9 @@ import vn.vibefix.shared.PersonalDataSection;
  * confirmed, and the rows, whose to-dos close; deleting a Product ends its Customer's reads, deletes its Jobs' rows,
  * self-confirmations and Setups, requests the deletion of the platform repositories still there at once, without a ZIP,
  * and deletes any final ZIP (FR-21, NFR-10).
+ * <p>
+ * A code receipt (Story 23.10a) says only that one account confirmed at one time, so there is nothing in it to
+ * anonymize: an erasure and a Product deletion both delete it, and the Audit Log keeps that it was recorded.
  */
 @Component
 class RepoPersonalData implements PersonalDataParticipant {
@@ -58,7 +61,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("repo.data_deletion_confirmation", "repo.job_grant", "repo.final_merge_authorization",
-				"repo.revocation_item", "repo.source_confirmation");
+				"repo.revocation_item", "repo.source_confirmation", "repo.code_receipt");
 	}
 
 	@Override
@@ -160,6 +163,8 @@ class RepoPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		FinalMerges.erase(this.jdbc, accountId);
+		// Story 23.10a: a code receipt says only "this account confirmed at this time", so it goes with their rows.
+		CodeReceipts.erase(this.jdbc, accountId);
 		this.jdbc.sql("""
 				UPDATE repo.revocation_item SET customer_account_id = NULL, identifiers = '[]' WHERE customer_account_id = :id
 				""").param("id", accountId).update();
@@ -193,6 +198,10 @@ class RepoPersonalData implements PersonalDataParticipant {
 		// Story 23.8a: a handover copy hangs from its Job, which the Setup rows name.
 		this.jdbc.sql("""
 				DELETE FROM repo.handover_copy WHERE job_id IN (SELECT job_id FROM repo.job_setup WHERE product_id = :id)
+				""").param("id", productId).update();
+		// Story 23.10a: a code receipt names the Setup whose Intermediary the Customer downloaded from.
+		this.jdbc.sql("""
+				DELETE FROM repo.code_receipt WHERE setup_id IN (SELECT id FROM repo.job_setup WHERE product_id = :id)
 				""").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}

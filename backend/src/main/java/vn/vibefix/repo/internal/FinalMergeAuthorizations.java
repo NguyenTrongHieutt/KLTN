@@ -35,22 +35,26 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * A Code Job's Final Merge (FR-37, FR-67), one row per Job and Source Repository: its identity, and the anchor of the
- * FR-37 deadline and of the closure fallback. It opens {@code REQUESTED} at the first closure proposal or at J8, with
- * the to-do {@value #TODO}; J8 sets the FR-37 deadline from the Job's copied {@code FINAL_MERGE_AUTHORIZATION_DAYS}
- * and schedules it. It becomes {@code USED} once the run's branch is read back (Story 23.9a) and {@code ENDED} when
- * its proposal ends without J8, at J10, at the deadline, or when the Final Merge cannot run.
+ * A Code Job's closing choice (FR-37, FR-38, FR-67, D10), one row per Job and Source Repository: its identity, and
+ * the anchor of the FR-37 deadline and of the closure fallback. It opens {@code REQUESTED} at the first closure
+ * proposal or at J8, with the to-do {@value #TODO}; J8 sets the FR-37 deadline from the Job's copied
+ * {@code FINAL_MERGE_AUTHORIZATION_DAYS}, schedules it, and schedules {@link ReceiveCodeReminder} two days before it.
+ * It becomes {@code USED} once the choice is spent -- the run's branch read back (Story 23.9a), or the Customer's own
+ * code receipt (Story 23.10a) -- and {@code ENDED} when its proposal ends without J8, at J10, at the deadline, or
+ * when the Final Merge cannot run.
  * <p>
  * Story 23.9a retired the Merge App (R1, D7): there is no app to install at the end, so the {@code BOUND} state, the
  * install link's single-use {@code state}, the installation, the organization's install request and its refusal are
- * all gone, and Story 23.9b dropped the installation table and {@code bound_at} with the App itself. The row stays
- * because {@link vn.vibefix.repo.FinalMergeAuthorizationEnded} is what starts Story 8.9's closure fallback, which
- * Story 23.10 replaces with the self-download path.
+ * all gone, and Story 23.9b dropped the installation table and {@code bound_at} with the App itself. Story 23.10a
+ * renamed the to-do after the choice it carries: nothing is authorized any more, and the Customer picks between the
+ * Final Merge and "Tôi đã tự tải / clone từ GitHub". The row stays because
+ * {@link vn.vibefix.repo.FinalMergeAuthorizationEnded} is what starts Story 8.9's closure fallback, which Story
+ * 23.10c deletes.
  */
 @Component
 class FinalMergeAuthorizations {
 
-	static final String TODO = "repo.authorize_final_merge";
+	static final String TODO = "repo.receive_code";
 
 	static final String RULE = "FINAL_MERGE_AUTHORIZATION_DAYS";
 
@@ -142,12 +146,17 @@ class FinalMergeAuthorizations {
 		if (inserted == 0) {
 			return openOf(jobId);
 		}
-		this.todos.open(new TodoRequest(TODO, job.customerId(), Audience.CUSTOMER, id, Map.of(), link(jobId), null, jobId));
+		this.todos.open(new TodoRequest(TODO, job.customerId(), Audience.CUSTOMER, id, Map.of("job", job.title()),
+				link(jobId), null, jobId));
 		audit("repo.final_merge_requested", id, jobId);
 		return find(id);
 	}
 
-	/** J8: the FR-37 deadline runs from now. The to-do gets it, and the deadline is scheduled. */
+	/**
+	 * J8: the FR-37 deadline runs from now. The deadline and the reminder two days before it (AD-7) are scheduled
+	 * whatever else this transaction can read, because they decide how the Job ends; a deadline already inside those
+	 * two days gets no reminder. The to-do names the Job, so it waits for a title to name it with.
+	 */
 	@Transactional
 	void closing(UUID jobId) {
 		Authorization authorization = open(jobId).orElse(null);
@@ -161,13 +170,19 @@ class FinalMergeAuthorizations {
 			.param("id", authorization.id())
 			.update();
 		UUID customer = authorization.customerId();
-		if (customer != null) {
+		String title = this.busy.job(jobId).map(BusyJob::title).orElse(null);
+		if (customer != null && title != null) {
 			this.todos.closeAll(TODO, authorization.id());
-			this.todos.open(new TodoRequest(TODO, customer, Audience.CUSTOMER, authorization.id(), Map.of(), link(jobId),
-					deadline, jobId));
+			this.todos.open(new TodoRequest(TODO, customer, Audience.CUSTOMER, authorization.id(), Map.of("job", title),
+					link(jobId), deadline, jobId));
 		}
 		this.deadlines.schedule(new DeadlineRequest(FinalMergeDeadline.KEY, authorization.id(), authorization.id().toString(),
 				jobId, deadline));
+		Instant remindAt = deadline.minus(ReceiveCodeReminder.BEFORE);
+		if (remindAt.isAfter(this.clock.instant())) {
+			this.deadlines.schedule(new DeadlineRequest(ReceiveCodeReminder.KEY, authorization.id(),
+					authorization.id().toString(), jobId, remindAt));
+		}
 	}
 
 	/** Ends the Job's open row, if any. */
@@ -197,7 +212,11 @@ class FinalMergeAuthorizations {
 		return true;
 	}
 
-	/** The run's branch was read back (Story 23.9a): the row is spent and the to-do is done. */
+	/**
+	 * The choice is spent and the to-do is done: the run's branch was read back (Story 23.9a), or the Customer
+	 * confirmed they have the code themselves (Story 23.10a). Either way nothing is left to choose, so the row
+	 * never ends and no closure fallback follows.
+	 */
 	@Transactional
 	void used(UUID id) {
 		this.jdbc.sql("""

@@ -36,11 +36,13 @@ import vn.vibefix.timers.Deadlines;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
- * Story 23.9a (FR-37, FR-67, R1, D7): a Code Job's Final Merge row opens at the first closure proposal, gets its
- * FR-37 deadline at J8, and ends when its proposal ends without J8 or when the deadline passes with no Final Merge
- * confirmed, which hands the Job to the closure fallback (Story 8.9). There is no app to install at the end, so no
- * install link, no organization request, no {@code BOUND} state and no 2-day reminder are left; the deadline itself
- * is pausable, so a Dispute that wins the race ends nothing. GitHub is {@link GitHubStub}.
+ * Story 23.9a (FR-37, FR-67, R1, D7) and Story 23.10a (FR-38, D10, AD-7): a Code Job's closing-choice row opens at
+ * the first closure proposal, gets its FR-37 deadline at J8 with the to-do {@code repo.receive_code} and the 2-day
+ * reminder {@code repo.receive_code_reminder}, and ends when its proposal ends without J8 or when the deadline
+ * passes with neither way of receiving the code chosen, which hands the Job to the closure fallback (Story 8.9,
+ * which Story 23.10b re-points). There is no app to install at the end, so no install link, no organization request
+ * and no {@code BOUND} state are left; the deadline and the reminder are both pausable, so a Dispute that wins the
+ * race ends nothing. GitHub is {@link GitHubStub}.
  */
 class FinalMergeAuthorizationIT extends IntegrationTest {
 
@@ -150,15 +152,94 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 			.param("job", this.job).query(Timestamp.class).single().toInstant())
 			.as("the Job's copied 5 days").isEqualTo(this.clock.instant().plus(Duration.ofDays(5)));
 		assertThat(this.jdbc.sql("""
-				SELECT kind FROM timers.deadline WHERE job_id = :job AND kind LIKE 'repo.final_merge_%' ORDER BY due_at
+				SELECT kind FROM timers.deadline WHERE job_id = :job AND kind LIKE 'repo.%' ORDER BY due_at
 				""").param("job", this.job).query(String.class).list())
-			.as("the FR-37 deadline alone: the Merge App's 2-day reminder is retired (R1)")
-			.containsExactly("repo.final_merge_deadline");
+			.as("the FR-37 deadline and the 2-day reminder before it (AD-7, Story 23.10a)")
+			.containsExactly("repo.receive_code_reminder", "repo.final_merge_deadline");
+		assertThat(deadlineRow("repo.receive_code_reminder").get("due_at"))
+			.as("two days before the deadline")
+			.isEqualTo(Timestamp.from(this.clock.instant().plus(Duration.ofDays(3))));
 		assertThat(notifications("repo.final_merge_authorization_pending")).isZero();
 		assertThat(this.jdbc.sql("""
-				SELECT deadline_at IS NOT NULL FROM notification.todo WHERE todo_key = 'repo.authorize_final_merge'
+				SELECT deadline_at IS NOT NULL FROM notification.todo WHERE todo_key = 'repo.receive_code'
 				    AND account_id = :id AND closed_at IS NULL
 				""").param("id", this.lan).query(Boolean.class).single()).as("the to-do carries the deadline").isTrue();
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'job' FROM notification.todo WHERE todo_key = 'repo.receive_code' AND account_id = :id
+				    AND closed_at IS NULL
+				""").param("id", this.lan).query(String.class).single()).as("and names the Job").isEqualTo("Sửa lỗi đặt bàn");
+	}
+
+	/** AD-7: the reminder goes out two days before the deadline, once, while the choice is still open. */
+	@Test
+	void theReminderGoesOutTwoDaysBeforeTheDeadlineAndOnlyOnce() {
+		closingWithItsDeadline();
+
+		this.clock.advance(Duration.ofDays(3).plusMinutes(1));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(deadlineRow("repo.receive_code_reminder")).containsEntry("status", "FIRED");
+		assertThat(notifications("repo.receive_code_reminder")).isOne();
+		assertThat(authorizationStatus()).as("the choice stays open").isEqualTo("REQUESTED");
+		assertThat(this.jdbc.sql("""
+				SELECT params ->> 'date' FROM notification.notification WHERE type = 'repo.receive_code_reminder'
+				""").query(String.class).single()).as("it names the deadline").isNotBlank();
+	}
+
+	/** The choice is already made: the Final Merge run is going, so the reminder is obsolete and nothing is sent. */
+	@Test
+	void theReminderIsObsoleteOnceTheCustomerSetTheFinalMergeGoing() {
+		closingWithItsDeadline();
+		UUID authorization = this.jdbc
+			.sql("SELECT id FROM repo.final_merge_authorization WHERE job_id = :job")
+			.param("job", this.job)
+			.query(UUID.class)
+			.single();
+		this.jdbc.sql("""
+				INSERT INTO repo.final_merge (authorization_id, job_id, product_id, status, confirmed_at, created_at)
+				SELECT :id, job_id, product_id, 'CONFIRMED', now(), now() FROM repo.final_merge_authorization WHERE id = :id
+				""").param("id", authorization).update();
+
+		this.clock.advance(Duration.ofDays(3).plusMinutes(1));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(deadlineRow("repo.receive_code_reminder")).containsEntry("status", "OBSOLETE");
+		assertThat(notifications("repo.receive_code_reminder")).isZero();
+	}
+
+	/** Story 23.10a: the Customer has said they already have the code, so the choice is settled and nothing is sent. */
+	@Test
+	void theReminderIsObsoleteOnceTheCodeReceiptIsRecorded() {
+		closingWithItsDeadline();
+		UUID setup = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, started_at, finished_at)
+				SELECT :id, :job, product_id, 'ENDED', now(), now() FROM job.job WHERE id = :job
+				""").param("id", setup).param("job", this.job).update();
+		this.jdbc.sql("""
+				INSERT INTO repo.code_receipt (job_id, setup_id, confirmed_by, confirmed_at)
+				VALUES (:job, :setup, :by, now())
+				""").param("job", this.job).param("setup", setup).param("by", this.lan).update();
+
+		this.clock.advance(Duration.ofDays(3).plusMinutes(1));
+		assertThat(this.poller.runDue()).isOne();
+
+		assertThat(deadlineRow("repo.receive_code_reminder")).containsEntry("status", "OBSOLETE");
+		assertThat(notifications("repo.receive_code_reminder")).isZero();
+	}
+
+	/** A deadline already inside the reminder's two days gets no reminder at all (AD-7). */
+	@Test
+	void aDeadlineInsideTwoDaysSchedulesNoReminder() {
+		this.jdbc.sql("UPDATE job.job SET rules = '{\"FINAL_MERGE_AUTHORIZATION_DAYS\":1}'::jsonb WHERE id = :id")
+			.param("id", this.job)
+			.update();
+		closingWithItsDeadline();
+
+		assertThat(this.jdbc.sql("SELECT kind FROM timers.deadline WHERE job_id = :job AND kind LIKE 'repo.%'")
+			.param("job", this.job)
+			.query(String.class)
+			.list()).containsExactly("repo.final_merge_deadline");
 	}
 
 	@Test
@@ -194,6 +275,9 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 	@Test
 	void theDeadlineRacingADisputePausesWithItsTimeEndsNothingAndEndsItAfterTheThaw() throws Exception {
 		Instant closing = closingWithItsDeadline();
+		// The 2-day reminder comes first, so the race is the deadline's alone.
+		this.clock.setInstant(closing.plus(Duration.ofDays(3)).plusSeconds(1));
+		assertThat(this.poller.runDue()).isOne();
 
 		this.clock.setInstant(closing.plus(Duration.ofDays(5)));
 		DisputeTestSupport.openRacingThePoller(this.context, this.job, this.lan, deadlineId("repo.final_merge_deadline"),
@@ -249,7 +333,7 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 
 	private long openTodos() {
 		return this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.authorize_final_merge' AND account_id = :id
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.receive_code' AND account_id = :id
 				    AND closed_at IS NULL
 				""").param("id", this.lan).query(Long.class).single();
 	}

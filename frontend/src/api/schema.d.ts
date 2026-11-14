@@ -669,7 +669,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_6"];
+        post: operations["decline_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1149,7 +1149,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_5"];
+        post: operations["decline_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1453,7 +1453,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_4"];
+        post: operations["decline_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1757,7 +1757,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decline_3"];
+        post: operations["decline_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2164,6 +2164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/code-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["codeReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/crew-chat": {
         parameters: {
             query?: never;
@@ -2302,22 +2318,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["confirm_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/jobs/{jobId}/final-merge/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["decline_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4954,6 +4954,16 @@ export interface components {
             done: boolean;
             text: string;
         };
+        ChoiceView: {
+            /** Format: date-time */
+            deadlineAt?: string;
+            /** Format: date-time */
+            deletionAt?: string;
+            finalMerge: boolean;
+            intermediaryUrl?: string;
+            near: boolean;
+            selfDownload: boolean;
+        };
         ClosureCommandRequest: {
             /** Format: int64 */
             version: number;
@@ -4988,6 +4998,11 @@ export interface components {
             proposal?: components["schemas"]["ClosureProposalView"];
             state: string;
             steps: components["schemas"]["ClosureStepView"][];
+            /** Format: int64 */
+            version: number;
+        };
+        CodeReceiptRequest: {
+            confirmed: boolean;
             /** Format: int64 */
             version: number;
         };
@@ -5641,14 +5656,18 @@ export interface components {
             count: number;
         };
         FinalMergeView: {
+            audience: string;
+            choice: components["schemas"]["ChoiceView"];
             /** Format: date-time */
             deadlineAt?: string;
             endReason?: string;
             /** Format: uuid */
             id: string;
             merge?: components["schemas"]["MergeView"];
+            outcome?: string;
             /** Format: uuid */
             productId: string;
+            receipt?: components["schemas"]["ReceiptView"];
             repository: string;
             status: string;
             zip?: components["schemas"]["ZipView"];
@@ -7145,6 +7164,12 @@ export interface components {
         };
         ReasonRequest: {
             reason: string;
+        };
+        ReceiptView: {
+            /** Format: date-time */
+            confirmedAt: string;
+            /** Format: uuid */
+            confirmedBy: string;
         };
         RecommendationView: {
             /** Format: int32 */
@@ -9351,7 +9376,7 @@ export interface operations {
             };
         };
     };
-    decline_6: {
+    decline_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -10125,7 +10150,7 @@ export interface operations {
             };
         };
     };
-    decline_5: {
+    decline_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -10656,7 +10681,7 @@ export interface operations {
             };
         };
     };
-    decline_4: {
+    decline_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -11212,7 +11237,7 @@ export interface operations {
             };
         };
     };
-    decline_3: {
+    decline_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -11933,6 +11958,32 @@ export interface operations {
             };
         };
     };
+    codeReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalMergeView"];
+                };
+            };
+        };
+    };
     crewChat: {
         parameters: {
             query?: never;
@@ -12134,28 +12185,6 @@ export interface operations {
         responses: {
             /** @description Accepted */
             202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FinalMergeView"];
-                };
-            };
-        };
-    };
-    decline_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };

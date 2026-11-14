@@ -18,7 +18,8 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * J9 (FR-10, FR-38, FR-75, AD-30, AD-41): a Closing Job closes. An Assessment Job closes in J8's apply
  * with no repository step; a Code Job closes only with {@value #FINISH}, which {@code repo} gives once
- * the Final Merge was read back or the ZIP Fallback stored (Stories 8.8 and 8.9). It records
+ * the Final Merge was read back, the Customer confirmed they have the code themselves, or the ZIP Fallback
+ * was stored (Stories 8.8, 23.10a and 8.9). It records
  * when and tells the Customer, the Mentor, and the active Crew ({@code job.job_closed}) while they are
  * still active; then the Mentor's contact visibility ends, the Product pin is released, and every Crew
  * row not yet released is released as {@code JOB_ENDED}, freeing its Student, before any {@code payment}
@@ -32,7 +33,10 @@ class J9Finish implements JobLifecycle.Step {
 
 	static final String CLOSED = "job.job_closed";
 
-	/** How a Code Job's code reached the Customer, {@code MERGED} or {@code ZIP_FALLBACK}. */
+	/**
+	 * How a Code Job's code reached the Customer: {@code MERGED} (the Final Merge branch read back),
+	 * {@code SELF_DOWNLOAD} (the Customer's own code receipt, Story 23.10a), or {@code ZIP_FALLBACK}.
+	 */
 	static final String FINISH = "finish";
 
 	static final int RATING_WINDOW_DAYS = 14;

@@ -6,8 +6,9 @@ import { cn } from '@/lib/utils'
 /**
  * The Deadline chip (DESIGN.md, EXPERIENCE.md): the absolute date, warning within 48 h of a deadline
  * that decides automatically. Whether it is near comes from the server.
+ * @param text the chip's own wording, such as the closing choice's "Chọn trước {date}"; else "Hạn {date}"
  */
-export function DeadlineChip({ deadlineAt, near }: { deadlineAt: string; near: boolean }) {
+export function DeadlineChip({ deadlineAt, near, text }: { deadlineAt: string; near: boolean; text?: string }) {
   return (
     <span
       className={cn(
@@ -16,7 +17,7 @@ export function DeadlineChip({ deadlineAt, near }: { deadlineAt: string; near: b
       )}
     >
       <Clock aria-hidden="true" className="size-3.5" />
-      {t('screen.shared.todo.deadline', { date: formatDayMonth(deadlineAt) })}
+      {text ?? t('screen.shared.todo.deadline', { date: formatDayMonth(deadlineAt) })}
     </span>
   )
 }

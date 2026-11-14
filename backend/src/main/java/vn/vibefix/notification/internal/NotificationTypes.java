@@ -90,9 +90,14 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType DISPUTE_ANSWER_TEAM_ISSUE = new TodoType("dispute.answer_team_issue", Set.of(Audience.MENTOR), 1,
 			Set.of("name"));
 
-	/** FR-37: the Final Merge authorization waits for the Customer's choice of how to receive the code; deadline from J8. */
-	static final TodoType REPO_AUTHORIZE_FINAL_MERGE = new TodoType("repo.authorize_final_merge", Set.of(Audience.CUSTOMER),
-			1, Set.of());
+	/**
+	 * The closing choice (FR-37, FR-38, D10, UX-DR118, Story 23.10a): from J8 the Customer picks how to receive the
+	 * code -- the Final Merge, or "Tôi đã tự tải / clone từ GitHub" -- by the deadline J8 sets, which the to-do
+	 * carries. Tier 1, because that deadline decides by itself. It replaces {@code repo.authorize_final_merge}:
+	 * nothing is authorized any more, so the text names the Job instead of "công việc".
+	 */
+	static final TodoType REPO_RECEIVE_CODE = new TodoType("repo.receive_code", Set.of(Audience.CUSTOMER), 1,
+			Set.of("job"));
 
 	/** Accept the Working Repository's invitation on GitHub (AD-11), due at its expiry. */
 	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
@@ -371,6 +376,16 @@ class NotificationTypes implements NotificationCatalog {
 	/** A busy marker held past its operation's budget plus an hour (AD-28): every Administrator, once per marker. */
 	static final NotificationType OPERATIONS_BUSY_MARKER_STUCK = new NotificationType("operations.busy_marker_stuck",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "operation"));
+
+	/**
+	 * Two days before the closing-choice deadline, while the Customer has picked neither way of receiving the code
+	 * (AD-7, FR-37, FR-38, D10, Story 23.10a): the Customer. EXPERIENCE.md's Notification Inventory has no key for
+	 * this reminder, which AD-7 and the PRD both ask for, so it follows the retired Merge App reminder's shape under
+	 * the choice's own name.
+	 */
+	static final NotificationType REPO_RECEIVE_CODE_REMINDER = new NotificationType("repo.receive_code_reminder",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job", "date"));
 
 	/**
 	 * The Final Merge run pushed {@code vibefix/final-…} and vibefix read it back (FR-37, FR-48, R1, Story 23.9a): the
@@ -936,7 +951,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_INTERMEDIARY_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT,
 				REPO_INVITATION_RENEWALS_EXHAUSTED,
-				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_FINAL_BRANCH_READY, REPO_FINAL_MERGE_COMPLETED,
+				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_RECEIVE_CODE_REMINDER, REPO_FINAL_BRANCH_READY,
+				REPO_FINAL_MERGE_COMPLETED,
 				REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN, GITHUB_RUNNER_RUN_FAILED, GITHUB_RUNNER_MINUTES_80,
@@ -978,7 +994,7 @@ class NotificationTypes implements NotificationCatalog {
 	public List<TodoType> todoTypes() {
 		return List.of(IDENTITY_LINK_GITHUB, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
 				REPO_CONFIRM_SOURCE_CLEAN, REPO_ACCEPT_GITHUB_INVITATION, REPO_ACCEPT_INTERMEDIARY_INVITATION,
-				REPO_RECONFIRM_SOURCE, REPO_AUTHORIZE_FINAL_MERGE,
+				REPO_RECONFIRM_SOURCE, REPO_RECEIVE_CODE,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,
