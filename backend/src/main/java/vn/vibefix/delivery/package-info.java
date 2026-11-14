@@ -16,8 +16,11 @@
  * Commit to {@code handover/{id}} of the Intermediary on the runner's GitHub Actions, which reports every path
  * the range changed and whether {@code .github/workflows/} differs. Only then does M2 apply, with the Sensitive
  * Changes classified from that full list; a refused copy, or a list that cannot be read, ends the submission with
- * a named reason and records no handover. The Delivery Report lists the Sensitive Changes, the Pages updated, and
- * the commits (AD-11, AD-33, AD-46).
+ * a named reason and records no handover. The Delivery Report lists the Sensitive Changes, the Pages updated, the
+ * commits, and the pull request's changes and {@code handover/{id}} branch on GitHub (AD-11, AD-33, AD-46).
+ * Since vibefix scans no team code, "Gửi bàn giao" carries the Mentor's N-33 duty confirmation at the version in
+ * force and records it with the handover, and the Customer reads the same fact before they accept (FR-25, FR-33,
+ * R28, Story 23.8b).
  * <p>
  * After an Assessment's acceptance the Mentor drafts follow-up Jobs from the Report's numbered
  * recommendations, which the Customer opens as Draft Job Posts or discards (FR-11).

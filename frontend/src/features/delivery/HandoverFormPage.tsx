@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { Check, TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -13,7 +13,9 @@ import type { SensitiveMatch } from '@/features/work/workApi'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { isNotFound, problemMessage, reasonMessage, sentence } from '@/lib/problemMessage'
+import { CopyRunBanner } from './CopyRunBanner'
 import {
+  TEAM_CODE_NOTICE_VERSION,
   useHandOver,
   useHandoverPreflight,
   useHandoverSubmission,
@@ -45,8 +47,11 @@ function refusal(submission: HandoverSubmission): string {
  * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
  * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra"; for an Assessment
  * Job, the Report version to hand over; for a Code Job, its new commits and the Sensitive change
- * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). "Gửi bàn giao"
- * enables only when all of it passes, and sends the Job version the form loaded.
+ * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). A Code Job also needs
+ * N-33's Mentor checkbox, the duty to keep credentials and real data out of the handover's commits, since vibefix
+ * scans no team code (FR-25, R28, Story 23.8b); the request names the version of that text, and a reworded one
+ * answers `NOTICE_REQUIRED` and offers a reload. "Gửi bàn giao" enables only when all of it passes, and sends the
+ * Job version the form loaded. While the runner copies, the Actions run status row says where the run stands.
  */
 export function HandoverFormPage() {
   const { jobId } = useParams()
@@ -73,6 +78,9 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({})
   const [error, setError] = useState<string>()
   const [matches, setMatches] = useState<SensitiveMatch[]>()
+  // N-33 (FR-25, R28, Story 23.8b): the Mentor's duty, which a Code Job's handover cannot go without.
+  const [teamCode, setTeamCode] = useState(false)
+  const [noticeChanged, setNoticeChanged] = useState(false)
   // Story 23.8a: a Code Job's handover waits while the runner copies it, so the form reads its submission.
   const [copying, setCopying] = useState<string>()
   const submission = useHandoverSubmission(jobId, copying !== undefined)
@@ -88,8 +96,14 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
     return mark?.met !== undefined && mark.note.trim() !== ''
   })
   const itemsReady = unfinished.every((item) => (itemNotes[item.id] ?? '').trim() !== '')
+  // An Assessment Job hands over no code, so N-33 is neither shown nor needed there.
+  const teamCodeReady = preflight.assessment || teamCode
   const ready =
-    preflight.problems.length === 0 && criteriaReady && itemsReady && evidenceReady(evidence, preflight.previewRequired)
+    preflight.problems.length === 0 &&
+    criteriaReady &&
+    itemsReady &&
+    teamCodeReady &&
+    evidenceReady(evidence, preflight.previewRequired)
 
   // The copy is over when this send's submission is no longer pending; a refusal names its reason inline.
   const waiting = copying !== undefined && !submission.isError && (copied === undefined || copied.state === 'PENDING')
@@ -109,6 +123,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
 
   const send = (sensitive: 'CHECK' | 'MASK') => {
     setError(undefined)
+    setNoticeChanged(false)
     setCopying(undefined)
     handOver.mutate(
       {
@@ -121,6 +136,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
         })),
         itemNotes: unfinished.map((item) => ({ workItemId: item.id, note: (itemNotes[item.id] ?? '').trim() })),
         sensitive,
+        teamCodeNoticeVersion: preflight.assessment ? undefined : TEAM_CODE_NOTICE_VERSION,
         ...evidenceBody(evidence),
       },
       {
@@ -143,6 +159,11 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           if (failure instanceof ApiError && failure.problem.code === 'STALE') {
             setError(t('screen.handover.form.stale'))
             onStale()
+            return
+          }
+          // N-33 was reworded while the form was open: the new text is read after a reload (Story 23.8b).
+          if (failure instanceof ApiError && failure.problem.reason === 'NOTICE_REQUIRED') {
+            setNoticeChanged(true)
             return
           }
           setError(problemMessage(failure, { module: 'delivery' }).text)
@@ -297,31 +318,55 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           </Link>
         </section>
       )}
+      {!preflight.assessment && (
+        <section
+          aria-labelledby={`${ids}-team-code`}
+          className="flex flex-col gap-2 rounded-lg border border-primary-border bg-background p-4"
+        >
+          <h2 id={`${ids}-team-code`} className="text-label font-semibold">
+            {t('notice.teamCode.title')}
+          </h2>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={teamCode}
+              onChange={(event) => setTeamCode(event.target.checked)}
+              className="mt-0.5 size-5 shrink-0 accent-primary"
+            />
+            <span className="text-body-sm break-words">{t('notice.teamCode.checkbox')}</span>
+          </label>
+          <p className="text-caption text-muted-foreground">
+            {t('notice.teamCode.versionLine', { version: TEAM_CODE_NOTICE_VERSION })}
+          </p>
+        </section>
+      )}
       {error && (
         <p role="alert" className="text-body-sm text-destructive">
           {error}
+        </p>
+      )}
+      {noticeChanged && (
+        <div role="alert" className="flex flex-col gap-2 text-body-sm">
+          <p>{t('screen.handover.form.noticeChanged')}</p>
+          <Button type="button" variant="secondary" className="w-fit" onClick={() => window.location.reload()}>
+            {t('screen.handover.form.reload')}
+          </Button>
+        </div>
+      )}
+      {waiting && copied && <CopyRunBanner submission={copied} />}
+      {(notCopied ?? unread) && (
+        <p role="alert" className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-3 text-body-sm">
+          <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
+          {notCopied ?? unread}
         </p>
       )}
       <div className="flex flex-wrap items-center justify-end gap-3">
         {!ready && preflight.problems.length === 0 && (
           <p className="text-caption text-muted-foreground">{t('screen.handover.form.incomplete')}</p>
         )}
-        {waiting && (
-          <p role="status" aria-live="polite" className="flex items-center gap-2 text-body-sm text-muted-foreground">
-            <LoaderCircle
-              aria-hidden="true"
-              className="size-4 shrink-0 animate-spin text-primary motion-reduce:animate-none"
-            />
+        {waiting && !copied && (
+          <p role="status" aria-live="polite" className="text-body-sm text-muted-foreground">
             {t('screen.handover.form.copying', { n: preflight.milestone.number })}
-          </p>
-        )}
-        {(notCopied ?? unread) && (
-          <p
-            role="alert"
-            className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-3 text-body-sm"
-          >
-            <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
-            {notCopied ?? unread}
           </p>
         )}
         <Button type="button" disabled={!ready || waiting || handOver.isPending} onClick={() => send('CHECK')}>

@@ -6,6 +6,19 @@ enum DeliveryReason {
 	/** Only the Job's Mentor hands a Milestone over (FR-32). */
 	MENTOR_ONLY,
 
+	/**
+	 * A handover being copied on the runner is the team's business: the Mentor and the active Crew read it, and the
+	 * Customer hears nothing until its pull request is open (FR-32, UX-DR115, Story 23.8b).
+	 */
+	TEAM_ONLY,
+
+	/**
+	 * A Code Job's handover names N-33's current version, the Mentor's duty confirmation that its commits hold no
+	 * credential and no real data (FR-25, R28, Story 23.8b): another version means the text was reworded, so the
+	 * Mentor reads it again.
+	 */
+	NOTICE_REQUIRED,
+
 	/** Only a Funded or Revision Requested Milestone is handed over (FR-32). */
 	MILESTONE_NOT_HELD,
 

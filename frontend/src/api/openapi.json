@@ -13686,11 +13686,17 @@
       "HandoverCodeView" : {
         "type" : "object",
         "properties" : {
+          "branch" : {
+            "$ref" : "#/components/schemas/HandoverLinkView"
+          },
           "commits" : {
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/HandoverCommitView"
             }
+          },
+          "diff" : {
+            "$ref" : "#/components/schemas/HandoverLinkView"
           },
           "handoverCommit" : {
             "type" : "string"
@@ -13714,6 +13720,10 @@
             "items" : {
               "$ref" : "#/components/schemas/SensitiveChangeView"
             }
+          },
+          "teamCodeConfirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           },
           "truncated" : {
             "type" : "boolean"
@@ -14120,6 +14130,10 @@
             "type" : "string",
             "enum" : [ "CHECK", "MASK" ]
           },
+          "teamCodeNoticeVersion" : {
+            "type" : "string",
+            "pattern" : "[0-9]{1,3}\\.[0-9]{1,3}"
+          },
           "version" : {
             "type" : "integer",
             "format" : "int64"
@@ -14171,6 +14185,12 @@
             "type" : "string"
           },
           "reasonModule" : {
+            "type" : "string"
+          },
+          "runConclusion" : {
+            "type" : "string"
+          },
+          "runStatus" : {
             "type" : "string"
           },
           "state" : {

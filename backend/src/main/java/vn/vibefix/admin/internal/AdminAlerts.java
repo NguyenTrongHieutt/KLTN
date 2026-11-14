@@ -17,6 +17,7 @@ import vn.vibefix.github.GitHubExchangeIssued;
 import vn.vibefix.github.GitHubExchangeRefused;
 import vn.vibefix.github.GitHubExchangeRevokeUnknown;
 import vn.vibefix.github.GitHubExchangeRevoked;
+import vn.vibefix.github.GitHubRunnerMinutes;
 import vn.vibefix.identity.Administrators;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.EmailBudgetAlert;
@@ -59,6 +60,9 @@ class AdminAlerts {
 	static final String EMAIL_BUDGET = "notification.email_budget_80";
 
 	static final String CONFIGURATION_DRIFT = "github.app_configuration_drift";
+
+	/** AD-46, R30: the runner's GitHub Actions minutes this month past their alert share, once a month. */
+	static final String RUNNER_MINUTES = "github.runner_minutes_80";
 
 	/** The email lane's operation type ({@code notification.EmailOperationHandler}). */
 	static final String EMAIL_TYPE = "notification.email";
@@ -145,6 +149,19 @@ class AdminAlerts {
 		if (this.processedEvents.markProcessed("admin.AdminAlerts.onEmailBudget", event.eventId())) {
 			alert(EMAIL_BUDGET, event.eventId(),
 					Map.of("sent", String.valueOf(event.sent()), "budget", String.valueOf(event.budget())), "/quan-tri");
+		}
+	}
+
+	/**
+	 * AD-46, R30: the runner's Actions minutes this month past their alert share, once a month. {@code github} may
+	 * depend on nothing but {@code shared}, so the daily sum publishes its event and the alert is sent here, as the
+	 * exchange's refusal is.
+	 */
+	@ApplicationModuleListener
+	void onRunnerMinutes(GitHubRunnerMinutes event) {
+		if (this.processedEvents.markProcessed("admin.AdminAlerts.onRunnerMinutes", event.eventId())) {
+			alert(RUNNER_MINUTES, event.eventId(), Map.of("used", String.valueOf(event.used()), "budget",
+					String.valueOf(event.budget())), "/quan-tri");
 		}
 	}
 

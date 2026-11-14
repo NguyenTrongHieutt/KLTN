@@ -612,6 +612,53 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM repo.handover_copy")).isZero();
 	}
 
+	/**
+	 * FR-25, R28 (Story 23.8b): a Code handover keeps the Mentor's N-33 duty confirmation. The Mentor exports it,
+	 * and their erasure clears who ticked it while the version and the time stay, as the handover's own record of
+	 * what was confirmed.
+	 */
+	@Test
+	void anErasureKeepsTheMentorsDutyConfirmationWithoutThePerson() {
+		HeldCrewJob world = closedJob();
+		teamCodeHandover(world);
+
+		PersonalDataSection section = this.transactions.execute(status -> this.personalData.export(world.hung()))
+			.stream()
+			.filter(found -> "delivery".equals(found.module()))
+			.findFirst()
+			.orElseThrow();
+		assertThat(section.toString()).contains("teamCodeConfirmations").contains("noticeVersion=1.0");
+
+		assertThat(erase(world.hung())).isInstanceOf(ErasureOutcome.Erased.class);
+
+		assertThat(text("""
+				SELECT (team_code_account_id IS NULL) || ' ' || team_code_notice_version
+				    || ' ' || (team_code_confirmed_at IS NOT NULL)
+				FROM delivery.handover
+				""")).as("the person goes, the confirmation stays").isEqualTo("true 1.0 true");
+	}
+
+	/** One Code handover of the Job, carrying the Mentor's N-33 confirmation. */
+	private void teamCodeHandover(HeldCrewJob world) {
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, handover_commit, range_start,
+				    pull_number, team_code_account_id, team_code_notice_version, team_code_confirmed_at)
+				VALUES (:id, :job, :product, :milestone, 1, 'Giai đoạn 1', 1, :mentor, 'SUBMITTED', 5, :transition, :now, :now,
+				    :commit, :from, 7, :mentor, '1.0', :now)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", world.job())
+			.param("product", world.product())
+			.param("milestone", world.milestone())
+			.param("mentor", world.hung())
+			.param("transition", UUID.randomUUID())
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("commit", "2e".repeat(20))
+			.param("from", "1f".repeat(20))
+			.update();
+	}
+
 	/** What a split's evidence hangs from, and the stored files of what waits and of what does not. */
 	private record Evidence(UUID item, UUID handover, UUID crewChatFile, UUID attachmentFile, UUID jobChatFile, UUID screenshotFile) {
 	}

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
 import { busyKey } from '@/features/job/jobBusy'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
+import vi from '@/i18n/vi.json'
 import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 
 export type HandoverList = components['schemas']['HandoverListView']
@@ -14,6 +15,12 @@ export type HandoverSubmission = components['schemas']['HandoverSubmissionView']
 
 /** How often the form reads the submission again while the runner copies the handover (Story 23.8a). */
 const SUBMISSION_POLL_MS = 3_000
+
+/**
+ * N-33's version, which a Code Job's handover names: the server's `vibefix.delivery.team-code-notice-version`,
+ * mirrored in `vi.json` as N-32's and the product notices are (FR-25, R28, Story 23.8b).
+ */
+export const TEAM_CODE_NOTICE_VERSION = (vi as { notice: { teamCode: { version: string } } }).notice.teamCode.version
 
 /** JOB-5's list of the Job's handovers (FR-32); a Board's ID is its Job's. */
 export function useHandovers(jobId: string | undefined) {
@@ -72,6 +79,22 @@ export function useHandoverSubmission(jobId: string, enabled: boolean) {
     // While the read has no answer yet, or its answer is pending: a failed read is shown and tried again.
     refetchInterval: (query) =>
       query.state.data === undefined || query.state.data.state === 'PENDING' ? SUBMISSION_POLL_MS : false,
+  })
+}
+
+/**
+ * JOB-5's copy row for the Mentor and the Crew (UX-DR115, Story 23.8b): the Job's latest submission, read once
+ * when the screen opens and then every 3 s while its copy is still pending, as every run status row polls. The
+ * Customer is refused this read (`TEAM_ONLY`), and a Job that never sent one answers 404, which shows nothing.
+ */
+export function useCopyingHandover(jobId: string | undefined) {
+  return useQuery({
+    queryKey: ['handovers', jobId ?? '', 'submission'],
+    queryFn: () =>
+      unwrap(apiClient.GET('/api/v1/boards/{boardId}/handovers/submission', { params: { path: { boardId: jobId ?? '' } } })),
+    enabled: jobId !== undefined,
+    retry: false,
+    refetchInterval: (query) => (query.state.data?.state === 'PENDING' ? SUBMISSION_POLL_MS : false),
   })
 }
 

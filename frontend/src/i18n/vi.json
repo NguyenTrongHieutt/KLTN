@@ -2810,6 +2810,7 @@
       "create": "Tạo bàn giao",
       "item": "Giai đoạn {n} · {title}",
       "itemMeta": "Lần bàn giao thứ {round} · {date}",
+      "copyPurpose": "Sao chép bàn giao Giai đoạn {n}",
       "status": {
         "SUBMITTED": "Chờ khách nghiệm thu",
         "customer": "Chờ bạn nghiệm thu · tự nghiệm thu {date}",
@@ -2860,7 +2861,9 @@
         "copying": "Đang sao chép bàn giao Giai đoạn {n}…",
         "copyFailed": "Lần sao chép bàn giao không hoàn tất.",
         "notRead": "Chưa đọc được trạng thái lần sao chép. Hãy tải lại trang sau ít phút.",
-        "notCopied": "Chưa sao chép được bàn giao: {reason} Hãy thử gửi lại."
+        "notCopied": "Chưa sao chép được bàn giao: {reason} Hãy thử gửi lại.",
+        "noticeChanged": "Lưu ý về mã của nhóm vừa được cập nhật. Hãy tải lại trang để đọc bản mới rồi gửi lại.",
+        "reload": "Tải lại trang"
       },
       "check": {
         "title": "Kiểm tra bàn giao",
@@ -2906,6 +2909,10 @@
         "pageVersion": "{title} · phiên bản {version}",
         "technical": "Chi tiết kỹ thuật",
         "technicalLead": "Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.",
+        "openDiff": "Xem thay đổi trên GitHub",
+        "openBranch": "Xem nhánh bàn giao",
+        "linksCustomer": "Hai liên kết trên chỉ mở được sau khi bạn chấp nhận lời mời đọc kho trung gian trên GitHub.",
+        "openInvitation": "Mở lời mời đọc kho trung gian",
         "pull": "Yêu cầu hợp nhất #{n} trong kho trung gian",
         "unattributed": "{n} lần lưu không gắn với tài khoản GitHub nào.",
         "truncated": "GitHub chỉ liệt kê một phần các lần lưu và tệp đã đổi.",
@@ -3759,6 +3766,13 @@
       "title": "Xác nhận dự án gốc đã sạch",
       "checkbox": "Tôi xác nhận: trong toàn bộ lịch sử của {repo} đến lần lưu {shortSha}, mọi khóa bí mật và mật khẩu đã được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng tôi đã được gỡ. Tôi hiểu vibefix không quét mã, và người hướng dẫn cùng nhóm thực hiện sẽ đọc toàn bộ lịch sử này."
     },
+    "teamCode": {
+      "version": "1.0",
+      "versionLine": "Lưu ý về mã của nhóm · phiên bản {version}",
+      "title": "Mã của nhóm không được vibefix quét",
+      "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các lần lưu thay đổi của bàn giao này không chứa khóa bí mật, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",
+      "customer": "vibefix không quét mã của nhóm. Người hướng dẫn {mentor} đã xác nhận bàn giao này không chứa khóa bí mật hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu."
+    },
     "proofConfidentiality": "Tệp và liên kết bạn đính kèm chỉ {who} của công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai."
   },
   "term": {
@@ -4298,6 +4312,13 @@
       },
       "exchange_revoke_unknown": {
         "title": "Không chắc token GitHub Actions ({operation}, mã {correlation}) đã được thu hồi sau khi vibefix khởi động lại"
+      },
+      "runner_run_failed": {
+        "title": "Lần sao chép bàn giao trên kho chạy thất bại: {job}, Giai đoạn {n}",
+        "body": "Lý do: {reason}. Lần chạy: {run}"
+      },
+      "runner_minutes_80": {
+        "title": "Kho chạy đã dùng {used}/{budget} phút GitHub Actions tháng này"
       }
     },
     "identity": {
@@ -4930,6 +4951,8 @@
     },
     "delivery": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn bàn giao được.",
+      "TEAM_ONLY": "Chỉ người hướng dẫn và nhóm thực hiện xem được lần sao chép bàn giao.",
+      "NOTICE_REQUIRED": "Lưu ý về mã của nhóm vừa được cập nhật. Hãy tải lại trang để đọc bản mới rồi gửi lại.",
       "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán hoặc đã bàn giao.",
       "WORK_ITEMS_NOT_DONE": "Còn {n} hạng mục chưa Xong. Hãy ghi chú cho từng hạng mục.",
       "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",

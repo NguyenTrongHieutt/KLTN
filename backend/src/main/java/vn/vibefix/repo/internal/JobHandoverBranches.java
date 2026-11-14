@@ -37,10 +37,13 @@ class JobHandoverBranches implements HandoverBranches {
 
 	private final PlatformRepositories repositories;
 
-	JobHandoverBranches(JdbcClient jdbc, JobSetups setups, PlatformRepositories repositories) {
+	private final GitHubLinks links;
+
+	JobHandoverBranches(JdbcClient jdbc, JobSetups setups, PlatformRepositories repositories, GitHubLinks links) {
 		this.jdbc = jdbc;
 		this.setups = setups;
 		this.repositories = repositories;
+		this.links = links;
 	}
 
 	@Override
@@ -74,6 +77,23 @@ class JobHandoverBranches implements HandoverBranches {
 		return new Range(fromSha, toSha,
 				comparison.commits().stream().map(commit -> new Commit(commit.sha(), commit.message(), commit.authorId())).toList(),
 				comparison.files(), comparison.truncated());
+	}
+
+	@Override
+	public Optional<String> intermediaryUrl(UUID jobId) {
+		// Story 23.7 deletes both repositories 30 days after the Job ended, and a link to a deleted one only 404s,
+		// so the Delivery Report drops its links once the Setup's row is marked deleted.
+		return done(jobId).filter(this::live)
+			.map(setup -> this.links.repository(java.util.Objects.requireNonNull(setup.intermediary()).fullName()));
+	}
+
+	/** Whether the Setup's repositories still exist on GitHub, as its own row records their deletion. */
+	private boolean live(Setup setup) {
+		return this.jdbc.sql("SELECT deleted_at IS NULL FROM repo.job_setup WHERE id = :id")
+			.param("id", setup.id())
+			.query(Boolean.class)
+			.optional()
+			.orElse(false);
 	}
 
 	@Override

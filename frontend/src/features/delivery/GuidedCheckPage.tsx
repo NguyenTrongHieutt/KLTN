@@ -71,7 +71,9 @@ function steps(checkSteps: string): string[] {
  * step with "Tiêu chí k/n", the criterion, its numbered "Cách kiểm tra", and the Mentor's note as a
  * quote; "Đạt" or "Chưa đạt" before "Tiếp", "Chưa đạt" with an optional comment. The summary accepts,
  * or asks for a revision of the criteria marked "Chưa đạt" while a Revision Round is left; each asks for
- * confirmation. Nothing is sent before that.
+ * confirmation. Where the handover holds the Mentor's N-33 confirmation, the acceptance's Confirmation dialog
+ * quotes it with their name: vibefix scans no team code, and the Mentor confirmed this handover holds none (FR-33,
+ * R28, Story 23.8b). Nothing is sent before that.
  */
 export function GuidedCheckPage() {
   const { jobId, handoverId } = useParams()
@@ -365,6 +367,15 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               ) : (
                 <>
                   {t('screen.handover.check.acceptBody', { amount: formatVnd(decision.releaseVnd) })} <TestTag />
+                  {/*
+                    N-33 (FR-33, R28, Story 23.8b): shown before the Customer accepts, never acknowledged, and only
+                    where the handover really holds the Mentor's confirmation.
+                  */}
+                  {report.code?.teamCodeConfirmedAt && (
+                    <span className="mt-2 block break-words">
+                      {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
+                    </span>
+                  )}
                 </>
               )}
             </Dialog.Description>

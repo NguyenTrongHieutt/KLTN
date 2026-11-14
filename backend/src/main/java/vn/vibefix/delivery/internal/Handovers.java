@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +68,11 @@ class Handovers {
 
 	static final int MAX_NOTE = 2000;
 
+	/** N-33's version, as the property and a Mentor's confirmation name it: major.minor, such as {@code 1.0}. */
+	static final String NOTICE_VERSION_PATTERN = "[0-9]{1,3}\\.[0-9]{1,3}";
+
+	private static final java.util.regex.Pattern NOTICE_VERSION = java.util.regex.Pattern.compile(NOTICE_VERSION_PATTERN);
+
 	/**
 	 * How many Sensitive Changes one handover stores (FR-32, Story 23.8a): the run reports every changed path, up
 	 * to 100,000, and the Delivery Report lists the first of them with the full count beside it {@code [ASSUMPTION]}.
@@ -91,6 +97,17 @@ class Handovers {
 
 	/** The Mentor's note on one Work Item that is not done. */
 	record ItemNote(UUID workItemId, String note) {
+	}
+
+	/**
+	 * The Mentor's N-33 duty confirmation, as a Code Job's handover records it (FR-25, FR-32, R28, Story 23.8b):
+	 * vibefix scans no team code, so the Mentor confirms where they hand over that the handover's commits hold no
+	 * credential and no real data. An Assessment Job hands over no code, so it has none.
+	 * @param accountId the Mentor who ticked it, which is the handover's own Mentor
+	 * @param noticeVersion the version of N-33's Mentor text they were shown
+	 * @param confirmedAt when "Gửi bàn giao" carried it, which is before the runner's copy
+	 */
+	record TeamCodeConfirmation(UUID accountId, String noticeVersion, Instant confirmedAt) {
 	}
 
 	/** @param auto accepted by Auto-acceptance (FR-35) */
@@ -140,11 +157,13 @@ class Handovers {
 	 * sent is recorded as they sent it, whatever moves meanwhile.
 	 * @param id the handover's ID, which for a Code Job is also its submission's and its branch's
 	 * @param version the Job's version M2 is applied on (AD-23)
+	 * @param teamCode the Mentor's N-33 confirmation for a Code Job; none for an Assessment Job (Story 23.8b)
 	 */
 	record Pending(UUID id, UUID jobId, UUID productId, UUID customerId, UUID mentorId, long version, UUID milestoneId,
 			int milestoneNumber, String milestoneTitle, List<PendingCriterion> criteria, List<PendingItemNote> itemNotes,
 			@Nullable UUID reportPageId, @Nullable Integer reportVersionNo, @Nullable String previewUrl,
-			@Nullable String recordingUrl, @Nullable String noPreviewReason, List<UUID> screenshotIds) {
+			@Nullable String recordingUrl, @Nullable String noPreviewReason, List<UUID> screenshotIds,
+			@Nullable TeamCodeConfirmation teamCode) {
 
 		Pending {
 			criteria = List.copyOf(criteria);
@@ -153,7 +172,7 @@ class Handovers {
 		}
 
 		/** What the Mentor's drafted handover will store, under {@code id}. */
-		static Pending of(Viewer mentor, Draft draft, long version, UUID id) {
+		static Pending of(Viewer mentor, Draft draft, long version, UUID id, @Nullable TeamCodeConfirmation teamCode) {
 			ReportVersion report = draft.report();
 			return new Pending(id, mentor.job().jobId(), mentor.job().productId(), mentor.job().customerId(),
 					mentor.accountId(), version, draft.milestone().milestoneId(), draft.milestone().number(),
@@ -170,7 +189,7 @@ class Handovers {
 								draft.itemNotes().get(item.id())))
 						.toList(),
 					report == null ? null : report.pageId(), report == null ? null : report.versionNo(), draft.previewUrl(),
-					draft.recordingUrl(), draft.noPreviewReason(), draft.screenshotIds());
+					draft.recordingUrl(), draft.noPreviewReason(), draft.screenshotIds(), teamCode);
 		}
 
 	}
@@ -207,9 +226,12 @@ class Handovers {
 	 * What a Code Job's handover recorded, for its Delivery Report.
 	 * @param sensitive the Sensitive Changes stored, at most {@value #MAX_SENSITIVE_ROWS} of them
 	 * @param sensitiveCount how many the run's full list held, which the report's caption names
+	 * @param teamCodeConfirmedAt when the Mentor ticked N-33 (Story 23.8b), which the Customer's own line quotes;
+	 * {@code null} for a handover recorded before that story, which holds no confirmation to quote
 	 */
 	record CodeRecord(String commit, int pullNumber, int unattributed, boolean truncated, List<RecordedCommit> commits,
-			List<SensitiveChange> sensitive, int sensitiveCount, List<PageUpdate> pages) {
+			List<SensitiveChange> sensitive, int sensitiveCount, List<PageUpdate> pages,
+			@Nullable Instant teamCodeConfirmedAt) {
 	}
 
 	private static final String COLUMNS = """
@@ -239,9 +261,17 @@ class Handovers {
 
 	private final HandoverScreenshots screenshots;
 
+	private final String noticeVersion;
+
 	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
 			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
-			HandoverScreenshots screenshots) {
+			HandoverScreenshots screenshots,
+			@Value("${vibefix.delivery.team-code-notice-version}") String noticeVersion) {
+		if (noticeVersion == null || !NOTICE_VERSION.matcher(noticeVersion).matches()) {
+			throw new IllegalStateException(
+					"vibefix.delivery.team-code-notice-version is a version such as 1.0, not '" + noticeVersion + "'");
+		}
+		this.noticeVersion = noticeVersion;
 		this.screenshots = screenshots;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
@@ -253,6 +283,14 @@ class Handovers {
 		this.deadlines = deadlines;
 		this.ids = ids;
 		this.clock = clock;
+	}
+
+	/**
+	 * N-33's current version, which a Code Job's handover must name and records
+	 * ({@code vibefix.delivery.team-code-notice-version}).
+	 */
+	String noticeVersion() {
+		return this.noticeVersion;
 	}
 
 	/** The first Milestone in force waiting for a handover: Funded or Revision Requested. */
@@ -375,6 +413,7 @@ class Handovers {
 		UUID milestoneId = pending.milestoneId();
 		Submitted submitted = this.jobs.submit(jobId, milestoneId, pending.mentorId(), pending.version(), id,
 				code == null ? null : code.commit());
+		TeamCodeConfirmation teamCode = pending.teamCode();
 		int round = this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE milestone_id = :milestone")
 			.param("milestone", milestoneId)
 			.query(Integer.class)
@@ -384,10 +423,11 @@ class Handovers {
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, report_page_id, report_version_no, check_by, created_at,
 				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated,
-				    sensitive_change_count, preview_url, preview_checked_at, recording_url, no_preview_reason)
+				    sensitive_change_count, preview_url, preview_checked_at, recording_url, no_preview_reason,
+				    team_code_account_id, team_code_notice_version, team_code_confirmed_at)
 				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :mentor, 'SUBMITTED', :version, :transition,
 				    :page, :pageVersion, :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated, :sensitiveCount,
-				    :preview, :previewChecked, :recording, :reason)
+				    :preview, :previewChecked, :recording, :reason, :teamCodeAccount, :teamCodeVersion, :teamCodeAt)
 				""")
 			.param("id", id)
 			.param("job", jobId)
@@ -414,6 +454,10 @@ class Handovers {
 			.param("previewChecked", pending.previewUrl() == null ? null : Timestamp.from(now))
 			.param("recording", pending.recordingUrl())
 			.param("reason", pending.noPreviewReason())
+			// N-33 (FR-25, R28): the Mentor's duty confirmation as "Gửi bàn giao" carried it; none for an Assessment Job.
+			.param("teamCodeAccount", teamCode == null ? null : teamCode.accountId())
+			.param("teamCodeVersion", teamCode == null ? null : teamCode.noticeVersion())
+			.param("teamCodeAt", teamCode == null ? null : Timestamp.from(teamCode.confirmedAt()))
 			.update();
 		this.screenshots.attach(id, jobId, pending.mentorId(), pending.screenshotIds());
 		for (PendingCriterion criterion : pending.criteria()) {
@@ -538,11 +582,16 @@ class Handovers {
 	@Transactional(readOnly = true)
 	Optional<CodeRecord> code(UUID handoverId) {
 		return this.jdbc.sql("""
-				SELECT handover_commit, pull_number, unattributed_commits, commits_truncated, sensitive_change_count
+				SELECT handover_commit, pull_number, unattributed_commits, commits_truncated, sensitive_change_count,
+				    team_code_confirmed_at
 				FROM delivery.handover WHERE id = :id AND handover_commit IS NOT NULL
-				""").param("id", handoverId).query((rs, n) -> new CodeRecord(rs.getString("handover_commit"),
-						rs.getInt("pull_number"), rs.getInt("unattributed_commits"), rs.getBoolean("commits_truncated"),
-						commits(handoverId), sensitive(handoverId), rs.getInt("sensitive_change_count"), pages(handoverId)))
+				""").param("id", handoverId).query((rs, n) -> {
+					Timestamp confirmed = rs.getTimestamp("team_code_confirmed_at");
+					return new CodeRecord(rs.getString("handover_commit"), rs.getInt("pull_number"),
+							rs.getInt("unattributed_commits"), rs.getBoolean("commits_truncated"), commits(handoverId),
+							sensitive(handoverId), rs.getInt("sensitive_change_count"), pages(handoverId),
+							confirmed == null ? null : confirmed.toInstant());
+				})
 			.optional();
 	}
 

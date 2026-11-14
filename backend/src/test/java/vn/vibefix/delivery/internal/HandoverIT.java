@@ -75,6 +75,9 @@ class HandoverIT extends IntegrationTest {
 	/** The preview link a Bug fixing handover carries (Story 8.3); none for an Assessment. */
 	private String previewUrl;
 
+	/** Whether the Job is an Assessment, which hands over no code and so names no N-33 version (Story 23.8b). */
+	private boolean assessment;
+
 	@Test
 	void theMentorHandsOverAnAssessmentMilestoneWithTheReportVersionOfThatMoment() throws Exception {
 		world("ASSESSMENT");
@@ -123,7 +126,13 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
 			.andExpect(jsonPath("$.itemNotes[0].key").value("BCD-2"))
+			.andExpect(jsonPath("$.code").doesNotExist())
 			.andExpect(jsonPath("$.report.versionNo").value(1));
+		// FR-25, R28 (Story 23.8b): an Assessment Job hands over no code, so N-33 is neither asked for nor recorded.
+		assertThat(count("""
+				SELECT count(*) FROM delivery.handover WHERE team_code_notice_version IS NULL
+				    AND team_code_confirmed_at IS NULL AND team_code_account_id IS NULL
+				""")).isOne();
 		assertThat(this.jdbc.sql("SELECT state || ':' || handover_id FROM job.milestone WHERE id = :id")
 			.param("id", this.milestone).query(String.class).single()).isEqualTo("SUBMITTED:" + handover);
 		assertThat(count("SELECT version FROM job.job WHERE id = '" + this.job + "'")).isEqualTo(6);
@@ -201,6 +210,7 @@ class HandoverIT extends IntegrationTest {
 	 * approved, and a Task in progress. Vy is an active Crew member.
 	 */
 	private void world(String type) {
+		this.assessment = "ASSESSMENT".equals(type);
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TestPeople.REACT), "React");
@@ -281,6 +291,8 @@ class HandoverIT extends IntegrationTest {
 				+ this.criterion + "\",\"met\":true,\"note\":\"" + criterionNote + "\"}]"
 				+ (taskNote == null ? "" : ",\"itemNotes\":[{\"workItemId\":\"" + this.task + "\",\"note\":\"" + taskNote + "\"}]")
 				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"")
+				// N-33 (FR-25, R28, Story 23.8b): a Code Job's handover names the version in force; an Assessment's none.
+				+ (this.assessment ? "" : ",\"teamCodeNoticeVersion\":\"1.0\"")
 				+ (this.previewUrl == null ? "" : ",\"previewUrl\":\"" + this.previewUrl + "\"") + "}";
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)

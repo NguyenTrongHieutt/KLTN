@@ -1,0 +1,6 @@
+subject: Kho chạy đã dùng {used}/{budget} phút GitHub Actions tháng này
+---
+Xin chào,
+
+Kho chạy của vibefix đã dùng {used} trên {budget} phút GitHub Actions trong tháng này. Khi hết số phút, GitHub không chạy việc sao chép bàn giao nữa và người hướng dẫn không bàn giao được.
+Số phút được cộng lại mỗi ngày một lần, nên con số trên là của lần đọc gần nhất.

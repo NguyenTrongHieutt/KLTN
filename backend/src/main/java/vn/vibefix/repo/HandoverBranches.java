@@ -55,6 +55,15 @@ public interface HandoverBranches {
 
 	Range range(UUID jobId, String fromSha, String toSha);
 
+	/**
+	 * The Intermediary Repository's page on GitHub's website, from which the Delivery Report builds its links to a
+	 * handover's pull-request changes and to its {@code handover/{id}} branch (FR-32, Story 23.8b). It reads
+	 * vibefix's own record of the Job's Setup, never GitHub, so unlike every other method here it needs no
+	 * transaction of its own and never throws {@link Unavailable}.
+	 * @return empty for a Job whose Setup is not done, which has no Intermediary yet
+	 */
+	Optional<String> intermediaryUrl(UUID jobId);
+
 	/** Closes the handover's pull request when its handover was not recorded; a failure here is only logged. */
 	void closeAfterRefusal(UUID jobId, int pullNumber);
 

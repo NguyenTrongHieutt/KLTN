@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,6 +57,9 @@ class GitHubActionsRuns implements ActionsRuns {
 
 	/** How much earlier than the correlation a run is looked for, for the clocks of vibefix and GitHub to differ. */
 	static final Duration CLOCK_SKEW = Duration.ofMinutes(1);
+
+	/** How many pages of 100 runs a month's minutes are summed over: more runs than the runner can ever bill. */
+	static final int MINUTES_PAGES = 30;
 
 	/** The target's read, and its workflow file's. */
 	private static final Map<String, String> TARGET_READ = Map.of("metadata", "read", "contents", "read");
@@ -225,6 +229,94 @@ class GitHubActionsRuns implements ActionsRuns {
 		}
 		catch (GitHubException failed) {
 			log.warn("Run {} of correlation {} was not cancelled: HTTP {}", runId, correlation, failed.status());
+		}
+	}
+
+	/**
+	 * What a repository's runs billed since a moment (AD-46, R30, Story 23.8b).
+	 * @param runs how many runs were listed
+	 * @param minutes their billed minutes: each listed run's own duration, rounded up to the minute.
+	 * {@code [ASSUMPTION; Story 23.12 confirms what GitHub reports]} A run's duration is its
+	 * {@code run_duration_ms} where the listing carries one, else its {@code run_started_at} to
+	 * {@code updated_at}, the fallback {@code SpikeS6Command} uses: GitHub documents
+	 * {@code run_duration_ms} on {@code /runs/{id}/timing}, not on the listing, and one {@code /timing} request
+	 * per run would be a month's worth of calls a day. GitHub bills each <em>job</em> rounded up, not each run,
+	 * so a run of several jobs bills more than this sums; the alert then fires at the share or a little before it,
+	 * never after GitHub's own count has passed it
+	 */
+	record Minutes(int runs, long minutes) {
+	}
+
+	/**
+	 * Every run of {@code repository} created at or after {@code since}, with its billed minutes summed: the
+	 * runner's monthly Actions minutes (AD-46). It reads with a Platform App token narrowed to that one repository,
+	 * Actions read, revoked after use, and follows GitHub's pages up to {@value #MINUTES_PAGES}.
+	 * @param repositoryId the repository's numeric ID, which the token is narrowed to
+	 * @throws GitHubException when GitHub refuses a page or cannot be reached
+	 */
+	Minutes minutesSince(long repositoryId, String repository, Instant since) {
+		String created = URLEncoder.encode(">=" + DateTimeFormatter.ISO_INSTANT.format(since.truncatedTo(ChronoUnit.SECONDS)),
+				StandardCharsets.UTF_8);
+		return this.dispatching.withToken(App.PLATFORM, null, repositoryId, Map.of("actions", "read"), token -> {
+			int runs = 0;
+			long minutes = 0;
+			boolean more = false;
+			for (int page = 1; page <= MINUTES_PAGES; page++) {
+				GitHubHttp.Answer answer = this.apps.http()
+					.send("GET", "/repos/" + repository + "/actions/runs?created=" + created + "&per_page=100&page=" + page,
+							token.value(), null);
+				if (!answer.ok()) {
+					throw new GitHubException(answer.status(),
+							"GitHub refused to list the runs of " + repository + ": HTTP " + answer.status());
+				}
+				JsonNode listed = answer.body().path("workflow_runs");
+				if (!listed.isArray() || listed.isEmpty()) {
+					more = false;
+					break;
+				}
+				for (JsonNode run : listed) {
+					runs++;
+					minutes += Math.ceilDiv(durationMillis(run), 60_000L);
+				}
+				more = listed.size() >= 100;
+				if (!more) {
+					break;
+				}
+			}
+			if (more) {
+				// The cap was reached with a full page: the month holds more runs than this read, so the sum is a floor.
+				log.warn("The minutes of {} are summed over the first {} pages of 100 runs, which were all full: the"
+						+ " month has more runs, so {} minutes is a floor", repository, MINUTES_PAGES, minutes);
+			}
+			return new Minutes(runs, minutes);
+		});
+	}
+
+	/**
+	 * How long one listed run took, in milliseconds: its {@code run_duration_ms} where GitHub gives one, else its
+	 * {@code run_started_at} to {@code updated_at} ({@code SpikeS6Command}'s own fallback); 0 when neither reads.
+	 */
+	private static long durationMillis(JsonNode run) {
+		JsonNode reported = run.path("run_duration_ms");
+		if (reported.isIntegralNumber()) {
+			return Math.max(0, reported.longValue());
+		}
+		Instant started = instant(run.path("run_started_at"));
+		Instant updated = instant(run.path("updated_at"));
+		return started == null || updated == null || updated.isBefore(started) ? 0
+				: Duration.between(started, updated).toMillis();
+	}
+
+	/** An ISO instant a run shows, or none for anything else. */
+	private static @Nullable Instant instant(JsonNode node) {
+		if (!node.isString()) {
+			return null;
+		}
+		try {
+			return Instant.parse(node.stringValue());
+		}
+		catch (DateTimeParseException unreadable) {
+			return null;
 		}
 	}
 
