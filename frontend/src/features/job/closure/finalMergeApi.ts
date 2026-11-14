@@ -8,12 +8,16 @@ export type FinalMerge = components['schemas']['FinalMergeView']
 /** Where "Đăng công việc ghép mã" opens CUS-6, pre-filled to merge a Job's code (FR-38). */
 export const MERGE_CODE_PARAM = 'ghep-ma'
 
-/** How often the step reads again while the code is checked or merged. */
+/** How often the step reads again while the code is checked, or while the closure fallback is built. */
 const RUNNING_POLL_MS = 5_000
 
+/** How often it reads again while a run is on the Customer's own Actions (EXPERIENCE.md, Polling). */
+const RUN_POLL_MS = 3_000
+
 /**
- * The Customer's step "Cho phép hợp nhất" (FR-37, AD-10); others, and an Assessment Job, find nothing. It
- * reads again while the Final Merge is checked or merged.
+ * The Customer's closure step (FR-37, FR-38, UX-DR116); others, and an Assessment Job, find nothing. It reads
+ * again while the Final Merge is checked, while its run is on the Customer's own GitHub Actions, and while the
+ * closure fallback is built.
  */
 export function useFinalMerge(jobId: string) {
   return useQuery({
@@ -23,23 +27,17 @@ export function useFinalMerge(jobId: string) {
     refetchInterval: (query) => {
       const status = query.state.data?.merge?.status
       const zip = query.state.data?.zip?.status
-      return status === 'CHECKING' || status === 'CONFIRMED' || zip === 'BUILDING' ||
-        (query.state.data?.status === 'ENDED' && !zip)
+      if (status === 'CONFIRMED' || status === 'RUNNING') {
+        return RUN_POLL_MS
+      }
+      return status === 'CHECKING' || zip === 'BUILDING' || (query.state.data?.status === 'ENDED' && !zip)
         ? RUNNING_POLL_MS
         : false
     },
   })
 }
 
-/** A fresh Merge App install link with its single-use state; the page then goes to GitHub. */
-export function useInstallLink(jobId: string) {
-  return useMutation({
-    mutationFn: () =>
-      unwrap(apiClient.POST('/api/v1/jobs/{jobId}/final-merge/install-link', { params: { path: { jobId } } })),
-  })
-}
-
-/** "Hợp nhất vào dự án" (N-18): the merge starts, so the step and the busy banner refresh. */
+/** "Chép mã vào dự án của tôi" (N-18): the run starts, so the step and the busy banner refresh. */
 export function useConfirmFinalMerge(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -57,7 +55,7 @@ export function useConfirmFinalMerge(jobId: string) {
   })
 }
 
-/** "Nhận mã dạng ZIP" (FR-38): the authorization ends and the ZIP Fallback follows. */
+/** The closure fallback instead of the Final Merge (FR-38): the row ends and the fallback follows. */
 export function useDeclineFinalMerge(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({

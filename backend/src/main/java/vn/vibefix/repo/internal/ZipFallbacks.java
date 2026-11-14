@@ -161,18 +161,20 @@ class ZipFallbacks {
 				}).optional();
 	}
 
-	/** N-17's reason: the Final Merge's own refusal, else why the authorization ended. */
+	/**
+	 * The fallback's reason: the Final Merge's own refusal, else why the row ended. Story 23.9a's named reasons
+	 * ({@code WORKFLOW_FILES_CHANGED}, {@code BRANCH_EXISTS}, {@code EXCHANGE_REFUSED}, {@code ACTIONS_QUOTA},
+	 * {@code RUN_FAILED}) are not in this table's set, so the fallback reads them as "GitHub refused", while the
+	 * closure section shows the Final Merge's own reason; the Merge App's {@code REQUEST_NOT_APPROVED} stays in the
+	 * CHECK for the rows that hold it, and nothing writes it any more (R1).
+	 */
 	private String reason(Authorization authorization, String ended) {
 		FinalMerge merge = this.merges.find(authorization.id()).orElse(null);
 		if ("DECLINED".equals(ended)) {
 			return "DECLINED";
 		}
 		if ("DEADLINE".equals(ended)) {
-			if (merge != null) {
-				return "CONFIRMATION_MISSED";
-			}
-			return authorization.requestSeenAt() != null || authorization.requestRefusedAt() != null
-					? "REQUEST_NOT_APPROVED" : "NOT_AUTHORIZED";
+			return merge != null ? "CONFIRMATION_MISSED" : "NOT_AUTHORIZED";
 		}
 		String refusal = merge == null ? null : merge.refusal();
 		return refusal != null && Set.of("TRIAL_CONFLICT", "SOURCE_APP_MISSING", "J9_GUARD", "PUSH_REFUSED", "MERGE_REFUSED")

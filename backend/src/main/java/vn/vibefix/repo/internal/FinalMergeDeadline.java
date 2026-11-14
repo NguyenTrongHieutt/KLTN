@@ -15,11 +15,10 @@ import vn.vibefix.timers.DeadlineOutcome;
 import vn.vibefix.timers.DueDeadline;
 
 /**
- * {@value #KEY} (FR-37, AD-10): the FR-37 deadline, set at J8. An authorization still {@code REQUESTED},
- * or bound but whose Final Merge the Customer has not confirmed, ends {@code DEADLINE}, and the ZIP
- * Fallback follows (Story 8.9). A confirmed merge finishes on its own. Pausable: it takes the Job row lock
- * first, which {@code end} does not, so a frozen Job always pauses it and nothing ends (AD-4). Collaborators
- * are looked up on use.
+ * {@value #KEY} (FR-37): the FR-37 deadline, set at J8. A row still {@code REQUESTED} whose Final Merge the Customer
+ * has not confirmed ends {@code DEADLINE}, and the closure fallback follows (Story 8.9, which Story 23.10 replaces).
+ * A Final Merge the Customer set going finishes on its own. Pausable: it takes the Job row lock first, which
+ * {@code end} does not, so a frozen Job always pauses it and nothing ends (AD-4). Collaborators are looked up on use.
  */
 @Component
 class FinalMergeDeadline implements DeadlineHandler {
@@ -57,10 +56,7 @@ class FinalMergeDeadline implements DeadlineHandler {
 		if (authorization == null || !authorization.open()) {
 			return DeadlineOutcome.OBSOLETE;
 		}
-		boolean confirmed = this.merges.getObject()
-			.find(authorization.id())
-			.filter(merge -> "CONFIRMED".equals(merge.status()) || "MERGED".equals(merge.status()))
-			.isPresent();
+		boolean confirmed = this.merges.getObject().find(authorization.id()).filter(FinalMerges::confirmed).isPresent();
 		if (confirmed) {
 			return DeadlineOutcome.OBSOLETE;
 		}

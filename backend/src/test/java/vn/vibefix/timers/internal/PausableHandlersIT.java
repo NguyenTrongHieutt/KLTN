@@ -31,7 +31,7 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * A-02, AD-4, AD-7, over the 12 pausable kinds, each with a subject that does not exist, except the two whose
+ * A-02, AD-4, AD-7, over the 11 pausable kinds, each with a subject that does not exist, except the two whose
  * subject is the Job. The first test freezes the Job before the poll: it proves that the frozen check comes
  * before any look at the subject and that nothing runs before the thaw. It does not show a handler locks,
  * since one reading the freeze unlocked passes too, or that a rule fires, since without a real subject each
@@ -44,7 +44,7 @@ class PausableHandlersIT extends IntegrationTest {
 	private static final List<String> KINDS = List.of("delivery.auto_acceptance", "delivery.acceptance_reminder",
 			"job.agreement_deadline", "job.starting_deadline", "job.cancellation_answer", "job.closure_answer",
 			"job.closure_auto_confirm", "job.milestone_due_soon", "job.milestone_overdue", "job.milestone_unfunded",
-			"repo.final_merge_deadline", "repo.final_merge_reminder");
+			"repo.final_merge_deadline");
 
 	/** These two take the Job as their subject (FR-40). */
 	private static final Set<String> SUBJECT_IS_THE_JOB = Set.of("job.agreement_deadline", "job.starting_deadline");

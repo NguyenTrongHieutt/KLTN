@@ -48,13 +48,19 @@ enum RepoReason {
 	/** The Customer no longer administers the re-confirmed repository (FR-20, AD-13). */
 	NO_ADMIN_PERMISSION,
 
-	/** The Job has no open Final Merge authorization to install the Merge App for (FR-37, AD-10). */
+	/** The Job has no open Final Merge row to choose a way of receiving the code for (FR-37). */
 	NO_AUTHORIZATION_OPEN,
 
 	/** The Final Merge is not checked and waiting for the Customer's confirmation (FR-37). */
 	FINAL_MERGE_NOT_READY,
 
-	/** The Customer already confirmed the Final Merge, so the ZIP can no longer be chosen instead (FR-38). */
-	FINAL_MERGE_CONFIRMED
+	/** The Customer already set the Final Merge run going, so the fallback can no longer be chosen (FR-38). */
+	FINAL_MERGE_CONFIRMED,
+
+	/**
+	 * The accepted code changes a file under {@code .github/workflows/}, which a run's own token can never push, so
+	 * the Final Merge cannot run (FR-37, AD-11, R1, deferred-work 626).
+	 */
+	WORKFLOW_FILES_CHANGED
 
 }

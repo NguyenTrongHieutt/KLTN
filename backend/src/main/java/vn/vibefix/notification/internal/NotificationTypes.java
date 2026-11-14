@@ -372,26 +372,18 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType OPERATIONS_BUSY_MARKER_STUCK = new NotificationType("operations.busy_marker_stuck",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "operation"));
 
-	/** J8 while the Final Merge authorization is still REQUESTED (FR-37): the Customer, with the deadline. */
-	static final NotificationType REPO_FINAL_MERGE_AUTHORIZATION_PENDING = new NotificationType(
-			"repo.final_merge_authorization_pending", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL,
-			EmailClass.TRANSACTIONAL, "alert", Set.of("date"));
+	/**
+	 * The Final Merge run pushed {@code vibefix/final-…} and vibefix read it back (FR-37, FR-48, R1, Story 23.9a): the
+	 * Customer and the Mentor. The Customer merges that branch themselves on GitHub.
+	 */
+	static final NotificationType REPO_FINAL_BRANCH_READY = new NotificationType("repo.final_branch_ready",
+			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
+			Set.of("job", "branch"));
 
-	/** 2 days before the FR-37 deadline while still REQUESTED (author decision 2026-10-21). */
-	static final NotificationType REPO_FINAL_MERGE_AUTHORIZATION_REMINDER = new NotificationType(
-			"repo.final_merge_authorization_reminder", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL,
-			EmailClass.REMINDER, "info", Set.of("job", "date", "waiting"));
-
-	/** An organization owner's later approval bound the authorization without the Customer on the page (AD-10). */
-	static final NotificationType REPO_FINAL_MERGE_AUTHORIZED = new NotificationType("repo.final_merge_authorized",
-			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
-			Set.of("org", "repo", "date"));
-
-	/** An install request listed before is no longer listed, and nothing is bound (AD-10, SG-21). */
-	static final NotificationType REPO_MERGE_APP_REQUEST_REFUSED = new NotificationType("repo.merge_app_request_refused",
-			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("repo", "date"));
-
-	/** The Final Merge was read back (FR-37): the Customer and the Mentor. */
+	/**
+	 * The Final Merge of a Job that ended before Story 23.9a, when vibefix still merged into the Source Repository
+	 * itself (FR-37): nothing sends it any more, and the type stays so the rows already in the inbox still read.
+	 */
 	static final NotificationType REPO_FINAL_MERGE_COMPLETED = new NotificationType("repo.final_merge_completed",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
 			Set.of("job"));
@@ -410,11 +402,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_ZIP_FALLBACK_READY = new NotificationType("repo.zip_fallback_ready",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("job"));
-
-	/** The Merge App's selection grew beyond the authorized repositories, so no Final Merge token is minted (AD-10). */
-	static final NotificationType REPO_MERGE_APP_SELECTION_WIDENED = new NotificationType(
-			"repo.merge_app_selection_widened", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL,
-			"alert", Set.of("repo"));
 
 	/** A GitHub App's registration or webhook differs from AD-10 (SG-18): every Administrator, once a day per App. */
 	static final NotificationType GITHUB_APP_CONFIGURATION_DRIFT = new NotificationType("github.app_configuration_drift",
@@ -949,9 +936,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_JOB_STARTED,
 				REPO_GITHUB_INVITATION_SENT, REPO_INTERMEDIARY_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED, REPO_MEMBER_DRIFT,
 				REPO_INVITATION_RENEWALS_EXHAUSTED,
-				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_FINAL_MERGE_AUTHORIZATION_PENDING,
-				REPO_FINAL_MERGE_AUTHORIZATION_REMINDER, REPO_FINAL_MERGE_AUTHORIZED, REPO_MERGE_APP_REQUEST_REFUSED,
-				REPO_MERGE_APP_SELECTION_WIDENED, REPO_FINAL_MERGE_COMPLETED, REPO_ZIP_FALLBACK_READY,
+				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_FINAL_BRANCH_READY, REPO_FINAL_MERGE_COMPLETED,
+				REPO_ZIP_FALLBACK_READY,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN, GITHUB_RUNNER_RUN_FAILED, GITHUB_RUNNER_MINUTES_80,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,

@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -29,15 +27,13 @@ import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
 /**
  * {@value ZipFallbacks#BUILD} (FR-38, AD-32, NFR-10): the ZIP of the Intermediary default branch, built in
  * the sandbox as Story 7.7's final ZIP and stored once on the Setup, owned by the Customer; then the whole
- * Job's Sensitive Changes for N-17 and the resolving transaction's J9. A frozen Job waits. Any Merge App
- * installation no open authorization needs is removed afterwards. Collaborators are looked up on use.
+ * Job's Sensitive Changes and the resolving transaction's J9. A frozen Job waits. Story 23.9a retired the Merge App
+ * (R1), so there is no installation left to remove here. Collaborators are looked up on use.
  */
 @Component
 class ZipFallbackOperation implements OperationHandler {
 
 	static final Duration FROZEN_WAIT = Duration.ofMinutes(15);
-
-	private static final Logger log = LoggerFactory.getLogger(ZipFallbackOperation.class);
 
 	private final ObjectProvider<ZipFallbacks> fallbacks;
 
@@ -49,25 +45,18 @@ class ZipFallbackOperation implements OperationHandler {
 
 	private final ObjectProvider<SensitiveChanges> sensitive;
 
-	private final ObjectProvider<FinalMergeAuthorizations> authorizations;
-
-	private final ObjectProvider<MergeAppBindings> bindings;
-
 	private final ObjectProvider<JobBusy> busy;
 
 	private final Clock clock;
 
 	ZipFallbackOperation(ObjectProvider<ZipFallbacks> fallbacks, ObjectProvider<JobSetups> setups,
 			ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<PlatformRepositories> repositories,
-			ObjectProvider<SensitiveChanges> sensitive, ObjectProvider<FinalMergeAuthorizations> authorizations,
-			ObjectProvider<MergeAppBindings> bindings, ObjectProvider<JobBusy> busy, Clock clock) {
+			ObjectProvider<SensitiveChanges> sensitive, ObjectProvider<JobBusy> busy, Clock clock) {
 		this.fallbacks = fallbacks;
 		this.setups = setups;
 		this.deletions = deletions;
 		this.repositories = repositories;
 		this.sensitive = sensitive;
-		this.authorizations = authorizations;
-		this.bindings = bindings;
 		this.busy = busy;
 		this.clock = clock;
 	}
@@ -123,26 +112,7 @@ class ZipFallbackOperation implements OperationHandler {
 		}
 		UUID archive = Objects.requireNonNull(deletions.find(setup.id()).orElseThrow().archiveFileId());
 		this.fallbacks.getObject().ready(jobId, archive, changes);
-		removeInstallation(fallback.authorizationId());
 		return Outcome.succeeded();
-	}
-
-	/** AD-10: the installation goes unless another open authorization needs it. */
-	private void removeInstallation(UUID authorizationId) {
-		Long installation = this.authorizations.getObject().find(authorizationId)
-			.map(FinalMergeAuthorizations.Authorization::installationId)
-			.orElse(null);
-		if (installation == null) {
-			return;
-		}
-		try {
-			this.bindings.getObject().read(installation)
-				.ifPresent(found -> this.bindings.getObject().removeIfUnneeded(found));
-		}
-		catch (GitHubException kept) {
-			// The daily reconciliation removes it.
-			log.warn("Merge App installation {} was not removed yet: {}", installation, kept.getMessage());
-		}
 	}
 
 }

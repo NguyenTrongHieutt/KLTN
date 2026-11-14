@@ -1,30 +1,26 @@
 package vn.vibefix.repo.internal;
 
-import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
-import vn.vibefix.github.GitHubException;
-import vn.vibefix.github.MergeApp;
+import vn.vibefix.github.ActionsRuns;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
+import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
@@ -34,71 +30,73 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-1's step "Cho phép hợp nhất" (FR-37, AD-10, UX-DR30, UX-DR55), for the Job's Customer only:
- * <ul>
- * <li>the authorization, its deadline, the last refused installation, and an install request waiting for
- * an organization owner or no longer listed; reading it while {@code REQUESTED} re-reads the requests;</li>
- * <li>"Cài ứng dụng hợp nhất trên GitHub ↗": a fresh install link with a single-use {@code state};</li>
- * <li>the Merge App's Setup URL, where GitHub returns: a valid {@code state} binds its authorization, and
- * any other return changes nothing; both go back to JOB-1, which refetches, marked when nothing was
- * installed (a request, or an organization that blocks installs).</li>
- * </ul>
- * Everyone else finds nothing.
+ * JOB-1's closure step "Chọn cách nhận mã" (FR-37, FR-38, UX-DR116, Story 23.9a), for the Job's Customer only: the
+ * Final Merge with its FR-37 deadline, the whole Job's Sensitive Changes and N-18, the state of the run on the
+ * Customer's own GitHub Actions, and, once vibefix has read {@code vibefix/final-{jobId}} back, the branch and
+ * GitHub's compare page, where the Customer opens and merges the pull request themselves. vibefix opens no pull
+ * request and writes nothing in a Customer repository. A Final Merge that could not run names its reason and keeps
+ * the closure fallback offered. Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class FinalMergeController {
 
-	private static final Logger log = LoggerFactory.getLogger(FinalMergeController.class);
-
 	/**
 	 * The step.
-	 * @param status {@code REQUESTED}, {@code BOUND}, {@code USED}, or {@code ENDED}
+	 * @param status {@code REQUESTED}, {@code USED}, or {@code ENDED}
 	 * @param repository the Source Repository's full name
-	 * @param owner the account the Merge App is installed on, the repository's owner
 	 * @param deadlineAt the FR-37 deadline, from J8 on
-	 * @param refusal {@code MERGE_APP_WRONG_REPOSITORY} after a refused installation, until one binds
-	 * @param requestOrg the organization whose owner must approve the waiting request
-	 * @param requestRefused a request listed before and no longer, with nothing bound
-	 * @param merge the Final Merge once the authorization is bound in Closing (Story 8.8)
-	 * @param zip the ZIP Fallback once the merge cannot happen (Story 8.9)
+	 * @param merge the Final Merge once the Job is Closing
+	 * @param zip the closure fallback once the Final Merge cannot happen (Story 8.9)
 	 * @param productId for "Đăng công việc ghép mã", which opens CUS-6 for the Product
 	 */
-	record FinalMergeView(UUID id, String status, String repository, String owner, @Nullable Instant deadlineAt,
-			@Nullable String refusal, @Nullable String requestOrg, boolean requestWaiting, boolean requestRefused,
+	record FinalMergeView(UUID id, String status, String repository, @Nullable Instant deadlineAt,
 			@Nullable String endReason, @Nullable MergeView merge, @Nullable ZipView zip, UUID productId) {
 	}
 
 	/**
-	 * The ZIP Fallback (FR-38, N-17).
+	 * The closure fallback (FR-38), as Story 8.9 built it; Story 23.10 replaces it with the self-download path.
 	 * @param status {@code BUILDING} or {@code READY}
-	 * @param reason why the merge could not happen
-	 * @param fileId the ZIP, served by {@code GET /api/v1/files/{id}} to the Customer alone
+	 * @param reason why the Final Merge could not happen
+	 * @param fileId the archive, served by {@code GET /api/v1/files/{id}} to the Customer alone
 	 */
 	record ZipView(String status, String reason, @Nullable UUID fileId, List<MergeSensitiveChangeView> sensitive) {
 	}
 
 	/**
-	 * The Final Merge (FR-37, SG-19, UX-DR35).
-	 * @param status {@code CHECKING}, {@code READY}, {@code CONFIRMED}, {@code MERGED}, {@code CONFLICT}, or {@code REFUSED}
+	 * The Final Merge (FR-37, SG-19, UX-DR35, UX-DR116).
+	 * @param status {@code CHECKING}, {@code READY}, {@code CONFIRMED}, {@code RUNNING}, {@code DONE},
+	 * {@code CONFLICT}, or {@code REFUSED}
 	 * @param sensitive the whole Job's Sensitive Changes
-	 * @param workflows the workflow files already in the Source Repository, for the info alert
-	 * @param pullUrl "Xem thay đổi trên GitHub ↗", once merged
+	 * @param workflows the files under {@code .github/workflows/} that differ between the Source Repository and the
+	 * accepted code: a non-empty list is N-18's workflow-file state, and nothing is dispatched
+	 * @param refusal the named reason a Final Merge that cannot run shows
+	 * @param run the run on the Customer's own GitHub Actions, once one was dispatched
+	 * @param branch {@code vibefix/final-{jobId}}, the branch the run pushes
+	 * @param branchUrl "Xem nhánh ↗", once the branch read back
+	 * @param compareUrl "Mở trang hợp nhất trên GitHub ↗", GitHub's compare page, once the branch read back
 	 */
-	record MergeView(String status, List<MergeSensitiveChangeView> sensitive, List<String> workflows, @Nullable String pullUrl,
-			@Nullable String refusal) {
+	record MergeView(String status, List<MergeSensitiveChangeView> sensitive, List<String> workflows,
+			@Nullable String refusal, @Nullable RunView run, @Nullable String branch, @Nullable String branchUrl,
+			@Nullable String compareUrl) {
+	}
+
+	/**
+	 * The Final Merge run on the Customer's own GitHub Actions (AD-46).
+	 * @param state {@code DISPATCHED} before it was read, then {@code QUEUED}, {@code IN_PROGRESS} or {@code COMPLETED}
+	 * @param conclusion GitHub's conclusion once it completed ({@code success}, {@code failure}…), or
+	 * {@code timed_out} once vibefix stopped waiting for it
+	 * @param htmlUrl the run's page on GitHub, in the Customer's own repository
+	 */
+	record RunView(String state, @Nullable String conclusion, @Nullable String htmlUrl) {
 	}
 
 	/** One Sensitive Change: its path and kind, as the Delivery Report shows one. */
 	record MergeSensitiveChangeView(String path, SensitiveChanges.Kind kind) {
 	}
 
-	/** "Tôi đã xem và đồng ý hợp nhất." (N-18). */
+	/** "Tôi đã xem và muốn chép mã vào dự án của tôi." (N-18). */
 	record ConfirmRequest(@AssertTrue boolean agreed) {
-	}
-
-	/** Where "Cài ứng dụng hợp nhất trên GitHub ↗" goes. */
-	record InstallLinkView(String url) {
 	}
 
 	private final FinalMergeAuthorizations authorizations;
@@ -107,9 +105,9 @@ class FinalMergeController {
 
 	private final ZipFallbacks fallbacks;
 
-	private final MergeAppBindings bindings;
+	private final ActionsRuns runs;
 
-	private final MergeApp app;
+	private final GitHubLinks links;
 
 	private final JobBusy busy;
 
@@ -118,13 +116,13 @@ class FinalMergeController {
 	private final JobRoles roles;
 
 	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, ZipFallbacks fallbacks,
-			MergeAppBindings bindings, MergeApp app, JobBusy busy, CurrentCaller callers, JobRoles roles) {
+			ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers, JobRoles roles) {
 		this.roles = roles;
 		this.authorizations = authorizations;
 		this.merges = merges;
 		this.fallbacks = fallbacks;
-		this.bindings = bindings;
-		this.app = app;
+		this.runs = runs;
+		this.links = links;
 		this.busy = busy;
 		this.callers = callers;
 	}
@@ -134,22 +132,21 @@ class FinalMergeController {
 		BusyJob job = customerJob(jobId);
 		Authorization authorization = this.authorizations.latest(job.jobId())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if ("REQUESTED".equals(authorization.status())) {
-			this.bindings.readRequests(List.of(authorization));
-			authorization = this.authorizations.find(authorization.id()).orElseThrow();
-		}
-		else if ("BOUND".equals(authorization.status())) {
-			// A check that failed is started again here (Story 8.8).
+		if (authorization.open()) {
+			// A check that failed is started again here.
 			this.merges.prepare(job.jobId());
 		}
 		return view(authorization);
 	}
 
 	/**
-	 * "Hợp nhất vào dự án" (FR-37, N-18): the merge starts under the {@code FINAL_MERGE} busy marker.
-	 * @throws ApiException {@code CONFLICT FINAL_MERGE_NOT_READY}; {@code JOB_BUSY}; {@code STALE}
+	 * "Chép mã vào dự án của tôi" (FR-37, N-18): the run is dispatched on the Customer's own GitHub Actions under the
+	 * {@code FINAL_MERGE} busy marker, so the answer is the Final Merge and its state.
+	 * @throws ApiException {@code CONFLICT FINAL_MERGE_NOT_READY}; {@code CONFLICT FINAL_MERGE_CONFIRMED};
+	 * {@code CONFLICT WORKFLOW_FILES_CHANGED}; {@code JOB_BUSY}; {@code STALE}
 	 */
 	@PostMapping("/api/v1/jobs/{jobId}/final-merge/confirm")
+	@ResponseStatus(HttpStatus.ACCEPTED)
 	FinalMergeView confirm(@PathVariable UUID jobId, @Valid @RequestBody ConfirmRequest body) {
 		BusyJob job = customerJob(jobId);
 		this.merges.confirm(job, this.callers.get().requireAccountId());
@@ -157,8 +154,8 @@ class FinalMergeController {
 	}
 
 	/**
-	 * "Nhận mã dạng ZIP" after its Confirmation dialog (FR-37, FR-38): the authorization ends
-	 * {@code DECLINED} and the ZIP Fallback follows; it cannot be undone.
+	 * The closure fallback instead of the Final Merge, after its Confirmation dialog (FR-37, FR-38): the row ends
+	 * {@code DECLINED} and the fallback follows; it cannot be undone.
 	 * @throws ApiException {@code CONFLICT NO_AUTHORIZATION_OPEN}; {@code CONFLICT FINAL_MERGE_CONFIRMED}
 	 */
 	@PostMapping("/api/v1/jobs/{jobId}/final-merge/decline")
@@ -166,50 +163,11 @@ class FinalMergeController {
 		BusyJob job = customerJob(jobId);
 		Authorization authorization = this.authorizations.openOf(job.jobId())
 			.orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, RepoReason.NO_AUTHORIZATION_OPEN));
-		boolean confirmed = this.merges.find(authorization.id())
-			.filter(merge -> "CONFIRMED".equals(merge.status()) || "MERGED".equals(merge.status()))
-			.isPresent();
-		if (confirmed) {
+		if (this.merges.find(authorization.id()).filter(FinalMerges::confirmed).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, RepoReason.FINAL_MERGE_CONFIRMED);
 		}
 		this.authorizations.end(authorization.id(), "DECLINED");
 		return view(this.authorizations.find(authorization.id()).orElseThrow());
-	}
-
-	/** A fresh install link; the previous one's {@code state} no longer binds. */
-	@PostMapping("/api/v1/jobs/{jobId}/final-merge/install-link")
-	InstallLinkView installLink(@PathVariable UUID jobId) {
-		BusyJob job = customerJob(jobId);
-		String state = this.authorizations.newState(job.jobId())
-			.orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, RepoReason.NO_AUTHORIZATION_OPEN));
-		return new InstallLinkView(this.app.installUrl(state));
-	}
-
-	/** GitHub's return to the Merge App's Setup URL (AD-10). */
-	@GetMapping("/api/v1/github/merge-app/setup")
-	ResponseEntity<Void> setup(@RequestParam(name = "installation_id", required = false) @Nullable Long installationId,
-			@RequestParam(name = "setup_action", required = false) @Nullable String action,
-			@RequestParam(required = false) @Nullable String state) {
-		Caller caller = this.callers.get();
-		// The state binds the Customer who asked for it; consuming it matches that party (AD-43).
-		Authorization authorization = state == null || state.isBlank() || !caller.isUser() ? null
-				: this.authorizations.consume(state, caller.requireAccountId()).orElse(null);
-		if (authorization == null) {
-			return back("/cong-viec?vai-tro=dang");
-		}
-		MergeAppBindings.Result result = MergeAppBindings.Result.UNKNOWN;
-		if (installationId != null) {
-			try {
-				result = this.bindings.bindReturn(authorization, installationId);
-			}
-			catch (GitHubException unavailable) {
-				// The installation event, or the Customer's next install, binds it later.
-				log.warn("Merge App installation {} was not read on return: {}", installationId, unavailable.getMessage());
-			}
-		}
-		// UX-DR55: a return that installed nothing, a request or a blocked install, says so on JOB-1.
-		String page = FinalMergeAuthorizations.link(authorization.jobId());
-		return back(result == MergeAppBindings.Result.UNKNOWN ? page + "?hop-nhat=chua-thay" : page);
 	}
 
 	private BusyJob customerJob(UUID jobId) {
@@ -222,24 +180,37 @@ class FinalMergeController {
 	}
 
 	private FinalMergeView view(Authorization authorization) {
-		MergeView merge = this.merges.find(authorization.id())
-			.map(found -> new MergeView(found.status(),
-					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList(),
-					found.workflows(), "MERGED".equals(found.status()) ? found.pullUrl() : null, found.refusal()))
-			.orElse(null);
+		MergeView merge = this.merges.find(authorization.id()).map(found -> merge(authorization, found)).orElse(null);
 		ZipView zip = this.fallbacks.find(authorization.jobId())
 			.filter(found -> found.authorizationId().equals(authorization.id()))
 			.map(found -> new ZipView(found.status(), found.reason(), found.archiveFileId(),
 					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList()))
 			.orElse(null);
 		return new FinalMergeView(authorization.id(), authorization.status(), authorization.repositoryName(),
-				authorization.owner(), authorization.deadlineAt(), authorization.refusal(), authorization.requestOrg(),
-				authorization.requestSeenAt() != null, authorization.requestRefusedAt() != null, authorization.endReason(),
-				merge, zip, authorization.productId());
+				authorization.deadlineAt(), authorization.endReason(), merge, zip, authorization.productId());
 	}
 
-	private static ResponseEntity<Void> back(String path) {
-		return ResponseEntity.status(HttpStatus.SEE_OTHER).location(URI.create(path)).build();
+	/** The Final Merge as the closure section reads it; the branch's links only once vibefix read it back. */
+	private MergeView merge(Authorization authorization, FinalMerge found) {
+		boolean done = "DONE".equals(found.status());
+		String branch = found.branch();
+		String repository = this.links.repository(authorization.repositoryName());
+		String base = found.sourceBranch();
+		return new MergeView(found.status(),
+				found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList(),
+				found.workflows(), found.refusal(), run(found), branch,
+				done && branch != null ? repository + "/tree/" + branch : null,
+				done && branch != null && base != null ? repository + "/compare/" + base + "..." + branch + "?expand=1" : null);
+	}
+
+	/** The run dispatched last, as the Final Merge last read it; its page, in the Customer's own repository. */
+	private @Nullable RunView run(FinalMerge found) {
+		UUID correlation = found.correlationId();
+		if (correlation == null) {
+			return null;
+		}
+		String url = this.runs.correlation(correlation).map(ActionsRuns.Correlation::runHtmlUrl).orElse(null);
+		return new RunView(found.runStatus() == null ? "DISPATCHED" : found.runStatus(), found.runConclusion(), url);
 	}
 
 }

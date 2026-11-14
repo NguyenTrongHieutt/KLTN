@@ -1860,22 +1860,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/github/merge-app/setup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["setup_2"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/github/source-app/setup": {
         parameters: {
             query?: never;
@@ -2334,22 +2318,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["decline_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/jobs/{jobId}/final-merge/install-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["installLink_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5679,14 +5647,9 @@ export interface components {
             /** Format: uuid */
             id: string;
             merge?: components["schemas"]["MergeView"];
-            owner: string;
             /** Format: uuid */
             productId: string;
-            refusal?: string;
             repository: string;
-            requestOrg?: string;
-            requestRefused: boolean;
-            requestWaiting: boolean;
             status: string;
             zip?: components["schemas"]["ZipView"];
         };
@@ -6072,9 +6035,6 @@ export interface components {
             githubLogin: string;
             identifier: string;
         };
-        InstallLinkView: {
-            url: string;
-        };
         InvitationsView: {
             invitations: components["schemas"]["SentInvitationView"][];
             /** Format: int32 */
@@ -6459,8 +6419,11 @@ export interface components {
             path: string;
         };
         MergeView: {
-            pullUrl?: string;
+            branch?: string;
+            branchUrl?: string;
+            compareUrl?: string;
             refusal?: string;
+            run?: components["schemas"]["RunView"];
             sensitive: components["schemas"]["MergeSensitiveChangeView"][];
             status: string;
             workflows: string[];
@@ -7383,6 +7346,11 @@ export interface components {
             history: components["schemas"]["RuleChangeView"][];
             rules: components["schemas"]["RuleView"][];
             schoolDomains: string[];
+        };
+        RunView: {
+            conclusion?: string;
+            htmlUrl?: string;
+            state: string;
         };
         SaveRequest: {
             externalAccess: components["schemas"]["ExternalAccessRequest"][];
@@ -11422,28 +11390,6 @@ export interface operations {
             };
         };
     };
-    setup_2: {
-        parameters: {
-            query?: {
-                installation_id?: number;
-                setup_action?: string;
-                state?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     setup_1: {
         parameters: {
             query?: {
@@ -12186,8 +12132,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12215,28 +12161,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FinalMergeView"];
-                };
-            };
-        };
-    };
-    installLink_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InstallLinkView"];
                 };
             };
         };

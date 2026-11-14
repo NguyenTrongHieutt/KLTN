@@ -529,6 +529,26 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 	}
 
 	@Override
+	public java.util.SortedMap<String, String> workflowFiles(PlatformRepository repository, String ref) {
+		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
+			GitHubHttp.Answer answer = http().send("GET", "/repos/" + repository.fullName() + "/contents/.github/workflows?ref="
+					+ java.net.URLEncoder.encode(ref, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20"),
+					token.value(), null);
+			java.util.SortedMap<String, String> files = new java.util.TreeMap<>();
+			if (answer.status() == 404) {
+				// No .github/workflows/ at that commit: there is nothing to compare.
+				return files;
+			}
+			for (JsonNode entry : require(answer, "list the workflow files of " + repository.fullName())) {
+				if ("file".equals(entry.path("type").asString(""))) {
+					files.put(entry.path("path").asString(""), entry.path("sha").asString(""));
+				}
+			}
+			return files;
+		});
+	}
+
+	@Override
 	public Map<String, String> directCollaborators(PlatformRepository repository) {
 		return this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("administration", "write"), token -> {
 			Map<String, String> collaborators = new java.util.TreeMap<>();
