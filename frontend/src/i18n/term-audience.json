@@ -14,6 +14,8 @@
   "handoverCommit": "M S A",
   "sensitiveChange": "C S A",
   "finalMerge": "C S A",
+  "closingChoice": "C M A",
+  "selfDownload": "C M A",
   "zipFallback": "C S A",
   "driftWarning": "C S A",
   "freezeCommitment": "C S A",

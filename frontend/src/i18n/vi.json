@@ -2992,6 +2992,34 @@
         "cancel": "Quay lại",
         "saved": "Đã ghi nhận xác nhận."
       },
+      "choice": {
+        "deadline": "Chọn trước {date}",
+        "finalMerge": {
+          "lead": "GitHub Actions trong {repo} chép mã đã nghiệm thu vào một nhánh mới, vibefix/final-…. Bạn tự hợp nhất nhánh đó trên GitHub.",
+          "action": "Xem bước hợp nhất cuối"
+        },
+        "selfDownload": {
+          "lead": "Tải mã từ kho trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây.",
+          "open": "Mở kho trung gian",
+          "stepsTitle": "Cách tải mã về:",
+          "step1": "Mở kho trung gian trên GitHub bằng đường dẫn ở trên.",
+          "step2": "Bấm nút “Code”, rồi chọn “Download ZIP”. GitHub tải về máy bạn một tệp nén chứa toàn bộ mã.",
+          "step3": "Giải nén tệp đó và lưu lại. Nếu bạn quen dùng Git, bạn có thể clone kho này thay vì tải tệp nén.",
+          "step4": "Quay lại đây và bấm “Tôi đã tự tải / clone từ GitHub”.",
+          "noRun": "Bạn không cần chạy lệnh nào.",
+          "invitation": "Hãy chấp nhận lời mời đọc kho trung gian trên GitHub để mở đường dẫn này.",
+          "action": "Tôi đã tự tải / clone từ GitHub"
+        },
+        "dialogTitle": "Bạn đã có bản mã cuối cùng?",
+        "dialogBody": "Kho trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa. Bước này không hoàn tác được.",
+        "dialogBodyUntilDeletion": "Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa. Bước này không hoàn tác được.",
+        "done": "Bạn đã xác nhận đã nhận mã lúc {time}.",
+        "mentor": {
+          "open": "Khách hàng đang chọn cách nhận mã (hạn {date})",
+          "MERGED": "Mã đã được chép vào một nhánh mới của dự án khách hàng.",
+          "SELF_DOWNLOAD": "Khách hàng đã tự tải mã từ kho trung gian."
+        }
+      },
       "finalMerge": {
         "deadline": "Hạn chọn cách nhận mã: {date}.",
         "beforeEnd": "khi công việc kết thúc",
@@ -3021,11 +3049,6 @@
         "building": "Đang chuẩn bị tệp ZIP…",
         "programs": "Tệp nén có thể chứa chương trình. Bạn chỉ cần lưu tệp này và gửi cho người hướng dẫn ghép mã.",
         "post": "Đăng công việc ghép mã",
-        "declineOffer": "Nhận mã dạng ZIP",
-        "declineTitle": "Nhận mã dạng ZIP thay vì hợp nhất?",
-        "declineBody": "vibefix sẽ không chép mã vào {repo}, và bước hợp nhất cuối không chạy nữa. Công việc kết thúc khi tệp ZIP sẵn sàng. Bước này không hoàn tác được.",
-        "declineConfirm": "Nhận mã dạng ZIP",
-        "declineCancel": "Quay lại",
         "prefill": {
           "title": "Ghép mã đã hoàn thiện vào dự án",
           "problem": "Một công việc trước đã hoàn thiện mã nhưng không hợp nhất tự động được vào dự án gốc. Toàn bộ mã nằm trong tệp ZIP của công việc đó.",
@@ -3833,6 +3856,14 @@
       "hint": "Một cách nhận mã khi kết thúc: GitHub Actions trong dự án gốc của bạn chép toàn bộ mã đã nghiệm thu vào một nhánh mới (vibefix/final-…). Bạn tự hợp nhất nhánh đó trên GitHub; vibefix không ghi gì vào dự án của bạn.",
       "labelShort": "hợp nhất cuối"
     },
+    "closingChoice": {
+      "label": "Chọn cách nhận mã",
+      "hint": "Khi công việc kết thúc, bạn chọn một trong hai cách nhận mã trước hạn. Nếu bạn chưa chọn, công việc vẫn kết thúc, và bạn vẫn tải được mã từ kho trung gian đến khi nó bị xóa."
+    },
+    "selfDownload": {
+      "label": "Tôi đã tự tải / clone từ GitHub",
+      "hint": "Bạn tải mã về từ kho trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây. Bạn không cần chạy lệnh nào."
+    },
     "zipFallback": {
       "label": "Tải mã về (tệp ZIP)",
       "hint": "Khi không hợp nhất được, bạn tải toàn bộ mã đã hoàn thiện về máy dưới dạng một tệp nén."
@@ -4239,7 +4270,7 @@
       "accept_intermediary_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời đọc kho trung gian của {job} (không bắt buộc)",
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
       "confirm_source_clean": "Xác nhận dự án gốc của {job} đã sạch khóa bí mật",
-      "authorize_final_merge": "Chọn cách nhận mã của công việc",
+      "receive_code": "Chọn cách nhận mã của {job}",
       "revocation_item": "Thu hồi quyền {system}",
       "revocation_item_member": "Thu hồi quyền {system} của @{login}"
     },
@@ -4621,6 +4652,9 @@
       "acceptance_head_moved": {
         "title": "Nghiệm thu Giai đoạn {n} của {job} bị từ chối vì nhánh bàn giao đã thay đổi; bàn giao đã bị hủy"
       },
+      "receive_code_reminder": {
+        "title": "Hãy chọn cách nhận mã của {job} trước {date}"
+      },
       "final_branch_ready": {
         "title": "Mã của {job} đã được chép vào nhánh {branch} của dự án bạn. Hãy hợp nhất nhánh này trên GitHub"
       },
@@ -4979,9 +5013,11 @@
       "WORKFLOW_MISSING": "Dự án gốc ở tên mới chưa có file workflow vibefix.yml. Hãy thêm lại file rồi xác nhận lại.",
       "WORKFLOW_MISMATCH": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố. Hãy thêm lại file rồi xác nhận lại.",
       "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị dự án gốc ở tên mới.",
-      "NO_AUTHORIZATION_OPEN": "Công việc này không còn bước chọn cách nhận mã đang mở.",
+      "NO_CLOSING_CHOICE_OPEN": "Công việc này không còn bước chọn cách nhận mã đang mở, và cũng không còn mã để tải về.",
+      "CODE_RECEIPT_RECORDED": "Bạn đã xác nhận đã nhận mã rồi.",
+      "FINAL_MERGE_DONE": "Mã đã được chép vào một nhánh của dự án bạn, nên không cần xác nhận gì thêm.",
       "FINAL_MERGE_NOT_READY": "Mã chưa được kiểm tra xong để hợp nhất. Hãy tải lại trang rồi thử lại.",
-      "FINAL_MERGE_CONFIRMED": "Bạn đã xác nhận chép mã vào dự án, nên không còn chọn cách nhận mã khác được.",
+      "FINAL_MERGE_CONFIRMED": "Bạn đã cho chạy bước chép mã vào dự án, và bước đó đang chạy.",
       "WORKFLOW_FILES_CHANGED": "Mã đã nghiệm thu có thay đổi trong thư mục .github/workflows. GitHub không cho bước hợp nhất cuối ghi các tệp này, nên hãy tự tải mã từ kho trung gian.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."

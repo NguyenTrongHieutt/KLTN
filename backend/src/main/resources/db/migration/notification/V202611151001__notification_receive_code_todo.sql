@@ -1,0 +1,21 @@
+-- Story 23.10a (FR-37, FR-38, D10, UX-DR118): the Final Merge authorization became the closing choice, so the
+-- Customer's to-do repo.authorize_final_merge is now repo.receive_code, "Chọn cách nhận mã của {job}". The old rows
+-- go, open or closed, read or not, so no raw key reaches a screen.
+--
+-- What this loses: a Job that is in Closing today loses that one tier-1 to-do from its next-action strip and its
+-- to-do list. The new text names the Job, and the only place a Job's title is kept is the job schema, which a
+-- notification migration must not read (Conventions, Migrations: a migration touches its own module's schema), so
+-- there is no title here to rename these rows with. Nothing else is lost: JOB-1 still shows the closing choice with
+-- its Deadline chip, the FR-37 deadline still decides how such a Job ends, its two-day reminder still goes out, and
+-- no Job reaching J8 from now on is affected, because J8 opens the to-do under the new key with the title it has.
+--
+-- The rows are deleted rather than closed because J8 has passed for these Jobs and would not open a replacement, so
+-- a row left behind under the retired key could only read as that key.
+--
+-- The 2-day reminder repo.receive_code_reminder is scheduled only inside FinalMergeAuthorizations.closing, which J8
+-- has already run for these Jobs: such a Job keeps its FR-37 deadline and never gets a reminder row. Nothing is
+-- backfilled into timers.deadline -- a reminder inserted for a deadline already running would fire at a time no J8
+-- chose -- and the deadline itself still decides how the Job ends.
+-- Personal data: rows deleted; nothing new is kept.
+
+DELETE FROM notification.todo WHERE todo_key = 'repo.authorize_final_merge';

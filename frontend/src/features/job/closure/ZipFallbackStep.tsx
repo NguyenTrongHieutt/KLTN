@@ -1,20 +1,21 @@
-import { Dialog } from '@base-ui/react/dialog'
 import { Download, TriangleAlert } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { Link } from 'react-router'
-import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { SensitiveChangeList } from '@/features/delivery/SensitiveChangeList'
 import { t, type MessageKey } from '@/i18n/t'
-import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
-import { MERGE_CODE_PARAM, useDeclineFinalMerge, type FinalMerge } from './finalMergeApi'
+import { MERGE_CODE_PARAM, type FinalMerge } from './finalMergeApi'
 
 /**
  * N-17 on JOB-1 (FR-38, UX-DR8, UX-DR55): the ZIP Fallback replaces the merge steps. It says why the
  * merge could not happen, offers "Tải mã về (tệp ZIP)" (an attachment served to the Customer alone, which
  * may contain programs), lists the Sensitive Changes, and offers "Đăng công việc ghép mã". Nothing asks
  * the Customer to run anything. While the ZIP is built, it says so.
+ * <p>
+ * Story 23.10a (D10) took away the Customer's own "Nhận mã dạng ZIP": they confirm the code receipt in the Closing
+ * choice cards instead, and no choice of theirs starts a ZIP any more. What is left here shows a ZIP a failed Final
+ * Merge or the FR-37 deadline still builds, until Story 23.10c deletes the machinery.
  */
 export function ZipFallbackStep({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
   const ids = useId()
@@ -54,58 +55,5 @@ export function ZipFallbackStep({ jobId, merge }: { jobId: string; merge: FinalM
         {t('screen.closure.zip.post')}
       </Link>
     </section>
-  )
-}
-
-/**
- * "Nhận mã dạng ZIP" (FR-37, FR-38): offered beside the Final Merge until the Customer sets its run going,
- * after a Confirmation dialog saying vibefix will not merge into the repository, a request approved later
- * is no longer used, the Job ends when the ZIP is ready, and the choice cannot be undone.
- */
-export function DeclineToZip({ jobId, repo }: { jobId: string; repo: string }) {
-  const decline = useDeclineFinalMerge(jobId)
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string>()
-  return (
-    <>
-      <Button type="button" variant="secondary" className="w-fit" onClick={() => setOpen(true)}>
-        {t('screen.closure.zip.declineOffer')}
-      </Button>
-      {error && (
-        <p role="alert" className="text-body-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
-            <Dialog.Title className="text-h2">{t('screen.closure.zip.declineTitle')}</Dialog.Title>
-            <Dialog.Description className="text-body-sm">{t('screen.closure.zip.declineBody', { repo })}</Dialog.Description>
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-                {t('screen.closure.zip.declineCancel')}
-              </Button>
-              <Button
-                type="button"
-                disabled={decline.isPending}
-                onClick={() => {
-                  setError(undefined)
-                  decline.mutate(undefined, {
-                    onSuccess: () => setOpen(false),
-                    onError: (failure) => {
-                      setOpen(false)
-                      setError(problemMessage(failure, { module: 'repo' }).text)
-                    },
-                  })
-                }}
-              >
-                {t('screen.closure.zip.declineConfirm')}
-              </Button>
-            </div>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
-    </>
   )
 }

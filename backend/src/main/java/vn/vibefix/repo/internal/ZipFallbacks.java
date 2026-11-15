@@ -36,10 +36,13 @@ import vn.vibefix.shared.ProcessedEvents;
 /**
  * The ZIP Fallback (FR-38, FR-20, SG-15): whenever the Final Merge of a Code Job in Closing cannot happen,
  * the Customer still gets the code. It starts when the authorization ends {@code ZIP_FALLBACK} (a
- * conflict, a gone repository, a refusal, a failed guard), {@code DEADLINE} (nothing authorized, a request
- * no owner approved, or Sensitive Changes not confirmed by the FR-37 deadline), or {@code DECLINED} (the
- * Customer chose the ZIP). {@value #BUILD} stores the ZIP; its resolving transaction applies J9 (Closed,
+ * conflict, a gone repository, a refusal, a failed guard) or {@code DEADLINE} (no closing choice made by the
+ * FR-37 deadline). {@value #BUILD} stores the ZIP; its resolving transaction applies J9 (Closed,
  * or Cancelled after a cancellation) and tells both sides ({@value #READY}).
+ * <p>
+ * Story 23.10a (D10) replaced "Nhận mã dạng ZIP" with the code receipt, so nothing writes {@code DECLINED} any
+ * more: that trigger and that reason are unreachable, and this whole class goes in Story 23.10c, which also
+ * re-points what the deadline does.
  */
 @Component
 class ZipFallbacks {
@@ -121,13 +124,17 @@ class ZipFallbacks {
 		}
 	}
 
-	/** The ZIP is stored: J9, and both sides told. */
+	/**
+	 * The ZIP is stored: J9, and both sides told. A Job whose Customer has confirmed they already have the code
+	 * (Story 23.10a) is finished by that receipt, so a build it overtook stores nothing and tells nobody.
+	 */
 	@Transactional
 	boolean ready(UUID jobId, UUID archiveFileId, List<SensitiveChange> sensitive) {
 		int updated = this.jdbc.sql("""
 				UPDATE repo.zip_fallback SET status = 'READY', archive_file_id = :file, sensitive = CAST(:sensitive AS JSONB),
 				    ready_at = :now
 				WHERE job_id = :job AND status = 'BUILDING'
+				    AND NOT EXISTS (SELECT 1 FROM repo.code_receipt WHERE job_id = :job)
 				""").param("file", archiveFileId).param("sensitive", JSON.writeValueAsString(sensitive))
 			.param("now", Timestamp.from(this.clock.instant())).param("job", jobId).update();
 		if (updated == 0) {

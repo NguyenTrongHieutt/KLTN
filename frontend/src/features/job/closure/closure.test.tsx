@@ -168,6 +168,16 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
             },
           }),
         ),
+      // Story 23.10a: the Mentor's read of the closing choice, which the section renders in the cards' place.
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          id: 'a1',
+          status: 'REQUESTED',
+          repository: 'quan-may/so-dat-ban',
+          productId: 'pr1',
+          audience: 'MENTOR',
+          choice: { deadlineAt: '2026-11-13T03:00:00Z', near: false, finalMerge: true, selfDownload: true },
+        }),
       'POST /api/v1/boards/j1/closure/decline': async (request) => {
         sent.push(await request.json())
         return json(closure({ audience: 'MENTOR', canPropose: true, proposal: null, steps: [] }))
@@ -176,6 +186,9 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     renderAt('/cong-viec/j1')
 
     expect(await screen.findByText('Khách hàng đề nghị kết thúc công việc. Hãy trả lời trước 25/10.')).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Kết thúc công việc' })
+    expect(await within(section).findByText('Khách hàng đang chọn cách nhận mã (hạn 13/11)')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Từ chối' }))
     await waitFor(() => expect(sent).toEqual([{ version: 13 }]))
     expect(await screen.findByRole('button', { name: 'Đề nghị kết thúc công việc' })).toBeInTheDocument()

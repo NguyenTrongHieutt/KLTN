@@ -1358,7 +1358,7 @@
     },
     "/api/v1/admin/skill-suggestions/{suggestionId}/decline" : {
       "post" : {
-        "operationId" : "decline_6",
+        "operationId" : "decline_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "suggestionId",
@@ -2380,7 +2380,7 @@
     },
     "/api/v1/boards/{boardId}/closure/decline" : {
       "post" : {
-        "operationId" : "decline_5",
+        "operationId" : "decline_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -3099,7 +3099,7 @@
     },
     "/api/v1/boards/{boardId}/portfolio/summary/decline" : {
       "post" : {
-        "operationId" : "decline_4",
+        "operationId" : "decline_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "boardId",
@@ -3855,7 +3855,7 @@
     },
     "/api/v1/crew/jobs/{jobId}/commitment/decline" : {
       "post" : {
-        "operationId" : "decline_3",
+        "operationId" : "decline_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "jobId",
@@ -4780,6 +4780,43 @@
         "tags" : [ "job-chat-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/code-receipt" : {
+      "post" : {
+        "operationId" : "codeReceipt",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CodeReceiptRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FinalMergeView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "final-merge-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/crew-chat" : {
       "get" : {
         "operationId" : "crewChat",
@@ -5057,33 +5094,6 @@
               }
             },
             "description" : "Accepted"
-          }
-        },
-        "tags" : [ "final-merge-controller" ]
-      }
-    },
-    "/api/v1/jobs/{jobId}/final-merge/decline" : {
-      "post" : {
-        "operationId" : "decline_2",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/FinalMergeView"
-                }
-              }
-            },
-            "description" : "OK"
           }
         },
         "tags" : [ "final-merge-controller" ]
@@ -11280,6 +11290,32 @@
         },
         "required" : [ "done", "text" ]
       },
+      "ChoiceView" : {
+        "type" : "object",
+        "properties" : {
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deletionAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finalMerge" : {
+            "type" : "boolean"
+          },
+          "intermediaryUrl" : {
+            "type" : "string"
+          },
+          "near" : {
+            "type" : "boolean"
+          },
+          "selfDownload" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "finalMerge", "near", "selfDownload" ]
+      },
       "ClosureCommandRequest" : {
         "type" : "object",
         "properties" : {
@@ -11381,6 +11417,19 @@
           }
         },
         "required" : [ "audience", "canPropose", "disputable", "jobId", "state", "steps", "version" ]
+      },
+      "CodeReceiptRequest" : {
+        "type" : "object",
+        "properties" : {
+          "confirmed" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "confirmed", "version" ]
       },
       "CodeRequest" : {
         "type" : "object",
@@ -13218,6 +13267,12 @@
       "FinalMergeView" : {
         "type" : "object",
         "properties" : {
+          "audience" : {
+            "type" : "string"
+          },
+          "choice" : {
+            "$ref" : "#/components/schemas/ChoiceView"
+          },
           "deadlineAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -13232,9 +13287,15 @@
           "merge" : {
             "$ref" : "#/components/schemas/MergeView"
           },
+          "outcome" : {
+            "type" : "string"
+          },
           "productId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "receipt" : {
+            "$ref" : "#/components/schemas/ReceiptView"
           },
           "repository" : {
             "type" : "string"
@@ -13246,7 +13307,7 @@
             "$ref" : "#/components/schemas/ZipView"
           }
         },
-        "required" : [ "id", "productId", "repository", "status" ]
+        "required" : [ "audience", "choice", "id", "productId", "repository", "status" ]
       },
       "FitMetricsView" : {
         "type" : "object",
@@ -17446,6 +17507,20 @@
           }
         },
         "required" : [ "reason" ]
+      },
+      "ReceiptView" : {
+        "type" : "object",
+        "properties" : {
+          "confirmedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "confirmedBy" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "confirmedAt", "confirmedBy" ]
       },
       "RecommendationView" : {
         "type" : "object",

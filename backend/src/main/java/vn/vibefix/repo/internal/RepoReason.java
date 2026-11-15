@@ -48,13 +48,22 @@ enum RepoReason {
 	/** The Customer no longer administers the re-confirmed repository (FR-20, AD-13). */
 	NO_ADMIN_PERMISSION,
 
-	/** The Job has no open Final Merge row to choose a way of receiving the code for (FR-37). */
-	NO_AUTHORIZATION_OPEN,
+	/**
+	 * The Job has no open closing choice, and no accepted work left to download either, so there is nothing to
+	 * confirm receiving (FR-37, FR-38, D10, Story 23.10a).
+	 */
+	NO_CLOSING_CHOICE_OPEN,
+
+	/** The Customer has already confirmed they have the code (FR-38, Story 23.10a). */
+	CODE_RECEIPT_RECORDED,
+
+	/** The Final Merge branch was read back, so the code is already in the Customer's project (FR-37). */
+	FINAL_MERGE_DONE,
 
 	/** The Final Merge is not checked and waiting for the Customer's confirmation (FR-37). */
 	FINAL_MERGE_NOT_READY,
 
-	/** The Customer already set the Final Merge run going, so the fallback can no longer be chosen (FR-38). */
+	/** The Customer already set the Final Merge run going (FR-38). */
 	FINAL_MERGE_CONFIRMED,
 
 	/**

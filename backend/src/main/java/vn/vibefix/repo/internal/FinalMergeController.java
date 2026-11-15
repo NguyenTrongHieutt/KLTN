@@ -15,10 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotNull;
 import vn.vibefix.github.ActionsRuns;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
+import vn.vibefix.repo.internal.CodeReceipts.CodeReceipt;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
 import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
 import vn.vibefix.scanning.SensitiveChanges;
@@ -30,12 +33,17 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-1's closure step "Chọn cách nhận mã" (FR-37, FR-38, UX-DR116, Story 23.9a), for the Job's Customer only: the
- * Final Merge with its FR-37 deadline, the whole Job's Sensitive Changes and N-18, the state of the run on the
- * Customer's own GitHub Actions, and, once vibefix has read {@code vibefix/final-{jobId}} back, the branch and
- * GitHub's compare page, where the Customer opens and merges the pull request themselves. vibefix opens no pull
- * request and writes nothing in a Customer repository. A Final Merge that could not run names its reason and keeps
- * the closure fallback offered. Everyone else finds nothing.
+ * JOB-1's closure step "Chọn cách nhận mã" (FR-37, FR-38, D10, UX-DR116, Stories 23.9a and 23.10a): the closing
+ * choice with its deadline, and the chosen path's own states. The Customer reads the whole step -- the Final Merge's
+ * Sensitive Changes and N-18, the state of the run on their own GitHub Actions, and, once vibefix has read
+ * {@code vibefix/final-{jobId}} back, the branch and GitHub's compare page, where they open and merge the pull
+ * request themselves -- and the self-download path, which they confirm with
+ * {@code POST .../code-receipt}. vibefix opens no pull request and writes nothing in a Customer repository. A Final
+ * Merge that could not run names its reason and leaves the self-download offered.
+ * <p>
+ * The Mentor reads the choice and its outcome only: the deadline, which paths are still open, and how the code
+ * reached the Customer, never the Customer's own actions, their Sensitive Changes or their download link
+ * (EXPERIENCE.md's closure section). Everyone else finds nothing, and so does a Job with no closing choice.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -43,15 +51,37 @@ class FinalMergeController {
 
 	/**
 	 * The step.
-	 * @param status {@code REQUESTED}, {@code USED}, or {@code ENDED}
+	 * @param status {@code REQUESTED}, {@code USED} (the choice is spent), or {@code ENDED}
 	 * @param repository the Source Repository's full name
 	 * @param deadlineAt the FR-37 deadline, from J8 on
-	 * @param merge the Final Merge once the Job is Closing
-	 * @param zip the closure fallback once the Final Merge cannot happen (Story 8.9)
+	 * @param audience {@code CUSTOMER} or {@code MENTOR}
+	 * @param choice the closing choice: its deadline, and which of the two paths is open
+	 * @param outcome how the code reached the Customer: {@code MERGED}, {@code SELF_DOWNLOAD}, or none yet
+	 * @param receipt the Customer's own code receipt, once recorded; never shown to the Mentor
+	 * @param merge the Final Merge once the Job is Closing; the Customer's alone
+	 * @param zip the closure fallback once the Final Merge cannot happen (Story 8.9); the Customer's alone
 	 * @param productId for "Đăng công việc ghép mã", which opens CUS-6 for the Product
 	 */
 	record FinalMergeView(UUID id, String status, String repository, @Nullable Instant deadlineAt,
-			@Nullable String endReason, @Nullable MergeView merge, @Nullable ZipView zip, UUID productId) {
+			@Nullable String endReason, String audience, ChoiceView choice, @Nullable String outcome,
+			@Nullable ReceiptView receipt, @Nullable MergeView merge, @Nullable ZipView zip, UUID productId) {
+	}
+
+	/**
+	 * The closing choice (FR-37, FR-38, D10, UX-DR116): two cards, neither preselected, under the Deadline chip
+	 * "Chọn trước {date}".
+	 * @param near the deadline is within 48 h, so the chip warns
+	 * @param finalMerge "Hợp nhất vào dự án của bạn" may still be set going
+	 * @param selfDownload "Tôi đã tự tải / clone từ GitHub" may still be confirmed
+	 * @param intermediaryUrl "Mở kho trung gian ↗", the Customer's own read until the repositories are deleted
+	 * @param deletionAt when the repositories are deleted, once the Job has ended
+	 */
+	record ChoiceView(@Nullable Instant deadlineAt, boolean near, boolean finalMerge, boolean selfDownload,
+			@Nullable String intermediaryUrl, @Nullable Instant deletionAt) {
+	}
+
+	/** The code receipt: who confirmed they have the code, and when (FR-38, Story 23.10a). */
+	record ReceiptView(UUID confirmedBy, Instant confirmedAt) {
 	}
 
 	/**
@@ -99,9 +129,22 @@ class FinalMergeController {
 	record ConfirmRequest(@AssertTrue boolean agreed) {
 	}
 
+	/**
+	 * "Bạn đã có bản mã cuối cùng?" (FR-38, Story 23.10a).
+	 * @param version the Job's version, which every command carries (AD-23)
+	 */
+	record CodeReceiptRequest(@AssertTrue boolean confirmed, @NotNull Long version) {
+	}
+
+	/** Who reads the step, and so how much of it they read. */
+	private record Viewer(BusyJob job, boolean customer) {
+	}
+
 	private final FinalMergeAuthorizations authorizations;
 
 	private final FinalMerges merges;
+
+	private final CodeReceipts receipts;
 
 	private final ZipFallbacks fallbacks;
 
@@ -115,11 +158,13 @@ class FinalMergeController {
 
 	private final JobRoles roles;
 
-	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, ZipFallbacks fallbacks,
-			ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers, JobRoles roles) {
+	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, CodeReceipts receipts,
+			ZipFallbacks fallbacks, ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers,
+			JobRoles roles) {
 		this.roles = roles;
 		this.authorizations = authorizations;
 		this.merges = merges;
+		this.receipts = receipts;
 		this.fallbacks = fallbacks;
 		this.runs = runs;
 		this.links = links;
@@ -129,14 +174,14 @@ class FinalMergeController {
 
 	@GetMapping("/api/v1/jobs/{jobId}/final-merge")
 	FinalMergeView view(@PathVariable UUID jobId) {
-		BusyJob job = customerJob(jobId);
-		Authorization authorization = this.authorizations.latest(job.jobId())
+		Viewer viewer = viewer(jobId);
+		Authorization authorization = this.authorizations.latest(viewer.job().jobId())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (authorization.open()) {
-			// A check that failed is started again here.
-			this.merges.prepare(job.jobId());
+		if (viewer.customer() && authorization.open()) {
+			// A check that failed is started again here; the Mentor's read starts nothing.
+			this.merges.prepare(viewer.job().jobId());
 		}
-		return view(authorization);
+		return view(viewer, authorization);
 	}
 
 	/**
@@ -148,46 +193,75 @@ class FinalMergeController {
 	@PostMapping("/api/v1/jobs/{jobId}/final-merge/confirm")
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	FinalMergeView confirm(@PathVariable UUID jobId, @Valid @RequestBody ConfirmRequest body) {
-		BusyJob job = customerJob(jobId);
-		this.merges.confirm(job, this.callers.get().requireAccountId());
-		return view(this.authorizations.latest(job.jobId()).orElseThrow());
+		Viewer viewer = customer(jobId);
+		this.merges.confirm(viewer.job(), this.callers.get().requireAccountId());
+		return view(viewer, this.authorizations.latest(viewer.job().jobId()).orElseThrow());
 	}
 
 	/**
-	 * The closure fallback instead of the Final Merge, after its Confirmation dialog (FR-37, FR-38): the row ends
-	 * {@code DECLINED} and the fallback follows; it cannot be undone.
-	 * @throws ApiException {@code CONFLICT NO_AUTHORIZATION_OPEN}; {@code CONFLICT FINAL_MERGE_CONFIRMED}
+	 * "Tôi đã tự tải / clone từ GitHub", after its Confirmation dialog (FR-38, D10, Story 23.10a): the receipt is
+	 * recorded with the Customer and the instant, the choice is spent, and J9 follows. It cannot be undone.
+	 * @throws ApiException {@code CONFLICT CODE_RECEIPT_RECORDED}; {@code CONFLICT FINAL_MERGE_DONE};
+	 * {@code CONFLICT NO_CLOSING_CHOICE_OPEN}; {@code STALE}; {@code JOB_BUSY}
 	 */
-	@PostMapping("/api/v1/jobs/{jobId}/final-merge/decline")
-	FinalMergeView decline(@PathVariable UUID jobId) {
-		BusyJob job = customerJob(jobId);
-		Authorization authorization = this.authorizations.openOf(job.jobId())
-			.orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, RepoReason.NO_AUTHORIZATION_OPEN));
-		if (this.merges.find(authorization.id()).filter(FinalMerges::confirmed).isPresent()) {
-			throw new ApiException(ErrorCode.CONFLICT, RepoReason.FINAL_MERGE_CONFIRMED);
-		}
-		this.authorizations.end(authorization.id(), "DECLINED");
-		return view(this.authorizations.find(authorization.id()).orElseThrow());
+	@PostMapping("/api/v1/jobs/{jobId}/code-receipt")
+	FinalMergeView codeReceipt(@PathVariable UUID jobId, @Valid @RequestBody CodeReceiptRequest body) {
+		Viewer viewer = customer(jobId);
+		this.receipts.confirm(viewer.job(), this.callers.get().requireAccountId(), body.version());
+		// J9 has moved the Job, so the step is read again on what it left, through the row the command required
+		// before it wrote anything.
+		return view(customer(jobId), this.authorizations.latest(jobId).orElseThrow());
 	}
 
-	private BusyJob customerJob(UUID jobId) {
+	/** The Job's Customer or its Mentor, the two who read the closing choice; a Code Job only. */
+	private Viewer viewer(UUID jobId) {
 		Caller caller = this.callers.get();
 		BusyJob job = this.busy.job(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (!job.code() || !this.roles.roleOf(jobId, caller).isCustomer()) {
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (!job.code() || !(role.isCustomer() || role.isMentor())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		return job;
+		return new Viewer(job, role.isCustomer());
 	}
 
-	private FinalMergeView view(Authorization authorization) {
-		MergeView merge = this.merges.find(authorization.id()).map(found -> merge(authorization, found)).orElse(null);
-		ZipView zip = this.fallbacks.find(authorization.jobId())
+	/** Every command on the step is the Customer's own. */
+	private Viewer customer(UUID jobId) {
+		Viewer viewer = viewer(jobId);
+		if (!viewer.customer()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return viewer;
+	}
+
+	/**
+	 * The step for its viewer: the Customer reads all of it, the Mentor the choice and its outcome alone
+	 * (EXPERIENCE.md's closure section).
+	 */
+	private FinalMergeView view(Viewer viewer, Authorization authorization) {
+		CodeReceipts.Choice choice = this.receipts.choice(viewer.job(), authorization, viewer.customer());
+		CodeReceipt receipt = this.receipts.find(authorization.jobId()).orElse(null);
+		MergeView merge = viewer.customer()
+				? this.merges.find(authorization.id()).map(found -> merge(authorization, found)).orElse(null) : null;
+		ZipView zip = viewer.customer() ? this.fallbacks.find(authorization.jobId())
 			.filter(found -> found.authorizationId().equals(authorization.id()))
 			.map(found -> new ZipView(found.status(), found.reason(), found.archiveFileId(),
 					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList()))
-			.orElse(null);
+			.orElse(null) : null;
 		return new FinalMergeView(authorization.id(), authorization.status(), authorization.repositoryName(),
-				authorization.deadlineAt(), authorization.endReason(), merge, zip, authorization.productId());
+				authorization.deadlineAt(), authorization.endReason(), viewer.customer() ? "CUSTOMER" : "MENTOR",
+				new ChoiceView(choice.deadlineAt(), choice.near(), choice.finalMerge(), choice.selfDownload(),
+						choice.intermediaryUrl(), choice.deletionAt()),
+				outcome(authorization, receipt), viewer.customer() && receipt != null
+						? new ReceiptView(receipt.confirmedBy(), receipt.confirmedAt()) : null,
+				merge, zip, authorization.productId());
+	}
+
+	/** How the code reached the Customer, which the Mentor reads too: the branch read back, or their own receipt. */
+	private @Nullable String outcome(Authorization authorization, @Nullable CodeReceipt receipt) {
+		if (this.merges.find(authorization.id()).filter(found -> "DONE".equals(found.status())).isPresent()) {
+			return "MERGED";
+		}
+		return receipt == null ? null : "SELF_DOWNLOAD";
 	}
 
 	/** The Final Merge as the closure section reads it; the branch's links only once vibefix read it back. */

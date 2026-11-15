@@ -2720,9 +2720,10 @@ GET /api/v1/jobs/{jobId}/busy,CROSS_ROLE,job=crew,,200
 GET /api/v1/jobs/{jobId}/busy,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 
 # Story 7.6 (FR-20): the Drift Warning; nobody reads a Draft's, and the crew Job's Customer, Mentor and ACTIVE
-# members read its (job=crew). The Final Merge waits for a closure proposal or Closing, which the crew Job's held
-# Milestone refuses: its Customer's commands find nothing open (NO_AUTHORIZATION_OPEN, FINAL_MERGE_NOT_READY), and
-# its read finds nothing for anyone (MatrixFilesTest.UNREACHABLE).
+# members read its (job=crew). The closing choice waits for a closure proposal or Closing, which the crew Job's held
+# Milestone refuses: its Customer's commands find nothing open (FINAL_MERGE_NOT_READY, NO_CLOSING_CHOICE_OPEN), and
+# its read finds nothing for anyone, the Mentor included, who otherwise reads the choice and its outcome alone
+# (Story 23.10a; MatrixFilesTest.UNREACHABLE).
 GET /api/v1/jobs/{jobId}/drift,ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId}/drift,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/drift,USER,job=crew,,404 NOT_FOUND
@@ -2773,18 +2774,21 @@ POST /api/v1/jobs/{jobId}/final-merge/confirm,CREW_ACTIVE,job=crew,final-merge-c
 POST /api/v1/jobs/{jobId}/final-merge/confirm,CREW_FORMER,job=crew,final-merge-confirm.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,CROSS_ROLE,job=crew,final-merge-confirm.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,ADMINISTRATOR,job=crew,final-merge-confirm.json,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,ANONYMOUS,,,401
-POST /api/v1/jobs/{jobId}/final-merge/decline,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,USER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,LOCKED,job=crew,,401
-POST /api/v1/jobs/{jobId}/final-merge/decline,CUSTOMER,job=crew,,409 CONFLICT NO_AUTHORIZATION_OPEN
-POST /api/v1/jobs/{jobId}/final-merge/decline,MENTOR,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,BIDDER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,CREW_ACTIVE,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,CREW_FORMER,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,CROSS_ROLE,job=crew,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/final-merge/decline,ADMINISTRATOR,job=crew,,404 NOT_FOUND
+# Story 23.10a (FR-38, D10): "Tôi đã tự tải / clone từ GitHub" replaces "Nhận mã dạng ZIP". It is the Customer's own
+# statement, so only they may make it, and only while their closing choice is open or there is accepted work left to
+# download; the crew Job is Active with neither, so it answers NO_CLOSING_CHOICE_OPEN.
+POST /api/v1/jobs/{jobId}/code-receipt,ANONYMOUS,,code-receipt.json,401
+POST /api/v1/jobs/{jobId}/code-receipt,USER_UNVERIFIED,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,USER,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,LOCKED,job=crew,code-receipt.json,401
+POST /api/v1/jobs/{jobId}/code-receipt,CUSTOMER,job=crew,code-receipt.json,409 CONFLICT NO_CLOSING_CHOICE_OPEN
+POST /api/v1/jobs/{jobId}/code-receipt,MENTOR,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,BIDDER,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,CREW_ASSIGNED,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,CREW_ACTIVE,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,CREW_FORMER,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,CROSS_ROLE,job=crew,code-receipt.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/code-receipt,ADMINISTRATOR,job=crew,code-receipt.json,404 NOT_FOUND
 # Team Issues (FR-79, AD-40, AD-20): any unlocked user reads the STU-4 panel (Story 20.3), empty unless they
 # were ever active on a Crew; only a Crew member who was ever active raises one, about the Mentor's Rating of them:
 # the former and the cross-role member raise one about their own (rating=former, rating=cross), and the ACTIVE member,

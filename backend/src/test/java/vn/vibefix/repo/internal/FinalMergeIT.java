@@ -52,6 +52,11 @@ import vn.vibefix.support.IntegrationTest;
  * repository. A workflow-file difference, an existing branch, Actions' quota or a failed run names its reason and
  * keeps the closure fallback offered. GitHub and git hosting are {@link GitHubStub}; the stub runs no workflow, so a
  * test pushes what the run would.
+ * <p>
+ * Story 23.10a (FR-38, D10) adds the closing choice's second path: "Tôi đã tự tải / clone từ GitHub" records the code
+ * receipt and applies J9 with {@code SELF_DOWNLOAD}. It is open beside a Final Merge that is out or that failed with
+ * its reason -- a receipt that lands first wins and leaves the run {@code Obsolete} -- and refused once the branch
+ * reads back. The Mentor reads the choice and its outcome, never the Customer's own actions.
  */
 class FinalMergeIT extends IntegrationTest {
 
@@ -536,29 +541,152 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(mergeStatus()).isEqualTo("DONE");
 	}
 
+	/**
+	 * Story 23.10a (FR-38, D10): the closing choice's second path. "Tôi đã tự tải / clone từ GitHub" records the code
+	 * receipt, spends the choice and closes the Job with no ZIP of any kind; confirming again says so.
+	 */
 	@Test
-	void theCustomerMayChooseTheFallbackUntilTheyConfirm() throws Exception {
+	void theCustomerMayConfirmTheyHaveTheCodeThemselvesUntilTheBranchIsReadBack() throws Exception {
 		check();
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/final-merge/decline").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("ENDED"))
-			.andExpect(jsonPath("$.endReason").value("DECLINED"));
-		zipFallback();
-		assertThat(this.jdbc.sql("SELECT reason FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
-			.query(String.class).single()).isEqualTo("DECLINED");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.audience").value("CUSTOMER"))
+			.andExpect(jsonPath("$.choice.finalMerge").value(true))
+			.andExpect(jsonPath("$.choice.selfDownload").value(true))
+			.andExpect(jsonPath("$.choice.intermediaryUrl")
+				.value("https://github.com/" + GitHubStub.ORGANIZATION + "/" + this.intermediary))
+			.andExpect(jsonPath("$.outcome").doesNotExist());
+
+		receipt(8).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("USED"))
+			.andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"))
+			.andExpect(jsonPath("$.receipt.confirmedBy").value(this.lan.toString()))
+			.andExpect(jsonPath("$.choice.finalMerge").value(false))
+			.andExpect(jsonPath("$.choice.selfDownload").value(false));
+
+		assertThat(this.jdbc.sql("SELECT confirmed_by FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
+			.query(UUID.class).single()).isEqualTo(this.lan);
+		assertThat(authorizationStatus()).isEqualTo("USED");
 		assertThat(jobState()).isEqualTo("CLOSED");
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/final-merge/decline").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
-			.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.reason").value("NO_AUTHORIZATION_OPEN"));
+		assertThat(openTodos()).isZero();
+		awaitListeners();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).as("no ZIP is started by this path").isZero();
+		receipt(9).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("CODE_RECEIPT_RECORDED"));
 	}
 
+	/** AD-23: the Job's version is checked, after what is already settled. */
 	@Test
-	void aConfirmedFinalMergeCanNoLongerBeDeclined() throws Exception {
+	void aReceiptOnAnotherVersionIsStale() throws Exception {
+		check();
+
+		receipt(7).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE"));
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isZero();
+	}
+
+	/**
+	 * Story 23.10a: choosing one path does not close the other. A receipt that lands while the run is out wins: the
+	 * marker goes with it, J9 applies, and the run then finds its marker gone and ends {@code Obsolete}.
+	 */
+	@Test
+	void aReceiptDuringTheRunWinsAndTheRunEndsObsolete() throws Exception {
 		check();
 		confirm(true).andExpect(status().isAccepted());
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/final-merge/decline").with(as(this.lan, Role.CUSTOMER)).with(csrf()))
-			.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.reason").value("FINAL_MERGE_CONFIRMED"));
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("RUNNING");
+
+		receipt(8).andExpect(status().isOk()).andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"));
+
+		assertThat(jobState()).isEqualTo("CLOSED");
+		assertThat(released()).as("the Final Merge's marker went with the receipt").isTrue();
+		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(this.jdbc.sql("""
+				SELECT status || ':' || error_code FROM operations.external_operation WHERE type = 'repo.final_merge'
+				""").query(String.class).single()).isEqualTo("OBSOLETE:NOT_CONFIRMED");
+	}
+
+	/** R20, D10: a Final Merge that failed with its reason leaves the self-download open, and it closes the Job. */
+	@Test
+	void aReceiptAfterAFailedFinalMergeStillCloses() throws Exception {
+		check();
+		confirm(true).andExpect(status().isAccepted());
+		this.worker.runDue(Lane.GITHUB_LONG);
+		GITHUB.failBeforeAnyJob(runId());
+		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
+		this.worker.runDue(Lane.GITHUB_LONG);
+		awaitListeners();
+		assertThat(refusal()).isEqualTo("ACTIONS_QUOTA");
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.choice.finalMerge").value(false))
+			.andExpect(jsonPath("$.choice.selfDownload").value(true));
+		// The version the Customer's own page carries: the fallback's build may have closed the Job by now, which is
+		// what keeps the self-download open rather than what ends it.
+		receipt(version()).andExpect(status().isOk()).andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"));
+
+		assertThat(jobState()).isEqualTo("CLOSED");
+		// The ZIP the fallback may already have built is never the Customer's answer here: CodeReceiptIT holds a
+		// receipt against a build still running (Story 23.10c deletes the machinery).
+		assertThat(this.jdbc.sql("SELECT confirmed_by FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
+			.query(UUID.class).single()).isEqualTo(this.lan);
+	}
+
+	/** The branch was read back: the code is in the Customer's project already, so there is nothing left to receive. */
+	@Test
+	void aFinalMergeReadBackRefusesTheReceipt() throws Exception {
+		check();
+		confirm(true).andExpect(status().isAccepted());
+		this.worker.runDue(Lane.GITHUB_LONG);
+		runPushesTheBranch();
+		assertThat(mergeStatus()).isEqualTo("DONE");
+
+		receipt(9).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("FINAL_MERGE_DONE"));
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.outcome").value("MERGED"))
+			.andExpect(jsonPath("$.choice.selfDownload").value(false));
+	}
+
+	/**
+	 * The check reads the Customer's own repository and spends their Actions, so only their own read starts it: a
+	 * Mentor who opens JOB-1 first reads the choice and starts nothing.
+	 */
+	@Test
+	void theMentorsReadStartsNoCheck() throws Exception {
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.audience").value("MENTOR"));
+
+		assertThat(mergeStatus()).as("no Final Merge row of its own").isEqualTo("NONE");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation WHERE type = 'repo.final_merge_check'
+				""").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.final_merge_check_requested' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).isZero();
+	}
+
+	/** EXPERIENCE.md's closure section: the Mentor reads the choice and its outcome, never the Customer's actions. */
+	@Test
+	void theMentorReadsTheChoiceAndItsOutcomeOnly() throws Exception {
+		check();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.audience").value("MENTOR"))
+			.andExpect(jsonPath("$.choice.selfDownload").value(true))
+			.andExpect(jsonPath("$.choice.intermediaryUrl").doesNotExist())
+			.andExpect(jsonPath("$.merge").doesNotExist())
+			.andExpect(jsonPath("$.zip").doesNotExist())
+			.andExpect(jsonPath("$.receipt").doesNotExist());
+
+		receipt(8).andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"))
+			.andExpect(jsonPath("$.receipt").doesNotExist());
 	}
 
 	@Test
@@ -683,6 +811,13 @@ class FinalMergeIT extends IntegrationTest {
 			.with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"agreed\":" + agreed + "}"));
 	}
 
+	/** "Tôi đã tự tải / clone từ GitHub" on the version the Customer loaded (Story 23.10a). */
+	private ResultActions receipt(long version) throws Exception {
+		return this.mvc.perform(post("/api/v1/jobs/" + this.job + "/code-receipt").with(as(this.lan, Role.CUSTOMER))
+			.with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"confirmed\":true,\"version\":" + version + "}"));
+	}
+
 	/** The runs the stub holds for the Customer's own repository. */
 	private List<Long> sourceRuns() {
 		String full = this.owner + "/" + this.name;
@@ -756,9 +891,13 @@ class FinalMergeIT extends IntegrationTest {
 		return this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single();
 	}
 
+	private long version() {
+		return this.jdbc.sql("SELECT version FROM job.job WHERE id = :id").param("id", this.job).query(Long.class).single();
+	}
+
 	private long openTodos() {
 		return this.jdbc.sql("""
-				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.authorize_final_merge' AND account_id = :id
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.receive_code' AND account_id = :id
 				    AND closed_at IS NULL
 				""").param("id", this.lan).query(Long.class).single();
 	}

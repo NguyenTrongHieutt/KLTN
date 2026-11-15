@@ -1,0 +1,7 @@
+subject: Hãy chọn cách nhận mã của {job} trước {date}
+---
+Xin chào,
+
+Công việc {job} đang chờ bạn chọn cách nhận mã: hợp nhất vào dự án của bạn, hoặc tự tải / clone mã từ kho trung gian trên GitHub rồi xác nhận trên vibefix.
+Hạn chọn là {date}. Nếu bạn chưa chọn, công việc vẫn kết thúc, và bạn vẫn tải được mã từ kho trung gian đến khi nó bị xóa.
+Mở công việc trên vibefix để chọn.

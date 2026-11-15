@@ -13,6 +13,8 @@ const requested = {
   status: 'REQUESTED',
   repository: 'quan-may/so-dat-ban',
   deadlineAt: '2026-10-29T03:00:00Z',
+  audience: 'CUSTOMER',
+  choice: { deadlineAt: '2026-10-29T03:00:00Z', near: false, finalMerge: true, selfDownload: true },
 }
 
 const ready = {
@@ -137,7 +139,8 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     expect(screen.getByText(/GitHub không cho bước hợp nhất cuối ghi các tệp này/)).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Nhận mã dạng ZIP' })).toBeInTheDocument()
+    // Story 23.10a: the way forward is the self-download card above, never a ZIP this step offers.
+    expect(screen.queryByRole('button', { name: 'Nhận mã dạng ZIP' })).toBeNull()
   })
 
   it('names the reason of a run that could not finish', async () => {
@@ -196,6 +199,24 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     })
     renderStep()
     expect(await screen.findByRole('status')).toHaveTextContent('Đang kiểm tra mã đã nghiệm thu…')
+    expect(screen.queryByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeNull()
+  })
+
+  /** Story 23.10a: the Closing choice cards show that outcome alone, so this step steps aside. */
+  it('shows nothing once the Customer took the code themselves', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...requested,
+          status: 'USED',
+          outcome: 'SELF_DOWNLOAD',
+          receipt: { confirmedBy: '00000000-0000-7000-8000-000000000001', confirmedAt: '2026-10-28T07:30:00Z' },
+        }),
+    })
+    renderStep()
+
+    await vi.waitFor(() => expect(screen.queryByText(/Hạn chọn cách nhận mã/)).toBeNull())
     expect(screen.queryByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeNull()
   })
 
@@ -262,32 +283,15 @@ describe('The closure fallback (FR-38, Story 8.9)', () => {
     expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
   })
 
-  it('lets the Customer choose it after the confirmation dialog', async () => {
-    const user = userEvent.setup()
-    let declined = false
-    const ended = {
-      ...requested,
-      status: 'ENDED',
-      productId: 'pr1',
-      zip: { status: 'BUILDING', reason: 'DECLINED', sensitive: [] },
-    }
+  /** Story 23.10a (D10): the Customer never starts a ZIP; the step shows only one a failure or the deadline built. */
+  it('offers the Customer no way to ask for a ZIP', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/jobs/j1/final-merge': () => json(declined ? ended : ready),
-      'POST /api/v1/jobs/j1/final-merge/decline': () => {
-        declined = true
-        return json(ended)
-      },
+      'GET /api/v1/jobs/j1/final-merge': () => json(ready),
     })
     renderStep()
 
-    await user.click(await screen.findByRole('button', { name: 'Nhận mã dạng ZIP' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Nhận mã dạng ZIP thay vì hợp nhất?' })
-    expect(dialog).toHaveTextContent('vibefix sẽ không chép mã vào quan-may/so-dat-ban')
-    expect(dialog).toHaveTextContent('không hoàn tác được')
-    await user.click(within(dialog).getByRole('button', { name: 'Nhận mã dạng ZIP' }))
-
-    expect(await screen.findByText('Đang chuẩn bị tệp ZIP…')).toBeInTheDocument()
-    expect(declined).toBe(true)
+    expect(await screen.findByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nhận mã dạng ZIP' })).toBeNull()
   })
 })

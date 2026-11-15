@@ -50,7 +50,9 @@ import vn.vibefix.shared.IdGenerator;
  * in a Customer repository: the Customer merges the branch themselves on GitHub.
  * <p>
  * A refusal that is not transient ({@code REFUSED}, with its named reason) ends the row {@code ZIP_FALLBACK}, so the
- * Job follows the closure fallback (Story 8.9, which Story 23.10 replaces).
+ * Job follows the closure fallback (Story 8.9, which Story 23.10c deletes). Since Story 23.10a the Customer keeps
+ * the self-download path beside a Final Merge that is out or that failed with its reason, until the branch reads
+ * back: a code receipt that lands first releases this marker, so a run still out ends {@code Obsolete}.
  */
 @Component
 class FinalMerges {
@@ -223,7 +225,7 @@ class FinalMerges {
 		return find(authorization.id()).orElseThrow();
 	}
 
-	/** Whether the Customer already set the run going, so the closure fallback can no longer be chosen instead. */
+	/** Whether the Customer already set the run going, so the closing choice counts as made (Story 23.10a). */
 	static boolean confirmed(FinalMerge merge) {
 		return List.of("CONFIRMED", "RUNNING", "DONE").contains(merge.status());
 	}

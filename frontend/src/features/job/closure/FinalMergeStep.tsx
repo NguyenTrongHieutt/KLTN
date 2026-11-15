@@ -8,8 +8,9 @@ import { problemMessage } from '@/lib/problemMessage'
 import { ActionsRunRow, type RunState } from '@/features/job/ActionsRunRow'
 import { OutLink } from '@/features/product/WorkflowSetup'
 import { SensitiveChangeList } from '@/features/delivery/SensitiveChangeList'
+import { FINAL_MERGE_ANCHOR } from './ClosingChoice'
 import { useConfirmFinalMerge, useFinalMerge, type FinalMerge } from './finalMergeApi'
-import { DeclineToZip, ZipFallbackStep } from './ZipFallbackStep'
+import { ZipFallbackStep } from './ZipFallbackStep'
 
 /** The reasons the closure section words itself; any other reads as the generic failure. */
 const REASONS = ['WORKFLOW_FILES_CHANGED', 'ACTIONS_QUOTA', 'EXCHANGE_REFUSED', 'RUN_FAILED', 'BRANCH_EXISTS',
@@ -23,15 +24,21 @@ const REASONS = ['WORKFLOW_FILES_CHANGED', 'ACTIONS_QUOTA', 'EXCHANGE_REFUSED', 
  * Customer opens and merges the pull request themselves. vibefix writes nothing in their project.
  * <p>
  * When the accepted code changes a file under `.github/workflows/`, N-18's checkbox gives way to its workflow-file
- * state, because a run's own token can never push those files. A run that cannot finish names its reason and keeps
- * the fallback offered. Nothing shows for anyone else, or once the row ended.
+ * state, because a run's own token can never push those files. A run that cannot finish names its reason, and the
+ * self-download path stays offered in the Closing choice cards above (Story 23.10a), which also hold the choice's
+ * own deadline chip. Nothing shows for anyone but the Customer.
  */
 export function FinalMergeStep({ jobId }: { jobId: string }) {
   const merge = useFinalMerge(jobId)
-  if (!merge.data) {
+  if (!merge.data || merge.data.outcome === 'SELF_DOWNLOAD') {
+    // The Customer took the code themselves (Story 23.10a): the Closing choice cards show that outcome alone.
     return null
   }
   if (merge.data.status === 'ENDED') {
+    if (!merge.data.merge?.refusal && !merge.data.zip) {
+      // The row ended with no Final Merge of its own: a cancellation at J10, or a proposal that ended.
+      return null
+    }
     // A run that could not finish ends the row, so its own named reason stands above the fallback it offers.
     return (
       <div className="flex flex-col gap-3">
@@ -70,7 +77,6 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
   const confirm = useConfirmFinalMerge(jobId)
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState<string>()
-  const repo = merge.repository
   const step = merge.merge
   const date = merge.deadlineAt ? formatDayMonth(merge.deadlineAt) : t('screen.closure.finalMerge.beforeEnd')
   const heading = (
@@ -81,7 +87,11 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
 
   if (step?.status === 'DONE') {
     return (
-      <section aria-labelledby={`${ids}-final-merge`} className="flex flex-col gap-2 rounded-md border border-border p-4">
+      <section
+        id={FINAL_MERGE_ANCHOR}
+        aria-labelledby={`${ids}-final-merge`}
+        className="flex flex-col gap-2 rounded-md border border-border p-4"
+      >
         {heading}
         <ActionsRunRow
           purpose={t('screen.job.actionsRun.purposeFinalMerge')}
@@ -102,7 +112,11 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
   }
   if (!step || step.status === 'CHECKING') {
     return (
-      <section aria-labelledby={`${ids}-final-merge`} className="flex flex-col gap-2 rounded-md border border-border p-4">
+      <section
+        id={FINAL_MERGE_ANCHOR}
+        aria-labelledby={`${ids}-final-merge`}
+        className="flex flex-col gap-2 rounded-md border border-border p-4"
+      >
         {heading}
         {merge.deadlineAt && <p className="text-body-sm">{t('screen.closure.finalMerge.deadline', { date })}</p>}
         {step && (
@@ -110,13 +124,16 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
             {t('screen.closure.finalMerge.checking')}
           </p>
         )}
-        <DeclineToZip jobId={jobId} repo={repo} />
       </section>
     )
   }
   if (step.status === 'CONFIRMED' || step.status === 'RUNNING') {
     return (
-      <section aria-labelledby={`${ids}-final-merge`} className="flex flex-col gap-2 rounded-md border border-border p-4">
+      <section
+        id={FINAL_MERGE_ANCHOR}
+        aria-labelledby={`${ids}-final-merge`}
+        className="flex flex-col gap-2 rounded-md border border-border p-4"
+      >
         {heading}
         <ActionsRunRow
           purpose={t('screen.job.actionsRun.purposeFinalMerge')}
@@ -129,7 +146,11 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
   if (step.status !== 'READY') {
     // A refusal normally ends the row in the same transaction, so this is the moment before the fallback shows.
     return (
-      <section aria-labelledby={`${ids}-final-merge`} className="flex flex-col gap-2 rounded-md border border-border p-4">
+      <section
+        id={FINAL_MERGE_ANCHOR}
+        aria-labelledby={`${ids}-final-merge`}
+        className="flex flex-col gap-2 rounded-md border border-border p-4"
+      >
         {heading}
         <Failure merge={step} />
       </section>
@@ -143,7 +164,11 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
     })
   }
   return (
-    <section aria-labelledby={`${ids}-final-merge`} className="flex flex-col gap-3 rounded-md border border-border p-4">
+    <section
+      id={FINAL_MERGE_ANCHOR}
+      aria-labelledby={`${ids}-final-merge`}
+      className="flex flex-col gap-3 rounded-md border border-border p-4"
+    >
       {heading}
       {merge.deadlineAt && <p className="text-body-sm">{t('screen.closure.finalMerge.deadline', { date })}</p>}
       <p id={`${ids}-review`} className="text-body-sm">
@@ -182,14 +207,13 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
           {error}
         </p>
       )}
-      <div className="flex flex-wrap gap-3">
-        {!blocked && (
+      {!blocked && (
+        <div className="flex flex-wrap gap-3">
           <Button type="button" className="w-fit" disabled={!agreed || confirm.isPending} onClick={run}>
             {t('screen.closure.finalMerge.confirm')}
           </Button>
-        )}
-        <DeclineToZip jobId={jobId} repo={repo} />
-      </div>
+        </div>
+      )}
     </section>
   )
 }
