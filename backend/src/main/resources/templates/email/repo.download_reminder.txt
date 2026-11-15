@@ -1,0 +1,8 @@
+subject: Kho trung gian của {job} sẽ bị xóa ngày {date}. Hãy tải mã về trước ngày đó
+---
+Xin chào,
+
+Kho trung gian của công việc {job} sẽ bị xóa ngày {date}, và vibefix chưa có ghi nhận nào về việc bạn đã nhận mã.
+Hãy mở kho đó trên GitHub, bấm nút "Code" rồi chọn "Download ZIP" (hoặc clone nếu bạn quen dùng Git), và lưu lại bản mã. Bạn không cần chạy lệnh nào.
+Sau ngày {date}, mã không còn tải được nữa.
+Khi đã có bản mã, mở công việc trên vibefix và xác nhận "Tôi đã tự tải / clone từ GitHub"; sau đó vibefix không nhắc bạn nữa.

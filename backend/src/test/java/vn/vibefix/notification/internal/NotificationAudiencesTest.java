@@ -31,6 +31,8 @@ class NotificationAudiencesTest {
 	 * The post-Job types: data deletion and the Revocation Checklist (J8 or J10), the Final Merge's branch-ready
 	 * notice and the closure fallback (Closing, after J8), the Rating Window, the Ratings, private
 	 * feedback and the Portfolio (J9), and the Team Issue updates, which a Rating issue also sends after the Job.
+	 * Story 23.10b adds the two that reach the Customer after the Job has ended, while the code is still only in the
+	 * Intermediary Repository: the unconfirmed receipt and the download reminders.
 	 * Each was checked by its senders (review iteration 4): {@code repo.access_revoked} is not one, since a lock and a
 	 * Crew change revoke grants on a running Job too.
 	 */
@@ -41,6 +43,8 @@ class NotificationAudiencesTest {
 			Map.entry("repo.final_branch_ready", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("repo.final_merge_completed", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("repo.zip_fallback_ready", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
+			Map.entry("repo.code_receipt_unconfirmed", Set.of(Audience.CUSTOMER)),
+			Map.entry("repo.download_reminder", Set.of(Audience.CUSTOMER)),
 			Map.entry("reputation.rating_window_opened", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("reputation.ratings_published", Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_EVER_ACTIVE)),
 			Map.entry("reputation.private_feedback_invited", Set.of(Audience.CREW_EVER_ACTIVE)),
@@ -49,9 +53,13 @@ class NotificationAudiencesTest {
 			Map.entry("dispute.team_issue_answered", Set.of(Audience.CREW_EVER_ACTIVE)),
 			Map.entry("dispute.team_issue_decided", Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE)));
 
-	/** The post-Job to-dos: data deletion and the Revocation Checklist (J8 or J10), the Ratings and the Portfolio (J9). */
+	/**
+	 * The post-Job to-dos: data deletion and the Revocation Checklist (J8 or J10), the Ratings and the Portfolio
+	 * (J9), and, from Story 23.10b, fetching the code before the repositories are deleted.
+	 */
 	static final Map<String, Set<Audience>> POST_JOB_TODOS = Map.of("repo.confirm_data_deletion",
 			Set.of(Audience.MENTOR, Audience.CREW_EVER_ACTIVE), "repo.revocation_item", Set.of(Audience.CUSTOMER),
+			"repo.download_before_deletion", Set.of(Audience.CUSTOMER),
 			"reputation.rate", Set.of(Audience.CUSTOMER, Audience.MENTOR), "reputation.give_private_feedback",
 			Set.of(Audience.CREW_EVER_ACTIVE), "reputation.draft_portfolio_summary", Set.of(Audience.MENTOR),
 			"reputation.approve_portfolio_summary", Set.of(Audience.CUSTOMER));

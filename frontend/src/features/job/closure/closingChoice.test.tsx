@@ -42,7 +42,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Story 23.10a)', () => {
+describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a and 23.10b)', () => {
   it('shows both ways of receiving the code under the deadline chip, neither preselected', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
@@ -139,6 +139,82 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Story 23.10a)',
 
     await vi.waitFor(() => expect(screen.queryByText(/Chọn trước/)).toBeNull())
     expect(screen.queryByRole('button', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeNull()
+  })
+
+  /** Story 23.10b: the deadline passed with neither path taken, so the Job ended without the Customer's word. */
+  it('tells the Customer the Job ended unconfirmed and keeps the self-download open until the deletion', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...open,
+          status: 'ENDED',
+          endReason: 'DEADLINE',
+          deadlineAt: null,
+          outcome: 'UNCONFIRMED',
+          choice: {
+            ...open.choice,
+            deadlineAt: null,
+            finalMerge: false,
+            selfDownload: true,
+            deletionAt: '2026-12-10T03:00:00Z',
+          },
+        }),
+    })
+    renderChoice()
+
+    expect(await screen.findByRole('heading', { name: 'Bạn chưa xác nhận đã nhận mã' })).toBeInTheDocument()
+    expect(screen.getByText(/Kho trung gian vẫn mở cho bạn đọc và tải đến 10\/12/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Mở kho trung gian/ })).toBeInTheDocument()
+    expect(screen.queryByText(/Chọn trước/)).toBeNull()
+    expect(screen.queryByText('Hợp nhất vào dự án của bạn')).toBeNull()
+  })
+
+  /** The repositories went with the deletion: the ending still reads, with nothing left to download. */
+  it('states the unconfirmed ending even once there is nothing left to download', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...open,
+          status: 'ENDED',
+          endReason: 'DEADLINE',
+          deadlineAt: null,
+          outcome: 'UNCONFIRMED',
+          choice: { deadlineAt: null, near: false, finalMerge: false, selfDownload: false, intermediaryUrl: null },
+        }),
+    })
+    renderChoice()
+
+    expect(await screen.findByRole('heading', { name: 'Bạn chưa xác nhận đã nhận mã' })).toBeInTheDocument()
+    expect(screen.getByText(/đến khi nó bị xóa/)).toBeInTheDocument()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('gives the Mentor one line saying the Customer never confirmed, with no date or action', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...open,
+          audience: 'MENTOR',
+          status: 'ENDED',
+          endReason: 'DEADLINE',
+          deadlineAt: null,
+          outcome: 'UNCONFIRMED',
+          receipt: null,
+          merge: null,
+          zip: null,
+          choice: { ...open.choice, deadlineAt: null, intermediaryUrl: null, finalMerge: false, selfDownload: true },
+        }),
+    })
+    renderChoice()
+
+    expect(await screen.findByText('Khách hàng chưa xác nhận đã nhận code.')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.queryByText(/10\/12/)).toBeNull()
   })
 
   it('gives the Mentor one read-only line with the deadline, then the outcome', async () => {

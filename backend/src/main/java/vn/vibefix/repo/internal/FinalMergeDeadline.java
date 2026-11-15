@@ -6,6 +6,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.job.JobBusy;
+import vn.vibefix.job.JobBusy.BusyJob;
+import vn.vibefix.job.JobCompletion;
 import vn.vibefix.job.JobFreezes;
 import vn.vibefix.job.JobFreezes.DisputedJob;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
@@ -15,10 +18,18 @@ import vn.vibefix.timers.DeadlineOutcome;
 import vn.vibefix.timers.DueDeadline;
 
 /**
- * {@value #KEY} (FR-37): the FR-37 deadline, set at J8. A row still {@code REQUESTED} whose Final Merge the Customer
- * has not confirmed ends {@code DEADLINE}, and the closure fallback follows (Story 8.9, which Story 23.10 replaces).
- * A Final Merge the Customer set going finishes on its own. Pausable: it takes the Job row lock first, which
- * {@code end} does not, so a frozen Job always pauses it and nothing ends (AD-4). Collaborators are looked up on use.
+ * {@value #KEY} (FR-37, FR-38, D10, Story 23.10b): the closing choice's deadline, set at J8. A row still
+ * {@code REQUESTED} whose Customer has taken neither path ends the Job itself: J9 applies as
+ * {@link JobCompletion.Finish#UNCONFIRMED} -- Closed, or Cancelled when Closing was entered by a confirmed
+ * cancellation -- and only then does the row end {@code DEADLINE}. No ZIP is started: {@code DEADLINE} is no longer
+ * one of {@link ZipFallbacks}' triggers, and J9 running first keeps that retired path unreachable anyway, since it
+ * refuses a Job that is no longer Closing. The Customer hears {@code repo.code_receipt_unconfirmed} and keeps the
+ * self-download until the repositories are deleted, which {@link Revocations} arranges on the ending transition.
+ * <p>
+ * A Final Merge the Customer set going finishes on its own, and a receipt already recorded ended the Job already:
+ * either way the deadline is {@code OBSOLETE}. Pausable: it takes the Job row lock first, which {@code end} does
+ * not, so a frozen Job always pauses it and nothing ends (AD-4); another operation's busy marker answers
+ * {@code REARM} with nothing written (AD-28). Collaborators are looked up on use.
  */
 @Component
 class FinalMergeDeadline implements DeadlineHandler {
@@ -33,11 +44,21 @@ class FinalMergeDeadline implements DeadlineHandler {
 
 	private final ObjectProvider<FinalMerges> merges;
 
+	private final ObjectProvider<CodeReceipts> receipts;
+
+	private final ObjectProvider<JobBusy> busy;
+
+	private final ObjectProvider<JobCompletion> completion;
+
 	FinalMergeDeadline(ObjectProvider<FinalMergeAuthorizations> authorizations, ObjectProvider<JobFreezes> freezes,
-			ObjectProvider<FinalMerges> merges) {
+			ObjectProvider<FinalMerges> merges, ObjectProvider<CodeReceipts> receipts, ObjectProvider<JobBusy> busy,
+			ObjectProvider<JobCompletion> completion) {
 		this.authorizations = authorizations;
 		this.freezes = freezes;
 		this.merges = merges;
+		this.receipts = receipts;
+		this.busy = busy;
+		this.completion = completion;
 	}
 
 	@Override
@@ -48,17 +69,30 @@ class FinalMergeDeadline implements DeadlineHandler {
 	@Override
 	@Transactional
 	public DeadlineOutcome handle(DueDeadline deadline) {
-		DisputedJob job = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
-		if (job != null && job.frozen()) {
+		DisputedJob disputed = this.freezes.getObject().lock(Objects.requireNonNull(deadline.jobId())).orElse(null);
+		if (disputed != null && disputed.frozen()) {
 			return DeadlineOutcome.REPAUSE;
 		}
 		Authorization authorization = this.authorizations.getObject().find(deadline.subjectId()).orElse(null);
 		if (authorization == null || !authorization.open()) {
 			return DeadlineOutcome.OBSOLETE;
 		}
-		boolean confirmed = this.merges.getObject().find(authorization.id()).filter(FinalMerges::confirmed).isPresent();
-		if (confirmed) {
+		boolean settled = this.merges.getObject().find(authorization.id()).filter(FinalMerges::confirmed).isPresent()
+				|| this.receipts.getObject().find(authorization.jobId()).isPresent();
+		BusyJob job = this.busy.getObject().job(authorization.jobId()).orElse(null);
+		if (settled || job == null) {
 			return DeadlineOutcome.OBSOLETE;
+		}
+		if (job.busy().isPresent()) {
+			// AD-28: a Settlement, an acceptance or a Setup holds the Job, so nothing is written and the next poll
+			// finds the row still open. A Final Merge of its own would have answered OBSOLETE above.
+			return DeadlineOutcome.REARM;
+		}
+		// J9 first, the row only after it: JobCompletion.finish writes nothing but the marker release when it is
+		// refused, so a refusal leaves the choice open for the retry. Ending first would spend the choice on a Job
+		// stuck in Closing, because the retry would find the row no longer REQUESTED and answer OBSOLETE.
+		if (!this.completion.getObject().finish(job.jobId(), JobCompletion.Finish.UNCONFIRMED, null)) {
+			return DeadlineOutcome.REARM;
 		}
 		this.authorizations.getObject().end(authorization.id(), "DEADLINE");
 		return DeadlineOutcome.FIRED;

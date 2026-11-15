@@ -19,8 +19,9 @@ const RUN_POLL_MS = 3_000
 /**
  * The closure step of the Job's Customer or its Mentor (FR-37, FR-38, UX-DR116); everyone else, and an Assessment
  * Job, finds nothing. For the Customer it reads again while the Final Merge is checked, while its run is on their
- * own GitHub Actions, and while the closure fallback is built; the Mentor's read holds the choice and its outcome
- * alone, with no run and no fallback of its own to wait for, so it never polls.
+ * own GitHub Actions, and while the closure fallback a refusal started is built; the Mentor's read holds the choice
+ * and its outcome alone, with no run and no fallback of its own to wait for, so it never polls. A Job that simply
+ * ended -- at the closing choice's deadline, at J10, or with its proposal -- waits for nothing either.
  */
 export function useFinalMerge(jobId: string) {
   return useQuery({
@@ -36,9 +37,10 @@ export function useFinalMerge(jobId: string) {
       if (status === 'CONFIRMED' || status === 'RUNNING') {
         return RUN_POLL_MS
       }
-      return status === 'CHECKING' || zip === 'BUILDING' || (query.state.data?.status === 'ENDED' && !zip)
-        ? RUNNING_POLL_MS
-        : false
+      // A row that ended ZIP_FALLBACK is waiting for its fallback's row to appear; every other ending -- the
+      // closing choice's deadline (Story 23.10b), a cancellation, a proposal that ended -- is waiting for nothing.
+      const awaitingZip = query.state.data?.endReason === 'ZIP_FALLBACK' && !zip
+      return status === 'CHECKING' || zip === 'BUILDING' || awaitingZip ? RUNNING_POLL_MS : false
     },
   })
 }

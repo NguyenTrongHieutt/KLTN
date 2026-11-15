@@ -3014,10 +3014,16 @@
         "dialogBody": "Kho trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa. Bước này không hoàn tác được.",
         "dialogBodyUntilDeletion": "Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa. Bước này không hoàn tác được.",
         "done": "Bạn đã xác nhận đã nhận mã lúc {time}.",
+        "unconfirmed": {
+          "title": "Bạn chưa xác nhận đã nhận mã",
+          "lead": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa.",
+          "leadUntilDeletion": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa."
+        },
         "mentor": {
           "open": "Khách hàng đang chọn cách nhận mã (hạn {date})",
           "MERGED": "Mã đã được chép vào một nhánh mới của dự án khách hàng.",
-          "SELF_DOWNLOAD": "Khách hàng đã tự tải mã từ kho trung gian."
+          "SELF_DOWNLOAD": "Khách hàng đã tự tải mã từ kho trung gian.",
+          "UNCONFIRMED": "Khách hàng chưa xác nhận đã nhận code."
         }
       },
       "finalMerge": {
@@ -4271,6 +4277,7 @@
       "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
       "confirm_source_clean": "Xác nhận dự án gốc của {job} đã sạch khóa bí mật",
       "receive_code": "Chọn cách nhận mã của {job}",
+      "download_before_deletion": "Tải mã của {job} về trước {date}: sau ngày này kho trung gian bị xóa",
       "revocation_item": "Thu hồi quyền {system}",
       "revocation_item_member": "Thu hồi quyền {system} của @{login}"
     },
@@ -4666,6 +4673,12 @@
       },
       "zip_fallback_ready": {
         "title": "{job}: không hợp nhất tự động được, bạn có thể tải mã về dạng tệp ZIP"
+      },
+      "code_receipt_unconfirmed": {
+        "title": "{job} đã kết thúc khi bạn chưa xác nhận đã nhận mã. Hãy tải mã về trước {date}"
+      },
+      "download_reminder": {
+        "title": "Kho trung gian của {job} sẽ bị xóa ngày {date}. Hãy tải mã về trước ngày đó"
       },
       "final_merge_completed": {
         "title": "Đã hợp nhất mã của {job} vào dự án gốc"

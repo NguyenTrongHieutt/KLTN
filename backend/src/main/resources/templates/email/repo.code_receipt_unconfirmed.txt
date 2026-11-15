@@ -1,0 +1,8 @@
+subject: {job} đã kết thúc khi bạn chưa xác nhận đã nhận mã. Hãy tải mã về trước {date}
+---
+Xin chào,
+
+Công việc {job} đã kết thúc. Bạn chưa chọn cách nhận mã và chưa xác nhận là đã có bản mã cuối cùng, nên vibefix không có ghi nhận nào về việc bạn đã nhận mã.
+Kho trung gian vẫn mở cho bạn đọc và tải đến {date}. Hãy mở kho đó trên GitHub, bấm nút "Code" rồi chọn "Download ZIP" (hoặc clone nếu bạn quen dùng Git), và lưu lại bản mã. Bạn không cần chạy lệnh nào.
+Sau ngày {date}, kho trung gian bị xóa và mã không còn tải được nữa.
+Khi đã có bản mã, mở công việc trên vibefix và xác nhận "Tôi đã tự tải / clone từ GitHub".

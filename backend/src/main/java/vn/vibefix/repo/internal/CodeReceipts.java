@@ -20,6 +20,7 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.job.JobCompletion;
+import vn.vibefix.notification.Todos;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
 import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
 import vn.vibefix.repo.internal.JobSetups.Setup;
@@ -39,6 +40,12 @@ import vn.vibefix.timers.Deadlines;
  * close each other before that: a run that is dispatched, out, or failed with a named reason leaves the receipt
  * allowed, and the Final Merge's busy marker goes with it, so J9 passes and the run still out finds its marker gone
  * and ends {@code Obsolete}.
+ * <p>
+ * Story 23.10b: the closing choice's row is no longer required. A Job Cancelled at J10 before any choice row existed
+ * never had a choice to make, and a Job the deadline ended as {@code UNCONFIRMED} has spent its row, yet both still
+ * hold handover work in the Intermediary Repository, so both accept the receipt -- which also closes
+ * {@value Revocations#DOWNLOAD_TODO}. What is left to fetch, {@link #unfetched}, is what opens that to-do and what
+ * the download reminders re-check.
  */
 @Component
 class CodeReceipts {
@@ -82,13 +89,15 @@ class CodeReceipts {
 
 	private final Deadlines deadlines;
 
+	private final Todos todos;
+
 	private final AuditLog auditLog;
 
 	private final Clock clock;
 
 	CodeReceipts(JdbcClient jdbc, FinalMergeAuthorizations authorizations, FinalMerges merges, JobSetups setups,
-			JobHandoverBranches branches, JobBusy busy, JobCompletion completion, Deadlines deadlines, AuditLog auditLog,
-			Clock clock) {
+			JobHandoverBranches branches, JobBusy busy, JobCompletion completion, Deadlines deadlines, Todos todos,
+			AuditLog auditLog, Clock clock) {
 		this.jdbc = jdbc;
 		this.authorizations = authorizations;
 		this.merges = merges;
@@ -97,6 +106,7 @@ class CodeReceipts {
 		this.busy = busy;
 		this.completion = completion;
 		this.deadlines = deadlines;
+		this.todos = todos;
 		this.auditLog = auditLog;
 		this.clock = clock;
 	}
@@ -106,7 +116,8 @@ class CodeReceipts {
 	 * <p>
 	 * What is already settled, and then whether either path is open, are both answered before the Job's version
 	 * (AD-23): this command's own success bumps that version, and a Customer whose choice is long gone is told that
-	 * rather than asked to reload.
+	 * rather than asked to reload. A Job with no choice row at all is accepted too, on its accepted work alone
+	 * (Story 23.10b): a cancellation at J10 before the row existed never gave the Customer a choice to spend.
 	 * @throws ApiException {@code CONFLICT CODE_RECEIPT_RECORDED}; {@code CONFLICT FINAL_MERGE_DONE};
 	 * {@code CONFLICT NO_CLOSING_CHOICE_OPEN}; {@code STALE}; {@code JOB_BUSY}
 	 */
@@ -121,8 +132,9 @@ class CodeReceipts {
 			throw new ApiException(ErrorCode.CONFLICT, RepoReason.FINAL_MERGE_DONE);
 		}
 		Setup setup = readable(job.jobId()).orElse(null);
-		// The row is the choice's identity and the step is read back through it, so a Job without one has no choice.
-		if (authorization == null || setup == null || !selfDownloadOpen(job, authorization)) {
+		// There must be something left to download: a readable Intermediary Repository, and either an open choice or
+		// accepted work in it. A Job with no choice row ever (a cancellation at J10) qualifies on the work alone.
+		if (setup == null || !selfDownloadOpen(job, authorization)) {
 			throw new ApiException(ErrorCode.CONFLICT, RepoReason.NO_CLOSING_CHOICE_OPEN);
 		}
 		if (job.version() != expectedVersion) {
@@ -142,9 +154,12 @@ class CodeReceipts {
 			// A confirmation that raced this one wrote the Job's receipt first, and that one is the record.
 			throw new ApiException(ErrorCode.CONFLICT, RepoReason.CODE_RECEIPT_RECORDED);
 		}
-		if (authorization.open()) {
+		if (authorization != null && authorization.open()) {
 			this.authorizations.used(authorization.id());
 		}
+		// FR-21, D10: the code is received, so the duty to fetch it before the deletion is done. Every reminder
+		// still scheduled re-checks this row and answers OBSOLETE.
+		this.todos.closeAll(Revocations.DOWNLOAD_TODO, job.jobId());
 		// A Final Merge run still out holds the marker: it goes with the receipt, so J9 passes and the run ends
 		// Obsolete on its next step. A Job already ended (a cancellation at J10, or the closure fallback) has no J9.
 		boolean applied = this.completion.finish(job.jobId(), JobCompletion.Finish.SELF_DOWNLOAD,
@@ -173,18 +188,42 @@ class CodeReceipts {
 			.optional();
 	}
 
-	/** The closing choice as JOB-1 reads it: the deadline, and which of the two paths is still open. */
+	/**
+	 * The closing choice as JOB-1 reads it: the deadline, and which of the two paths is still open. A Job that never
+	 * had a choice row answers with the self-download alone and no deadline (Story 23.10b).
+	 */
 	@Transactional(readOnly = true)
-	Choice choice(BusyJob job, Authorization authorization, boolean customer) {
-		FinalMerge merge = this.merges.find(authorization.id()).orElse(null);
+	Choice choice(BusyJob job, @Nullable Authorization authorization, boolean customer) {
+		FinalMerge merge = authorization == null ? null : this.merges.find(authorization.id()).orElse(null);
 		boolean spent = find(job.jobId()).isPresent() || (merge != null && "DONE".equals(merge.status()));
 		// The deadline runs while the Job is Closing: an ended Job has no date left to choose before.
-		Instant deadline = "CLOSING".equals(job.state()) ? authorization.deadlineAt() : null;
+		Instant deadline = authorization != null && "CLOSING".equals(job.state()) ? authorization.deadlineAt() : null;
 		String intermediary = customer ? this.branches.intermediaryUrl(job.jobId()).orElse(null) : null;
 		return new Choice(deadline, deadline != null && !deadline.isAfter(this.clock.instant().plus(SOON)),
-				!spent && authorization.open() && "CLOSING".equals(job.state()),
+				!spent && authorization != null && authorization.open() && "CLOSING".equals(job.state()),
 				!spent && selfDownloadOpen(job, authorization) && readable(job.jobId()).isPresent(), intermediary,
 				this.deadlines.dueAt(RepositoryDeletion.KEY, job.jobId()).orElse(null));
+	}
+
+	/**
+	 * Whether the Job's handover work is still only in the Intermediary Repository (FR-21, FR-38, D10, Story
+	 * 23.10b): a handover was merged there, the Customer has not said they have the code, and no Final Merge branch
+	 * was read back. It opens {@value Revocations#DOWNLOAD_TODO} and the two download reminders when the Job ends,
+	 * and each reminder re-checks it at fire time. An Assessment Job has no handover work, so it never has any.
+	 */
+	@Transactional(readOnly = true)
+	boolean unfetched(UUID jobId) {
+		return acceptedWork(jobId) && find(jobId).isEmpty()
+				&& !this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM repo.final_merge WHERE job_id = :job AND status = 'DONE')")
+					.param("job", jobId)
+					.query(Boolean.class)
+					.single();
+	}
+
+	/** The Source Repository the Job's Setup copied, which the closure view names when there is no choice row. */
+	@Transactional(readOnly = true)
+	Optional<String> source(UUID jobId) {
+		return this.setups.latest(jobId).map(Setup::sourceFullName);
 	}
 
 	/**

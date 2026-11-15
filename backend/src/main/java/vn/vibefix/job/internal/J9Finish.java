@@ -18,8 +18,9 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * J9 (FR-10, FR-38, FR-75, AD-30, AD-41): a Closing Job closes. An Assessment Job closes in J8's apply
  * with no repository step; a Code Job closes only with {@value #FINISH}, which {@code repo} gives once
- * the Final Merge was read back, the Customer confirmed they have the code themselves, or the ZIP Fallback
- * was stored (Stories 8.8, 23.10a and 8.9). It records
+ * the Final Merge was read back, the Customer confirmed they have the code themselves, the ZIP Fallback
+ * was stored, or the closing choice's deadline passed with neither path taken (Stories 8.8, 23.10a, 8.9 and
+ * 23.10b). It records
  * when and tells the Customer, the Mentor, and the active Crew ({@code job.job_closed}) while they are
  * still active; then the Mentor's contact visibility ends, the Product pin is released, and every Crew
  * row not yet released is released as {@code JOB_ENDED}, freeing its Student, before any {@code payment}
@@ -35,7 +36,10 @@ class J9Finish implements JobLifecycle.Step {
 
 	/**
 	 * How a Code Job's code reached the Customer: {@code MERGED} (the Final Merge branch read back),
-	 * {@code SELF_DOWNLOAD} (the Customer's own code receipt, Story 23.10a), or {@code ZIP_FALLBACK}.
+	 * {@code SELF_DOWNLOAD} (the Customer's own code receipt, Story 23.10a), {@code ZIP_FALLBACK}, or
+	 * {@code UNCONFIRMED} (the closing choice's deadline passed with neither path taken, so nothing says the code
+	 * reached the Customer: Story 23.10b). It reaches {@link vn.vibefix.job.JobTransitioned} as a fact and is
+	 * stored in no column; {@code repo}'s own rows are the record.
 	 */
 	static final String FINISH = "finish";
 
