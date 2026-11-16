@@ -380,8 +380,9 @@ App is configured.
 
 - **A block** (the Source App uninstalled or on the wrong repositories, `vibefix.yml` removed or changed, or
   lost admin rights) stops the start and tells the Customer and the Mentor why. The Customer fixes it and
-  taps "Thử lại" on JOB-H. Until Story 23.6 moves the copy onto the Customer's Actions, the sandbox still
-  clones the Source Repository without a token, so a dev run needs a public test repository.
+  taps "Thử lại" on JOB-H. Since Story 23.6 the copy runs on the Customer's own Actions from the published
+  `vibefix.yml`, so a dev run needs the Source App installed on the test repository and that file in place;
+  the repository itself may be private.
 - **The copies are private repositories** in the organization. Every pull-request call holds Contents read,
   which GitHub needs on a private repository. Nothing clones them any more: the handover copy runs on the
   runner's Actions (Story 23.8), the Final Merge on the Customer's own (Story 23.9), and the 30-day deletion
