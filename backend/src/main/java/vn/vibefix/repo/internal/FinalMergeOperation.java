@@ -331,7 +331,7 @@ class FinalMergeOperation implements OperationHandler {
 		if (correlation != null && !merge.runSpent()) {
 			runs().close(correlation);
 		}
-		merges().fallback(merge.authorizationId(), "REFUSED", refusal);
+		merges().refuse(merge.authorizationId(), refusal);
 		return new Outcome.Aborted(refusal);
 	}
 

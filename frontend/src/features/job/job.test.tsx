@@ -278,7 +278,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
 
     expect(await screen.findByLabelText('Tên công việc')).toHaveValue('Ghép mã đã hoàn thiện vào dự án')
     expect(screen.getByLabelText('Điều gì đang chưa đúng?')).toHaveValue(
-      'Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Tôi đã tự tải mã đã hoàn thiện từ kho trung gian trên GitHub về máy.',
+      'Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Mã đã hoàn thiện nằm trong kho trung gian của công việc đó trên GitHub, tôi tự tải về được.',
     )
     expect(screen.getByRole('checkbox', { name: /Chỉnh sửa/ })).toBeChecked()
   })

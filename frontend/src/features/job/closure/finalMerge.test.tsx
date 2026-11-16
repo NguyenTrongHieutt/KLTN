@@ -41,6 +41,7 @@ function renderStep(path = '/cong-viec/j1') {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -194,9 +195,10 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
 
   /**
    * Story 23.10c: nothing follows a refusal any more, so the step reads once and stops. It used to read again until
-   * the closure fallback's own row appeared.
+   * the closure fallback's own row appeared. The clock is faked, so the poll it must not make is long overdue.
    */
-  it('reads once after a refusal and does not poll', async () => {
+  it('reads once after a refusal and does not poll', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     let reads = 0
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
@@ -208,10 +210,14 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     renderStep()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Chưa chép được mã vào dự án của bạn')
-    // The timers are real and RUNNING_POLL_MS is 5 s: a step that still polled would have read again by now.
-    await new Promise((resolve) => setTimeout(resolve, 6_000))
     expect(reads).toBe(1)
-  }, 20_000)
+
+    // Six times RUNNING_POLL_MS: a step that still polled would have read many times over.
+    await vi.advanceTimersByTimeAsync(30_000)
+
+    expect(reads).toBe(1)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
 
   it('says the code is checked first', async () => {
     fakeBackend(signedInUser, {

@@ -24,9 +24,10 @@ import vn.vibefix.support.PostgresTestDatabase;
  * <p>
  * Afterwards {@code repo.zip_fallback} is gone, the two retired {@code end_reason}s read {@code NULL} while the
  * rows keep their {@code ENDED} status and their {@code ended_at} (AD-8), the CHECK admits only the three endings
- * that are left, and every retired notification, operation and publication is gone. What stays: the audit entries
- * of those Jobs, a notification and an email of another kind, an operation of another type, a completed
- * publication of the deleted event (the registry's purge takes it) and another listener's own rows.
+ * that are left, and every retired notification, publication and runnable operation is gone. What stays: the audit
+ * entries of those Jobs, a notification and an email of another kind, a fallback operation that already finished
+ * (this table keeps its history), a completed publication of the deleted event (the registry's purge takes it) and
+ * another listener's own rows.
  */
 class RetireZipFallbackMigrationIT {
 
@@ -82,13 +83,15 @@ class RetireZipFallbackMigrationIT {
 				        '{}', '/cong-viec', now())
 				""", """
 				INSERT INTO operations.external_operation (id, operation_key, type, lane, priority, status, payload,
-				    next_attempt_at, created_at)
+				    next_attempt_at, created_at, completed_at)
 				VALUES (gen_random_uuid(), 'repo.zip_fallback:retired', 'repo.zip_fallback', 'GITHUB_LONG', 0, 'PENDING',
-				        '{}', now(), now()),
+				        '{}', now(), now(), NULL),
+				       (gen_random_uuid(), 'repo.zip_fallback:done', 'repo.zip_fallback', 'GITHUB_LONG', 0, 'SUCCEEDED',
+				        '{}', now(), now(), now()),
 				       (gen_random_uuid(), 'notification.email:retired', 'notification.email', 'EMAIL', 0, 'PENDING',
-				        '{"template":"repo.zip_fallback_ready"}', now(), now()),
+				        '{"template":"repo.zip_fallback_ready"}', now(), now(), NULL),
 				       (gen_random_uuid(), 'notification.email:kept', 'notification.email', 'EMAIL', 0, 'PENDING',
-				        '{"template":"repo.download_reminder"}', now(), now())
+				        '{"template":"repo.download_reminder"}', now(), now(), NULL)
 				""", """
 				INSERT INTO platform.event_publication (id, listener_id, event_type, serialized_event, publication_date,
 				    completion_date)
@@ -129,8 +132,8 @@ class RetireZipFallbackMigrationIT {
 			.as("the fallback's notification goes; what people still need stays")
 			.containsExactly("repo.download_reminder");
 		assertThat(rows(db, "SELECT operation_key FROM operations.external_operation ORDER BY operation_key"))
-			.as("the fallback's own operation and the email under its deleted template go")
-			.containsExactly("notification.email:kept");
+			.as("only what could still run goes: a finished operation is this table's history")
+			.containsExactly("notification.email:kept", "repo.zip_fallback:done");
 		assertThat(rows(db, "SELECT id::text FROM platform.event_publication ORDER BY id"))
 			.as("a completed publication waits for the purge, and the other listener keeps its own")
 			.containsExactly(ENDED_DONE, OTHER);

@@ -46,7 +46,7 @@ export function ClosingChoice({ jobId, version }: { jobId: string; version: numb
 /**
  * "Khách hàng đang chọn cách nhận mã (hạn {date})" while the choice really is open, then the outcome -- the code
  * merged, taken by the Customer, or, since Story 23.10b, never confirmed as received -- then nothing: a Job that
- * ended another way, such as by the closure fallback, has no choice left to report and no outcome of its own.
+ * ended another way, such as a cancellation at J10, has no choice left to report and no outcome of its own.
  * Read-only: no link, no action and no date of the Customer's own.
  */
 function MentorLine({ view }: { view: FinalMerge }) {

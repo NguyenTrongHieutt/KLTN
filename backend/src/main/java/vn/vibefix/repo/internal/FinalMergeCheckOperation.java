@@ -103,7 +103,7 @@ class FinalMergeCheckOperation implements OperationHandler {
 					return new Outcome.Deferred(this.clock.instant().plus(SHORT_WAIT));
 				}
 				case GUARD_FAILED -> {
-					merges.fallback(authorizationId, "REFUSED", "J9_GUARD");
+					merges.refuse(authorizationId, "J9_GUARD");
 					return new Outcome.Aborted("J9_GUARD");
 				}
 				case HOLD -> {

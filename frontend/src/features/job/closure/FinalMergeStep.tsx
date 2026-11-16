@@ -46,10 +46,28 @@ export function FinalMergeStep({ jobId }: { jobId: string }) {
       // The row ended with no Final Merge of its own: a cancellation at J10, or a proposal that ended.
       return null
     }
-    // A refusal leaves the row open, so the deadline that ended it came later: the reason still stands on its own.
-    return <Failure jobId={jobId} productId={merge.data.productId} merge={merge.data.merge} />
+    // A refusal leaves the row open, so the deadline that ended it came later: the reason still stands, in the
+    // same card it stood in while the choice was open.
+    return <Ended jobId={jobId} merge={merge.data} />
   }
   return <Merge jobId={jobId} merge={merge.data} />
+}
+
+/** The Final Merge card of a row that has ended: its refusal alone, framed as every other state of the card is. */
+function Ended({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
+  const ids = useId()
+  return (
+    <section
+      id={FINAL_MERGE_ANCHOR}
+      aria-labelledby={`${ids}-final-merge`}
+      className="flex flex-col gap-3 rounded-md border border-border p-4"
+    >
+      <h3 id={`${ids}-final-merge`} className="text-h3">
+        <TermHint term="finalMerge" />
+      </h3>
+      <Failure jobId={jobId} productId={merge.productId} merge={merge.merge} />
+    </section>
+  )
 }
 
 /**

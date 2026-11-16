@@ -27,6 +27,7 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
+import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationCompleted;
@@ -174,25 +175,45 @@ class FinalMerges {
 	/**
 	 * A refusal that is not transient ({@code REFUSED}, with its named reason: {@code WORKFLOW_FILES_CHANGED},
 	 * {@code BRANCH_EXISTS}, {@code EXCHANGE_REFUSED}, {@code ACTIONS_QUOTA}, {@code RUN_FAILED}, {@code J9_GUARD}):
-	 * the marker goes, if the Final Merge held it, and the closing choice's row stays open with it.
+	 * the marker goes, if the Final Merge held it, and the closing choice's row stays open with it. The choice is
+	 * the Customer's again, so {@value FinalMergeAuthorizations#TODO} is re-opened under the same deadline --
+	 * {@link #confirm} closed it when the run started -- and the refusal is audited.
 	 * <p>
-	 * It stays open on purpose (Story 23.10c): ending it here would strand the Job in {@code CLOSING} for good, now
-	 * that nothing listens for that ending -- {@link FinalMergeDeadline} answers {@code OBSOLETE} for a row that is
-	 * no longer {@code REQUESTED}, and AD-5 lets nothing else reach J9. Left {@code REQUESTED}, the self-download
+	 * The row stays open on purpose (Story 23.10c): ending it here would strand the Job in {@code CLOSING} for good,
+	 * now that nothing listens for that ending -- {@link FinalMergeDeadline} answers {@code OBSOLETE} for a row that
+	 * is no longer {@code REQUESTED}, and AD-5 lets nothing else reach J9. Left {@code REQUESTED}, the self-download
 	 * card stays offered with this reason and the FR-37 deadline keeps running, so the Job ends either way. The
 	 * refusal is still final for the merge itself: {@link CodeReceipts#choice} stops offering it.
 	 */
 	@Transactional
-	void fallback(UUID authorizationId, String status, String refusal) {
+	void refuse(UUID authorizationId, String refusal) {
 		FinalMerge merge = find(authorizationId).orElse(null);
 		if (merge == null || "DONE".equals(merge.status())) {
 			return;
 		}
-		this.jdbc.sql("UPDATE repo.final_merge SET status = :status, refusal = :refusal WHERE authorization_id = :id")
-			.param("status", status).param("refusal", refusal).param("id", authorizationId).update();
+		this.jdbc.sql("UPDATE repo.final_merge SET status = 'REFUSED', refusal = :refusal WHERE authorization_id = :id")
+			.param("refusal", refusal).param("id", authorizationId).update();
 		if (merge.operationKey() != null) {
 			this.busy.release(merge.jobId(), merge.operationKey());
 		}
+		reopenChoice(authorizationId, merge.jobId());
+		this.authorizations.audit("repo.final_merge_refused", authorizationId, merge.jobId());
+	}
+
+	/**
+	 * The closing choice is open again, so its to-do is too: the Customer has the self-download left and the same
+	 * FR-37 deadline to take it before. One open to-do per row, as {@code FinalMergeAuthorizations.closing} keeps it.
+	 */
+	private void reopenChoice(UUID authorizationId, UUID jobId) {
+		Authorization authorization = this.authorizations.find(authorizationId).filter(Authorization::open).orElse(null);
+		UUID customer = authorization == null ? null : authorization.customerId();
+		String title = this.busy.job(jobId).map(BusyJob::title).orElse(null);
+		if (customer == null || title == null) {
+			return;
+		}
+		this.todos.closeAll(FinalMergeAuthorizations.TODO, authorizationId);
+		this.todos.open(new TodoRequest(FinalMergeAuthorizations.TODO, customer, Audience.CUSTOMER, authorizationId,
+				Map.of("job", title), FinalMergeAuthorizations.link(jobId), authorization.deadlineAt(), jobId));
 	}
 
 	/**
@@ -333,7 +354,7 @@ class FinalMerges {
 							// Still queued or in progress on the Customer's Actions: closed and cancelled, never exchanged.
 							this.runs.close(merge.correlationId());
 						}
-						fallback(merge.authorizationId(), "REFUSED", reason(completed.errorCode()));
+						refuse(merge.authorizationId(), reason(completed.errorCode()));
 					});
 		}
 		else if (CHECK.equals(completed.type())) {

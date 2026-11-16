@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -193,6 +194,9 @@ class FinalMergeAuthorizations {
 	 */
 	@Transactional
 	boolean end(UUID id, String reason) {
+		// The migration of Story 23.10c weakened the CHECK pairing ENDED with a reason, so that the rows of the
+		// retired paths could lose theirs; live code must still name one.
+		Objects.requireNonNull(reason, "reason");
 		Authorization authorization = find(id).orElse(null);
 		int ended = this.jdbc.sql("""
 				UPDATE repo.final_merge_authorization SET status = 'ENDED', end_reason = :reason, ended_at = :now

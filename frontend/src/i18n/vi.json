@@ -3053,7 +3053,7 @@
         "post": "Đăng công việc ghép mã",
         "prefill": {
           "title": "Ghép mã đã hoàn thiện vào dự án",
-          "problem": "Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Tôi đã tự tải mã đã hoàn thiện từ kho trung gian trên GitHub về máy.",
+          "problem": "Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Mã đã hoàn thiện nằm trong kho trung gian của công việc đó trên GitHub, tôi tự tải về được.",
           "expected": "Mã đã hoàn thiện được ghép vào dự án gốc, và ứng dụng chạy như trước với các thay đổi đã nghiệm thu."
         }
       },

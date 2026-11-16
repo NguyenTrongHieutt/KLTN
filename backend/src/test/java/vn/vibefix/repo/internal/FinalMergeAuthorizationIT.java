@@ -348,9 +348,31 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		awaitListeners();
 	}
 
-	/** The Customer set the Final Merge run going: it finishes the Job on its own. */
+	/** The run succeeded: the branch was read back, so the code reached the Customer and nothing is left to decide. */
 	@Test
-	void theDeadlineIsObsoleteWhileTheFinalMergeRunIsLive() {
+	void theDeadlineIsObsoleteOnceTheFinalMergeBranchWasReadBack() {
+		closingWithItsDeadline();
+		this.jdbc.sql("""
+				INSERT INTO repo.final_merge (authorization_id, job_id, product_id, status, confirmed_at, merged_at, created_at)
+				SELECT id, job_id, product_id, 'DONE', now(), now(), now() FROM repo.final_merge_authorization
+				WHERE job_id = :job
+				""").param("job", this.job).update();
+
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "OBSOLETE");
+		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(jobState()).isEqualTo("CLOSING");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.10c: a run still out may yet be refused, and a refusal no longer ends the row -- so the deadline,
+	 * scheduled once at J8, must rearm rather than go {@code OBSOLETE}, or the Job would have no J9 left at all.
+	 */
+	@Test
+	void theDeadlineRearmsWhileTheRunIsOutAndEndsTheJobOnceItIsRefused() {
 		closingWithItsDeadline();
 		this.jdbc.sql("""
 				INSERT INTO repo.final_merge (authorization_id, job_id, product_id, status, confirmed_at, created_at)
@@ -360,9 +382,19 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
 		this.poller.runDue();
 
-		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "OBSOLETE");
-		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(deadlineRow("repo.final_merge_deadline")).as("still there to end the Job")
+			.containsEntry("status", "PENDING");
 		assertThat(jobState()).isEqualTo("CLOSING");
+
+		this.jdbc.sql("UPDATE repo.final_merge SET status = 'REFUSED', refusal = 'RUN_FAILED' WHERE job_id = :job")
+			.param("job", this.job).update();
+		this.clock.advance(Duration.ofMinutes(10));
+		this.poller.runDue();
+
+		assertThat(jobState()).as("the refusal did not strand the Job in Closing").isEqualTo("CLOSED");
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "FIRED");
+		assertThat(authorizationStatus()).isEqualTo("ENDED");
+		assertThat(endReason()).isEqualTo("DEADLINE");
 		awaitListeners();
 	}
 

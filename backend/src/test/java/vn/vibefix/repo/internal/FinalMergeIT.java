@@ -346,6 +346,10 @@ class FinalMergeIT extends IntegrationTest {
 			.isEqualTo("REQUESTED");
 		assertThat(endReason()).isNull();
 		assertThat(jobState()).isEqualTo("CLOSING");
+		assertThat(openTodos()).as("the closing choice is the Customer's again").isOne();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.final_merge_refused' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).as("and the refusal is audited").isOne();
 
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.merge.refusal").value("BRANCH_EXISTS"))
@@ -354,7 +358,7 @@ class FinalMergeIT extends IntegrationTest {
 			.andExpect(jsonPath("$.choice.selfDownload").value(true));
 	}
 
-	/** R20: a run Actions' quota stopped names its reason at once, with the fallback still offered. */
+	/** R20: a run Actions' quota stopped names its reason at once, with the closing choice still open. */
 	@Test
 	void aRunActionsQuotaStoppedEndsTheFinalMergeWithItsReason() throws Exception {
 		check();
@@ -376,7 +380,7 @@ class FinalMergeIT extends IntegrationTest {
 
 	/**
 	 * AD-44: a run vibefix's exchange refused pushes nothing, and a second would be refused the same way, so the
-	 * Final Merge ends {@code EXCHANGE_REFUSED} with the fallback still offered.
+	 * Final Merge is refused {@code EXCHANGE_REFUSED} and the closing choice stays open with that reason.
 	 */
 	@Test
 	void anExchangeRefusalRefusesTheFinalMergeAndLeavesTheChoiceOpen() throws Exception {
