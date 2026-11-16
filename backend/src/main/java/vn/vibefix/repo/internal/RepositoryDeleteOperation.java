@@ -59,7 +59,7 @@ class RepositoryDeleteOperation implements OperationHandler {
 		RepositoryDeletions deletions = this.deletions.getObject();
 		try {
 			List<PlatformRepository> gone = new ArrayList<>();
-			// The fork first, then the repository it was forked from.
+			// The team's copy first, then the Intermediary Repository the Customer reads (there is no fork, D1).
 			for (PlatformRepository repository : new PlatformRepository[] { working, intermediary }) {
 				if (repository != null) {
 					repositories.delete(repository);

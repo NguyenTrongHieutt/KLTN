@@ -1252,6 +1252,42 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(sweep()).as("deleted repositories are no longer read").isEmpty();
 	}
 
+	/**
+	 * Story 23.10d: both requests derive the same operation id from the Setup, so a Product deleted after the
+	 * 30-day deadline already queued its deletion deletes the repositories once, not twice.
+	 */
+	@Test
+	void aProductDeletedAfterTheDeadlineFiredDeletesItsRepositoriesOnce() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		String working = JobSetups.workingName(this.job);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+				"STARTING", "CANCELLED", 4, 1, Map.of()));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofDays(30).plusMinutes(1));
+		this.deadlines.runDue();
+		assertThat(queuedDeletions()).as("the deadline queued it, and the lane has not run yet").isOne();
+
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
+
+		assertThat(queuedDeletions()).as("the Product's request finds the deadline's, by the same derived id").isOne();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(GITHUB.deleted).filteredOn(name -> name.equals(working) || name.equals(intermediary))
+			.as("each repository deleted once")
+			.containsExactly(working, intermediary);
+	}
+
+	/** The Job's queued {@code repo.repository_delete} operations, however they were requested. */
+	private long queuedDeletions() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'repo.repository_delete' AND payload ->> 'jobId' = :job
+				""").param("job", this.job.toString()).query(Long.class).single();
+	}
+
 	@Test
 	void deletingTheProductDeletesItsRepositoriesAtOnce() throws Exception {
 		setUpTheRepositories();
