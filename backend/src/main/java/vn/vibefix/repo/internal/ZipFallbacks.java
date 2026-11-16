@@ -36,13 +36,14 @@ import vn.vibefix.shared.ProcessedEvents;
 /**
  * The ZIP Fallback (FR-38, FR-20, SG-15): whenever the Final Merge of a Code Job in Closing cannot happen,
  * the Customer still gets the code. It starts when the authorization ends {@code ZIP_FALLBACK} (a
- * conflict, a gone repository, a refusal, a failed guard) or {@code DEADLINE} (no closing choice made by the
- * FR-37 deadline). {@value #BUILD} stores the ZIP; its resolving transaction applies J9 (Closed,
- * or Cancelled after a cancellation) and tells both sides ({@value #READY}).
+ * conflict, a gone repository, a refusal, a failed guard). {@value #BUILD} stores the ZIP; its resolving
+ * transaction applies J9 (Closed, or Cancelled after a cancellation) and tells both sides ({@value #READY}).
  * <p>
  * Story 23.10a (D10) replaced "Nhận mã dạng ZIP" with the code receipt, so nothing writes {@code DECLINED} any
- * more: that trigger and that reason are unreachable, and this whole class goes in Story 23.10c, which also
- * re-points what the deadline does.
+ * more. Story 23.10b took {@code DEADLINE} out of the triggers too: the closing choice's deadline now ends the
+ * Job itself as {@code UNCONFIRMED} and the Customer fetches the code from the Intermediary Repository
+ * ({@link FinalMergeDeadline}), so no ZIP is built for it. Both reasons are unreachable here, and this whole
+ * class goes in Story 23.10c.
  */
 @Component
 class ZipFallbacks {
@@ -53,7 +54,7 @@ class ZipFallbacks {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	private static final Set<String> STARTS = Set.of("ZIP_FALLBACK", "DEADLINE", "DECLINED");
+	private static final Set<String> STARTS = Set.of("ZIP_FALLBACK", "DECLINED");
 
 	/**
 	 * One fallback.
@@ -173,7 +174,8 @@ class ZipFallbacks {
 	 * ({@code WORKFLOW_FILES_CHANGED}, {@code BRANCH_EXISTS}, {@code EXCHANGE_REFUSED}, {@code ACTIONS_QUOTA},
 	 * {@code RUN_FAILED}) are not in this table's set, so the fallback reads them as "GitHub refused", while the
 	 * closure section shows the Final Merge's own reason; the Merge App's {@code REQUEST_NOT_APPROVED} stays in the
-	 * CHECK for the rows that hold it, and nothing writes it any more (R1).
+	 * CHECK for the rows that hold it, and nothing writes it any more (R1). The {@code DECLINED} and
+	 * {@code DEADLINE} branches are unreachable since Stories 23.10a and 23.10b took those triggers away.
 	 */
 	private String reason(Authorization authorization, String ended) {
 		FinalMerge merge = this.merges.find(authorization.id()).orElse(null);

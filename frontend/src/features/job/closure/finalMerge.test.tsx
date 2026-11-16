@@ -192,6 +192,38 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
   })
 
+  /**
+   * Story 23.10b: a row that ended ZIP_FALLBACK is the one ending still waiting for something, so the step reads
+   * again until the fallback's own row appears. Every other ending -- the closing choice's deadline, a cancellation
+   * at J10, a proposal that ended -- waits for nothing and no longer polls.
+   */
+  it('reads again until the fallback a refusal started is stored', async () => {
+    const refused = {
+      ...ready,
+      status: 'ENDED',
+      endReason: 'ZIP_FALLBACK',
+      productId: 'pr1',
+      merge: { ...ready.merge, status: 'REFUSED', refusal: 'MERGE_REFUSED', run: null },
+    }
+    const stored = { status: 'READY', reason: 'MERGE_REFUSED', fileId: 'f1', sensitive: [] }
+    let reads = 0
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () => {
+        reads += 1
+        return json({ ...refused, zip: reads === 1 ? null : stored })
+      },
+    })
+    renderStep()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chưa chép được mã vào dự án của bạn')
+    // The timers are real and RUNNING_POLL_MS is 5 s, so the second read needs more than the default 1 s.
+    expect(await screen.findByRole('link', { name: 'Tải mã về (tệp ZIP)' }, { timeout: 20_000 })).toHaveAttribute(
+      'href',
+      '/api/v1/files/f1',
+    )
+  }, 30_000)
+
   it('says the code is checked first', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),

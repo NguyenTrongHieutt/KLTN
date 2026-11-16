@@ -29,6 +29,7 @@ import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.ClosureProposalChanged;
+import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobFreezes;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
@@ -36,13 +37,16 @@ import vn.vibefix.timers.Deadlines;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
- * Story 23.9a (FR-37, FR-67, R1, D7) and Story 23.10a (FR-38, D10, AD-7): a Code Job's closing-choice row opens at
- * the first closure proposal, gets its FR-37 deadline at J8 with the to-do {@code repo.receive_code} and the 2-day
- * reminder {@code repo.receive_code_reminder}, and ends when its proposal ends without J8 or when the deadline
- * passes with neither way of receiving the code chosen, which hands the Job to the closure fallback (Story 8.9,
- * which Story 23.10b re-points). There is no app to install at the end, so no install link, no organization request
- * and no {@code BOUND} state are left; the deadline and the reminder are both pausable, so a Dispute that wins the
- * race ends nothing. GitHub is {@link GitHubStub}.
+ * Story 23.9a (FR-37, FR-67, R1, D7), Story 23.10a (FR-38, D10, AD-7) and Story 23.10b: a Code Job's closing-choice
+ * row opens at the first closure proposal, gets its FR-37 deadline at J8 with the to-do {@code repo.receive_code}
+ * and the 2-day reminder {@code repo.receive_code_reminder}, and ends when its proposal ends without J8 or when the
+ * deadline passes with neither way of receiving the code chosen.
+ * <p>
+ * The deadline's own five outcomes are here: J9 as {@code UNCONFIRMED} and then {@code end_reason='DEADLINE'} with
+ * no ZIP anywhere; {@code REARM} under another operation's marker; {@code OBSOLETE} for a receipt already recorded
+ * and for a Final Merge run already going; and {@code REPAUSE} on a freeze that wins the race, after which it ends
+ * the Job on the next poll. There is no app to install at the end, so no install link, no organization request and
+ * no {@code BOUND} state are left. GitHub is {@link GitHubStub}.
  */
 class FinalMergeAuthorizationIT extends IntegrationTest {
 
@@ -83,6 +87,9 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 
 	@Autowired
 	private JobFreezes freezes;
+
+	@Autowired
+	private JobBusy busy;
 
 	@Autowired
 	private ApplicationContext context;
@@ -248,27 +255,88 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		publish(new ClosureProposalChanged(UUID.randomUUID(), this.job, UUID.randomUUID(),
 				ClosureProposalChanged.Status.DECLINED, false));
 		await().atMost(Duration.ofSeconds(15)).until(() -> authorizationStatus().equals("ENDED"));
-		assertThat(this.jdbc.sql("SELECT end_reason FROM repo.final_merge_authorization WHERE job_id = :job")
-			.param("job", this.job).query(String.class).single()).isEqualTo("PROPOSAL_ENDED");
+		assertThat(endReason()).isEqualTo("PROPOSAL_ENDED");
 		assertThat(openTodos()).isZero();
 	}
 
+	/**
+	 * Story 23.10b (FR-38, D10): the deadline passes with neither path taken, so J9 applies as {@code UNCONFIRMED}
+	 * first and the row ends {@code DEADLINE} after it. No ZIP is requested anywhere.
+	 */
 	@Test
-	void theDeadlineEndsAFinalMergeTheCustomerNeverConfirmed() {
+	void theDeadlineEndsTheJobAsUnconfirmedAndRequestsNoZip() {
 		closingWithItsDeadline();
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
 		this.poller.runDue();
 
+		assertThat(jobState()).as("the Job itself ends").isEqualTo("CLOSED");
 		assertThat(authorizationStatus()).isEqualTo("ENDED");
-		assertThat(this.jdbc.sql("SELECT end_reason FROM repo.final_merge_authorization WHERE job_id = :job")
-			.param("job", this.job).query(String.class).single()).isEqualTo("DEADLINE");
+		assertThat(endReason()).isEqualTo("DEADLINE");
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "FIRED");
 		assertThat(openTodos()).isZero();
-		// Story 8.9: the closure fallback starts, saying the Customer chose no way of receiving the code in time.
-		await().atMost(Duration.ofSeconds(15)).until(() -> this.jdbc
-			.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job).query(Long.class)
-			.single() == 1);
-		assertThat(this.jdbc.sql("SELECT reason FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
-			.query(String.class).single()).isEqualTo("NOT_AUTHORIZED");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM platform.event_publication WHERE event_type LIKE '%JobTransitioned'
+				    AND serialized_event LIKE '%"finish":"UNCONFIRMED"%'
+				""").query(Long.class).single()).as("J9 records the finish fact").isPositive();
+		assertNoZipEverStarted();
+	}
+
+	/** AD-28: another operation holds the Job, so the deadline writes nothing and waits for the next poll. */
+	@Test
+	void theDeadlineRearmsWhileAnotherOperationHoldsTheJob() {
+		closingWithItsDeadline();
+		this.transactions.executeWithoutResult(status -> this.busy.reserve(this.job, JobBusy.Purpose.SETTLEMENT,
+				UUID.randomUUID().toString(), 5, "dispute.settlement:" + UUID.randomUUID()));
+
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "PENDING");
+		assertThat(authorizationStatus()).as("the choice is still the Customer's").isEqualTo("REQUESTED");
+		assertThat(jobState()).isEqualTo("CLOSING");
+		assertThat(openTodos()).isOne();
+		assertNoZipEverStarted();
+	}
+
+	/** The Customer already said they have the code: that receipt ended the Job, so the deadline is obsolete. */
+	@Test
+	void theDeadlineIsObsoleteOnceTheCodeReceiptIsRecorded() {
+		closingWithItsDeadline();
+		UUID setup = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, started_at, finished_at)
+				SELECT :id, :job, product_id, 'ENDED', now(), now() FROM job.job WHERE id = :job
+				""").param("id", setup).param("job", this.job).update();
+		this.jdbc.sql("""
+				INSERT INTO repo.code_receipt (job_id, setup_id, confirmed_by, confirmed_at)
+				VALUES (:job, :setup, :by, now())
+				""").param("job", this.job).param("setup", setup).param("by", this.lan).update();
+
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "OBSOLETE");
+		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(jobState()).as("the receipt's own transaction ended the Job, not this poll").isEqualTo("CLOSING");
+		assertNoZipEverStarted();
+	}
+
+	/** The Customer set the Final Merge run going: it finishes the Job on its own. */
+	@Test
+	void theDeadlineIsObsoleteWhileTheFinalMergeRunIsLive() {
+		closingWithItsDeadline();
+		this.jdbc.sql("""
+				INSERT INTO repo.final_merge (authorization_id, job_id, product_id, status, confirmed_at, created_at)
+				SELECT id, job_id, product_id, 'RUNNING', now(), now() FROM repo.final_merge_authorization WHERE job_id = :job
+				""").param("job", this.job).update();
+
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+
+		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "OBSOLETE");
+		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(jobState()).isEqualTo("CLOSING");
+		assertNoZipEverStarted();
 	}
 
 	/** A-02: {@code end} takes no Job row lock, so the deadline itself must decide under it before ending anything. */
@@ -292,13 +360,40 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		assertThat(this.poller.runDue()).isOne();
 		assertThat(deadlineRow("repo.final_merge_deadline")).containsEntry("status", "FIRED");
 		assertThat(authorizationStatus()).isEqualTo("ENDED");
-		await().atMost(Duration.ofSeconds(15)).until(() -> this.jdbc
-			.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job).query(Long.class)
-			.single() == 1);
+		assertThat(endReason()).isEqualTo("DEADLINE");
+		assertThat(jobState()).isEqualTo("CLOSED");
+		assertNoZipEverStarted();
 	}
 
 	private void publish(Object event) {
 		this.transactions.executeWithoutResult(status -> this.events.publishEvent(event));
+	}
+
+	/**
+	 * D10: the deadline is no longer one of the closure fallback's triggers, so no ZIP row and no ZIP operation.
+	 * The fallback starts in a listener, so every published event is drained first; a fixed wait would pass on a
+	 * slow machine whatever the listener went on to do.
+	 */
+	private void assertNoZipEverStarted() {
+		await().atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
+				.query(Long.class)
+				.single() == 0);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job")
+			.param("job", this.job).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM operations.external_operation WHERE type = 'repo.zip_fallback'")
+			.query(Long.class).single()).isZero();
+	}
+
+	private String jobState() {
+		return this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single();
+	}
+
+	private String endReason() {
+		return this.jdbc.sql("SELECT end_reason FROM repo.final_merge_authorization WHERE job_id = :job")
+			.param("job", this.job)
+			.query(String.class)
+			.single();
 	}
 
 	/** J8 has set the FR-37 deadline, 5 days from now; @return now */

@@ -24,6 +24,7 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.files.StoredFile;
 import vn.vibefix.files.StoredFiles;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
+import vn.vibefix.notification.Todos;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
 
@@ -63,16 +64,20 @@ class RepositoryDeletions {
 	/** Looked up on use: the deletion ends the Customer's read grant (Story 23.7). */
 	private final ObjectProvider<JobGrants> grants;
 
+	/** Looked up on use: the deletion closes the Customer's fetching duty (Story 23.10b). */
+	private final ObjectProvider<Todos> todos;
+
 	private final AuditLog auditLog;
 
 	private final Clock clock;
 
 	RepositoryDeletions(JdbcClient jdbc, ExternalOperations operations, StoredFiles files, ObjectProvider<JobGrants> grants,
-			AuditLog auditLog, Clock clock) {
+			ObjectProvider<Todos> todos, AuditLog auditLog, Clock clock) {
 		this.jdbc = jdbc;
 		this.operations = operations;
 		this.files = files;
 		this.grants = grants;
+		this.todos = todos;
 		this.auditLog = auditLog;
 		this.clock = clock;
 	}
@@ -156,6 +161,11 @@ class RepositoryDeletions {
 	/**
 	 * Both repositories read back as gone, which ends the Customer's read of the Intermediary Repository (R5). A Setup
 	 * row already deleted with its Product changes nothing.
+	 * <p>
+	 * It also closes {@value Revocations#DOWNLOAD_TODO} (Story 23.10b): that to-do asked the Customer to fetch the
+	 * code before this very date, and once the repositories are gone nothing else can close it -- a code receipt is
+	 * refused without a readable Intermediary Repository -- so a Customer who never fetched would be left with an
+	 * overdue tier-1 to-do for good.
 	 * @param intermediaryId the deleted Intermediary Repository's numeric ID, when the Setup had one
 	 */
 	@Transactional
@@ -166,6 +176,7 @@ class RepositoryDeletions {
 			.update();
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), updated == 1 ? "repo.repositories_deleted"
 				: "repo.repositories_deleted_with_product", AuditObject.of("repo.job_setup", setupId)).forJob(jobId));
+		this.todos.getObject().closeAll(Revocations.DOWNLOAD_TODO, jobId);
 		if (intermediaryId != null) {
 			this.grants.getObject().intermediaryDeleted(intermediaryId);
 		}

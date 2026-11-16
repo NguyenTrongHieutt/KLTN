@@ -1,6 +1,7 @@
 package vn.vibefix.repo.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -9,12 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.session.Session;
@@ -27,6 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobBusy;
+import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
 
 /**
@@ -37,6 +41,10 @@ import vn.vibefix.support.IntegrationTest;
  * already Cancelled at J10 with accepted work keeps the path, with no Final Merge card and no second deadline, until
  * its repositories are deleted. No GitHub call is made on this path: the Intermediary's link and the Setup both come
  * from vibefix's own rows.
+ * <p>
+ * Story 23.10b adds the two shapes with no choice left: a Job the deadline ended as {@code UNCONFIRMED}, read back
+ * as that third outcome and still accepting a late receipt, which closes its {@code repo.download_before_deletion}
+ * to-do; and a Cancelled Job that never had a choice row at all, which the step serves on its accepted work alone.
  */
 class CodeReceiptIT extends IntegrationTest {
 
@@ -56,6 +64,9 @@ class CodeReceiptIT extends IntegrationTest {
 
 	@Autowired
 	private TransactionTemplate transactions;
+
+	@Autowired
+	private ApplicationEventPublisher events;
 
 	@Autowired
 	private JobBusy busy;
@@ -174,6 +185,115 @@ class CodeReceiptIT extends IntegrationTest {
 		receipt(this.lan, 8).andExpect(status().isOk());
 
 		assertThat(jobState()).isEqualTo("CANCELLED");
+	}
+
+	/**
+	 * Story 23.10b (FR-38, D10): the closing choice's deadline ended the Job as {@code UNCONFIRMED}, which the step
+	 * reads back as the third outcome with the self-download still open. Confirming the receipt late is recorded,
+	 * closes {@code repo.download_before_deletion}, and applies no second J9; a repeat is a conflict.
+	 */
+	@Test
+	void aLateReceiptIsRecordedAndClosesTheDownloadTodo() throws Exception {
+		acceptedWork();
+		this.transactions.executeWithoutResult(status -> this.authorizations.closing(this.job));
+		this.authorizations.endOf(this.job, "DEADLINE");
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED', closed_at = now() WHERE id = :id").param("id", this.job).update();
+		endedUnconfirmed();
+		await().atMost(Duration.ofSeconds(15)).until(() -> downloadTodos() == 1);
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.endReason").value("DEADLINE"))
+			.andExpect(jsonPath("$.outcome").value("UNCONFIRMED"))
+			.andExpect(jsonPath("$.choice.finalMerge").value(false))
+			.andExpect(jsonPath("$.choice.selfDownload").value(true))
+			.andExpect(jsonPath("$.choice.deadlineAt").doesNotExist())
+			.andExpect(jsonPath("$.choice.deletionAt").isNotEmpty());
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.hung, Role.MENTOR)))
+			.andExpect(jsonPath("$.outcome").value("UNCONFIRMED"))
+			.andExpect(jsonPath("$.receipt").doesNotExist())
+			.andExpect(jsonPath("$.choice.intermediaryUrl").doesNotExist());
+
+		receipt(this.lan, 8).andExpect(status().isOk()).andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"));
+
+		assertThat(downloadTodos()).as("the duty to fetch the code is done").isZero();
+		assertThat(jobState()).as("J9 was applied once, by the deadline").isEqualTo("CLOSED");
+		assertThat(notifications("repo.code_receipt_unconfirmed")).as("and nothing is said twice").isOne();
+		receipt(this.lan, 8).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("CODE_RECEIPT_RECORDED"));
+	}
+
+	/**
+	 * Story 23.10b (D10): a Code Job Cancelled with work already merged into the Intermediary Repository but no
+	 * closing-choice row ever opened is no longer a 404 -- it never had a choice to make, so the step answers with
+	 * the self-download alone, and the receipt is accepted.
+	 */
+	@Test
+	void aCancelledJobWithNoClosingChoiceRowStillReceivesItsCode() throws Exception {
+		acceptedWork();
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED', cancelled_at = now() WHERE id = :id")
+			.param("id", this.job)
+			.update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(this.job.toString()))
+			.andExpect(jsonPath("$.status").value("ENDED"))
+			.andExpect(jsonPath("$.endReason").doesNotExist())
+			.andExpect(jsonPath("$.outcome").doesNotExist())
+			.andExpect(jsonPath("$.merge").doesNotExist())
+			.andExpect(jsonPath("$.zip").doesNotExist())
+			.andExpect(jsonPath("$.choice.finalMerge").value(false))
+			.andExpect(jsonPath("$.choice.selfDownload").value(true))
+			.andExpect(jsonPath("$.choice.deadlineAt").doesNotExist())
+			.andExpect(jsonPath("$.choice.intermediaryUrl").isNotEmpty());
+
+		receipt(this.lan, 8).andExpect(status().isOk()).andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"));
+
+		assertThat(jobState()).as("no J9 is left to apply").isEqualTo("CANCELLED");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
+			.query(Long.class).single()).isOne();
+		// The receipt is the Customer's own record: reading the step again must still show it, although there is
+		// nothing left to fetch and so no other reason to serve a Job with no row.
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"))
+			.andExpect(jsonPath("$.receipt.confirmedBy").value(this.lan.toString()))
+			.andExpect(jsonPath("$.choice.selfDownload").value(false));
+	}
+
+	/** A Job with neither a closing-choice row nor work left to fetch has no step at all. */
+	@Test
+	void aJobWithNeitherARowNorWorkToFetchIsNotFound() throws Exception {
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+	}
+
+	/** The step with no row belongs to an ended Job: a running one has no closure to read, work accepted or not. */
+	@Test
+	void anActiveJobWithAcceptedWorkAndNoRowIsNotFound() throws Exception {
+		acceptedWork();
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE', closing_at = NULL WHERE id = :id").param("id", this.job).update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+	}
+
+	/** The repositories are gone and nothing was confirmed: a Job with no row has nothing left to answer with. */
+	@Test
+	void aNoRowJobWhoseIntermediaryIsDeletedIsNotFound() throws Exception {
+		acceptedWork();
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED', cancelled_at = now() WHERE id = :id")
+			.param("id", this.job)
+			.update();
+		this.jdbc.sql("UPDATE repo.job_setup SET deleted_at = now() WHERE id = :id").param("id", this.setup).update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
 	}
 
 	/** D10: a Job Cancelled at J10 with accepted work keeps the self-download alone, until the repositories go. */
@@ -322,6 +442,27 @@ class CodeReceiptIT extends IntegrationTest {
 	private long receipts() {
 		return this.jdbc.sql("SELECT count(*) FROM repo.code_receipt WHERE job_id = :job")
 			.param("job", this.job)
+			.query(Long.class)
+			.single();
+	}
+
+	/** What J9 published when the closing choice's deadline ended the Job with neither path taken (Story 23.10b). */
+	private void endedUnconfirmed() {
+		this.transactions.executeWithoutResult(status -> this.events.publishEvent(new JobTransitioned(UUID.randomUUID(),
+				UUID.randomUUID(), this.job, "J9", "SYSTEM", "CLOSING", "CLOSED", 8, 1, Map.of("finish", "UNCONFIRMED"))));
+	}
+
+	private long downloadTodos() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.download_before_deletion'
+				    AND account_id = :id AND closed_at IS NULL
+				""").param("id", this.lan).query(Long.class).single();
+	}
+
+	private long notifications(String type) {
+		return this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type = :type AND account_id = :id")
+			.param("type", type)
+			.param("id", this.lan)
 			.query(Long.class)
 			.single();
 	}

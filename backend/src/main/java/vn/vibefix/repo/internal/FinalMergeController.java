@@ -41,9 +41,14 @@ import vn.vibefix.shared.Gate;
  * {@code POST .../code-receipt}. vibefix opens no pull request and writes nothing in a Customer repository. A Final
  * Merge that could not run names its reason and leaves the self-download offered.
  * <p>
- * The Mentor reads the choice and its outcome only: the deadline, which paths are still open, and how the code
- * reached the Customer, never the Customer's own actions, their Sensitive Changes or their download link
- * (EXPERIENCE.md's closure section). Everyone else finds nothing, and so does a Job with no closing choice.
+ * The Mentor reads the choice and its outcome only: the deadline, which paths are still open, how the code reached
+ * the Customer, and -- since Story 23.10b -- that it never did, never the Customer's own actions, their Sensitive
+ * Changes or their download link (EXPERIENCE.md's closure section). Everyone else finds nothing.
+ * <p>
+ * Story 23.10b also serves a Job whose handover work is still only in the Intermediary Repository but which never
+ * had a closing-choice row -- a cancellation at J10 before one was opened: the self-download alone, no deadline and
+ * no outcome, so the Customer can still receive their code and the download reminders have somewhere to lead. A Job
+ * with neither a row nor work left to fetch is a 404 as before.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -51,12 +56,15 @@ class FinalMergeController {
 
 	/**
 	 * The step.
-	 * @param status {@code REQUESTED}, {@code USED} (the choice is spent), or {@code ENDED}
+	 * @param id the closing choice's row, or the Job itself when the Job never had one (Story 23.10b)
+	 * @param status {@code REQUESTED}, {@code USED} (the choice is spent), or {@code ENDED}, which a Job with no row
+	 * reads as too
 	 * @param repository the Source Repository's full name
 	 * @param deadlineAt the FR-37 deadline, from J8 on
 	 * @param audience {@code CUSTOMER} or {@code MENTOR}
 	 * @param choice the closing choice: its deadline, and which of the two paths is open
-	 * @param outcome how the code reached the Customer: {@code MERGED}, {@code SELF_DOWNLOAD}, or none yet
+	 * @param outcome how the code reached the Customer: {@code MERGED}, {@code SELF_DOWNLOAD}, {@code UNCONFIRMED}
+	 * (the deadline passed with neither path taken, Story 23.10b), or none yet
 	 * @param receipt the Customer's own code receipt, once recorded; never shown to the Mentor
 	 * @param merge the Final Merge once the Job is Closing; the Customer's alone
 	 * @param zip the closure fallback once the Final Merge cannot happen (Story 8.9); the Customer's alone
@@ -175,9 +183,13 @@ class FinalMergeController {
 	@GetMapping("/api/v1/jobs/{jobId}/final-merge")
 	FinalMergeView view(@PathVariable UUID jobId) {
 		Viewer viewer = viewer(jobId);
-		Authorization authorization = this.authorizations.latest(viewer.job().jobId())
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (viewer.customer() && authorization.open()) {
+		Authorization authorization = this.authorizations.latest(viewer.job().jobId()).orElse(null);
+		if (authorization == null && !this.receipts.step(viewer.job())) {
+			// No closing choice was ever made here, and this Job has neither ended with work left to fetch nor a
+			// receipt of its own to show: there is no step at all.
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		if (viewer.customer() && authorization != null && authorization.open()) {
 			// A check that failed is started again here; the Mentor's read starts nothing.
 			this.merges.prepare(viewer.job().jobId());
 		}
@@ -195,7 +207,7 @@ class FinalMergeController {
 	FinalMergeView confirm(@PathVariable UUID jobId, @Valid @RequestBody ConfirmRequest body) {
 		Viewer viewer = customer(jobId);
 		this.merges.confirm(viewer.job(), this.callers.get().requireAccountId());
-		return view(viewer, this.authorizations.latest(viewer.job().jobId()).orElseThrow());
+		return view(viewer, this.authorizations.latest(viewer.job().jobId()).orElse(null));
 	}
 
 	/**
@@ -208,9 +220,9 @@ class FinalMergeController {
 	FinalMergeView codeReceipt(@PathVariable UUID jobId, @Valid @RequestBody CodeReceiptRequest body) {
 		Viewer viewer = customer(jobId);
 		this.receipts.confirm(viewer.job(), this.callers.get().requireAccountId(), body.version());
-		// J9 has moved the Job, so the step is read again on what it left, through the row the command required
-		// before it wrote anything.
-		return view(customer(jobId), this.authorizations.latest(jobId).orElseThrow());
+		// J9 has moved the Job, so the step is read again on what it left -- through the row the command required
+		// before it wrote anything, or without one for a Job that never had a choice (Story 23.10b).
+		return view(customer(jobId), this.authorizations.latest(jobId).orElse(null));
 	}
 
 	/** The Job's Customer or its Mentor, the two who read the closing choice; a Code Job only. */
@@ -235,33 +247,48 @@ class FinalMergeController {
 
 	/**
 	 * The step for its viewer: the Customer reads all of it, the Mentor the choice and its outcome alone
-	 * (EXPERIENCE.md's closure section).
+	 * (EXPERIENCE.md's closure section). Without a closing-choice row the step is the Job's own: the Job's ID and
+	 * Product, the Setup's Source Repository, {@code ENDED} with no reason, and no Final Merge or fallback of any
+	 * kind (Story 23.10b).
 	 */
-	private FinalMergeView view(Viewer viewer, Authorization authorization) {
+	private FinalMergeView view(Viewer viewer, @Nullable Authorization authorization) {
+		UUID jobId = viewer.job().jobId();
 		CodeReceipts.Choice choice = this.receipts.choice(viewer.job(), authorization, viewer.customer());
-		CodeReceipt receipt = this.receipts.find(authorization.jobId()).orElse(null);
-		MergeView merge = viewer.customer()
+		CodeReceipt receipt = this.receipts.find(jobId).orElse(null);
+		MergeView merge = viewer.customer() && authorization != null
 				? this.merges.find(authorization.id()).map(found -> merge(authorization, found)).orElse(null) : null;
-		ZipView zip = viewer.customer() ? this.fallbacks.find(authorization.jobId())
+		ZipView zip = viewer.customer() && authorization != null ? this.fallbacks.find(jobId)
 			.filter(found -> found.authorizationId().equals(authorization.id()))
 			.map(found -> new ZipView(found.status(), found.reason(), found.archiveFileId(),
 					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList()))
 			.orElse(null) : null;
-		return new FinalMergeView(authorization.id(), authorization.status(), authorization.repositoryName(),
-				authorization.deadlineAt(), authorization.endReason(), viewer.customer() ? "CUSTOMER" : "MENTOR",
+		return new FinalMergeView(authorization == null ? jobId : authorization.id(),
+				authorization == null ? "ENDED" : authorization.status(),
+				authorization == null ? this.receipts.source(jobId).orElse("") : authorization.repositoryName(),
+				authorization == null ? null : authorization.deadlineAt(),
+				authorization == null ? null : authorization.endReason(), viewer.customer() ? "CUSTOMER" : "MENTOR",
 				new ChoiceView(choice.deadlineAt(), choice.near(), choice.finalMerge(), choice.selfDownload(),
 						choice.intermediaryUrl(), choice.deletionAt()),
 				outcome(authorization, receipt), viewer.customer() && receipt != null
 						? new ReceiptView(receipt.confirmedBy(), receipt.confirmedAt()) : null,
-				merge, zip, authorization.productId());
+				merge, zip, viewer.job().productId());
 	}
 
-	/** How the code reached the Customer, which the Mentor reads too: the branch read back, or their own receipt. */
-	private @Nullable String outcome(Authorization authorization, @Nullable CodeReceipt receipt) {
-		if (this.merges.find(authorization.id()).filter(found -> "DONE".equals(found.status())).isPresent()) {
+	/**
+	 * How the code reached the Customer, which the Mentor reads too: the branch read back, or their own receipt.
+	 * Neither, on a row the closing choice's deadline ended, is the third outcome: {@code UNCONFIRMED}, derived from
+	 * {@code end_reason = 'DEADLINE'} and no evidence of either path, which no column of its own records (D10). A
+	 * Job that never had a row never had a choice to miss, so it has no outcome at all.
+	 */
+	private @Nullable String outcome(@Nullable Authorization authorization, @Nullable CodeReceipt receipt) {
+		if (authorization != null
+				&& this.merges.find(authorization.id()).filter(found -> "DONE".equals(found.status())).isPresent()) {
 			return "MERGED";
 		}
-		return receipt == null ? null : "SELF_DOWNLOAD";
+		if (receipt != null) {
+			return "SELF_DOWNLOAD";
+		}
+		return authorization != null && "DEADLINE".equals(authorization.endReason()) ? "UNCONFIRMED" : null;
 	}
 
 	/** The Final Merge as the closure section reads it; the branch's links only once vibefix read it back. */

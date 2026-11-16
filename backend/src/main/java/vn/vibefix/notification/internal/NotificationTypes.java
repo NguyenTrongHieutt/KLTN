@@ -99,6 +99,15 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType REPO_RECEIVE_CODE = new TodoType("repo.receive_code", Set.of(Audience.CUSTOMER), 1,
 			Set.of("job"));
 
+	/**
+	 * Fetch the code before the repositories go (FR-21, D10, UX-DR118, Story 23.10b): opened when a Job ends with
+	 * its handover work still only in the Intermediary Repository -- the closing choice's deadline passed, or the Job
+	 * was Cancelled at J10 -- and carrying the deletion date, which is also its deadline. Tier 1, because that
+	 * deadline decides by itself: after it there is nothing left to fetch. It closes on the code receipt.
+	 */
+	static final TodoType REPO_DOWNLOAD_BEFORE_DELETION = new TodoType("repo.download_before_deletion",
+			Set.of(Audience.CUSTOMER), 1, Set.of("job", "date"));
+
 	/** Accept the Working Repository's invitation on GitHub (AD-11), due at its expiry. */
 	static final TodoType REPO_ACCEPT_GITHUB_INVITATION = new TodoType("repo.accept_github_invitation",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job"));
@@ -412,6 +421,22 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_REVOCATION_CHECKLIST_REMINDER = new NotificationType(
 			"repo.revocation_checklist_reminder", Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER,
 			"info", Set.of("job", "n"));
+
+	/**
+	 * The closing choice's deadline passed with neither path taken (FR-38, D10, UX-DR118, Story 23.10b): the Job
+	 * ended and nothing says the Customer has the code, so they are told, with the date their Intermediary
+	 * Repository is deleted. The Customer alone; the Mentor reads one line on JOB-1 and nothing by email.
+	 */
+	static final NotificationType REPO_CODE_RECEIPT_UNCONFIRMED = new NotificationType("repo.code_receipt_unconfirmed",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of("job", "date"));
+
+	/**
+	 * The days before the repositories are deleted, while no code receipt is recorded and no Final Merge branch was
+	 * read back (FR-21, SG-26, D10, UX-DR118, Story 23.10b): the Customer, once per lead time.
+	 */
+	static final NotificationType REPO_DOWNLOAD_REMINDER = new NotificationType("repo.download_reminder",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("job", "date"));
 
 	/** The ZIP Fallback is stored and the Job ended (FR-38): the Customer and the Mentor. */
 	static final NotificationType REPO_ZIP_FALLBACK_READY = new NotificationType("repo.zip_fallback_ready",
@@ -953,7 +978,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_INVITATION_RENEWALS_EXHAUSTED,
 				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_RECEIVE_CODE_REMINDER, REPO_FINAL_BRANCH_READY,
 				REPO_FINAL_MERGE_COMPLETED,
-				REPO_ZIP_FALLBACK_READY,
+				REPO_ZIP_FALLBACK_READY, REPO_CODE_RECEIPT_UNCONFIRMED, REPO_DOWNLOAD_REMINDER,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN, GITHUB_RUNNER_RUN_FAILED, GITHUB_RUNNER_MINUTES_80,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,
@@ -994,7 +1019,7 @@ class NotificationTypes implements NotificationCatalog {
 	public List<TodoType> todoTypes() {
 		return List.of(IDENTITY_LINK_GITHUB, PRODUCT_INSTALL_SOURCE_APP, PRODUCT_ADD_WORKFLOW,
 				REPO_CONFIRM_SOURCE_CLEAN, REPO_ACCEPT_GITHUB_INVITATION, REPO_ACCEPT_INTERMEDIARY_INVITATION,
-				REPO_RECONFIRM_SOURCE, REPO_RECEIVE_CODE,
+				REPO_RECONFIRM_SOURCE, REPO_RECEIVE_CODE, REPO_DOWNLOAD_BEFORE_DELETION,
 				REPO_REVOCATION_ITEM, REPO_REVOCATION_ITEM_MEMBER,
 				MATCHING_CHOOSE_ASSIGNEE, MATCHING_SIGN_NDA, MATCHING_ANSWER_INVITATION_TO_APPLY,
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,

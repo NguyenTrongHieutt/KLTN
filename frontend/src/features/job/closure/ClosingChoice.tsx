@@ -25,8 +25,11 @@ export const FINAL_MERGE_ANCHOR = 'hop-nhat-cuoi'
  * Once the branch is read back or the receipt recorded, the outcome stands alone. A Job Cancelled with accepted work
  * keeps the self-download card only, until its repositories are deleted.
  * <p>
- * The Mentor reads one line instead -- the Customer's choice with its deadline, then the outcome -- and never the
- * Customer's own actions.
+ * Story 23.10b: a deadline that passed with neither path taken ends the Job anyway, and the Customer reads that
+ * above the self-download card, with the date the repositories are deleted; the card stays open until then.
+ * <p>
+ * The Mentor reads one line instead -- the Customer's choice with its deadline, then the outcome, which may be that
+ * the Customer never confirmed -- and never the Customer's own actions, link or date.
  */
 export function ClosingChoice({ jobId, version }: { jobId: string; version: number }) {
   const view = useFinalMerge(jobId)
@@ -41,9 +44,10 @@ export function ClosingChoice({ jobId, version }: { jobId: string; version: numb
 }
 
 /**
- * "Khách hàng đang chọn cách nhận mã (hạn {date})" while the choice really is open, then the outcome, then nothing:
- * a Job that ended another way, such as by the closure fallback, has no choice left to report and no outcome of its
- * own. Read-only, and never the Customer's actions.
+ * "Khách hàng đang chọn cách nhận mã (hạn {date})" while the choice really is open, then the outcome -- the code
+ * merged, taken by the Customer, or, since Story 23.10b, never confirmed as received -- then nothing: a Job that
+ * ended another way, such as by the closure fallback, has no choice left to report and no outcome of its own.
+ * Read-only: no link, no action and no date of the Customer's own.
  */
 function MentorLine({ view }: { view: FinalMerge }) {
   const outcome = view.outcome
@@ -59,7 +63,9 @@ function MentorLine({ view }: { view: FinalMerge }) {
         ? t('screen.closure.choice.mentor.MERGED')
         : outcome === 'SELF_DOWNLOAD'
           ? t('screen.closure.choice.mentor.SELF_DOWNLOAD')
-          : t('screen.closure.choice.mentor.open', { date: formatDayMonth(deadline ?? '') })}
+          : outcome === 'UNCONFIRMED'
+            ? t('screen.closure.choice.mentor.UNCONFIRMED')
+            : t('screen.closure.choice.mentor.open', { date: formatDayMonth(deadline ?? '') })}
     </p>
   )
 }
@@ -76,23 +82,42 @@ function Cards({ jobId, version, view }: { jobId: string; version: number; view:
       </p>
     )
   }
-  if (!choice.finalMerge && !choice.selfDownload) {
+  // Story 23.10b: the deadline passed with neither path taken, so there is no choice left to offer but there is
+  // still something to say -- and, while the repositories stand, still something to download.
+  const unconfirmed = view.outcome === 'UNCONFIRMED'
+  if (!unconfirmed && !choice.finalMerge && !choice.selfDownload) {
     return null
   }
   return (
     <section aria-labelledby={`${ids}-choice`} className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 id={`${ids}-choice`} className="text-h3">
-          <TermHint term="closingChoice" />
-        </h3>
-        {choice.deadlineAt && (
-          <DeadlineChip
-            deadlineAt={choice.deadlineAt}
-            near={choice.near}
-            text={t('screen.closure.choice.deadline', { date: formatDayMonth(choice.deadlineAt) })}
-          />
-        )}
-      </div>
+      {unconfirmed ? (
+        <div className="flex flex-col gap-1">
+          <h3 id={`${ids}-choice`} className="text-h3">
+            {t('screen.closure.choice.unconfirmed.title')}
+          </h3>
+          <p className="text-body-sm">
+            {/* Nothing left to download means the repositories are gone: a date to fetch by would read as a promise. */}
+            {!choice.selfDownload
+              ? t('screen.closure.choice.unconfirmed.leadDeleted')
+              : choice.deletionAt
+                ? t('screen.closure.choice.unconfirmed.lead', { date: formatDayMonth(choice.deletionAt) })
+                : t('screen.closure.choice.unconfirmed.leadUntilDeletion')}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 id={`${ids}-choice`} className="text-h3">
+            <TermHint term="closingChoice" />
+          </h3>
+          {choice.deadlineAt && (
+            <DeadlineChip
+              deadlineAt={choice.deadlineAt}
+              near={choice.near}
+              text={t('screen.closure.choice.deadline', { date: formatDayMonth(choice.deadlineAt) })}
+            />
+          )}
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         {choice.finalMerge && (
           <div className="flex flex-col gap-2 rounded-md border border-border p-4">

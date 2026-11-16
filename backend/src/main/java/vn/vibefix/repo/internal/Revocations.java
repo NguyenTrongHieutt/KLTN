@@ -4,11 +4,15 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
@@ -28,6 +32,7 @@ import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
 import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
+import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.OperationRequest;
@@ -46,6 +51,13 @@ import vn.vibefix.timers.Deadlines;
  * raise, since those act only on their own status; its operation removes the access and reads the removal back, and
  * Administrators hear if it is still not done 15 minutes later. Reaching Closed or Cancelled also schedules the
  * repositories' deletion 30 days later. Unlocking restores nothing.
+ * <p>
+ * That deletion date is set here and nowhere else, so this is also where the Customer's duty to fetch the code
+ * hangs off it (FR-21, FR-38, D10, Story 23.10b): a Job that ends with its handover work still only in the
+ * Intermediary Repository opens {@value #DOWNLOAD_TODO} with that date, schedules
+ * {@value DownloadReminder#KEY} for each lead time before it, and, when the closing choice's deadline was what
+ * ended the Job, sends {@value #UNCONFIRMED}. One instant decides all three dates. An Assessment Job has no
+ * handover work and gets none of it.
  */
 @Component
 class Revocations {
@@ -56,11 +68,27 @@ class Revocations {
 
 	static final String DELAYED = "operations.revocation_delayed";
 
+	/** FR-21, D10: fetch the code before the Intermediary Repository is deleted; it carries the deletion date. */
+	static final String DOWNLOAD_TODO = "repo.download_before_deletion";
+
+	/** FR-38, D10: the Job ended without the Customer confirming they have the code (Story 23.10b). */
+	static final String UNCONFIRMED = "repo.code_receipt_unconfirmed";
+
 	/** FR-21: Administrators hear of a revocation still retrying this long after its trigger. */
 	static final Duration DELAY = Duration.ofMinutes(15);
 
 	/** FR-21: the platform repositories go this long after the Job ends. */
 	static final Duration KEEP = Duration.ofDays(30);
+
+	/** FR-21, SG-26: how long before the deletion date each download reminder goes out (AD-7). */
+	static final List<Duration> REMINDERS = List.of(Duration.ofDays(7), Duration.ofDays(1));
+
+	/** What J9 calls the way a Code Job's code reached the Customer, in the transition's facts. */
+	private static final String FINISH = "finish";
+
+	private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
+
+	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private static final Set<String> ENDED = Set.of("CLOSED", "CANCELLED");
 
@@ -69,6 +97,9 @@ class Revocations {
 	private final JobGrants grants;
 
 	private final RepositoryDeletions deletions;
+
+	/** Looked up on use: what is still only in the Intermediary Repository decides the Customer's fetching duty. */
+	private final ObjectProvider<CodeReceipts> receipts;
 
 	private final JobBusy busy;
 
@@ -88,12 +119,13 @@ class Revocations {
 
 	private final Clock clock;
 
-	Revocations(JdbcClient jdbc, JobGrants grants, RepositoryDeletions deletions, JobBusy busy,
-			ExternalOperations operations, Deadlines deadlines, Notifications notifications, Todos todos,
+	Revocations(JdbcClient jdbc, JobGrants grants, RepositoryDeletions deletions, ObjectProvider<CodeReceipts> receipts,
+			JobBusy busy, ExternalOperations operations, Deadlines deadlines, Notifications notifications, Todos todos,
 			Administrators administrators, AuditLog auditLog, ProcessedEvents processedEvents, Clock clock) {
 		this.jdbc = jdbc;
 		this.grants = grants;
 		this.deletions = deletions;
+		this.receipts = receipts;
 		this.busy = busy;
 		this.operations = operations;
 		this.deadlines = deadlines;
@@ -124,8 +156,41 @@ class Revocations {
 			this.grants.ofJob(event.jobId()).stream().filter(Grant::team).forEach(this::revoke);
 		}
 		if (ended && !this.deletions.pending(event.jobId()).isEmpty()) {
+			Instant deleteAt = this.clock.instant().plus(KEEP);
 			this.deadlines.schedule(new DeadlineRequest(RepositoryDeletion.KEY, event.jobId(), "0", event.jobId(),
-					this.clock.instant().plus(KEEP)));
+					deleteAt));
+			fetchBeforeDeletion(event, deleteAt);
+		}
+	}
+
+	/**
+	 * FR-21, FR-38, D10 (Story 23.10b): the Job ended with its handover work still only in the Intermediary
+	 * Repository, so the Customer is asked to fetch it before {@code deleteAt} -- the to-do naming that date, and a
+	 * reminder at each lead time still in the future. A Job the closing choice's deadline ended
+	 * ({@code finish=UNCONFIRMED}) also hears that it ended without their confirmation; a Job Cancelled at J10 never
+	 * had a choice to miss, so it gets the duty without that notice. The date is exact only here, on the line that
+	 * schedules the deletion itself.
+	 */
+	private void fetchBeforeDeletion(JobTransitioned event, Instant deleteAt) {
+		BusyJob job = this.busy.job(event.jobId()).orElse(null);
+		if (job == null || !this.receipts.getObject().unfetched(event.jobId())) {
+			return;
+		}
+		String date = DAY_MONTH.format(deleteAt.atZone(VIETNAM));
+		String link = FinalMergeAuthorizations.link(job.jobId());
+		this.todos.open(new TodoRequest(DOWNLOAD_TODO, job.customerId(), Audience.CUSTOMER, job.jobId(),
+				Map.of("job", job.title(), "date", date), link, deleteAt, job.jobId()));
+		for (Duration before : REMINDERS) {
+			Instant remindAt = deleteAt.minus(before);
+			if (remindAt.isAfter(this.clock.instant())) {
+				this.deadlines.schedule(new DeadlineRequest(DownloadReminder.KEY, job.jobId(),
+						String.valueOf(before.toDays()), job.jobId(), remindAt));
+			}
+		}
+		if ("UNCONFIRMED".equals(event.facts().get(FINISH))) {
+			this.notifications.send(new NotificationRequest(UNCONFIRMED, key(job.jobId() + ":unconfirmed"),
+					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
+					Map.of("job", job.title(), "date", date), link, job.jobId(), null));
 		}
 	}
 
