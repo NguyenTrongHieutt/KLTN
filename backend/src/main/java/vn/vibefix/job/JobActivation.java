@@ -3,9 +3,11 @@ package vn.vibefix.job;
 import java.util.UUID;
 
 /**
- * J7 for a Code Job (FR-18, AD-5, AD-11): only {@code repo}'s Verify, the initiator of the
- * {@code JOB_VERIFY} operation, applies it, in its resolving transaction, once every grant was read back
- * as write.
+ * J7 (FR-18, AD-5, AD-11): only {@code repo} applies it, in the resolving transaction of the operation holding the
+ * Job's busy marker. For a Code Job that is Verify, the initiator of the {@code JOB_VERIFY} operation, once every
+ * grant was read back as write; for an Assessment Job it is the Setup itself ({@code JOB_SETUP}), once its one
+ * private read-only copy read back at the confirmed head, because its read invitations never gate the start
+ * (R6, Story 23.11a).
  */
 public interface JobActivation {
 

@@ -42,9 +42,10 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-H's step tracker while a Code Job is Starting (UX-DR23, UX-DR114, AD-11): the Setup's steps as the Customer,
+ * JOB-H's step tracker while a Job is Starting (UX-DR23, UX-DR114, AD-11): the Setup's steps as the Customer,
  * the Mentor, and each active Crew member read them, the Customer's J7 self-confirmation of the head (N-32, R4,
- * Story 23.6b), and the Customer's "Thử lại" after a block. Everyone else finds nothing.
+ * Story 23.6b), and the Customer's "Thử lại" after a block. Everyone else finds nothing. An Assessment Job reads the
+ * same tracker with four steps, ending at its one read-only copy (R6, Story 23.11a).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -101,6 +102,8 @@ class JobSetupController {
 
 	/**
 	 * @param viewer the caller's role in the Job
+	 * @param assessment an Assessment Job (R6): one private read-only copy, so the steps end at the copy, with no
+	 * "Mời trên GitHub" and no "Cấp quyền ghi và kiểm tra"
 	 * @param productId the Job's Product, whose page fixes the Source App (CUS-4)
 	 * @param sourceFullName the Source Repository's {@code owner/name}: as the Setup read it with the head, else as the
 	 * Product registered it
@@ -117,7 +120,8 @@ class JobSetupController {
 	 * @param exchangeReason the exchange's refusal: of a block {@code EXCHANGE_REFUSED} (such as {@code blob}), or
 	 * {@code sha} while the Setup waits for a confirmation of the head that moved
 	 */
-	record SetupView(UUID jobId, String jobState, Viewer viewer, UUID productId, @Nullable String sourceFullName,
+	record SetupView(UUID jobId, String jobState, Viewer viewer, boolean assessment, UUID productId,
+			@Nullable String sourceFullName,
 			@Nullable String defaultBranch, @Nullable String sourceUrl, String status, List<SetupStepView> steps,
 			@Nullable String blockedReason, boolean canRetry, List<SetupPersonView> people, @Nullable SetupHeadView head,
 			@Nullable SetupConfirmationView confirmation, @Nullable SetupRunView run, @Nullable String exchangeReason) {
@@ -265,13 +269,16 @@ class JobSetupController {
 			defaultBranch = registered == null ? null : registered.defaultBranch();
 		}
 		String sourceUrl = sourceFullName == null ? null : this.links.repository(sourceFullName);
+		// Before the first attempt the Job's own kind says which steps there will be; after it, the attempt's row does.
+		boolean assessment = setup == null ? !job.code() : setup.assessment();
+		List<Step> order = Step.of(assessment);
 		if (setup == null) {
 			List<SetupStepView> pending = new ArrayList<>();
-			for (Step step : Step.values()) {
+			for (Step step : order) {
 				pending.add(new SetupStepView(step.name(), "PENDING"));
 			}
-			return new SetupView(job.jobId(), job.state(), viewer, job.productId(), sourceFullName, defaultBranch, sourceUrl,
-					"NONE", pending, null, false, List.of(), null, null, null, null);
+			return new SetupView(job.jobId(), job.state(), viewer, assessment, job.productId(), sourceFullName, defaultBranch,
+					sourceUrl, "NONE", pending, null, false, List.of(), null, null, null, null);
 		}
 		boolean customer = role.isCustomer();
 		// A revoked grant is nobody's access any more (Story 7.7), nor is a lapsed read (Story 23.7): it neither shows nor
@@ -285,15 +292,16 @@ class JobSetupController {
 		// R5: the Customer's read invitation never holds "Mời trên GitHub"; only the Mentor's and the Crew's count.
 		List<Grant> team = grants.stream().filter(Grant::team).toList();
 		boolean invited = done && !team.isEmpty() && (active || team.stream().allMatch(Grant::ready));
-		boolean[] finished = { setup.checkedAt() != null, setup.confirmedAt() != null, setup.workingAt() != null || done,
-				setup.copiedAt() != null || done, invited || active, active };
+		// R6: an assessment Setup makes one repository, so "Tạo kho" is done when the Intermediary was read back.
+		boolean[] finished = { setup.checkedAt() != null, setup.confirmedAt() != null,
+				setup.repositoriesAt() != null || done, setup.copiedAt() != null || done, invited || active, active };
 		// No step is done past the last one reached: a Setup that ended waiting shows nothing after its wait as done.
 		for (int step = 1; step < finished.length; step++) {
 			finished[step] = finished[step] && finished[step - 1];
 		}
 		List<SetupStepView> steps = new ArrayList<>();
 		boolean reached = false;
-		for (Step step : Step.values()) {
+		for (Step step : order) {
 			String state;
 			if (finished[step.ordinal()]) {
 				state = "DONE";
@@ -318,8 +326,8 @@ class JobSetupController {
 				: new SetupHeadView(setup.headSha(), setup.headReadAt());
 		SetupConfirmationView confirmation = setup.approvedSha() == null || setup.confirmedAt() == null ? null
 				: new SetupConfirmationView(setup.approvedSha(), setup.confirmedAt());
-		return new SetupView(job.jobId(), job.state(), viewer, job.productId(), sourceFullName, defaultBranch, sourceUrl,
-				setup.status(), steps, setup.block() == null ? null : setup.block().name(), canRetry,
+		return new SetupView(job.jobId(), job.state(), viewer, assessment, job.productId(), sourceFullName, defaultBranch,
+				sourceUrl, setup.status(), steps, setup.block() == null ? null : setup.block().name(), canRetry,
 				people(grants, caller, customer), head, confirmation, run(setup, customer), setup.exchangeReason());
 	}
 

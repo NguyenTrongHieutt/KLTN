@@ -137,13 +137,18 @@ record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @
 	 * @param path its path in the repository, for example {@code .github/workflows/vibefix.yml}
 	 * @param blob its blob SHA, with CRLF read as LF
 	 * @param endsOn its last accepted day, Vietnam time; none for no end
+	 * @param oneRepository whether this version's {@code copy} job takes an empty {@code working} input and pushes to
+	 * the Intermediary alone, which an Assessment Job's Setup needs (R6, Story 23.11a). Every version published before
+	 * it checks {@code working} against {@code owner/name}, so a copy with one target fails at its input check: a
+	 * Source still holding one starts no Assessment Job ({@code WORKFLOW_TOO_OLD}), and runs Code Jobs as before
 	 */
-	record AcceptedBlob(String path, String blob, @Nullable LocalDate endsOn) {
+	record AcceptedBlob(String path, String blob, @Nullable LocalDate endsOn, boolean oneRepository) {
 
 		private static final Pattern PATH = Pattern.compile("\\.github/workflows/[A-Za-z0-9][A-Za-z0-9._-]{0,99}\\.ya?ml");
 
 		private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
 
+		@ConstructorBinding
 		AcceptedBlob {
 			if (path == null || !PATH.matcher(path).matches()) {
 				throw new IllegalArgumentException("An accepted blob's path is a file in .github/workflows/");
@@ -151,6 +156,11 @@ record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @
 			if (blob == null || !SHA.matcher(blob).matches()) {
 				throw new IllegalArgumentException("An accepted blob is a 40-hex blob SHA");
 			}
+		}
+
+		/** A version that copies to two repositories only, as every one published before Story 23.11a does. */
+		AcceptedBlob(String path, String blob, @Nullable LocalDate endsOn) {
+			this(path, blob, endsOn, false);
 		}
 
 	}

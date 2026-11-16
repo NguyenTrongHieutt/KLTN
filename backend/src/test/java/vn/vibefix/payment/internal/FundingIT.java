@@ -204,8 +204,13 @@ class FundingIT extends IntegrationTest {
 		assertThat(this.ledger.releasable(MILESTONE)).as("an unapplied refund is not the Milestone's").isEqualTo(800000);
 	}
 
+	/**
+	 * R6 (Story 23.11a): an Assessment Job no longer reaches J7 in M1's cascade. It waits in Starting, with its funds
+	 * held, for the same Setup a Code Job runs -- one private read-only copy made on the Customer's own GitHub
+	 * Actions -- and reaches J7 only when that copy reads back. The cascade is J6 and M1, and nothing else.
+	 */
 	@Test
-	void anAssessmentJobBecomesActiveInTheSameCascade() throws Exception {
+	void anAssessmentJobStaysInStartingUntilItsReadOnlyCopyIsMade() throws Exception {
 		confirmedAgreement("ASSESSMENT");
 		UUID orderId = UUID.fromString(JsonPath.read(order(jobVersion()).andExpect(status().isCreated()).andReturn().getResponse()
 			.getContentAsString(), "$.id"));
@@ -215,18 +220,19 @@ class FundingIT extends IntegrationTest {
 		ipn(paid(txnRef(orderId), "14000003", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
 
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
-			.isEqualTo("ACTIVE");
+			.isEqualTo("STARTING");
 		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", milestone).query(String.class).single())
-			.isEqualTo("FUNDED");
-		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j7' AND job_id = '" + this.job + "'"))
+			.as("the funds are held while the copy is made").isEqualTo("FUNDED");
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j6' AND job_id = '" + this.job + "'"))
 			.isOne();
-		assertThat(notifications("job.job_starting", this.lan)).as("no repositories to prepare").isZero();
-		// J7 in the same cascade seeds one Story per criterion of the confirmed Agreement (Story 5.1).
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j7' AND job_id = '" + this.job + "'"))
+			.as("J7 waits for the read-only copy").isZero();
+		assertThat(notifications("job.job_starting", this.lan)).as("no write access to prepare").isZero();
+		// Story 5.1 seeds one Story per criterion at J7, so an Assessment Job's Work Items wait for its copy too.
 		long criteria = count("SELECT count(*) FROM job.confirmed_agreement c, jsonb_array_elements(c.content -> 'milestones') m,"
 				+ " jsonb_array_elements(m -> 'criteria') k WHERE c.job_id = '" + this.job + "'");
 		assertThat(criteria).isPositive();
-		await().atMost(Duration.ofSeconds(10))
-			.until(() -> count("SELECT count(*) FROM work.work_item WHERE job_id = '" + this.job + "'") == criteria);
+		assertThat(count("SELECT count(*) FROM work.work_item WHERE job_id = '" + this.job + "'")).isZero();
 	}
 
 	@Test

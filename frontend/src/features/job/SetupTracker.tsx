@@ -30,12 +30,19 @@ type Head = NonNullable<Setup['head']>
 /** GitHub's own page for turning on two-factor authentication. */
 const TWO_FACTOR_SETTINGS = 'https://github.com/settings/security'
 
+/**
+ * R6: the Source's `vibefix.yml` is a published version from before the one-repository copy, so an Assessment Job's
+ * read-only copy cannot run. The Customer adds the published file again, as for a file that differs.
+ */
+const WORKFLOW_TOO_OLD = 'WORKFLOW_TOO_OLD'
+
 /** The Source checks' blocks (Story 23.5), which the Customer fixes on GitHub and the confirmation may answer with. */
 const SOURCE_BLOCKS = [
   'SOURCE_APP_MISSING',
   'SOURCE_APP_WRONG_REPOSITORY',
   'WORKFLOW_MISSING',
   'WORKFLOW_MISMATCH',
+  WORKFLOW_TOO_OLD,
   'NO_ADMIN_PERMISSION',
 ]
 
@@ -100,11 +107,18 @@ export function SetupTracker({ jobId }: { jobId: string }) {
 }
 
 /**
- * A step's label: the Customer's own confirmation is "Bạn xác nhận…", and the copy is "của bạn" for the Customer, whose
- * Actions run it, and "của khách hàng" for the team.
+ * A step's label: the Customer's own confirmation is "Bạn xác nhận…", the copy is "của bạn" for the Customer, whose
+ * Actions run it, and "của khách hàng" for the team, and an Assessment Job makes one read-only repository (R6).
  */
-function stepLabel(key: string, customer: boolean): string {
-  const variant = key === 'CONFIRM' && customer ? 'CONFIRMCustomer' : key === 'COPY' && !customer ? 'COPYTeam' : key
+function stepLabel(key: string, customer: boolean, assessment: boolean): string {
+  const variant =
+    key === 'CONFIRM' && customer
+      ? 'CONFIRMCustomer'
+      : key === 'COPY' && !customer
+        ? 'COPYTeam'
+        : key === 'REPOSITORIES' && assessment
+          ? 'REPOSITORIESAssessment'
+          : key
   return t(`screen.job.setup.step${variant}` as MessageKey)
 }
 
@@ -136,11 +150,13 @@ function commandProblem(error: unknown): string {
 
 function Steps({ setup }: { setup: Setup }) {
   const customer = setup.viewer === 'CUSTOMER'
+  // R6: an Assessment Job's tracker ends at the copy, and its one repository is read-only.
+  const assessment = setup.assessment
   const retry = useRetrySetup(setup.jobId)
   const current = setup.steps.find((step) => step.state !== 'DONE')
   const announcement = current
     ? t('screen.job.setup.announce', {
-        step: stepLabel(current.key, customer),
+        step: stepLabel(current.key, customer, assessment),
         state: t(`screen.job.setup.state${current.state}` as MessageKey),
       })
     : t('screen.job.setup.allDone')
@@ -176,7 +192,7 @@ function Steps({ setup }: { setup: Setup }) {
             <li key={step.key} className="flex flex-wrap items-center gap-2 text-body-sm">
               <Icon aria-hidden="true" className={`size-5 shrink-0 ${TONES[step.state] ?? ''}`} />
               <span className={step.state === 'PENDING' ? 'text-muted-foreground' : 'font-semibold'}>
-                {stepLabel(step.key, customer)}
+                {stepLabel(step.key, customer, assessment)}
               </span>
               <span className="text-caption text-muted-foreground">· {t(`screen.job.setup.state${step.state}` as MessageKey)}</span>
               {step.key === 'CONFIRM' && <Confirmation setup={setup} state={step.state} customer={customer} />}
@@ -231,7 +247,7 @@ function Steps({ setup }: { setup: Setup }) {
 function BlockFix({ setup }: { setup: Setup }) {
   const reason = setup.blockedReason ?? ''
   const changedWorkflow = reason === 'EXCHANGE_REFUSED' && setup.exchangeReason === CHANGED_WORKFLOW
-  if (reason === 'WORKFLOW_MISSING' || reason === 'WORKFLOW_MISMATCH' || changedWorkflow) {
+  if (reason === 'WORKFLOW_MISSING' || reason === 'WORKFLOW_MISMATCH' || reason === WORKFLOW_TOO_OLD || changedWorkflow) {
     return <WorkflowFix setup={setup} existing={reason !== 'WORKFLOW_MISSING'} />
   }
   if (SOURCE_APP_BLOCKS.includes(reason)) {

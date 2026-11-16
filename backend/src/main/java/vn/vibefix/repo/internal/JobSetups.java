@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
+import vn.vibefix.job.JobActivation;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.job.JobRules;
@@ -45,10 +47,12 @@ import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.ProcessedEvents;
 
 /**
- * J7's Setup stage (FR-18, AD-5, AD-11, AD-28, R4, Story 23.6b): one {@code repo.job_setup} row per attempt, in two
- * stages.
+ * J7's Setup stage (FR-18, AD-5, AD-11, AD-28, R4, R6, Story 23.6b, Story 23.11a): one {@code repo.job_setup} row per
+ * attempt, in two stages, for a Code Job and for an Assessment Job alike. A Code Job's attempt makes two private
+ * repositories and leaves J7 to Verify; an assessment attempt ({@link Setup#assessment()}) makes the Intermediary
+ * alone, read-only, and applies J7 itself as soon as that one copy reads back.
  * <ol>
- * <li>Waiting for the Customer, with no busy marker: J6 of a Code Job starts the first attempt as {@code CONFIRMING}
+ * <li>Waiting for the Customer, with no busy marker: J6 starts the first attempt as {@code CONFIRMING}
  * and requests its {@value #OPERATION} operation, keyed by the attempt, which checks the Source App and
  * {@code vibefix.yml} again, reads the default branch's head, opens {@value #CONFIRM_TODO} for the Customer and tells
  * them with {@value #CONFIRMATION_DUE}. The marker is not held meanwhile: the Customer may take days.</li>
@@ -80,27 +84,45 @@ class JobSetups {
 	/**
 	 * The step tracker's steps (UX-DR114), in EXPERIENCE.md's order: the Source checked, the Customer's
 	 * self-confirmation, the private repositories created, the copy on the Customer's GitHub Actions, then the
-	 * invitations and Verify (Story 7.3).
+	 * invitations and Verify (Story 7.3). An Assessment Job stops after the copy: nothing grants anyone access in
+	 * Story 23.11a, and its read invitations never gate its start (R6).
 	 */
 	enum Step {
 
-		CHECK, CONFIRM, REPOSITORIES, COPY, INVITE, VERIFY
+		CHECK, CONFIRM, REPOSITORIES, COPY, INVITE, VERIFY;
+
+		/** The steps of one shape, in order: an assessment Setup runs the first four and no more. */
+		static List<Step> of(boolean assessment) {
+			return assessment ? List.of(CHECK, CONFIRM, REPOSITORIES, COPY) : List.of(values());
+		}
 
 	}
 
 	/**
-	 * Why a Setup stopped (FR-18): {@code product}'s Source checks, through the Source App since Story 23.5, and the copy
-	 * run's own (Story 23.6b): the exchange refused it, it kept failing, or the Customer's Actions minutes ran out.
+	 * Why a Setup stopped (FR-18): {@code product}'s Source checks, through the Source App since Story 23.5, and
+	 * Setup's own: the published {@code vibefix.yml} is too old to copy to one repository (Story 23.11a), the exchange
+	 * refused the copy run, it kept failing, or the Customer's Actions minutes ran out (Story 23.6b).
 	 */
 	enum Block {
 
 		SOURCE_APP_MISSING, SOURCE_APP_WRONG_REPOSITORY, WORKFLOW_MISSING, WORKFLOW_MISMATCH, NO_ADMIN_PERMISSION,
+
+		/**
+		 * R6: the Source's {@code vibefix.yml} is an accepted version published before the one-repository copy, whose
+		 * input check refuses an empty {@code working}, so an Assessment Job's copy cannot run. Only an assessment
+		 * attempt ever sees it; a Code Job's two-repository copy runs on that version as before. The Customer
+		 * re-publishes the file and tries again. Its Problem Details name is {@link RepoReason#WORKFLOW_TOO_OLD}.
+		 */
+		WORKFLOW_TOO_OLD,
+
 		EXCHANGE_REFUSED, RUN_FAILED, ACTIONS_QUOTA
 
 	}
 
 	/**
 	 * One attempt, as its row holds it.
+	 * @param assessment the Job is an Assessment Job (R6): one private read-only Intermediary, no Working Repository
+	 * in any column, and J7 as soon as the copy reads back
 	 * @param headSha the default branch's head the Customer is asked to confirm, as last read
 	 * @param approvedSha the head the Customer confirmed, which the copy copies
 	 * @param confirmationId the confirmation the copy runs for, which keys its operation and its marker
@@ -110,9 +132,10 @@ class JobSetups {
 	 * @param runStatus that run's {@code QUEUED}, {@code IN_PROGRESS} or {@code COMPLETED}, as last read
 	 * @param runConclusion its conclusion, or {@code timed_out} when vibefix stopped waiting for it
 	 * @param exchangeReason the exchange's refusal: of a block {@code EXCHANGE_REFUSED}, or {@code sha} while waiting
-	 * @param copiedAt when both repositories read back at {@code approvedSha}
+	 * @param copiedAt when every repository of this attempt read back at {@code approvedSha}: both for a Code Job, the
+	 * Intermediary alone for an Assessment Job
 	 */
-	record Setup(UUID id, UUID jobId, UUID productId, String status, @Nullable Block block,
+	record Setup(UUID id, UUID jobId, UUID productId, String status, boolean assessment, @Nullable Block block,
 			@Nullable String sourceFullName, @Nullable String defaultBranch, @Nullable String headSha,
 			@Nullable Instant headReadAt, @Nullable String approvedSha, @Nullable UUID confirmationId,
 			@Nullable Instant confirmedAt, @Nullable Long intermediaryId, @Nullable String intermediaryName,
@@ -136,7 +159,12 @@ class JobSetups {
 			return this.runConclusion != null && !"success".equals(this.runConclusion);
 		}
 
-		/** The Working Repository once created: a second private copy, not a fork (D5). */
+		/** Every repository the copy pushes to, read back before the dispatch: the Intermediary alone for an assessment. */
+		@Nullable Instant repositoriesAt() {
+			return this.assessment ? this.intermediaryAt : this.workingAt;
+		}
+
+		/** The Working Repository once created: a second private copy, not a fork (D5). An assessment never has one. */
 		@Nullable PlatformRepository working() {
 			return this.workingId == null || this.workingName == null ? null
 					: new PlatformRepository(this.workingId, this.workingName.substring(this.workingName.indexOf('/') + 1),
@@ -162,6 +190,9 @@ class JobSetups {
 			Map.entry(Block.WORKFLOW_MISSING, "dự án gốc chưa có file workflow vibefix.yml"),
 			Map.entry(Block.WORKFLOW_MISMATCH, "file workflow vibefix.yml trong dự án gốc khác bản vibefix công bố"),
 			Map.entry(Block.NO_ADMIN_PERMISSION, "tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc"),
+			Map.entry(Block.WORKFLOW_TOO_OLD,
+					"file workflow vibefix.yml trong dự án gốc là bản cũ, chưa sao chép được vào một kho chỉ đọc; hãy thêm"
+							+ " lại bản vibefix công bố mới nhất"),
 			Map.entry(Block.EXCHANGE_REFUSED,
 					"GitHub chưa xác nhận được lần chạy sao chép trên GitHub Actions; vibefix đã báo quản trị viên"),
 			Map.entry(Block.RUN_FAILED, "lần sao chép dự án gốc trên GitHub Actions chưa xong; vibefix đã báo quản trị viên"),
@@ -179,15 +210,18 @@ class JobSetups {
 	private static final java.util.regex.Pattern NOTICE_VERSION = java.util.regex.Pattern.compile(NOTICE_VERSION_PATTERN);
 
 	private static final String COLUMNS = """
-			id, job_id, product_id, status, blocked_reason, source_full_name, default_branch, head_sha, head_read_at,
-			approved_sha, confirmation_id, confirmed_at, intermediary_github_id, intermediary_name, working_github_id,
-			working_name, checked_at, intermediary_at, working_at, correlation_id, dispatched_at, run_status, run_conclusion,
-			exchange_reason, copied_at, started_at, finished_at
+			id, job_id, product_id, status, assessment, blocked_reason, source_full_name, default_branch, head_sha,
+			head_read_at, approved_sha, confirmation_id, confirmed_at, intermediary_github_id, intermediary_name,
+			working_github_id, working_name, checked_at, intermediary_at, working_at, correlation_id, dispatched_at,
+			run_status, run_conclusion, exchange_reason, copied_at, started_at, finished_at
 			""";
 
 	private final JdbcClient jdbc;
 
 	private final JobBusy busy;
+
+	/** R6: an assessment Setup applies J7 itself when its one read-only copy reads back, with no Verify. */
+	private final JobActivation activation;
 
 	private final ExternalOperations operations;
 
@@ -210,13 +244,15 @@ class JobSetups {
 	/** Looked up on use: the grants need the Crew and the directories, which need {@code operations}. */
 	private final ObjectProvider<JobGrants> grants;
 
-	JobSetups(JdbcClient jdbc, JobBusy busy, ExternalOperations operations, Notifications notifications, Todos todos,
+	JobSetups(JdbcClient jdbc, JobBusy busy, JobActivation activation, ExternalOperations operations,
+			Notifications notifications, Todos todos,
 			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock, JobRules rules,
 			@Value("${vibefix.repo.self-confirmation-notice-version}") String noticeVersion,
 			ObjectProvider<JobGrants> grants) {
 		this.grants = grants;
 		this.jdbc = jdbc;
 		this.busy = busy;
+		this.activation = activation;
 		this.operations = operations;
 		this.notifications = notifications;
 		this.todos = todos;
@@ -250,7 +286,10 @@ class JobSetups {
 		return this.noticeVersion;
 	}
 
-	/** J6 of a Code Job starts its first Setup; a Job that leaves Starting ends a Setup still waiting for the Customer. */
+	/**
+	 * J6 starts the Job's first Setup, whatever its kind (R6): a Code Job's makes two repositories, an Assessment
+	 * Job's one read-only Intermediary. A Job that leaves Starting ends a Setup still waiting for the Customer.
+	 */
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
 		transitioned(event);
@@ -259,7 +298,7 @@ class JobSetups {
 	/** What the listener does, in the caller's transaction. Replay-safe. */
 	@Transactional
 	void transitioned(JobTransitioned event) {
-		boolean started = "J6".equals(event.transition()) && "true".equals(event.facts().get("code"));
+		boolean started = "J6".equals(event.transition());
 		boolean left = "STARTING".equals(event.from()) && !"STARTING".equals(event.to());
 		if ((!started && !left)
 				|| !this.processedEvents.markProcessed("repo.JobSetups.onJobTransitioned", event.eventId())) {
@@ -326,8 +365,10 @@ class JobSetups {
 		UUID id = this.ids.newId();
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
-				INSERT INTO repo.job_setup (id, job_id, product_id, status, started_at) VALUES (:id, :job, :product, 'CONFIRMING', :now)
-				""").param("id", id).param("job", job.jobId()).param("product", job.productId()).param("now", Timestamp.from(now)).update();
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, assessment, started_at)
+				VALUES (:id, :job, :product, 'CONFIRMING', :assessment, :now)
+				""").param("id", id).param("job", job.jobId()).param("product", job.productId())
+			.param("assessment", !job.code()).param("now", Timestamp.from(now)).update();
 		this.operations.request(new OperationRequest(OPERATION, id, Map.of("setupId", id.toString()), null, null, 0));
 		audit("repo.setup_started", id, job.jobId());
 		return find(id).orElseThrow();
@@ -338,9 +379,12 @@ class JobSetups {
 		return refusal(job, job.version());
 	}
 
-	/** What would refuse a new attempt, a confirmation or a resume now, checked before anything is written. */
+	/**
+	 * What would refuse a new attempt, a confirmation or a resume now, checked before anything is written. Every kind
+	 * of Job has a Setup since Story 23.11a, so only the state, the marker and the freeze refuse one.
+	 */
 	private static @Nullable ApiException refusal(BusyJob job, long version) {
-		if (!job.code() || !"STARTING".equals(job.state())) {
+		if (!"STARTING".equals(job.state())) {
 			return new ApiException(ErrorCode.STALE, RepoReason.JOB_NOT_STARTING);
 		}
 		if (job.busy().isPresent()) {
@@ -499,15 +543,20 @@ class JobSetups {
 
 	/**
 	 * The Intermediary Repository's settings read back as AD-11 sets them. Nothing checks it is empty: the copy pushes
-	 * without forcing, so what an earlier attempt pushed, an ancestor of the confirmed head, is kept.
+	 * without forcing, so what an earlier attempt pushed, an ancestor of the confirmed head, is kept. For an assessment
+	 * attempt this is every repository there is, so it records the same fact a Code Job's {@link #workingReadBack} does.
 	 * @return whether the attempt was still copying
 	 */
 	@Transactional
 	boolean intermediaryReadBack(Setup setup) {
-		return this.jdbc.sql("UPDATE repo.job_setup SET intermediary_at = :now WHERE id = :id AND status = 'RUNNING'")
+		int updated = this.jdbc.sql("UPDATE repo.job_setup SET intermediary_at = :now WHERE id = :id AND status = 'RUNNING'")
 			.param("now", Timestamp.from(this.clock.instant()))
 			.param("id", setup.id())
-			.update() == 1;
+			.update();
+		if (updated == 1 && setup.assessment()) {
+			audit("repo.setup_repositories_ready", setup.id(), setup.jobId());
+		}
+		return updated == 1;
 	}
 
 	/**
@@ -583,21 +632,32 @@ class JobSetups {
 	}
 
 	/**
-	 * The copy read back: both repositories hold the confirmed head. The resolving transaction (AD-5) releases the
-	 * marker, and the Invitations stage starts in it (Story 7.3); J7 waits for Verify.
+	 * The copy read back: every repository of this attempt holds the confirmed head. The resolving transaction (AD-5)
+	 * releases the marker, and then the two shapes part (R6).
+	 * <ul>
+	 * <li>A Code Job: the Invitations stage starts in the same transaction (Story 7.3), and J7 waits for Verify.</li>
+	 * <li>An Assessment Job: J7 applies here, through {@link JobActivation}, which releases the marker itself. Nothing
+	 * is granted in Story 23.11a; the read invitations, which never gate the start, follow in Story 23.11b.</li>
+	 * </ul>
+	 * @param working the Working Repository read back; none for an assessment attempt, which has none
 	 */
 	@Transactional
-	void done(Setup setup, PlatformRepository working) {
+	void done(Setup setup, @Nullable PlatformRepository working) {
 		Instant now = this.clock.instant();
 		int updated = this.jdbc.sql("""
 				UPDATE repo.job_setup SET status = 'DONE', copied_at = :now, finished_at = :now WHERE id = :id AND status = 'RUNNING'
 				""").param("now", Timestamp.from(now)).param("id", setup.id()).update();
-		if (updated == 1) {
-			this.busy.release(setup.jobId(), setup.operationKey());
-			audit("repo.setup_copied", setup.id(), setup.jobId());
-			audit("repo.setup_done", setup.id(), setup.jobId());
-			this.grants.getObject().grantAll(setup, working);
+		if (updated != 1) {
+			return;
 		}
+		audit("repo.setup_copied", setup.id(), setup.jobId());
+		audit("repo.setup_done", setup.id(), setup.jobId());
+		if (setup.assessment()) {
+			this.activation.activate(setup.jobId(), setup.operationKey());
+			return;
+		}
+		this.busy.release(setup.jobId(), setup.operationKey());
+		this.grants.getObject().grantAll(setup, Objects.requireNonNull(working, "a Code Job's Working Repository"));
 	}
 
 	/** As {@link #block(Setup, Block, String)}, for a block that is no exchange refusal. */
@@ -748,7 +808,8 @@ class JobSetups {
 	private static Setup setup(ResultSet rs, int n) throws SQLException {
 		String block = rs.getString("blocked_reason");
 		return new Setup(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
-				rs.getObject("product_id", UUID.class), rs.getString("status"), block == null ? null : Block.valueOf(block),
+				rs.getObject("product_id", UUID.class), rs.getString("status"), rs.getBoolean("assessment"),
+				block == null ? null : Block.valueOf(block),
 				rs.getString("source_full_name"), rs.getString("default_branch"), rs.getString("head_sha"),
 				instant(rs, "head_read_at"), rs.getString("approved_sha"), rs.getObject("confirmation_id", UUID.class),
 				instant(rs, "confirmed_at"), rs.getObject("intermediary_github_id", Long.class), rs.getString("intermediary_name"),

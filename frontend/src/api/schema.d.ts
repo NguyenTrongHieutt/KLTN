@@ -7501,6 +7501,7 @@ export interface components {
             state: string;
         };
         SetupView: {
+            assessment: boolean;
             blockedReason?: string;
             canRetry: boolean;
             confirmation?: components["schemas"]["SetupConfirmationView"];

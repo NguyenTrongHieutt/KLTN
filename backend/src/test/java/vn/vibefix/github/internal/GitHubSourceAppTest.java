@@ -159,7 +159,8 @@ class GitHubSourceAppTest {
 	/**
 	 * Story 23.5c (R12): an accepted blob's end date is read from the accepted set without a GitHub call: the latest
 	 * among its listings for the published path, none when any of those listings has no end date, and none for a blob
-	 * listed only under another path; and the plain install page carries no state.
+	 * listed only under another path; and the plain install page carries no state. Story 23.11a (R6): whether that
+	 * blob copies to one repository is read from the same set, for the published path only.
 	 */
 	@Test
 	void anAcceptedBlobsEndDateIsReadFromTheAcceptedSetAndThePlainInstallPageHasNoState() throws Exception {
@@ -170,7 +171,7 @@ class GitHubSourceAppTest {
 		Path key = Files.writeString(this.directory.resolve("dated-key"), TestKeys.pkcs1());
 		GitHubProperties properties = new GitHubProperties(this.github.apiUrl(), URI.create("https://github.com"),
 				"vibefix-dev", null, null, null,
-				new Exchange(List.of(new AcceptedBlob(PATH, current, null),
+				new Exchange(List.of(new AcceptedBlob(PATH, current, null, true),
 						new AcceptedBlob(PATH, older, java.time.LocalDate.parse("2026-11-20")),
 						new AcceptedBlob(PATH, older, java.time.LocalDate.parse("2026-11-25")),
 						new AcceptedBlob(PATH, oldest, java.time.LocalDate.parse("2026-11-01")),
@@ -186,6 +187,10 @@ class GitHubSourceAppTest {
 		assertThat(dated.endsOn(current)).as("no end date for the published path").isEmpty();
 		assertThat(dated.endsOn(runnerOnly)).as("listed with an end date only under another path").isEmpty();
 		assertThat(dated.endsOn("0".repeat(40))).as("not accepted").isEmpty();
+		assertThat(dated.copiesToOneRepository(current)).as("the version marked one-repository").isTrue();
+		assertThat(dated.copiesToOneRepository(older)).as("an earlier version copies to two").isFalse();
+		assertThat(dated.copiesToOneRepository(runnerOnly)).as("listed only under another path").isFalse();
+		assertThat(dated.copiesToOneRepository("0".repeat(40))).as("not accepted").isFalse();
 		assertThat(this.github.seen).hasSize(seen);
 
 		assertThat(dated.installPage()).startsWith("https://github.com/apps/").endsWith("/installations/new")

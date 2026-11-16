@@ -17,9 +17,11 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
- * J7 (FR-18): an Assessment Job becomes Active at once, in M1's cascade. A Code Job becomes Active only
- * when {@code repo}'s Verify vouches that every grant was read back as write ({@value #ACCESS_VERIFIED},
- * AD-11, NFR-6), and then the Customer, the Mentor, and the active Crew hear that it started.
+ * J7 (FR-18): no Job becomes Active before {@code repo}'s Setup vouches for it with {@value #ACCESS_VERIFIED}
+ * (AD-11, NFR-6, Story 23.11a). The fact keeps its name and means one thing per kind: for a Code Job, Verify read
+ * every grant back as write on the Working Repository; for an Assessment Job, the one private read-only copy read
+ * back at the confirmed head, whose read invitations never gate it (R6). A Code Job's start is then told to the
+ * Customer, the Mentor, and the active Crew.
  */
 @Component
 class J7Activate implements JobLifecycle.Step {
@@ -42,10 +44,10 @@ class J7Activate implements JobLifecycle.Step {
 		return Transition.J7;
 	}
 
-	/** @throws ApiException {@code GUARD_FAILED REPOSITORIES_NOT_READY} for a Code Job without verified access */
+	/** @throws ApiException {@code GUARD_FAILED REPOSITORIES_NOT_READY} for any Job whose access is not vouched for */
 	@Override
 	public void check(Applying applying) {
-		if (applying.job().code() && !(applying.has(ACCESS_VERIFIED) && Boolean.TRUE.equals(applying.input(ACCESS_VERIFIED)))) {
+		if (!(applying.has(ACCESS_VERIFIED) && Boolean.TRUE.equals(applying.input(ACCESS_VERIFIED)))) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.REPOSITORIES_NOT_READY);
 		}
 	}

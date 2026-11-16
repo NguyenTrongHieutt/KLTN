@@ -66,8 +66,9 @@ enum Transition {
 			false, true),
 
 	J7(Machine.JOB, job(JobState.STARTING), job(JobState.ACTIVE), Set.of(SYSTEM),
-			"Code Job: repositories created and access verified (FR-18); Assessment Job: immediately",
-			List.of(new Guard("FR-18", "A Code Job's repositories exist and its access is verified")), List.of(), false,
+			"Code Job: repositories created and access verified; Assessment Job: the read-only copy read back (FR-18)",
+			List.of(new Guard("FR-18", "The Job's repositories exist: a Code Job's two with verified write, an "
+					+ "Assessment Job's one read-only copy")), List.of(), false,
 			true),
 
 	J8(Machine.JOB, job(JobState.ACTIVE), job(JobState.CLOSING), Set.of(USER, AUTO, DECISION),

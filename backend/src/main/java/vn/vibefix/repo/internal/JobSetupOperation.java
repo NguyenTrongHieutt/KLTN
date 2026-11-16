@@ -31,6 +31,7 @@ import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.PlatformRepositories;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
+import vn.vibefix.github.SourceApp;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.operations.Lane;
@@ -51,23 +52,28 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
  * <ol>
  * <li>The waiting stage, keyed by the attempt, with no busy marker: the Source Repository checked again through the
  * Customer's Source App (the binding, the admin right, {@code vibefix.yml}); a block stops the start. Then its default
- * branch's head is read and recorded, and the Customer is asked to self-confirm it (N-32). vibefix scans no code.</li>
+ * branch's head is read and recorded, and the Customer is asked to self-confirm it (N-32). vibefix scans no code. An
+ * Assessment Job's attempt also blocks {@code WORKFLOW_TOO_OLD} while the Source holds a published
+ * {@code vibefix.yml} from before the one-repository copy (R6).</li>
  * <li>The copy stage, keyed by the Customer's confirmation, under the marker:
  * <ol>
  * <li>the Source Repository checked again;</li>
  * <li>the gate: the organization, the runner, and the installation read back (AD-12, AD-46); a difference waits
  * {@link #FROZEN_WAIT} and looks again;</li>
  * <li>the private Intermediary and Working Repositories created or found, and their settings read back (private,
- * features and forking off, Actions disabled); the copy pushes without forcing, so what an earlier attempt pushed, an
+ * features and forking off, Actions disabled); an Assessment Job makes the Intermediary alone, read-only, and never
+ * a Working Repository (R6). The copy pushes without forcing, so what an earlier attempt pushed, an
  * ancestor of the confirmed head, is kept;</li>
  * <li>the head read again: one that moved since the confirmation asks the Customer again, with nothing dispatched;</li>
  * <li>{@code copy} of {@code vibefix.yml} dispatched in the Customer's Source Repository through their Source App,
- * with the confirmed head and a grant of the two new repositories; the exchange correlation is recorded;</li>
+ * with the confirmed head and a grant of exactly the new repositories, the Intermediary alone for an Assessment Job
+ * (AD-44), whose {@code working} input is dispatched empty; the exchange correlation is recorded;</li>
  * <li>the run polled every {@link #RUN_POLL} for its first {@link #RUN_POLL_FAST}, then every {@link #RUN_POLL_LATER},
  * while it is queued or in progress, up to {@link ActionsRuns#RUN_TIMEOUT}, when its correlation is closed and it is
  * cancelled;</li>
- * <li>once it succeeded, both repositories' default branch read back through the Platform App at exactly the
- * confirmed head; then the Invitations stage starts (Story 7.3).</li>
+ * <li>once it succeeded, every repository's default branch read back through the Platform App at exactly the
+ * confirmed head; then the Invitations stage starts (Story 7.3), or, for an Assessment Job, J7 applies at once, with
+ * no invitations and no Verify (R6, Story 23.11a).</li>
  * </ol>
  * </li>
  * </ol>
@@ -119,15 +125,20 @@ class JobSetupOperation implements OperationHandler {
 
 	private final ObjectProvider<ActionsRuns> runsProvider;
 
+	/** R6: which published {@code vibefix.yml} versions copy to one repository, so an assessment copy can run. */
+	private final ObjectProvider<SourceApp> sourceAppProvider;
+
 	private final Clock clock;
 
 	JobSetupOperation(ObjectProvider<JobSetups> setups, ObjectProvider<JobBusy> busy, ObjectProvider<ProductSources> sources,
-			ObjectProvider<PlatformRepositories> repositories, ObjectProvider<ActionsRuns> runs, Clock clock) {
+			ObjectProvider<PlatformRepositories> repositories, ObjectProvider<ActionsRuns> runs,
+			ObjectProvider<SourceApp> sourceApp, Clock clock) {
 		this.setupsProvider = setups;
 		this.busyProvider = busy;
 		this.sourcesProvider = sources;
 		this.repositoriesProvider = repositories;
 		this.runsProvider = runs;
+		this.sourceAppProvider = sourceApp;
 		this.clock = clock;
 	}
 
@@ -252,10 +263,22 @@ class JobSetupOperation implements OperationHandler {
 		return Outcome.succeeded();
 	}
 
-	/** The Source checks through the Source App (AD-13, AD-45): the block that ends this attempt, or none. */
+	/**
+	 * The Source checks through the Source App (AD-13, AD-45): the block that ends this attempt, or none. An
+	 * assessment attempt also needs the {@code vibefix.yml} the Source holds to copy to one repository (R6): every
+	 * version published before Story 23.11a checks {@code working} against {@code owner/name}, so a copy with the
+	 * Intermediary alone would fail at the run's own input check. The Customer adds the published file again and
+	 * tries the Setup again. A Code Job's copy has two targets, so it never sees this block.
+	 */
 	private @Nullable Outcome check(Setup setup) {
 		SourceCheck source = sources().check(setup.productId());
-		return source.block() == null ? null : block(setup, Block.valueOf(source.block().name()));
+		if (source.block() != null) {
+			return block(setup, Block.valueOf(source.block().name()));
+		}
+		if (setup.assessment() && (source.blob() == null || !sourceApp().copiesToOneRepository(source.blob()))) {
+			return block(setup, Block.WORKFLOW_TOO_OLD);
+		}
+		return null;
 	}
 
 	private Outcome block(Setup setup, Block block) {
@@ -272,8 +295,10 @@ class JobSetupOperation implements OperationHandler {
 	}
 
 	/**
-	 * Steps 1 to 5: checked again, the gate, both repositories created or found and read back, the head read again, then
-	 * the copy dispatched through the Customer's Source App with the confirmed head and a grant of the two repositories.
+	 * Steps 1 to 5: checked again, the gate, every repository of this attempt created or found and read back, the head
+	 * read again, then the copy dispatched through the Customer's Source App with the confirmed head and a grant of
+	 * exactly those repositories. An Assessment Job makes the Intermediary alone, dispatches an empty {@code working}
+	 * and grants that one repository (R6, AD-44); no Working Repository is ever created for it.
 	 */
 	private Outcome dispatch(Setup setup) {
 		Outcome blocked = check(setup);
@@ -299,19 +324,22 @@ class JobSetupOperation implements OperationHandler {
 				return new Outcome.Obsolete("SETUP_NOT_RUNNING");
 			}
 		}
-		PlatformRepository working = setup.working();
-		if (working == null) {
-			String name = JobSetups.workingName(setup.jobId());
-			working = repositories().find(name).orElseGet(() -> repositories().create(name));
-			setups().workingCreated(setup, working);
-		}
-		if (setup.workingAt() == null) {
-			Outcome differs = readBack(setup, working);
-			if (differs != null) {
-				return differs;
+		PlatformRepository working = null;
+		if (!setup.assessment()) {
+			working = setup.working();
+			if (working == null) {
+				String name = JobSetups.workingName(setup.jobId());
+				working = repositories().find(name).orElseGet(() -> repositories().create(name));
+				setups().workingCreated(setup, working);
 			}
-			if (!setups().workingReadBack(setup)) {
-				return new Outcome.Obsolete("SETUP_NOT_RUNNING");
+			if (setup.workingAt() == null) {
+				Outcome differs = readBack(setup, working);
+				if (differs != null) {
+					return differs;
+				}
+				if (!setups().workingReadBack(setup)) {
+					return new Outcome.Obsolete("SETUP_NOT_RUNNING");
+				}
 			}
 		}
 		DispatchTarget target = sources().dispatchTarget(setup.productId());
@@ -333,9 +361,11 @@ class JobSetupOperation implements OperationHandler {
 		inputs.put("sha", approved);
 		inputs.put("branch", Objects.requireNonNull(setup.defaultBranch()));
 		inputs.put("intermediary", intermediary.fullName());
-		inputs.put("working", working.fullName());
+		// AD-44: the grant names exactly the repositories the run pushes to, the Intermediary alone for an Assessment Job.
+		inputs.put("working", working == null ? "" : working.fullName());
+		Set<Long> grant = working == null ? Set.of(intermediary.id()) : Set.of(intermediary.id(), working.id());
 		Dispatched dispatched = runs().dispatch(new Dispatch(App.SOURCE, target.installationId(), Operation.COPY,
-				target.repositoryId(), WORKFLOW, inputs, Set.of(intermediary.id(), working.id()), approved));
+				target.repositoryId(), WORKFLOW, inputs, grant, approved));
 		if (!setups().dispatched(setup, dispatched.correlation())) {
 			// The attempt moved on meanwhile: its run is given up, so it never exchanges.
 			runs().close(dispatched.correlation());
@@ -383,10 +413,11 @@ class JobSetupOperation implements OperationHandler {
 			return new Outcome.Transient(Block.RUN_FAILED.name());
 		}
 		PlatformRepository intermediary = Objects.requireNonNull(setup.intermediary());
-		PlatformRepository working = Objects.requireNonNull(setup.working());
+		// R6: an assessment copy has one target, so there is one repository to read back and none to grant.
+		PlatformRepository working = setup.assessment() ? null : Objects.requireNonNull(setup.working());
 		String approved = Objects.requireNonNull(setup.approvedSha());
 		String branch = Objects.requireNonNull(setup.defaultBranch());
-		for (PlatformRepository repository : List.of(intermediary, working)) {
+		for (PlatformRepository repository : working == null ? List.of(intermediary) : List.of(intermediary, working)) {
 			String head;
 			try {
 				head = repositories().branchHead(repository, branch);
@@ -406,7 +437,8 @@ class JobSetupOperation implements OperationHandler {
 			}
 		}
 		setups().done(setup, working);
-		return new Outcome.Succeeded(Map.of("intermediary", intermediary.fullName(), "working", working.fullName()));
+		return new Outcome.Succeeded(working == null ? Map.of("intermediary", intermediary.fullName())
+				: Map.of("intermediary", intermediary.fullName(), "working", working.fullName()));
 	}
 
 	/**
@@ -493,6 +525,10 @@ class JobSetupOperation implements OperationHandler {
 
 	private ActionsRuns runs() {
 		return this.runsProvider.getObject();
+	}
+
+	private SourceApp sourceApp() {
+		return this.sourceAppProvider.getObject();
 	}
 
 }

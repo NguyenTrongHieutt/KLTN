@@ -96,6 +96,22 @@ final class AcceptedWorkflows {
 	}
 
 	/**
+	 * Whether {@code blob}'s {@code copy} job copies to one repository (R6, Story 23.11a): an Assessment Job's Setup
+	 * dispatches an empty {@code working} input, which only a version marked {@code one-repository} takes. A blob that
+	 * is not listed for {@code path}, or is past its end date, is not accepted at all, so it is false here too.
+	 */
+	boolean copiesToOneRepository(String path, String blob) {
+		LocalDate today = LocalDate.ofInstant(this.clock.instant(), VIETNAM);
+		for (AcceptedBlob accepted : this.exchange.acceptedBlobs()) {
+			if (accepted.path().equals(path) && accepted.blob().equals(blob) && accepted.oneRepository()
+					&& (accepted.endsOn() == null || !today.isAfter(accepted.endsOn()))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * The last day {@code blob} is accepted for {@code path} (R12): the latest end date among its listings for that
 	 * path; none when it is not listed for that path, or when any of its listings for that path has no end date (that
 	 * listing accepts it for good).

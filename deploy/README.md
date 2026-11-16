@@ -499,6 +499,14 @@ repository, and revokes it after use.
    `final-merge` and `scan` (each with only its permissions, and `copy` and `final-merge` refuse a run no GitHub
    App started), so its blob changed and the old one is no longer accepted. Replace the copy in `s6-source`
    (and any other test repository) with the new file before a Customer's run uses the exchange.
+
+   **Re-publish `deploy/customer/vibefix.yml` in every test Source Repository before the first Assessment
+   Job.** Story 23.11a let the `copy` job take an empty `working` input and push to the Intermediary alone,
+   which an Assessment Job's one read-only copy needs; only that version is listed with `one-repository` in
+   `vibefix.github.exchange.accepted-blobs`. Every earlier version stays accepted until its end date, so a
+   Code Job still runs on it, but an Assessment Job of that Product blocks with `WORKFLOW_TOO_OLD` and the
+   step tracker offers the Customer the published file to add again. Add it on GitHub from the tracker, or
+   from CUS-4's "Kiểm tra lại" card, then start the Setup again with "Thử lại".
 5. **Deleting a Product** ends its binding. vibefix never uninstalls the Customer's App: CUS-4 and CUS-2 tell
    them to deselect the repository on GitHub, or to uninstall the App when no other Product uses it.
 

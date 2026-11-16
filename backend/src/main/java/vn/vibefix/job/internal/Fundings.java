@@ -146,17 +146,17 @@ class Fundings implements MilestoneFunding {
 			.map(milestone -> new Funded(transition, milestone.number()));
 	}
 
-	/** AD-4: Milestone 1 of a Job in Agreement funds with J6 first, and an Assessment Job with J7 after. */
+	/**
+	 * AD-4: Milestone 1 of a Job in Agreement funds with J6 first. No Job reaches J7 from here any more: since Story
+	 * 23.11a an Assessment Job has a Setup of its own, which copies the Source Repository into one private read-only
+	 * repository on the Customer's GitHub Actions and applies J7 once that copy reads back (R6, FR-18).
+	 */
 	private static List<Planned> cascade(Job job, UUID milestoneId, UUID paymentOrderId) {
 		List<Planned> cascade = new ArrayList<>();
-		boolean starts = job.state() == JobState.AGREEMENT;
-		if (starts) {
+		if (job.state() == JobState.AGREEMENT) {
 			cascade.add(Planned.job(Transition.J6));
 		}
 		cascade.add(Planned.milestone(Transition.M1, milestoneId, Map.of("paymentOrderId", paymentOrderId)));
-		if (starts && !job.code()) {
-			cascade.add(Planned.job(Transition.J7));
-		}
 		return cascade;
 	}
 

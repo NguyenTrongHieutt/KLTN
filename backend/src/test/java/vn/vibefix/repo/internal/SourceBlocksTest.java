@@ -14,12 +14,14 @@ import vn.vibefix.product.ProductSources;
  * {@link JobSetups.Block}, a {@link RepoReason} the re-confirmation answers with, and a plain reason in the
  * {@code repo.job_start_blocked} notification. Story 23.6b: Setup's own blocks are the copy run's on the Customer's
  * Actions ({@code EXCHANGE_REFUSED}, {@code RUN_FAILED}, {@code ACTIONS_QUOTA}), each with its plain reason too, so the
- * product blocks are a subset of the Setup blocks and a retired block cannot linger in Setup or its texts.
+ * product blocks are a subset of the Setup blocks and a retired block cannot linger in Setup or its texts. Story
+ * 23.11a adds one more of Setup's own, {@code WORKFLOW_TOO_OLD}, which only an Assessment Job's copy ever raises and
+ * which the Customer fixes by adding the published {@code vibefix.yml} again, so it has a {@link RepoReason} too.
  */
 class SourceBlocksTest {
 
-	/** The copy run's blocks, Setup's own (Story 23.6b). */
-	static final List<String> RUN_BLOCKS = List.of("EXCHANGE_REFUSED", "RUN_FAILED", "ACTIONS_QUOTA");
+	/** Setup's own blocks: the one-repository check's (Story 23.11a) and the copy run's (Story 23.6b). */
+	static final List<String> RUN_BLOCKS = List.of("WORKFLOW_TOO_OLD", "EXCHANGE_REFUSED", "RUN_FAILED", "ACTIONS_QUOTA");
 
 	@Test
 	void everySourceBlockIsASetupBlockAReasonAndHasAPlainText() {
@@ -39,6 +41,8 @@ class SourceBlocksTest {
 		assertThat(setup.stream().filter(block -> !sources.contains(block))).containsExactlyInAnyOrderElementsOf(RUN_BLOCKS);
 		assertThat(JobSetups.REASONS.keySet().stream().map(Enum::name)).containsExactlyInAnyOrderElementsOf(setup);
 		assertThat(JobSetups.REASONS.values()).allSatisfy(text -> assertThat(text).isNotBlank());
+		// R6: the Customer fixes the one-repository block themselves, so it is a named reason as the Source blocks are.
+		assertThat(Arrays.stream(RepoReason.values()).map(Enum::name)).contains(JobSetups.Block.WORKFLOW_TOO_OLD.name());
 	}
 
 	@Test

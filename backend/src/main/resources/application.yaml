@@ -166,10 +166,20 @@ vibefix:
       # refuse every Source Repository holding the file published until today. Until a Customer re-publishes, their
       # Final Merge runs the old job: no fsck ignore list, so a legacy history vibefix accepted at J7 is refused at
       # the end, and no range guard, so GitHub refuses the push itself when the accepted code touches
-      # .github/workflows/. Re-publishing before the end date is the step deploy/README.md names.
+      # .github/workflows/. Re-publishing before the end date is the step deploy/README.md names. Story 23.11a (R6)
+      # let the copy job take an empty working input and push to the Intermediary alone, which an Assessment Job's
+      # read-only copy needs: its blob joins with one-repository true and no end date, and the 23.9a blob ends on
+      # 2026-12-14 [ASSUMPTION] beside the others. Only a listing marked one-repository may run an Assessment Job's
+      # copy; every earlier version checks working against owner/name, so a copy with one target would fail at its
+      # own input check. Until a Customer re-publishes, their Code Jobs run as before and an Assessment Job of
+      # theirs blocks with WORKFLOW_TOO_OLD, which names the file to add again.
       accepted-blobs:
         - path: .github/workflows/vibefix.yml
+          blob: 6a22317e0df1a34940e6bbf59136bce5d3a4919c
+          one-repository: true
+        - path: .github/workflows/vibefix.yml
           blob: cab3689d63e97c75bb99608ae38d2c415d61b7e6
+          ends-on: "2026-12-14"
         - path: .github/workflows/vibefix.yml
           blob: 4c2747e19b12d76ff7bfd0d989e325b488062595
           ends-on: "2026-12-14"

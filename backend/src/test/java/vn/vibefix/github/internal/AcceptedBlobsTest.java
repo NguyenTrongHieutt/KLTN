@@ -88,6 +88,46 @@ class AcceptedBlobsTest {
 	}
 
 	/**
+	 * R6 (Story 23.11a): only the published {@code vibefix.yml} takes an empty {@code working} input and copies to the
+	 * Intermediary alone, so only its listing is marked {@code one-repository}; every earlier version still accepted
+	 * refuses such a copy at its own input check, and an Assessment Job on one of them blocks {@code WORKFLOW_TOO_OLD}.
+	 */
+	@Test
+	void onlyThePublishedVibefixYmlCopiesToOneRepository() throws IOException {
+		String published = AcceptedWorkflows.blobSha(GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
+		List<AcceptedBlob> accepted = new ArrayList<>();
+		for (Map<String, Object> blob : acceptedBlobs()) {
+			accepted.add(new AcceptedBlob(String.valueOf(blob.get("path")), String.valueOf(blob.get("blob")),
+					blob.get("ends-on") == null ? null : LocalDate.parse(String.valueOf(blob.get("ends-on"))),
+					Boolean.TRUE.equals(blob.get("one-repository"))));
+		}
+		AcceptedWorkflows workflows = workflows(accepted, "2026-11-18T03:00:00Z");
+
+		assertThat(workflows.copiesToOneRepository(CUSTOMER_PATH, published)).as("the published file").isTrue();
+		assertThat(accepted).filteredOn(AcceptedBlob::oneRepository)
+			.as("one listing may copy to one repository, and it is the published file")
+			.singleElement()
+			.satisfies(blob -> {
+				assertThat(blob.path()).isEqualTo(CUSTOMER_PATH);
+				assertThat(blob.blob()).isEqualTo(published);
+				assertThat(blob.endsOn()).as("the published file does not end").isNull();
+			});
+		for (AcceptedBlob blob : accepted) {
+			if (!blob.blob().equals(published)) {
+				assertThat(workflows.copiesToOneRepository(blob.path(), blob.blob()))
+					.as("%s %s is an earlier version", blob.path(), blob.blob()).isFalse();
+			}
+		}
+		assertThat(workflows(accepted, "2027-01-01T03:00:00Z").copiesToOneRepository(CUSTOMER_PATH, published))
+			.as("a listing with no end date never lapses").isTrue();
+		assertThat(workflows.copiesToOneRepository(RUNNER_PATH, published)).as("another path").isFalse();
+		assertThat(workflows.copiesToOneRepository(CUSTOMER_PATH, "ab".repeat(20))).as("an unlisted blob").isFalse();
+		assertThat(workflows(List.of(new AcceptedBlob(CUSTOMER_PATH, published, LocalDate.parse("2026-11-17"), true)),
+				"2026-11-18T03:00:00Z").copiesToOneRepository(CUSTOMER_PATH, published))
+			.as("past its last day it is not accepted at all").isFalse();
+	}
+
+	/**
 	 * Story 23.5: the Source App serves the published {@code vibefix.yml} from its classpath copy, which is
 	 * {@code deploy/customer/vibefix.yml} byte for byte, with the blob {@code application.yaml} accepts.
 	 */

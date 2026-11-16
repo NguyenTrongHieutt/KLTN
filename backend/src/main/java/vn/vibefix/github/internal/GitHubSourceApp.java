@@ -191,6 +191,11 @@ class GitHubSourceApp implements SourceApp {
 		return this.accepted.endsOn(WORKFLOW_PATH, blob);
 	}
 
+	@Override
+	public boolean copiesToOneRepository(String blob) {
+		return this.accepted.copiesToOneRepository(WORKFLOW_PATH, blob);
+	}
+
 	private String slug() {
 		String known = this.slug;
 		if (known == null) {
