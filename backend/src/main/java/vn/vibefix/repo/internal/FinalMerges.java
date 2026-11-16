@@ -49,10 +49,11 @@ import vn.vibefix.shared.IdGenerator;
  * released, J9 applied, and both sides get {@value #BRANCH_READY}. vibefix opens no pull request and writes nothing
  * in a Customer repository: the Customer merges the branch themselves on GitHub.
  * <p>
- * A refusal that is not transient ({@code REFUSED}, with its named reason) ends the row {@code ZIP_FALLBACK}, so the
- * Job follows the closure fallback (Story 8.9, which Story 23.10c deletes). Since Story 23.10a the Customer keeps
- * the self-download path beside a Final Merge that is out or that failed with its reason, until the branch reads
- * back: a code receipt that lands first releases this marker, so a run still out ends {@code Obsolete}.
+ * A refusal that is not transient ({@code REFUSED}, with its named reason) leaves the closing choice open (Story
+ * 23.10c): the row stays {@code REQUESTED} with its FR-37 deadline, so the Job still ends -- by the Customer's own
+ * code receipt, or as {@code UNCONFIRMED} at the deadline. Since Story 23.10a the Customer keeps the self-download
+ * path beside a Final Merge that is out or that failed with its reason, until the branch reads back: a code receipt
+ * that lands first releases this marker, so a run still out ends {@code Obsolete}.
  */
 @Component
 class FinalMerges {
@@ -173,8 +174,13 @@ class FinalMerges {
 	/**
 	 * A refusal that is not transient ({@code REFUSED}, with its named reason: {@code WORKFLOW_FILES_CHANGED},
 	 * {@code BRANCH_EXISTS}, {@code EXCHANGE_REFUSED}, {@code ACTIONS_QUOTA}, {@code RUN_FAILED}, {@code J9_GUARD}):
-	 * the marker goes, if the Final Merge held it, and the row ends {@code ZIP_FALLBACK}, so the Job follows the
-	 * closure fallback with that reason (Story 8.9).
+	 * the marker goes, if the Final Merge held it, and the closing choice's row stays open with it.
+	 * <p>
+	 * It stays open on purpose (Story 23.10c): ending it here would strand the Job in {@code CLOSING} for good, now
+	 * that nothing listens for that ending -- {@link FinalMergeDeadline} answers {@code OBSOLETE} for a row that is
+	 * no longer {@code REQUESTED}, and AD-5 lets nothing else reach J9. Left {@code REQUESTED}, the self-download
+	 * card stays offered with this reason and the FR-37 deadline keeps running, so the Job ends either way. The
+	 * refusal is still final for the merge itself: {@link CodeReceipts#choice} stops offering it.
 	 */
 	@Transactional
 	void fallback(UUID authorizationId, String status, String refusal) {
@@ -187,7 +193,6 @@ class FinalMerges {
 		if (merge.operationKey() != null) {
 			this.busy.release(merge.jobId(), merge.operationKey());
 		}
-		this.authorizations.end(authorizationId, "ZIP_FALLBACK");
 	}
 
 	/**
@@ -312,8 +317,8 @@ class FinalMerges {
 
 	/**
 	 * A run that failed after its last attempt (AD-6) ends the Final Merge with its named reason, so the marker goes
-	 * and the Job follows the closure fallback; a run still out is given up first, so it can no longer exchange and
-	 * push after the Job took the fallback. A check that failed is dropped, and the next look at JOB-1 starts another.
+	 * and the closing choice stays open with it; a run still out is given up first, so it can no longer exchange and
+	 * push afterwards. A check that failed is dropped, and the next look at JOB-1 starts another.
 	 */
 	@Transactional
 	void completed(OperationCompleted completed) {

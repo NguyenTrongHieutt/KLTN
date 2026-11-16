@@ -5670,7 +5670,6 @@ export interface components {
             receipt?: components["schemas"]["ReceiptView"];
             repository: string;
             status: string;
-            zip?: components["schemas"]["ZipView"];
         };
         FitMetricsView: {
             /** Format: int32 */
@@ -8308,13 +8307,6 @@ export interface components {
             name: string;
             /** Format: int32 */
             openItems: number;
-        };
-        ZipView: {
-            /** Format: uuid */
-            fileId?: string;
-            reason: string;
-            sensitive: components["schemas"]["MergeSensitiveChangeView"][];
-            status: string;
         };
     };
     responses: never;

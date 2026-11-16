@@ -1473,7 +1473,7 @@
         "kindTRANSFERRED": "Dự án gốc đã được chuyển sang {name} (ghi nhận ngày {date}).",
         "kindAPP_UNINSTALLED": "Ứng dụng vibefix trên dự án gốc đã bị gỡ, bị tạm ngưng hoặc thiếu quyền cần có, nên vibefix không còn đọc được dự án (ghi nhận ngày {date}). Cần cài lại hoặc bật lại ứng dụng vibefix trên GitHub và chấp nhận đủ quyền.",
         "kindWORKFLOW_CHANGED": "File workflow vibefix.yml trong dự án gốc đã bị xóa hoặc sửa khác bản vibefix công bố (ghi nhận ngày {date}). Cần thêm lại đúng file trên GitHub.",
-        "meaning": "Nếu dự án gốc tiếp tục thay đổi, việc hợp nhất cuối có thể không làm được và bạn sẽ nhận mã dưới dạng tệp ZIP. Hãy tạm dừng đồng bộ của công cụ AI cho đến khi hợp nhất xong.",
+        "meaning": "Nếu dự án gốc tiếp tục thay đổi, việc hợp nhất cuối có thể thất bại; khi đó bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub về máy. Hãy tạm dừng đồng bộ của công cụ AI cho đến khi bạn nhận mã.",
         "reconfirmLead": "Hãy xác nhận lại dự án gốc ở tên mới, để vibefix hợp nhất cuối vào đúng kho mã của bạn.",
         "reconfirm": "Xác nhận lại dự án gốc",
         "reconfirmAction": "xác nhận lại dự án gốc"
@@ -2201,7 +2201,7 @@
         "n7Body": "Người hướng dẫn và nhóm thực hiện sẽ có quyền vào hệ thống khách hàng của bạn đang dùng. Họ có thể thay đổi dữ liệu thật trước khi bạn nghiệm thu. Chỉ chọn khi thật cần.",
         "n7Test": "Dùng môi trường thử",
         "n7Live": "Vẫn chọn hệ thống thật",
-        "n6": "Mọi kho mã liên quan đều công khai. Từ lúc công việc bắt đầu đến khi hợp nhất xong, tôi sẽ không thay đổi dự án gốc, kể cả việc Lovable hay công cụ AI khác tự đồng bộ. Nếu có thay đổi, việc hợp nhất cuối có thể thất bại và tôi sẽ nhận mã dưới dạng tệp ZIP.",
+        "n6": "Từ lúc công việc bắt đầu đến khi tôi nhận mã, tôi sẽ không thay đổi dự án gốc, kể cả việc Lovable hay công cụ AI khác tự đồng bộ, và không gỡ ứng dụng vibefix hay file workflow. Nếu có thay đổi, việc hợp nhất cuối có thể thất bại; khi đó tôi tự tải mã đã hoàn thiện từ kho trung gian trên GitHub.",
         "pauseLink": "Cách tạm dừng đồng bộ",
         "pauseLead": "Trong lúc công việc đang chạy, đừng để công cụ nào thay đổi dự án gốc:",
         "pauseDraft": "Hướng dẫn chi tiết cho từng công cụ đang được hoàn thiện.",
@@ -3049,28 +3049,12 @@
           "BRANCH_EXISTS": "dự án của bạn đã có một nhánh cùng tên, nên bước này không ghi lên nó",
           "J9_GUARD": "mã trong kho trung gian không khớp với các lần bàn giao đã nghiệm thu",
           "OTHER": "GitHub từ chối bước này"
-        }
-      },
-      "zip": {
-        "lead": "Không thể hợp nhất tự động: {reason}. Bạn có thể tải toàn bộ mã đã hoàn thiện về máy. Bạn không cần chạy lệnh nào; hãy đăng một công việc nhỏ để một người hướng dẫn ghép mã này vào dự án của bạn.",
-        "building": "Đang chuẩn bị tệp ZIP…",
-        "programs": "Tệp nén có thể chứa chương trình. Bạn chỉ cần lưu tệp này và gửi cho người hướng dẫn ghép mã.",
+        },
         "post": "Đăng công việc ghép mã",
         "prefill": {
           "title": "Ghép mã đã hoàn thiện vào dự án",
-          "problem": "Một công việc trước đã hoàn thiện mã nhưng không hợp nhất tự động được vào dự án gốc. Toàn bộ mã nằm trong tệp ZIP của công việc đó.",
-          "expected": "Mã trong tệp ZIP được ghép vào dự án gốc, và ứng dụng chạy như trước với các thay đổi đã nghiệm thu."
-        },
-        "reason": {
-          "TRIAL_CONFLICT": "dự án gốc đã thay đổi sau khi công việc bắt đầu, nên mã không ghép tự động được",
-          "SOURCE_APP_MISSING": "ứng dụng vibefix không còn đọc được dự án gốc: ứng dụng đã bị gỡ, hoặc dự án đã bị xóa",
-          "J9_GUARD": "mã trong kho trung gian không khớp với các lần bàn giao đã nghiệm thu",
-          "PUSH_REFUSED": "GitHub không cho đưa mã mới vào dự án gốc của bạn",
-          "MERGE_REFUSED": "GitHub không chạy xong được bước chép mã vào dự án của bạn",
-          "NOT_AUTHORIZED": "bạn chưa chọn cách nhận mã trước hạn",
-          "REQUEST_NOT_APPROVED": "yêu cầu cài ứng dụng hợp nhất chưa được chủ tổ chức duyệt trước hạn",
-          "CONFIRMATION_MISSED": "các thay đổi cần lưu ý chưa được xác nhận trước hạn",
-          "DECLINED": "bạn đã chọn nhận mã dạng ZIP"
+          "problem": "Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Tôi đã tự tải mã đã hoàn thiện từ kho trung gian trên GitHub về máy.",
+          "expected": "Mã đã hoàn thiện được ghép vào dự án gốc, và ứng dụng chạy như trước với các thay đổi đã nghiệm thu."
         }
       },
       "revocation": {
@@ -3871,10 +3855,6 @@
       "label": "Tôi đã tự tải / clone từ GitHub",
       "hint": "Bạn tải mã về từ kho trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây. Bạn không cần chạy lệnh nào."
     },
-    "zipFallback": {
-      "label": "Tải mã về (tệp ZIP)",
-      "hint": "Khi không hợp nhất được, bạn tải toàn bộ mã đã hoàn thiện về máy dưới dạng một tệp nén."
-    },
     "driftWarning": {
       "label": "Cảnh báo dự án gốc thay đổi",
       "hint": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại."
@@ -4671,9 +4651,6 @@
       },
       "revocation_checklist_reminder": {
         "title": "Còn {n} quyền chưa thu hồi cho {job}"
-      },
-      "zip_fallback_ready": {
-        "title": "{job}: không hợp nhất tự động được, bạn có thể tải mã về dạng tệp ZIP"
       },
       "code_receipt_unconfirmed": {
         "title": "{job} đã kết thúc khi bạn chưa xác nhận đã nhận mã. Hãy tải mã về trước {date}"

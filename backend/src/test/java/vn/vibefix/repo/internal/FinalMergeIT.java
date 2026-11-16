@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,14 +50,17 @@ import vn.vibefix.support.IntegrationTest;
  * one run of the published {@code vibefix.yml} on their own GitHub Actions pushes the Intermediary's merge commit to
  * a new {@code vibefix/final-{jobId}} branch. vibefix reads that branch back, applies J9 and tells both sides; the
  * Customer merges the branch themselves on GitHub. vibefix opens no pull request and writes nothing in the Customer's
- * repository. A workflow-file difference, an existing branch, Actions' quota or a failed run names its reason and
- * keeps the closure fallback offered. GitHub and git hosting are {@link GitHubStub}; the stub runs no workflow, so a
- * test pushes what the run would.
+ * repository. A workflow-file difference, an existing branch, Actions' quota or a failed run names its reason.
+ * GitHub and git hosting are {@link GitHubStub}; the stub runs no workflow, so a test pushes what the run would.
  * <p>
  * Story 23.10a (FR-38, D10) adds the closing choice's second path: "Tôi đã tự tải / clone từ GitHub" records the code
  * receipt and applies J9 with {@code SELF_DOWNLOAD}. It is open beside a Final Merge that is out or that failed with
  * its reason -- a receipt that lands first wins and leaves the run {@code Obsolete} -- and refused once the branch
  * reads back. The Mentor reads the choice and its outcome, never the Customer's own actions.
+ * <p>
+ * Story 23.10c retired the ZIP Fallback: a refusal records its reason, releases the marker and leaves the row
+ * {@code REQUESTED}, so the Job stays in Closing under the FR-37 deadline and the self-download stays offered --
+ * the Final Merge, though, is never offered again. Nothing builds, stores or announces a ZIP anywhere.
  */
 class FinalMergeIT extends IntegrationTest {
 
@@ -303,8 +307,7 @@ class FinalMergeIT extends IntegrationTest {
 		confirm(true).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("WORKFLOW_FILES_CHANGED"));
 		assertThat(sourceRuns()).as("no minute of the Customer's Actions is spent").isEmpty();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).as("the fallback stays the Customer's own choice").isZero();
+		assertThat(authorizationStatus()).as("the choice is still the Customer's").isEqualTo("REQUESTED");
 	}
 
 	/** A push vibefix never observed: the branch is read before each dispatch, so J9 follows without a second run. */
@@ -322,8 +325,9 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(sourceRuns()).as("nothing was dispatched").isEmpty();
 	}
 
+	/** Story 23.10c: a refusal is final for the merge, and leaves the closing choice and its deadline running. */
 	@Test
-	void aBranchAtAnotherCommitEndsTheFinalMergeAndOffersTheFallback() throws Exception {
+	void aBranchAtAnotherCommitRefusesTheFinalMergeAndLeavesTheChoiceOpen() throws Exception {
 		check();
 		confirm(true).andExpect(status().isAccepted());
 		GITHUB.pushCommit(GitHubStub.ORGANIZATION, this.intermediary, firstCommit(), this.owner, this.name,
@@ -333,15 +337,21 @@ class FinalMergeIT extends IntegrationTest {
 
 		assertThat(mergeStatus()).isEqualTo("REFUSED");
 		assertThat(refusal()).isEqualTo("BRANCH_EXISTS");
-		assertThat(authorizationStatus()).isEqualTo("ENDED");
 		assertThat(released()).isTrue();
 		assertThat(sourceRuns()).isEmpty();
 		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge'")
 			.query(String.class).single()).isEqualTo("ABORTED");
-		zipFallback();
-		assertThat(this.jdbc.sql("SELECT reason || ':' || status FROM repo.zip_fallback WHERE job_id = :job")
-			.param("job", this.job).query(String.class).single()).isEqualTo("MERGE_REFUSED:READY");
-		assertThat(jobState()).isEqualTo("CLOSED");
+		awaitListeners();
+		assertThat(authorizationStatus()).as("the row stays open, so the FR-37 deadline still ends the Job")
+			.isEqualTo("REQUESTED");
+		assertThat(endReason()).isNull();
+		assertThat(jobState()).isEqualTo("CLOSING");
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.refusal").value("BRANCH_EXISTS"))
+			.andExpect(jsonPath("$.merge.sensitive[0].path").value("package.json"))
+			.andExpect(jsonPath("$.choice.finalMerge").value(false))
+			.andExpect(jsonPath("$.choice.selfDownload").value(true));
 	}
 
 	/** R20: a run Actions' quota stopped names its reason at once, with the fallback still offered. */
@@ -369,7 +379,7 @@ class FinalMergeIT extends IntegrationTest {
 	 * Final Merge ends {@code EXCHANGE_REFUSED} with the fallback still offered.
 	 */
 	@Test
-	void anExchangeRefusalEndsTheFinalMergeAndOffersTheFallback() throws Exception {
+	void anExchangeRefusalRefusesTheFinalMergeAndLeavesTheChoiceOpen() throws Exception {
 		check();
 		confirm(true).andExpect(status().isAccepted());
 		this.worker.runDue(Lane.GITHUB_LONG);
@@ -385,9 +395,9 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(released()).isTrue();
 		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge'")
 			.query(String.class).single()).isEqualTo("ABORTED");
-		zipFallback();
-		assertThat(this.jdbc.sql("SELECT reason || ':' || status FROM repo.zip_fallback WHERE job_id = :job")
-			.param("job", this.job).query(String.class).single()).isEqualTo("MERGE_REFUSED:READY");
+		awaitListeners();
+		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(jobState()).isEqualTo("CLOSING");
 	}
 
 	/**
@@ -457,12 +467,13 @@ class FinalMergeIT extends IntegrationTest {
 	}
 
 	/**
-	 * AD-6: once the attempts run out the Final Merge ends and the Job follows the closure fallback -- the step that
-	 * cannot be undone. A run still queued is given up with it, so it can never exchange and push afterwards, and a
-	 * vibefix-side code is stored as {@code RUN_FAILED}, the only reason the closure section can word.
+	 * AD-6: once the attempts run out the Final Merge is refused for good -- the step that cannot be undone. A run
+	 * still queued is given up with it, so it can never exchange and push afterwards, and a vibefix-side code is
+	 * stored as {@code RUN_FAILED}, the only reason the closure section can word. The Job stays in Closing under its
+	 * deadline, with the self-download offered (Story 23.10c).
 	 */
 	@Test
-	void theAttemptsRunningOutEndsTheFinalMergeAndGivesUpTheRunStillQueued() throws Exception {
+	void theAttemptsRunningOutRefusesTheFinalMergeAndGivesUpTheRunStillQueued() throws Exception {
 		check();
 		confirm(true).andExpect(status().isAccepted());
 		this.worker.runDue(Lane.GITHUB_LONG);
@@ -489,13 +500,11 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(released()).as("the marker is released").isTrue();
 		assertThat(this.runs.correlation(correlation).orElseThrow().status()).as("the queued run is given up")
 			.isEqualTo(ActionsRuns.Status.EXPIRED);
-		assertThat(GITHUB.seen).as("and cancelled, so it never pushes after the fallback")
+		assertThat(GITHUB.seen).as("and cancelled, so it never pushes after the refusal")
 			.anyMatch(request -> request.method().equals("POST")
 					&& request.path().equals("/repos/" + this.owner + "/" + this.name + "/actions/runs/" + run + "/cancel"));
-		zipFallback();
-		assertThat(this.jdbc.sql("SELECT reason || ':' || status FROM repo.zip_fallback WHERE job_id = :job")
-			.param("job", this.job).query(String.class).single()).isEqualTo("MERGE_REFUSED:READY");
-		assertThat(jobState()).isEqualTo("CLOSED");
+		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(jobState()).isEqualTo("CLOSING");
 	}
 
 	/** A run that failed for another reason is dispatched again under a new correlation (AD-6). */
@@ -569,8 +578,6 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(jobState()).isEqualTo("CLOSED");
 		assertThat(openTodos()).isZero();
 		awaitListeners();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).as("no ZIP is started by this path").isZero();
 		receipt(9).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("CODE_RECEIPT_RECORDED"));
 	}
 
@@ -622,13 +629,11 @@ class FinalMergeIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.choice.finalMerge").value(false))
 			.andExpect(jsonPath("$.choice.selfDownload").value(true));
-		// The version the Customer's own page carries: the fallback's build may have closed the Job by now, which is
-		// what keeps the self-download open rather than what ends it.
+		// The refusal left the row open (Story 23.10c), so the Job is still Closing and the receipt is what ends it.
 		receipt(version()).andExpect(status().isOk()).andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"));
 
 		assertThat(jobState()).isEqualTo("CLOSED");
-		// The ZIP the fallback may already have built is never the Customer's answer here: CodeReceiptIT holds a
-		// receipt against a build still running (Story 23.10c deletes the machinery).
+		assertThat(authorizationStatus()).isEqualTo("USED");
 		assertThat(this.jdbc.sql("SELECT confirmed_by FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
 			.query(UUID.class).single()).isEqualTo(this.lan);
 	}
@@ -679,7 +684,6 @@ class FinalMergeIT extends IntegrationTest {
 			.andExpect(jsonPath("$.choice.selfDownload").value(true))
 			.andExpect(jsonPath("$.choice.intermediaryUrl").doesNotExist())
 			.andExpect(jsonPath("$.merge").doesNotExist())
-			.andExpect(jsonPath("$.zip").doesNotExist())
 			.andExpect(jsonPath("$.receipt").doesNotExist());
 
 		receipt(8).andExpect(status().isOk());
@@ -757,19 +761,18 @@ class FinalMergeIT extends IntegrationTest {
 				VALUES (:id, :job, 'JOB', 'Không cần nữa', 'CUSTOMER', :lan, 'CONFIRMED', now(), now(), now())
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("lan", this.lan).update();
 		Boolean finished = this.transactions
-			.execute(status -> this.completion.finish(this.job, JobCompletion.Finish.ZIP_FALLBACK, null));
+			.execute(status -> this.completion.finish(this.job, JobCompletion.Finish.UNCONFIRMED, null));
 		assertThat(finished).isTrue();
 		assertThat(jobState()).isEqualTo("CANCELLED");
 	}
 
-	/** A Source block the Customer can fix: the check waits, the row stays, and no fallback starts. */
+	/** A Source block the Customer can fix: the check waits, the row stays, and nothing is refused. */
 	private void waitsForTheCustomer() {
 		assertThat(mergeStatus()).isEqualTo("CHECKING");
 		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
+		assertThat(refusal()).isNull();
 		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
 			.query(String.class).single()).isEqualTo("PENDING");
-		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
-			.query(Long.class).single()).isZero();
 	}
 
 	/** The Customer opens JOB-1, which starts the check, and the check runs. */
@@ -789,21 +792,13 @@ class FinalMergeIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_LONG);
 	}
 
-	/** Every listener of what the worker published has run, so the fallback's own operation is requested. */
+	/** Every listener of what the worker published has run, so anything one would start is already started. */
 	private void awaitListeners() {
 		org.awaitility.Awaitility.await()
 			.atMost(Duration.ofSeconds(15))
 			.until(() -> this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
 				.query(Long.class)
 				.single() == 0);
-	}
-
-	/** The fallback the ended row starts, built by its operation. */
-	private void zipFallback() {
-		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> this.jdbc
-			.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job).query(Long.class)
-			.single() == 1);
-		this.worker.runDue(Lane.GITHUB_LONG);
 	}
 
 	private ResultActions confirm(boolean agreed) throws Exception {
@@ -877,14 +872,19 @@ class FinalMergeIT extends IntegrationTest {
 			.query(String.class).optional().orElse("NONE");
 	}
 
-	private String refusal() {
+	private @Nullable String refusal() {
 		return this.jdbc.sql("SELECT refusal FROM repo.final_merge WHERE job_id = :job").param("job", this.job)
-			.query(String.class).single();
+			.query(String.class).optional().orElse(null);
 	}
 
 	private String authorizationStatus() {
 		return this.jdbc.sql("SELECT status FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job)
 			.query(String.class).single();
+	}
+
+	private @Nullable String endReason() {
+		return this.jdbc.sql("SELECT end_reason FROM repo.final_merge_authorization WHERE job_id = :job")
+			.param("job", this.job).query(String.class).optional().orElse(null);
 	}
 
 	private String jobState() {

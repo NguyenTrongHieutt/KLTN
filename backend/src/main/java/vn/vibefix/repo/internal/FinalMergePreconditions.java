@@ -21,7 +21,7 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
  * Customer, who can fix it or receive the code themselves; no Source block ends the Final Merge;</li>
  * <li>every grant of the Mentor and the Crew read back as revoked, else it waits;</li>
  * <li>J9's guard: the Intermediary default branch's head is the head {@code repo} read back after its
- * last handover merge, or the J7 commit when it made none; anything else hands the Job to the closure fallback.</li>
+ * last handover merge, or the J7 commit when it made none; anything else refuses the Final Merge.</li>
  * </ul>
  * Each GitHub read throws {@link vn.vibefix.github.GitHubException} when GitHub fails.
  */

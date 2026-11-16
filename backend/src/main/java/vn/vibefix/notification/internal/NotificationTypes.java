@@ -438,11 +438,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_DOWNLOAD_REMINDER = new NotificationType("repo.download_reminder",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("job", "date"));
 
-	/** The ZIP Fallback is stored and the Job ended (FR-38): the Customer and the Mentor. */
-	static final NotificationType REPO_ZIP_FALLBACK_READY = new NotificationType("repo.zip_fallback_ready",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
-			Set.of("job"));
-
 	/** A GitHub App's registration or webhook differs from AD-10 (SG-18): every Administrator, once a day per App. */
 	static final NotificationType GITHUB_APP_CONFIGURATION_DRIFT = new NotificationType("github.app_configuration_drift",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("app", "differences"));
@@ -978,7 +973,7 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_INVITATION_RENEWALS_EXHAUSTED,
 				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_RECEIVE_CODE_REMINDER, REPO_FINAL_BRANCH_READY,
 				REPO_FINAL_MERGE_COMPLETED,
-				REPO_ZIP_FALLBACK_READY, REPO_CODE_RECEIPT_UNCONFIRMED, REPO_DOWNLOAD_REMINDER,
+				REPO_CODE_RECEIPT_UNCONFIRMED, REPO_DOWNLOAD_REMINDER,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN, GITHUB_RUNNER_RUN_FAILED, GITHUB_RUNNER_MINUTES_80,
 				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,

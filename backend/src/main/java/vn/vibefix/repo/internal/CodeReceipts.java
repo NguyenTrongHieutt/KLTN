@@ -161,7 +161,7 @@ class CodeReceipts {
 		// still scheduled re-checks this row and answers OBSOLETE.
 		this.todos.closeAll(Revocations.DOWNLOAD_TODO, job.jobId());
 		// A Final Merge run still out holds the marker: it goes with the receipt, so J9 passes and the run ends
-		// Obsolete on its next step. A Job already ended (a cancellation at J10, or the closure fallback) has no J9.
+		// Obsolete on its next step. A Job already ended (a cancellation at J10, or the deadline) has no J9.
 		boolean applied = this.completion.finish(job.jobId(), JobCompletion.Finish.SELF_DOWNLOAD,
 				job.busy().filter(marker -> marker.purpose() == JobBusy.Purpose.FINAL_MERGE)
 					.map(JobBusy.Busy::operationKey)
@@ -191,16 +191,20 @@ class CodeReceipts {
 	/**
 	 * The closing choice as JOB-1 reads it: the deadline, and which of the two paths is still open. A Job that never
 	 * had a choice row answers with the self-download alone and no deadline (Story 23.10b).
+	 * <p>
+	 * A Final Merge that was refused with its named reason leaves the row open so the deadline keeps running (Story
+	 * 23.10c), but the merge itself is over: the refusal is final for this Job, so the card is not offered again.
 	 */
 	@Transactional(readOnly = true)
 	Choice choice(BusyJob job, @Nullable Authorization authorization, boolean customer) {
 		FinalMerge merge = authorization == null ? null : this.merges.find(authorization.id()).orElse(null);
 		boolean spent = find(job.jobId()).isPresent() || (merge != null && "DONE".equals(merge.status()));
+		boolean refused = merge != null && merge.refusal() != null;
 		// The deadline runs while the Job is Closing: an ended Job has no date left to choose before.
 		Instant deadline = authorization != null && "CLOSING".equals(job.state()) ? authorization.deadlineAt() : null;
 		String intermediary = customer ? this.branches.intermediaryUrl(job.jobId()).orElse(null) : null;
 		return new Choice(deadline, deadline != null && !deadline.isAfter(this.clock.instant().plus(SOON)),
-				!spent && authorization != null && authorization.open() && "CLOSING".equals(job.state()),
+				!spent && !refused && authorization != null && authorization.open() && "CLOSING".equals(job.state()),
 				!spent && selfDownloadOpen(job, authorization) && readable(job.jobId()).isPresent(), intermediary,
 				// The deletion date belongs to the Customer's own card: the Mentor reads the outcome and no date (R15).
 				customer ? this.deadlines.dueAt(RepositoryDeletion.KEY, job.jobId()).orElse(null) : null);
@@ -209,17 +213,18 @@ class CodeReceipts {
 	/**
 	 * Whether the Job's handover work is still only in the Intermediary Repository, waiting for the Customer to
 	 * fetch it (FR-21, FR-38, D10, Story 23.10b): a handover was merged there, that repository is still readable,
-	 * the Customer has not said they have the code, no Final Merge branch was read back, and no closure fallback
-	 * stored its ZIP. A Job that ended {@code ZIP_FALLBACK} has its code in a file of vibefix's own, so there is
-	 * nothing to fetch from GitHub and nothing to remind about; once the repositories are deleted there is nothing
-	 * left to fetch at all. It opens {@value Revocations#DOWNLOAD_TODO} and the two download reminders when the Job
-	 * ends, and each reminder re-checks it at fire time. An Assessment Job has no handover work, so it never has any.
+	 * the Customer has not said they have the code, and no Final Merge branch was read back. Once the repositories
+	 * are deleted there is nothing left to fetch at all. It opens {@value Revocations#DOWNLOAD_TODO} and the two
+	 * download reminders when the Job ends, and each reminder re-checks it at fire time. An Assessment Job has no
+	 * handover work, so it never has any.
+	 * <p>
+	 * Story 23.10c retired the closure fallback: there is no file of vibefix's own left that could have carried the
+	 * code instead, so the Intermediary Repository is the only place to fetch it from.
 	 */
 	@Transactional(readOnly = true)
 	boolean unfetched(UUID jobId) {
 		return acceptedWork(jobId) && readable(jobId).isPresent() && find(jobId).isEmpty() && this.jdbc.sql("""
 				SELECT NOT EXISTS (SELECT 1 FROM repo.final_merge WHERE job_id = :job AND status = 'DONE')
-				    AND NOT EXISTS (SELECT 1 FROM repo.zip_fallback WHERE job_id = :job AND status = 'READY')
 				""").param("job", jobId).query(Boolean.class).single();
 	}
 
@@ -242,8 +247,8 @@ class CodeReceipts {
 
 	/**
 	 * Whether the Customer may still say they have the code: while the choice is open in Closing, and afterwards for
-	 * as long as there is accepted work to download -- a Final Merge that failed with its reason, a Job Closed by the
-	 * closure fallback, or one Cancelled at J10 (R5, D10).
+	 * as long as there is accepted work to download -- a Final Merge that failed with its reason, a Job Closed at the
+	 * closing choice's deadline, or one Cancelled at J10 (R5, D10).
 	 */
 	private boolean selfDownloadOpen(BusyJob job, @Nullable Authorization authorization) {
 		if (!ENDING.contains(job.state())) {

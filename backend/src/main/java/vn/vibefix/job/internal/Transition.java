@@ -80,7 +80,8 @@ enum Transition {
 			false, true),
 
 	J9(Machine.JOB, job(JobState.CLOSING), job(JobState.CLOSED, JobState.CANCELLED), Set.of(SYSTEM),
-			"Final Merge succeeded or ZIP Fallback offered (FR-38); Assessment Job: immediately; Cancelled if entered by cancellation",
+			"Final Merge read back, code receipt confirmed, or the closing choice's deadline passed (FR-38); Assessment Job: "
+					+ "immediately; Cancelled if entered by cancellation",
 			List.of(), List.of(new Effect("reputation", "The Rating Window opens (FR-49)"),
 					new Effect("reputation", "Portfolio Entries are created (FR-50)"),
 					new Effect("job", "The Crew is released (FR-75)")),

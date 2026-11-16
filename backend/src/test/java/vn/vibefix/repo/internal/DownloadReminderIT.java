@@ -223,39 +223,6 @@ class DownloadReminderIT extends IntegrationTest {
 	}
 
 	/**
-	 * The closure fallback stored its ZIP, so the code reached the Customer as a file of vibefix's own (Story 8.9):
-	 * there is nothing to fetch from GitHub, so no duty, no reminder and no notice.
-	 */
-	@Test
-	void aJobEndedWithItsZipStoredGetsNothing() {
-		acceptedWork();
-		UUID authorization = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO repo.final_merge_authorization (id, job_id, product_id, customer_account_id,
-				    repository_github_id, repository_name, status, requested_at, ended_at, end_reason)
-				SELECT :id, id, product_id, customer_account_id, 2, 'quan-may/so-dat-ban', 'ENDED', now(), now(),
-				    'ZIP_FALLBACK'
-				FROM job.job WHERE id = :job
-				""").param("id", authorization).param("job", this.job).update();
-		// A READY row names its archive; the file itself is the closure fallback's, and nothing here reads it.
-		this.jdbc.sql("""
-				INSERT INTO repo.zip_fallback (job_id, authorization_id, product_id, reason, status, archive_file_id,
-				    created_at, ready_at)
-				SELECT job_id, id, product_id, 'MERGE_REFUSED', 'READY', :file, now(), now()
-				FROM repo.final_merge_authorization WHERE id = :id
-				""").param("id", authorization).param("file", UUID.randomUUID()).update();
-
-		ends("ZIP_FALLBACK");
-		await().atMost(Duration.ofSeconds(15)).until(() -> this.jdbc.sql("""
-				SELECT count(*) FROM timers.deadline WHERE job_id = :job AND kind = 'repo.repository_deletion'
-				""").param("job", this.job).query(Long.class).single() == 1);
-
-		assertThat(downloadTodos()).isZero();
-		assertThat(reminderDeadlines()).isZero();
-		assertThat(notificationDates("repo.code_receipt_unconfirmed")).isEmpty();
-	}
-
-	/**
 	 * FR-21: the repositories are read back as gone on the deletion day. Nothing can close the fetching to-do after
 	 * that -- a code receipt needs a readable Intermediary Repository -- so the deletion closes it itself.
 	 */

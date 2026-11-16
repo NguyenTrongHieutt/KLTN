@@ -206,7 +206,6 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
           outcome: 'UNCONFIRMED',
           receipt: null,
           merge: null,
-          zip: null,
           choice: { ...open.choice, deadlineAt: null, intermediaryUrl: null, finalMerge: false, selfDownload: true },
         }),
     })
@@ -222,7 +221,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/jobs/j1/final-merge': () =>
-        json({ ...open, audience: 'MENTOR', receipt: null, merge: null, zip: null }),
+        json({ ...open, audience: 'MENTOR', receipt: null, merge: null }),
     })
     renderChoice()
 
@@ -231,7 +230,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     expect(screen.queryByRole('link')).toBeNull()
   })
 
-  /** A Job the closure fallback ended has no choice left to report and no outcome of this story's: nothing shows. */
+  /** A Job cancelled at J10 has no choice left to report and no outcome of this story's: nothing shows. */
   it('tells the Mentor nothing about a Job that ended another way', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
@@ -240,7 +239,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
           ...open,
           audience: 'MENTOR',
           status: 'ENDED',
-          endReason: 'ZIP_FALLBACK',
+          endReason: 'CANCELLED',
           outcome: null,
           choice: { ...open.choice, deadlineAt: null, finalMerge: false, selfDownload: true },
         }),

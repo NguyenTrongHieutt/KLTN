@@ -10,7 +10,7 @@ export type FinalMerge = components['schemas']['FinalMergeView']
 /** Where "Đăng công việc ghép mã" opens CUS-6, pre-filled to merge a Job's code (FR-38). */
 export const MERGE_CODE_PARAM = 'ghep-ma'
 
-/** How often the step reads again while the code is checked, or while the closure fallback is built. */
+/** How often the step reads again while the accepted code is checked. */
 const RUNNING_POLL_MS = 5_000
 
 /** How often it reads again while a run is on the Customer's own Actions (EXPERIENCE.md, Polling). */
@@ -18,10 +18,11 @@ const RUN_POLL_MS = 3_000
 
 /**
  * The closure step of the Job's Customer or its Mentor (FR-37, FR-38, UX-DR116); everyone else, and an Assessment
- * Job, finds nothing. For the Customer it reads again while the Final Merge is checked, while its run is on their
- * own GitHub Actions, and while the closure fallback a refusal started is built; the Mentor's read holds the choice
- * and its outcome alone, with no run and no fallback of its own to wait for, so it never polls. A Job that simply
- * ended -- at the closing choice's deadline, at J10, or with its proposal -- waits for nothing either.
+ * Job, finds nothing. For the Customer it reads again while the Final Merge is checked and while its run is on
+ * their own GitHub Actions; the Mentor's read holds the choice and its outcome alone, with no run to wait for, so
+ * it never polls. Nothing else is ever waited for: Story 23.10c retired the closure fallback, so a refused Final
+ * Merge and a Job that simply ended -- at the closing choice's deadline, at J10, or with its proposal -- are final
+ * as they are read.
  */
 export function useFinalMerge(jobId: string) {
   return useQuery({
@@ -33,14 +34,10 @@ export function useFinalMerge(jobId: string) {
         return false
       }
       const status = query.state.data?.merge?.status
-      const zip = query.state.data?.zip?.status
       if (status === 'CONFIRMED' || status === 'RUNNING') {
         return RUN_POLL_MS
       }
-      // A row that ended ZIP_FALLBACK is waiting for its fallback's row to appear; every other ending -- the
-      // closing choice's deadline (Story 23.10b), a cancellation, a proposal that ended -- is waiting for nothing.
-      const awaitingZip = query.state.data?.endReason === 'ZIP_FALLBACK' && !zip
-      return status === 'CHECKING' || zip === 'BUILDING' || awaitingZip ? RUNNING_POLL_MS : false
+      return status === 'CHECKING' ? RUNNING_POLL_MS : false
     },
   })
 }

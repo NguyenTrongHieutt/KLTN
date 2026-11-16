@@ -66,8 +66,9 @@ import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
  * Outcomes: the exchange's refusal ends it {@code EXCHANGE_REFUSED}; a run Actions' quota stopped ends it
  * {@code ACTIONS_QUOTA}; a failed guard ends it {@code J9_GUARD}; any other conclusion, the timeout, or a success whose
  * branch does not read back is {@code RUN_FAILED}, which the lane policy dispatches again under a new correlation
- * until its attempts run out, and then ends it. Every ending releases the marker and hands the Job to the closure
- * fallback with that reason. A Source block the Customer can fix only waits, as does a frozen Job (AD-28, Story 9.4).
+ * until its attempts run out, and then ends it. Every ending releases the marker and leaves the closing choice open
+ * with that reason, so the Customer receives the code themselves (Story 23.10c). A Source block the Customer can fix
+ * only waits, as does a frozen Job (AD-28, Story 9.4).
  */
 @Component
 class FinalMergeOperation implements OperationHandler {
@@ -321,9 +322,9 @@ class FinalMergeOperation implements OperationHandler {
 	}
 
 	/**
-	 * The Final Merge ends with its named reason: the marker goes, and the Job follows the closure fallback. A run
+	 * The Final Merge ends with its named reason: the marker goes, and the closing choice stays open with it. A run
 	 * still out is given up first, closed and cancelled, so it never trades its ID token for one that would push
-	 * {@code vibefix/final-{jobId}} into the Customer's repository after the Job took the fallback.
+	 * {@code vibefix/final-{jobId}} into the Customer's repository after the Final Merge was given up.
 	 */
 	private Outcome end(FinalMerge merge, String refusal) {
 		UUID correlation = merge.correlationId();

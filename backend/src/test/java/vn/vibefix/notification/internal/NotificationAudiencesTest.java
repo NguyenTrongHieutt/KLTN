@@ -42,7 +42,6 @@ class NotificationAudiencesTest {
 			Map.entry("repo.revocation_checklist_reminder", Set.of(Audience.CUSTOMER)),
 			Map.entry("repo.final_branch_ready", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("repo.final_merge_completed", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
-			Map.entry("repo.zip_fallback_ready", Set.of(Audience.CUSTOMER, Audience.MENTOR)),
 			Map.entry("repo.code_receipt_unconfirmed", Set.of(Audience.CUSTOMER)),
 			Map.entry("repo.download_reminder", Set.of(Audience.CUSTOMER)),
 			Map.entry("reputation.rating_window_opened", Set.of(Audience.CUSTOMER, Audience.MENTOR)),

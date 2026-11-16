@@ -21,9 +21,9 @@ import vn.vibefix.timers.DueDeadline;
  * {@value #KEY} (FR-37, FR-38, D10, Story 23.10b): the closing choice's deadline, set at J8. A row still
  * {@code REQUESTED} whose Customer has taken neither path ends the Job itself: J9 applies as
  * {@link JobCompletion.Finish#UNCONFIRMED} -- Closed, or Cancelled when Closing was entered by a confirmed
- * cancellation -- and only then does the row end {@code DEADLINE}. No ZIP is started: {@code DEADLINE} is no longer
- * one of {@link ZipFallbacks}' triggers, and J9 running first keeps that retired path unreachable anyway, since it
- * refuses a Job that is no longer Closing. The Customer hears {@code repo.code_receipt_unconfirmed} and keeps the
+ * cancellation -- and only then does the row end {@code DEADLINE}. Since Story 23.10c this is the Job's only way
+ * out of {@code CLOSING} when the Customer confirms nothing, which is why a refused Final Merge leaves the row
+ * {@code REQUESTED} rather than ending it. The Customer hears {@code repo.code_receipt_unconfirmed} and keeps the
  * self-download until the repositories are deleted, which {@link Revocations} arranges on the ending transition.
  * <p>
  * A Final Merge the Customer set going finishes on its own, and a receipt already recorded ended the Job already:
