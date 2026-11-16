@@ -3017,7 +3017,8 @@
         "unconfirmed": {
           "title": "Bạn chưa xác nhận đã nhận mã",
           "lead": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa.",
-          "leadUntilDeletion": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa."
+          "leadUntilDeletion": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa.",
+          "leadDeleted": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian đã bị xóa, nên không tải mã từ vibefix được nữa."
         },
         "mentor": {
           "open": "Khách hàng đang chọn cách nhận mã (hạn {date})",

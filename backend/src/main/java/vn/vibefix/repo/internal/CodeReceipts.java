@@ -202,22 +202,36 @@ class CodeReceipts {
 		return new Choice(deadline, deadline != null && !deadline.isAfter(this.clock.instant().plus(SOON)),
 				!spent && authorization != null && authorization.open() && "CLOSING".equals(job.state()),
 				!spent && selfDownloadOpen(job, authorization) && readable(job.jobId()).isPresent(), intermediary,
-				this.deadlines.dueAt(RepositoryDeletion.KEY, job.jobId()).orElse(null));
+				// The deletion date belongs to the Customer's own card: the Mentor reads the outcome and no date (R15).
+				customer ? this.deadlines.dueAt(RepositoryDeletion.KEY, job.jobId()).orElse(null) : null);
 	}
 
 	/**
-	 * Whether the Job's handover work is still only in the Intermediary Repository (FR-21, FR-38, D10, Story
-	 * 23.10b): a handover was merged there, the Customer has not said they have the code, and no Final Merge branch
-	 * was read back. It opens {@value Revocations#DOWNLOAD_TODO} and the two download reminders when the Job ends,
-	 * and each reminder re-checks it at fire time. An Assessment Job has no handover work, so it never has any.
+	 * Whether the Job's handover work is still only in the Intermediary Repository, waiting for the Customer to
+	 * fetch it (FR-21, FR-38, D10, Story 23.10b): a handover was merged there, that repository is still readable,
+	 * the Customer has not said they have the code, no Final Merge branch was read back, and no closure fallback
+	 * stored its ZIP. A Job that ended {@code ZIP_FALLBACK} has its code in a file of vibefix's own, so there is
+	 * nothing to fetch from GitHub and nothing to remind about; once the repositories are deleted there is nothing
+	 * left to fetch at all. It opens {@value Revocations#DOWNLOAD_TODO} and the two download reminders when the Job
+	 * ends, and each reminder re-checks it at fire time. An Assessment Job has no handover work, so it never has any.
 	 */
 	@Transactional(readOnly = true)
 	boolean unfetched(UUID jobId) {
-		return acceptedWork(jobId) && find(jobId).isEmpty()
-				&& !this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM repo.final_merge WHERE job_id = :job AND status = 'DONE')")
-					.param("job", jobId)
-					.query(Boolean.class)
-					.single();
+		return acceptedWork(jobId) && readable(jobId).isPresent() && find(jobId).isEmpty() && this.jdbc.sql("""
+				SELECT NOT EXISTS (SELECT 1 FROM repo.final_merge WHERE job_id = :job AND status = 'DONE')
+				    AND NOT EXISTS (SELECT 1 FROM repo.zip_fallback WHERE job_id = :job AND status = 'READY')
+				""").param("job", jobId).query(Boolean.class).single();
+	}
+
+	/**
+	 * Whether the closure step has anything to answer with for a Job that never had a closing-choice row (Story
+	 * 23.10b): the Job has ended, and either its handover work is still there to fetch or the Customer's own receipt
+	 * is on the record. That second half is what keeps the step readable once the receipt is given, since
+	 * {@link #unfetched} turns false then and the Customer must still see what they confirmed.
+	 */
+	@Transactional(readOnly = true)
+	boolean step(BusyJob job) {
+		return ENDING.contains(job.state()) && (unfetched(job.jobId()) || find(job.jobId()).isPresent());
 	}
 
 	/** The Source Repository the Job's Setup copied, which the closure view names when there is no choice row. */

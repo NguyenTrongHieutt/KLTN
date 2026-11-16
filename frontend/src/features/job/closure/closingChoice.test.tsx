@@ -171,8 +171,8 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     expect(screen.queryByText('Hợp nhất vào dự án của bạn')).toBeNull()
   })
 
-  /** The repositories went with the deletion: the ending still reads, with nothing left to download. */
-  it('states the unconfirmed ending even once there is nothing left to download', async () => {
+  /** The repositories went with the deletion: the ending still reads, and says the code is gone from vibefix. */
+  it('says the Intermediary has been deleted once there is nothing left to download', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
@@ -188,7 +188,8 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     renderChoice()
 
     expect(await screen.findByRole('heading', { name: 'Bạn chưa xác nhận đã nhận mã' })).toBeInTheDocument()
-    expect(screen.getByText(/đến khi nó bị xóa/)).toBeInTheDocument()
+    expect(screen.getByText(/Kho trung gian đã bị xóa/)).toBeInTheDocument()
+    expect(screen.queryByText(/vẫn mở cho bạn đọc/)).toBeNull()
     expect(screen.queryByRole('button')).toBeNull()
   })
 

@@ -177,7 +177,7 @@ class Revocations {
 			return;
 		}
 		String date = DAY_MONTH.format(deleteAt.atZone(VIETNAM));
-		String link = "/cong-viec/" + job.jobId();
+		String link = FinalMergeAuthorizations.link(job.jobId());
 		this.todos.open(new TodoRequest(DOWNLOAD_TODO, job.customerId(), Audience.CUSTOMER, job.jobId(),
 				Map.of("job", job.title(), "date", date), link, deleteAt, job.jobId()));
 		for (Duration before : REMINDERS) {

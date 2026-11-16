@@ -80,7 +80,9 @@ class FinalMergeDeadline implements DeadlineHandler {
 		boolean settled = this.merges.getObject().find(authorization.id()).filter(FinalMerges::confirmed).isPresent()
 				|| this.receipts.getObject().find(authorization.jobId()).isPresent();
 		BusyJob job = this.busy.getObject().job(authorization.jobId()).orElse(null);
-		if (settled || job == null) {
+		// The choice belongs to Closing, and J9 is the only transition out of it: a Job that is no longer Closing
+		// has no J9 left to apply, so J9 would refuse for good and a REARM below would retry at every poll.
+		if (settled || job == null || !"CLOSING".equals(job.state())) {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		if (job.busy().isPresent()) {

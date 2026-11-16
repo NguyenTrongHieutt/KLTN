@@ -369,9 +369,16 @@ class FinalMergeAuthorizationIT extends IntegrationTest {
 		this.transactions.executeWithoutResult(status -> this.events.publishEvent(event));
 	}
 
-	/** D10: the deadline is no longer one of the closure fallback's triggers, so no ZIP row and no ZIP operation. */
+	/**
+	 * D10: the deadline is no longer one of the closure fallback's triggers, so no ZIP row and no ZIP operation.
+	 * The fallback starts in a listener, so every published event is drained first; a fixed wait would pass on a
+	 * slow machine whatever the listener went on to do.
+	 */
 	private void assertNoZipEverStarted() {
-		await().pollDelay(Duration.ofMillis(500)).atMost(Duration.ofSeconds(5)).until(() -> true);
+		await().atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
+				.query(Long.class)
+				.single() == 0);
 		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.zip_fallback WHERE job_id = :job")
 			.param("job", this.job).query(Long.class).single()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM operations.external_operation WHERE type = 'repo.zip_fallback'")

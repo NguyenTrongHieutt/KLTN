@@ -96,9 +96,12 @@ function Cards({ jobId, version, view }: { jobId: string; version: number; view:
             {t('screen.closure.choice.unconfirmed.title')}
           </h3>
           <p className="text-body-sm">
-            {choice.deletionAt
-              ? t('screen.closure.choice.unconfirmed.lead', { date: formatDayMonth(choice.deletionAt) })
-              : t('screen.closure.choice.unconfirmed.leadUntilDeletion')}
+            {/* Nothing left to download means the repositories are gone: a date to fetch by would read as a promise. */}
+            {!choice.selfDownload
+              ? t('screen.closure.choice.unconfirmed.leadDeleted')
+              : choice.deletionAt
+                ? t('screen.closure.choice.unconfirmed.lead', { date: formatDayMonth(choice.deletionAt) })
+                : t('screen.closure.choice.unconfirmed.leadUntilDeletion')}
           </p>
         </div>
       ) : (

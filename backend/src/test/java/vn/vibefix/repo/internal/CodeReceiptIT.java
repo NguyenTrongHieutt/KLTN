@@ -253,12 +253,44 @@ class CodeReceiptIT extends IntegrationTest {
 		assertThat(jobState()).as("no J9 is left to apply").isEqualTo("CANCELLED");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).isOne();
+		// The receipt is the Customer's own record: reading the step again must still show it, although there is
+		// nothing left to fetch and so no other reason to serve a Job with no row.
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.outcome").value("SELF_DOWNLOAD"))
+			.andExpect(jsonPath("$.receipt.confirmedBy").value(this.lan.toString()))
+			.andExpect(jsonPath("$.choice.selfDownload").value(false));
 	}
 
 	/** A Job with neither a closing-choice row nor work left to fetch has no step at all. */
 	@Test
 	void aJobWithNeitherARowNorWorkToFetchIsNotFound() throws Exception {
 		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+	}
+
+	/** The step with no row belongs to an ended Job: a running one has no closure to read, work accepted or not. */
+	@Test
+	void anActiveJobWithAcceptedWorkAndNoRowIsNotFound() throws Exception {
+		acceptedWork();
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE', closing_at = NULL WHERE id = :id").param("id", this.job).update();
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+	}
+
+	/** The repositories are gone and nothing was confirmed: a Job with no row has nothing left to answer with. */
+	@Test
+	void aNoRowJobWhoseIntermediaryIsDeletedIsNotFound() throws Exception {
+		acceptedWork();
+		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE job_id = :job").param("job", this.job).update();
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED', cancelled_at = now() WHERE id = :id")
+			.param("id", this.job)
+			.update();
+		this.jdbc.sql("UPDATE repo.job_setup SET deleted_at = now() WHERE id = :id").param("id", this.setup).update();
 
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());

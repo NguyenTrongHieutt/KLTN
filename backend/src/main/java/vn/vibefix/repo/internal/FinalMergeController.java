@@ -184,8 +184,9 @@ class FinalMergeController {
 	FinalMergeView view(@PathVariable UUID jobId) {
 		Viewer viewer = viewer(jobId);
 		Authorization authorization = this.authorizations.latest(viewer.job().jobId()).orElse(null);
-		if (authorization == null && !this.receipts.unfetched(viewer.job().jobId())) {
-			// No closing choice was ever made here and nothing is left to fetch: there is no step to show.
+		if (authorization == null && !this.receipts.step(viewer.job())) {
+			// No closing choice was ever made here, and this Job has neither ended with work left to fetch nor a
+			// receipt of its own to show: there is no step at all.
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		if (viewer.customer() && authorization != null && authorization.open()) {
