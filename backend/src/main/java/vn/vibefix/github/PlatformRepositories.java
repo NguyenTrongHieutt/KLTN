@@ -238,12 +238,6 @@ public interface PlatformRepositories {
 	/** Removes {@code login}'s pending invitation, if any (FR-21). */
 	void removeInvitation(PlatformRepository repository, String login);
 
-	/**
-	 * The ZIP of the repository's {@code branch}, built in the sandbox from tree objects (FR-21, FR-38, AD-32),
-	 * cloned with a token narrowed to the repository holding {@code contents} read.
-	 */
-	byte[] zip(PlatformRepository repository, String branch);
-
 	/** Deletes the repository; a repository already gone changes nothing (FR-21). */
 	void delete(PlatformRepository repository);
 

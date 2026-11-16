@@ -216,9 +216,11 @@ class MatrixFilesTest {
 			"file=attachment", "ChatAttachmentFiles", "file=chat", "HandoverScreenshotFiles", "file=screenshot",
 			"BidProofFiles", "file=proof", "CrewApplicationProofFiles", "file=crew-proof");
 
-	/** The file read policies no fixture world can reach, each with why. */
-	static final Map<String, String> UNREACHABLE_FILE_POLICIES = Map.of("FinalZipFiles",
-			"the final ZIP is built when the Job ends, at J8 or J10 (Story 7.7), and every fixture Job is Active");
+	/**
+	 * The file read policies no fixture world can reach, each with why. Empty since Story 23.10d retired the final
+	 * ZIP, the only one there was: every file read policy left is bound by a matrix row.
+	 */
+	static final Map<String, String> UNREACHABLE_FILE_POLICIES = Map.of();
 
 	/**
 	 * The callers every crew-Job file binding runs: the Job's roles, the cross-role member, an unrelated user, the
@@ -633,8 +635,9 @@ class MatrixFilesTest {
 				GET /api/v1/files/{fileId},USER,file=attachment,,404 NOT_FOUND
 				GET /api/v1/files/{fileId},MENTOR,file=attachment,,200
 				""");
-		assertThat(fileViolations(rows, Set.of("AttachmentFiles", "ChatAttachmentFiles", "FinalZipFiles"),
-				Map.of("AttachmentFiles", "file=attachment", "GoneFiles", ""), Map.of("FinalZipFiles", "never")))
+		// UnreachableFiles is fictional: no file read policy is listed unreachable any more (Story 23.10d).
+		assertThat(fileViolations(rows, Set.of("AttachmentFiles", "ChatAttachmentFiles", "UnreachableFiles"),
+				Map.of("AttachmentFiles", "file=attachment", "GoneFiles", ""), Map.of("UnreachableFiles", "never")))
 			.containsExactly(
 					"ChatAttachmentFiles reads files no row runs: bind {fileId} to one, or list it unreachable with the reason",
 					"GoneFiles is no file read policy",

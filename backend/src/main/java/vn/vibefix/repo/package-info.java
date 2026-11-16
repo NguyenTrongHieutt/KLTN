@@ -8,7 +8,7 @@
  * (FR-66): after J8 or J10 the Mentor and every Crew member who was ever active confirm, item by item,
  * that they deleted the Customer's non-code data and their preview deployments; closure never waits for
  * it. Revocation and deletion (Story 7.7) end every grant after J8, J10, a lock, or a Crew change, and
- * delete both repositories 30 days after the end, once the final ZIP is stored through {@code files}.
+ * delete both repositories 30 days after the end.
  * <p>
  * Public API: {@link vn.vibefix.repo.DataDeletions}, whether a person confirmed (FR-50),
  * {@link vn.vibefix.repo.DataDeletionConfirmed}, the event when their confirmation completes, and
@@ -17,7 +17,7 @@
  * {@link vn.vibefix.repo.HandoverCopyFinished}, the copy of a Handover Commit to {@code handover/{id}} of the
  * Intermediary on the runner's GitHub Actions and the path report it brings back (AD-46, Story 23.8a).
  */
-@ApplicationModule(allowedDependencies = { "shared", "audit", "files", "identity", "notification", "job", "operations",
+@ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "job", "operations",
 		"github", "product", "scanning", "timers" })
 package vn.vibefix.repo;
 

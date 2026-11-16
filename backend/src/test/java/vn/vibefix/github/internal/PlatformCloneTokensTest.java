@@ -7,11 +7,8 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.eclipse.jgit.internal.storage.file.WindowCache;
 import org.eclipse.jgit.lib.RepositoryCache;
@@ -21,22 +18,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.JsonNodeFactory;
 import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 import vn.vibefix.github.internal.GitHubProperties.AppProperties;
-import vn.vibefix.shared.SandboxJobResult;
 
 /**
  * Story 23.3 (D1, AD-10, deferred-work 659): the platform repositories are private. Every pull-request call holds
  * {@code contents} read besides its {@code pull_requests} permission, which the stub requires on a private
- * repository as GitHub does (Spike S6 Part C); the Working head is read with a token narrowed to it; and every
- * sandbox clone of a platform repository ({@code REPOSITORY_ZIP}, the only one left) gets a token narrowed to
- * that repository with {@code contents} read; the handover copy runs on the runner's Actions instead (AD-46, Story
- * 23.8a), Story 23.9a retired the trial merge with the Merge App's Final Merge, and Story 23.9b took that App's
- * own push with it. The stub's {@code file://} hosting takes no credentials, so these show the job receives the
- * narrowed token.
+ * repository as GitHub does (Spike S6 Part C), and the Working head is read with a token narrowed to it. No
+ * sandbox clone of a platform repository is left: the handover copy runs on the runner's Actions instead (AD-46,
+ * Story 23.8a), Story 23.9a retired the trial merge with the Merge App's Final Merge, Story 23.9b took that App's
+ * own push with it, and Story 23.10d retired the final ZIP, the last of them.
  */
 class PlatformCloneTokensTest {
 
@@ -48,9 +40,6 @@ class PlatformCloneTokensTest {
 	private GitHubAppsClient apps;
 
 	private GitHubPlatformRepositories repositories;
-
-	/** Each sandbox job sent, with its input. */
-	private final List<JsonNode> jobs = Collections.synchronizedList(new ArrayList<>());
 
 	private PlatformRepository intermediary;
 
@@ -71,14 +60,7 @@ class PlatformCloneTokensTest {
 		Clock clock = Clock.fixed(Instant.parse("2026-11-12T03:00:00Z"), ZoneOffset.UTC);
 		this.apps = new GitHubAppsClient(new GitHubProperties(this.github.apiUrl(), this.github.gitUrl(),
 				GitHubStub.ORGANIZATION, new AppProperties(123456L, GitHubStub.INSTALLATION, key)), clock);
-		vn.vibefix.shared.SandboxJobs sandbox = (type, input) -> {
-			this.jobs.add(JsonNodeFactory.instance.objectNode().put("type", type).set("input", input.deepCopy()));
-			return new SandboxJobResult(type, switch (type) {
-				case RepositoryZipJobHandler.TYPE -> JsonNodeFactory.instance.objectNode().put("zip", "UEs=");
-				default -> JsonNodeFactory.instance.objectNode().put("clean", true);
-			});
-		};
-		this.repositories = new GitHubPlatformRepositories(this.apps, sandbox, clock);
+		this.repositories = new GitHubPlatformRepositories(this.apps, clock);
 	}
 
 	@AfterEach
@@ -86,14 +68,6 @@ class PlatformCloneTokensTest {
 		this.github.close();
 		RepositoryCache.clear();
 		WindowCache.reconfigure(new WindowCacheConfig());
-	}
-
-	@Test
-	void theZipClonesWithAReadTokenNarrowedToTheRepository() {
-		this.repositories.zip(this.intermediary, "main");
-
-		assertThat(grant(onlyJob(RepositoryZipJobHandler.TYPE).path("token").asString()))
-			.isEqualTo(narrowed(this.intermediary, Map.of("contents", "read")));
 	}
 
 	@Test
@@ -136,26 +110,6 @@ class PlatformCloneTokensTest {
 				token -> this.apps.http().send("POST", "/repos/vibefix-dev/job-1-intermediary/pulls", token.value(),
 						Map.of("title", "x", "head", "handover/h1", "base", "main")).status());
 		assertThat(refused).as("pull_requests alone, as before Story 23.3").isEqualTo(422);
-	}
-
-	private JsonNode onlyJob(String type) {
-		assertThat(this.jobs).singleElement().satisfies(job -> assertThat(job.path("type").asString()).isEqualTo(type));
-		return this.jobs.getFirst().path("input");
-	}
-
-	/** What the stub recorded for the token: its repositories and permissions. */
-	private Map<String, Object> grant(String token) {
-		assertThat(token).as("a token was sent").isNotBlank();
-		JsonNode grant = this.github.grantOf(token);
-		List<Long> ids = new ArrayList<>();
-		grant.path("repository_ids").forEach(id -> ids.add(id.asLong()));
-		Map<String, String> permissions = new TreeMap<>();
-		grant.path("permissions").properties().forEach(entry -> permissions.put(entry.getKey(), entry.getValue().asString()));
-		return Map.of("repositories", ids, "permissions", permissions);
-	}
-
-	private static Map<String, Object> narrowed(PlatformRepository repository, Map<String, String> permissions) {
-		return Map.of("repositories", List.of(repository.id()), "permissions", new TreeMap<>(permissions));
 	}
 
 }

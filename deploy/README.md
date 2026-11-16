@@ -380,12 +380,14 @@ App is configured.
 
 - **A block** (the Source App uninstalled or on the wrong repositories, `vibefix.yml` removed or changed, or
   lost admin rights) stops the start and tells the Customer and the Mentor why. The Customer fixes it and
-  taps "Thử lại" on JOB-H. Until Story 23.6 moves the copy onto the Customer's Actions, the sandbox still
-  clones the Source Repository without a token, so a dev run needs a public test repository.
+  taps "Thử lại" on JOB-H. Since Story 23.6 the copy runs on the Customer's own Actions from the published
+  `vibefix.yml`, so a dev run needs the Source App installed on the test repository and that file in place;
+  the repository itself may be private.
 - **The copies are private repositories** in the organization. Every pull-request call holds Contents read,
-  and the handover pin, the Final Merge trial and push, and the ZIP clone them with a token narrowed to the
-  one repository with Contents read (Stories 23.8 to 23.10 replace these jobs). Delete them by hand after a
-  dev run.
+  which GitHub needs on a private repository. Nothing clones them any more: the handover copy runs on the
+  runner's Actions (Story 23.8), the Final Merge on the Customer's own (Story 23.9), and the 30-day deletion
+  deletes both repositories without building anything first (Story 23.10). Delete them by hand after a dev
+  run.
 - **Invitations follow (Story 7.3).** The Mentor and each active Crew member are invited to the Working
   Repository with read. Each accepts on GitHub, with two-factor authentication on. vibefix reads
   acceptance back every 10 minutes (`vibefix.repo.grant-sweep`), or at once on a `member` webhook.
@@ -987,6 +989,6 @@ These files still name their old paths (`deploy/caddy`, `deploy/egress`, `deploy
 work again once moved back. They return in Epic 18, after checkpoint 1 and before the production
 host (Story 13.1): CI in Story 18.1, `sandbox` and `egress` in 18.2, `checker` in 18.3, and the
 Caddy edge with the ZAP baseline in 18.4. Until then, work the architecture puts in the sandbox
-(image re-encoding, repository scans, Git pushes, ZIPs, preview checks) runs in-process through
-`SandboxJobs` on this stack; the `prod` profile refuses that mode. Use test repositories and files
-only.
+(image re-encoding and preview checks -- nothing clones a repository or builds a ZIP since Stories
+23.1 to 23.10) runs in-process through `SandboxJobs` on this stack; the `prod` profile refuses that
+mode. Use test repositories and files only.

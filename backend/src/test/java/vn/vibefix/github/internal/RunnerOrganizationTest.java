@@ -205,9 +205,7 @@ class RunnerOrganizationTest {
 	private GitHubPlatformRepositories repositories(@Nullable String runner) {
 		Clock clock = Clock.fixed(Instant.parse("2026-11-12T03:00:00Z"), ZoneOffset.UTC);
 		GitHubAppsClient apps = new GitHubAppsClient(properties(runner), clock);
-		return new GitHubPlatformRepositories(apps, (type, input) -> {
-			throw new UnsupportedOperationException("no sandbox job here: " + type);
-		}, clock);
+		return new GitHubPlatformRepositories(apps, clock);
 	}
 
 	/** The properties, accepting the published runner workflow as {@code application.yaml} does (Story 23.4). */

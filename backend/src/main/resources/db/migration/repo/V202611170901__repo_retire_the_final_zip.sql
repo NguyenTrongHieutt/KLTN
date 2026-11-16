@@ -1,0 +1,25 @@
+-- Story 23.10d (FR-21, FR-38, D10, AD-8, NFR-10): the final ZIP of Story 7.7 is retired. The 30-day deletion no
+-- longer archives anything first -- it deletes the Working Repository, then the Intermediary, and reads both back
+-- as gone -- so repo.job_setup.archive_file_id, added by V202610221740 to name the stored archive, has no reader
+-- and no writer left. The column goes; the files rows it named are marked deleted by V202611170900, a minute
+-- earlier, because data goes before schema.
+--
+-- What stays: everything else on the Setup -- the two repositories, the default branch, started_at and
+-- deleted_at. The deletion itself needs only the repositories and deleted_at; the rest stays because a Setup is
+-- the Job's record of what was created on GitHub, and default_branch has its own readers (the Setup view, the
+-- handover range and the Final Merge). The archive was the only thing default_branch fed here, and that payload
+-- key goes with it. The audit entries repo.final_zip_stored and repo.deletion_started that were written in the
+-- past stay too: the audit trail is never rewritten (AD-8), and they say truthfully what happened then.
+--
+-- A repo.repository_delete operation queued before this story carries a zip flag, a customerId and a branch in
+-- its payload. None is read any more, and none is removed here: the payload is the operation's own record, and
+-- the handler deletes exactly the repositories that payload names. The operation key changed too -- it was
+-- setupId:delete:true for the deadline and setupId:delete:false for a Product deletion, and is now
+-- setupId:delete -- so a row queued under an old key is not matched by a request made after the upgrade. A
+-- Product deleted in that window therefore queues a second operation. It settles by itself: its first attempt
+-- is refused for repositories GitHub no longer knows, and from the second attempt the handler reads them back
+-- as gone and skips them, after which deleted() finds the Setup's deleted_at already set and changes nothing.
+-- Personal data: the column held a files row's id, and that row is marked deleted by this story's files
+-- migration; nothing new is kept.
+
+ALTER TABLE repo.job_setup DROP COLUMN IF EXISTS archive_file_id;

@@ -403,8 +403,7 @@ DELETE /api/v1/verification/student,ADMINISTRATOR,,,404 NOT_FOUND
 # Crew Chat file sent after the former members' windows ended (ChatAttachmentFiles: the Crew Chat's readers, the
 # Team Issue grant included); file=screenshot, a handover's screenshot (HandoverScreenshotFiles: the Delivery Report's
 # readers). Each binding runs every caller of the Job, the cross-role member, an unrelated user, the grant-less
-# Administrator (who reads none) and every grant caller. The final ZIP (FinalZipFiles) exists only from J8 or J10,
-# which no fixture Job reached.
+# Administrator (who reads none) and every grant caller.
 GET /api/v1/files/{fileId},ANONYMOUS,,,401
 GET /api/v1/files/{fileId},USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER,,,200

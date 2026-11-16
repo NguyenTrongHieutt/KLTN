@@ -3,9 +3,9 @@ package vn.vibefix.shared;
 import tools.jackson.databind.JsonNode;
 
 /**
- * The job channel to the sandbox (AD-32). Untrusted content (clones, ZIP builds, image
- * re-encoding) is handled by the {@code sandbox} service, which runs the same image under the
- * profile {@code sandbox} with no platform secrets and no database. A module sends a job by type and
+ * The job channel to the sandbox (AD-32). Untrusted content (image re-encoding; nothing clones a
+ * repository or builds a ZIP any more) is handled by the {@code sandbox} service, which runs the same image
+ * under the profile {@code sandbox} with no platform secrets and no database. A module sends a job by type and
  * waits for the output of the {@link SandboxJobHandler} that runs it there. Outbound URL checks run
  * in the {@code checker} service instead: the same worker, serving only the job types it lists.
  */

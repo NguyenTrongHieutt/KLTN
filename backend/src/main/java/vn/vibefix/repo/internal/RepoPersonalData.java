@@ -11,7 +11,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-import vn.vibefix.files.StoredFiles;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ErasureBlocker;
 import vn.vibefix.shared.PersonalDataParticipant;
@@ -24,8 +23,8 @@ import vn.vibefix.shared.PersonalDataSection;
  * erasing them first revokes on GitHub any read they still hold as a Customer, then deletes the first two (the Audit Log
  * keeps when each grant was made) and anonymizes the self-confirmations, which stay the Job's record of what was
  * confirmed, and the rows, whose to-dos close; deleting a Product ends its Customer's reads, deletes its Jobs' rows,
- * self-confirmations and Setups, requests the deletion of the platform repositories still there at once, without a ZIP,
- * and deletes any final ZIP (FR-21, NFR-10).
+ * self-confirmations and Setups, and requests the deletion of the platform repositories still there at once
+ * (FR-21, NFR-10). vibefix stores no copy of the code, so there is no archive to delete (Story 23.10d).
  * <p>
  * A code receipt (Story 23.10a) says only that one account confirmed at one time, so there is nothing in it to
  * anonymize: an erasure and a Product deletion both delete it, and the Audit Log keeps that it was recorded.
@@ -38,8 +37,6 @@ class RepoPersonalData implements PersonalDataParticipant {
 	/** Looked up on use: the deletion requests an operation, whose handlers come back to {@code repo}. */
 	private final ObjectProvider<RepositoryDeletions> deletions;
 
-	private final ObjectProvider<StoredFiles> files;
-
 	private final ObjectProvider<Todos> todos;
 
 	/** Looked up on use, as the deletions are: an erasure revokes the Customer's read before its rows go. */
@@ -48,11 +45,10 @@ class RepoPersonalData implements PersonalDataParticipant {
 	/** Looked up on use: a Product deletion ends its Customer's reads before its rows go. */
 	private final ObjectProvider<JobGrants> grants;
 
-	RepoPersonalData(JdbcClient jdbc, ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<StoredFiles> files,
-			ObjectProvider<Todos> todos, ObjectProvider<Revocations> revocations, ObjectProvider<JobGrants> grants) {
+	RepoPersonalData(JdbcClient jdbc, ObjectProvider<RepositoryDeletions> deletions, ObjectProvider<Todos> todos,
+			ObjectProvider<Revocations> revocations, ObjectProvider<JobGrants> grants) {
 		this.jdbc = jdbc;
 		this.deletions = deletions;
-		this.files = files;
 		this.todos = todos;
 		this.revocations = revocations;
 		this.grants = grants;
@@ -184,8 +180,7 @@ class RepoPersonalData implements PersonalDataParticipant {
 	public void deleteProduct(UUID productId) {
 		closeRevocationTodos(productId);
 		RepositoryDeletions deletions = this.deletions.getObject();
-		deletions.ofProduct(productId).forEach(pending -> deletions.request(pending, null, false));
-		deletions.archivesOfProduct(productId).forEach(this.files.getObject()::delete);
+		deletions.ofProduct(productId).forEach(deletions::request);
 		this.jdbc.sql("DELETE FROM repo.data_deletion_confirmation WHERE product_id = :id").param("id", productId).update();
 		// R5: the repositories go, and with them the Customer's read, audited and its to-do closed before the rows go.
 		this.grants.getObject().productDeleted(productId);
@@ -205,12 +200,10 @@ class RepoPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}
 
-	/** NFR-10: the final ZIPs go, with the Revocation Checklist. */
+	/** NFR-10: the Revocation Checklist goes; {@code repo} keeps no file of its own to delete with it. */
 	@Override
 	public void retireJobData(UUID productId) {
 		closeRevocationTodos(productId);
-		this.deletions.getObject().archivesOfProduct(productId).forEach(this.files.getObject()::delete);
-		this.jdbc.sql("UPDATE repo.job_setup SET archive_file_id = NULL WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();
 	}
 

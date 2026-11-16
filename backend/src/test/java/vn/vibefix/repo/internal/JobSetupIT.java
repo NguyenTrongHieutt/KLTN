@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
@@ -53,6 +54,8 @@ import vn.vibefix.job.CrewMemberRemoved;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.operations.Lane;
+import vn.vibefix.operations.OperationPolicy;
+import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.operations.internal.OperationWorker;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.shared.PersonalDataSection;
@@ -71,8 +74,9 @@ import vn.vibefix.support.IntegrationTest;
  * exchange refusal, the run's Actions quota, or a run that keeps failing blocks the start, and so do the Source checks,
  * until the Customer taps "Thử lại". Then (Story 7.3) the Mentor and the active Crew are invited with read; once each
  * accepted with two-factor authentication on, Verify raises them to write, reads it back, and only then applies J7.
- * J8, J10, a locked account, or a Crew change revokes access, read back (Story 7.7); 30 days after the end the final
- * ZIP is stored and both repositories are deleted. GitHub and git hosting are {@link GitHubStub}, which runs no
+ * J8, J10, a locked account, or a Crew change revokes access, read back (Story 7.7); 30 days after the end both
+ * repositories are deleted, with nothing archived first (Story 23.10d). GitHub and git hosting are
+ * {@link GitHubStub}, which runs no
  * workflow: a test pushes the confirmed head into both repositories as the copy run would, and completes the run. The
  * run's ID token is signed by {@link ActionsExchangeSupport}'s stand-in issuer; the sandbox jobs run in process.
  */
@@ -157,9 +161,6 @@ class JobSetupIT extends IntegrationTest {
 
 	@Autowired
 	private Revocations revocations;
-
-	@Autowired
-	private RepositoryDeletions deletions;
 
 	@Autowired
 	private RepoPersonalData personalData;
@@ -1201,7 +1202,7 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	@Test
-	void thirtyDaysAfterTheJobEndsTheFinalZipIsStoredForTheCustomerThenBothRepositoriesAreDeleted() throws Exception {
+	void thirtyDaysAfterTheJobEndsBothRepositoriesAreDeletedWithNoArchive() throws Exception {
 		setUpTheRepositories();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		String working = JobSetups.workingName(this.job);
@@ -1240,38 +1241,211 @@ class JobSetupIT extends IntegrationTest {
 				SELECT count(*) FROM notification.todo
 				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
 				""").param("customer", this.customer).query(Long.class).single()).isZero();
-		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
-			.param("job", this.job).query(UUID.class).single();
-		assertThat(this.jdbc.sql("SELECT purpose || ' ' || account_id || ' ' || kind FROM files.stored_file WHERE id = :id")
-			.param("id", archive).query(String.class).single()).isEqualTo("repo.final_zip " + this.customer + " ARCHIVE");
-		byte[] zip = this.mvc.perform(get("/api/v1/files/" + archive).with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsByteArray();
-		try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
-			java.util.Map<String, String> entries = new java.util.TreeMap<>();
-			for (java.util.zip.ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
-				entries.put(entry.getName(), new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
-			}
-			assertThat(entries).containsEntry("README.md", "# Quán Mây\n");
-		}
-		this.mvc.perform(get("/api/v1/files/" + archive).with(as(this.mentor, Role.MENTOR))).andExpect(status().isNotFound());
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
+			.param("job", this.job).query(Long.class).single()).isOne();
+		// Story 23.10d: nothing is archived first, so the Customer owns no stored file and none was ever stored.
+		assertThat(this.jdbc.sql("SELECT count(*) FROM files.stored_file WHERE account_id = :customer")
+			.param("customer", this.customer).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action IN ('repo.final_zip_stored', 'repo.deletion_started')
+				""").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.deletion_requested' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).isOne();
 		assertThat(sweep()).as("deleted repositories are no longer read").isEmpty();
 	}
 
+	/**
+	 * Story 23.10d: both requests derive the same operation id from the Setup, so a Product deleted after the
+	 * 30-day deadline already queued its deletion deletes the repositories once, not twice.
+	 */
 	@Test
-	void deletingTheProductDeletesItsRepositoriesAtOnceWithoutAZipAndAnyStoredZip() throws Exception {
+	void aProductDeletedAfterTheDeadlineFiredDeletesItsRepositoriesOnce() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		String working = JobSetups.workingName(this.job);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		cancelTheJob();
+		this.clock.advance(Duration.ofDays(30).plusMinutes(1));
+		this.deadlines.runDue();
+		assertThat(queuedDeletions()).as("the deadline queued it, and the lane has not run yet").isOne();
+
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
+
+		assertThat(queuedDeletions()).as("the Product's request finds the deadline's, by the same derived id").isOne();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(GITHUB.deleted).filteredOn(name -> name.equals(working) || name.equals(intermediary))
+			.as("each repository deleted once")
+			.containsExactly(working, intermediary);
+	}
+
+	/**
+	 * Story 23.10d: a deletion whose attempts ran out ends {@code FAILED}, which is terminal until an
+	 * Administrator retries it (FR-64). A Product deletion derives the same operation id, so joining that dead row
+	 * would queue nothing -- and the Product deletion goes on to delete the Setup rows that name the repositories,
+	 * leaving the Customer's and the team's code on GitHub with nothing pointing at it. The second request revives
+	 * it instead.
+	 */
+	@Test
+	void aProductDeletionRevivesADeletionThatAlreadyFailed() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		String working = JobSetups.workingName(this.job);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		String refused = "DELETE /repos/" + GitHubStub.ORGANIZATION + "/" + working;
+		cancelTheJob();
+		GITHUB.unavailable.add(refused);
+		this.clock.advance(Duration.ofDays(30).plusMinutes(1));
+		this.deadlines.runDue();
+		exhaustTheDeletionAttempts();
+		assertThat(deletionStatus()).as("GitHub refused every attempt").isEqualTo("FAILED");
+		assertThat(GITHUB.deleted).doesNotContain(working, intermediary);
+
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
+
+		assertThat(deletionStatus()).as("asking again revives it, rather than joining a dead row").isEqualTo("PENDING");
+		assertThat(queuedDeletions()).as("still one operation for the Setup").isOne();
+		GITHUB.unavailable.remove(refused);
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).containsSubsequence(working, intermediary);
+		assertThat(deletionStatus()).isEqualTo("SUCCEEDED");
+	}
+
+	/**
+	 * Story 23.10d: the Intermediary's delete fails once the Working Repository is already gone, so the attempt
+	 * ends {@code Transient} and the next one re-enters the loop. It must not delete the Working Repository again:
+	 * on the real GitHub that mints a token narrowed to a numeric ID it no longer knows, which it refuses, and the
+	 * operation would never finish.
+	 */
+	@Test
+	void aRetryAfterTheWorkingRepositoryIsGoneDeletesOnlyWhatIsLeft() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		String working = JobSetups.workingName(this.job);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		String refused = "DELETE /repos/" + GitHubStub.ORGANIZATION + "/" + intermediary;
+		cancelTheJob();
+		GITHUB.unavailable.add(refused);
+		this.clock.advance(Duration.ofDays(30).plusMinutes(1));
+		this.deadlines.runDue();
+
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).contains(working).doesNotContain(intermediary);
+		assertThat(deletionStatus()).as("transient: it waits for its next attempt").isEqualTo("PENDING");
+		GITHUB.unavailable.remove(refused);
+		this.clock.advance(OperationPolicy.DEFAULT.delayAfter(1).plusSeconds(1));
+
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).filteredOn(working::equals).as("never deleted twice").hasSize(1);
+		assertThat(GITHUB.deleted).contains(intermediary);
+		assertThat(deletionStatus()).isEqualTo("SUCCEEDED");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
+			.param("job", this.job).query(Long.class).single()).isOne();
+	}
+
+	/**
+	 * Story 23.10d, matrix row 3: a {@code repo.repository_delete} queued before this story still carries
+	 * {@code zip}, {@code customerId} and {@code branch} under the old {@code setupId:delete:true} key. Nothing
+	 * reads those keys any more, and the handler has no {@code SETUP_GONE} arm left, so it deletes exactly the
+	 * repositories its payload names.
+	 */
+	@Test
+	void aDeletionQueuedBeforeTheUpgradeRunsWithoutItsZipKeys() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		Setup setup = this.setups.latest(this.job).orElseThrow();
+		String working = JobSetups.workingName(this.job);
+		String intermediary = JobSetups.intermediaryName(this.job);
+		Map<String, Object> legacy = new java.util.LinkedHashMap<>();
+		legacy.put("setupId", setup.id().toString());
+		legacy.put("jobId", this.job.toString());
+		legacy.put("zip", true);
+		legacy.put("customerId", this.customer.toString());
+		legacy.put("intermediaryId", java.util.Objects.requireNonNull(setup.intermediary()).id());
+		legacy.put("intermediaryName", setup.intermediary().fullName());
+		legacy.put("workingId", java.util.Objects.requireNonNull(setup.working()).id());
+		legacy.put("workingName", setup.working().fullName());
+		legacy.put("branch", "main");
+
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.operations.request(new OperationRequest(RepositoryDeletions.DELETE,
+					UUID.nameUUIDFromBytes((setup.id() + ":delete:true").getBytes(StandardCharsets.UTF_8)), legacy, null,
+					null, 0)));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).containsSubsequence(working, intermediary);
+		assertThat(deletionStatus()).isEqualTo("SUCCEEDED");
+	}
+
+	/**
+	 * Story 23.10d, matrix row 2: the 30-day deadline of a Job whose Setup rows went with its Product answers
+	 * {@code OBSOLETE}. This exercises the {@code pending.isEmpty()} arm; the {@code !live} arm is unreachable
+	 * today, because {@code deleteProduct} deletes the {@code repo.job_setup} rows in the same transaction that
+	 * makes the Job not live. The guard stays all the same, for a Job that goes without its Setups some other way.
+	 */
+	@Test
+	void theDeadlineIsObsoleteOnceTheSetupRowsWentWithTheProduct() throws Exception {
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		cancelTheJob();
+		new org.springframework.transaction.support.TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(queuedDeletions()).as("the Product's own request ran").isOne();
+
+		this.clock.advance(Duration.ofDays(30).plusMinutes(1));
+		this.deadlines.runDue();
+
+		assertThat(this.jdbc.sql("SELECT status FROM timers.deadline WHERE job_id = :job AND kind = :kind")
+			.param("job", this.job).param("kind", RepositoryDeletion.KEY).query(String.class).single())
+			.isEqualTo("OBSOLETE");
+		assertThat(queuedDeletions()).as("nothing more is queued").isOne();
+	}
+
+	/** J10 on a Cancelled Job: the team's grants are revoked and the 30-day deletion deadline is scheduled. */
+	private void cancelTheJob() {
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+				"STARTING", "CANCELLED", 4, 1, Map.of()));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+	}
+
+	/** Runs the deletion's every attempt, so the operation ends {@code FAILED}. */
+	private void exhaustTheDeletionAttempts() {
+		for (int attempt = 1; attempt <= OperationPolicy.DEFAULT.maxAttempts(); attempt++) {
+			this.worker.runDue(Lane.GITHUB_LONG);
+			this.clock.advance(OperationPolicy.DEFAULT.delayAfter(attempt).plusSeconds(1));
+		}
+	}
+
+	/** The Job's queued {@code repo.repository_delete} operations, however they were requested. */
+	private long queuedDeletions() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'repo.repository_delete' AND payload ->> 'jobId' = :job
+				""").param("job", this.job.toString()).query(Long.class).single();
+	}
+
+	/** Where the Job's one {@code repo.repository_delete} operation stands. */
+	private String deletionStatus() {
+		return this.jdbc.sql("""
+				SELECT status FROM operations.external_operation
+				WHERE type = 'repo.repository_delete' AND payload ->> 'jobId' = :job
+				""").param("job", this.job.toString()).query(String.class).single();
+	}
+
+	@Test
+	void deletingTheProductDeletesItsRepositoriesAtOnce() throws Exception {
 		setUpTheRepositories();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		UUID customerRead = customerGrant().id();
-		Setup setup = this.setups.latest(this.job).orElseThrow();
 		org.springframework.transaction.support.TransactionTemplate transaction =
 				new org.springframework.transaction.support.TransactionTemplate(this.transactions);
-		transaction.executeWithoutResult(status -> this.deletions.archived(setup.id(), this.customer, "ban-cuoi.zip",
-				"PK".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE id = :id").param("id", setup.id())
-			.query(UUID.class).single();
 
 		transaction.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
 		this.worker.runDue(Lane.GITHUB_LONG);
@@ -1281,8 +1455,10 @@ class JobSetupIT extends IntegrationTest {
 			.query(Long.class).single()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.source_confirmation WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).as("the self-confirmations go with it").isZero();
-		assertThat(this.jdbc.sql("SELECT deleted_at FROM files.stored_file WHERE id = :id").param("id", archive)
-			.query(Timestamp.class).single()).isNotNull();
+		// Story 23.10d: the Product deletion requests the deletion itself, under one audit action.
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.deletion_requested' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.repositories_deleted_with_product'"
 				+ " AND job_id = :job").param("job", this.job).query(Long.class).single()).isOne();
 		// Story 23.7 (R5): the Customer's read ended with the Product, audited before its row went, and its to-do closed.
