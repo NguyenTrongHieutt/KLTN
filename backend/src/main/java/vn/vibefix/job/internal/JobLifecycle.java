@@ -37,7 +37,7 @@ import vn.vibefix.shared.IdGenerator;
  * the state, the freeze, the busy marker (AD-28), and the transition's guards, bumps {@code Job.version},
  * lets the transition's
  * {@link Step} write its columns and run its effects, writes one audit entry, and publishes one
- * {@link JobTransitioned}. A cascade (AD-4: M1 with J6, J6 with J7) checks every transition it holds
+ * {@link JobTransitioned}. A cascade (AD-4: Milestone 1 with J6) checks every transition it holds
  * before the first write and then writes them in order under one lock and one version bump, one audit
  * entry and one event each; Milestone transitions read and write {@code job.milestone.state}.
  */
@@ -368,7 +368,7 @@ class JobLifecycle {
 	}
 
 	/**
-	 * Applies a cascade as the System, as AD-4 lists them (M1 with J6, J6 with J7): every transition's
+	 * Applies a cascade as the System, as AD-4 lists them (Milestone 1's M1 with J6): every transition's
 	 * state, freeze, and guards are checked first, each against the state the earlier ones lead to; then
 	 * each is written in order with one {@code Job.version} bump. A refusal writes nothing and leaves the
 	 * caller's transaction usable.

@@ -464,7 +464,8 @@ workflows' new path, `/github/actions/exchange`, too.
 ## The Source App on the dev stack (Story 23.5)
 
 Every read of a Source Repository goes through the Source App, the third GitHub App (AD-10): registration's
-checks (CUS-3), and the Source checks before a Code Job's Setup and before the Final Merge. Each Customer
+checks (CUS-3), and the Source checks before every Job's Setup (an Assessment Job's too, since Story 23.11a) and
+before the Final Merge. Each Customer
 installs it on exactly their Source Repository, public or private, and adds the published
 `deploy/customer/vibefix.yml` as `.github/workflows/vibefix.yml` on the default branch. vibefix binds the pair
 (installation, repository) in `product.source_app_binding` when "Kiểm tra" finds the installation through

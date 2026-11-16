@@ -48,7 +48,8 @@ public interface MilestoneFunding {
 	@Nullable ApiException refusal(UUID jobId, UUID milestoneId);
 
 	/**
-	 * M1 with its cascade (J6 first for Milestone 1, then J7 for an Assessment Job), checked in full
+	 * M1 with its cascade (J6 first for Milestone 1, and nothing after it: since Story 23.11a every Job reaches J7
+	 * only once {@code repo}'s Setup vouches for its repositories), checked in full
 	 * before the first write; a refusal writes nothing and leaves the caller's transaction usable.
 	 * @param paymentOrderId the order whose verified payment this applies, recorded on the event
 	 * @return what M1 recorded, or empty when a guard, the freeze, or a state refused it

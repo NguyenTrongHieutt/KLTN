@@ -1883,6 +1883,52 @@ class JobSetupIT extends IntegrationTest {
 		return this.grants.ofJob(this.job).stream().filter(JobGrants.Grant::customer).findFirst().orElseThrow();
 	}
 
+	/**
+	 * Story 23.11a: an Assessment Job has a {@code DONE} Setup row too, so the daily poll now reaches it -- but its one
+	 * read-only copy is pinned to the confirmed commit and it has no Final Merge target, and
+	 * {@code SourceDriftController} serves it neither its warnings nor a re-confirmation. The poll skips it: a commit
+	 * and a rename warn nothing and open no to-do. The same Source, the same Setup and the same changes warn as soon as
+	 * the Job is a Code Job again, which is what makes the Job's kind the cause.
+	 */
+	@Test
+	void theDailyPollSkipsAnAssessmentJobAndWarnsTheSameSourceOnceItIsACodeJob() throws Exception {
+		assessmentJob();
+		assessmentSetUpTheRepository();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 applied, so the poll's state guard passes")
+			.isEqualTo("ACTIVE");
+		String name = this.source.substring("lan-dev/".length());
+		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
+			.query(Long.class).single();
+		GITHUB.push("lan-dev", name, "main", "app.js", "console.log('Lovable')\n");
+		GITHUB.rename(id, "lan-dev", name + "-v2");
+
+		this.drift.poll();
+
+		assertThat(this.drift.warnings(this.job)).as("an Assessment Job's Source is not polled").isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		assertThat(openReconfirmTodos()).as("a to-do nobody could ever close").isZero();
+		// The Customer's own page still answers NOT_FOUND for an Assessment Job, as it did before this story.
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+
+		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['BUG_FIX']::TEXT[] WHERE id = :id").param("id", this.job).update();
+		this.clock.advance(Duration.ofDays(1));
+		this.drift.poll();
+
+		assertThat(this.drift.warnings(this.job)).as("the same Source warns once the Job is a Code Job")
+			.extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
+		assertThat(openReconfirmTodos()).isOne();
+		awaitListeners();
+	}
+
+	/** The Customer's open {@code repo.reconfirm_source} to-dos. */
+	private long openReconfirmTodos() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source' AND closed_at IS NULL
+				""").query(Long.class).single();
+	}
+
 	@Test
 	void theDailyPollWarnsOncePerChangeAndARenameWaitsForTheCustomersReconfirmation() throws Exception {
 		setUpTheRepositories();
@@ -2964,9 +3010,9 @@ class JobSetupIT extends IntegrationTest {
 		// The test clock stands still within a step, so the rows share an occurred_at: the facts are asserted, not an order.
 		assertThat(this.jdbc.sql("SELECT action FROM audit.audit_entry WHERE job_id = :job AND action LIKE 'repo.setup_%'")
 			.param("job", this.job).query(String.class).list())
-			.as("the same chain a Code Job records, with one repository")
+			.as("the same chain a Code Job records, with one repository, and J7 applied from the Setup itself")
 			.containsExactlyInAnyOrder("repo.setup_started", "repo.setup_source_checked", "repo.setup_repositories_ready",
-					"repo.setup_copy_dispatched", "repo.setup_copied", "repo.setup_done");
+					"repo.setup_copy_dispatched", "repo.setup_copied", "repo.setup_done", "repo.setup_activated");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE job_id = :job AND action = 'repo.source_confirmed'")
 			.param("job", this.job).query(Long.class).single()).isOne();
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
@@ -2974,6 +3020,38 @@ class JobSetupIT extends IntegrationTest {
 			.andExpect(jsonPath("$.status").value("DONE"))
 			.andExpect(jsonPath("$.steps[*].state").value(org.hamcrest.Matchers.contains("DONE", "DONE", "DONE", "DONE")))
 			.andExpect(jsonPath("$.people").isEmpty());
+	}
+
+	/**
+	 * Story 23.11a: an assessment copy whose J7 is moot -- the Job's row is no longer live, as an erased Customer's
+	 * Product deletion leaves it during the read-back window -- still counts as copied. The row is {@code DONE}, the
+	 * moot activation is audited the way {@code JobGrants.verified} audits Verify's, and the Job does not become
+	 * Active. {@code done(...)} is called directly, because the operation's own guard reads the Job as gone first.
+	 */
+	@Test
+	void anAssessmentCopyWhoseActivationIsMootIsStillDoneAndAudited() throws Exception {
+		assessmentJob();
+		assessmentConfirmTheHead();
+		run();
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		assertThat(copying.status()).isEqualTo("RUNNING");
+		assertThat(copying.intermediaryAt()).isNotNull();
+		this.jdbc.sql("UPDATE job.job SET product_deleted_at = :now WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant())).param("id", this.job).update();
+
+		this.setups.done(copying, null);
+
+		assertThat(this.setups.find(copying.id()).orElseThrow()).satisfies(done -> {
+			assertThat(done.status()).as("the copy still counts as done").isEqualTo("DONE");
+			assertThat(done.copiedAt()).isNotNull();
+		});
+		assertThat(this.jdbc.sql("SELECT action FROM audit.audit_entry WHERE job_id = :job AND action LIKE 'repo.setup_%'")
+			.param("job", this.job).query(String.class).list())
+			.contains("repo.setup_activation_moot")
+			.doesNotContain("repo.setup_activated");
+		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class)
+			.single()).as("J7 never applied").isEqualTo("STARTING");
+		awaitListeners();
 	}
 
 	/**

@@ -637,7 +637,9 @@ class JobSetups {
 	 * <ul>
 	 * <li>A Code Job: the Invitations stage starts in the same transaction (Story 7.3), and J7 waits for Verify.</li>
 	 * <li>An Assessment Job: J7 applies here, through {@link JobActivation}, which releases the marker itself. Nothing
-	 * is granted in Story 23.11a; the read invitations, which never gate the start, follow in Story 23.11b.</li>
+	 * is granted in Story 23.11a; the read invitations, which never gate the start, follow in Story 23.11b. An
+	 * activation the Job moved past (its row no longer live, as an erased Customer's Product deletion leaves it) is
+	 * moot and audited as such, the way {@code JobGrants.verified} audits Verify's: the copy still counts as done.</li>
 	 * </ul>
 	 * @param working the Working Repository read back; none for an assessment attempt, which has none
 	 */
@@ -653,7 +655,8 @@ class JobSetups {
 		audit("repo.setup_copied", setup.id(), setup.jobId());
 		audit("repo.setup_done", setup.id(), setup.jobId());
 		if (setup.assessment()) {
-			this.activation.activate(setup.jobId(), setup.operationKey());
+			boolean started = this.activation.activate(setup.jobId(), setup.operationKey());
+			audit(started ? "repo.setup_activated" : "repo.setup_activation_moot", setup.id(), setup.jobId());
 			return;
 		}
 		this.busy.release(setup.jobId(), setup.operationKey());

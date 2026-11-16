@@ -21,8 +21,8 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * {@link MilestoneFunding} (FR-41, AD-4): the Milestones of a Job whose Agreement is confirmed, and M1
- * with its cascade. Milestone 1 of a Job in Agreement funds with J6 first and, for an Assessment Job,
- * J7 after; a later Milestone funds with M1 alone.
+ * with its cascade. Milestone 1 of a Job in Agreement funds with J6 first and nothing after it, whatever the Job's
+ * kind (Story 23.11a): J7 waits for {@code repo}'s Setup. A later Milestone funds with M1 alone.
  */
 @Component
 class Fundings implements MilestoneFunding {

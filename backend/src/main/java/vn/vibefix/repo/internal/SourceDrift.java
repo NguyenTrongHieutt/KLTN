@@ -162,14 +162,18 @@ class SourceDrift {
 	 * Reads one Job's Source Repository through the Source App and warns of any new change. When the Source App cannot
 	 * read it, that is its one kind ({@code APP_UNINSTALLED} or {@code GONE}); otherwise a {@code vibefix.yml} that
 	 * differs, archived, renamed or transferred (by its owner and name), and new commits each warn on their own.
+	 * <p>
+	 * An Assessment Job is skipped, although Story 23.11a gave it a {@code DONE} Setup row too: its one read-only copy
+	 * is pinned to the confirmed commit and it has no Final Merge target, so there is nothing for the Customer to
+	 * re-confirm -- and {@code SourceDriftController} serves neither its warnings nor its re-confirmation.
 	 * @throws GitHubException when GitHub cannot answer now: nothing is warned, and the next day's poll reads again
 	 */
 	void check(UUID jobId) {
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		Setup setup = this.setups.latest(jobId).orElse(null);
 		Registered registered = job == null ? null : this.sources.registered(job.productId()).orElse(null);
-		if (job == null || !RUNNING.contains(job.state()) || setup == null || !"DONE".equals(setup.status())
-				|| registered == null || setup.approvedSha() == null) {
+		if (job == null || !job.code() || !RUNNING.contains(job.state()) || setup == null
+				|| !"DONE".equals(setup.status()) || registered == null || setup.approvedSha() == null) {
 			return;
 		}
 		Drift drift = this.sources.drift(job.productId(), setup.approvedSha());
