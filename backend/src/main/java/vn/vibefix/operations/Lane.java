@@ -6,7 +6,7 @@ package vn.vibefix.operations;
  */
 public enum Lane {
 
-	/** Copy, fork, ZIP: 1 at a time, 15 min. */
+	/** Repository copies and deletions: 1 at a time, 15 min. */
 	GITHUB_LONG,
 
 	/** Every other GitHub call: 4 at a time, 30 s. */

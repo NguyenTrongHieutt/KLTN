@@ -108,12 +108,12 @@ class SandboxRoundTripIT {
 		assertThat(worker.getBeanNamesForType(HttpSandboxJobs.class)).isEmpty();
 		assertThat(worker.containsBean("environmentGuard")).isFalse();
 		assertThat(worker.containsBean("environmentController")).isFalse();
-		// HEALTH, files' image re-encoding (AD-21), github's final ZIP (FR-21), and delivery's preview check
-		// (AD-35); vibefix scans no code (Story 23.1), no longer trial-merges (Story 23.9a), and the copy
-		// (REPOSITORY_COPY) went with the Merge App that was its last caller (Story 23.9b). A test handler on the
-		// classpath would show here.
+		// HEALTH, files' image re-encoding (AD-21), and delivery's preview check (AD-35); vibefix scans no code
+		// (Story 23.1), no longer trial-merges (Story 23.9a), the copy (REPOSITORY_COPY) went with the Merge App
+		// that was its last caller (Story 23.9b), and the final ZIP (REPOSITORY_ZIP) went with the 30-day deletion's
+		// archive (Story 23.10d). A test handler on the classpath would show here.
 		assertThat(worker.getBeansOfType(SandboxJobHandler.class).values()).extracting(SandboxJobHandler::type)
-			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE", "REPOSITORY_ZIP", "PREVIEW_CHECK");
+			.containsExactlyInAnyOrder(HealthJobHandler.TYPE, "IMAGE_REENCODE", "PREVIEW_CHECK");
 	}
 
 	@Test

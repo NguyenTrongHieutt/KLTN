@@ -80,9 +80,7 @@ class SpikeS6CommandTest {
 		Path platformKey = Files.writeString(this.directory.resolve("github-platform-app-key"), TestKeys.pkcs1());
 		this.sourceKey = Files.writeString(this.directory.resolve("github-source-app-key"), TestKeys.pkcs8());
 		this.apps = apps(platformKey, SpikeS6Stub.RUNNER_NAME);
-		this.repositories = new GitHubPlatformRepositories(this.apps, (type, input) -> {
-			throw new AssertionError("Spike S6 sends no sandbox job");
-		}, CLOCK);
+		this.repositories = new GitHubPlatformRepositories(this.apps, CLOCK);
 	}
 
 	@AfterEach

@@ -71,8 +71,9 @@ import vn.vibefix.support.IntegrationTest;
  * exchange refusal, the run's Actions quota, or a run that keeps failing blocks the start, and so do the Source checks,
  * until the Customer taps "Thử lại". Then (Story 7.3) the Mentor and the active Crew are invited with read; once each
  * accepted with two-factor authentication on, Verify raises them to write, reads it back, and only then applies J7.
- * J8, J10, a locked account, or a Crew change revokes access, read back (Story 7.7); 30 days after the end the final
- * ZIP is stored and both repositories are deleted. GitHub and git hosting are {@link GitHubStub}, which runs no
+ * J8, J10, a locked account, or a Crew change revokes access, read back (Story 7.7); 30 days after the end both
+ * repositories are deleted, with nothing archived first (Story 23.10d). GitHub and git hosting are
+ * {@link GitHubStub}, which runs no
  * workflow: a test pushes the confirmed head into both repositories as the copy run would, and completes the run. The
  * run's ID token is signed by {@link ActionsExchangeSupport}'s stand-in issuer; the sandbox jobs run in process.
  */
@@ -157,9 +158,6 @@ class JobSetupIT extends IntegrationTest {
 
 	@Autowired
 	private Revocations revocations;
-
-	@Autowired
-	private RepositoryDeletions deletions;
 
 	@Autowired
 	private RepoPersonalData personalData;
@@ -1201,7 +1199,7 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	@Test
-	void thirtyDaysAfterTheJobEndsTheFinalZipIsStoredForTheCustomerThenBothRepositoriesAreDeleted() throws Exception {
+	void thirtyDaysAfterTheJobEndsBothRepositoriesAreDeletedWithNoArchive() throws Exception {
 		setUpTheRepositories();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		String working = JobSetups.workingName(this.job);
@@ -1240,38 +1238,27 @@ class JobSetupIT extends IntegrationTest {
 				SELECT count(*) FROM notification.todo
 				WHERE todo_key = 'repo.accept_intermediary_invitation' AND account_id = :customer AND closed_at IS NULL
 				""").param("customer", this.customer).query(Long.class).single()).isZero();
-		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
-			.param("job", this.job).query(UUID.class).single();
-		assertThat(this.jdbc.sql("SELECT purpose || ' ' || account_id || ' ' || kind FROM files.stored_file WHERE id = :id")
-			.param("id", archive).query(String.class).single()).isEqualTo("repo.final_zip " + this.customer + " ARCHIVE");
-		byte[] zip = this.mvc.perform(get("/api/v1/files/" + archive).with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsByteArray();
-		try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
-			java.util.Map<String, String> entries = new java.util.TreeMap<>();
-			for (java.util.zip.ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
-				entries.put(entry.getName(), new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
-			}
-			assertThat(entries).containsEntry("README.md", "# Quán Mây\n");
-		}
-		this.mvc.perform(get("/api/v1/files/" + archive).with(as(this.mentor, Role.MENTOR))).andExpect(status().isNotFound());
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
+			.param("job", this.job).query(Long.class).single()).isOne();
+		// Story 23.10d: nothing is archived first, so the Customer owns no stored file and none was ever stored.
+		assertThat(this.jdbc.sql("SELECT count(*) FROM files.stored_file WHERE account_id = :customer")
+			.param("customer", this.customer).query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action IN ('repo.final_zip_stored', 'repo.deletion_started')
+				""").query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.deletion_requested' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single()).isOne();
 		assertThat(sweep()).as("deleted repositories are no longer read").isEmpty();
 	}
 
 	@Test
-	void deletingTheProductDeletesItsRepositoriesAtOnceWithoutAZipAndAnyStoredZip() throws Exception {
+	void deletingTheProductDeletesItsRepositoriesAtOnce() throws Exception {
 		setUpTheRepositories();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		UUID customerRead = customerGrant().id();
-		Setup setup = this.setups.latest(this.job).orElseThrow();
 		org.springframework.transaction.support.TransactionTemplate transaction =
 				new org.springframework.transaction.support.TransactionTemplate(this.transactions);
-		transaction.executeWithoutResult(status -> this.deletions.archived(setup.id(), this.customer, "ban-cuoi.zip",
-				"PK".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		UUID archive = this.jdbc.sql("SELECT archive_file_id FROM repo.job_setup WHERE id = :id").param("id", setup.id())
-			.query(UUID.class).single();
 
 		transaction.executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
 		this.worker.runDue(Lane.GITHUB_LONG);
@@ -1281,8 +1268,9 @@ class JobSetupIT extends IntegrationTest {
 			.query(Long.class).single()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.source_confirmation WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).as("the self-confirmations go with it").isZero();
-		assertThat(this.jdbc.sql("SELECT deleted_at FROM files.stored_file WHERE id = :id").param("id", archive)
-			.query(Timestamp.class).single()).isNotNull();
+		// Story 23.10d: no archive is looked up or deleted, because none was ever stored.
+		assertThat(this.jdbc.sql("SELECT count(*) FROM files.stored_file WHERE account_id = :customer")
+			.param("customer", this.customer).query(Long.class).single()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.repositories_deleted_with_product'"
 				+ " AND job_id = :job").param("job", this.job).query(Long.class).single()).isOne();
 		// Story 23.7 (R5): the Customer's read ended with the Product, audited before its row went, and its to-do closed.

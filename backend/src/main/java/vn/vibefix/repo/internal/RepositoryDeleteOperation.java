@@ -16,14 +16,14 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.OperationHandler;
 import vn.vibefix.operations.OperationRun;
 import vn.vibefix.operations.Outcome;
-import vn.vibefix.repo.internal.RepositoryDeletions.Pending;
 
 /**
- * {@value RepositoryDeletions#DELETE} (FR-21, FR-38, AD-32, NFR-10): with {@code zip}, first makes sure
- * the final ZIP of the Intermediary Repository's default branch is stored, built in the sandbox from tree
- * objects; then deletes the Working Repository and the Intermediary Repository and reads both back as
- * gone. The payload names the repositories, so a Product deletion's request runs after the rows went.
- * Collaborators are looked up on use.
+ * {@value RepositoryDeletions#DELETE} (FR-21, FR-38, NFR-10): deletes the Working Repository, then the
+ * Intermediary Repository, and reads both back as gone. vibefix keeps no copy of the code, so nothing is
+ * archived first (Story 23.10d); a row queued before that story carries a {@code zip} flag and a
+ * {@code customerId} that nothing reads any more, and deletes the repositories its payload names all the
+ * same. The payload names them so a Product deletion's request runs after the rows went. Collaborators are
+ * looked up on use.
  */
 @Component
 class RepositoryDeleteOperation implements OperationHandler {
@@ -58,21 +58,6 @@ class RepositoryDeleteOperation implements OperationHandler {
 		PlatformRepositories repositories = this.repositories.getObject();
 		RepositoryDeletions deletions = this.deletions.getObject();
 		try {
-			if (Boolean.TRUE.equals(payload.get("zip"))) {
-				Pending pending = deletions.find(setupId).orElse(null);
-				if (pending == null) {
-					// The Product's deletion requested its own deletion, without a ZIP.
-					return new Outcome.Obsolete("SETUP_GONE");
-				}
-				if (pending.archiveFileId() == null && intermediary != null) {
-					String branch = String.valueOf(payload.getOrDefault("branch", "main"));
-					byte[] zip = repositories.zip(intermediary, branch);
-					if (!deletions.archived(setupId, UUID.fromString(String.valueOf(payload.get("customerId"))),
-							intermediary.name() + ".zip", zip)) {
-						return new Outcome.Obsolete("SETUP_GONE");
-					}
-				}
-			}
 			List<PlatformRepository> gone = new ArrayList<>();
 			// The fork first, then the repository it was forked from.
 			for (PlatformRepository repository : new PlatformRepository[] { working, intermediary }) {

@@ -16,7 +16,8 @@ const driftKey = (jobId: string) => ['job', 'drift', jobId] as const
  * The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27): a non-dismissible warning alert while the Source
  * Repository changed during the Job, saying what changed (new commits; the repository gone, archived, renamed or
  * transferred; or, since Story 23.5b, the Source App uninstalled or the workflow file removed or changed). For new
- * commits only, it says the Final Merge might fail and the code would then come as a ZIP, with "Cách tạm dừng đồng bộ".
+ * commits only, it says the Final Merge might fail and the code is then downloaded from GitHub, with
+ * "Cách tạm dừng đồng bộ".
  * The Customer re-confirms a renamed or transferred repository here. Nothing shows without a warning or on a Job
  * without one.
  */

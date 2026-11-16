@@ -16,15 +16,11 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.JsonNodeFactory;
-import tools.jackson.databind.node.ObjectNode;
 import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubApps.InstallationToken;
 import vn.vibefix.github.GitHubApps.Unnarrowed;
 import vn.vibefix.github.GitHubException;
 import vn.vibefix.github.PlatformRepositories;
-import vn.vibefix.shared.SandboxJobException;
-import vn.vibefix.shared.SandboxJobs;
 
 /**
  * {@link PlatformRepositories} with the Platform App (AD-10, AD-11, Spike S4, Spike S6). Creating a
@@ -58,15 +54,12 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 
 	private final GitHubAppsClient apps;
 
-	private final SandboxJobs sandbox;
-
 	private final Clock clock;
 
 	private volatile @Nullable String bot;
 
-	GitHubPlatformRepositories(GitHubAppsClient apps, SandboxJobs sandbox, Clock clock) {
+	GitHubPlatformRepositories(GitHubAppsClient apps, Clock clock) {
 		this.apps = apps;
-		this.sandbox = sandbox;
 		this.clock = clock;
 	}
 
@@ -689,28 +682,6 @@ class GitHubPlatformRepositories implements PlatformRepositories {
 			}
 			return null;
 		});
-	}
-
-	@Override
-	public byte[] zip(PlatformRepository repository, String branch) {
-		// The repository is private: the clone gets a token narrowed to it with contents read.
-		JsonNode output = this.apps.withToken(App.PLATFORM, List.of(repository.id()), Map.of("contents", "read"), token -> {
-			ObjectNode input = JsonNodeFactory.instance.objectNode();
-			input.put("repository", repository.fullName());
-			input.put("branch", branch);
-			input.put("token", token.value());
-			try {
-				return this.sandbox.run(RepositoryZipJobHandler.TYPE, input).output();
-			}
-			catch (SandboxJobException ex) {
-				throw new GitHubException(0, "The ZIP of " + repository.fullName() + " did not run: " + ex.getMessage());
-			}
-		});
-		if (!output.path("zip").isString()) {
-			throw new GitHubException(0, "The ZIP of " + repository.fullName() + " was refused: "
-					+ output.path("refused").asString("UNKNOWN"));
-		}
-		return java.util.Base64.getDecoder().decode(output.path("zip").asString());
 	}
 
 	@Override

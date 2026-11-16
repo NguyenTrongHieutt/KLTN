@@ -6,7 +6,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import vn.vibefix.job.JobBusy;
-import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.repo.internal.RepositoryDeletions.Pending;
 import vn.vibefix.timers.DeadlineHandler;
 import vn.vibefix.timers.DeadlineKind;
@@ -15,9 +14,9 @@ import vn.vibefix.timers.DueDeadline;
 
 /**
  * {@value #KEY} (FR-21): 30 days after the Job is Closed or Cancelled, each of its Setups whose
- * repositories still exist gets {@value RepositoryDeletions#DELETE} with the final ZIP first. Not
- * pausable; the subject is the Job. A Job whose repositories went with its Product leaves it
- * {@code OBSOLETE}. Collaborators are looked up on use.
+ * repositories still exist gets {@value RepositoryDeletions#DELETE}. Not pausable; the subject is the Job.
+ * A Job whose repositories went with its Product leaves it {@code OBSOLETE}. Collaborators are looked up on
+ * use.
  */
 @Component
 class RepositoryDeletion implements DeadlineHandler {
@@ -43,12 +42,13 @@ class RepositoryDeletion implements DeadlineHandler {
 	@Override
 	public DeadlineOutcome handle(DueDeadline deadline) {
 		RepositoryDeletions deletions = this.deletions.getObject();
-		BusyJob job = this.busy.getObject().job(deadline.subjectId()).orElse(null);
+		// The Job is read only to tell a live Job from one whose rows went with its Product.
+		boolean live = this.busy.getObject().job(deadline.subjectId()).isPresent();
 		List<Pending> pending = deletions.pending(deadline.subjectId());
-		if (job == null || pending.isEmpty()) {
+		if (!live || pending.isEmpty()) {
 			return DeadlineOutcome.OBSOLETE;
 		}
-		pending.forEach(setup -> deletions.request(setup, job.customerId(), true));
+		pending.forEach(deletions::request);
 		return DeadlineOutcome.FIRED;
 	}
 
