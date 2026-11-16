@@ -74,9 +74,6 @@ class CodeReceiptIT extends IntegrationTest {
 	@Autowired
 	private RepoPersonalData personalData;
 
-	@Autowired
-	private ZipFallbacks fallbacks;
-
 	private UUID lan;
 
 	private UUID hung;
@@ -242,7 +239,6 @@ class CodeReceiptIT extends IntegrationTest {
 			.andExpect(jsonPath("$.endReason").doesNotExist())
 			.andExpect(jsonPath("$.outcome").doesNotExist())
 			.andExpect(jsonPath("$.merge").doesNotExist())
-			.andExpect(jsonPath("$.zip").doesNotExist())
 			.andExpect(jsonPath("$.choice.finalMerge").value(false))
 			.andExpect(jsonPath("$.choice.selfDownload").value(true))
 			.andExpect(jsonPath("$.choice.deadlineAt").doesNotExist())
@@ -359,31 +355,6 @@ class CodeReceiptIT extends IntegrationTest {
 
 		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.code_receipt WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).isZero();
-	}
-
-	/**
-	 * Story 23.10a (D10): a ZIP the closure fallback was still building when the receipt landed is never stored and
-	 * never announced -- the Job is finished by the Customer's own statement (Story 23.10c deletes the machinery).
-	 */
-	@Test
-	void aRecordedReceiptStopsTheFallbacksZipFromBeingStored() throws Exception {
-		acceptedWork();
-		this.jdbc.sql("""
-				INSERT INTO repo.zip_fallback (job_id, authorization_id, product_id, reason, status, created_at)
-				SELECT :job, id, product_id, 'MERGE_REFUSED', 'BUILDING', now() FROM repo.final_merge_authorization
-				WHERE job_id = :job
-				""").param("job", this.job).update();
-		receipt(this.lan, 8).andExpect(status().isOk());
-
-		Boolean stored = this.transactions
-			.execute(status -> this.fallbacks.ready(this.job, UUID.randomUUID(), java.util.List.of()));
-
-		assertThat(stored).isFalse();
-		assertThat(this.jdbc.sql("SELECT status FROM repo.zip_fallback WHERE job_id = :job").param("job", this.job)
-			.query(String.class).single()).isEqualTo("BUILDING");
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM notification.notification WHERE type = 'repo.zip_fallback_ready'
-				""").query(Long.class).single()).isZero();
 	}
 
 	/** AD-24: the receipt names an account, so an erasure takes it, and a Product deletion takes it with its Setup. */

@@ -35,7 +35,7 @@ import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
  * A clean check is {@code READY} for N-18; a difference under {@code .github/workflows/} is recorded as the Final
  * Merge's blocking workflow list, which the closure section shows as N-18's workflow-file state, because a run's
  * {@code GITHUB_TOKEN} can never push those files (deferred-work 626). Story 23.9a deleted the trial merge: vibefix
- * never merges into a Customer repository. A failed guard hands the Job to the closure fallback with nothing pushed; a
+ * never merges into a Customer repository. A failed guard refuses the Final Merge with nothing pushed; a
  * Customer to wait for, an open grant, or a frozen Job defers. Collaborators are looked up on use.
  */
 @Component
@@ -103,7 +103,7 @@ class FinalMergeCheckOperation implements OperationHandler {
 					return new Outcome.Deferred(this.clock.instant().plus(SHORT_WAIT));
 				}
 				case GUARD_FAILED -> {
-					merges.fallback(authorizationId, "REFUSED", "J9_GUARD");
+					merges.refuse(authorizationId, "J9_GUARD");
 					return new Outcome.Aborted("J9_GUARD");
 				}
 				case HOLD -> {

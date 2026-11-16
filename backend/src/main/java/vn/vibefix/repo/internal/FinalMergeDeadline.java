@@ -12,6 +12,7 @@ import vn.vibefix.job.JobCompletion;
 import vn.vibefix.job.JobFreezes;
 import vn.vibefix.job.JobFreezes.DisputedJob;
 import vn.vibefix.repo.internal.FinalMergeAuthorizations.Authorization;
+import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
 import vn.vibefix.timers.DeadlineHandler;
 import vn.vibefix.timers.DeadlineKind;
 import vn.vibefix.timers.DeadlineOutcome;
@@ -21,15 +22,18 @@ import vn.vibefix.timers.DueDeadline;
  * {@value #KEY} (FR-37, FR-38, D10, Story 23.10b): the closing choice's deadline, set at J8. A row still
  * {@code REQUESTED} whose Customer has taken neither path ends the Job itself: J9 applies as
  * {@link JobCompletion.Finish#UNCONFIRMED} -- Closed, or Cancelled when Closing was entered by a confirmed
- * cancellation -- and only then does the row end {@code DEADLINE}. No ZIP is started: {@code DEADLINE} is no longer
- * one of {@link ZipFallbacks}' triggers, and J9 running first keeps that retired path unreachable anyway, since it
- * refuses a Job that is no longer Closing. The Customer hears {@code repo.code_receipt_unconfirmed} and keeps the
+ * cancellation -- and only then does the row end {@code DEADLINE}. Since Story 23.10c this is the Job's only way
+ * out of {@code CLOSING} when the Customer confirms nothing, which is why a refused Final Merge leaves the row
+ * {@code REQUESTED} rather than ending it. The Customer hears {@code repo.code_receipt_unconfirmed} and keeps the
  * self-download until the repositories are deleted, which {@link Revocations} arranges on the ending transition.
  * <p>
- * A Final Merge the Customer set going finishes on its own, and a receipt already recorded ended the Job already:
- * either way the deadline is {@code OBSOLETE}. Pausable: it takes the Job row lock first, which {@code end} does
- * not, so a frozen Job always pauses it and nothing ends (AD-4); another operation's busy marker answers
- * {@code REARM} with nothing written (AD-28). Collaborators are looked up on use.
+ * {@code OBSOLETE} is for a choice already taken: the Final Merge branch was read back ({@code DONE}), or a receipt
+ * is on the record. A run still out is not one of those, because it may yet be refused -- and since Story 23.10c a
+ * refusal leaves the row {@code REQUESTED} instead of ending it, while this Deadline is scheduled once at J8 and
+ * never again. So a run the Customer set going answers {@code REARM}: the Deadline survives to end a Job whose run
+ * is refused afterwards, which is the only J9 such a Job has left (AD-5). Pausable: it takes the Job row lock
+ * first, which {@code end} does not, so a frozen Job always pauses it and nothing ends (AD-4); another operation's
+ * busy marker answers {@code REARM} with nothing written (AD-28). Collaborators are looked up on use.
  */
 @Component
 class FinalMergeDeadline implements DeadlineHandler {
@@ -77,17 +81,20 @@ class FinalMergeDeadline implements DeadlineHandler {
 		if (authorization == null || !authorization.open()) {
 			return DeadlineOutcome.OBSOLETE;
 		}
-		boolean settled = this.merges.getObject().find(authorization.id()).filter(FinalMerges::confirmed).isPresent()
+		FinalMerge merge = this.merges.getObject().find(authorization.id()).orElse(null);
+		// The code reached the Customer: the Final Merge branch was read back, or they confirmed the receipt.
+		boolean received = (merge != null && "DONE".equals(merge.status()))
 				|| this.receipts.getObject().find(authorization.jobId()).isPresent();
 		BusyJob job = this.busy.getObject().job(authorization.jobId()).orElse(null);
 		// The choice belongs to Closing, and J9 is the only transition out of it: a Job that is no longer Closing
 		// has no J9 left to apply, so J9 would refuse for good and a REARM below would retry at every poll.
-		if (settled || job == null || !"CLOSING".equals(job.state())) {
+		if (received || job == null || !"CLOSING".equals(job.state())) {
 			return DeadlineOutcome.OBSOLETE;
 		}
-		if (job.busy().isPresent()) {
+		if (job.busy().isPresent() || (merge != null && merge.refusal() == null && FinalMerges.confirmed(merge))) {
 			// AD-28: a Settlement, an acceptance or a Setup holds the Job, so nothing is written and the next poll
-			// finds the row still open. A Final Merge of its own would have answered OBSOLETE above.
+			// finds the row still open. A run the Customer set going is the same case: it may yet be refused, and a
+			// refusal no longer ends the row (Story 23.10c), so this Deadline must still be here to end the Job.
 			return DeadlineOutcome.REARM;
 		}
 		// J9 first, the row only after it: JobCompletion.finish writes nothing but the marker release when it is

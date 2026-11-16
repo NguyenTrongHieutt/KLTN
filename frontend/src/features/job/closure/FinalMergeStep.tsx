@@ -1,16 +1,18 @@
 import { CircleCheck, TriangleAlert } from 'lucide-react'
 import { useId, useState } from 'react'
+import { Link } from 'react-router'
 import { TermHint } from '@/components/TermHint'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
+import { cn } from '@/lib/utils'
 import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { ActionsRunRow, type RunState } from '@/features/job/ActionsRunRow'
 import { OutLink } from '@/features/product/WorkflowSetup'
 import { SensitiveChangeList } from '@/features/delivery/SensitiveChangeList'
 import { FINAL_MERGE_ANCHOR } from './ClosingChoice'
-import { useConfirmFinalMerge, useFinalMerge, type FinalMerge } from './finalMergeApi'
-import { ZipFallbackStep } from './ZipFallbackStep'
+import { MERGE_CODE_PARAM, useConfirmFinalMerge, useFinalMerge, type FinalMerge } from './finalMergeApi'
 
 /** The reasons the closure section words itself; any other reads as the generic failure. */
 const REASONS = ['WORKFLOW_FILES_CHANGED', 'ACTIONS_QUOTA', 'EXCHANGE_REFUSED', 'RUN_FAILED', 'BRANCH_EXISTS',
@@ -24,9 +26,14 @@ const REASONS = ['WORKFLOW_FILES_CHANGED', 'ACTIONS_QUOTA', 'EXCHANGE_REFUSED', 
  * Customer opens and merges the pull request themselves. vibefix writes nothing in their project.
  * <p>
  * When the accepted code changes a file under `.github/workflows/`, N-18's checkbox gives way to its workflow-file
- * state, because a run's own token can never push those files. A run that cannot finish names its reason, and the
- * self-download path stays offered in the Closing choice cards above (Story 23.10a), which also hold the choice's
- * own deadline chip. Nothing shows for anyone but the Customer.
+ * state, because a run's own token can never push those files. A run that cannot finish names its reason here, with
+ * the Job's Sensitive Changes and "Đăng công việc ghép mã" under it, and the self-download path stays offered in the
+ * Closing choice cards above (Story 23.10a), which also hold the choice's own deadline chip. Nothing shows for
+ * anyone but the Customer.
+ * <p>
+ * Story 23.10c retired the ZIP Fallback: there is no card below this one any more, and no ZIP of vibefix's own to
+ * download. A refusal no longer ends the closing choice either, so this card keeps speaking while the FR-37
+ * deadline runs on.
  */
 export function FinalMergeStep({ jobId }: { jobId: string }) {
   const merge = useFinalMerge(jobId)
@@ -35,28 +42,54 @@ export function FinalMergeStep({ jobId }: { jobId: string }) {
     return null
   }
   if (merge.data.status === 'ENDED') {
-    if (!merge.data.merge?.refusal && !merge.data.zip) {
+    if (!merge.data.merge?.refusal) {
       // The row ended with no Final Merge of its own: a cancellation at J10, or a proposal that ended.
       return null
     }
-    // A run that could not finish ends the row, so its own named reason stands above the fallback it offers.
-    return (
-      <div className="flex flex-col gap-3">
-        <Failure merge={merge.data.merge} />
-        <ZipFallbackStep jobId={jobId} merge={merge.data} />
-      </div>
-    )
+    // A refusal leaves the row open, so the deadline that ended it came later: the reason still stands, in the
+    // same card it stood in while the choice was open.
+    return <Ended jobId={jobId} merge={merge.data} />
   }
   return <Merge jobId={jobId} merge={merge.data} />
 }
 
-/** "Chưa chép được mã vào dự án của bạn: {reason}", with the run's row when one was dispatched. */
-function Failure({ merge }: { merge: FinalMerge['merge'] }) {
+/** The Final Merge card of a row that has ended: its refusal alone, framed as every other state of the card is. */
+function Ended({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
+  const ids = useId()
+  return (
+    <section
+      id={FINAL_MERGE_ANCHOR}
+      aria-labelledby={`${ids}-final-merge`}
+      className="flex flex-col gap-3 rounded-md border border-border p-4"
+    >
+      <h3 id={`${ids}-final-merge`} className="text-h3">
+        <TermHint term="finalMerge" />
+      </h3>
+      <Failure jobId={jobId} productId={merge.productId} merge={merge.merge} />
+    </section>
+  )
+}
+
+/**
+ * "Chưa chép được mã vào dự án của bạn: {reason}", with the run's row when one was dispatched, the Job's Sensitive
+ * Changes, and "Đăng công việc ghép mã", which pre-fills CUS-6 (Story 23.10c: it used to sit on the ZIP card).
+ * The way forward is the self-download card above; nothing here asks the Customer to run anything.
+ */
+function Failure({
+  jobId,
+  productId,
+  merge,
+}: {
+  jobId: string
+  productId: string
+  merge: FinalMerge['merge']
+}) {
+  const ids = useId()
   if (!merge?.refusal) {
     return null
   }
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {merge.run && (
         <ActionsRunRow
           purpose={t('screen.job.actionsRun.purposeFinalMerge')}
@@ -68,6 +101,13 @@ function Failure({ merge }: { merge: FinalMerge['merge'] }) {
         <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
         {t('screen.closure.finalMerge.failed', { reason: reason(merge.refusal) })}
       </p>
+      <SensitiveChangeList changes={merge.sensitive} headingId={`${ids}-sensitive`} />
+      <Link
+        to={`/san-pham/${productId}/cong-viec-moi?${MERGE_CODE_PARAM}=${jobId}`}
+        className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit no-underline')}
+      >
+        {t('screen.closure.finalMerge.post')}
+      </Link>
     </div>
   )
 }
@@ -144,15 +184,15 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
     )
   }
   if (step.status !== 'READY') {
-    // A refusal normally ends the row in the same transaction, so this is the moment before the fallback shows.
+    // A refusal leaves the closing choice open (Story 23.10c), so this card is where it speaks from now on.
     return (
       <section
         id={FINAL_MERGE_ANCHOR}
         aria-labelledby={`${ids}-final-merge`}
-        className="flex flex-col gap-2 rounded-md border border-border p-4"
+        className="flex flex-col gap-3 rounded-md border border-border p-4"
       >
         {heading}
-        <Failure merge={step} />
+        <Failure jobId={jobId} productId={merge.productId} merge={step} />
       </section>
     )
   }

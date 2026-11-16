@@ -36,7 +36,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Việc hợp nhất cuối có thể thất bại.')
     expect(screen.getByText('Có 3 thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày 23/10).')).toBeInTheDocument()
-    expect(screen.getByText(/bạn sẽ nhận mã dưới dạng tệp ZIP/)).toBeInTheDocument()
+    expect(screen.getByText(/bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Xác nhận lại dự án gốc' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Cách tạm dừng đồng bộ' }))
     expect(screen.getByText(/Lovable:/)).toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
     renderWarning()
 
     expect(await screen.findByText(/^Ứng dụng vibefix trên dự án gốc đã bị gỡ, bị tạm ngưng hoặc thiếu quyền/)).toBeInTheDocument()
-    expect(screen.queryByText(/bạn sẽ nhận mã dưới dạng tệp ZIP/)).toBeNull()
+    expect(screen.queryByText(/bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cách tạm dừng đồng bộ' })).toBeNull()
   })
 

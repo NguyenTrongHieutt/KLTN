@@ -13302,9 +13302,6 @@
           },
           "status" : {
             "type" : "string"
-          },
-          "zip" : {
-            "$ref" : "#/components/schemas/ZipView"
           }
         },
         "required" : [ "audience", "choice", "id", "productId", "repository", "status" ]
@@ -20644,28 +20641,6 @@
           }
         },
         "required" : [ "accountId", "estimateHours", "name", "openItems" ]
-      },
-      "ZipView" : {
-        "type" : "object",
-        "properties" : {
-          "fileId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "reason" : {
-            "type" : "string"
-          },
-          "sensitive" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/MergeSensitiveChangeView"
-            }
-          },
-          "status" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "reason", "sensitive", "status" ]
       }
     }
   }

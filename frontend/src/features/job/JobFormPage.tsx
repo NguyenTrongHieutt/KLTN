@@ -95,7 +95,7 @@ export function JobFormPage() {
 function ProductStep({ productId, job }: { productId: string; job?: Job }) {
   const product = useProduct(productId)
   const suggestions = useSkillSuggestions(job ? undefined : productId)
-  // FR-38: "Đăng công việc ghép mã" from a ZIP Fallback asks a Mentor to merge that code.
+  // FR-38: "Đăng công việc ghép mã" from a failed Final Merge asks a Mentor to merge that code.
   const [params] = useSearchParams()
   const mergeCode = !job && params.has('ghep-ma')
   if (product.isError && isNotFound(product.error)) {
@@ -140,13 +140,16 @@ function empty(skillIds: string[]): FormValues {
   }
 }
 
-/** CUS-6 pre-filled to merge a ZIP Fallback's code into the project (FR-38, N-17). */
+/**
+ * CUS-6 pre-filled to merge a Job's finished code into the project (FR-38, Story 23.10c): the Customer took it
+ * from the Intermediary Repository themselves, and asks a Mentor to merge it.
+ */
 function mergingCode(values: FormValues): FormValues {
   return {
     ...values,
-    title: t('screen.closure.zip.prefill.title'),
-    problem: t('screen.closure.zip.prefill.problem'),
-    expected: t('screen.closure.zip.prefill.expected'),
+    title: t('screen.closure.finalMerge.prefill.title'),
+    problem: t('screen.closure.finalMerge.prefill.problem'),
+    expected: t('screen.closure.finalMerge.prefill.expected'),
     jobTypes: ['MODIFICATION'],
   }
 }

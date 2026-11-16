@@ -14,6 +14,7 @@ const requested = {
   repository: 'quan-may/so-dat-ban',
   deadlineAt: '2026-10-29T03:00:00Z',
   audience: 'CUSTOMER',
+  productId: 'pr1',
   choice: { deadlineAt: '2026-10-29T03:00:00Z', near: false, finalMerge: true, selfDownload: true },
 }
 
@@ -40,6 +41,7 @@ function renderStep(path = '/cong-viec/j1') {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -139,8 +141,8 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     expect(screen.getByText(/GitHub không cho bước hợp nhất cuối ghi các tệp này/)).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeNull()
-    // Story 23.10a: the way forward is the self-download card above, never a ZIP this step offers.
-    expect(screen.queryByRole('button', { name: 'Nhận mã dạng ZIP' })).toBeNull()
+    // Story 23.10c: the way forward is the self-download card above; vibefix stores no ZIP of its own any more.
+    expect(screen.queryByRole('link', { name: /ZIP/ })).toBeNull()
   })
 
   it('names the reason of a run that could not finish', async () => {
@@ -165,23 +167,17 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     expect(screen.getByRole('group', { name: 'Hợp nhất cuối' })).toHaveTextContent('Không chạy được')
   })
 
-  /** The refusal ends the row in the same transaction, so the reason stands above the fallback it offers. */
-  it('keeps naming the reason once the fallback has taken over', async () => {
+  /**
+   * Story 23.10c: a refusal leaves the closing choice open, so the reason keeps its own notice -- with the Job's
+   * Sensitive Changes and "Đăng công việc ghép mã" under it, and no ZIP of vibefix's own anywhere.
+   */
+  it('keeps the refusal, its Sensitive Changes and the merge-Job link', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
         json({
           ...ready,
-          status: 'ENDED',
-          endReason: 'ZIP_FALLBACK',
-          productId: 'pr1',
-          merge: {
-            ...ready.merge,
-            status: 'REFUSED',
-            refusal: 'WORKFLOW_FILES_CHANGED',
-            run: null,
-          },
-          zip: { status: 'READY', reason: 'MERGE_REFUSED', fileId: 'f1', sensitive: [] },
+          merge: { ...ready.merge, status: 'REFUSED', refusal: 'WORKFLOW_FILES_CHANGED', run: null },
         }),
     })
     renderStep()
@@ -189,40 +185,39 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Chưa chép được mã vào dự án của bạn: mã đã nghiệm thu có thay đổi trong thư mục .github/workflows, mà GitHub không cho bước này ghi',
     )
-    expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(screen.getByText('package.json')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Đăng công việc ghép mã' })).toHaveAttribute(
+      'href',
+      '/san-pham/pr1/cong-viec-moi?ghep-ma=j1',
+    )
+    expect(screen.queryByRole('link', { name: /ZIP/ })).toBeNull()
   })
 
   /**
-   * Story 23.10b: a row that ended ZIP_FALLBACK is the one ending still waiting for something, so the step reads
-   * again until the fallback's own row appears. Every other ending -- the closing choice's deadline, a cancellation
-   * at J10, a proposal that ended -- waits for nothing and no longer polls.
+   * Story 23.10c: nothing follows a refusal any more, so the step reads once and stops. It used to read again until
+   * the closure fallback's own row appeared. The clock is faked, so the poll it must not make is long overdue.
    */
-  it('reads again until the fallback a refusal started is stored', async () => {
-    const refused = {
-      ...ready,
-      status: 'ENDED',
-      endReason: 'ZIP_FALLBACK',
-      productId: 'pr1',
-      merge: { ...ready.merge, status: 'REFUSED', refusal: 'MERGE_REFUSED', run: null },
-    }
-    const stored = { status: 'READY', reason: 'MERGE_REFUSED', fileId: 'f1', sensitive: [] }
+  it('reads once after a refusal and does not poll', { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     let reads = 0
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () => {
         reads += 1
-        return json({ ...refused, zip: reads === 1 ? null : stored })
+        return json({ ...ready, merge: { ...ready.merge, status: 'REFUSED', refusal: 'MERGE_REFUSED', run: null } })
       },
     })
     renderStep()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Chưa chép được mã vào dự án của bạn')
-    // The timers are real and RUNNING_POLL_MS is 5 s, so the second read needs more than the default 1 s.
-    expect(await screen.findByRole('link', { name: 'Tải mã về (tệp ZIP)' }, { timeout: 20_000 })).toHaveAttribute(
-      'href',
-      '/api/v1/files/f1',
-    )
-  }, 30_000)
+    expect(reads).toBe(1)
+
+    // Six times RUNNING_POLL_MS: a step that still polled would have read many times over.
+    await vi.advanceTimersByTimeAsync(30_000)
+
+    expect(reads).toBe(1)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
 
   it('says the code is checked first', async () => {
     fakeBackend(signedInUser, {
@@ -267,63 +262,53 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
   })
 })
 
-describe('The closure fallback (FR-38, Story 8.9)', () => {
-  it('says why, offers the archive and a Job that merges it, and asks nothing to be run', async () => {
+describe('A Final Merge that could not run (FR-38, D10, Story 23.10c)', () => {
+  /** The deadline ends the row after the refusal, and the reason it carries is still the Customer's answer. */
+  it('still names its reason and offers the merge Job once the row has ended', async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1/final-merge': () =>
         json({
-          ...requested,
+          ...ready,
           status: 'ENDED',
-          endReason: 'ZIP_FALLBACK',
-          productId: 'pr1',
-          zip: { status: 'READY', reason: 'MERGE_REFUSED', fileId: 'f1', sensitive: [] },
+          endReason: 'DEADLINE',
+          deadlineAt: null,
+          merge: { ...ready.merge, status: 'REFUSED', refusal: 'ACTIONS_QUOTA', run: null },
+          choice: { deadlineAt: null, near: false, finalMerge: false, selfDownload: true },
         }),
     })
     renderStep()
 
-    expect(
-      await screen.findByText(/Không thể hợp nhất tự động: GitHub không chạy xong được bước chép mã/),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa chép được mã vào dự án của bạn: GitHub Actions của dự án gốc đã hết số phút trong tháng',
+    )
     expect(screen.getByRole('link', { name: 'Đăng công việc ghép mã' })).toHaveAttribute(
       'href',
       '/san-pham/pr1/cong-viec-moi?ghep-ma=j1',
     )
-    expect(screen.getByText(/Bạn không cần chạy lệnh nào/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /ZIP/ })).toBeNull()
   })
 
-  it('names the Source App when it no longer reads the Source Repository (Story 23.5)', async () => {
+  /** A row that ended with no Final Merge of its own: a cancellation at J10, or a proposal that ended. */
+  it('shows nothing for a row that ended with no Final Merge of its own', async () => {
+    let read = false
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/jobs/j1/final-merge': () =>
-        json({
+      'GET /api/v1/jobs/j1/final-merge': () => {
+        read = true
+        return json({
           ...requested,
           status: 'ENDED',
-          endReason: 'ZIP_FALLBACK',
-          productId: 'pr1',
-          zip: { status: 'READY', reason: 'SOURCE_APP_MISSING', fileId: 'f1', sensitive: [] },
-        }),
+          endReason: 'CANCELLED',
+          deadlineAt: null,
+          choice: { deadlineAt: null, near: false, finalMerge: false, selfDownload: true },
+        })
+      },
     })
     renderStep()
 
-    expect(
-      await screen.findByText(
-        /Không thể hợp nhất tự động: ứng dụng vibefix không còn đọc được dự án gốc: ứng dụng đã bị gỡ, hoặc dự án đã bị xóa\./,
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tải mã về (tệp ZIP)' })).toHaveAttribute('href', '/api/v1/files/f1')
-  })
-
-  /** Story 23.10a (D10): the Customer never starts a ZIP; the step shows only one a failure or the deadline built. */
-  it('offers the Customer no way to ask for a ZIP', async () => {
-    fakeBackend(signedInUser, {
-      ...inEveryJob('CUSTOMER'),
-      'GET /api/v1/jobs/j1/final-merge': () => json(ready),
-    })
-    renderStep()
-
-    expect(await screen.findByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Nhận mã dạng ZIP' })).toBeNull()
+    await vi.waitFor(() => expect(read).toBe(true))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Đăng công việc ghép mã' })).toBeNull()
   })
 })

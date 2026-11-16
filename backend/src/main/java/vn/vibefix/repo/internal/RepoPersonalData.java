@@ -190,7 +190,6 @@ class RepoPersonalData implements PersonalDataParticipant {
 		// R5: the repositories go, and with them the Customer's read, audited and its to-do closed before the rows go.
 		this.grants.getObject().productDeleted(productId);
 		this.jdbc.sql("DELETE FROM repo.job_grant WHERE product_id = :id").param("id", productId).update();
-		this.jdbc.sql("DELETE FROM repo.zip_fallback WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.final_merge WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.final_merge_authorization WHERE product_id = :id").param("id", productId).update();
@@ -206,12 +205,11 @@ class RepoPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM repo.job_setup WHERE product_id = :id").param("id", productId).update();
 	}
 
-	/** NFR-10: the final ZIPs and their ZIP Fallback rows go, with the Revocation Checklist. */
+	/** NFR-10: the final ZIPs go, with the Revocation Checklist. */
 	@Override
 	public void retireJobData(UUID productId) {
 		closeRevocationTodos(productId);
 		this.deletions.getObject().archivesOfProduct(productId).forEach(this.files.getObject()::delete);
-		this.jdbc.sql("DELETE FROM repo.zip_fallback WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("UPDATE repo.job_setup SET archive_file_id = NULL WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM repo.revocation_item WHERE product_id = :id").param("id", productId).update();
 	}

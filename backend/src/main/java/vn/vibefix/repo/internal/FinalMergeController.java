@@ -67,12 +67,11 @@ class FinalMergeController {
 	 * (the deadline passed with neither path taken, Story 23.10b), or none yet
 	 * @param receipt the Customer's own code receipt, once recorded; never shown to the Mentor
 	 * @param merge the Final Merge once the Job is Closing; the Customer's alone
-	 * @param zip the closure fallback once the Final Merge cannot happen (Story 8.9); the Customer's alone
 	 * @param productId for "Đăng công việc ghép mã", which opens CUS-6 for the Product
 	 */
 	record FinalMergeView(UUID id, String status, String repository, @Nullable Instant deadlineAt,
 			@Nullable String endReason, String audience, ChoiceView choice, @Nullable String outcome,
-			@Nullable ReceiptView receipt, @Nullable MergeView merge, @Nullable ZipView zip, UUID productId) {
+			@Nullable ReceiptView receipt, @Nullable MergeView merge, UUID productId) {
 	}
 
 	/**
@@ -90,15 +89,6 @@ class FinalMergeController {
 
 	/** The code receipt: who confirmed they have the code, and when (FR-38, Story 23.10a). */
 	record ReceiptView(UUID confirmedBy, Instant confirmedAt) {
-	}
-
-	/**
-	 * The closure fallback (FR-38), as Story 8.9 built it; Story 23.10 replaces it with the self-download path.
-	 * @param status {@code BUILDING} or {@code READY}
-	 * @param reason why the Final Merge could not happen
-	 * @param fileId the archive, served by {@code GET /api/v1/files/{id}} to the Customer alone
-	 */
-	record ZipView(String status, String reason, @Nullable UUID fileId, List<MergeSensitiveChangeView> sensitive) {
 	}
 
 	/**
@@ -154,8 +144,6 @@ class FinalMergeController {
 
 	private final CodeReceipts receipts;
 
-	private final ZipFallbacks fallbacks;
-
 	private final ActionsRuns runs;
 
 	private final GitHubLinks links;
@@ -167,13 +155,11 @@ class FinalMergeController {
 	private final JobRoles roles;
 
 	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, CodeReceipts receipts,
-			ZipFallbacks fallbacks, ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers,
-			JobRoles roles) {
+			ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers, JobRoles roles) {
 		this.roles = roles;
 		this.authorizations = authorizations;
 		this.merges = merges;
 		this.receipts = receipts;
-		this.fallbacks = fallbacks;
 		this.runs = runs;
 		this.links = links;
 		this.busy = busy;
@@ -248,8 +234,8 @@ class FinalMergeController {
 	/**
 	 * The step for its viewer: the Customer reads all of it, the Mentor the choice and its outcome alone
 	 * (EXPERIENCE.md's closure section). Without a closing-choice row the step is the Job's own: the Job's ID and
-	 * Product, the Setup's Source Repository, {@code ENDED} with no reason, and no Final Merge or fallback of any
-	 * kind (Story 23.10b).
+	 * Product, the Setup's Source Repository, {@code ENDED} with no reason, and no Final Merge of its own (Story
+	 * 23.10b).
 	 */
 	private FinalMergeView view(Viewer viewer, @Nullable Authorization authorization) {
 		UUID jobId = viewer.job().jobId();
@@ -257,11 +243,6 @@ class FinalMergeController {
 		CodeReceipt receipt = this.receipts.find(jobId).orElse(null);
 		MergeView merge = viewer.customer() && authorization != null
 				? this.merges.find(authorization.id()).map(found -> merge(authorization, found)).orElse(null) : null;
-		ZipView zip = viewer.customer() && authorization != null ? this.fallbacks.find(jobId)
-			.filter(found -> found.authorizationId().equals(authorization.id()))
-			.map(found -> new ZipView(found.status(), found.reason(), found.archiveFileId(),
-					found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList()))
-			.orElse(null) : null;
 		return new FinalMergeView(authorization == null ? jobId : authorization.id(),
 				authorization == null ? "ENDED" : authorization.status(),
 				authorization == null ? this.receipts.source(jobId).orElse("") : authorization.repositoryName(),
@@ -271,7 +252,7 @@ class FinalMergeController {
 						choice.intermediaryUrl(), choice.deletionAt()),
 				outcome(authorization, receipt), viewer.customer() && receipt != null
 						? new ReceiptView(receipt.confirmedBy(), receipt.confirmedAt()) : null,
-				merge, zip, viewer.job().productId());
+				merge, viewer.job().productId());
 	}
 
 	/**

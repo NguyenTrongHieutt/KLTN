@@ -267,7 +267,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     expect(seen.some((request) => request.method === 'POST')).toBe(false)
   })
 
-  it('pre-fills a Job that merges a ZIP Fallback’s code (FR-38, N-17)', { timeout: 15_000 }, async () => {
+  it('pre-fills a Job that merges a finished Job’s code (FR-38, Story 23.10c)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/products/p1': () => json(product()),
@@ -278,7 +278,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
 
     expect(await screen.findByLabelText('Tên công việc')).toHaveValue('Ghép mã đã hoàn thiện vào dự án')
     expect(screen.getByLabelText('Điều gì đang chưa đúng?')).toHaveValue(
-      'Một công việc trước đã hoàn thiện mã nhưng không hợp nhất tự động được vào dự án gốc. Toàn bộ mã nằm trong tệp ZIP của công việc đó.',
+      'Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Mã đã hoàn thiện nằm trong kho trung gian của công việc đó trên GitHub, tôi tự tải về được.',
     )
     expect(screen.getByRole('checkbox', { name: /Chỉnh sửa/ })).toBeChecked()
   })

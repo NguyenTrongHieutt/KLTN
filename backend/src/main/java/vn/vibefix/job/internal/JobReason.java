@@ -111,7 +111,7 @@ enum JobReason {
 	/** The caller has already confirmed this closure proposal. */
 	CLOSURE_ANSWERED,
 
-	/** A Code Job closes after its Final Merge or ZIP Fallback (FR-38), which Epic 7 brings. */
+	/** A Code Job closes once its closing choice is spent or its deadline has passed (FR-38). */
 	FINAL_MERGE_PENDING,
 
 	/** A Change Request needs a confirmed Agreement on a Job in Agreement, Starting, or Active (FR-36). */
