@@ -3,5 +3,5 @@ subject: Dự án gốc của {job} vừa thay đổi
 Xin chào,
 
 Dự án gốc của {job} vừa thay đổi trong lúc nhóm đang làm.
-Việc hợp nhất cuối có thể thất bại; khi đó mã được giao dưới dạng tệp ZIP.
+Việc hợp nhất cuối có thể thất bại; khi đó bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub về máy.
 Hãy tạm dừng đồng bộ của công cụ AI cho đến khi hợp nhất xong. Chi tiết ở trang công việc.

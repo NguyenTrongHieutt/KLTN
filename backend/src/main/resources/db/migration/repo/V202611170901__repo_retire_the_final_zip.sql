@@ -5,13 +5,20 @@
 -- earlier, because data goes before schema.
 --
 -- What stays: everything else on the Setup -- the two repositories, the default branch, started_at and
--- deleted_at -- because the deletion still needs them and a Setup is the Job's record of what was created on
--- GitHub. The audit entries repo.final_zip_stored and repo.deletion_started that were written in the past stay
--- too: the audit trail is never rewritten (AD-8), and they say truthfully what happened then.
+-- deleted_at. The deletion itself needs only the repositories and deleted_at; the rest stays because a Setup is
+-- the Job's record of what was created on GitHub, and default_branch has its own readers (the Setup view, the
+-- handover range and the Final Merge). The archive was the only thing default_branch fed here, and that payload
+-- key goes with it. The audit entries repo.final_zip_stored and repo.deletion_started that were written in the
+-- past stay too: the audit trail is never rewritten (AD-8), and they say truthfully what happened then.
 --
--- A repo.repository_delete operation queued before this story carries a zip flag and a customerId in its payload.
--- Neither is read any more, and neither is removed here: the payload is the operation's own record, and the
--- handler deletes exactly the repositories that payload names.
+-- A repo.repository_delete operation queued before this story carries a zip flag, a customerId and a branch in
+-- its payload. None is read any more, and none is removed here: the payload is the operation's own record, and
+-- the handler deletes exactly the repositories that payload names. The operation key changed too -- it was
+-- setupId:delete:true for the deadline and setupId:delete:false for a Product deletion, and is now
+-- setupId:delete -- so a row queued under an old key is not matched by a request made after the upgrade. A
+-- Product deleted in that window therefore queues a second operation. It settles by itself: its first attempt
+-- is refused for repositories GitHub no longer knows, and from the second attempt the handler reads them back
+-- as gone and skips them, after which deleted() finds the Setup's deleted_at already set and changes nothing.
 -- Personal data: the column held a files row's id, and that row is marked deleted by this story's files
 -- migration; nothing new is kept.
 

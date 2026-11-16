@@ -23,7 +23,10 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.github.PlatformRepositories.PlatformRepository;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.operations.ExternalOperations;
+import vn.vibefix.operations.FailedOperations;
 import vn.vibefix.operations.OperationRequest;
+import vn.vibefix.operations.OperationStatus;
+import vn.vibefix.operations.OperationTicket;
 
 /**
  * The platform repositories' deletion (FR-21, FR-38, NFR-10). Thirty days after the Job is Closed or
@@ -39,12 +42,11 @@ class RepositoryDeletions {
 
 	/** A Setup whose repositories are not deleted yet. */
 	record Pending(UUID setupId, UUID jobId, UUID productId, @Nullable PlatformRepository intermediary,
-			@Nullable PlatformRepository working, @Nullable String branch) {
+			@Nullable PlatformRepository working) {
 	}
 
 	private static final String COLUMNS = """
-			id, job_id, product_id, intermediary_github_id, intermediary_name, working_github_id, working_name,
-			default_branch
+			id, job_id, product_id, intermediary_github_id, intermediary_name, working_github_id, working_name
 			""";
 
 	private static final String PENDING = " FROM repo.job_setup WHERE deleted_at IS NULL"
@@ -53,6 +55,9 @@ class RepositoryDeletions {
 	private final JdbcClient jdbc;
 
 	private final ExternalOperations operations;
+
+	/** The same bean as {@link #operations}: a second request revives a deletion that ended {@code FAILED}. */
+	private final FailedOperations failedOperations;
 
 	/** Looked up on use: the deletion ends the Customer's read grant (Story 23.7). */
 	private final ObjectProvider<JobGrants> grants;
@@ -64,10 +69,11 @@ class RepositoryDeletions {
 
 	private final Clock clock;
 
-	RepositoryDeletions(JdbcClient jdbc, ExternalOperations operations, ObjectProvider<JobGrants> grants,
-			ObjectProvider<Todos> todos, AuditLog auditLog, Clock clock) {
+	RepositoryDeletions(JdbcClient jdbc, ExternalOperations operations, FailedOperations failedOperations,
+			ObjectProvider<JobGrants> grants, ObjectProvider<Todos> todos, AuditLog auditLog, Clock clock) {
 		this.jdbc = jdbc;
 		this.operations = operations;
+		this.failedOperations = failedOperations;
 		this.grants = grants;
 		this.todos = todos;
 		this.auditLog = auditLog;
@@ -92,8 +98,15 @@ class RepositoryDeletions {
 
 	/**
 	 * The deletion as one operation, named by the Setup; the payload carries what the operation needs once the
-	 * row is gone. The 30-day deadline and a Product deletion derive the same id, so whichever comes second
-	 * finds the first and the repositories are deleted once.
+	 * row is gone. The 30-day deadline and a Product deletion derive the same id from it, so the second request
+	 * joins the first rather than queueing a second deletion of the same repositories.
+	 * <p>
+	 * Joining an operation that already ended {@code FAILED} would swallow the second request, because
+	 * {@code FAILED} is terminal until an Administrator retries it (FR-64) -- and a Product deletion goes on to
+	 * delete the Setup rows, so nothing would point at the repositories any more. A second request is therefore
+	 * the caller asking for the deletion again, and revives it from its first attempt. {@code FAILED} is the only
+	 * terminal non-success this type can reach: its handler answers {@code Transient} or succeeds, and the
+	 * {@code Obsolete} arm went with the final ZIP (Story 23.10d).
 	 */
 	@Transactional
 	void request(Pending pending) {
@@ -102,12 +115,12 @@ class RepositoryDeletions {
 		payload.put("jobId", pending.jobId().toString());
 		put(payload, "intermediary", pending.intermediary());
 		put(payload, "working", pending.working());
-		if (pending.branch() != null) {
-			payload.put("branch", pending.branch());
-		}
-		this.operations.request(new OperationRequest(DELETE,
+		OperationTicket ticket = this.operations.request(new OperationRequest(DELETE,
 				UUID.nameUUIDFromBytes((pending.setupId() + ":delete").getBytes(StandardCharsets.UTF_8)), payload, null, null,
 				0));
+		if (ticket.status() == OperationStatus.FAILED) {
+			this.failedOperations.retry(ticket.id());
+		}
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), "repo.deletion_requested",
 				AuditObject.of("repo.job_setup", pending.setupId())).forJob(pending.jobId()));
 	}
@@ -147,8 +160,7 @@ class RepositoryDeletions {
 		return new Pending(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class),
 				repository(rs.getObject("intermediary_github_id", Long.class), rs.getString("intermediary_name")),
-				repository(rs.getObject("working_github_id", Long.class), rs.getString("working_name")),
-				rs.getString("default_branch"));
+				repository(rs.getObject("working_github_id", Long.class), rs.getString("working_name")));
 	}
 
 	static @Nullable PlatformRepository repository(@Nullable Long id, @Nullable String fullName) {

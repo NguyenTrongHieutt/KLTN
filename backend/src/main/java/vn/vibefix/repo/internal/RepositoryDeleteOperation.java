@@ -61,10 +61,18 @@ class RepositoryDeleteOperation implements OperationHandler {
 			List<PlatformRepository> gone = new ArrayList<>();
 			// The team's copy first, then the Intermediary Repository the Customer reads (there is no fork, D1).
 			for (PlatformRepository repository : new PlatformRepository[] { working, intermediary }) {
-				if (repository != null) {
-					repositories.delete(repository);
-					gone.add(repository);
+				if (repository == null) {
+					continue;
 				}
+				// A retry re-enters the loop after one repository was already deleted. Deleting it again mints a
+				// token narrowed to a numeric ID GitHub no longer knows, which it refuses with 422 -- another
+				// Transient outcome, so the operation would never finish. From the second attempt on, read the
+				// outside state first and skip what is gone (OperationHandler's own contract).
+				if (run.attempt() > 1 && repositories.find(repository.name()).isEmpty()) {
+					continue;
+				}
+				repositories.delete(repository);
+				gone.add(repository);
 			}
 			for (PlatformRepository repository : gone) {
 				if (repositories.find(repository.name()).isPresent()) {
