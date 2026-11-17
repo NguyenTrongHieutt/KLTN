@@ -1915,9 +1915,11 @@ class JobSetupIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(1));
 		this.drift.poll();
 
+		// Both warnings are made in this one poll, so they share a detected_at and the query's id tie-break orders them:
+		// the kinds are what matters here, not their order.
 		assertThat(this.drift.warnings(this.job)).as("the same Source warns once the Job is a Code Job")
 			.extracting(SourceDrift.Warning::kind)
-			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
+			.containsExactlyInAnyOrder(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
 		assertThat(openReconfirmTodos()).isOne();
 		awaitListeners();
 	}
