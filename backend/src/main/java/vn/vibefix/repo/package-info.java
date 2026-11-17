@@ -1,9 +1,11 @@
 /**
- * Layer 7 (AD-3): the platform repositories of Code Jobs, their access, drift, Final Merge, and the
+ * Layer 7 (AD-3): the platform repositories of Jobs, their access, drift, Final Merge, and the
  * Revocation Checklist (Epic 7). J7's Setup (Story 7.2) waits, with no busy marker, for the Customer to
  * self-confirm the Source Repository's default-branch head (vibefix scans no code, Story 23.6b); then, under the
  * Job's busy marker, it creates the private Intermediary and Working Repositories and copies exactly that head into
- * both on the Customer's own GitHub Actions, through their Source App, and reads both back. It also keeps the
+ * both on the Customer's own GitHub Actions, through their Source App, and reads both back. An Assessment Job runs the
+ * same Setup for one private read-only Intermediary Repository, with no Working Repository, and reaches J7 as soon as
+ * that copy reads back (R6, Story 23.11a). It also keeps the
  * post-Job data-deletion confirmations
  * (FR-66): after J8 or J10 the Mentor and every Crew member who was ever active confirm, item by item,
  * that they deleted the Customer's non-code data and their preview deployments; closure never waits for

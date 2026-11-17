@@ -18,14 +18,21 @@ const READ_AT = '2026-11-13T07:05:00Z'
 
 const KEYS = ['CHECK', 'CONFIRM', 'REPOSITORIES', 'COPY', 'INVITE', 'VERIFY']
 
+/** R6 (Story 23.11a): an Assessment Job's Setup ends at its one read-only copy, with no invitations and no Verify. */
+const ASSESSMENT_KEYS = ['CHECK', 'CONFIRM', 'REPOSITORIES', 'COPY']
+
 /** The steps' states in order, the rest pending. */
 const steps = (...states: string[]) => KEYS.map((key, index) => ({ key, state: states[index] ?? 'PENDING' }))
+
+const assessmentSteps = (...states: string[]) =>
+  ASSESSMENT_KEYS.map((key, index) => ({ key, state: states[index] ?? 'PENDING' }))
 
 /** The Setup as the Customer reads it, unless `extra` names another viewer. */
 const setup = (status: string, states: string[], extra: Record<string, unknown> = {}) => ({
   jobId: 'j1',
   jobState: 'STARTING',
   viewer: 'CUSTOMER',
+  assessment: false,
   productId: 'p1',
   sourceFullName: 'lan-nguyen/so-dat-ban',
   defaultBranch: 'main',
@@ -36,6 +43,10 @@ const setup = (status: string, states: string[], extra: Record<string, unknown> 
   people: [],
   ...extra,
 })
+
+/** An Assessment Job's Setup: the same four first steps, and one private read-only repository. */
+const assessment = (status: string, states: string[], extra: Record<string, unknown> = {}) =>
+  setup(status, states, { assessment: true, steps: assessmentSteps(...states), ...extra })
 
 /** Waiting for the Customer at the head read: the check done, the confirmation current. */
 const confirming = (extra: Record<string, unknown> = {}) =>
@@ -643,5 +654,69 @@ describe('JOB-H step tracker while Starting (UX-DR114, AD-11, Story 23.6c)', () 
     expect(await screen.findByText('Công việc không còn ở bước bắt đầu, nên việc chuẩn bị kho mã đã dừng.')).toBeInTheDocument()
     expect(screen.queryByText(/quản trị viên/)).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+
+  it("shows an Assessment Job's four steps, its one read-only repository, and no invitations (R6)", async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          assessment('RUNNING', ['DONE', 'DONE', 'DONE', 'CURRENT'], {
+            ...mentor,
+            head: { sha: HEAD, readAt: READ_AT },
+            confirmation: { sha: HEAD, confirmedAt: READ_AT },
+            run: { state: 'IN_PROGRESS' },
+          }),
+        ),
+    })
+    renderTracker()
+
+    expect(await screen.findByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeInTheDocument()
+    const items = within(screen.getByRole('list')).getAllByRole('listitem')
+    expect(items.map((item) => item.querySelector('span')?.textContent)).toEqual([
+      'Kiểm tra ứng dụng vibefix và file workflow',
+      'Khách hàng xác nhận dự án gốc đã sạch',
+      'Tạo kho trung gian (riêng tư, chỉ đọc)',
+      'Sao chép trên GitHub Actions của khách hàng',
+    ])
+    expect(screen.queryByText('Mời trên GitHub')).toBeNull()
+    expect(screen.queryByText('Cấp quyền ghi và kiểm tra')).toBeNull()
+    expect(copyRow()).toBeInTheDocument()
+  })
+
+  it('still names the Working Repository for a Code Job', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () => json(setup('RUNNING', ['DONE', 'DONE', 'CURRENT'], mentor)),
+    })
+    renderTracker()
+
+    expect(await screen.findByText('Tạo kho trung gian và kho làm việc (riêng tư)')).toBeInTheDocument()
+    expect(screen.queryByText('Tạo kho trung gian (riêng tư, chỉ đọc)')).toBeNull()
+    expect(screen.getByText('Mời trên GitHub')).toBeInTheDocument()
+    expect(screen.getByText('Cấp quyền ghi và kiểm tra')).toBeInTheDocument()
+  })
+
+  it('gives the Customer of an Assessment Job the published vibefix.yml to add again when theirs is too old', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(assessment('BLOCKED', ['BLOCKED'], { blockedReason: 'WORKFLOW_TOO_OLD', canRetry: true })),
+    })
+    renderTracker()
+
+    expect(await screen.findByText(messages.screen.job.setup.blockedWORKFLOW_TOO_OLD)).toBeInTheDocument()
+    expect((await screen.findByRole('link', { name: /Sửa file workflow/ })).getAttribute('href')).toContain(
+      `${SOURCE_URL}/edit/main/`,
+    )
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument()
+  })
+
+  it('tells the team of an Assessment Job that the Customer must add the newest workflow', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(assessment('BLOCKED', ['BLOCKED'], { ...mentor, blockedReason: 'WORKFLOW_TOO_OLD' })),
+    })
+    renderTracker()
+
+    expect(await screen.findByText(messages.screen.job.setup.teamWORKFLOW_TOO_OLD)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   })
 })

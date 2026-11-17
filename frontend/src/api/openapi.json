@@ -18470,6 +18470,9 @@
       "SetupView" : {
         "type" : "object",
         "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
           "blockedReason" : {
             "type" : "string"
           },
@@ -18528,7 +18531,7 @@
             "enum" : [ "CUSTOMER", "MENTOR", "CREW", "ADMINISTRATOR" ]
           }
         },
-        "required" : [ "canRetry", "jobId", "jobState", "people", "productId", "status", "steps", "viewer" ]
+        "required" : [ "assessment", "canRetry", "jobId", "jobState", "people", "productId", "status", "steps", "viewer" ]
       },
       "ShareRequest" : {
         "type" : "object",

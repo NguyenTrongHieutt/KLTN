@@ -81,7 +81,10 @@ enum JobReason {
 	/** The Milestone is not the next Planned one, or the Job cannot fund it in its state (FR-41). */
 	MILESTONE_NOT_FUNDABLE,
 
-	/** A Code Job's J7 waits for its repositories and verified access (FR-18, Epic 7). */
+	/**
+	 * J7 waits for the Job's repositories: a Code Job's two with verified write, an Assessment Job's one private
+	 * read-only copy read back at the confirmed head (FR-18, Epic 7, Story 23.11a).
+	 */
 	REPOSITORIES_NOT_READY,
 
 	/** Only the Job's Mentor hands a Milestone over (FR-32). */

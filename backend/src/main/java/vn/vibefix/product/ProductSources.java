@@ -52,9 +52,13 @@ public interface ProductSources {
 	 * What the check found, with the Source Repository as the Product registered it.
 	 * @param block why it may not be used, or none
 	 * @param defaultBranch the branch GitHub names as default, as read now
+	 * @param blob the accepted blob the Source's {@code vibefix.yml} matched, with CRLF read as LF, so a caller knows
+	 * which published version would run before it dispatches
+	 * ({@link vn.vibefix.github.SourceApp#copiesToOneRepository}, Story 23.11a); none when the file matches no
+	 * published version, and none when a {@code block} stopped the read before it
 	 */
 	record SourceCheck(@Nullable Block block, UUID productId, UUID customerId, String productName,
-			String repositoryFullName, long repositoryGithubId, String defaultBranch) {
+			String repositoryFullName, long repositoryGithubId, String defaultBranch, @Nullable String blob) {
 	}
 
 	/**

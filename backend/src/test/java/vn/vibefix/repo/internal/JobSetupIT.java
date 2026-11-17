@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -92,6 +94,16 @@ class JobSetupIT extends IntegrationTest {
 
 	private static final String RUNNER = "vibefix-runner";
 
+	/** Where the Customer adds the published workflow (AD-45). */
+	private static final String WORKFLOW_PATH = ".github/workflows/vibefix.yml";
+
+	/**
+	 * Story 23.11a (R6): a {@code vibefix.yml} that is still accepted but was published before the one-repository
+	 * copy. It stands in for the real earlier versions, whose {@code copy} job checks {@code working} against
+	 * {@code owner/name}, so an Assessment Job's copy would fail at the run's own input check.
+	 */
+	private static final String TWO_REPOSITORY_WORKFLOW;
+
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("job-setup-");
@@ -99,6 +111,8 @@ class JobSetupIT extends IntegrationTest {
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 			// The stand-in for GitHub Actions' OIDC issuer, whose ID tokens a copy run exchanges (Story 23.4).
 			ActionsExchangeSupport.issue(GITHUB);
+			TWO_REPOSITORY_WORKFLOW = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW)
+					+ "# published before the one-repository copy\n";
 		}
 		catch (Exception ex) {
 			throw new IllegalStateException(ex);
@@ -198,6 +212,35 @@ class JobSetupIT extends IntegrationTest {
 		// Story 23.6b: the copy is dispatched on the Customer's Actions, which reach the exchange through the dev tunnel.
 		registry.add("vibefix.github.exchange.public-url", () -> TUNNEL);
 		registry.add("vibefix.github.exchange.issuer", () -> GITHUB.apiUrl().toString());
+		// Story 23.11a (R6): the accepted set as this IT needs it -- the two published files, and one earlier version of
+		// vibefix.yml, still accepted, whose copy job refuses an empty working, so no Assessment Job may run it.
+		registry.add("vibefix.github.exchange.accepted-blobs[0].path", () -> WORKFLOW_PATH);
+		registry.add("vibefix.github.exchange.accepted-blobs[0].blob", () -> GitHubStub.blobSha(publishedWorkflow()));
+		registry.add("vibefix.github.exchange.accepted-blobs[0].one-repository", () -> "true");
+		registry.add("vibefix.github.exchange.accepted-blobs[1].path", () -> WORKFLOW_PATH);
+		registry.add("vibefix.github.exchange.accepted-blobs[1].blob", () -> GitHubStub.blobSha(TWO_REPOSITORY_WORKFLOW));
+		registry.add("vibefix.github.exchange.accepted-blobs[1].ends-on", () -> "2027-12-31");
+		registry.add("vibefix.github.exchange.accepted-blobs[2].path", () -> ".github/workflows/s6-copy.yml");
+		registry.add("vibefix.github.exchange.accepted-blobs[2].blob", () -> GitHubStub.blobSha(runnerWorkflow()));
+	}
+
+	/** The published {@code vibefix.yml}, the one version whose copy job takes an empty {@code working} (R6). */
+	private static String publishedWorkflow() {
+		try {
+			return GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+	}
+
+	private static String runnerWorkflow() {
+		try {
+			return GitHubStub.published(GitHubStub.RUNNER_WORKFLOW);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
 	}
 
 	@AfterAll
@@ -1840,6 +1883,54 @@ class JobSetupIT extends IntegrationTest {
 		return this.grants.ofJob(this.job).stream().filter(JobGrants.Grant::customer).findFirst().orElseThrow();
 	}
 
+	/**
+	 * Story 23.11a: an Assessment Job has a {@code DONE} Setup row too, so the daily poll now reaches it -- but its one
+	 * read-only copy is pinned to the confirmed commit and it has no Final Merge target, and
+	 * {@code SourceDriftController} serves it neither its warnings nor a re-confirmation. The poll skips it: a commit
+	 * and a rename warn nothing and open no to-do. The same Source, the same Setup and the same changes warn as soon as
+	 * the Job is a Code Job again, which is what makes the Job's kind the cause.
+	 */
+	@Test
+	void theDailyPollSkipsAnAssessmentJobAndWarnsTheSameSourceOnceItIsACodeJob() throws Exception {
+		assessmentJob();
+		assessmentSetUpTheRepository();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 applied, so the poll's state guard passes")
+			.isEqualTo("ACTIVE");
+		String name = this.source.substring("lan-dev/".length());
+		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
+			.query(Long.class).single();
+		GITHUB.push("lan-dev", name, "main", "app.js", "console.log('Lovable')\n");
+		GITHUB.rename(id, "lan-dev", name + "-v2");
+
+		this.drift.poll();
+
+		assertThat(this.drift.warnings(this.job)).as("an Assessment Job's Source is not polled").isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		assertThat(openReconfirmTodos()).as("a to-do nobody could ever close").isZero();
+		// The Customer's own page still answers NOT_FOUND for an Assessment Job, as it did before this story.
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+
+		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['BUG_FIX']::TEXT[] WHERE id = :id").param("id", this.job).update();
+		this.clock.advance(Duration.ofDays(1));
+		this.drift.poll();
+
+		// Both warnings are made in this one poll, so they share a detected_at and the query's id tie-break orders them:
+		// the kinds are what matters here, not their order.
+		assertThat(this.drift.warnings(this.job)).as("the same Source warns once the Job is a Code Job")
+			.extracting(SourceDrift.Warning::kind)
+			.containsExactlyInAnyOrder(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
+		assertThat(openReconfirmTodos()).isOne();
+		awaitListeners();
+	}
+
+	/** The Customer's open {@code repo.reconfirm_source} to-dos. */
+	private long openReconfirmTodos() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source' AND closed_at IS NULL
+				""").query(Long.class).single();
+	}
+
 	@Test
 	void theDailyPollWarnsOncePerChangeAndARenameWaitsForTheCustomersReconfirmation() throws Exception {
 		setUpTheRepositories();
@@ -2856,6 +2947,245 @@ class JobSetupIT extends IntegrationTest {
 		confirm(head).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("SETUP_NOT_CONFIRMING"));
 	}
 
+	// ------------------------------------------------- Story 23.11a: an Assessment Job's read-only copy (R6)
+
+	/**
+	 * Story 23.11a (R6, FR-18, AD-44): an Assessment Job runs the same Setup a Code Job does, and it makes exactly one
+	 * private repository. J6 starts the attempt as {@code CONFIRMING}, the Customer self-confirms the head, the
+	 * Intermediary Repository alone is created and read back -- {@code working_*} stay null -- the copy is dispatched
+	 * with an empty {@code working} and a grant of that one repository, and J7 applies the moment it reads back, with
+	 * no invitations and no Verify. The tracker serves four steps, and the Audit Log records the same chain a Code
+	 * Job's does.
+	 */
+	@Test
+	void anAssessmentJobCopiesIntoOneReadOnlyRepositoryAndReachesJ7WithoutInvitationsOrVerify() throws Exception {
+		assessmentJob();
+
+		j6();
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+		assertThat(waiting.assessment()).as("the row says one repository").isTrue();
+		assertThat(waiting.status()).isEqualTo("CONFIRMING");
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 waits for the copy").isEqualTo("STARTING");
+		String head = waitForTheCustomer();
+		assertThat(openConfirmTodos()).as("the Customer is asked to confirm, as for a Code Job").isOne();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.assessment").value(true))
+			.andExpect(jsonPath("$.steps[*].key").value(org.hamcrest.Matchers.contains("CHECK", "CONFIRM", "REPOSITORIES",
+					"COPY")));
+
+		confirm(head).andExpect(status().isOk());
+		run();
+
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		assertThat(copying.intermediaryId()).isNotNull();
+		assertThat(copying.intermediaryAt()).as("the one repository was read back").isNotNull();
+		assertThat(copying.workingId()).as("no Working Repository, in any column").isNull();
+		assertThat(copying.workingName()).isNull();
+		assertThat(copying.workingAt()).isNull();
+		assertThat(GITHUB.organizationRepositoryId(JobSetups.workingName(this.job)))
+			.as("no Working Repository was created").isNull();
+		assertThat(GITHUB.organizationRepositoryId(JobSetups.intermediaryName(this.job)))
+			.as("the one read-only copy was created").isEqualTo(copying.intermediaryId());
+		Map<String, Object> dispatchedRun = sourceRuns().stream().findFirst().orElseThrow();
+		assertThat(inputs(dispatchedRun)).as("the copy has one target")
+			.containsEntry("working", "")
+			.containsEntry("intermediary", copying.intermediary().fullName());
+		assertThat(this.runs.correlation(copying.correlationId()).orElseThrow().grant())
+			.as("AD-44: the grant names the Intermediary alone")
+			.containsExactly(copying.intermediaryId());
+		exchange(copying).andExpect(status().isOk());
+
+		GITHUB.copyCommit("lan-dev", this.sourceName, copying.approvedSha(), JobSetups.intermediaryName(this.job),
+				copying.defaultBranch());
+		GITHUB.completeRun(runId(copying), "success");
+		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		run();
+		awaitListeners();
+
+		Setup done = this.setups.latest(this.job).orElseThrow();
+		assertThat(done.status()).isEqualTo("DONE");
+		assertThat(done.copiedAt()).isNotNull();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 applied in the resolving transaction")
+			.isEqualTo("ACTIVE");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the marker is released").isEmpty();
+		assertThat(this.grants.ofJob(this.job)).as("nothing is granted here; Story 23.11b invites to read").isEmpty();
+		// The test clock stands still within a step, so the rows share an occurred_at: the facts are asserted, not an order.
+		assertThat(this.jdbc.sql("SELECT action FROM audit.audit_entry WHERE job_id = :job AND action LIKE 'repo.setup_%'")
+			.param("job", this.job).query(String.class).list())
+			.as("the same chain a Code Job records, with one repository, and J7 applied from the Setup itself")
+			.containsExactlyInAnyOrder("repo.setup_started", "repo.setup_source_checked", "repo.setup_repositories_ready",
+					"repo.setup_copy_dispatched", "repo.setup_copied", "repo.setup_done", "repo.setup_activated");
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE job_id = :job AND action = 'repo.source_confirmed'")
+			.param("job", this.job).query(Long.class).single()).isOne();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.assessment").value(true))
+			.andExpect(jsonPath("$.status").value("DONE"))
+			.andExpect(jsonPath("$.steps[*].state").value(org.hamcrest.Matchers.contains("DONE", "DONE", "DONE", "DONE")))
+			.andExpect(jsonPath("$.people").isEmpty());
+	}
+
+	/**
+	 * Story 23.11a: an assessment copy whose J7 is moot -- the Job's row is no longer live, as an erased Customer's
+	 * Product deletion leaves it during the read-back window -- still counts as copied. The row is {@code DONE}, the
+	 * moot activation is audited the way {@code JobGrants.verified} audits Verify's, and the Job does not become
+	 * Active. {@code done(...)} is called directly, because the operation's own guard reads the Job as gone first.
+	 */
+	@Test
+	void anAssessmentCopyWhoseActivationIsMootIsStillDoneAndAudited() throws Exception {
+		assessmentJob();
+		assessmentConfirmTheHead();
+		run();
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		assertThat(copying.status()).isEqualTo("RUNNING");
+		assertThat(copying.intermediaryAt()).isNotNull();
+		this.jdbc.sql("UPDATE job.job SET product_deleted_at = :now WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant())).param("id", this.job).update();
+
+		this.setups.done(copying, null);
+
+		assertThat(this.setups.find(copying.id()).orElseThrow()).satisfies(done -> {
+			assertThat(done.status()).as("the copy still counts as done").isEqualTo("DONE");
+			assertThat(done.copiedAt()).isNotNull();
+		});
+		assertThat(this.jdbc.sql("SELECT action FROM audit.audit_entry WHERE job_id = :job AND action LIKE 'repo.setup_%'")
+			.param("job", this.job).query(String.class).list())
+			.contains("repo.setup_activation_moot")
+			.doesNotContain("repo.setup_activated");
+		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class)
+			.single()).as("J7 never applied").isEqualTo("STARTING");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11a (R6, R12): a Source whose {@code vibefix.yml} is an accepted version published before the
+	 * one-repository copy blocks an Assessment Job's Setup with {@code WORKFLOW_TOO_OLD} before anything is created:
+	 * the Job stays in Starting with its funds held, the Customer and the Mentor are told why, and a retry after the
+	 * published file is added again starts a new attempt. A Code Job on the same file is never blocked.
+	 */
+	@Test
+	void anAssessmentSetupOnAnEarlierWorkflowBlocksWorkflowTooOldAndRunsAfterTheFileIsAddedAgain() throws Exception {
+		assessmentJob();
+		GITHUB.sourceFiles.put(this.source + ":" + WORKFLOW_PATH, TWO_REPOSITORY_WORKFLOW);
+
+		j6();
+		run();
+		awaitListeners();
+
+		Setup blocked = this.setups.latest(this.job).orElseThrow();
+		assertThat(blocked.status()).isEqualTo("BLOCKED");
+		assertThat(blocked.block()).isEqualTo(JobSetups.Block.WORKFLOW_TOO_OLD);
+		assertThat(blocked.intermediaryId()).as("nothing was created").isNull();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("STARTING");
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
+		assertThat(this.jdbc.sql("SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked'")
+			.query(String.class).list()).as("the Customer and the Mentor, each with the reason").hasSize(2)
+			.containsOnly(JobSetups.REASONS.get(JobSetups.Block.WORKFLOW_TOO_OLD));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.assessment").value(true))
+			.andExpect(jsonPath("$.blockedReason").value("WORKFLOW_TOO_OLD"))
+			.andExpect(jsonPath("$.steps[0].state").value("BLOCKED"))
+			.andExpect(jsonPath("$.canRetry").value(true));
+
+		GITHUB.sourceFiles.put(this.source + ":" + WORKFLOW_PATH, GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
+		this.clock.advance(Duration.ofMinutes(1));
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/setup/retry").with(as(this.customer, Role.CUSTOMER)).with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("CONFIRMING"));
+		Setup retried = this.setups.latest(this.job).orElseThrow();
+		assertThat(retried.id()).as("a new attempt").isNotEqualTo(blocked.id());
+		run();
+		assertThat(this.setups.latest(this.job).orElseThrow().headSha()).as("it asks the Customer again").isNotNull();
+		awaitListeners();
+	}
+
+	/** Story 23.11a: a Code Job's copy has two targets, so an earlier {@code vibefix.yml} never blocks it. */
+	@Test
+	void aCodeJobOnAnEarlierWorkflowIsNeverBlockedWorkflowTooOld() throws Exception {
+		GITHUB.sourceFiles.put(this.source + ":" + WORKFLOW_PATH, TWO_REPOSITORY_WORKFLOW);
+		GITHUB.push("lan-dev", this.sourceName, "main", WORKFLOW_PATH, TWO_REPOSITORY_WORKFLOW);
+
+		j6();
+		String head = waitForTheCustomer();
+		confirm(head).andExpect(status().isOk());
+		run();
+
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		assertThat(copying.assessment()).isFalse();
+		assertThat(copying.status()).isEqualTo("RUNNING");
+		assertThat(copying.workingAt()).as("both repositories were read back").isNotNull();
+		assertThat(inputs(sourceRuns().stream().findFirst().orElseThrow()))
+			.containsEntry("working", copying.working().fullName());
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11a (R4, R6): a head that moved after the confirmation sends an assessment attempt back to waiting with
+	 * the new head, exactly as a Code Job's; nothing more is copied, and the Intermediary stays as it was.
+	 */
+	@Test
+	void anAssessmentCopyWhoseHeadMovedGoesBackToWaitingForTheNewHead() throws Exception {
+		assessmentJob();
+		String head = assessmentConfirmTheHead();
+		run();
+		Setup dispatched = this.setups.latest(this.job).orElseThrow();
+		assertThat(dispatched.correlationId()).isNotNull();
+		// The head moves between the dispatch's own head read and the run's start, so the run starts at the new head.
+		String moved = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		GITHUB.runs.get(runId(dispatched)).put("head_sha", moved);
+
+		exchange(dispatched).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("SHA"));
+		GITHUB.completeRun(runId(dispatched), "failure");
+		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		run();
+		awaitListeners();
+
+		Setup again = this.setups.latest(this.job).orElseThrow();
+		assertThat(again.id()).as("the same attempt").isEqualTo(dispatched.id());
+		assertThat(again.status()).isEqualTo("CONFIRMING");
+		assertThat(again.exchangeReason()).isEqualTo(JobSetups.HEAD_MOVED);
+		assertThat(again.headSha()).isEqualTo(moved).isNotEqualTo(head);
+		assertThat(again.intermediaryAt()).as("the repository is read back again before the next copy").isNull();
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("the marker is released").isEmpty();
+		assertThat(openConfirmTodos()).isOne();
+	}
+
+	/** Story 23.11a: an Assessment Job that leaves Starting while its Setup waits ends the wait, as a Code Job's does. */
+	@Test
+	void anAssessmentJobThatLeavesStartingWhileItWaitsEndsItsAttempt() throws Exception {
+		assessmentJob();
+		j6();
+		waitForTheCustomer();
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+
+		this.setups.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+				"STARTING", "CANCELLED", 4, 1, Map.of()));
+
+		assertThat(this.setups.find(waiting.id()).orElseThrow().status()).isEqualTo("ENDED");
+		assertThat(openConfirmTodos()).isZero();
+	}
+
+	/**
+	 * Story 23.11a (matrix row 10): 30 days after an Assessment Job is Cancelled its one repository is deleted and the
+	 * Setup row is marked deleted, with no Working Repository to delete.
+	 */
+	@Test
+	void thirtyDaysAfterAnAssessmentJobEndsItsOneRepositoryIsDeleted() throws Exception {
+		assessmentJob();
+		assessmentSetUpTheRepository();
+		String intermediary = JobSetups.intermediaryName(this.job);
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+
+		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J10", "USER",
+				"ACTIVE", "CANCELLED", 5, 1, Map.of()));
+		this.clock.advance(Duration.ofDays(30).plusMinutes(1));
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(GITHUB.deleted).contains(intermediary).doesNotContain(JobSetups.workingName(this.job));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.job_setup WHERE job_id = :job AND deleted_at IS NOT NULL")
+			.param("job", this.job).query(Long.class).single()).isOne();
+	}
+
 	/**
 	 * Story 23.6b (AD-24): a self-confirmation is the Customer's personal data, exported for them alone, and the Job's
 	 * record: an erasure anonymizes it, keeping the head, the notice version and the time.
@@ -3225,10 +3555,40 @@ class JobSetupIT extends IntegrationTest {
 		return member;
 	}
 
-	/** J6's event, as {@code job} publishes it in M1's cascade. */
+	/** J6's event, as {@code job} publishes it in M1's cascade, for the Job as it stands now. */
 	private void j6() {
+		boolean code = this.busy.job(this.job).orElseThrow().code();
 		this.setups.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J6", "SYSTEM",
-				"AGREEMENT", "STARTING", 3, 1, Map.of("code", "true")));
+				"AGREEMENT", "STARTING", 3, 1, Map.of("code", String.valueOf(code))));
+	}
+
+	/** Story 23.11a (R6): the Job becomes an Assessment Job, which has one private read-only copy and no Working. */
+	private void assessmentJob() {
+		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['ASSESSMENT']::TEXT[] WHERE id = :id")
+			.param("id", this.job)
+			.update();
+	}
+
+	/** J6, the waiting stage and the Customer's self-confirmation, for an Assessment Job. */
+	private String assessmentConfirmTheHead() throws Exception {
+		j6();
+		String head = waitForTheCustomer();
+		confirm(head).andExpect(status().isOk());
+		return head;
+	}
+
+	/** An Assessment Job's whole Setup: its one read-only copy made and read back, so J7 applied. */
+	private void assessmentSetUpTheRepository() throws Exception {
+		assessmentConfirmTheHead();
+		run();
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		assertThat(copying.correlationId()).as("a copy run is out").isNotNull();
+		GITHUB.copyCommit("lan-dev", this.sourceName, copying.approvedSha(), JobSetups.intermediaryName(this.job),
+				copying.defaultBranch());
+		GITHUB.completeRun(runId(copying), "success");
+		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		run();
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).as("the Setup is done").isEqualTo("DONE");
 	}
 
 	/** Every Setup operation due now runs, in the GitHub-long lane. */

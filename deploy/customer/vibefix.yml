@@ -4,7 +4,8 @@
 #
 #   copy         copies an approved commit of this repository's default branch to the Job's private
 #                Intermediary and Working Repositories (J7), so vibefix never downloads the code; it may
-#                only read this repository;
+#                only read this repository. An Assessment Job has one read-only copy and no Working
+#                Repository, and leaves working empty;
 #   final-merge  brings the Job's Final Merge back from the Intermediary Repository as a new vibefix/
 #                branch here, so vibefix never writes to this repository itself; it may write here. You
 #                merge that branch yourself on GitHub. GITHUB_TOKEN holds no workflows permission, so the
@@ -71,7 +72,7 @@ on:
         type: string
         default: ""
       working:
-        description: owner/name of the Job's Working Repository (copy only)
+        description: owner/name of the Job's Working Repository (copy only; empty for an Assessment Job)
         required: false
         type: string
         default: ""
@@ -117,7 +118,10 @@ jobs:
           [[ "$SHA" =~ $sha_re ]] || { echo "::error::sha is not 40 hex digits"; exit 1; }
           [[ "$BRANCH" =~ $branch_re && "$BRANCH" != *..* && "$BRANCH" != *//* && "$BRANCH" != */ && "$BRANCH" != *.lock ]] || { echo "::error::branch is refused"; exit 1; }
           [[ "$INTERMEDIARY" =~ $repository_re && "$INTERMEDIARY" != */. && "$INTERMEDIARY" != */.. ]] || { echo "::error::intermediary is not owner/name"; exit 1; }
-          [[ "$WORKING" =~ $repository_re && "$WORKING" != */. && "$WORKING" != */.. ]] || { echo "::error::working is not owner/name"; exit 1; }
+          # An Assessment Job is copied into the Intermediary Repository alone, so working is left empty for it.
+          if [ -n "$WORKING" ]; then
+            [[ "$WORKING" =~ $repository_re && "$WORKING" != */. && "$WORKING" != */.. ]] || { echo "::error::working is not owner/name"; exit 1; }
+          fi
 
       - name: Exchange the ID token
         env:
@@ -198,7 +202,10 @@ jobs:
           fi
           git -C "$repository" cat-file -e "$SHA^{commit}"
           git -C "$repository" merge-base --is-ancestor "$SHA" refs/heads/vibefix-source
-          for target in "$INTERMEDIARY" "$WORKING"; do
+          # The Intermediary Repository always, the Working Repository only when the Job has one (not an Assessment Job).
+          targets=("$INTERMEDIARY")
+          [ -z "$WORKING" ] || targets+=("$WORKING")
+          for target in "${targets[@]}"; do
             pushed=0
             VIBEFIX_TOKEN_FILE="$RUNNER_TEMP/vibefix-token" git -C "$repository" -c credential.helper= push --quiet \
               "$GITHUB_SERVER_URL/$target.git" "$SHA:refs/heads/$BRANCH" 2> "$RUNNER_TEMP/push.log" || pushed=$?

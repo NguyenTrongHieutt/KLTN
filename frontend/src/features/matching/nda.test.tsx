@@ -144,6 +144,46 @@ describe('JOB-1 for the selected Mentor, the NDA panel (FR-15, FR-18)', () => {
     expect(await screen.findByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toHaveAttribute('href', '/cong-viec/j1')
     expect(screen.getByText('Chờ bạn ký cam kết bảo mật')).toBeInTheDocument()
   })
+
+  /**
+   * UX-DR114: the Mentor reads the step tracker while the Job is Starting, as the Customer and the Crew do -- it is
+   * where `repo.job_start_blocked`'s link lands them, and an Assessment Job can wait there for days (Story 23.11a).
+   * Before Starting there is nothing to prepare, so no tracker.
+   */
+  it('shows the Mentor the step tracker while Starting, and not before', { timeout: 20_000 }, async () => {
+    let state = 'AGREEMENT'
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob({ state, ndaDueAt: undefined })),
+      'GET /api/v1/jobs/j1/setup': () =>
+        json({
+          jobId: 'j1',
+          jobState: state,
+          viewer: 'MENTOR',
+          assessment: true,
+          productId: 'p1',
+          status: 'CONFIRMING',
+          steps: [
+            { key: 'CHECK', state: 'DONE' },
+            { key: 'CONFIRM', state: 'CURRENT' },
+            { key: 'REPOSITORIES', state: 'PENDING' },
+            { key: 'COPY', state: 'PENDING' },
+          ],
+          canRetry: false,
+          people: [],
+        }),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Bạn đã ký cam kết bảo mật' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeNull()
+
+    state = 'STARTING'
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeInTheDocument()
+    expect(screen.getByText('Chờ khách hàng xác nhận')).toBeInTheDocument()
+  })
 })
 
 describe('JOB-1 for the Customer while Selecting (FR-15)', () => {

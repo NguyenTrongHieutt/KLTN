@@ -147,8 +147,9 @@ class SourceChecks implements ProductSources {
 	public SourceCheck check(UUID productId) {
 		Row product = row(productId);
 		Read read = read(productId, product, product.fullName());
+		// R6: the matched blob too, so Setup knows which published vibefix.yml would run before it dispatches.
 		return new SourceCheck(read.block(), productId, product.customerId(), product.name(), product.fullName(),
-				product.githubId(), read.block() == null ? read.defaultBranch() : product.defaultBranch());
+				product.githubId(), read.block() == null ? read.defaultBranch() : product.defaultBranch(), read.blob());
 	}
 
 	/**

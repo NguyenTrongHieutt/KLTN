@@ -47,6 +47,8 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * <li>every input's regular expression, and the triggering actor, which must be a {@code [bot]};</li>
  * <li>the exchange: a refusal names its reason, and no token, an unsafe one or one too long ends the run;</li>
  * <li>only the confirmed commit is pushed, and a commit that is not on the default branch fails;</li>
+ * <li>an empty {@code working} (an Assessment Job's one read-only copy, R6) passes the input check and pushes to the
+ * Intermediary alone, while an empty {@code intermediary} is still refused;</li>
  * <li>nothing is forced: a target whose branch diverged is refused with git's words, and each push is read back;</li>
  * <li>each ignored fsck message, in a crafted history, copies, and fails once its ignore is removed; any other object
  * error fails with git's words; both through {@code unpack-objects} and, with {@code transfer.unpackLimit = 1},
@@ -209,7 +211,10 @@ class CopyStepsHarnessTest {
 		for (String repository : List.of("", "owner", "owner/.", "owner/..", "-owner/x", "owner/x/y", "owner/x y",
 				"a".repeat(40) + "/x", "owner/" + "x".repeat(101), "owner/$(id)")) {
 			cases.add(Arguments.of("intermediary", repository, "intermediary is not owner/name"));
-			cases.add(Arguments.of("working", repository, "working is not owner/name"));
+			// R6: only working may be empty, for an Assessment Job's one read-only copy; anything else is still refused.
+			if (!repository.isEmpty()) {
+				cases.add(Arguments.of("working", repository, "working is not owner/name"));
+			}
 		}
 		return cases.stream();
 	}
@@ -322,6 +327,62 @@ class CopyStepsHarnessTest {
 					Pattern.quote("::error::the push to " + INTERMEDIARY + " failed (git exit ") + "\\d+\\)"));
 		assertThat(refs(intermediary)).as("left as it was").containsExactly(diverged + " refs/heads/main");
 		assertThat(refs(this.remotes.resolve(WORKING + ".git"))).as("the copy stopped at the first refusal").isEmpty();
+	}
+
+	/**
+	 * R6 (Story 23.11a): an Assessment Job's copy names the Intermediary alone and leaves {@code working} empty, so
+	 * the input check lets it through and the push loop has one target. The Working Repository is never touched.
+	 */
+	@Test
+	void anEmptyWorkingCopiesToTheIntermediaryAlone() throws Exception {
+		History history = history();
+
+		Run copy = copy(inputs(history.confirmed(), ""), false, null, script -> script);
+
+		assertThat(copy.exit()).as(copy.toString()).isZero();
+		assertThat(refs(this.remotes.resolve(INTERMEDIARY + ".git")))
+			.as("the one read-only copy holds the confirmed commit")
+			.containsExactly(history.confirmed() + " refs/heads/main");
+		assertThat(refs(this.remotes.resolve(WORKING + ".git"))).as("no Working Repository is written").isEmpty();
+		assertThat(copy.stdout()).doesNotContain("::error::");
+	}
+
+	/** An empty {@code working} passes the input check; everything else about the inputs is unchanged. */
+	@Test
+	void theInputCheckAcceptsAnEmptyWorkingAndStillRefusesAMalformedOne() throws Exception {
+		Run empty = check(inputs("ab".repeat(20), ""), BOT);
+
+		assertThat(empty.exit()).as(empty.toString()).isZero();
+		assertThat(empty.stdout()).doesNotContain("::error::");
+
+		Run blank = check(inputs("ab".repeat(20), "   "), BOT);
+
+		assertThat(blank.exit()).as("blanks are no empty input").isEqualTo(1);
+		assertThat(blank.stdout().lines()).containsExactly("::error::working is not owner/name");
+	}
+
+	/** An empty {@code intermediary} is still refused: every copy has at least that one target. */
+	@Test
+	void anEmptyIntermediaryIsStillRefused() throws Exception {
+		Map<String, String> inputs = inputs("ab".repeat(20), "");
+		inputs.put("intermediary", "");
+
+		Run check = check(inputs, BOT);
+
+		assertThat(check.exit()).as(check.toString()).isEqualTo(1);
+		assertThat(check.stdout().lines()).containsExactly("::error::intermediary is not owner/name");
+	}
+
+	/** A one-repository copy refuses a commit off the default branch exactly as a two-repository one does. */
+	@Test
+	void aOneRepositoryCopyOfACommitOffTheDefaultBranchPushesNothing() throws Exception {
+		History history = history();
+
+		Run copy = copy(inputs(history.feature(), ""), false, null, script -> script);
+
+		assertThat(copy.exit()).as(copy.toString()).isNotZero();
+		assertThat(refs(this.remotes.resolve(INTERMEDIARY + ".git"))).isEmpty();
+		assertThat(refs(this.remotes.resolve(WORKING + ".git"))).isEmpty();
 	}
 
 	@Test
@@ -495,6 +556,11 @@ class CopyStepsHarnessTest {
 	}
 
 	private static Map<String, String> inputs(String sha) {
+		return inputs(sha, WORKING);
+	}
+
+	/** @param working the Working Repository, or empty for an Assessment Job's one-repository copy (R6) */
+	private static Map<String, String> inputs(String sha, String working) {
 		Map<String, String> inputs = new LinkedHashMap<>();
 		inputs.put("operation", "copy");
 		inputs.put("correlation", CORRELATION);
@@ -502,7 +568,7 @@ class CopyStepsHarnessTest {
 		inputs.put("sha", sha);
 		inputs.put("branch", "main");
 		inputs.put("intermediary", INTERMEDIARY);
-		inputs.put("working", WORKING);
+		inputs.put("working", working);
 		return inputs;
 	}
 
@@ -529,6 +595,10 @@ class CopyStepsHarnessTest {
 		return copy(sha, false, null, script -> script);
 	}
 
+	private Run copy(String sha, boolean shim, @Nullable String unpackLimit, UnaryOperator<String> edit) throws Exception {
+		return copy(inputs(sha), shim, unpackLimit, edit);
+	}
+
 	/**
 	 * The whole job: the input checks, the exchange, the copy, and the credentials' removal, which runs whatever the copy
 	 * did. The copy step's git calls are traced to {@code trace.log}.
@@ -536,8 +606,8 @@ class CopyStepsHarnessTest {
 	 * @param unpackLimit the copy step's {@code transfer.unpackLimit}, or git's default
 	 * @param edit a change to the copy step's script
 	 */
-	private Run copy(String sha, boolean shim, @Nullable String unpackLimit, UnaryOperator<String> edit) throws Exception {
-		Map<String, String> inputs = inputs(sha);
+	private Run copy(Map<String, String> inputs, boolean shim, @Nullable String unpackLimit, UnaryOperator<String> edit)
+			throws Exception {
 		Run check = check(inputs, BOT);
 		assertThat(check.exit()).as(check.toString()).isZero();
 		Run exchange = exchange(200, "{\"token\":\"" + VIBEFIX_TOKEN + "\"}", ID_TOKEN);

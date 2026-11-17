@@ -150,4 +150,13 @@ public interface SourceApp {
 	 */
 	Optional<LocalDate> endsOn(String blob);
 
+	/**
+	 * Whether an accepted {@code vibefix.yml} blob copies to one repository (R6, AD-44, Story 23.11a): an Assessment
+	 * Job's Setup dispatches {@code copy} with an empty {@code working} input and a grant of the Intermediary alone,
+	 * which only a version published with that guard takes. No GitHub call.
+	 * @return false for a version published before the one-repository copy, for one past its end date, and for a blob
+	 * the accepted set does not list for the published path
+	 */
+	boolean copiesToOneRepository(String blob);
+
 }

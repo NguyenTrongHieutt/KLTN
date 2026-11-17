@@ -370,6 +370,19 @@ public final class GitHubStub implements AutoCloseable {
 		return Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
 	}
 
+	/** {@code git hash-object} of {@code content}'s exact bytes: the blob SHA GitHub reports for the committed file. */
+	public static String blobSha(String content) {
+		byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+		try {
+			java.security.MessageDigest sha1 = java.security.MessageDigest.getInstance("SHA-1");
+			sha1.update(("blob " + bytes.length + "\0").getBytes(StandardCharsets.US_ASCII));
+			return java.util.HexFormat.of().formatHex(sha1.digest(bytes));
+		}
+		catch (java.security.NoSuchAlgorithmException ex) {
+			throw new IllegalStateException(ex);
+		}
+	}
+
 	/**
 	 * The runner (AD-46): a private repository of the organization whose default branch holds only
 	 * {@code .github/workflows/s6-copy.yml}, the published file (an accepted blob, Story 23.4), with no
@@ -1555,14 +1568,7 @@ public final class GitHubStub implements AutoCloseable {
 		file.put("type", "file");
 		file.put("name", path.substring(path.lastIndexOf('/') + 1));
 		file.put("path", path);
-		try {
-			java.security.MessageDigest sha1 = java.security.MessageDigest.getInstance("SHA-1");
-			sha1.update(("blob " + bytes.length + "\0").getBytes(StandardCharsets.US_ASCII));
-			file.put("sha", java.util.HexFormat.of().formatHex(sha1.digest(bytes)));
-		}
-		catch (java.security.NoSuchAlgorithmException ex) {
-			throw new IllegalStateException(ex);
-		}
+		file.put("sha", blobSha(content));
 		file.put("encoding", "base64");
 		file.put("content", java.util.Base64.getMimeEncoder().encodeToString(bytes));
 		return file;

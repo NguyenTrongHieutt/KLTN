@@ -45,6 +45,14 @@ enum RepoReason {
 	/** The re-confirmed repository's {@code vibefix.yml} is no published version (AD-45). */
 	WORKFLOW_MISMATCH,
 
+	/**
+	 * The Source's {@code vibefix.yml} is an accepted version published before the one-repository copy, whose input
+	 * check refuses an empty {@code working}, so an Assessment Job's read-only copy cannot run; the Customer adds the
+	 * published file again (R6, AD-45, Story 23.11a). A Code Job never sees it: its copy has two targets. The Setup
+	 * blocks with {@link JobSetups.Block#WORKFLOW_TOO_OLD}, which carries this name.
+	 */
+	WORKFLOW_TOO_OLD,
+
 	/** The Customer no longer administers the re-confirmed repository (FR-20, AD-13). */
 	NO_ADMIN_PERMISSION,
 

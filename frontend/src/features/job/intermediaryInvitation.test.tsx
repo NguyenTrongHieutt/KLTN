@@ -16,6 +16,7 @@ const setup = (people: unknown[]) => ({
   jobId: 'j1',
   jobState: 'ACTIVE',
   viewer: 'CUSTOMER',
+  assessment: false,
   productId: 'p1',
   status: 'DONE',
   steps: [],
