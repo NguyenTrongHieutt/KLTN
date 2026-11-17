@@ -36,17 +36,27 @@ export function useSetup(jobId: string | undefined, settled?: (setup: Setup) => 
 /** The states in which the viewer's own row has accepted its invitation, so its link opens the repository itself. */
 const ACCEPTED = ['ACCEPTED', 'TWO_FACTOR_MISSING', 'WRITE']
 
+/** The viewer's own row: the one row the server gives a GitHub link, since nobody reads anyone else's (UX-DR23). */
+export function ownRow(setup: Setup): Setup['people'][number] | undefined {
+  return setup.people.find((person) => person.githubUrl)
+}
+
 /**
- * The viewer's own GitHub link, from the one row that carries one (UX-DR23), and what it opens: their pending
- * invitation while it waits for them, the repository once they accepted. While the invitation is still being sent
- * (`INVITING`) there is nothing to open yet, and a row that drifted, lapsed or went leaves no link (R6, Story 23.11b).
+ * The viewer's own GitHub link and what it opens: their pending invitation while it waits for them, the repository
+ * once they accepted. While the invitation is still being sent (`INVITING`) there is nothing to open yet, and a row
+ * that drifted, lapsed or went leaves no link at all (R6, Story 23.11b).
  */
 export function ownGitHubLink(setup: Setup): { url: string; accepted: boolean } | undefined {
-  const own = setup.people.find((person) => person.githubUrl)
+  const own = ownRow(setup)
   if (!own?.githubUrl || (own.state !== 'INVITED' && !ACCEPTED.includes(own.state))) {
     return undefined
   }
   return { url: own.githubUrl, accepted: own.state !== 'INVITED' }
+}
+
+/** Nothing about the viewer's own link can change any more: they accepted it, or they have no row to accept. */
+export function ownLinkSettled(setup: Setup): boolean {
+  return ownRow(setup) === undefined || ownGitHubLink(setup)?.accepted === true
 }
 
 /**

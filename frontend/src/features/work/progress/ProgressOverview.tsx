@@ -15,7 +15,7 @@ import { useTodos } from '@/features/notification/hooks'
 import { todoText } from '@/features/notification/texts'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
-import { ownGitHubLink, useSetup } from '@/features/job/setupApi'
+import { ownGitHubLink, ownLinkSettled, ownRow, useSetup } from '@/features/job/setupApi'
 import { JobTeamIssues } from '@/features/teamIssue/JobTeamIssues'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
@@ -185,10 +185,10 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
  * serve the team.
  */
 function AssessmentCopyLink({ jobId }: { jobId: string }) {
-  const setup = useSetup(jobId, (data) => ownGitHubLink(data)?.accepted === true)
+  const setup = useSetup(jobId, ownLinkSettled)
   const own = setup.data ? ownGitHubLink(setup.data) : undefined
   if (!own) {
-    const inviting = setup.data?.people.some((person) => person.githubUrl && person.state === 'INVITING')
+    const inviting = setup.data !== undefined && ownRow(setup.data)?.state === 'INVITING'
     return inviting ? (
       <p className="text-body-sm text-muted-foreground">{t('screen.progress.assessmentCopyInviting')}</p>
     ) : null
