@@ -1495,6 +1495,7 @@
         "stepCOPY": "Sao chép trên GitHub Actions của bạn",
         "stepCOPYTeam": "Sao chép trên GitHub Actions của khách hàng",
         "stepINVITE": "Mời trên GitHub",
+        "stepINVITEAssessment": "Mời đọc kho trung gian trên GitHub",
         "stepVERIFY": "Cấp quyền ghi và kiểm tra",
         "personINVITING": "đang gửi lời mời",
         "personINVITED": "chờ chấp nhận lời mời · hết hạn {date}",
@@ -2793,7 +2794,9 @@
       "member": "Nhóm thực hiện: {name}",
       "product": "Sản phẩm",
       "nextAction": "Việc cần làm cho công việc này",
-      "sourceRepository": "Mở mã nguồn trên GitHub",
+      "assessmentCopy": "Mở kho trung gian (chỉ đọc) trên GitHub",
+      "assessmentCopyInvitation": "Mở lời mời đọc kho trung gian trên GitHub",
+      "assessmentCopyInviting": "vibefix đang gửi lời mời đọc kho trung gian cho bạn trên GitHub.",
       "overdue": "Trễ hạn từ {date}",
       "overdueOptions": "Giai đoạn này đã quá hạn. Bạn có thể:",
       "overdueWait": "chờ thêm",
@@ -4681,8 +4684,15 @@
         "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
         "body": "Lời mời cho bạn quyền đọc kho trung gian trên GitHub: xem, tải và clone mã, không sửa được. Lời mời không bắt buộc: bạn vẫn xem và nghiệm thu bàn giao trên vibefix khi chưa chấp nhận. Bạn giữ quyền đọc khi vibefix còn giữ kho trung gian, thường đến 30 ngày sau khi công việc kết thúc."
       },
+      "read_invitation_sent": {
+        "title": "Chấp nhận lời mời đọc kho trung gian của {job} trên GitHub",
+        "body": "Lời mời cho bạn quyền đọc kho trung gian: xem, tải và clone mã, không sửa được. Ở công việc đánh giá này không ai có quyền ghi. Hãy bật xác thực hai lớp trên GitHub trước khi chấp nhận, rồi chấp nhận trong 7 ngày. Quyền đọc của bạn kết thúc khi công việc kết thúc."
+      },
       "two_factor_required": {
         "title": "Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}"
+      },
+      "two_factor_required_read": {
+        "title": "Bật xác thực hai lớp trên GitHub để đọc được kho trung gian của {job}"
       },
       "member_drift": {
         "title": "@{login} đã là thành viên tổ chức GitHub nên không mời được vào {job}"

@@ -42,10 +42,12 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-H's step tracker while a Job is Starting (UX-DR23, UX-DR114, AD-11): the Setup's steps as the Customer,
- * the Mentor, and each active Crew member read them, the Customer's J7 self-confirmation of the head (N-32, R4,
- * Story 23.6b), and the Customer's "Thử lại" after a block. Everyone else finds nothing. An Assessment Job reads the
- * same tracker with four steps, ending at its one read-only copy (R6, Story 23.11a).
+ * JOB-H's step tracker (UX-DR23, UX-DR114, AD-11): the Setup's steps as the Customer, the Mentor, and each active
+ * Crew member read them, the Customer's J7 self-confirmation of the head (N-32, R4, Story 23.6b), and the Customer's
+ * "Thử lại" after a block. Everyone else finds nothing. An Assessment Job reads the same tracker with five steps,
+ * ending at the read invitations to its one read-only copy (R6, Stories 23.11a and 23.11b). It is answered in any Job
+ * state -- it never had a state gate, since the role is what it checks -- which is how JOB-1's progress finds each
+ * viewer's own link to that copy.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -57,7 +59,8 @@ class JobSetupController {
 
 	/**
 	 * One person under "Mời trên GitHub": the Mentor and each Crew member on the Working Repository, then the Customer,
-	 * with read, on the Intermediary Repository (R5, Story 23.7).
+	 * with read, on the Intermediary Repository (R5, Story 23.7). On an Assessment Job every row is a read of its one
+	 * copy (R6, Story 23.11b).
 	 * @param role {@code MENTOR}, {@code CREW}, or {@code CUSTOMER}
 	 * @param name the Mentor's name; a Crew member's GitHub username for the Customer, else their name; the Customer's
 	 * own GitHub username on their own row, and nothing for the team, who read "Khách hàng"
@@ -102,8 +105,9 @@ class JobSetupController {
 
 	/**
 	 * @param viewer the caller's role in the Job
-	 * @param assessment an Assessment Job (R6): one private read-only copy, so the steps end at the copy, with no
-	 * "Mời trên GitHub" and no "Cấp quyền ghi và kiểm tra"
+	 * @param assessment an Assessment Job (R6): one private read-only copy, so the steps end at "Mời đọc kho trung gian
+	 * trên GitHub", with no "Cấp quyền ghi và kiểm tra", and that step is done only once every team row is accepted with
+	 * two-factor authentication on -- whatever the Job's state, since J7 never waited for it
 	 * @param productId the Job's Product, whose page fixes the Source App (CUS-4)
 	 * @param sourceFullName the Source Repository's {@code owner/name}: as the Setup read it with the head, else as the
 	 * Product registered it
@@ -291,10 +295,17 @@ class JobSetupController {
 		boolean done = "DONE".equals(setup.status());
 		// R5: the Customer's read invitation never holds "Mời trên GitHub"; only the Mentor's and the Crew's count.
 		List<Grant> team = grants.stream().filter(Grant::team).toList();
-		boolean invited = done && !team.isEmpty() && (active || team.stream().allMatch(Grant::ready));
+		// A Code Job's Verify requires every team grant before J7, so once it left Starting the invitations are settled.
+		// R6: an Assessment Job reaches J7 with its invitations still out, so its step reads the team rows alone --
+		// every one of them accepted with two-factor authentication on, whatever the Job's state. A Setup that granted
+		// nobody (an Assessment Job whose Mentor has no GitHub account linked, say) has nothing left to wait for, which
+		// is how JobGrants.maybeVerify reads an empty set of counted grants too; without that, the step of a Job that
+		// already started would stay current for ever.
+		boolean accepted = team.stream().allMatch(Grant::ready);
+		boolean invited = done && accepted || (!assessment && active);
 		// R6: an assessment Setup makes one repository, so "Tạo kho" is done when the Intermediary was read back.
 		boolean[] finished = { setup.checkedAt() != null, setup.confirmedAt() != null,
-				setup.repositoriesAt() != null || done, setup.copiedAt() != null || done, invited || active, active };
+				setup.repositoriesAt() != null || done, setup.copiedAt() != null || done, invited, active };
 		// No step is done past the last one reached: a Setup that ended waiting shows nothing after its wait as done.
 		for (int step = 1; step < finished.length; step++) {
 			finished[step] = finished[step] && finished[step - 1];

@@ -6200,7 +6200,6 @@ export interface components {
             mine: components["schemas"]["OpenItemView"][];
             pages: components["schemas"]["PageLinkView"][];
             productName: string;
-            sourceRepositoryUrl?: string;
             state: string;
             title: string;
         };

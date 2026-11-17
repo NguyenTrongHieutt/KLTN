@@ -22,7 +22,7 @@ import { ProgressOverview } from './ProgressOverview'
 /**
  * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before the
  * Board too: the Job's title and Product, "Bạn là: Thành viên nhóm", the ways to its Board, Documentation Space, and
- * Crew Chat, "Rời công việc" until Closing, the step tracker while the Job is Starting (UX-DR23), and the progress
+ * Crew Chat, "Rời công việc" until Closing, the step tracker while it has anything to show (UX-DR23), and the progress
  * overview with their own Work Items and N-12. A former member, one whose lock counted as leaving included, reads
  * JOB-H's banner and gets their post-Job duties instead, with no way to the handovers (AD-41). "Phân chia tiền"
  * (JOB-10) shows for a party of a split, active or former: only the party's own splits answer (Story 22.2); beside
@@ -98,7 +98,8 @@ function Content({ me }: { me: CrewMe }) {
         <FormerDuties jobId={jobId} state={me.state} />
       ) : (
         <>
-          {me.state === 'STARTING' && <SetupTracker jobId={jobId} />}
+          {/* While Starting, and on an Assessment Job while its read invitations are out (R6, Story 23.11b). */}
+          <SetupTracker jobId={jobId} />
           {board ? (
             <ProgressOverview jobId={jobId} audience="crew" />
           ) : (

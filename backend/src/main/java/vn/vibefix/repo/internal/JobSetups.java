@@ -50,7 +50,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * J7's Setup stage (FR-18, AD-5, AD-11, AD-28, R4, R6, Story 23.6b, Story 23.11a): one {@code repo.job_setup} row per
  * attempt, in two stages, for a Code Job and for an Assessment Job alike. A Code Job's attempt makes two private
  * repositories and leaves J7 to Verify; an assessment attempt ({@link Setup#assessment()}) makes the Intermediary
- * alone, read-only, and applies J7 itself as soon as that one copy reads back.
+ * alone, read-only, invites everyone to read it, and applies J7 itself as soon as that one copy reads back, without
+ * waiting for a single acceptance (Story 23.11b).
  * <ol>
  * <li>Waiting for the Customer, with no busy marker: J6 starts the first attempt as {@code CONFIRMING}
  * and requests its {@value #OPERATION} operation, keyed by the attempt, which checks the Source App and
@@ -84,16 +85,17 @@ class JobSetups {
 	/**
 	 * The step tracker's steps (UX-DR114), in EXPERIENCE.md's order: the Source checked, the Customer's
 	 * self-confirmation, the private repositories created, the copy on the Customer's GitHub Actions, then the
-	 * invitations and Verify (Story 7.3). An Assessment Job stops after the copy: nothing grants anyone access in
-	 * Story 23.11a, and its read invitations never gate its start (R6).
+	 * invitations and Verify (Story 7.3). An Assessment Job stops after the invitations (R6, Story 23.11b): it invites
+	 * everyone to read its one copy, which never gates its start, and nobody is ever raised to write, so it has no
+	 * Verify step.
 	 */
 	enum Step {
 
 		CHECK, CONFIRM, REPOSITORIES, COPY, INVITE, VERIFY;
 
-		/** The steps of one shape, in order: an assessment Setup runs the first four and no more. */
+		/** The steps of one shape, in order: an assessment Setup ends at the read invitations, with no Verify. */
 		static List<Step> of(boolean assessment) {
-			return assessment ? List.of(CHECK, CONFIRM, REPOSITORIES, COPY) : List.of(values());
+			return assessment ? List.of(CHECK, CONFIRM, REPOSITORIES, COPY, INVITE) : List.of(values());
 		}
 
 	}
@@ -169,6 +171,14 @@ class JobSetups {
 			return this.workingId == null || this.workingName == null ? null
 					: new PlatformRepository(this.workingId, this.workingName.substring(this.workingName.indexOf('/') + 1),
 							this.workingName);
+		}
+
+		/**
+		 * The repository the Job's team is granted on: the Working Repository for a Code Job, the one read-only copy for
+		 * an Assessment Job (R6, Story 23.11b). {@code null} until that repository was created.
+		 */
+		@Nullable PlatformRepository teamRepository() {
+			return this.assessment ? intermediary() : working();
 		}
 
 		/** The Intermediary Repository once created; its row keeps the full name. */
@@ -636,10 +646,11 @@ class JobSetups {
 	 * releases the marker, and then the two shapes part (R6).
 	 * <ul>
 	 * <li>A Code Job: the Invitations stage starts in the same transaction (Story 7.3), and J7 waits for Verify.</li>
-	 * <li>An Assessment Job: J7 applies here, through {@link JobActivation}, which releases the marker itself. Nothing
-	 * is granted in Story 23.11a; the read invitations, which never gate the start, follow in Story 23.11b. An
-	 * activation the Job moved past (its row no longer live, as an erased Customer's Product deletion leaves it) is
-	 * moot and audited as such, the way {@code JobGrants.verified} audits Verify's: the copy still counts as done.</li>
+	 * <li>An Assessment Job: the read invitations to the one copy are granted here (R6, Story 23.11b) -- the Mentor,
+	 * every active Crew member and the Customer, each row read-only -- and then J7 applies, through
+	 * {@link JobActivation}, which releases the marker itself; it waits for no acceptance. An activation the Job moved
+	 * past (its row no longer live, as an erased Customer's Product deletion leaves it) is moot and audited as such, the
+	 * way {@code JobGrants.verified} audits Verify's: the copy still counts as done, and such a Job grants nobody.</li>
 	 * </ul>
 	 * @param working the Working Repository read back; none for an assessment attempt, which has none
 	 */
@@ -655,6 +666,7 @@ class JobSetups {
 		audit("repo.setup_copied", setup.id(), setup.jobId());
 		audit("repo.setup_done", setup.id(), setup.jobId());
 		if (setup.assessment()) {
+			this.grants.getObject().grantAllRead(setup);
 			boolean started = this.activation.activate(setup.jobId(), setup.operationKey());
 			audit(started ? "repo.setup_activated" : "repo.setup_activation_moot", setup.id(), setup.jobId());
 			return;

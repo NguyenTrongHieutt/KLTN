@@ -1,0 +1,8 @@
+subject: Chấp nhận lời mời đọc kho trung gian của {job} trên GitHub
+---
+Xin chào,
+
+vibefix đã mời bạn đọc kho trung gian của {job} trên GitHub: xem, tải và clone mã, không sửa được. Ở công việc đánh giá này không ai có quyền ghi.
+Trước khi chấp nhận, hãy bật xác thực hai lớp cho tài khoản GitHub của bạn tại https://github.com/settings/security. Khi chưa bật, GitHub làm mờ nút chấp nhận lời mời.
+Sau đó chấp nhận lời mời trong 7 ngày. Công việc đã bắt đầu rồi, nên không ai phải chờ bạn chấp nhận.
+Quyền đọc của bạn kết thúc khi công việc kết thúc.

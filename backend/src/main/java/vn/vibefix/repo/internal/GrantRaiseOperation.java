@@ -16,7 +16,9 @@ import vn.vibefix.repo.internal.JobGrants.Grant;
 
 /**
  * {@value JobGrants#RAISE} (FR-75, AD-11): a Crew change member who accepted on an Active Job is raised
- * to write in place and read back, without changing the Job's state. Collaborators are looked up on use.
+ * to write in place and read back, without changing the Job's state. Collaborators are looked up on use. A grant that
+ * only ever reads -- the Customer's (R5), or any on an Assessment Job's copy (R6) -- ends the raise obsolete with
+ * {@code READ_ONLY_GRANT}, however it was requested.
  */
 @Component
 class GrantRaiseOperation implements OperationHandler {
@@ -50,8 +52,9 @@ class GrantRaiseOperation implements OperationHandler {
 		if (grant == null) {
 			return new Outcome.Obsolete("GRANT_GONE");
 		}
-		if (grant.customer()) {
-			// R5: the Customer reads the Intermediary Repository and never writes to it.
+		if (grant.customer() || grant.readOnly()) {
+			// R5: the Customer reads the Intermediary Repository and never writes to it. R6 (Story 23.11b): neither does
+			// anyone on an Assessment Job's copy, whatever their role -- and the row's CHECK would refuse the write anyway.
 			return new Outcome.Obsolete("READ_ONLY_GRANT");
 		}
 		if ("WRITE".equals(grant.status())) {

@@ -11,6 +11,7 @@ import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
+import { ownGitHubLink, ownLinkSettled, ownRow, useSetup } from '@/features/job/setupApi'
 import { useTodos } from '@/features/notification/hooks'
 import { todoText } from '@/features/notification/texts'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
@@ -30,9 +31,9 @@ export type ProgressAudience = 'customer' | 'mentor' | 'crew'
  * Milestone's card with its status text, price, progress bar, and due date; the Job's most urgent to-do;
  * the customer-visible Pages; and a side column with the next due date, the people, and the Product.
  * The Mentor also sees the Crew with each member's open Work Items; a Crew member sees their own and
- * N-12. On an Assessment Job the Mentor and the Crew get the public Source Repository they read and N-12
- * (FR-10, UX-DR8). The Customer never sees a Work Item. It polls every 30 s. A cancelled Job shows it
- * when it had a Board (`optional`: nothing when it never did).
+ * N-12. On an Assessment Job the Mentor and the Crew get N-12 and, under it, their own link to the private read-only
+ * copy they may read (FR-10, UX-DR8, R6, Story 23.11b). The Customer never sees a Work Item. It polls every 30 s. A
+ * cancelled Job shows it when it had a Board (`optional`: nothing when it never did).
  */
 export function ProgressOverview({
   jobId,
@@ -68,18 +69,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             {t('screen.docs.n12')}
           </p>
         )}
-        {audience !== 'customer' && progress.sourceRepositoryUrl?.startsWith('https://github.com/') && (
-          <a
-            href={progress.sourceRepositoryUrl}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="flex w-fit items-center gap-2 text-body-sm text-primary underline-offset-4 hover:underline"
-          >
-            <ExternalLink aria-hidden="true" className="size-4" />
-            {t('screen.progress.sourceRepository')}
-            <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
-          </a>
-        )}
+        {audience !== 'customer' && progress.assessment && <AssessmentCopyLink jobId={jobId} />}
         <CrewLeftLines leavers={progress.leavers} />
         {!progress.assessment && <DriftWarning jobId={jobId} />}
         <DisputeSection jobId={jobId} />
@@ -183,6 +173,37 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         </section>
       </aside>
     </div>
+  )
+}
+
+/**
+ * The Mentor's and the Crew's own way into an Assessment Job's private read-only copy (R6, Story 23.11b), under the
+ * N-12 notice: their pending invitation on GitHub while it waits for them, the copy itself once they accepted. The
+ * link is each viewer's own row of the Setup, which the server builds and nobody else's row carries; while the
+ * invitation is still being sent the page says so, and with no row of their own -- before the copy, or once it is
+ * gone -- there is no link at all. Nothing here names the Customer's Source Repository: a private Source would not
+ * serve the team.
+ */
+function AssessmentCopyLink({ jobId }: { jobId: string }) {
+  const setup = useSetup(jobId, ownLinkSettled)
+  const own = setup.data ? ownGitHubLink(setup.data) : undefined
+  if (!own) {
+    const inviting = setup.data !== undefined && ownRow(setup.data)?.state === 'INVITING'
+    return inviting ? (
+      <p className="text-body-sm text-muted-foreground">{t('screen.progress.assessmentCopyInviting')}</p>
+    ) : null
+  }
+  return (
+    <a
+      href={own.url}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      className="flex w-fit items-center gap-2 text-body-sm text-primary underline-offset-4 hover:underline"
+    >
+      <ExternalLink aria-hidden="true" className="size-4" />
+      {t(own.accepted ? 'screen.progress.assessmentCopy' : 'screen.progress.assessmentCopyInvitation')}
+      <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
+    </a>
   )
 }
 

@@ -16,8 +16,10 @@ import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { ActionsRunRow, type RunState } from './ActionsRunRow'
 import {
+  invitationsPending,
   SELF_CONFIRMATION_NOTICE_VERSION,
   setupKey,
+  trackerSettled,
   useConfirmSourceClean,
   useRetrySetup,
   useSetup,
@@ -97,18 +99,31 @@ const TONES: Record<string, string> = {
  * step is announced politely. A block reads its reason in the words of the viewer's role: the Customer reads what to do
  * with the means to do it and, where it helps, "Thử lại"; the Mentor and the Crew read the same reason without the
  * Customer's actions. The Customer reads "Bạn không cần làm gì" only while the current step is not theirs.
+ *
+ * It shows itself while the Job is Starting and, on an Assessment Job, while its read invitations are still out (R6,
+ * Story 23.11b): that Job reaches J7 without waiting for a single acceptance, so the per-person rows -- the only place
+ * the Mentor sees that a Crew member has not accepted yet -- would otherwise vanish exactly when they matter. Any
+ * other state reads the Setup once and shows nothing. Whose page it belongs on stays the call site's to decide: the
+ * Mentor's and the Crew's own pages mount it on an Assessment Job in any state, while `JobHeader` and `JobPage` keep
+ * the Customer's to a Starting Job, because the Customer's read of that copy is optional and has a page of its own.
  */
 export function SetupTracker({ jobId }: { jobId: string }) {
-  const setup = useSetup(jobId)
-  if (!setup.data) {
+  const setup = useSetup(jobId, trackerSettled)
+  if (!setup.data || !shown(setup.data)) {
     return null
   }
   return <Steps setup={setup.data} />
 }
 
+/** Whether the tracker belongs on the page: the Setup itself says which state the Job is in. */
+function shown(setup: Setup): boolean {
+  return setup.jobState === 'STARTING' || (setup.jobState === 'ACTIVE' && invitationsPending(setup))
+}
+
 /**
  * A step's label: the Customer's own confirmation is "Bạn xác nhận…", the copy is "của bạn" for the Customer, whose
- * Actions run it, and "của khách hàng" for the team, and an Assessment Job makes one read-only repository (R6).
+ * Actions run it, and "của khách hàng" for the team, and an Assessment Job makes one read-only repository and invites
+ * everyone to read it (R6).
  */
 function stepLabel(key: string, customer: boolean, assessment: boolean): string {
   const variant =
@@ -118,7 +133,9 @@ function stepLabel(key: string, customer: boolean, assessment: boolean): string 
         ? 'COPYTeam'
         : key === 'REPOSITORIES' && assessment
           ? 'REPOSITORIESAssessment'
-          : key
+          : key === 'INVITE' && assessment
+            ? 'INVITEAssessment'
+            : key
   return t(`screen.job.setup.step${variant}` as MessageKey)
 }
 

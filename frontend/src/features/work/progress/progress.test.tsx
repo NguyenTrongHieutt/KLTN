@@ -69,6 +69,40 @@ const mentorJob = {
   agreementConfirmed: true,
 }
 
+const crewMe = {
+  jobId: 'j1',
+  title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+  state: 'ACTIVE',
+  productName: 'Sổ đặt bàn Quán Mây',
+  mentorName: 'Đỗ Mạnh Hùng',
+  former: false,
+  canLeave: true,
+  codeJob: false,
+  partyMilestones: [1],
+}
+
+/** An Assessment Job's one private read-only copy (R6, Story 23.11b). */
+const COPY = 'https://github.com/vibefix-dev/job-1-intermediary'
+
+/**
+ * The Setup of an Active Assessment Job as the viewer reads it: its copy made, J7 applied, and the read invitations
+ * out. Only the viewer's own row carries a GitHub link, so `own` is theirs, or nothing when they have no row.
+ */
+const assessmentSetup = (own?: Record<string, unknown>) => ({
+  jobId: 'j1',
+  jobState: 'ACTIVE',
+  viewer: own?.role === 'CREW' ? 'CREW' : 'MENTOR',
+  assessment: true,
+  productId: 'pr1',
+  status: 'DONE',
+  steps: ['CHECK', 'CONFIRM', 'REPOSITORIES', 'COPY', 'INVITE'].map((key) => ({
+    key,
+    state: key === 'INVITE' ? 'CURRENT' : 'DONE',
+  })),
+  canRetry: false,
+  people: own ? [own] : [],
+})
+
 describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   it('tells the Customer how far each Milestone has come, and nothing of the Board', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
@@ -111,23 +145,83 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.queryByRole('heading', { name: 'Nhóm thực hiện' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Việc của tôi' })).toBeNull()
     expect(screen.queryByText(/phần mềm độc hại/)).toBeNull()
-    expect(screen.queryByRole('link', { name: /Mở mã nguồn trên GitHub/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
   })
 
-  it('links the Mentor of an Assessment Job to the Source Repository with N-12 (FR-10)', { timeout: 20_000 }, async () => {
+  /**
+   * R6 (Story 23.11b): an Assessment Job's team reads its private read-only copy, never the Customer's Source
+   * Repository, so the page links each viewer to their own row of the Setup -- the pending invitation here -- under
+   * N-12. The copy's name never comes from `work`, which cannot ask `repo` for it.
+   */
+  it('links the Mentor of an Assessment Job to their own invitation with N-12 (FR-10)', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['ASSESSMENT'] }),
-      'GET /api/v1/boards/j1/progress': () =>
-        json(progress({ audience: 'MENTOR', assessment: true, sourceRepositoryUrl: 'https://github.com/lan/so-dat-ban' })),
+      'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'MENTOR', assessment: true })),
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          assessmentSetup({
+            role: 'MENTOR',
+            name: 'Đỗ Mạnh Hùng',
+            state: 'INVITED',
+            expiresAt: '2026-11-25T03:00:00Z',
+            githubUrl: `${COPY}/invitations`,
+          }),
+        ),
     })
     renderAt('/cong-viec/j1')
 
-    const repository = await screen.findByRole('link', { name: /Mở mã nguồn trên GitHub/ })
-    expect(repository).toHaveAttribute('href', 'https://github.com/lan/so-dat-ban')
-    expect(repository).toHaveAttribute('target', '_blank')
-    expect(repository).toHaveAttribute('rel', 'noopener noreferrer nofollow')
+    const invitation = await screen.findByRole('link', { name: /Mở lời mời đọc kho trung gian trên GitHub/ })
+    expect(invitation).toHaveAttribute('href', `${COPY}/invitations`)
+    expect(invitation).toHaveAttribute('target', '_blank')
+    expect(invitation).toHaveAttribute('rel', 'noopener noreferrer nofollow')
     expect(screen.getByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
+    // The invitation is still out, so nothing yet opens the copy itself.
+    expect(screen.queryByRole('link', { name: /Mở kho trung gian \(chỉ đọc\)/ })).toBeNull()
+  })
+
+  it('links a Crew member of an Assessment Job to the copy once they accepted', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew/me': () => json(crewMe),
+      'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'CREW', assessment: true })),
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(assessmentSetup({ role: 'CREW', name: 'Lê Thảo Vy', state: 'ACCEPTED', githubUrl: COPY })),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByRole('link', { name: /Mở kho trung gian \(chỉ đọc\) trên GitHub/ })).toHaveAttribute(
+      'href',
+      COPY,
+    )
+  })
+
+  it('says the invitation is still going out, and shows no link yet', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['ASSESSMENT'] }),
+      'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'MENTOR', assessment: true })),
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(assessmentSetup({ role: 'MENTOR', name: 'Đỗ Mạnh Hùng', state: 'INVITING', githubUrl: COPY })),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByText(/đang gửi lời mời đọc kho trung gian cho bạn/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
+  })
+
+  it('shows no copy link to a Mentor with no row of their own', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json({ ...mentorJob, jobTypes: ['ASSESSMENT'] }),
+      'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'MENTOR', assessment: true })),
+      'GET /api/v1/jobs/j1/setup': () => json(assessmentSetup()),
+    })
+    renderAt('/cong-viec/j1')
+
+    expect(await screen.findByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
+    expect(screen.queryByText(/đang gửi lời mời/)).toBeNull()
   })
 
   it('adds the Crew and their open Work Items for the Mentor', { timeout: 20_000 }, async () => {
@@ -174,18 +268,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   it('gives an active Crew member their overview with their Work Items and N-12', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
-      'GET /api/v1/jobs/j1/crew/me': () =>
-        json({
-          jobId: 'j1',
-          title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
-          state: 'ACTIVE',
-          productName: 'Sổ đặt bàn Quán Mây',
-          mentorName: 'Đỗ Mạnh Hùng',
-          former: false,
-          canLeave: true,
-          codeJob: true,
-          partyMilestones: [1],
-        }),
+      'GET /api/v1/jobs/j1/crew/me': () => json({ ...crewMe, codeJob: true }),
       'GET /api/v1/boards/j1/progress': () =>
         json(
           progress({

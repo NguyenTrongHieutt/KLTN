@@ -30,8 +30,8 @@ import vn.vibefix.support.TestPeople;
 /**
  * FR-10, FR-11: the Assessment Report starts from its skeleton, with nothing from a scan (vibefix scans no
  * code, Story 23.1); FR-10's nine flaws are marked Đã kiểm tra, Phát hiện, or Không áp dụng; recommendations
- * are numbered; a typed body is kept as typed. JOB-1 gives
- * the Mentor and the Crew of an Assessment Job the public Source Repository, and the Customer nothing.
+ * are numbered; a typed body is kept as typed. JOB-1 tells the Mentor and the Crew of an Assessment Job that it is
+ * one, which is their way to its private read-only copy (Story 23.11b), and carries no repository link itself.
  */
 class AssessmentReportIT extends IntegrationTest {
 
@@ -83,24 +83,28 @@ class AssessmentReportIT extends IntegrationTest {
 			.andExpect(jsonPath("$.body").value("## Hiện trạng\n\nTự viết."));
 	}
 
+	/**
+	 * Story 23.11b (R6): JOB-1 tells the Mentor and the Crew that the Job is an Assessment Job, which is what shows
+	 * them N-12 and their own link to its private read-only copy -- a link {@code repo}'s setup endpoint serves. The
+	 * public Source Repository link this answer used to carry is retired: a private Source would not serve the team,
+	 * and {@code work} cannot name the copy. The Customer reads neither.
+	 */
 	@Test
-	void jobOneLinksTheMentorAndTheCrewToTheSourceRepositoryOnAnAssessmentJobOnly() throws Exception {
+	void jobOneNamesAnAssessmentJobForTheTeamAndCarriesNoRepositoryLinkAtAll() throws Exception {
 		UUID assessment = job(WorkTestSupport.product(this.jdbc, this.lan, "Sổ đánh giá"), "ASSESSMENT");
 		for (RequestPostProcessor team : List.of(as(this.hung, Role.MENTOR), as(this.vy, Role.STUDENT))) {
 			this.mvc.perform(get("/api/v1/boards/" + assessment + "/progress").with(team))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.assessment").value(true))
-				.andExpect(jsonPath("$.sourceRepositoryUrl").value("https://github.com/lan/so-dat-ban"));
+				.andExpect(jsonPath("$.sourceRepositoryUrl").doesNotExist());
 		}
 		this.mvc.perform(get("/api/v1/boards/" + assessment + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.assessment").value(false))
-			.andExpect(jsonPath("$.sourceRepositoryUrl").doesNotExist());
+			.andExpect(jsonPath("$.assessment").value(false));
 
 		UUID bugFix = job(WorkTestSupport.product(this.jdbc, this.lan, "Sổ sửa lỗi"), "BUG_FIX");
 		this.mvc.perform(get("/api/v1/boards/" + bugFix + "/progress").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.assessment").value(false))
-			.andExpect(jsonPath("$.sourceRepositoryUrl").doesNotExist());
+			.andExpect(jsonPath("$.assessment").value(false));
 	}
 
 	private UUID job(UUID product, String type) {
