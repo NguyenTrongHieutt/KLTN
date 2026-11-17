@@ -68,6 +68,12 @@ import vn.vibefix.timers.Deadlines;
  * The Customer (R5, AD-11, Story 23.7) is granted read on the Intermediary Repository in the same transaction, with a
  * to-do and a notification of their own; their grant is never counted toward Verify, never raised, and settles at
  * {@code ACCEPTED}. It is renewed in any Job state until the repositories are deleted, which ends it.
+ * <p>
+ * An Assessment Job (R6, Story 23.11b) has no Working Repository: its Setup grants the Mentor, every active Crew
+ * member and the Customer read on its one Intermediary Repository, through the same invitation operation, and J7 does
+ * not wait for a single acceptance. Every such row is {@link Grant#readOnly()}, which the table's
+ * {@code job_grant_read_only_check} holds to: Verify is never reserved for the Job, the crew-change raise skips the
+ * row, the sweep counts an accepted one as settled, and {@code GrantRaiseOperation} refuses it {@code READ_ONLY_GRANT}.
  */
 @Component
 class JobGrants {
@@ -89,6 +95,12 @@ class JobGrants {
 	static final String ACCEPT_TODO_CUSTOMER = "repo.accept_intermediary_invitation";
 
 	static final String TWO_FACTOR = "repo.two_factor_required";
+
+	/**
+	 * The read wording of the two-factor notice (R6, Story 23.11b): a read-only grant on an Assessment Job's copy never
+	 * reaches write, so its text is about reading the copy.
+	 */
+	static final String TWO_FACTOR_READ = "repo.two_factor_required_read";
 
 	static final String DRIFT = "repo.member_drift";
 
@@ -114,15 +126,18 @@ class JobGrants {
 
 	/**
 	 * One person's access to one platform repository: the Mentor's or a Crew member's to the Working Repository, or the
-	 * Customer's read to the Intermediary Repository (role {@value JobGrants#CUSTOMER}).
+	 * Customer's read to the Intermediary Repository (role {@value JobGrants#CUSTOMER}); on an Assessment Job (R6),
+	 * everyone's read to its one Intermediary Repository.
 	 * @param login the GitHub login last used for the person
 	 * @param githubUserId the person's permanent numeric GitHub ID (AD-10); {@code null} on a grant from before
 	 * Story 19.2 until {@link JobGrants#githubUserId} finds it
+	 * @param readOnly read permission for the whole life of the grant (R6, Story 23.11b): every grant on an Assessment
+	 * Job's copy, which no path raises and the table's {@code job_grant_read_only_check} keeps out of {@code WRITE}
 	 */
 	record Grant(UUID id, UUID jobId, UUID productId, UUID accountId, String role, String login, @Nullable Long githubUserId,
-			long repositoryId, String repositoryName, boolean crewChange, String status, boolean twoFactorMissing,
-			@Nullable Long invitationId, @Nullable Instant expiresAt, int renewals, @Nullable Instant acceptedAt,
-			@Nullable Instant writeAt) {
+			long repositoryId, String repositoryName, boolean crewChange, boolean readOnly, String status,
+			boolean twoFactorMissing, @Nullable Long invitationId, @Nullable Instant expiresAt, int renewals,
+			@Nullable Instant acceptedAt, @Nullable Instant writeAt) {
 
 		PlatformRepository repository() {
 			return new PlatformRepository(this.repositoryId, this.repositoryName.substring(this.repositoryName.indexOf('/') + 1),
@@ -142,7 +157,11 @@ class JobGrants {
 			return CUSTOMER.equals(this.role);
 		}
 
-		/** The Mentor's or a Crew member's grant on the Working Repository. */
+		/**
+		 * The Mentor's or a Crew member's grant: on the Working Repository for a Code Job, on the one read-only copy for
+		 * an Assessment Job (R6). It is the team's access however it was granted, so a revocation and the Invite step
+		 * read it the same way for both kinds.
+		 */
 		boolean team() {
 			return !customer();
 		}
@@ -168,7 +187,7 @@ class JobGrants {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, account_id, role, github_login, github_user_id, repository_github_id, repository_name,
-			crew_change, status, two_factor_missing, invitation_id, expires_at, renewals, accepted_at, write_at
+			crew_change, read_only, status, two_factor_missing, invitation_id, expires_at, renewals, accepted_at, write_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -228,32 +247,55 @@ class JobGrants {
 	void grantAll(Setup setup, PlatformRepository working) {
 		BusyJob job = this.busy.job(setup.jobId()).orElseThrow();
 		for (Person person : counted(job)) {
-			grant(job, person, working, false);
+			grant(job, person, working, false, false);
 		}
 		PlatformRepository intermediary = setup.intermediary();
 		if (intermediary != null) {
-			customer(job).ifPresent(person -> grant(job, person, intermediary, false));
+			// The Customer's read is kept out of WRITE by its role (Story 23.7), as every such row from before this story
+			// is: read_only marks the grants of an Assessment Job's copy, whose role alone would not say so.
+			customer(job).ifPresent(person -> grant(job, person, intermediary, false, false));
 		}
 	}
 
 	/**
+	 * An assessment Setup's resolving transaction (R6, Story 23.11b): the Mentor, every active Crew member and the
+	 * Customer are granted read on the one Intermediary Repository, through the same invitation operation a Code Job
+	 * uses, and every row is read-only. J7 follows in the same transaction and waits for no acceptance; a Job whose row
+	 * is no longer live, or an attempt with no repository, grants nobody.
+	 */
+	void grantAllRead(Setup setup) {
+		PlatformRepository intermediary = setup.intermediary();
+		BusyJob job = this.busy.job(setup.jobId()).orElse(null);
+		if (job == null || intermediary == null) {
+			return;
+		}
+		for (Person person : counted(job)) {
+			grant(job, person, intermediary, false, true);
+		}
+		customer(job).ifPresent(person -> grant(job, person, intermediary, false, true));
+	}
+
+	/**
 	 * One person's grant and its first invitation, unless they have one on this repository: the Working Repository for the
-	 * team, the Intermediary Repository for the Customer.
+	 * team, the Intermediary Repository for the Customer and for an Assessment Job's team.
+	 * @param readOnly the grant is read for its whole life (R6): the Customer's read, or any grant on an Assessment
+	 * Job's copy
 	 */
 	@Transactional
-	void grant(BusyJob job, Person person, PlatformRepository repository, boolean crewChange) {
+	void grant(BusyJob job, Person person, PlatformRepository repository, boolean crewChange, boolean readOnly) {
 		UUID id = this.ids.newId();
 		int inserted = this.jdbc.sql("""
 				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, github_user_id,
-				    repository_github_id, repository_name, crew_change, status, created_at)
-				VALUES (:id, :job, :product, :account, :role, :login, :githubUserId, :repository, :name, :change, 'INVITING',
-				        :now)
+				    repository_github_id, repository_name, crew_change, read_only, status, created_at)
+				VALUES (:id, :job, :product, :account, :role, :login, :githubUserId, :repository, :name, :change, :readOnly,
+				        'INVITING', :now)
 				ON CONFLICT (job_id, account_id, repository_github_id) DO NOTHING
 				""")
 			.param("id", id).param("job", job.jobId()).param("product", job.productId()).param("account", person.accountId())
 			.param("role", person.role()).param("login", person.login()).param("githubUserId", person.githubUserId())
 			.param("repository", repository.id())
-			.param("name", repository.fullName()).param("change", crewChange).param("now", Timestamp.from(this.clock.instant()))
+			.param("name", repository.fullName()).param("change", crewChange).param("readOnly", readOnly)
+			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
 		if (inserted == 1) {
 			requestInvite(id, 0);
@@ -463,7 +505,8 @@ class JobGrants {
 
 	/**
 	 * Two-factor authentication read back; the person hears once when it is missing. The Customer does not: that text is
-	 * about write access, which their read never reaches (R5), so it is only audited.
+	 * about write access, which their read never reaches (R5), so it is only audited. A read-only team grant hears the
+	 * read wording instead (R6, Story 23.11b): nobody is told they are waiting for write they will never get.
 	 */
 	@Transactional
 	void twoFactor(Grant grant, boolean missing) {
@@ -479,7 +522,8 @@ class JobGrants {
 			if (grant.customer()) {
 				return;
 			}
-			this.notifications.send(new NotificationRequest(TWO_FACTOR, key(grant.id() + ":two-factor"),
+			this.notifications.send(new NotificationRequest(grant.readOnly() ? TWO_FACTOR_READ : TWO_FACTOR,
+					key(grant.id() + ":two-factor"),
 					List.of(new Recipient(grant.accountId(), grant.audience())), Map.of("job", title(grant.jobId())),
 					"/cong-viec/" + grant.jobId(), grant.jobId(), null));
 		}
@@ -597,16 +641,18 @@ class JobGrants {
 	}
 
 	/**
-	 * Verify starts once every counted grant is ready and none drifted, on a Starting Job whose Setup is done
+	 * Verify starts once every counted grant is ready and none drifted, on a Starting Code Job whose Setup is done
 	 * (AD-11): {@code JOB_VERIFY} is reserved and the operation requested. A busy Job waits for the next look, and a late
 	 * member's grant, drifted or not, never holds Verify back (Story 21.5); nor does the Customer's read, whatever its
-	 * state (R5).
+	 * state (R5). An Assessment Job has no Verify at all (R6, Story 23.11b): its Setup applies J7 itself, and nobody on
+	 * its copy is ever raised, so no {@code repo.job_verify} is reserved for it even while it is still Starting -- which
+	 * a moot activation leaves it.
 	 * @return whether Verify was requested now
 	 */
 	@Transactional
 	boolean maybeVerify(UUID jobId, Setup setup) {
 		BusyJob job = this.busy.job(jobId).orElse(null);
-		if (job == null || !"STARTING".equals(job.state()) || job.busy().isPresent() || job.frozen()
+		if (job == null || !job.code() || !"STARTING".equals(job.state()) || job.busy().isPresent() || job.frozen()
 				|| !"DONE".equals(setup.status())) {
 			return false;
 		}
@@ -667,13 +713,16 @@ class JobGrants {
 	}
 
 	/**
-	 * Jobs with a grant still to settle, for the sweep. The Customer's read settles at {@code ACCEPTED} (R5): it is never
-	 * raised.
+	 * Jobs with a grant still to settle, for the sweep. A read settles at {@code ACCEPTED}, since it is never raised: the
+	 * Customer's (R5), and every grant on an Assessment Job's copy (R6, Story 23.11b), so once its team has accepted the
+	 * sweep stops reading that Job back from GitHub. A pending or drifted grant keeps the Job in the set, whatever it
+	 * grants.
 	 */
 	List<UUID> unsettledJobs() {
 		return this.jdbc.sql("""
 				SELECT DISTINCT job_id FROM repo.job_grant
-				WHERE status IN ('INVITED', 'MEMBER_DRIFT') OR (status = 'ACCEPTED' AND role <> 'CUSTOMER')
+				WHERE status IN ('INVITED', 'MEMBER_DRIFT')
+				   OR (status = 'ACCEPTED' AND role <> 'CUSTOMER' AND NOT read_only)
 				""")
 			.query(UUID.class)
 			.list();
@@ -708,7 +757,8 @@ class JobGrants {
 				rs.getObject("product_id", UUID.class), rs.getObject("account_id", UUID.class), rs.getString("role"),
 				rs.getString("github_login"), rs.getObject("github_user_id", Long.class), rs.getLong("repository_github_id"),
 				rs.getString("repository_name"),
-				rs.getBoolean("crew_change"), rs.getString("status"), rs.getBoolean("two_factor_missing"),
+				rs.getBoolean("crew_change"), rs.getBoolean("read_only"), rs.getString("status"),
+				rs.getBoolean("two_factor_missing"),
 				rs.getObject("invitation_id", Long.class), expires == null ? null : expires.toInstant(), rs.getInt("renewals"),
 				accepted == null ? null : accepted.toInstant(), write == null ? null : write.toInstant());
 	}

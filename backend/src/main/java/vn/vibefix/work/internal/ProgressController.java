@@ -41,9 +41,10 @@ import vn.vibefix.work.internal.WorkAccess.Kind;
  * JOB-1's progress (FR-28, AD-33, AD-39, UX-DR68): per Milestone of the Agreement in force its live
  * state, price, due date, and {@code {done}/{total}} from {@code work.criteriaDone} only; the
  * customer-visible Pages; for the Mentor the Crew with each member's open Work Items, and for a Crew
- * member their own; for the Mentor and the Crew of an Assessment Job, the public Source Repository they
- * read (FR-10). The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds
- * no Work Item and no repository link. A former Crew member, a locked one included, reads only the Job's header, as
+ * member their own; and {@code assessment} (FR-10), which tells the page to show N-12 and the team's link to the
+ * Job's private read-only copy -- a link {@code repo}'s setup endpoint serves, never this one (R6, Story 23.11b).
+ * The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds
+ * no Work Item. A former Crew member, a locked one included, reads only the Job's header, as
  * {@code FORMER}, so JOB-1 keeps their post-Job duties without anything from after their time (AD-41).
  * Everyone else finds nothing.
  */
@@ -85,13 +86,16 @@ class ProgressController {
 	 * @param audience {@code CUSTOMER}, {@code MENTOR}, {@code CREW}, or {@code FORMER} (the header only)
 	 * @param crew the active Crew with their open Work Items, for the Mentor only
 	 * @param mine the viewer's own open Work Items, for a Crew member only
-	 * @param assessment an Assessment Job (FR-10), for the Mentor and the Crew; {@code false} for the Customer
-	 * @param sourceRepositoryUrl the public Source Repository of an Assessment Job, for the Mentor and the Crew
+	 * @param assessment an Assessment Job (FR-10), for the Mentor and the Crew; {@code false} for the Customer. It is
+	 * what makes the page show N-12 and, under it, the link to the private read-only copy the team reads -- which the
+	 * frontend takes from {@code repo}'s own {@code GET /api/v1/jobs/{jobId}/setup}, from each viewer's own row (R6,
+	 * Story 23.11b). {@code work} cannot name that copy, being layer 7 as {@code repo} is, so the Source Repository
+	 * link that stood here is retired: a private Source would not serve the team anyway
 	 * @param leavers for the Mentor: who left open Work Items behind, to assign again (Story 21.6)
 	 */
 	record JobProgressView(UUID boardId, String title, String state, String productName, String mentorName,
 			String audience, List<MilestoneProgressView> milestones, List<PageLinkView> pages,
-			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment, @Nullable String sourceRepositoryUrl,
+			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment,
 			List<WorkViews.LeaverView> leavers) {
 	}
 
@@ -142,7 +146,7 @@ class ProgressController {
 		if (viewer.kind() == Kind.FORMER) {
 			ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
 			return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
-					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), List.of(), false, null, List.of());
+					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), List.of(), false, List.of());
 		}
 		if (viewer.kind() != Kind.CUSTOMER && viewer.kind() != Kind.MENTOR && viewer.kind() != Kind.CREW) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
@@ -186,9 +190,8 @@ class ProgressController {
 		List<OpenItemView> mine = viewer.kind() == Kind.CREW ? openItems(viewer, viewer.accountId()) : List.of();
 		ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
 		boolean assessment = viewer.kind() != Kind.CUSTOMER && viewer.assessment();
-		String repository = assessment && info != null ? "https://github.com/" + info.repositoryFullName() : null;
 		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
-				mentorName(viewer), viewer.kind().name(), milestones, pages, crew, mine, assessment, repository,
+				mentorName(viewer), viewer.kind().name(), milestones, pages, crew, mine, assessment,
 				this.views.leavers(viewer));
 	}
 

@@ -1,0 +1,7 @@
+subject: Bật xác thực hai lớp trên GitHub để đọc được kho trung gian của {job}
+---
+Xin chào,
+
+Tài khoản GitHub của bạn chưa bật xác thực hai lớp, nên bạn chưa đọc được kho trung gian của {job}.
+Hãy bật nó trong Settings > Password and authentication trên GitHub. vibefix tự kiểm tra lại sau đó.
+Ở công việc này bạn chỉ có quyền đọc kho trung gian: xem và tải mã về, không sửa được.

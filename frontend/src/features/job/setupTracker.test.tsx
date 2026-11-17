@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
@@ -18,8 +18,11 @@ const READ_AT = '2026-11-13T07:05:00Z'
 
 const KEYS = ['CHECK', 'CONFIRM', 'REPOSITORIES', 'COPY', 'INVITE', 'VERIFY']
 
-/** R6 (Story 23.11a): an Assessment Job's Setup ends at its one read-only copy, with no invitations and no Verify. */
-const ASSESSMENT_KEYS = ['CHECK', 'CONFIRM', 'REPOSITORIES', 'COPY']
+/**
+ * R6 (Stories 23.11a, 23.11b): an Assessment Job's Setup makes one read-only copy and ends at the read invitations to
+ * it, with no Verify.
+ */
+const ASSESSMENT_KEYS = ['CHECK', 'CONFIRM', 'REPOSITORIES', 'COPY', 'INVITE']
 
 /** The steps' states in order, the rest pending. */
 const steps = (...states: string[]) => KEYS.map((key, index) => ({ key, state: states[index] ?? 'PENDING' }))
@@ -44,7 +47,7 @@ const setup = (status: string, states: string[], extra: Record<string, unknown> 
   ...extra,
 })
 
-/** An Assessment Job's Setup: the same four first steps, and one private read-only repository. */
+/** An Assessment Job's Setup: the same four first steps, one private read-only repository, then the read invitations. */
 const assessment = (status: string, states: string[], extra: Record<string, unknown> = {}) =>
   setup(status, states, { assessment: true, steps: assessmentSteps(...states), ...extra })
 
@@ -656,7 +659,7 @@ describe('JOB-H step tracker while Starting (UX-DR114, AD-11, Story 23.6c)', () 
     expect(screen.queryByRole('checkbox')).toBeNull()
   })
 
-  it("shows an Assessment Job's four steps, its one read-only repository, and no invitations (R6)", async () => {
+  it("shows an Assessment Job's five steps, its one read-only repository and the read invitations (R6)", async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>
         json(
@@ -677,10 +680,84 @@ describe('JOB-H step tracker while Starting (UX-DR114, AD-11, Story 23.6c)', () 
       'Khách hàng xác nhận dự án gốc đã sạch',
       'Tạo kho trung gian (riêng tư, chỉ đọc)',
       'Sao chép trên GitHub Actions của khách hàng',
+      'Mời đọc kho trung gian trên GitHub',
     ])
     expect(screen.queryByText('Mời trên GitHub')).toBeNull()
     expect(screen.queryByText('Cấp quyền ghi và kiểm tra')).toBeNull()
     expect(copyRow()).toBeInTheDocument()
+  })
+
+  /**
+   * R6 (Story 23.11b): an Assessment Job reaches J7 with its read invitations still out, so the tracker stays on an
+   * Active Job -- with the per-person rows, the only place the Mentor sees who has not accepted -- and the Mentor's
+   * own row carries their link.
+   */
+  it("keeps an Active Assessment Job's invitations and rows while they are still out", async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          assessment('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'CURRENT'], {
+            ...mentor,
+            jobState: 'ACTIVE',
+            head: { sha: HEAD, readAt: READ_AT },
+            confirmation: { sha: HEAD, confirmedAt: READ_AT },
+            run: { state: 'COMPLETED', conclusion: 'success' },
+            people: [
+              {
+                role: 'MENTOR',
+                name: 'Đỗ Mạnh Hùng',
+                state: 'INVITED',
+                expiresAt: '2026-10-28T03:00:00Z',
+                githubUrl: 'https://github.com/vibefix-dev/job-intermediary/invitations',
+              },
+              { role: 'CREW', name: 'Lê Thảo Vy', state: 'ACCEPTED' },
+              { role: 'CUSTOMER', name: '', state: 'INVITING' },
+            ],
+          }),
+        ),
+    })
+    renderTracker()
+
+    expect(await screen.findByText('Mời đọc kho trung gian trên GitHub')).toBeInTheDocument()
+    const own = screen.getByText('Đỗ Mạnh Hùng').closest('li')!
+    expect(within(own).getByRole('link', { name: /Mở trên GitHub/ })).toHaveAttribute(
+      'href',
+      'https://github.com/vibefix-dev/job-intermediary/invitations',
+    )
+    const crew = screen.getByText('Lê Thảo Vy').closest('li')!
+    expect(within(crew).getByText('· đã chấp nhận')).toBeInTheDocument()
+    expect(within(screen.getByText('Khách hàng').closest('li')!).getByText('· đang gửi lời mời')).toBeInTheDocument()
+  })
+
+  /** Once every team row is accepted the step is done, so the tracker leaves the Active Job's page. */
+  it('shows nothing once an Active Assessment Job needs no invitation any more', async () => {
+    const seen = fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(
+          assessment('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'DONE'], {
+            ...mentor,
+            jobState: 'ACTIVE',
+            people: [{ role: 'MENTOR', name: 'Đỗ Mạnh Hùng', state: 'ACCEPTED' }],
+          }),
+        ),
+    })
+    renderTracker()
+
+    await waitFor(() => expect(seen.some((request) => request.url.includes('/setup'))).toBe(true))
+    expect(screen.queryByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeNull()
+    expect(screen.queryByText('Mời đọc kho trung gian trên GitHub')).toBeNull()
+  })
+
+  /** A Code Job's Verify holds J7, so by the time it is Active there is nothing of its Setup left to show. */
+  it('shows nothing on an Active Code Job', async () => {
+    const seen = fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () =>
+        json(setup('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'DONE', 'DONE'], { ...mentor, jobState: 'ACTIVE' })),
+    })
+    renderTracker()
+
+    await waitFor(() => expect(seen.some((request) => request.url.includes('/setup'))).toBe(true))
+    expect(screen.queryByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeNull()
   })
 
   it('still names the Working Repository for a Code Job', async () => {

@@ -1495,6 +1495,7 @@
         "stepCOPY": "Sao chép trên GitHub Actions của bạn",
         "stepCOPYTeam": "Sao chép trên GitHub Actions của khách hàng",
         "stepINVITE": "Mời trên GitHub",
+        "stepINVITEAssessment": "Mời đọc kho trung gian trên GitHub",
         "stepVERIFY": "Cấp quyền ghi và kiểm tra",
         "personINVITING": "đang gửi lời mời",
         "personINVITED": "chờ chấp nhận lời mời · hết hạn {date}",
@@ -2793,7 +2794,9 @@
       "member": "Nhóm thực hiện: {name}",
       "product": "Sản phẩm",
       "nextAction": "Việc cần làm cho công việc này",
-      "sourceRepository": "Mở mã nguồn trên GitHub",
+      "assessmentCopyInvitation": "Mở lời mời đọc kho trung gian trên GitHub",
+      "assessmentCopy": "Mở kho trung gian (chỉ đọc) trên GitHub",
+      "assessmentCopyInviting": "vibefix đang gửi lời mời đọc kho trung gian cho bạn trên GitHub.",
       "overdue": "Trễ hạn từ {date}",
       "overdueOptions": "Giai đoạn này đã quá hạn. Bạn có thể:",
       "overdueWait": "chờ thêm",
@@ -4683,6 +4686,9 @@
       },
       "two_factor_required": {
         "title": "Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}"
+      },
+      "two_factor_required_read": {
+        "title": "Bật xác thực hai lớp trên GitHub để đọc được kho trung gian của {job}"
       },
       "member_drift": {
         "title": "@{login} đã là thành viên tổ chức GitHub nên không mời được vào {job}"

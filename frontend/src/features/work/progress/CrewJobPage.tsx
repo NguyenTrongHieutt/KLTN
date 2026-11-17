@@ -98,7 +98,8 @@ function Content({ me }: { me: CrewMe }) {
         <FormerDuties jobId={jobId} state={me.state} />
       ) : (
         <>
-          {me.state === 'STARTING' && <SetupTracker jobId={jobId} />}
+          {/* While Starting, and on an Assessment Job while its read invitations are out (R6, Story 23.11b). */}
+          <SetupTracker jobId={jobId} />
           {board ? (
             <ProgressOverview jobId={jobId} audience="crew" />
           ) : (

@@ -92,7 +92,11 @@ function Overview({ job }: { job: MentorJob }) {
           </aside>
         </div>
       ) : hasBoard(job.state) || job.state === 'CANCELLED' ? (
-        <ProgressOverview jobId={job.id} audience="mentor" optional={job.state === 'CANCELLED'} />
+        <>
+          {/* R6: an Assessment Job's read invitations are still out after J7, so the tracker stays (Story 23.11b). */}
+          <SetupTracker jobId={job.id} />
+          <ProgressOverview jobId={job.id} audience="mentor" optional={job.state === 'CANCELLED'} />
+        </>
       ) : (
         <>
           <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
@@ -100,7 +104,7 @@ function Overview({ job }: { job: MentorJob }) {
             <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
           </section>
           {/* The Mentor reads the same step tracker the Customer and the Crew do, and with it why a start is blocked. */}
-          {job.state === 'STARTING' && <SetupTracker jobId={job.id} />}
+          <SetupTracker jobId={job.id} />
           {(job.state === 'AGREEMENT' || job.state === 'STARTING') && (
             <>
               <DisputeSection jobId={job.id} />
