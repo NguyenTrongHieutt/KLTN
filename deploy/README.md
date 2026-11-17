@@ -210,10 +210,11 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
 4. **Use four accounts, one browser profile each.** A browser holds one vibefix session, and one
    signed-in GitHub account, at a time:
    - three users, each with their own Google account (a test user of the dev Google client) and their
-     own linked GitHub account: the Customer, who owns the public Source Repository and has admin
-     rights on it; the Mentor and the Crew member, two GitHub accounts that are not members of
-     `vibefix-dev` (a member gets access without an invitation, which alerts Administrators), each
-     with two-factor authentication on and never a contributor to the Source Repository;
+     own linked GitHub account: the Customer, who owns the Source Repository and has admin rights on
+     it (since Epic 23 a private Source is the case to test); the Mentor and the Crew member, two
+     GitHub accounts that are not members of `vibefix-dev` (a member gets access without an
+     invitation, which alerts Administrators), each with two-factor authentication on and never a
+     contributor to the Source Repository;
    - an Administrator, created with the bootstrap CLI ("The first Administrator", above).
 
    No two accounts may share an email address, whether a Google address, a verified GitHub email, a
