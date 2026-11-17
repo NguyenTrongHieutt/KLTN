@@ -15,8 +15,9 @@ import vn.vibefix.timers.DueDeadline;
  * pending is invited again, with read permission, while the Job is Starting. A member who joined after Setup
  * (Story 21.5) is renewed while the Job is Starting or Active, at most {@value JobGrants#CREW_CHANGE_RENEWALS}
  * times; then the Mentor and the Administrators hear of it. A read on an Assessment Job's copy (R6, Story 23.11b) is
- * renewed the same way, while that Job is Starting or Active, since its J7 never waited for the acceptance. The
- * Customer's read invitation to the Intermediary
+ * renewed the same way, while that Job is Starting or Active, since its J7 never waited for the acceptance -- so on
+ * such a Job the cap reaches the Mentor's own grant too, and the report of it reaches the Mentor about their own
+ * login, who is after all the person who can still accept. The Customer's read invitation to the Intermediary
  * Repository (R5) is renewed in any Job state until the repositories are deleted, which revokes it, at most
  * {@value JobGrants#CUSTOMER_RENEWALS} times; then it stops quietly as {@code LAPSED}, and a lapsed read is never renewed.
  * Not pausable. The generation is the grant's renewal count, so an accepted or renewed grant leaves it {@code OBSOLETE}.
