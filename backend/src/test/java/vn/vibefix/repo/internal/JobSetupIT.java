@@ -1,6 +1,7 @@
 package vn.vibefix.repo.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -1873,7 +1874,7 @@ class JobSetupIT extends IntegrationTest {
 			.orElseThrow();
 	}
 
-	/** The Mentor's and the Crew's grants on the Working Repository. */
+	/** The Mentor's and the Crew's grants: on the Working Repository, or on an Assessment Job's one copy (R6). */
 	private List<JobGrants.Grant> teamGrants() {
 		return this.grants.ofJob(this.job).stream().filter(JobGrants.Grant::team).toList();
 	}
@@ -3233,7 +3234,10 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(GITHUB.seen).as("nobody is ever asked for write on it")
 			.noneMatch(seen -> seen.method().equals("PUT") && seen.path().startsWith("/repos/" + copy + "/collaborators/")
 					&& !seen.body().path("permission").asString("").equals("pull"));
-		assertThat(notices("repo.github_invitation_sent")).as("the Mentor's and the Crew member's").isEqualTo(2);
+		assertThat(notices("repo.read_invitation_sent")).as("the Mentor's and the Crew member's read wording")
+			.isEqualTo(2);
+		assertThat(notices("repo.github_invitation_sent"))
+			.as("never the Working Repository's, which promises write and a start that already happened").isZero();
 		assertThat(notices("repo.intermediary_invitation_sent")).as("the Customer's own wording").isOne();
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
 			.andExpect(jsonPath("$.jobState").value("ACTIVE"))
@@ -3279,9 +3283,9 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.busy.job(this.job).orElseThrow().busy()).isEmpty();
 		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
 		UUID read = teamGrants().getFirst().id();
-		org.assertj.core.api.Assertions
-			.assertThatThrownBy(() -> this.jdbc.sql("UPDATE repo.job_grant SET status = 'WRITE', write_at = :now WHERE id = :id")
-				.param("now", Timestamp.from(this.clock.instant())).param("id", read).update())
+		assertThatThrownBy(() -> this.jdbc
+			.sql("UPDATE repo.job_grant SET status = 'WRITE', write_at = :now WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant())).param("id", read).update())
 			.as("job_grant_read_only_check refuses the write whatever the caller does")
 			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
 		awaitListeners();
@@ -3376,8 +3380,12 @@ class JobSetupIT extends IntegrationTest {
 		this.deadlines.runDue();
 
 		assertThat(crewGrant().renewals()).isEqualTo(JobGrants.CREW_CHANGE_RENEWALS);
-		assertThat(notices("repo.invitation_renewals_exhausted")).as("the Mentor and the Administrator, per grant")
-			.isPositive();
+		List<UUID> heard = this.jdbc.sql("""
+				SELECT DISTINCT account_id FROM notification.notification WHERE type = 'repo.invitation_renewals_exhausted'
+				""").query(UUID.class).list();
+		assertThat(heard).as("the Mentor hears of a read nobody accepted, their own invitation included")
+			.contains(this.mentor);
+		assertThat(heard).as("and an Administrator with them").hasSizeGreaterThan(1);
 		awaitListeners();
 	}
 
@@ -3418,18 +3426,106 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 23.11b (matrix rows 9 and 10), which this story inherits and must not break: J8 revokes every team read on
-	 * the copy and reads it back, the Customer's read stays, and the deletion 30 days after the end ends that read too.
+	 * Story 23.11b (matrix row 5's error handling): the Customer's own read never holds "Mời đọc kho trung gian trên
+	 * GitHub" (R5), on an Assessment Job as on a Code Job. With the Mentor's and the Crew member's reads accepted and
+	 * the Customer's still out, the step is already done.
 	 */
 	@Test
-	void j8RevokesTheAssessmentTeamsReadsAndTheCustomersEndsWithTheCopy() throws Exception {
+	void theCustomersOwnReadDoesNotHoldTheAssessmentInviteStep() throws Exception {
 		assessmentJob();
 		assessmentSetUpTheRepository();
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
 		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
+		this.checks.check(this.job);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(teamGrants()).extracting(JobGrants.Grant::status).containsOnly("ACCEPTED");
+		assertThat(customerGrant().status()).as("the Customer has not accepted theirs").isEqualTo("INVITED");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.steps[4].key").value("INVITE"))
+			.andExpect(jsonPath("$.steps[4].state").value("DONE"));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11b (matrix row 3's error handling): a Crew member who joins before the copy exists is granted nothing --
+	 * the Setup is not done and there is no repository to read -- and the Setup's own resolving transaction invites them
+	 * with everyone else when it gets there.
+	 */
+	@Test
+	void aCrewMemberWhoJoinsAnAssessmentJobBeforeItsCopyIsGrantedNothing() throws Exception {
+		assessmentJob();
+		j6();
+		waitForTheCustomer();
+		UUID hai = activeMember();
+
+		this.checks.added(new vn.vibefix.job.CrewMemberAdded(UUID.randomUUID(), this.job, UUID.randomUUID(), hai, "ACTIVE"));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.setups.latest(this.job).orElseThrow().status()).as("no copy yet").isEqualTo("CONFIRMING");
+		assertThat(this.grants.ofJob(this.job)).as("nothing to read, so nothing is granted").isEmpty();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11b: a read accepted while two-factor authentication was off keeps the Job in the sweep, because the
+	 * Invite step waits for that flag and this sweep is the only thing that clears it -- which is what the read notice
+	 * promises. Dropping the Job as soon as every row read {@code ACCEPTED} would leave the step current, and the
+	 * member's own row reading {@code TWO_FACTOR_MISSING}, for the rest of the Job.
+	 */
+	@Test
+	void anAssessmentReadAcceptedWithoutTwoFactorIsSweptAgainUntilItIsOn() throws Exception {
+		assessmentJob();
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
+		assessmentSetUpTheRepository();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.withoutTwoFactor.add(crewLogin.toLowerCase(java.util.Locale.ROOT));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.mentor));
+		GITHUB.accept(crewLogin);
+		GITHUB.accept(TestPeople.login(this.jdbc, this.customer));
+
+		this.checks.sweep();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::status).containsOnly("ACCEPTED");
+		assertThat(crewGrant().twoFactorMissing()).isTrue();
+		assertThat(this.grants.unsettledJobs()).as("a read waiting for two-factor authentication is not settled")
+			.contains(this.job);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.steps[4].state").value("CURRENT"));
+
+		GITHUB.withoutTwoFactor.clear();
+		this.checks.sweep();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(crewGrant().twoFactorMissing()).as("the next sweep found it on").isFalse();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.steps[4].state").value("DONE"));
+		assertThat(this.grants.unsettledJobs()).as("and only then does the sweep let the Job go")
+			.doesNotContain(this.job);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11b (matrix rows 9 and 10), which this story inherits and must not break: J8 revokes every team read on
+	 * the copy and reads it back, the Customer's read stays, and the deletion 30 days after the end ends that read too.
+	 * A revoked read still answers for the acceptance GitHub keeps listing among the copy's recent events, so the
+	 * platform sweep of a closing Job reports no change by somebody else and nobody is alerted for 30 days.
+	 */
+	@Test
+	void j8RevokesTheAssessmentTeamsReadsAndTheCustomersEndsWithTheCopy() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		assessmentJob();
+		String mentorLogin = TestPeople.login(this.jdbc, this.mentor);
+		assessmentSetUpTheRepository();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(mentorLogin);
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
 		GITHUB.accept(TestPeople.login(this.jdbc, this.customer));
 		this.checks.check(this.job);
+		String copy = JobSetups.intermediaryName(this.job);
+		GITHUB.eventActors.put(copy, List.of("vibefix-dev-platform[bot]", "MemberEvent:" + mentorLogin));
 
 		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J8", "SYSTEM",
 				"ACTIVE", "CLOSING", 5, 1, Map.of()));
@@ -3438,6 +3534,9 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(teamGrants()).extracting(JobGrants.Grant::status).as("R17: the team's read ends at J8")
 			.containsOnly("REVOKED");
 		assertThat(customerGrant().status()).as("R5: the Customer reads on until the deletion").isEqualTo("ACCEPTED");
+		assertThat(sweep()).as("the acceptance of a read this platform revoked is still that read's own, so the daily "
+				+ "drift report of a closing Job stays empty for the 30 days before the copy goes").isEmpty();
+		GITHUB.eventActors.remove(copy);
 
 		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED' WHERE id = :id").param("id", this.job).update();
 		this.revocations.transitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J9", "SYSTEM",

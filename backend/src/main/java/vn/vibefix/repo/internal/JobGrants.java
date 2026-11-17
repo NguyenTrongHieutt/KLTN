@@ -71,9 +71,10 @@ import vn.vibefix.timers.Deadlines;
  * <p>
  * An Assessment Job (R6, Story 23.11b) has no Working Repository: its Setup grants the Mentor, every active Crew
  * member and the Customer read on its one Intermediary Repository, through the same invitation operation, and J7 does
- * not wait for a single acceptance. Every such row is {@link Grant#readOnly()}, which the table's
- * {@code job_grant_read_only_check} holds to: Verify is never reserved for the Job, the crew-change raise skips the
- * row, the sweep counts an accepted one as settled, and {@code GrantRaiseOperation} refuses it {@code READ_ONLY_GRANT}.
+ * not wait for a single acceptance. Every such row is {@link Grant#readOnly()}: Verify is never reserved for the Job,
+ * the crew-change raise skips the row, the sweep stops reading a Job once every invitation on it has been answered,
+ * and {@code GrantRaiseOperation} ends a raise of it obsolete with {@code READ_ONLY_GRANT}. The table's
+ * {@code job_grant_read_only_check} is what makes the permission itself unreachable, whatever a caller does.
  */
 @Component
 class JobGrants {
@@ -85,6 +86,12 @@ class JobGrants {
 	static final String VERIFY = "repo.job_verify";
 
 	static final String SENT = "repo.github_invitation_sent";
+
+	/**
+	 * The read wording of {@link #SENT} (R6, Story 23.11b): an invitation to an Assessment Job's one copy gives read for
+	 * good, on a Job that is already running, so its text names that copy and promises no write to come.
+	 */
+	static final String SENT_READ = "repo.read_invitation_sent";
 
 	static final String ACCEPT_TODO = "repo.accept_github_invitation";
 
@@ -278,8 +285,9 @@ class JobGrants {
 	/**
 	 * One person's grant and its first invitation, unless they have one on this repository: the Working Repository for the
 	 * team, the Intermediary Repository for the Customer and for an Assessment Job's team.
-	 * @param readOnly the grant is read for its whole life (R6): the Customer's read, or any grant on an Assessment
-	 * Job's copy
+	 * @param readOnly the grant is read for its whole life (R6): a grant on an Assessment Job's copy, the Customer's
+	 * there included. A Code Job's Customer read is not marked, because its role alone keeps it out of write
+	 * (Story 23.7)
 	 */
 	@Transactional
 	void grant(BusyJob job, Person person, PlatformRepository repository, boolean crewChange, boolean readOnly) {
@@ -452,7 +460,10 @@ class JobGrants {
 		String title = title(grant.jobId());
 		String link = link(grant);
 		if (grant.team() || grant.renewals() == 0) {
-			this.notifications.send(new NotificationRequest(grant.customer() ? SENT_CUSTOMER : SENT,
+			// R6 (Story 23.11b): a read of an Assessment Job's copy hears about that copy, never about a Working
+			// Repository it does not have, and is not told that write and the start follow its acceptance.
+			String sent = grant.customer() ? SENT_CUSTOMER : grant.readOnly() ? SENT_READ : SENT;
+			this.notifications.send(new NotificationRequest(sent,
 					key(grant.id() + ":sent:" + grant.renewals()), List.of(new Recipient(grant.accountId(), grant.audience())),
 					Map.of("job", title), link, grant.jobId(), null));
 		}
@@ -714,15 +725,16 @@ class JobGrants {
 
 	/**
 	 * Jobs with a grant still to settle, for the sweep. A read settles at {@code ACCEPTED}, since it is never raised: the
-	 * Customer's (R5), and every grant on an Assessment Job's copy (R6, Story 23.11b), so once its team has accepted the
-	 * sweep stops reading that Job back from GitHub. A pending or drifted grant keeps the Job in the set, whatever it
-	 * grants.
+	 * Customer's (R5), and every grant on an Assessment Job's copy (R6, Story 23.11b), so once every invitation on such
+	 * a Job has been answered the sweep stops reading it back from GitHub. A pending or drifted grant keeps the Job in
+	 * the set, whatever it grants -- and so does a read accepted while two-factor authentication was off, because this
+	 * sweep is the only thing that clears that flag and the Invite step waits for it.
 	 */
 	List<UUID> unsettledJobs() {
 		return this.jdbc.sql("""
 				SELECT DISTINCT job_id FROM repo.job_grant
 				WHERE status IN ('INVITED', 'MEMBER_DRIFT')
-				   OR (status = 'ACCEPTED' AND role <> 'CUSTOMER' AND NOT read_only)
+				   OR (status = 'ACCEPTED' AND role <> 'CUSTOMER' AND (NOT read_only OR two_factor_missing))
 				""")
 			.query(UUID.class)
 			.list();

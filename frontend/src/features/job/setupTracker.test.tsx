@@ -92,7 +92,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('JOB-H step tracker while Starting (UX-DR114, AD-11, Story 23.6c)', () => {
+describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () => {
   it("shows the Mentor EXPERIENCE.md's steps in order, the confirmed head, and that they need not act", async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () =>

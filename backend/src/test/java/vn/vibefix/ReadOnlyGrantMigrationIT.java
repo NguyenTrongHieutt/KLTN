@@ -31,37 +31,39 @@ class ReadOnlyGrantMigrationIT {
 
 	private static final String AFTER = "202611190900";
 
-	private static final String READ = "00000000-0000-7000-8000-00000000fb01";
+	/** A grant from before this story, which still reaches write. */
+	private static final String MENTOR = "00000000-0000-7000-8000-00000000fb01";
 
-	private static final String TEAM = "00000000-0000-7000-8000-00000000fb02";
+	/** The grant this story marks read-only. */
+	private static final String CREW = "00000000-0000-7000-8000-00000000fb02";
 
 	@Test
 	void onlyTheReadOnlyCheckIsAddedAndItRefusesEveryWriteOnAReadOnlyGrant() throws Exception {
 		String db = database.createScratchDatabase();
 		flyway(db, BEFORE).migrate();
 		List<String> before = checks(db);
-		execute(db, grant(READ, "MENTOR"));
+		execute(db, grant(MENTOR, "MENTOR"));
 
 		flyway(db, AFTER).migrate();
 
 		List<String> after = checks(db);
 		assertThat(after).as("every CHECK there was stays").containsAll(before).hasSize(before.size() + 1);
 		assertThat(after).anySatisfy(check -> assertThat(check).contains("read_only").contains("write_at"));
-		assertThat(rows(db, "SELECT read_only::TEXT FROM repo.job_grant WHERE id = '%s'".formatted(READ)))
+		assertThat(rows(db, "SELECT read_only::TEXT FROM repo.job_grant WHERE id = '%s'".formatted(MENTOR)))
 			.as("a grant from before this story grants write as it did").containsExactly("false");
-		execute(db, "UPDATE repo.job_grant SET status = 'WRITE', write_at = now() WHERE id = '%s'".formatted(READ));
+		execute(db, "UPDATE repo.job_grant SET status = 'WRITE', write_at = now() WHERE id = '%s'".formatted(MENTOR));
 
-		execute(db, grant(TEAM, "CREW"), "UPDATE repo.job_grant SET read_only = TRUE WHERE id = '%s'".formatted(TEAM));
+		execute(db, grant(CREW, "CREW"), "UPDATE repo.job_grant SET read_only = TRUE WHERE id = '%s'".formatted(CREW));
 		assertThatThrownBy(() -> execute(db, """
 				UPDATE repo.job_grant SET status = 'WRITE', write_at = now() WHERE id = '%s'
-				""".formatted(TEAM))).as("a read-only grant never reaches WRITE").isInstanceOf(SQLException.class);
-		assertThatThrownBy(() -> execute(db, "UPDATE repo.job_grant SET write_at = now() WHERE id = '%s'".formatted(TEAM)))
+				""".formatted(CREW))).as("a read-only grant never reaches WRITE").isInstanceOf(SQLException.class);
+		assertThatThrownBy(() -> execute(db, "UPDATE repo.job_grant SET write_at = now() WHERE id = '%s'".formatted(CREW)))
 			.as("nor holds a write time").isInstanceOf(SQLException.class);
 		assertThatThrownBy(() -> execute(db, """
 				UPDATE repo.job_grant SET read_only = TRUE WHERE id = '%s'
-				""".formatted(READ))).as("nor is a grant that already writes marked read-only").isInstanceOf(SQLException.class);
+				""".formatted(MENTOR))).as("nor is a grant that already writes marked read-only").isInstanceOf(SQLException.class);
 		assertThat(rows(db, "SELECT role || ' ' || status FROM repo.job_grant WHERE id IN ('%s', '%s') ORDER BY id"
-			.formatted(READ, TEAM))).containsExactly("MENTOR WRITE", "CREW ACCEPTED");
+			.formatted(MENTOR, CREW))).containsExactly("MENTOR WRITE", "CREW ACCEPTED");
 	}
 
 	/** An accepted grant of {@code role} on an Intermediary Repository. */

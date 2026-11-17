@@ -145,7 +145,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.queryByRole('heading', { name: 'Nhóm thực hiện' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Việc của tôi' })).toBeNull()
     expect(screen.queryByText(/phần mềm độc hại/)).toBeNull()
-    expect(screen.queryByRole('link', { name: /Mở mã nguồn trên GitHub/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
   })
 
   /**
@@ -176,7 +176,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(invitation).toHaveAttribute('target', '_blank')
     expect(invitation).toHaveAttribute('rel', 'noopener noreferrer nofollow')
     expect(screen.getByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Mở mã nguồn trên GitHub/ })).toBeNull()
+    // The invitation is still out, so nothing yet opens the copy itself.
+    expect(screen.queryByRole('link', { name: /Mở kho trung gian \(chỉ đọc\)/ })).toBeNull()
   })
 
   it('links a Crew member of an Assessment Job to the copy once they accepted', { timeout: 20_000 }, async () => {
@@ -267,18 +268,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   it('gives an active Crew member their overview with their Work Items and N-12', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
-      'GET /api/v1/jobs/j1/crew/me': () =>
-        json({
-          jobId: 'j1',
-          title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
-          state: 'ACTIVE',
-          productName: 'Sổ đặt bàn Quán Mây',
-          mentorName: 'Đỗ Mạnh Hùng',
-          former: false,
-          canLeave: true,
-          codeJob: true,
-          partyMilestones: [1],
-        }),
+      'GET /api/v1/jobs/j1/crew/me': () => json({ ...crewMe, codeJob: true }),
       'GET /api/v1/boards/j1/progress': () =>
         json(
           progress({

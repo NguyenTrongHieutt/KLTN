@@ -100,13 +100,11 @@ class AssessmentReportIT extends IntegrationTest {
 		}
 		this.mvc.perform(get("/api/v1/boards/" + assessment + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.assessment").value(false))
-			.andExpect(jsonPath("$.sourceRepositoryUrl").doesNotExist());
+			.andExpect(jsonPath("$.assessment").value(false));
 
 		UUID bugFix = job(WorkTestSupport.product(this.jdbc, this.lan, "Sổ sửa lỗi"), "BUG_FIX");
 		this.mvc.perform(get("/api/v1/boards/" + bugFix + "/progress").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.assessment").value(false))
-			.andExpect(jsonPath("$.sourceRepositoryUrl").doesNotExist());
+			.andExpect(jsonPath("$.assessment").value(false));
 	}
 
 	private UUID job(UUID product, String type) {

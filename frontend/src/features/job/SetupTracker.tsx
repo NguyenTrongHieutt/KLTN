@@ -19,6 +19,7 @@ import {
   invitationsPending,
   SELF_CONFIRMATION_NOTICE_VERSION,
   setupKey,
+  trackerSettled,
   useConfirmSourceClean,
   useRetrySetup,
   useSetup,
@@ -102,10 +103,12 @@ const TONES: Record<string, string> = {
  * It shows itself while the Job is Starting and, on an Assessment Job, while its read invitations are still out (R6,
  * Story 23.11b): that Job reaches J7 without waiting for a single acceptance, so the per-person rows -- the only place
  * the Mentor sees that a Crew member has not accepted yet -- would otherwise vanish exactly when they matter. Any
- * other state reads the Setup once and shows nothing.
+ * other state reads the Setup once and shows nothing. Whose page it belongs on stays the call site's to decide: the
+ * Mentor's and the Crew's own pages mount it on an Assessment Job in any state, while `JobHeader` and `JobPage` keep
+ * the Customer's to a Starting Job, because the Customer's read of that copy is optional and has a page of its own.
  */
 export function SetupTracker({ jobId }: { jobId: string }) {
-  const setup = useSetup(jobId, (data) => !shown(data))
+  const setup = useSetup(jobId, trackerSettled)
   if (!setup.data || !shown(setup.data)) {
     return null
   }

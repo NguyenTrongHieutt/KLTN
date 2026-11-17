@@ -460,6 +460,15 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType REPO_INTERMEDIARY_INVITATION_SENT = new NotificationType("repo.intermediary_invitation_sent",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
+	/**
+	 * The read wording of {@link #REPO_GITHUB_INVITATION_SENT} (R6, Story 23.11b): the Mentor's or a Crew member's
+	 * invitation to an Assessment Job's one private copy, which gives read for good on a Job that is already running --
+	 * so the text names that copy, and nothing in it says that write and the start follow the acceptance.
+	 */
+	static final NotificationType REPO_READ_INVITATION_SENT = new NotificationType("repo.read_invitation_sent",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
+			Set.of("job"));
+
 	/** An accepted collaborator without GitHub two-factor authentication (FR-18): that person. */
 	static final NotificationType REPO_TWO_FACTOR_REQUIRED = new NotificationType("repo.two_factor_required",
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
@@ -978,8 +987,8 @@ class NotificationTypes implements NotificationCatalog {
 				OPERATIONS_BUSY_MARKER_STUCK,
 				NOTIFICATION_EMAIL_BUDGET_80, GITHUB_APP_CONFIGURATION_DRIFT, REPO_SELF_CONFIRMATION_DUE, REPO_JOB_START_BLOCKED,
 				JOB_JOB_STARTED,
-				REPO_GITHUB_INVITATION_SENT, REPO_INTERMEDIARY_INVITATION_SENT, REPO_TWO_FACTOR_REQUIRED,
-				REPO_TWO_FACTOR_REQUIRED_READ, REPO_MEMBER_DRIFT,
+				REPO_GITHUB_INVITATION_SENT, REPO_INTERMEDIARY_INVITATION_SENT, REPO_READ_INVITATION_SENT,
+				REPO_TWO_FACTOR_REQUIRED, REPO_TWO_FACTOR_REQUIRED_READ, REPO_MEMBER_DRIFT,
 				REPO_INVITATION_RENEWALS_EXHAUSTED,
 				REPO_DRIFT_DETECTED, REPO_WORKFLOW_CHECK_FAILED, REPO_RECEIVE_CODE_REMINDER, REPO_FINAL_BRANCH_READY,
 				REPO_FINAL_MERGE_COMPLETED,

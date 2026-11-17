@@ -43,8 +43,8 @@ import vn.vibefix.work.internal.WorkAccess.Kind;
  * customer-visible Pages; for the Mentor the Crew with each member's open Work Items, and for a Crew
  * member their own; and {@code assessment} (FR-10), which tells the page to show N-12 and the team's link to the
  * Job's private read-only copy -- a link {@code repo}'s setup endpoint serves, never this one (R6, Story 23.11b).
- * The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds
- * no Work Item. A former Crew member, a locked one included, reads only the Job's header, as
+ * The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds no Work Item.
+ * A former Crew member, a locked one included, reads only the Job's header, as
  * {@code FORMER}, so JOB-1 keeps their post-Job duties without anything from after their time (AD-41).
  * Everyone else finds nothing.
  */
@@ -95,8 +95,7 @@ class ProgressController {
 	 */
 	record JobProgressView(UUID boardId, String title, String state, String productName, String mentorName,
 			String audience, List<MilestoneProgressView> milestones, List<PageLinkView> pages,
-			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment,
-			List<WorkViews.LeaverView> leavers) {
+			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment, List<WorkViews.LeaverView> leavers) {
 	}
 
 	private final WorkAccess access;

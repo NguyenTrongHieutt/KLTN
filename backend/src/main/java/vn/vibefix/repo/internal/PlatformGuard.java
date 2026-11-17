@@ -261,8 +261,10 @@ class PlatformGuard {
 	 * ends them (R6, R17, Story 23.11b) -- and nobody else, with no recent change but the System's and those readers'
 	 * own acceptance ({@code MemberEvent}) (FR-19, SM-2), which is what keeps it System-only without a ruleset; on the
 	 * Working Repository, the team's grants, none after J8 or J10 (R17). A team grant the row does not mark read-only
-	 * belongs on the Working Repository alone, so write on an Intermediary is still a difference. A lapsed read expects
-	 * nothing; the invitation GitHub still lists once it expired is no difference.
+	 * belongs on the Working Repository alone, so write on an Intermediary is still a difference. A read goes on
+	 * answering for its own acceptance after that revocation, as long as the copy exists, because GitHub keeps the old
+	 * {@code MemberEvent} among the repository's recent events. A lapsed read expects nothing; the invitation GitHub
+	 * still lists once it expired is no difference.
 	 */
 	private List<String> repositoryDifferences(PlatformRepo repo, String bot) {
 		List<String> differences = new ArrayList<>(this.repositories.settingsDifferences(repo.repository()));
@@ -271,7 +273,7 @@ class PlatformGuard {
 		String name = repo.repository().fullName();
 		Map<String, String> expected = new TreeMap<>();
 		Set<String> invited = new TreeSet<>();
-		// The live readers' logins on this Intermediary, whose acceptance there is their own MemberEvent.
+		// The logins this platform invited to read this Intermediary, whose acceptance there is their own MemberEvent.
 		Set<String> readers = new TreeSet<>();
 		for (Grant grant : this.grants.ofJob(repo.jobId())) {
 			if (grant.repositoryId() != repo.repository().id()) {
@@ -282,7 +284,13 @@ class PlatformGuard {
 			// J8 or J10, or, read-only, on an Assessment Job's one copy until then (R6).
 			boolean belongs = grant.customer() ? repo.intermediary()
 					: !repo.teamEnded() && (!repo.intermediary() || grant.readOnly());
-			if (belongs && repo.intermediary() && ("INVITED".equals(grant.status()) || "ACCEPTED".equals(grant.status()))) {
+			// A read this platform invited here answers for its own MemberEvent -- and goes on answering for it after J8
+			// or J10 revoked it (R6, R17), because GitHub keeps that old acceptance among the repository's recent events
+			// for as long as the copy itself exists. Dropping it with the grant would make every sweep of a closed
+			// Assessment Job report its own invitations as a change by somebody else.
+			boolean reader = repo.intermediary() && (grant.customer() || grant.readOnly());
+			if (reader && ("INVITED".equals(grant.status()) || "ACCEPTED".equals(grant.status())
+					|| (grant.readOnly() && ("REVOKING".equals(grant.status()) || "REVOKED".equals(grant.status()))))) {
 				readers.add(login);
 			}
 			switch (grant.status()) {

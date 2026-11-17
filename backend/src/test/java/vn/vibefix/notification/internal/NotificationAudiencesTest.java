@@ -88,7 +88,9 @@ class NotificationAudiencesTest {
 	/**
 	 * Story 23.7 (R5, UX-DR118): the Customer's read invitation to the Intermediary has a to-do and a notification of its
 	 * own, tier 3 and for the Customer only, since the catalog binds one tier and one text to a key; the team's keep
-	 * theirs, and neither the two-factor notice (about write) nor the revocation notice reaches the Customer.
+	 * theirs, and none of the team's notices reaches the Customer -- neither of the two invitation notices, neither
+	 * two-factor notice, nor the revocation. Story 23.11b (R6) added the read wording of two of them, for an Assessment
+	 * Job's copy, which the team alone hears as well.
 	 */
 	@Test
 	void theCustomersReadInvitationHasKeysOfItsOwn() {
@@ -99,7 +101,8 @@ class NotificationAudiencesTest {
 		assertThat(todo("repo.accept_github_invitation").audiences()).containsExactlyInAnyOrder(Audience.MENTOR,
 				Audience.CREW_ACTIVE);
 		assertThat(todo("repo.accept_github_invitation").tier()).isEqualTo(2);
-		for (String team : List.of("repo.github_invitation_sent", "repo.two_factor_required", "repo.access_revoked")) {
+		for (String team : List.of("repo.github_invitation_sent", "repo.read_invitation_sent", "repo.two_factor_required",
+				"repo.two_factor_required_read", "repo.access_revoked")) {
 			assertThat(type(team).audiences()).as(team).doesNotContain(Audience.CUSTOMER);
 		}
 	}

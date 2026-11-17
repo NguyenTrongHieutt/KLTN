@@ -17,7 +17,7 @@ import vn.vibefix.repo.internal.JobGrants.Grant;
 /**
  * {@value JobGrants#RAISE} (FR-75, AD-11): a Crew change member who accepted on an Active Job is raised
  * to write in place and read back, without changing the Job's state. Collaborators are looked up on use. A grant that
- * only ever reads -- the Customer's (R5), or any on an Assessment Job's copy (R6) -- is refused
+ * only ever reads -- the Customer's (R5), or any on an Assessment Job's copy (R6) -- ends the raise obsolete with
  * {@code READ_ONLY_GRANT}, however it was requested.
  */
 @Component

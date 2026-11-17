@@ -43,8 +43,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * <p>
  * On an Assessment Job (R6, Story 23.11b) the team's grants are reads of its one copy: they are read back the same way,
  * but no Verify is reserved and no raise is requested for them, whether the member was there at the Setup or joined
- * after it. Once each of them is accepted the Job is settled, so {@link JobGrants#unsettledJobs()} drops it and the
- * sweep reads GitHub for it no more.
+ * after it. Once every invitation on the Job has been answered, and no read is still waiting for two-factor
+ * authentication, {@link JobGrants#unsettledJobs()} drops it and the sweep reads GitHub for it no more.
  */
 @Component
 class GrantChecks {
