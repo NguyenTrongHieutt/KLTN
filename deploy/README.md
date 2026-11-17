@@ -222,10 +222,21 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
    take the case. Student verification is optional and gates nothing (`ten@truong.test` is a seeded
    school domain, and the code arrives in Mailpit). Verified on LinkedIn waits on Spike S5 and is not
    needed.
-5. **Clean up after a run.** The Intermediary and Working Repositories are public repositories in
-   `vibefix-dev`; delete them by hand. After the Final Merge, GitHub lists the Crew member (and the
-   Mentor, if they committed) among the Source Repository's contributors, so the next run needs another
-   test repository.
+5. **Clean up after a run.** The Intermediary and Working Repositories are **private** repositories in
+   `vibefix-dev` (Epic 23); delete them by hand. A deletion also happens on its own 30 days after the Job
+   ends, through the `repo.repository_deletion` Deadline. After the Final Merge, GitHub lists the Crew
+   member (and the Mentor, if they committed) among the Source Repository's contributors, so the next run
+   needs another test repository.
+
+**Epic 23 changed this path.** Since the private-repository redesign (sprint change proposal 2026-11-12),
+both platform repositories are private copies in the one organization, the J7 copy and the Final Merge run
+on the Customer's own GitHub Actions from the published `deploy/customer/vibefix.yml`, handover copies run
+on `vibefix-dev/vibefix-runner`, every run gets its token from vibefix's OIDC exchange and has it revoked,
+vibefix scans no code, and there is no ZIP. The sections "Actions exchange on the dev stack (Story 23.4)"
+and "The Source App on the dev stack (Story 23.5)" below set up the parts this path needs. The step-by-step
+run of the whole private path on real GitHub is the planning artifacts'
+`implementation-artifacts/private-path-run-guide.md` (Story 23.12, in Vietnamese, outside this repository),
+which replaces the GitHub sections of their Checkpoint 1 guide.
 
 ## Spike S1: the admin check for organization-owned repositories
 
