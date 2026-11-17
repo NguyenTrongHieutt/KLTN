@@ -296,12 +296,13 @@ class JobSetupController {
 		// R5: the Customer's read invitation never holds "Mời trên GitHub"; only the Mentor's and the Crew's count.
 		List<Grant> team = grants.stream().filter(Grant::team).toList();
 		// A Code Job's Verify requires every team grant before J7, so once it left Starting the invitations are settled.
-		// R6: an Assessment Job reaches J7 with its invitations still out, so its step reads the team rows alone.
+		// R6: an Assessment Job reaches J7 with its invitations still out, so its step reads the team rows alone --
+		// every one of them accepted with two-factor authentication on, whatever the Job's state.
 		boolean accepted = !team.isEmpty() && team.stream().allMatch(Grant::ready);
-		boolean invited = done && !team.isEmpty() && (assessment ? accepted : active || accepted);
+		boolean invited = done && accepted || (!assessment && active);
 		// R6: an assessment Setup makes one repository, so "Tạo kho" is done when the Intermediary was read back.
 		boolean[] finished = { setup.checkedAt() != null, setup.confirmedAt() != null,
-				setup.repositoriesAt() != null || done, setup.copiedAt() != null || done, invited || active, active };
+				setup.repositoriesAt() != null || done, setup.copiedAt() != null || done, invited, active };
 		// No step is done past the last one reached: a Setup that ended waiting shows nothing after its wait as done.
 		for (int step = 1; step < finished.length; step++) {
 			finished[step] = finished[step] && finished[step - 1];

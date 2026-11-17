@@ -14,7 +14,9 @@ import vn.vibefix.timers.DueDeadline;
  * {@value #KEY} (FR-18, FR-75, AD-7, AD-11): GitHub expires an invitation after 7 days, so a grant still
  * pending is invited again, with read permission, while the Job is Starting. A member who joined after Setup
  * (Story 21.5) is renewed while the Job is Starting or Active, at most {@value JobGrants#CREW_CHANGE_RENEWALS}
- * times; then the Mentor and the Administrators hear of it. The Customer's read invitation to the Intermediary
+ * times; then the Mentor and the Administrators hear of it. A read on an Assessment Job's copy (R6, Story 23.11b) is
+ * renewed the same way, while that Job is Starting or Active, since its J7 never waited for the acceptance. The
+ * Customer's read invitation to the Intermediary
  * Repository (R5) is renewed in any Job state until the repositories are deleted, which revokes it, at most
  * {@value JobGrants#CUSTOMER_RENEWALS} times; then it stops quietly as {@code LAPSED}, and a lapsed read is never renewed.
  * Not pausable. The generation is the grant's renewal count, so an accepted or renewed grant leaves it {@code OBSOLETE}.
@@ -59,11 +61,14 @@ class InvitationRenewal implements DeadlineHandler {
 			return DeadlineOutcome.FIRED;
 		}
 		String state = this.busy.getObject().job(grant.jobId()).map(JobBusy.BusyJob::state).orElse("");
-		if ("STARTING".equals(state) && !grant.crewChange()) {
+		// R6 (Story 23.11b): a read on an Assessment Job's copy is renewed while the Job is Active too, because J7
+		// never waited for it, and under the same cap a late member's has: nobody holds an invitation open for ever.
+		boolean capped = grant.crewChange() || grant.readOnly();
+		if ("STARTING".equals(state) && !capped) {
 			grants.reinvite(grant);
 			return DeadlineOutcome.FIRED;
 		}
-		if (("STARTING".equals(state) || "ACTIVE".equals(state)) && grant.crewChange()) {
+		if (("STARTING".equals(state) || "ACTIVE".equals(state)) && capped) {
 			if (grant.renewals() >= JobGrants.CREW_CHANGE_RENEWALS) {
 				grants.exhausted(grant);
 			}

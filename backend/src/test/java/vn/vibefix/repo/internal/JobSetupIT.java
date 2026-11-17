@@ -3349,6 +3349,75 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
+	 * Story 23.11b: an Assessment Job is Active while its invitations are out, so a read still pending when GitHub
+	 * expires it is invited again there, under the cap a late member's invitation has; then the Mentor and the
+	 * Administrators hear, as they do for a Crew change nobody accepted.
+	 */
+	@Test
+	void anAssessmentReadStillPendingIsRenewedWhileTheJobIsActiveAndThenReported() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		assessmentJob();
+		assessmentSetUpTheRepository();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(crewGrant().renewals()).as("renewed although the Job is no longer Starting").isOne();
+		assertThat(crewGrant().status()).isEqualTo("INVITED");
+		for (int renewal = 1; renewal < JobGrants.CREW_CHANGE_RENEWALS; renewal++) {
+			this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+			this.deadlines.runDue();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+
+		assertThat(crewGrant().renewals()).isEqualTo(JobGrants.CREW_CHANGE_RENEWALS);
+		assertThat(notices("repo.invitation_renewals_exhausted")).as("the Mentor and the Administrator, per grant")
+			.isPositive();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11b: the platform sweep expects the team's reads on an Assessment Job's copy, and their acceptance there
+	 * is their own {@code member} event, as the Customer's is (FR-19, SM-2, AD-12). A write collaborator on that copy is
+	 * still a difference, and a pull request by one of its readers still alerts: the copy is the System's to change.
+	 */
+	@Test
+	void theSweepExpectsTheAssessmentTeamsReadsOnTheCopyAndStillGuardsIt() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		assessmentJob();
+		String mentorLogin = TestPeople.login(this.jdbc, this.mentor);
+		assessmentSetUpTheRepository();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(mentorLogin);
+		GITHUB.accept(TestPeople.login(this.jdbc, this.crew));
+		GITHUB.accept(TestPeople.login(this.jdbc, this.customer));
+		this.checks.check(this.job);
+		String copy = JobSetups.intermediaryName(this.job);
+		GITHUB.eventActors.put(copy, List.of("vibefix-dev-platform[bot]", "MemberEvent:" + mentorLogin));
+
+		assertThat(sweep()).as("three reads on the copy, each accepted, and a reader's own member event").isEmpty();
+
+		GITHUB.eventActors.put(copy,
+				List.of("vibefix-dev-platform[bot]", "MemberEvent:" + mentorLogin, "PushEvent:" + mentorLogin));
+		assertThat(sweep()).as("but nothing else of theirs on the copy")
+			.anyMatch(difference -> difference.contains("recent changes by [" + mentorLogin + "]"));
+		GITHUB.eventActors.remove(copy);
+
+		long copyId = GITHUB.organizationRepositoryId(copy);
+		this.guard.hinted(webhook("pull_request", copyId, mentorLogin, githubUserId(this.mentor)));
+		GITHUB.addCollaborator(copy, "mallory", "write");
+
+		assertThat(sweep()).anyMatch(difference -> difference.contains("mallory=write"));
+		assertThat(notices("github.unexpected_actor")).as("a reader's pull request on the copy still alerts").isOne();
+		awaitListeners();
+	}
+
+	/**
 	 * Story 23.11b (matrix rows 9 and 10), which this story inherits and must not break: J8 revokes every team read on
 	 * the copy and reads it back, the Customer's read stays, and the deletion 30 days after the end ends that read too.
 	 */
