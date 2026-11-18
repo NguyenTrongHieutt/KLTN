@@ -80,6 +80,12 @@ class FollowUpIT extends IntegrationTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(content("   ", "Không có đề xuất", "BUG_FIX")))
 			.andExpect(status().isBadRequest());
+		this.mvc
+			.perform(post("/api/v1/boards/" + job + "/follow-ups").with(as(this.hung, Role.MENTOR))
+				.with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content("Đ".repeat(501), "Đề xuất quá dài", "BUG_FIX")))
+			.andExpect(status().isBadRequest());
 		create(this.lan, Role.CUSTOMER, job, 1, "Không được").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
 
