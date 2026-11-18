@@ -70,7 +70,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
   it.each([
     [
       'GONE',
-      'Ứng dụng vibefix không còn đến được dự án gốc lan/so-dat-ban: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày 23/10). Cần sửa lại trên GitHub để ứng dụng chọn đúng một kho là dự án này.',
+      'Ứng dụng vibefix không còn đến được dự án gốc lan/so-dat-ban: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày 23/10). Cần sửa lại trên GitHub để ứng dụng có chọn dự án này.',
     ],
     [
       'APP_UNINSTALLED',

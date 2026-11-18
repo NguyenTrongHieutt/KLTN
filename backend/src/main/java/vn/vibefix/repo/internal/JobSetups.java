@@ -196,7 +196,7 @@ class JobSetups {
 	 */
 	static final Map<Block, String> REASONS = Map.ofEntries(
 			Map.entry(Block.SOURCE_APP_MISSING, "ứng dụng vibefix chưa được cài trên dự án gốc"),
-			Map.entry(Block.SOURCE_APP_WRONG_REPOSITORY, "ứng dụng vibefix phải được cài cho đúng một kho là dự án gốc"),
+			Map.entry(Block.SOURCE_APP_WRONG_REPOSITORY, "ứng dụng vibefix phải được cài cho dự án gốc"),
 			Map.entry(Block.WORKFLOW_MISSING, "dự án gốc chưa có file workflow vibefix.yml"),
 			Map.entry(Block.WORKFLOW_MISMATCH, "file workflow vibefix.yml trong dự án gốc khác bản vibefix công bố"),
 			Map.entry(Block.NO_ADMIN_PERMISSION, "tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc"),

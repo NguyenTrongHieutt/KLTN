@@ -299,9 +299,11 @@ class ProductRegistrationIT extends IntegrationTest {
 		installed.all = true;
 		check("https://github.com/lan-nguyen/shop-gom").andExpect(jsonPath("$.reason").value("SOURCE_APP_WRONG_REPOSITORY"));
 		installed.all = false;
-		// Another selected repository that is no live Product's.
+		// Another selected repository that is no live Product's: allowed, because no token this platform mints ever
+		// reaches it (AD-44), and refusing here blocked every other Product of the Customer while a second Source was
+		// being registered, or after a Product was deleted with its repository still ticked.
 		installed.repository(5555, "lan-nguyen/other", this.lanGithubId);
-		check("https://github.com/lan-nguyen/shop-gom").andExpect(jsonPath("$.reason").value("SOURCE_APP_WRONG_REPOSITORY"));
+		check("https://github.com/lan-nguyen/shop-gom").andExpect(status().isOk());
 		// The repository itself not selected.
 		installed.deselect(5555).deselect(4001);
 		check("https://github.com/lan-nguyen/shop-gom").andExpect(jsonPath("$.reason").value("SOURCE_APP_WRONG_REPOSITORY"));

@@ -32,14 +32,15 @@ export const SECRET_PROVIDERS = [
 ] as const
 
 /**
- * GitHub's new-file page in the repository, prefilled with the published workflow's path and content (AD-45),
- * where the Customer commits `vibefix.yml` on the default branch. A branch such as `release/v2` keeps its
- * slashes as path segments, each segment encoded on its own.
+ * GitHub's new-file page in the repository, with the published workflow's path filled in (AD-45), where the Customer
+ * pastes `vibefix.yml` and commits it on the default branch. The content is **not** carried in the URL: encoded it
+ * runs to about 54,000 characters, and GitHub answers "Your request URL is too long" for every repository, so the
+ * card copies the content to the clipboard instead (Story 23.12's run, 2026-11-18). A branch such as `release/v2`
+ * keeps its slashes as path segments, each segment encoded on its own.
  */
-export function newWorkflowUrl(htmlUrl: string, branch: string, path: string, content: string): string {
-  const query = `filename=${encodeURIComponent(path)}&value=${encodeURIComponent(content)}`
+export function newWorkflowUrl(htmlUrl: string, branch: string, path: string): string {
   const segments = branch.split('/').map(encodeURIComponent).join('/')
-  return `${htmlUrl.replace(/\/+$/, '')}/new/${segments}?${query}`
+  return `${htmlUrl.replace(/\/+$/, '')}/new/${segments}?filename=${encodeURIComponent(path)}`
 }
 
 /**

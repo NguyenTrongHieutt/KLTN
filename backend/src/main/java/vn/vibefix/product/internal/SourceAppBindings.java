@@ -9,7 +9,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,11 +40,14 @@ import vn.vibefix.shared.IdGenerator;
  * an install an organization owner approves later binds on the next "Kiểm tra". The lookup writes nothing
  * ({@link #find}): the caller records the draft's binding ({@link #record}) only once the Customer's admin right on
  * the repository is read, so nobody keeps a binding of a repository they do not administer;</li>
- * <li>the selection rule: {@code repository_selection} is {@code selected}, the repository is in the selection,
- * every other selected repository is the Source Repository of a live Product of the same Customer, and the
- * installation is not suspended and has accepted Contents read, Metadata read and Actions write. Otherwise there is
- * no installation, a suspended one, or one missing permissions ({@code SOURCE_APP_MISSING}), or a wrong selection
- * ({@code SOURCE_APP_WRONG_REPOSITORY}).</li>
+ * <li>the selection rule: {@code repository_selection} is {@code selected}, the repository is in the selection, and
+ * the installation is not suspended and has accepted Contents read, Metadata read and Actions write. The other
+ * repositories the Customer selected are <em>not</em> checked. AD-44 narrows every token this platform mints to the
+ * repositories of the operation it is for, so a repository that is merely selected is never read; checking it here
+ * bought no access that the token scopes did not already deny, and it blocked every other Product of that Customer
+ * whenever one selected repository was not yet a Product (the window while a second Source is being registered) or
+ * no longer one (a deleted Product left ticked). Otherwise there is no installation, a suspended one, or one missing
+ * permissions ({@code SOURCE_APP_MISSING}), or a wrong selection ({@code SOURCE_APP_WRONG_REPOSITORY}).</li>
  * </ul>
  * Every {@link Found} and {@link Bound} comes from a read made just now, and a caller mints its token from it
  * ({@link #READ}, narrowed to the one repository and revoked after use), so a token is minted only while the rule
@@ -199,13 +201,13 @@ class SourceAppBindings {
 	 * selection rule. Nothing is written: the caller {@link #record}s the binding once the admin right is read.
 	 * @throws GitHubException when GitHub cannot answer, or the App is not configured
 	 */
-	Lookup find(UUID customerId, String owner, String name) {
+	Lookup find(String owner, String name) {
 		String fullName = owner + "/" + name;
 		Installation installation = this.app.installationOn(owner, name).orElse(null);
 		if (installation == null) {
 			return Lookup.refused(ProductReason.SOURCE_APP_MISSING);
 		}
-		Rule rule = rule(customerId, installation, selected -> selected.fullName().equalsIgnoreCase(fullName));
+		Rule rule = rule(installation, selected -> selected.fullName().equalsIgnoreCase(fullName));
 		if (rule.refusal() != null) {
 			return Lookup.refused(rule.refusal());
 		}
@@ -266,12 +268,12 @@ class SourceAppBindings {
 				""").param("product", productId).query(Long.class).optional().orElse(null);
 		Predicate<SelectedRepository> registered = selected -> selected.id() == repositoryId;
 		Installation installation = known == null ? null : this.app.installation(known).orElse(null);
-		Rule rule = installation == null ? null : rule(customerId, installation, registered);
+		Rule rule = installation == null ? null : rule(installation, registered);
 		if (rule == null || rule.refusal() != null) {
 			String[] parts = fullName.split("/", 2);
 			Installation byName = parts.length == 2 ? this.app.installationOn(parts[0], parts[1]).orElse(null) : null;
 			if (byName != null && (installation == null || byName.id() != installation.id())) {
-				Rule other = rule(customerId, byName, registered);
+				Rule other = rule(byName, registered);
 				if (rule == null || other.refusal() == null) {
 					installation = byName;
 					rule = other;
@@ -349,8 +351,12 @@ class SourceAppBindings {
 		return this.app.settingsUrl(binding.accountType(), binding.accountLogin(), binding.installationId());
 	}
 
-	/** The selection rule (AD-10, R2) on an installation read just now. */
-	private Rule rule(UUID customerId, Installation installation, Predicate<SelectedRepository> repository) {
+	/**
+	 * The selection rule (AD-10, R2) on an installation read just now: this repository must be one of the selected
+	 * ones. What else the Customer selected is their own business, because no token this platform mints ever reaches
+	 * it (AD-44).
+	 */
+	private Rule rule(Installation installation, Predicate<SelectedRepository> repository) {
 		if (installation.suspended() || !installation.accepted()) {
 			return new Rule(null, ProductReason.SOURCE_APP_MISSING);
 		}
@@ -360,21 +366,6 @@ class SourceAppBindings {
 		SelectedRepository found = installation.repositories().stream().filter(repository).findFirst().orElse(null);
 		if (found == null) {
 			return new Rule(null, ProductReason.SOURCE_APP_WRONG_REPOSITORY);
-		}
-		List<Long> others = installation.repositories()
-			.stream()
-			.map(SelectedRepository::id)
-			.filter(id -> id != found.id())
-			.distinct()
-			.toList();
-		if (!others.isEmpty()) {
-			long live = this.jdbc.sql("""
-					SELECT count(DISTINCT repository_github_id) FROM product.product
-					WHERE customer_account_id = :customer AND deleted_at IS NULL AND repository_github_id IN (:others)
-					""").param("customer", customerId).param("others", others).query(Long.class).single();
-			if (live != others.size()) {
-				return new Rule(null, ProductReason.SOURCE_APP_WRONG_REPOSITORY);
-			}
 		}
 		return new Rule(found, null);
 	}

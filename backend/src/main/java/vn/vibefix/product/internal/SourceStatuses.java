@@ -96,7 +96,7 @@ class SourceStatuses {
 	static final Map<Status, String> PROBLEMS = Map.of(
 			Status.SOURCE_APP_MISSING,
 			"ứng dụng vibefix không dùng được trên dự án gốc (đã bị gỡ, bị tạm ngưng, hoặc đang chờ được duyệt)",
-			Status.SOURCE_APP_WRONG_REPOSITORY, "ứng dụng vibefix không còn được cài cho đúng một kho là dự án gốc",
+			Status.SOURCE_APP_WRONG_REPOSITORY, "ứng dụng vibefix không còn được cài cho dự án gốc",
 			Status.WORKFLOW_MISSING, "dự án gốc không còn file .github/workflows/vibefix.yml",
 			Status.WORKFLOW_MISMATCH,
 			"file .github/workflows/vibefix.yml khác bản vibefix công bố, hoặc là bản đã hết hạn");
