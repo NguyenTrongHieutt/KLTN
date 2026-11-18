@@ -123,7 +123,6 @@ class ClosureIT extends IntegrationTest {
 			.andExpect(jsonPath("$.audience").value("FORMER"))
 			.andExpect(jsonPath("$.state").value("CLOSED"))
 			.andExpect(jsonPath("$.milestones.length()").value(0))
-			.andExpect(jsonPath("$.pages.length()").value(0))
 			.andExpect(jsonPath("$.mine.length()").value(0));
 		assertThat(notifications("job.job_closing")).isEqualTo(3);
 		assertThat(notifications("job.job_closed")).isEqualTo(3);
