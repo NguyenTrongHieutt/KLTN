@@ -2718,8 +2718,6 @@
         "ACTIVE": "Đang tham gia",
         "RELEASED": "Đã rời"
       },
-      "mine": "Việc của tôi",
-      "noOpenItems": "Không có việc nào đang mở.",
       "n12": "Mã của khách hàng có thể chứa phần mềm độc hại. Hãy chạy nó trong môi trường tách biệt (máy ảo hoặc container), không dùng tài khoản và khóa cá nhân của bạn, và xóa môi trường khi xong.",
       "aside": "Thông tin công việc",
       "deadline": "Hạn sắp tới",
@@ -2784,7 +2782,7 @@
       "form": {
         "title": "Tạo bàn giao",
         "heading": "Bàn giao Giai đoạn {n} · {title}",
-        "lead": "Khách hàng sẽ kiểm tra từng tiêu chí theo báo cáo này. Nhận xét Đạt hay Chưa đạt là của bạn.",
+        "lead": "Khách hàng sẽ kiểm tra từng tiêu chí theo báo cáo này. Nhận xét Đạt hay Chưa đạt là của bạn; quyết định nghiệm thu là của khách hàng.",
         "items": "Hạng mục công việc",
         "noItems": "Giai đoạn này chưa có hạng mục nào.",
         "approved": "Đã duyệt",

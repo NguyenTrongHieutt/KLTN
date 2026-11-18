@@ -39,19 +39,23 @@ import vn.vibefix.shared.Gate;
 /**
  * JOB-1's progress (FR-28, AD-33, UX-DR68), under {@code /api/v1/boards/{boardId}} like the Job's other
  * Active-phase calls (a Board's ID is its Job's): per Milestone of the Agreement in force its live state,
- * price and due date, for the Mentor and a Crew member the Crew with each member's AD-41 state, and
- * {@code assessment} (FR-10), which tells the page to show N-12 and the team's link to the Job's private
- * read-only copy -- a link {@code repo}'s setup endpoint serves, never this one (R6, Story 23.11b).
+ * price and due date, and {@code assessment} (FR-10), which tells the page to show N-12 and the team's link
+ * to the Job's private read-only copy -- a link {@code repo}'s setup endpoint serves, never this one (R6,
+ * Story 23.11b).
  * <p>
  * No mid-Milestone progress figure is served (Story 24.2, decision of 2026-11-18): the platform does not
  * track the team's tasks, so the status is the Milestone's own state and the words for it are composed in the
  * SPA ({@code jobStateText.ts}). The per-criterion detail the Customer decides on is in each Delivery Report
  * (FR-32).
  * <p>
- * The Job's Customer, its Mentor, and its active Crew read it. A former Crew member, a locked one included,
- * reads only the Job's header, as {@code FORMER}, so JOB-1 keeps their post-Job duties without anything from
- * after their time (AD-41). An Administrator is no viewer of JOB-1 whatever grant they hold: the Evidence
- * Package is where a case reads a Job (AD-20). Everyone else finds nothing.
+ * The Job's Customer, its Mentor, and its active Crew read it, and only the Mentor reads the Crew roster.
+ * A Crew member reads the Milestones and an empty {@code crew}: the roster carries every member's AD-41 state,
+ * {@code ASSIGNED} and {@code RELEASED} included, which is the Mentor's to see and not a peer's, so do not
+ * widen {@link #crew} to the {@code CREW} audience. A former Crew member, a locked one included, reads the
+ * Job's header alone, as {@code FORMER}: its state, title, Product and Mentor as they stand now, which is what
+ * their post-Job duties need and what {@code GET /api/v1/jobs/{jobId}/crew/me} already tells them, and no
+ * Milestone and no member of the Crew they left (AD-41). An Administrator is no viewer of JOB-1 whatever grant
+ * they hold: the Evidence Package is where a case reads a Job (AD-20). Everyone else finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -106,7 +110,10 @@ class JobProgressController {
 
 	}
 
-	/** The Job states that have a Board, and Cancelled, which keeps the Milestones it ended with. */
+	/**
+	 * The Job states JOB-1's progress is served in. A Job cancelled before it reached Active has no Agreement in
+	 * force, so its Milestone list comes back empty and the page shows no Milestone section at all.
+	 */
 	private static final List<JobState> SHOWN = List.of(JobState.ACTIVE, JobState.CLOSING, JobState.CLOSED,
 			JobState.CANCELLED);
 

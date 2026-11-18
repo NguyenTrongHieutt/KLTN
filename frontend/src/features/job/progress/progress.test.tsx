@@ -290,6 +290,24 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(await screen.findByText('Cần sửa: 1 tiêu chí · còn 0 lượt')).toBeInTheDocument()
   })
 
+  /** Story 24.2a: the Customer's own words for the same Milestone, with nothing counted after them. */
+  it('reads the Customer a Milestone being revised, with no count after it', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(
+          progress({
+            milestones: [{ ...progress().milestones[0], state: 'REVISION_REQUESTED', roundsLeft: 1, revisionCriteria: 1 }],
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1')
+
+    // A string matcher requires the whole text to equal it, so this alone proves nothing follows the label.
+    expect(await screen.findByText('Đang sửa theo yêu cầu')).toBeInTheDocument()
+  })
+
   it('tells the Customer how many Revision Rounds a submitted Milestone has left', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),

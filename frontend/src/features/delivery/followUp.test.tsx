@@ -51,6 +51,7 @@ const mentorJob = {
   agreementConfirmed: true,
 }
 
+/** The Customer's answer: `assessment` is false for them whatever the Job's type, so the section cannot hang on it. */
 const progress = {
   boardId: 'j1',
   title: 'Đánh giá sổ đặt bàn',
@@ -60,8 +61,7 @@ const progress = {
   audience: 'CUSTOMER',
   milestones: [],
   crew: [],
-  mine: [],
-  assessment: true,
+  assessment: false,
 }
 
 const followUp = {
@@ -94,7 +94,7 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
-      'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'MENTOR' }),
+      'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'MENTOR', assessment: true }),
       'GET /api/v1/boards/j1/follow-ups': () => json(followUps()),
       'POST /api/v1/boards/j1/follow-ups': async (request) => {
         sent.push(await request.json())

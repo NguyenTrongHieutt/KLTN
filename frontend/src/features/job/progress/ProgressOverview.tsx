@@ -78,23 +78,28 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         <CancellationSection jobId={jobId} />
         {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
         {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
-        {progress.assessment && <FollowUpSection jobId={jobId} />}
-        <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
-          <h2 id="progress-milestones" className="text-h2">
-            {t('screen.progress.milestones')}
-          </h2>
-          <ul className="flex flex-col gap-3">
-            {progress.milestones.map((milestone) => (
-              <MilestoneCard
-                key={milestone.milestoneId}
-                jobId={jobId}
-                milestone={milestone}
-                audience={audience}
-                nextToFund={milestone.milestoneId === nextToFund}
-              />
-            ))}
-          </ul>
-        </section>
+        {/* FR-11: the Customer answers the follow-ups here, and `assessment` is false for them by design, so the
+            section decides for itself -- it renders nothing for a Mentor with none to send and a Customer with none
+            to answer. */}
+        <FollowUpSection jobId={jobId} />
+        {progress.milestones.length > 0 && (
+          <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
+            <h2 id="progress-milestones" className="text-h2">
+              {t('screen.progress.milestones')}
+            </h2>
+            <ul className="flex flex-col gap-3">
+              {progress.milestones.map((milestone) => (
+                <MilestoneCard
+                  key={milestone.milestoneId}
+                  jobId={jobId}
+                  milestone={milestone}
+                  audience={audience}
+                  nextToFund={milestone.milestoneId === nextToFund}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
         {audience === 'mentor' && (
           <section aria-labelledby="progress-crew" className="flex flex-col gap-3">
             <h2 id="progress-crew" className="text-h2">

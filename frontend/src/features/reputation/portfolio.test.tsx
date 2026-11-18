@@ -59,9 +59,7 @@ const progress = {
   mentorName: 'Đỗ Mạnh Hùng',
   audience: 'CUSTOMER',
   milestones: [],
-  pages: [],
   crew: [],
-  mine: [],
   assessment: true,
 }
 

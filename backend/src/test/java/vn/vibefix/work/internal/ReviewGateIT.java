@@ -27,6 +27,7 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
+import vn.vibefix.work.MilestoneWork;
 
 /**
  * FR-25, FR-28, AD-33, AD-39: the assignee submits with all four Self-check answers; the Mentor returns
@@ -51,6 +52,9 @@ class ReviewGateIT extends IntegrationTest {
 
 	@Autowired
 	private Boards boards;
+
+	@Autowired
+	private MilestoneWork milestoneWork;
 
 	private UUID hung;
 
@@ -130,6 +134,10 @@ class ReviewGateIT extends IntegrationTest {
 			.isEqualTo("{SEEDED,UPDATED,MOVED,SUBMITTED,RETURNED,SUBMITTED,APPROVED}");
 	}
 
+	/**
+	 * The Review Gate's negative half, read through the port a Milestone Handover decides on (FR-32): a Story that
+	 * reached "Xong" with no approval behind it is not {@code approved}, however its status reads.
+	 */
 	@Test
 	void aStoryMovedToDoneOtherwiseNeverCountsAndTheMoveCommandRefusesDone() throws Exception {
 		this.mvc.perform(post("/api/v1/work-items/" + this.story + "/move").with(as(this.hung, Role.MENTOR)).with(csrf())
@@ -137,10 +145,13 @@ class ReviewGateIT extends IntegrationTest {
 			.andExpect(status().isUnprocessableContent())
 			.andExpect(jsonPath("$.reason").value("MOVE_NOT_ALLOWED"));
 		this.jdbc.sql("UPDATE work.work_item SET status = 'DONE' WHERE id = :id").param("id", this.story).update();
-		assertThat(itemStatus(this.story)).isEqualTo("DONE");
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM work.work_item_history WHERE work_item_id = :id AND action IN ('APPROVED', 'UNREVIEWED')
-				""").param("id", this.story).query(Long.class).single()).as("Done without an approval").isZero();
+
+		assertThat(this.milestoneWork.items(this.job, MILESTONE)).filteredOn(state -> state.id().equals(this.story))
+			.singleElement()
+			.satisfies(state -> {
+				assertThat(state.status()).isEqualTo("DONE");
+				assertThat(state.approved()).as("Done without an approval").isFalse();
+			});
 	}
 
 	private static final String ALL = "{\"meetsCriteria\":true,\"tested\":true,\"docsUpdated\":true,\"noSecrets\":true}";

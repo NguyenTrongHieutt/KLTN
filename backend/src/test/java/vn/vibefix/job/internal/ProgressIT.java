@@ -101,19 +101,44 @@ class ProgressIT extends IntegrationTest {
 
 	/**
 	 * The two labels that carried "{done}/{total} tiêu chí đã xong" and the team's "{n} hạng mục chờ duyệt" are
-	 * composed in the SPA from the state alone now, so every state must still arrive, with nothing counted beside it.
+	 * composed in the SPA from the state alone now, so every state must still arrive with everything the words are
+	 * built from -- the price, the due date and the Revision Rounds left -- and nothing counted beside it.
+	 * {@code SETTLED} is an Administrator's decision on a Dispute ({@code JobSettlements}).
 	 */
 	@Test
 	void everyMilestoneStateReachesTheCustomerWithNothingCountedBesideIt() throws Exception {
-		for (String state : List.of("SUBMITTED", "REVISION_REQUESTED", "ACCEPTED", "CANCELLED")) {
+		for (String state : List.of("SUBMITTED", "REVISION_REQUESTED", "ACCEPTED", "CANCELLED", "SETTLED")) {
 			move(MILESTONES.get(0), state);
 			String body = this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.milestones[0].state").value(state))
+				.andExpect(jsonPath("$.milestones[0].priceVnd").value(1500000))
+				.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-11-20"))
+				// One Round is used while the Milestone is being revised, and none in any other state.
+				.andExpect(jsonPath("$.milestones[0].roundsLeft").value("REVISION_REQUESTED".equals(state) ? 1 : 2))
 				.andReturn().getResponse().getContentAsString();
 			assertThat(RETIRED).allSatisfy(field -> assertThat(body).as(state + " " + field)
 				.doesNotContain("\"" + field + "\""));
 		}
+	}
+
+	/**
+	 * Story 24.2a: a Job cancelled before it ever reached Active has no Agreement in force, so its Customer reads the
+	 * Job's header with an empty Milestone list instead of the not-found the Board's own lookup used to give.
+	 */
+	@Test
+	void aJobCancelledFromAgreementAnswersItsCustomerWithNoMilestone() throws Exception {
+		UUID product = product(this.lan, "Sổ giữ chỗ");
+		UUID cancelled = agreementJob(product, this.lan, this.hung);
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", cancelled).update();
+
+		this.mvc.perform(get("/api/v1/boards/" + cancelled + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.audience").value("CUSTOMER"))
+			.andExpect(jsonPath("$.state").value("CANCELLED"))
+			.andExpect(jsonPath("$.productName").value("Sổ giữ chỗ"))
+			.andExpect(jsonPath("$.milestones.length()").value(0))
+			.andExpect(jsonPath("$.crew.length()").value(0));
 	}
 
 	/** AD-41: the Mentor's Crew list names every member's state, and carries no work of theirs. */
@@ -231,6 +256,31 @@ class ProgressIT extends IntegrationTest {
 		return id;
 	}
 
+	/**
+	 * A Job that reached Agreement and never became Active: its Mentor is chosen, nothing is confirmed, so it has no
+	 * Agreement in force and no Milestone of its own.
+	 */
+	private UUID agreementJob(UUID product, UUID owner, UUID mentor) {
+		UUID id = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, opened_at, lapses_at, mentor_account_id,
+				    selected_application_id, selected_at, version, created_at, updated_at)
+				VALUES (:id, :product, :owner, 'AGREEMENT', 'Giữ chỗ theo giờ', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :now, :lapses, :mentor, :application, :now, 3, :now, :now)
+				""")
+			.param("id", id)
+			.param("product", product)
+			.param("owner", owner)
+			.param("now", now)
+			.param("lapses", Timestamp.from(this.clock.instant().plus(Duration.ofDays(14))))
+			.param("mentor", mentor)
+			.param("application", UUID.randomUUID())
+			.update();
+		return id;
+	}
+
 	/** An Active Job of {@code jobType} whose Mentor is {@code mentor}, with Agreement version 1 confirmed. */
 	private UUID activeJob(UUID product, UUID owner, UUID mentor, List<UUID> milestones, List<List<UUID>> criteria,
 			String jobType) {
@@ -308,7 +358,7 @@ class ProgressIT extends IntegrationTest {
 		this.jdbc.sql("""
 				UPDATE job.milestone
 				SET state = :state, funded_at = coalesce(funded_at, :now), submitted_at = :submitted,
-				    handover_id = :handover, accepted_at = :accepted, revision_criteria = :criteria,
+				    handover_id = :handover, accepted_at = :accepted, settled_at = :settled, revision_criteria = :criteria,
 				    revision_rounds_used = :used
 				WHERE id = :id
 				""")
@@ -318,6 +368,7 @@ class ProgressIT extends IntegrationTest {
 			.param("submitted", submitted ? now : null)
 			.param("handover", submitted ? UUID.randomUUID() : null)
 			.param("accepted", "ACCEPTED".equals(state) ? now : null)
+			.param("settled", "SETTLED".equals(state) ? now : null)
 			.param("criteria", revision ? 1 : null)
 			.param("used", revision ? 1 : 0)
 			.update();

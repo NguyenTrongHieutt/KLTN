@@ -243,8 +243,11 @@ class WorkViews {
 				viewer.mentor() && viewer.writes() && !this.crews.hasCountedMember(viewer.board().jobId()), leavers(viewer));
 	}
 
-	/** Who left open Work Items behind, for the Mentor of a Board that can still change; nobody else reads it (FR-82). */
-	List<LeaverView> leavers(BoardViewer viewer) {
+	/**
+	 * Who left open Work Items behind, for the Mentor of a Board that can still change; nobody else reads it (FR-82).
+	 * JOB-2's own view is its only reader since Story 24.2a took JOB-1's progress out of {@code work}.
+	 */
+	private List<LeaverView> leavers(BoardViewer viewer) {
 		if (!viewer.mentor() || !viewer.writes()) {
 			return List.of();
 		}
