@@ -28,9 +28,6 @@ enum DeliveryReason {
 	/** Every Acceptance Criterion of the Milestone needs "Đạt" or "Chưa đạt" and a note (FR-32). */
 	CRITERION_MARK_MISSING,
 
-	/** An Assessment Job hands over its Assessment Report, which it does not have yet (FR-10). */
-	REPORT_MISSING,
-
 	/** FR-47 found a likely credential or bulk personal data in a note or comment. */
 	SENSITIVE_CONTENT,
 
@@ -43,11 +40,8 @@ enum DeliveryReason {
 	/** A revision request names at least one criterion marked "Chưa đạt" (FR-33). */
 	REVISION_CRITERIA_MISSING,
 
-	/** Follow-up Jobs come from an Assessment Report the Customer accepted (FR-11). */
+	/** Follow-up Jobs come from an Assessment Job's handover the Customer accepted (FR-11). */
 	REPORT_NOT_ACCEPTED,
-
-	/** A follow-up cites a numbered recommendation of the accepted Report version (FR-11). */
-	RECOMMENDATION_UNKNOWN,
 
 	/** The follow-ups were submitted to the Customer already (FR-11). */
 	FOLLOW_UPS_SUBMITTED,

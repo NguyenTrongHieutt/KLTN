@@ -34,13 +34,13 @@ class ContentHiding {
 	static final String CONTENT_HIDDEN = "admin.content_hidden";
 
 	/** The kinds FR-60 hides. */
-	static final Set<String> KINDS = Set.of("PRODUCT", "JOB_POST", "PAGE", "RATING");
+	static final Set<String> KINDS = Set.of("PRODUCT", "JOB_POST", "RATING");
 
-	private static final Map<String, String> LABELS = Map.of("PRODUCT", "Sản phẩm", "JOB_POST", "Tin tuyển", "PAGE", "Trang",
-			"RATING", "Đánh giá");
+	private static final Map<String, String> LABELS = Map.of("PRODUCT", "Sản phẩm", "JOB_POST", "Tin tuyển", "RATING",
+			"Đánh giá");
 
 	private static final Map<String, String> AUDIT_OBJECTS = Map.of("PRODUCT", "product.product", "JOB_POST", "job.job",
-			"PAGE", "work.page", "RATING", "reputation.rating");
+			"RATING", "reputation.rating");
 
 	private final Map<String, ContentModeration> kinds;
 

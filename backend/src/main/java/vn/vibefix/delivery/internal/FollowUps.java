@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -34,15 +32,14 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.work.MilestoneWork;
-import vn.vibefix.work.MilestoneWork.ReportVersion;
 
 /**
- * Follow-up Jobs (FR-11): once an Assessment's Report is accepted, the Mentor drafts follow-up Jobs, each
- * citing one numbered recommendation of the accepted Report version, and submits them together; the
- * Customer opens each as a Draft Job Post through {@link JobDrafts}, which only their J1 publishes, or
- * discards it. Every command takes the follow-ups' Job row order: the Job's follow-ups are read
- * {@code FOR UPDATE} first.
+ * Follow-up Jobs (FR-11): once an Assessment Job's Milestone Handover is accepted, the Mentor drafts
+ * follow-up Jobs, each naming in their own words the recommendation it follows, and submits them
+ * together; the Customer opens each as a Draft Job Post through {@link JobDrafts}, which only their J1
+ * publishes, or discards it. vibefix keeps no documents (Story 24.1), so the Mentor writes the citation
+ * themselves instead of citing a number scraped out of a Report's Markdown. Every command takes the
+ * follow-ups' Job row order: the Job's follow-ups are read {@code FOR UPDATE} first.
  */
 @Component
 class FollowUps {
@@ -56,32 +53,24 @@ class FollowUps {
 	static final Set<String> JOB_TYPES = Set.of("ASSESSMENT", "BUG_FIX", "NEW_FEATURE", "MODIFICATION", "IMPROVEMENT",
 			"SECURITY_TESTING", "DEPLOYMENT_OPERATIONS", "DOCUMENTATION");
 
-	private static final Pattern SECTION = Pattern.compile("(?m)^##\\s+Đề xuất\\s*$");
+	/** The longest recommendation the Mentor may write for one draft. */
+	static final int MAX_RECOMMENDATION = 500;
 
-	private static final Pattern NEXT_SECTION = Pattern.compile("(?m)^##\\s");
-
-	private static final Pattern ITEM = Pattern.compile("(?m)^(\\d{1,3})\\.\\s+(\\S.*)$");
-
-	/** The accepted handover that pins the Report version the follow-ups cite. */
-	record Accepted(UUID handoverId, UUID pageId, int versionNo) {
-	}
-
-	/** One numbered recommendation of the accepted Report version. */
-	record Recommendation(int number, String text) {
+	/** The accepted Milestone Handover the follow-ups come from. */
+	record Accepted(UUID handoverId) {
 	}
 
 	/** What the Mentor writes for one follow-up. */
-	record Content(int recommendationNo, String title, List<String> jobTypes, List<UUID> skillIds, String scope,
+	record Content(String recommendationText, String title, List<String> jobTypes, List<UUID> skillIds, String scope,
 			List<String> criteria, int effortDays) {
 	}
 
-	record FollowUp(UUID id, UUID jobId, int recommendationNo, String title, List<String> jobTypes, List<UUID> skillIds,
-			String scope, List<String> criteria, int effortDays, String status, @Nullable UUID draftJobId) {
+	record FollowUp(UUID id, UUID jobId, String recommendationText, String title, List<String> jobTypes,
+			List<UUID> skillIds, String scope, List<String> criteria, int effortDays, String status,
+			@Nullable UUID draftJobId) {
 	}
 
 	private final JdbcClient jdbc;
-
-	private final MilestoneWork work;
 
 	private final JobDrafts drafts;
 
@@ -93,10 +82,9 @@ class FollowUps {
 
 	private final Clock clock;
 
-	FollowUps(JdbcClient jdbc, MilestoneWork work, JobDrafts drafts, Notifications notifications, Todos todos,
-			IdGenerator ids, Clock clock) {
+	FollowUps(JdbcClient jdbc, JobDrafts drafts, Notifications notifications, Todos todos, IdGenerator ids,
+			Clock clock) {
 		this.jdbc = jdbc;
-		this.work = work;
 		this.drafts = drafts;
 		this.notifications = notifications;
 		this.todos = todos;
@@ -104,47 +92,17 @@ class FollowUps {
 		this.clock = clock;
 	}
 
-	/** The accepted handover of an Assessment Job, when its Report version is pinned. */
+	/** The latest accepted Milestone Handover of an Assessment Job, which the follow-ups come from. */
 	Optional<Accepted> accepted(HandoverJob job) {
 		if (!job.assessment()) {
 			return Optional.empty();
 		}
 		return this.jdbc.sql("""
-				SELECT id, report_page_id, report_version_no FROM delivery.handover
-				WHERE job_id = :job AND status = 'ACCEPTED' AND report_page_id IS NOT NULL
-				ORDER BY seq DESC LIMIT 1
-				""")
-			.param("job", job.jobId())
-			.query((rs, n) -> new Accepted(rs.getObject("id", UUID.class), rs.getObject("report_page_id", UUID.class),
-					rs.getInt("report_version_no")))
-			.optional();
+				SELECT id FROM delivery.handover WHERE job_id = :job AND status = 'ACCEPTED' ORDER BY seq DESC LIMIT 1
+				""").param("job", job.jobId()).query((rs, n) -> new Accepted(rs.getObject("id", UUID.class))).optional();
 	}
 
-	/** The numbered items under "## Đề xuất" of the accepted version, in order. */
-	List<Recommendation> recommendations(Accepted accepted) {
-		return this.work.report(accepted.pageId(), accepted.versionNo())
-			.map(ReportVersion::body)
-			.map(FollowUps::parse)
-			.orElse(List.of());
-	}
-
-	static List<Recommendation> parse(String body) {
-		Matcher section = SECTION.matcher(body);
-		if (!section.find()) {
-			return List.of();
-		}
-		String rest = body.substring(section.end());
-		Matcher next = NEXT_SECTION.matcher(rest);
-		String part = next.find() ? rest.substring(0, next.start()) : rest;
-		List<Recommendation> items = new ArrayList<>();
-		Matcher item = ITEM.matcher(part);
-		while (item.find()) {
-			items.add(new Recommendation(Integer.parseInt(item.group(1)), item.group(2).strip()));
-		}
-		return List.copyOf(items);
-	}
-
-	/** M5 on an Assessment Job with its Report accepted: the Mentor's to-do. */
+	/** M5 on an Assessment Job with an accepted handover: the Mentor's to-do. */
 	@Transactional
 	void openTodo(HandoverJob job) {
 		if (job.mentorId() == null || accepted(job).isEmpty()) {
@@ -156,27 +114,24 @@ class FollowUps {
 
 	/**
 	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY}; {@code GUARD_FAILED REPORT_NOT_ACCEPTED};
-	 * {@code CONFLICT FOLLOW_UPS_SUBMITTED}; {@code VALIDATION RECOMMENDATION_UNKNOWN}
+	 * {@code CONFLICT FOLLOW_UPS_SUBMITTED}; {@code VALIDATION}
 	 */
 	@Transactional
 	FollowUp create(Viewer viewer, Content content) {
 		Accepted accepted = mentorDrafting(viewer);
-		checked(accepted, content);
+		checked(content);
 		UUID id = this.ids.newId();
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO delivery.follow_up (id, job_id, product_id, handover_id, report_page_id, report_version_no,
-				    recommendation_no, title, job_types, skill_ids, scope, criteria, effort_days, status, mentor_account_id,
-				    created_at, updated_at)
-				VALUES (:id, :job, :product, :handover, :page, :version, :recommendation, :title, :types, :skills, :scope,
-				    :criteria, :effort, 'DRAFTING', :mentor, :now, :now)
+				INSERT INTO delivery.follow_up (id, job_id, product_id, handover_id, recommendation_text, title, job_types,
+				    skill_ids, scope, criteria, effort_days, status, mentor_account_id, created_at, updated_at)
+				VALUES (:id, :job, :product, :handover, :recommendation, :title, :types, :skills, :scope, :criteria, :effort,
+				    'DRAFTING', :mentor, :now, :now)
 				""")
 			.param("id", id)
 			.param("job", viewer.job().jobId())
 			.param("product", viewer.job().productId())
 			.param("handover", accepted.handoverId())
-			.param("page", accepted.pageId())
-			.param("version", accepted.versionNo())
 			.params(fields(content))
 			.param("mentor", viewer.accountId())
 			.param("now", now)
@@ -187,11 +142,11 @@ class FollowUps {
 	/** Same refusals as {@link #create}; {@code NOT_FOUND} for another Job's follow-up. */
 	@Transactional
 	FollowUp update(Viewer viewer, UUID followUpId, Content content) {
-		Accepted accepted = mentorDrafting(viewer);
+		mentorDrafting(viewer);
 		own(viewer, followUpId);
-		checked(accepted, content);
+		checked(content);
 		this.jdbc.sql("""
-				UPDATE delivery.follow_up SET recommendation_no = :recommendation, title = :title, job_types = :types,
+				UPDATE delivery.follow_up SET recommendation_text = :recommendation, title = :title, job_types = :types,
 				    skill_ids = :skills, scope = :scope, criteria = :criteria, effort_days = :effort, updated_at = :now
 				WHERE id = :id
 				""").param("id", followUpId).params(fields(content)).param("now", Timestamp.from(this.clock.instant())).update();
@@ -253,7 +208,7 @@ class FollowUps {
 	}
 
 	List<FollowUp> of(UUID jobId) {
-		return this.jdbc.sql("SELECT * FROM delivery.follow_up WHERE job_id = :job ORDER BY recommendation_no, created_at, id")
+		return this.jdbc.sql("SELECT * FROM delivery.follow_up WHERE job_id = :job ORDER BY created_at, id")
 			.param("job", jobId)
 			.query(FollowUps::followUp)
 			.list();
@@ -326,23 +281,21 @@ class FollowUps {
 			.query(UUID.class).list();
 	}
 
-	private void checked(Accepted accepted, Content content) {
-		if (recommendations(accepted).stream().noneMatch(item -> item.number() == content.recommendationNo())) {
-			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.RECOMMENDATION_UNKNOWN);
-		}
+	private void checked(Content content) {
 		Set<String> types = new LinkedHashSet<>(content.jobTypes());
 		boolean criteriaOk = !content.criteria().isEmpty() && content.criteria().size() <= 10
 				&& content.criteria().stream().allMatch(line -> !line.isBlank() && line.strip().length() <= 300);
+		String recommendation = content.recommendationText().strip();
 		if (types.isEmpty() || !JOB_TYPES.containsAll(types) || (types.contains("ASSESSMENT") && types.size() > 1)
 				|| new LinkedHashSet<>(content.skillIds()).size() > 10 || !criteriaOk || content.title().isBlank()
-				|| content.scope().isBlank()) {
+				|| content.scope().isBlank() || recommendation.isEmpty() || recommendation.length() > MAX_RECOMMENDATION) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
 	}
 
 	private static Map<String, Object> fields(Content content) {
 		Map<String, Object> fields = new java.util.HashMap<>();
-		fields.put("recommendation", content.recommendationNo());
+		fields.put("recommendation", content.recommendationText().strip());
 		fields.put("title", content.title().strip());
 		fields.put("types", new LinkedHashSet<>(content.jobTypes()).toArray(String[]::new));
 		fields.put("skills", new LinkedHashSet<>(content.skillIds()).toArray(UUID[]::new));
@@ -353,10 +306,10 @@ class FollowUps {
 	}
 
 	private static FollowUp followUp(ResultSet rs, int n) throws SQLException {
-		return new FollowUp(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class), rs.getInt("recommendation_no"),
-				rs.getString("title"), strings(rs.getArray("job_types")), uuids(rs.getArray("skill_ids")), rs.getString("scope"),
-				strings(rs.getArray("criteria")), rs.getInt("effort_days"), rs.getString("status"),
-				rs.getObject("draft_job_id", UUID.class));
+		return new FollowUp(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
+				rs.getString("recommendation_text"), rs.getString("title"), strings(rs.getArray("job_types")),
+				uuids(rs.getArray("skill_ids")), rs.getString("scope"), strings(rs.getArray("criteria")),
+				rs.getInt("effort_days"), rs.getString("status"), rs.getObject("draft_job_id", UUID.class));
 	}
 
 	private static List<String> strings(Array array) throws SQLException {

@@ -57,7 +57,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
 				"delivery.handover_check", "delivery.follow_up", "delivery.handover_commit", "delivery.handover_sensitive_change",
-				"delivery.handover_page", "delivery.handover_screenshot", "delivery.handover_acceptance",
+				"delivery.handover_screenshot", "delivery.handover_acceptance",
 				"delivery.handover_submission");
 	}
 
@@ -168,7 +168,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	/**
 	 * NFR-10: what each handover said goes (criteria and notes, the Customer's marks and comments,
-	 * screenshots, recorded commits, Pages, Sensitive Changes, pending acceptances, follow-ups); each
+	 * screenshots, recorded commits, Sensitive Changes, pending acceptances, follow-ups); each
 	 * handover row and its status stay for the Milestone history.
 	 */
 	@Override
@@ -193,7 +193,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
 		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
 		for (String table : List.of("delivery.handover_criterion", "delivery.handover_item_note", "delivery.handover_check",
-				"delivery.handover_sensitive_change", "delivery.handover_page", "delivery.handover_acceptance")) {
+				"delivery.handover_sensitive_change", "delivery.handover_acceptance")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
 		}
 		this.jdbc.sql("SELECT DISTINCT job_id FROM delivery.handover WHERE product_id = :id")

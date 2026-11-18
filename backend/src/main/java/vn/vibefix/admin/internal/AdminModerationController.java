@@ -27,7 +27,7 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * ADM-6 (FR-60, FR-63, AD-2, UX-DR16): the newest Products, Open Job Posts, Pages, and Ratings, visible or
+ * ADM-6 (FR-60, FR-63, AD-2, UX-DR16): the newest Products, Open Job Posts, and Ratings, visible or
  * hidden, and "Ẩn" with the reason the author reads, through {@link ContentHiding}: the owning module hides
  * and filters, and the action is audited and told to the author.
  */

@@ -22,7 +22,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
-import vn.vibefix.delivery.internal.FollowUps.Accepted;
 import vn.vibefix.delivery.internal.FollowUps.Content;
 import vn.vibefix.delivery.internal.FollowUps.FollowUp;
 import vn.vibefix.job.JobPosts;
@@ -33,39 +32,37 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-1's "Công việc tiếp theo" (FR-11, UX-DR16): the Mentor drafts follow-up Jobs from the accepted
- * Assessment Report's numbered recommendations and submits them; the Customer opens each as a Draft Job
- * Post in CUS-6, or discards it. The Customer reads only submitted follow-ups; the Crew finds nothing.
+ * JOB-1's "Công việc tiếp theo" (FR-11, UX-DR16): once an Assessment Job's handover is accepted the Mentor
+ * drafts follow-up Jobs, each naming in their own words the recommendation it follows, and submits them; the
+ * Customer opens each as a Draft Job Post in CUS-6, or discards it. The Customer reads only submitted
+ * follow-ups; the Crew finds nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class FollowUpController {
 
-	record RecommendationView(int number, String text) {
-	}
-
 	/** @param status {@code DRAFTING}, {@code SUBMITTED}, {@code OPENED}, or {@code DISCARDED} */
-	record FollowUpView(UUID id, int recommendationNo, String title, List<String> jobTypes, List<UUID> skillIds,
+	record FollowUpView(UUID id, String recommendationText, String title, List<String> jobTypes, List<UUID> skillIds,
 			String scope, List<String> criteria, int effortDays, String status, @Nullable UUID draftJobId) {
 	}
 
 	/**
-	 * @param available the Assessment Report is accepted, so follow-ups may be drafted
+	 * @param available a Milestone Handover of the Assessment Job is accepted, so follow-ups may be drafted
 	 * @param submitted the Mentor has sent them to the Customer
 	 * @param skillIds the assessed Job's Skills, where a new draft starts
 	 */
-	record FollowUpsView(UUID jobId, String audience, boolean available, boolean submitted,
-			@Nullable Integer reportVersionNo, List<RecommendationView> recommendations, List<FollowUpView> followUps,
+	record FollowUpsView(UUID jobId, String audience, boolean available, boolean submitted, List<FollowUpView> followUps,
 			List<UUID> skillIds) {
 	}
 
-	record FollowUpRequest(@NotNull @Min(1) Integer recommendationNo, @NotBlank @Size(max = 120) String title,
+	record FollowUpRequest(@NotBlank @Size(max = FollowUps.MAX_RECOMMENDATION) String recommendationText,
+			@NotBlank @Size(max = 120) String title,
 			@NotNull @Size(min = 1, max = 8) List<@NotBlank String> jobTypes, @NotNull @Size(max = 10) List<@NotNull UUID> skillIds,
 			@NotBlank @Size(max = 2000) String scope, @NotNull @Size(min = 1, max = 10) List<@NotBlank @Size(max = 300) String> criteria,
 			@NotNull @Min(1) @Max(365) Integer effortDays) {
 
 		Content content() {
-			return new Content(this.recommendationNo, this.title, this.jobTypes, this.skillIds, this.scope, this.criteria,
+			return new Content(this.recommendationText, this.title, this.jobTypes, this.skillIds, this.scope, this.criteria,
 					this.effortDays);
 		}
 
@@ -153,23 +150,17 @@ class FollowUpController {
 	}
 
 	private FollowUpsView view(Viewer viewer) {
-		Accepted accepted = this.followUps.accepted(viewer.job()).orElse(null);
+		boolean available = this.followUps.accepted(viewer.job()).isPresent();
 		List<FollowUp> all = this.followUps.of(viewer.job().jobId());
 		boolean submitted = all.stream().anyMatch(followUp -> !"DRAFTING".equals(followUp.status()));
 		List<FollowUpView> shown = all.stream()
 			.filter(followUp -> viewer.kind() == Kind.MENTOR || !"DRAFTING".equals(followUp.status()))
-			.map(followUp -> new FollowUpView(followUp.id(), followUp.recommendationNo(), followUp.title(),
+			.map(followUp -> new FollowUpView(followUp.id(), followUp.recommendationText(), followUp.title(),
 					followUp.jobTypes(), followUp.skillIds(), followUp.scope(), followUp.criteria(), followUp.effortDays(),
 					followUp.status(), viewer.kind() == Kind.CUSTOMER ? followUp.draftJobId() : null))
 			.toList();
-		List<RecommendationView> recommendations = accepted == null ? List.of()
-				: this.followUps.recommendations(accepted)
-					.stream()
-					.map(item -> new RecommendationView(item.number(), item.text()))
-					.toList();
 		List<UUID> skills = this.posts.post(viewer.job().jobId()).map(JobPosts.JobPostState::skillIds).orElse(List.of());
-		return new FollowUpsView(viewer.job().jobId(), viewer.kind().name(), accepted != null, submitted,
-				accepted == null ? null : accepted.versionNo(), recommendations, shown, skills);
+		return new FollowUpsView(viewer.job().jobId(), viewer.kind().name(), available, submitted, shown, skills);
 	}
 
 }

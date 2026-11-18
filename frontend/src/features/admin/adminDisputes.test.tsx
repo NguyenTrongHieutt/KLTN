@@ -187,7 +187,7 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
 
     expect(await screen.findByText('Mỗi lần xem hồ sơ được ghi vào nhật ký kiểm toán.')).toBeInTheDocument()
     expect(await screen.findByText('Báo cáo nêu đủ lỗi')).toBeInTheDocument()
-    expect(screen.getAllByRole('tab')).toHaveLength(9)
+    expect(screen.getAllByRole('tab')).toHaveLength(8)
     expect(seen.some((request) => request.url.includes('/evidence/payments'))).toBe(false)
     await user.click(screen.getByRole('tab', { name: 'Thanh toán' }))
     expect(await screen.findByText(/Đã giải ngân/)).toBeInTheDocument()
@@ -251,7 +251,6 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
                 { handoverId: 'h1', milestoneNumber: 1, round: 1, status: 'REVISION_REQUESTED', criteria: 3, reportedMet: 3, checkedMet: 1 },
               ],
               workItems: [{ workItemId: 'w1', number: 1, version: 4, status: 'DONE' }],
-              pages: [{ pageId: 'p1', versionNo: 2 }],
               jobChat: { messageCount: 14, lastMessageId: 'x14', lastSentAt: '2026-10-20T03:00:00Z' },
               payments: [
                 { milestoneId: 'm1', number: 1, moneyInVnd: 800000, refundsVnd: 0, releasedTotalVnd: 0, releasableVnd: 800000 },

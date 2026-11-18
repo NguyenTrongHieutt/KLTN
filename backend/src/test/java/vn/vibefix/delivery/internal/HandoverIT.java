@@ -5,7 +5,6 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,10 +36,11 @@ import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
 
 /**
- * FR-10, FR-32, AD-4, AD-23, AD-33, AD-39, SG-25: the Mentor hands a Funded Assessment Milestone over
+ * FR-10, FR-32, AD-4, AD-23, AD-33, AD-39: the Mentor hands a Funded Assessment Milestone over
  * once every Work Item is approved or explained and each criterion is marked with a note; M2 makes it
- * Submitted on the loaded version, tells the Customer, and moves the to-dos; the Delivery Report keeps
- * the Report version handed over; the Customer reads no Work Item note; only the Mentor hands over.
+ * Submitted on the loaded version, tells the Customer, and moves the to-dos; an Assessment Job's
+ * deliverable is the Milestone itself, whose criteria are the Assessment Report's sections (Story 24.1);
+ * the Customer reads no Work Item note; only the Mentor hands over.
  */
 class HandoverIT extends IntegrationTest {
 
@@ -79,12 +79,8 @@ class HandoverIT extends IntegrationTest {
 	private boolean assessment;
 
 	@Test
-	void theMentorHandsOverAnAssessmentMilestoneWithTheReportVersionOfThatMoment() throws Exception {
+	void theMentorHandsOverAnAssessmentMilestoneWithItsCriteriaMarked() throws Exception {
 		world("ASSESSMENT");
-		String page = JsonPath.read(this.mvc.perform(post("/api/v1/boards/" + this.job + "/pages").with(as(this.hung, Role.MENTOR))
-			.with(csrf()).contentType(MediaType.APPLICATION_JSON)
-			.content("{\"title\":\"Báo cáo đánh giá\",\"body\":\"## Hiện trạng\\n\\nBản bàn giao.\",\"template\":\"ASSESSMENT_REPORT\"}"))
-			.andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.id");
 
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/preflight").param("milestoneId", this.milestone.toString())
 			.with(as(this.hung, Role.MENTOR)))
@@ -94,7 +90,7 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.criteria[0].statement").value("Báo cáo nêu đủ chín mục"))
 			.andExpect(jsonPath("$.workItems[?(@.key == 'BCD-1')].approved").value(true))
 			.andExpect(jsonPath("$.workItems[?(@.key == 'BCD-2')].approved").value(false))
-			.andExpect(jsonPath("$.report.versionNo").value(1));
+			.andExpect(jsonPath("$.report").doesNotExist());
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.waiting.number").value(1))
 			.andExpect(jsonPath("$.handovers").isEmpty());
@@ -127,7 +123,7 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
 			.andExpect(jsonPath("$.itemNotes[0].key").value("BCD-2"))
 			.andExpect(jsonPath("$.code").doesNotExist())
-			.andExpect(jsonPath("$.report.versionNo").value(1));
+			.andExpect(jsonPath("$.report").doesNotExist());
 		// FR-25, R28 (Story 23.8b): an Assessment Job hands over no code, so N-33 is neither asked for nor recorded.
 		assertThat(count("""
 				SELECT count(*) FROM delivery.handover WHERE team_code_notice_version IS NULL
@@ -143,14 +139,11 @@ class HandoverIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT deadline_at FROM notification.todo WHERE todo_key = 'delivery.review_handover'")
 			.query(Timestamp.class).single().toInstant()).isEqualTo(this.clock.instant().plus(Duration.ofDays(7)));
 
-		this.mvc.perform(put("/api/v1/pages/" + page).with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"title\":\"Báo cáo đánh giá\",\"body\":\"## Hiện trạng\\n\\nĐã sửa sau bàn giao.\",\"version\":1}"))
-			.andExpect(status().isOk());
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.report.versionNo").value(1))
-			.andExpect(jsonPath("$.report.body").value(Matchers.containsString("Bản bàn giao.")))
+			.andExpect(jsonPath("$.report").doesNotExist())
+			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
+			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
 			.andExpect(jsonPath("$.itemNotes").isEmpty())
 			.andExpect(jsonPath("$.mentorName").value("Đỗ Mạnh Hùng"))
 			.andExpect(content -> assertThat(content.getResponse().getContentAsString()).doesNotContain("Phần phụ lục", "BCD-2"));
@@ -167,14 +160,8 @@ class HandoverIT extends IntegrationTest {
 	}
 
 	@Test
-	void notesPassTheSensitiveCheckAndTheReportMustExist() throws Exception {
+	void notesPassTheSensitiveCheck() throws Exception {
 		world("ASSESSMENT");
-		handOver(this.hung, Role.MENTOR, 5, "Đạt.", "Sau.", null).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("REPORT_MISSING"));
-		this.mvc.perform(post("/api/v1/boards/" + this.job + "/pages").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"title\":\"Báo cáo đánh giá\",\"body\":\"\",\"template\":\"ASSESSMENT_REPORT\"}"))
-			.andExpect(status().isCreated());
 		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "Sau.", null).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("SENSITIVE_CONTENT"))
 			.andExpect(jsonPath("$.matches[0].kind").value("CREDENTIAL"));

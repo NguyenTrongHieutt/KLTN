@@ -42,12 +42,12 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 	}
 
 	/**
-	 * A Dispute's grant: the Job Chat, Work Items with history, notes, the Attachment list, and
-	 * Pages; never the Crew Chat or split versions.
+	 * A Dispute's grant: the Job Chat, Work Items with history, notes, and the Attachment list; never the
+	 * Crew Chat or split versions.
 	 */
 	public static Set<AdminReadItem> forDispute() {
 		return Set.of(all(AdminReadScope.JOB_CHAT), all(AdminReadScope.WORK_ITEMS),
-				all(AdminReadScope.WORK_ITEM_NOTES), all(AdminReadScope.ATTACHMENTS), all(AdminReadScope.PAGES));
+				all(AdminReadScope.WORK_ITEM_NOTES), all(AdminReadScope.ATTACHMENTS));
 	}
 
 	/**

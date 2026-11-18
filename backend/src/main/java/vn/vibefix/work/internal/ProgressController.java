@@ -39,9 +39,9 @@ import vn.vibefix.work.internal.WorkAccess.Kind;
 
 /**
  * JOB-1's progress (FR-28, AD-33, AD-39, UX-DR68): per Milestone of the Agreement in force its live
- * state, price, due date, and {@code {done}/{total}} from {@code work.criteriaDone} only; the
- * customer-visible Pages; for the Mentor the Crew with each member's open Work Items, and for a Crew
- * member their own; and {@code assessment} (FR-10), which tells the page to show N-12 and the team's link to the
+ * state, price, due date, and {@code {done}/{total}} from {@code work.criteriaDone} only; for the Mentor
+ * the Crew with each member's open Work Items, and for a Crew member their own; and
+ * {@code assessment} (FR-10), which tells the page to show N-12 and the team's link to the
  * Job's private read-only copy -- a link {@code repo}'s setup endpoint serves, never this one (R6, Story 23.11b).
  * The Job's Customer, its Mentor, and its active Crew read it; the Customer's answer holds no Work Item.
  * A former Crew member, a locked one included, reads only the Job's header, as
@@ -78,9 +78,6 @@ class ProgressController {
 	record CrewProgressView(UUID accountId, String name, String state, List<OpenItemView> openItems) {
 	}
 
-	record PageLinkView(UUID id, String title) {
-	}
-
 	/**
 	 * The progress of a Job with a Board.
 	 * @param audience {@code CUSTOMER}, {@code MENTOR}, {@code CREW}, or {@code FORMER} (the header only)
@@ -94,8 +91,8 @@ class ProgressController {
 	 * @param leavers for the Mentor: who left open Work Items behind, to assign again (Story 21.6)
 	 */
 	record JobProgressView(UUID boardId, String title, String state, String productName, String mentorName,
-			String audience, List<MilestoneProgressView> milestones, List<PageLinkView> pages,
-			List<CrewProgressView> crew, List<OpenItemView> mine, boolean assessment, List<WorkViews.LeaverView> leavers) {
+			String audience, List<MilestoneProgressView> milestones, List<CrewProgressView> crew,
+			List<OpenItemView> mine, boolean assessment, List<WorkViews.LeaverView> leavers) {
 	}
 
 	private final WorkAccess access;
@@ -141,11 +138,11 @@ class ProgressController {
 
 	@GetMapping("/api/v1/boards/{boardId}/progress")
 	JobProgressView progress(@PathVariable UUID boardId) {
-		BoardViewer viewer = this.access.pageReader(boardId, this.callers.get());
+		BoardViewer viewer = this.access.progressReader(boardId, this.callers.get());
 		if (viewer.kind() == Kind.FORMER) {
 			ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
 			return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
-					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), List.of(), false, List.of());
+					mentorName(viewer), Kind.FORMER.name(), List.of(), List.of(), List.of(), false, List.of());
 		}
 		if (viewer.kind() != Kind.CUSTOMER && viewer.kind() != Kind.MENTOR && viewer.kind() != Kind.CREW) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
@@ -163,12 +160,6 @@ class ProgressController {
 					detail == null ? null : detail.revisionCriteria(), detail != null && detail.autoAccepted(),
 					detail != null && detail.refunded(), detail == null ? null : detail.overdueSince()));
 		}
-		List<PageLinkView> pages = this.jdbc
-			.sql("SELECT id, title FROM work.page WHERE job_id = :job AND visibility = 'CUSTOMER' AND " + Pages.SHOWN
-					+ " ORDER BY seq")
-			.param("job", jobId)
-			.query((rs, n) -> new PageLinkView(rs.getObject("id", UUID.class), rs.getString("title")))
-			.list();
 		List<CrewProgressView> crew = new ArrayList<>();
 		if (viewer.mentor()) {
 			// AD-41: every row that is not released, then each former member who was ever active, once per Student.
@@ -190,7 +181,7 @@ class ProgressController {
 		ProductInfo info = this.products.find(viewer.board().productId()).orElse(null);
 		boolean assessment = viewer.kind() != Kind.CUSTOMER && viewer.assessment();
 		return new JobProgressView(boardId, viewer.title(), viewer.jobState(), info == null ? "" : info.name(),
-				mentorName(viewer), viewer.kind().name(), milestones, pages, crew, mine, assessment,
+				mentorName(viewer), viewer.kind().name(), milestones, crew, mine, assessment,
 				this.views.leavers(viewer));
 	}
 

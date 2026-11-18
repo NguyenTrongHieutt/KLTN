@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { AbuseReportsPanel } from './AbuseReportsPanel'
 import { useHideContent, useModerationItems, type ContentKind, type ModerationItem } from './adminModerationApi'
 
-const KINDS: ContentKind[] = ['PRODUCT', 'JOB_POST', 'PAGE', 'RATING']
+const KINDS: ContentKind[] = ['PRODUCT', 'JOB_POST', 'RATING']
 
 type Tab = ContentKind | 'REPORTS'
 

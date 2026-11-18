@@ -64,8 +64,8 @@ import vn.vibefix.timers.internal.DeadlinePoller;
  * of changed files stops at 300; vibefix scans no code (Story 23.1), so nothing waits for a scan. "Gửi bàn
  * giao" pins the head on {@code handover/{id}} in the Intermediary Repository with the System's pull request,
  * applies M2, and
- * records each commit with its author's GitHub ID and the Work Items it mentions, the Sensitive Changes,
- * and the Pages updated. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
+ * records each commit with its author's GitHub ID and the Work Items it mentions, and the Sensitive
+ * Changes. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
  * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). Heads are
  * compared only at acceptance (Story 23.2, D9): a push to the Working Repository voids nothing, and only the
  * acceptance merge's 409, when {@code handover/{id}} no longer holds the Handover Commit, applies M3 with an
@@ -260,8 +260,6 @@ class CodeHandoverIT extends IntegrationTest {
 				VALUES (:id, :item, :job, :mentor, 'APPROVED', '{}'::jsonb, 'Đạt', :now)
 				""").param("id", UUID.randomUUID()).param("item", this.story).param("job", this.job).param("mentor", this.hung)
 			.param("now", now).update();
-		page("Hướng dẫn dùng", "CUSTOMER");
-		page("Ghi chú nhóm", "TEAM");
 		// The repositories as Setup leaves them (Story 23.3): two private copies at the commit Setup approved, so every
 		// pull-request call and the Working head read need contents read, and the pin clones Working with a read token.
 		this.intermediary = "job-" + id + "-intermediary";
@@ -283,7 +281,7 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	@Test
-	void theHandoverIsCopiedOnTheRunnerAndRecordedWithItsCommitsSensitiveChangesAndPages() throws Exception {
+	void theHandoverIsCopiedOnTheRunnerAndRecordedWithItsCommitsAndSensitiveChanges() throws Exception {
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("NO_NEW_COMMITS")));
 		// NFR-3: a commit message is text, wherever it shows.
 		String message = "SDB-1 Chặn đặt trùng bàn <img src=x onerror=alert(1)>";
@@ -342,13 +340,10 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.code.commits[0].workItemKeys[0]").value("SDB-1"))
 			.andExpect(jsonPath("$.code.unattributed").value(1))
 			.andExpect(jsonPath("$.preview.preview.domain").value("so-dat-ban-gd1.vercel.app"))
-			.andExpect(jsonPath("$.preview.preview.checkedAt").exists())
-			.andExpect(jsonPath("$.code.pages.length()").value(2));
+			.andExpect(jsonPath("$.preview.preview.checkedAt").exists());
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.preview.preview.url").value("https://so-dat-ban-gd1.vercel.app"))
 			.andExpect(jsonPath("$.preview.preview.checkedAt").doesNotExist())
-			.andExpect(jsonPath("$.code.pages.length()").value(1))
-			.andExpect(jsonPath("$.code.pages[0].title").value("Hướng dẫn dùng"))
 			.andExpect(jsonPath("$.code.sensitiveChanges[0].kind").value("DEPENDENCIES"))
 			.andExpect(jsonPath("$.code.sensitiveChangeCount").value(1));
 	}
@@ -1575,20 +1570,6 @@ class CodeHandoverIT extends IntegrationTest {
 	private long openTodos(String key, UUID account) {
 		return this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = :key AND account_id = :id AND closed_at IS NULL")
 			.param("key", key).param("id", account).query(Long.class).single();
-	}
-
-	private void page(String title, String visibility) {
-		UUID page = UUID.randomUUID();
-		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("""
-				INSERT INTO work.page (id, job_id, title, version_no, created_at, updated_at, visibility)
-				VALUES (:id, :job, :title, 1, :now, :now, :visibility)
-				""").param("id", page).param("job", this.job).param("title", title).param("now", now)
-			.param("visibility", visibility).update();
-		this.jdbc.sql("""
-				INSERT INTO work.page_version (page_id, version_no, title, body, created_at)
-				VALUES (:id, 1, :title, 'Nội dung', :now)
-				""").param("id", page).param("title", title).param("now", now).update();
 	}
 
 	private ResultActions preflight() throws Exception {

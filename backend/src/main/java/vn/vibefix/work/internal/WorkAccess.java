@@ -3,16 +3,12 @@ package vn.vibefix.work.internal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.job.Crews;
-import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.Crews.Selection;
 import vn.vibefix.job.JobPosts;
 import vn.vibefix.job.JobPosts.JobPostState;
@@ -34,9 +30,8 @@ import vn.vibefix.work.internal.Boards.Board;
  * ({@link WorkReads});</li>
  * <li>an Administrator reads only what an open {@code WORK_ITEMS} grant covers, each read audited.</li>
  * </ul>
- * The Customer, an {@code ASSIGNED} Student, and everyone else find nothing. A Documentation Space's
- * customer-visible Pages are also read by the Job's Customer and, once that Customer shares the Job with a
- * new Job, by the new Job's Mentor and {@code ACTIVE} Crew until it ends (FR-70).
+ * An {@code ASSIGNED} Student and everyone else find nothing. The Job's Customer reaches no Work Item
+ * either (AD-39): they reach only JOB-1's progress, through {@link #progressReader}.
  */
 @Component
 class WorkAccess {
@@ -44,18 +39,9 @@ class WorkAccess {
 	enum Kind {
 		MENTOR, CREW, FORMER, ADMIN,
 
-		/** The Job's Customer: only customer-visible Pages, never the Board (FR-31, AD-39). */
-		CUSTOMER,
-
-		/**
-		 * The Mentor or an {@code ACTIVE} Crew member of a new Job this Job was shared with: as the Customer,
-		 * only customer-visible Pages at their current version (FR-70).
-		 */
-		SHARED
+		/** The Job's Customer: JOB-1's progress only, never the Board (AD-39). */
+		CUSTOMER
 	}
-
-	/** The new Job's states in which a share no longer opens anything (FR-70). */
-	static final Set<String> ENDED = Set.of("CLOSED", "CANCELLED");
 
 	/** A span of a former member's time on the Crew, both ends included. */
 	record Window(Instant from, Instant to) {
@@ -82,7 +68,7 @@ class WorkAccess {
 			grants = List.copyOf(grants);
 		}
 
-		/** An Assessment Job (FR-10), whose Documentation Space offers the Assessment Report. */
+		/** An Assessment Job (FR-10), which JOB-1 tells by showing N-12 and the team's read-only copy link. */
 		boolean assessment() {
 			return this.jobTypes.contains("ASSESSMENT");
 		}
@@ -106,20 +92,16 @@ class WorkAccess {
 
 	private final WorkGrants grants;
 
-	private final JdbcClient jdbc;
-
 	private final Clock clock;
 
 	private final JobRoles roles;
 
-	WorkAccess(Boards boards, JobPosts posts, Crews crews, WorkGrants grants, JdbcClient jdbc, Clock clock,
-			JobRoles roles) {
+	WorkAccess(Boards boards, JobPosts posts, Crews crews, WorkGrants grants, Clock clock, JobRoles roles) {
 		this.roles = roles;
 		this.boards = boards;
 		this.posts = posts;
 		this.crews = crews;
 		this.grants = grants;
-		this.jdbc = jdbc;
 		this.clock = clock;
 	}
 
@@ -174,51 +156,23 @@ class WorkAccess {
 	}
 
 	/**
-	 * A reader of the Documentation Space: as {@link #reader} with a {@code PAGES} grant, and also the
-	 * Job's Customer, who sees only customer-visible Pages (FR-31), and the assignees of a new Job it was
-	 * shared with (FR-70). A caller who reads the Job anyway keeps that access.
+	 * A reader of JOB-1's progress (FR-28, AD-39): as {@link #reader}, and also the Job's Customer, who
+	 * reads the Milestones but no Work Item. vibefix keeps no documents (Story 24.1), so a Customer reaches
+	 * no Board content through this reader either. An Administrator is no viewer of
+	 * JOB-1 at all, whatever grant they hold: {@link ProgressController} answers {@code NOT_FOUND} to every
+	 * {@code ADMIN} viewer, and the Evidence Package is where a case reads a Job (AD-20).
 	 */
 	@Transactional(readOnly = true)
-	BoardViewer pageReader(UUID boardId, Caller caller) {
+	BoardViewer progressReader(UUID boardId, Caller caller) {
 		Board board = this.boards.board(boardId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (!this.roles.roleOf(board.jobId(), caller).isCustomer()) {
-			try {
-				return reader(boardId, caller, AdminReadScope.PAGES);
-			}
-			catch (ApiException notReader) {
-				// reader runs on this bean, not through its proxy, so nothing is marked for rollback
-				return sharedReader(boardId, caller).orElseThrow(() -> notReader);
-			}
+			return reader(boardId, caller);
 		}
 		UUID account = caller.requireAccountId();
 		JobPostState post = this.posts.post(board.jobId())
 			.filter(found -> found.mentorId() != null)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		return viewer(board, post, account, Kind.CUSTOMER, List.of(), List.of());
-	}
-
-	/**
-	 * The earlier Jobs shared with this Job, each as its shared reader sees it, oldest share first: only for
-	 * the Job's Mentor or an {@code ACTIVE} Crew member, read now (AD-41); empty once the Job is Closed or
-	 * Cancelled (FR-70).
-	 */
-	@Transactional(readOnly = true)
-	List<BoardViewer> sharedReaders(UUID jobId, Caller caller) {
-		UUID account = caller.requireAccountId();
-		JobPostState post = this.posts.post(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (!assignee(post, caller)) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		if (ENDED.contains(post.state())) {
-			return List.of();
-		}
-		return this.jdbc.sql("SELECT source_job_id FROM work.page_share WHERE job_id = :job ORDER BY created_at, source_job_id")
-			.param("job", jobId)
-			.query(UUID.class)
-			.list()
-			.stream()
-			.flatMap(source -> sharedViewer(source, account).stream())
-			.toList();
 	}
 
 	/** A caller who may write the Board now. */
@@ -232,38 +186,6 @@ class WorkAccess {
 			throw new ApiException(ErrorCode.GUARD_FAILED, WorkReason.BOARD_READ_ONLY);
 		}
 		return viewer;
-	}
-
-	/** A reader of the Job's customer-visible Pages through a share to a running Job they are an assignee of. */
-	private Optional<BoardViewer> sharedReader(UUID sourceJobId, Caller caller) {
-		if (!caller.isUser()) {
-			return Optional.empty();
-		}
-		UUID account = caller.requireAccountId();
-		boolean shared = this.jdbc.sql("SELECT job_id FROM work.page_share WHERE source_job_id = :source")
-			.param("source", sourceJobId)
-			.query(UUID.class)
-			.list()
-			.stream()
-			.flatMap(job -> this.posts.post(job).stream())
-			.anyMatch(post -> !ENDED.contains(post.state()) && assignee(post, caller));
-		return shared ? sharedViewer(sourceJobId, account) : Optional.empty();
-	}
-
-	private Optional<BoardViewer> sharedViewer(UUID sourceJobId, UUID account) {
-		Optional<Board> board = this.boards.board(sourceJobId);
-		Optional<JobPostState> post = this.posts.post(sourceJobId);
-		return board.isEmpty() || post.isEmpty() ? Optional.empty()
-				: Optional.of(viewer(board.get(), post.get(), account, Kind.SHARED, List.of(), List.of()));
-	}
-
-	/** The Job's Mentor, or one of its {@code ACTIVE} Crew members, by their role read now (AD-41, AD-43). */
-	private boolean assignee(JobPostState post, Caller caller) {
-		if (post.mentorId() == null) {
-			return false;
-		}
-		JobRole role = this.roles.roleOf(post.jobId(), caller);
-		return role.isMentor() || role.crewKind() == Relationship.ACTIVE;
 	}
 
 	private BoardViewer viewer(Board board, JobPostState post, UUID account, Kind kind, List<Window> windows,

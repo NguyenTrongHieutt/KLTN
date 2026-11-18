@@ -21,10 +21,11 @@ const JOB_TYPES = [
 ] as const
 
 /**
- * JOB-1's "Công việc tiếp theo" (FR-11, UX-DR16): after the Assessment Report is accepted the Mentor
- * drafts follow-up Jobs, each citing one numbered recommendation, and sends them all to the Customer; the
- * Customer opens each as a Draft Job Post in CUS-6, where only their own "Đăng tin" publishes it, or
- * skips it.
+ * JOB-1's "Công việc tiếp theo" (FR-11, UX-DR16): once the Assessment Job's handover is accepted the
+ * Mentor drafts follow-up Jobs, each naming in their own words the recommendation it follows, and sends
+ * them all to the Customer; the Customer opens each as a Draft Job Post in CUS-6, where only their own
+ * "Đăng tin" publishes it, or skips it. vibefix keeps no documents (Story 24.1), so the citation is the
+ * Mentor's own sentence.
  */
 export function FollowUpSection({ jobId }: { jobId: string }) {
   const followUps = useFollowUps(jobId)
@@ -72,7 +73,7 @@ function MentorPart({ jobId, data }: { jobId: string; data: FollowUps }) {
   return (
     <>
       <p className="text-body-sm">
-        {data.submitted ? t('screen.followUps.sent') : t('screen.followUps.mentorLead', { version: data.reportVersionNo ?? 1 })}
+        {data.submitted ? t('screen.followUps.sent') : t('screen.followUps.mentorLead')}
       </p>
       {data.followUps.length === 0 && !editing && (
         <p className="text-body-sm text-muted-foreground">{t('screen.followUps.none')}</p>
@@ -136,7 +137,7 @@ function MentorPart({ jobId, data }: { jobId: string; data: FollowUps }) {
 }
 
 type DraftContent = {
-  recommendationNo: number
+  recommendationText: string
   title: string
   jobTypes: string[]
   skillIds: string[]
@@ -159,7 +160,7 @@ function DraftForm({
   onSave: (content: DraftContent) => void
 }) {
   const ids = useId()
-  const [recommendation, setRecommendation] = useState(followUp?.recommendationNo ?? data.recommendations[0]?.number ?? 1)
+  const [recommendation, setRecommendation] = useState(followUp?.recommendationText ?? '')
   const [title, setTitle] = useState(followUp?.title ?? '')
   const [types, setTypes] = useState<string[]>(followUp?.jobTypes ?? [])
   const [scope, setScope] = useState(followUp?.scope ?? '')
@@ -171,6 +172,8 @@ function DraftForm({
     .filter((line) => line !== '')
   const days = Number(effort)
   const ready =
+    recommendation.trim() !== '' &&
+    recommendation.trim().length <= 500 &&
     title.trim() !== '' &&
     types.length > 0 &&
     scope.trim() !== '' &&
@@ -189,18 +192,13 @@ function DraftForm({
       <label htmlFor={`${ids}-recommendation`} className="text-label">
         {t('screen.followUps.recommendationLabel')}
       </label>
-      <select
+      <input
         id={`${ids}-recommendation`}
         value={recommendation}
-        onChange={(event) => setRecommendation(Number(event.target.value))}
+        maxLength={500}
+        onChange={(event) => setRecommendation(event.target.value)}
         className={inputClass}
-      >
-        {data.recommendations.map((item) => (
-          <option key={item.number} value={item.number}>
-            {`${t('screen.followUps.recommendation', { n: item.number })}: ${item.text}`}
-          </option>
-        ))}
-      </select>
+      />
       <label htmlFor={`${ids}-title`} className="text-label">
         {t('screen.followUps.title')}
       </label>
@@ -262,7 +260,7 @@ function DraftForm({
           disabled={!ready || pending}
           onClick={() =>
             onSave({
-              recommendationNo: recommendation,
+              recommendationText: recommendation.trim(),
               title: title.trim(),
               jobTypes: types,
               skillIds: followUp?.skillIds ?? data.skillIds,
@@ -283,9 +281,9 @@ function FollowUpSummary({ followUp }: { followUp: FollowUp }) {
   return (
     <>
       <p className="text-label font-semibold break-words">{followUp.title}</p>
-      <p className="text-caption text-muted-foreground">
+      <p className="text-caption text-muted-foreground break-words">
         {[
-          t('screen.followUps.recommendation', { n: followUp.recommendationNo }),
+          followUp.recommendationText,
           typesText(followUp.jobTypes),
           t('screen.followUps.effortDays', { n: followUp.effortDays }),
         ].join(' · ')}

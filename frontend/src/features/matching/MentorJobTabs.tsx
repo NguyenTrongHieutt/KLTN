@@ -8,8 +8,8 @@ import { t } from '@/i18n/t'
 const RECRUITS = ['AGREEMENT', 'STARTING', 'ACTIVE']
 
 /**
- * The Mentor's Job tabs (UX-DR17): "Tổng quan"; from Active on, "Bảng công việc" (JOB-2), "Tài liệu"
- * (JOB-3), and "Bàn giao" (JOB-5); from
+ * The Mentor's Job tabs (UX-DR17): "Tổng quan"; from Active on, "Bảng công việc" (JOB-2) and
+ * "Bàn giao" (JOB-5); from
  * Agreement on, "Trò chuyện" and "Trao đổi nhóm" (JOB-8), each with its unread dot, and "Thỏa thuận";
  * "Tuyển thành viên" (JOB-9) from Agreement until Closing (Story 21.4); "Thanh toán" once the Agreement is confirmed
  * (JOB-7); "Phân chia tiền" (JOB-10) from the first split on, by asking for the splits itself (Story 22.2).
@@ -25,7 +25,6 @@ export function MentorJobTabs({
   current:
     | 'overview'
     | 'board'
-    | 'docs'
     | 'handover'
     | 'chat'
     | 'crewChat'
@@ -47,7 +46,6 @@ export function MentorJobTabs({
         ...(hasBoard(state)
           ? [
               { key: 'board', to: `/cong-viec/${jobId}/bang`, label: t('screen.board.tab') },
-              { key: 'docs', to: `/cong-viec/${jobId}/tai-lieu`, label: t('screen.docs.tab') },
               { key: 'handover', to: `/cong-viec/${jobId}/ban-giao`, label: t('screen.handover.tab') },
             ]
           : []),

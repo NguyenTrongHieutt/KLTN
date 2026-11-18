@@ -577,14 +577,12 @@ class CrewLeaveIT extends IntegrationTest {
 		UUID mine = item("Việc của Vy", this.vy);
 		UUID chat = JobContent.chat(this.jdbc, this.job, this.world.product(), "CREW");
 		JobContent.message(this.jdbc, chat, this.hung, "Tin trong thời gian của Vy", this.clock.instant());
-		JobContent.page(this.jdbc, this.job, this.hung, "Trang trong thời gian của Vy", "Nội dung", this.clock.instant());
 		this.clock.advance(Duration.ofMinutes(1));
 		leave(this.vy, null).andExpect(status().isNoContent());
 		awaitListeners();
 		this.clock.advance(Duration.ofHours(1));
 		UUID later = item("Việc sau khi Vy rời", this.minh);
 		JobContent.message(this.jdbc, chat, this.hung, "Tin sau khi Vy rời", this.clock.instant());
-		JobContent.page(this.jdbc, this.job, this.hung, "Trang sau khi Vy rời", "Nội dung", this.clock.instant());
 
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.vy, Role.STUDENT)))
 			.andExpect(status().isOk())
@@ -594,8 +592,6 @@ class CrewLeaveIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/work-items/" + later).with(as(this.vy, Role.STUDENT))).andExpect(status().isNotFound());
 		assertThat(body("/api/v1/boards/" + this.job + "/crew-chat/messages", this.vy)).contains("Tin trong thời gian của Vy")
 			.doesNotContain("Tin sau khi Vy rời");
-		assertThat(body("/api/v1/boards/" + this.job + "/pages", this.vy)).contains("Trang trong thời gian của Vy")
-			.doesNotContain("Trang sau khi Vy rời");
 		this.mvc.perform(post("/api/v1/work-items/" + mine + "/move").with(as(this.vy, Role.STUDENT)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"to\":\"IN_PROGRESS\",\"version\":1}"))

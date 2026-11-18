@@ -3,8 +3,9 @@
  * Funded or Revision Requested Milestone over once its preflight passes: every Work Item of it in "Xong"
  * through the Mentor's approval or explained by a note, and each Acceptance Criterion marked "Đạt" or
  * "Chưa đạt" with a note, all FR-47 checked; {@code job} applies M2 with the handover as its evidence
- * (AD-4). An Assessment Job hands over its Assessment Report at the version current then, which never
- * changes afterwards (SG-25). The Customer, the Mentor, and the active Crew read the Delivery Report; the
+ * (AD-4). An Assessment Job hands over the Milestone itself, whose Acceptance Criteria the Assessment
+ * Report template writes; Story 24.3 adds the Mentor's own document link to the handover. The Customer,
+ * the Mentor, and the active Crew read the Delivery Report; the
  * Customer's never names a Work Item (AD-39). The Mentor's marks are a statement, never a criterion done
  * (AD-33). The Customer accepts a handover, with {@code payment} writing the split release in the same
  * transaction (AD-5), or asks for a revision within the Revision Rounds (FR-33, FR-34); left undecided,
@@ -16,14 +17,14 @@
  * Commit to {@code handover/{id}} of the Intermediary on the runner's GitHub Actions, which reports every path
  * the range changed and whether {@code .github/workflows/} differs. Only then does M2 apply, with the Sensitive
  * Changes classified from that full list; a refused copy, or a list that cannot be read, ends the submission with
- * a named reason and records no handover. The Delivery Report lists the Sensitive Changes, the Pages updated, the
- * commits, and the pull request's changes and {@code handover/{id}} branch on GitHub (AD-11, AD-33, AD-46).
+ * a named reason and records no handover. The Delivery Report lists the Sensitive Changes, the commits, and the
+ * pull request's changes and {@code handover/{id}} branch on GitHub (AD-11, AD-33, AD-46).
  * Since vibefix scans no team code, "Gửi bàn giao" carries the Mentor's N-33 duty confirmation at the version in
  * force and records it with the handover, and the Customer reads the same fact before they accept (FR-25, FR-33,
  * R28, Story 23.8b).
  * <p>
- * After an Assessment's acceptance the Mentor drafts follow-up Jobs from the Report's numbered
- * recommendations, which the Customer opens as Draft Job Posts or discards (FR-11).
+ * After an Assessment's acceptance the Mentor drafts follow-up Jobs, each naming in their own words the
+ * recommendation it follows, which the Customer opens as Draft Job Posts or discards (FR-11).
  * <p>
  * Public API: {@link vn.vibefix.delivery.HandoverFacts}, the Milestones handed over, for Portfolio
  * Entries (FR-50). The HTTP endpoints, the listeners that open the handover and follow-up to-dos, and

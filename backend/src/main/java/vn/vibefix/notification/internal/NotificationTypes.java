@@ -617,10 +617,6 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("key", "reason"));
 
-	/** The Customer shared earlier Jobs' Pages (FR-70): the Mentor and the active Crew, in-app. */
-	static final NotificationType WORK_PAGES_SHARED = new NotificationType("work.pages_shared",
-			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of());
-
 	/** A Work Item waits for the Mentor's review (FR-25): until it is approved or returned. */
 	static final TodoType WORK_REVIEW_WORK_ITEM = new TodoType("work.review_work_item", Set.of(Audience.MENTOR), 2,
 			Set.of("key", "title"));
@@ -1026,7 +1022,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_SPLIT_PROPOSED, JOB_SPLIT_DEFAULTED, JOB_SPLIT_EDITED, JOB_SPLIT_CONFIRMATION_REMINDER,
 				JOB_SPLIT_PARTY_CONFIRMED, JOB_SPLIT_FINAL,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
-				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED, WORK_PAGES_SHARED);
+				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
 	}
 
 	@Override

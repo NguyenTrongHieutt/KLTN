@@ -26,7 +26,7 @@ import vn.vibefix.timers.internal.DeadlinePoller;
 /**
  * Story 13.5 (NFR-10, AD-24, NFR-7): a Job reaching Closed or Cancelled schedules its Product's retention 12
  * months later; another Job on the Product past Draft supersedes it, and a later end takes over. When it
- * fires, the Product's Job data is retired (Pages, External Access identifiers) while the Product, the
+ * fires, the Product's Job data is retired (External Access identifiers, Work Items) while the Product, the
  * ledger, and the Audit Log stay.
  */
 class JobRetentionIT extends IntegrationTest {
@@ -81,14 +81,12 @@ class JobRetentionIT extends IntegrationTest {
 
 		this.clock.advance(Duration.ofDays(360));
 		this.poller.runDue();
-		assertThat(pages()).as("not yet").isOne();
+		assertThat(identifiers()).as("not yet").isOne();
 
 		this.clock.advance(Duration.ofDays(7));
 		this.poller.runDue();
 
-		assertThat(pages()).isZero();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM job.external_access_identifier WHERE job_id = :job")
-			.param("job", this.first).query(Long.class).single()).isZero();
+		assertThat(identifiers()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM work.board WHERE job_id = :job").param("job", this.first)
 			.query(Long.class).single()).as("the Board stays, empty").isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM job.job WHERE id = :job").param("job", this.first).query(Long.class)
@@ -113,7 +111,7 @@ class JobRetentionIT extends IntegrationTest {
 
 		this.clock.advance(Duration.ofDays(370));
 		this.poller.runDue();
-		assertThat(pages()).as("another Job is running").isOne();
+		assertThat(identifiers()).as("another Job is running").isOne();
 		assertThat(this.jdbc.sql("SELECT status FROM timers.deadline WHERE kind = 'job.retention' AND generation = :job")
 			.param("job", this.first.toString()).query(String.class).single()).isEqualTo("OBSOLETE");
 
@@ -123,7 +121,7 @@ class JobRetentionIT extends IntegrationTest {
 		await().atMost(Duration.ofSeconds(15)).until(() -> deadlines() == 2);
 		this.clock.advance(Duration.ofDays(367));
 		this.poller.runDue();
-		assertThat(pages()).isZero();
+		assertThat(identifiers()).isZero();
 	}
 
 	private UUID job(String state) {
@@ -145,14 +143,6 @@ class JobRetentionIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
 				""").param("job", id).param("product", this.product).param("now", now).update();
-		UUID page = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.page (id, job_id, title, version_no, created_at, updated_at, visibility)
-				VALUES (:id, :job, 'Hướng dẫn dùng', 1, :now, :now, 'CUSTOMER')
-				""").param("id", page).param("job", id).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.page_version (page_id, version_no, title, body, created_at) VALUES (:id, 1, 'Hướng dẫn dùng', 'Nội dung', :now)
-				""").param("id", page).param("now", now).update();
 		UUID access = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.external_access (id, job_id, position, system, purpose, created_at)
@@ -181,8 +171,10 @@ class JobRetentionIT extends IntegrationTest {
 				UUID.randomUUID(), job, "CLOSED".equals(state) ? "J9" : "J10", "SYSTEM", "CLOSING", state, 10, 1, Map.of())));
 	}
 
-	private long pages() {
-		return this.jdbc.sql("SELECT count(*) FROM work.page WHERE job_id = :job").param("job", this.first).query(Long.class)
+	private long identifiers() {
+		return this.jdbc.sql("SELECT count(*) FROM job.external_access_identifier WHERE job_id = :job")
+			.param("job", this.first)
+			.query(Long.class)
 			.single();
 	}
 

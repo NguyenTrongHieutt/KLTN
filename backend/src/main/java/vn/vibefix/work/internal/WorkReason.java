@@ -36,21 +36,6 @@ enum WorkReason {
 	/** "Duyệt" and "Trả lại" each need a written comment (FR-25, AD-39). */
 	REVIEW_COMMENT_REQUIRED,
 
-	/** The Page tree has at most two levels (FR-29). */
-	PAGE_TOO_DEEP,
-
-	/** The parent Page is not one of this Job's. */
-	PAGE_PARENT_UNKNOWN,
-
-	/** The Assessment Report template is offered only on an Assessment Job (FR-10). */
-	TEMPLATE_NOT_AVAILABLE,
-
-	/** The Job already has its Assessment Report. */
-	REPORT_EXISTS,
-
-	/** The Assessment Report is always customer-visible (FR-31). */
-	REPORT_ALWAYS_VISIBLE,
-
 	/** Only an Attachment's author removes it, and only one's own note is corrected (FR-76). */
 	NOT_AUTHOR,
 
@@ -70,12 +55,6 @@ enum WorkReason {
 	NOTE_EMPTY,
 
 	/** The note a correction quotes is not one of this Work Item's. */
-	QUOTE_UNKNOWN,
-
-	/** Shared earlier Pages change only while the Job is Agreement, Starting, Active, or Closing (FR-70). */
-	SHARING_CLOSED,
-
-	/** Only another Job of the same Product with customer-visible Pages can be shared (FR-70). */
-	NOT_SHAREABLE
+	QUOTE_UNKNOWN
 
 }

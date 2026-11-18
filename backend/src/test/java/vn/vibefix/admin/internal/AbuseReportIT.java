@@ -403,7 +403,9 @@ class AbuseReportIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"kind\":\"RATING\",\"targetLogin\":\"" + minh + "\",\"reason\":\"Sai loại\"}"))
 			.andExpect(status().isBadRequest());
-		file(this.world.vy(), Role.STUDENT, "PAGE", UUID.randomUUID()).andExpect(status().isNotFound());
+		file(this.world.vy(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isNotFound());
+		// Story 24.1: the Documentation Space is retired, so PAGE is no kind of reportable content at all.
+		file(this.world.vy(), Role.STUDENT, "PAGE", UUID.randomUUID()).andExpect(status().isBadRequest());
 
 		for (int i = 0; i < 9; i++) {
 			this.jdbc.sql("""

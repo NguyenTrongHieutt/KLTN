@@ -27,7 +27,7 @@ import vn.vibefix.shared.Gate;
 class AbuseReportController {
 
 	/**
-	 * @param kind {@code PRODUCT}, {@code JOB_POST}, {@code PAGE}, {@code RATING}, {@code JOB_CHAT_MESSAGE},
+	 * @param kind {@code PRODUCT}, {@code JOB_POST}, {@code RATING}, {@code JOB_CHAT_MESSAGE},
 	 * {@code CREW_CHAT_MESSAGE}, {@code WORK_ITEM_NOTE}, {@code USER}, or {@code RECRUITMENT_NOTE}
 	 * @param targetId the item; for a user, their account
 	 * @param targetLogin for a user only, in place of {@code targetId}: the GitHub username their public profile

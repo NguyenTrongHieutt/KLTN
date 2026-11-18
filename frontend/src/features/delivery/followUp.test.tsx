@@ -59,7 +59,6 @@ const progress = {
   mentorName: 'Đỗ Mạnh Hùng',
   audience: 'CUSTOMER',
   milestones: [],
-  pages: [],
   crew: [],
   mine: [],
   assessment: true,
@@ -67,7 +66,7 @@ const progress = {
 
 const followUp = {
   id: 'f1',
-  recommendationNo: 2,
+  recommendationText: 'Đề xuất số 2: nhắc lịch trước giờ hẹn',
   title: 'Thêm nhắc lịch',
   jobTypes: ['NEW_FEATURE'],
   skillIds: ['s1'],
@@ -83,18 +82,13 @@ const followUps = (overrides: object = {}) => ({
   audience: 'MENTOR',
   available: true,
   submitted: false,
-  reportVersionNo: 2,
-  recommendations: [
-    { number: 1, text: 'Sửa lỗi hai khách đặt trùng bàn.' },
-    { number: 2, text: 'Thêm nhắc lịch trước giờ hẹn.' },
-  ],
   followUps: [],
   skillIds: ['s1'],
   ...overrides,
 })
 
 describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
-  it('lets the Mentor draft a follow-up from a recommendation and send it', { timeout: 20_000 }, async () => {
+  it('lets the Mentor draft a follow-up naming its recommendation and send it', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     fakeBackend(signedInUser, {
@@ -112,20 +106,26 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Công việc tiếp theo' })).closest('section')!
-    expect(within(section).getByText(/phiên bản 2/)).toBeInTheDocument()
+    expect(within(section).getByText(/những đề xuất bạn đã nêu/)).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Gửi khách hàng' })).toBeDisabled()
     await user.click(within(section).getByRole('button', { name: 'Thêm công việc tiếp theo' }))
-    await user.selectOptions(within(section).getByLabelText('Đề xuất trong báo cáo'), '2')
     await user.type(within(section).getByLabelText('Tiêu đề'), 'Thêm nhắc lịch')
     await user.click(within(section).getByLabelText('Tính năng mới'))
     await user.type(within(section).getByLabelText('Phạm vi'), 'Nhắc khách trước giờ hẹn.')
     await user.type(within(section).getByLabelText(/Tiêu chí nghiệm thu đề xuất/), 'Khách nhận nhắc trước 1 giờ')
     await user.type(within(section).getByLabelText('Ước lượng công sức (ngày)'), '5')
+    // The draft names the recommendation it follows, so "Lưu" waits for it even with everything else filled.
+    expect(within(section).getByRole('button', { name: 'Lưu' })).toBeDisabled()
+    await user.type(
+      within(section).getByLabelText(/Đề xuất bạn đang làm tiếp/),
+      'Đề xuất số 2: nhắc lịch trước giờ hẹn',
+    )
+    expect(within(section).getByRole('button', { name: 'Lưu' })).toBeEnabled()
     await user.click(within(section).getByRole('button', { name: 'Lưu' }))
     await waitFor(() =>
       expect(sent).toEqual([
         {
-          recommendationNo: 2,
+          recommendationText: 'Đề xuất số 2: nhắc lịch trước giờ hẹn',
           title: 'Thêm nhắc lịch',
           jobTypes: ['NEW_FEATURE'],
           skillIds: ['s1'],
@@ -135,7 +135,9 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
         },
       ]),
     )
-    expect(await within(section).findByText('Đề xuất 2 · Tính năng mới · Khoảng 5 ngày')).toBeInTheDocument()
+    expect(
+      await within(section).findByText('Đề xuất số 2: nhắc lịch trước giờ hẹn · Tính năng mới · Khoảng 5 ngày'),
+    ).toBeInTheDocument()
     await user.click(within(section).getByRole('button', { name: 'Gửi khách hàng' }))
     expect(await within(section).findByText(/Đã gửi khách hàng/)).toBeInTheDocument()
     expect(within(section).queryByRole('button', { name: 'Thêm công việc tiếp theo' })).toBeNull()
@@ -154,7 +156,7 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
             submitted: true,
             followUps: [
               { ...followUp, status: 'SUBMITTED' },
-              { ...followUp, id: 'f2', recommendationNo: 1, title: 'Sửa lỗi trùng bàn', status: 'SUBMITTED' },
+              { ...followUp, id: 'f2', recommendationText: 'Đề xuất số 1', title: 'Sửa lỗi trùng bàn', status: 'SUBMITTED' },
             ],
           }),
         ),
@@ -166,7 +168,7 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
             submitted: true,
             followUps: [
               { ...followUp, status: 'SUBMITTED' },
-              { ...followUp, id: 'f2', recommendationNo: 1, title: 'Sửa lỗi trùng bàn', status: 'DISCARDED' },
+              { ...followUp, id: 'f2', recommendationText: 'Đề xuất số 1', title: 'Sửa lỗi trùng bàn', status: 'DISCARDED' },
             ],
           }),
         ),

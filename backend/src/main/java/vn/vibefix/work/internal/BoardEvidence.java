@@ -24,7 +24,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.work.WorkEvidence;
 
-/** {@link WorkEvidence} over {@code work.work_item} and {@code work.page}. */
+/** {@link WorkEvidence} over {@code work.work_item}. */
 @Component
 class BoardEvidence implements WorkEvidence {
 
@@ -134,15 +134,6 @@ class BoardEvidence implements WorkEvidence {
 			return new Row(id, rs.getString("code") + "-" + rs.getInt("number"), rs.getString("title"), rs.getString("status"),
 					assignee, people, histories.getOrDefault(id, List.of()));
 		}).list();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public List<PageLine> pages(UUID jobId) {
-		return this.jdbc.sql("SELECT id, version_no FROM work.page WHERE job_id = :job ORDER BY seq")
-			.param("job", jobId)
-			.query((rs, n) -> new PageLine(rs.getObject("id", UUID.class), rs.getInt("version_no")))
-			.list();
 	}
 
 }

@@ -32,9 +32,6 @@ export function CrewJobCard({ job }: { job: MyJob }) {
             <Link to={`/cong-viec/${job.jobId}/bang`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
               {t('screen.board.tab')}
             </Link>
-            <Link to={`/cong-viec/${job.jobId}/tai-lieu`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
-              {t('screen.docs.tab')}
-            </Link>
           </>
         )}
         <Link

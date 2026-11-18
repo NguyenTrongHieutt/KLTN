@@ -123,7 +123,6 @@ class ClosureIT extends IntegrationTest {
 			.andExpect(jsonPath("$.audience").value("FORMER"))
 			.andExpect(jsonPath("$.state").value("CLOSED"))
 			.andExpect(jsonPath("$.milestones.length()").value(0))
-			.andExpect(jsonPath("$.pages.length()").value(0))
 			.andExpect(jsonPath("$.mine.length()").value(0));
 		assertThat(notifications("job.job_closing")).isEqualTo(3);
 		assertThat(notifications("job.job_closed")).isEqualTo(3);
@@ -281,10 +280,6 @@ class ClosureIT extends IntegrationTest {
 				VALUES (:id, :item, :job, :mentor, 'APPROVED', '{}'::jsonb, 'Đạt yêu cầu', :now)
 				""").param("id", UUID.randomUUID()).param("item", story).param("job", this.job).param("mentor", this.hung)
 			.param("now", now).update();
-		this.mvc.perform(post("/api/v1/boards/" + this.job + "/pages").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"title\":\"Báo cáo đánh giá\",\"body\":\"## Hiện trạng\\n\\nỔn.\",\"template\":\"ASSESSMENT_REPORT\"}"))
-			.andExpect(status().isCreated());
 	}
 
 	private String handOver() throws Exception {

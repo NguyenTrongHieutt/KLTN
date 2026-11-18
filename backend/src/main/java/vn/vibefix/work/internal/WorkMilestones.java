@@ -2,12 +2,10 @@ package vn.vibefix.work.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -34,22 +32,6 @@ class WorkMilestones implements MilestoneWork {
 	WorkMilestones(JdbcClient jdbc, Clock clock) {
 		this.jdbc = jdbc;
 		this.clock = clock;
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public List<PageUpdate> pagesUpdatedSince(UUID jobId, Instant since) {
-		return this.jdbc.sql("""
-				SELECT p.id, p.title, p.version_no, p.visibility FROM work.page p
-				WHERE p.job_id = :job AND p.hidden_at IS NULL
-				  AND EXISTS (SELECT 1 FROM work.page_version v WHERE v.page_id = p.id AND v.created_at > :since)
-				ORDER BY p.title, p.id
-				""")
-			.param("job", jobId)
-			.param("since", Timestamp.from(since))
-			.query((rs, n) -> new PageUpdate(rs.getObject("id", UUID.class), rs.getString("title"), rs.getInt("version_no"),
-					"CUSTOMER".equals(rs.getString("visibility"))))
-			.list();
 	}
 
 	@Override
@@ -116,33 +98,6 @@ class WorkMilestones implements MilestoneWork {
 					rs.getString("title"), rs.getString("status"),
 					"DONE".equals(rs.getString("status")) && List.of("APPROVED", "UNREVIEWED").contains(rs.getString("review"))))
 			.list();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public Optional<ReportVersion> currentReport(UUID jobId) {
-		return this.jdbc.sql("""
-				SELECT v.page_id, v.version_no, v.title, v.body
-				FROM work.page p JOIN work.page_version v ON v.page_id = p.id AND v.version_no = p.version_no
-				WHERE p.job_id = :job AND p.template = 'ASSESSMENT_REPORT'
-				""")
-			.param("job", jobId)
-			.query((rs, n) -> new ReportVersion(rs.getObject("page_id", UUID.class), rs.getInt("version_no"),
-					rs.getString("title"), rs.getString("body")))
-			.optional();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public Optional<ReportVersion> report(UUID pageId, int versionNo) {
-		return this.jdbc.sql("""
-				SELECT page_id, version_no, title, body FROM work.page_version WHERE page_id = :page AND version_no = :version
-				""")
-			.param("page", pageId)
-			.param("version", versionNo)
-			.query((rs, n) -> new ReportVersion(rs.getObject("page_id", UUID.class), rs.getInt("version_no"),
-					rs.getString("title"), rs.getString("body")))
-			.optional();
 	}
 
 }
