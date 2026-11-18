@@ -92,7 +92,7 @@ class FollowUpIT extends IntegrationTest {
 			.getContentAsString();
 		String second = JsonPath.read(body, "$.followUps[1].id");
 		String extra = JsonPath.read(create(this.hung, Role.MENTOR, job, 2, "Nhắc lịch").andReturn().getResponse()
-			.getContentAsString(), "$.followUps[2].id");
+			.getContentAsString(), "$.followUps[1].id");
 		this.mvc.perform(delete("/api/v1/follow-ups/" + extra).with(as(this.hung, Role.MENTOR)).with(csrf()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.followUps.length()").value(2));

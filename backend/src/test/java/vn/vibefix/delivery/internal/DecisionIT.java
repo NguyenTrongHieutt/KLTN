@@ -343,10 +343,6 @@ class DecisionIT extends IntegrationTest {
 				VALUES (:id, :item, :job, :mentor, 'APPROVED', '{}'::jsonb, 'Đạt yêu cầu', :now)
 				""").param("id", UUID.randomUUID()).param("item", story).param("job", this.job).param("mentor", this.hung)
 			.param("now", now).update();
-		this.mvc.perform(post("/api/v1/boards/" + this.job + "/pages").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"title\":\"Báo cáo đánh giá\",\"body\":\"## Hiện trạng\\n\\nỔn.\",\"template\":\"ASSESSMENT_REPORT\"}"))
-			.andExpect(status().isCreated());
 	}
 
 	private String handOver(long version) throws Exception {

@@ -208,7 +208,8 @@ class FollowUps {
 	}
 
 	List<FollowUp> of(UUID jobId) {
-		return this.jdbc.sql("SELECT * FROM delivery.follow_up WHERE job_id = :job ORDER BY created_at, id")
+		return this.jdbc
+			.sql("SELECT * FROM delivery.follow_up WHERE job_id = :job ORDER BY recommendation_text, created_at, id")
 			.param("job", jobId)
 			.query(FollowUps::followUp)
 			.list();
