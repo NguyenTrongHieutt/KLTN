@@ -135,7 +135,7 @@ class RepositoryChecks {
 		String fullName = address.owner() + "/" + address.name();
 		Lookup lookup;
 		try {
-			lookup = this.bindings.find(customerId, address.owner(), address.name());
+			lookup = this.bindings.find(address.owner(), address.name());
 		}
 		catch (GitHubException unavailable) {
 			throw refuse(ProductReason.GITHUB_UNAVAILABLE, null);

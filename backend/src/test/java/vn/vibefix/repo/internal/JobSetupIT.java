@@ -1802,7 +1802,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(blocked.status()).isEqualTo("BLOCKED");
 		assertThat(blocked.block()).isEqualTo(JobSetups.Block.SOURCE_APP_WRONG_REPOSITORY);
 		assertThat(this.jdbc.sql("SELECT params ->> 'reason' FROM notification.notification WHERE type = 'repo.job_start_blocked'")
-			.query(String.class).list()).containsOnly("ứng dụng vibefix phải được cài cho đúng một kho là dự án gốc");
+			.query(String.class).list()).containsOnly("ứng dụng vibefix phải được cài cho dự án gốc");
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.blockedReason").value("SOURCE_APP_WRONG_REPOSITORY"));
 		// Story 23.5c: the Setup check records the Product's status, with its to-do.

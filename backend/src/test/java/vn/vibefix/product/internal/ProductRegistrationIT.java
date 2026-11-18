@@ -299,11 +299,8 @@ class ProductRegistrationIT extends IntegrationTest {
 		installed.all = true;
 		check("https://github.com/lan-nguyen/shop-gom").andExpect(jsonPath("$.reason").value("SOURCE_APP_WRONG_REPOSITORY"));
 		installed.all = false;
-		// Another selected repository that is no live Product's.
-		installed.repository(5555, "lan-nguyen/other", this.lanGithubId);
-		check("https://github.com/lan-nguyen/shop-gom").andExpect(jsonPath("$.reason").value("SOURCE_APP_WRONG_REPOSITORY"));
 		// The repository itself not selected.
-		installed.deselect(5555).deselect(4001);
+		installed.deselect(4001);
 		check("https://github.com/lan-nguyen/shop-gom").andExpect(jsonPath("$.reason").value("SOURCE_APP_WRONG_REPOSITORY"));
 		installed.repository(4001, "lan-nguyen/shop-gom", this.lanGithubId);
 		installed.suspended = true;
@@ -316,6 +313,23 @@ class ProductRegistrationIT extends IntegrationTest {
 
 		installed.permissions.put("actions", "write");
 		check("https://github.com/lan-nguyen/shop-gom").andExpect(status().isOk());
+	}
+
+	/**
+	 * Another repository the Customer selected need not be a live Product's (Story 23.12's run). AD-44 narrows every
+	 * token this platform mints to the repositories of the operation it is for, so a repository that is merely
+	 * selected is never read; refusing it here bought no access the token scopes did not already deny, and it blocked
+	 * every other Product of that Customer for as long as one selected repository was not yet a Product -- the window
+	 * while a second Source is being registered -- or no longer one, a deleted Product left ticked.
+	 */
+	@Test
+	void anotherSelectedRepositoryThatIsNoProductIsNotRefused() throws Exception {
+		long installation = ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
+		GITHUB.mergeInstallations.get(installation).repository(5555, "lan-nguyen/other", this.lanGithubId);
+
+		check("https://github.com/lan-nguyen/shop-gom").andExpect(status().isOk());
+
+		assertThat(binding("lan-nguyen/shop-gom")).isEqualTo("BOUND:" + installation + ":-");
 	}
 
 	@Test

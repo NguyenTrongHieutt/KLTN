@@ -109,27 +109,16 @@ function CopyWorkflowButton({ content, lead = false }: { content: string; lead?:
 }
 
 /**
- * For when GitHub's prefilled page does not open: the published `vibefix.yml` to copy or download, and where it goes
- * (the Workflow setup card's fallback, CUS-3 step 3 and CUS-4).
- * @param copy whether the fallback has its own copy button; none when the actions already lead with one
+ * For when GitHub's page does not open at all: the published `vibefix.yml` to download, and where it goes (the
+ * Workflow setup card's fallback, CUS-3 step 3 and CUS-4). It carries no copy button of its own, because both of the
+ * card's actions already lead with "Sao chép nội dung".
  */
-export function WorkflowFallback({
-  file,
-  branch,
-  repo,
-  copy = true,
-}: {
-  file: WorkflowFile
-  branch: string
-  repo: string
-  copy?: boolean
-}) {
+export function WorkflowFallback({ file, branch, repo }: { file: WorkflowFile; branch: string; repo: string }) {
   return (
     <div className="flex flex-col gap-2 rounded-md bg-muted p-3">
       <p className="text-caption font-semibold">{t('screen.product.wizard.fallbackHeading')}</p>
       <p className="text-body-sm break-words">{t('screen.product.wizard.fallbackBody', { path: file.path, branch, repo })}</p>
       <div className="flex flex-wrap gap-2">
-        {copy && <CopyWorkflowButton content={file.content} />}
         <a
           href={`data:text/yaml;charset=utf-8,${encodeURIComponent(file.content)}`}
           download="vibefix.yml"
@@ -144,10 +133,11 @@ export function WorkflowFallback({
 }
 
 /**
- * The Workflow setup card's way to put the published `vibefix.yml` on GitHub (AD-45, Story 23.5c). With no file there,
- * "Thêm file workflow ↗" opens GitHub's new-file page prefilled with it. With a file there already (a different one,
- * or a version nearing its end date), the new-file page would refuse the path and the edit page cannot be prefilled,
- * so the actions lead with "Sao chép nội dung", then "Sửa file workflow ↗" on GitHub's edit page.
+ * The Workflow setup card's way to put the published `vibefix.yml` on GitHub (AD-45, Story 23.5c). Both ways lead with
+ * "Sao chép nội dung", because GitHub carries neither: the new-file page refuses a URL long enough to hold the file
+ * (Story 23.12's run), and the edit page cannot be prefilled at all. With no file there, "Thêm file workflow ↗" then
+ * opens the new-file page with only the path filled in; with a file there already (a different one, or a version
+ * nearing its end date), "Sửa file workflow ↗" opens GitHub's edit page.
  * @param recheck the card's check is "Kiểm tra lại" (CUS-4), not "Kiểm tra" (CUS-3)
  * @param hints the hints of a surface whose way back is another action, such as the step tracker's "Thử lại"
  */
@@ -184,13 +174,16 @@ export function WorkflowFileActions({
         </>
       ) : (
         <>
-          <GitHubAction href={newWorkflowUrl(htmlUrl, branch, file.path, file.content)}>
-            {t('screen.product.wizard.addWorkflow')}
-          </GitHubAction>
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyWorkflowButton content={file.content} lead />
+            <GitHubAction href={newWorkflowUrl(htmlUrl, branch, file.path)} variant="secondary">
+              {t('screen.product.wizard.addWorkflow')}
+            </GitHubAction>
+          </div>
           <p className="text-caption text-muted-foreground">{t(addHint, { path: file.path })}</p>
         </>
       )}
-      <WorkflowFallback file={file} branch={branch} repo={repo} copy={!existing} />
+      <WorkflowFallback file={file} branch={branch} repo={repo} />
     </div>
   )
 }

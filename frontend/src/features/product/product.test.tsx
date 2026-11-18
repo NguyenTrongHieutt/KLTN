@@ -193,9 +193,14 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     const add = await screen.findByRole('link', { name: /Thêm file workflow/ })
     expect(add).toHaveAttribute(
       'href',
-      `https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml&value=${encodeURIComponent(workflowFile.content)}`,
+      'https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml',
     )
     expect(add).toHaveAttribute('target', '_blank')
+    // Story 23.12's run: GitHub answers "Your request URL is too long" for a link that carries the file, so the link
+    // carries the path alone and the card copies the content to the clipboard instead.
+    expect(add.getAttribute('href')).not.toContain('value=')
+    expect(add.getAttribute('href')).not.toContain(encodeURIComponent(workflowFile.content))
+    expect(screen.getByRole('button', { name: 'Sao chép nội dung' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Tải file vibefix.yml/ })).toHaveAttribute('download', 'vibefix.yml')
     expect(screen.getByText(/vibefix không quét mã của bạn\. Trước khi người khác đọc mã/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Tự kiểm tra khóa bí mật trên GitHub/ })).toHaveAttribute(
@@ -332,7 +337,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
 
-    expect(await screen.findAllByText(/phải được cài cho đúng một kho là lan-nguyen\/shop-gom/)).not.toHaveLength(0)
+    expect(await screen.findAllByText(/phải được cài cho lan-nguyen\/shop-gom/)).not.toHaveLength(0)
     expect(screen.getByRole('button', { name: /Chọn lại trên GitHub/ })).toBeInTheDocument()
   })
 
@@ -377,7 +382,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     expect(screen.queryByText(/CRLF/)).toBeNull()
     expect(screen.getByRole('link', { name: /Thêm file workflow/ })).toHaveAttribute(
       'href',
-      `https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml&value=${encodeURIComponent(workflowFile.content)}`,
+      'https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml',
     )
     expect(screen.queryByRole('link', { name: /Sửa file workflow/ })).toBeNull()
   })
@@ -538,7 +543,7 @@ describe('CUS-4, a Product (FR-7)', () => {
     })
     renderAt('/san-pham/p1')
 
-    expect(await screen.findByText(/Ứng dụng vibefix phải được cài cho đúng một kho là lan-nguyen\/shop-gom/)).toBeInTheDocument()
+    expect(await screen.findByText(/Ứng dụng vibefix phải được cài cho lan-nguyen\/shop-gom/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Chọn lại trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/settings/installations/21',
@@ -556,7 +561,7 @@ describe('CUS-4, a Product (FR-7)', () => {
     const add = await screen.findByRole('link', { name: /Thêm file workflow/ })
     expect(add).toHaveAttribute(
       'href',
-      `https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml&value=${encodeURIComponent(workflowFile.content)}`,
+      'https://github.com/lan-nguyen/shop-gom/new/main?filename=.github%2Fworkflows%2Fvibefix.yml',
     )
     expect(add).toHaveAttribute('target', '_blank')
     expect(screen.queryByRole('link', { name: /Sửa file workflow/ })).toBeNull()

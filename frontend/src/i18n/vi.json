@@ -1338,7 +1338,7 @@
         "workflowLead": "Thêm file vibefix.yml vào {repo} một lần, đúng nội dung vibefix đưa. Nhờ nó, việc sao chép mã chạy trên GitHub Actions của dự án, không qua máy chủ của vibefix.",
         "workflowCardHeading": "Thêm {file} vào dự án gốc",
         "addWorkflow": "Thêm file workflow",
-        "addWorkflowHint": "GitHub mở trang tạo tệp {path} với nội dung đã điền sẵn. Bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra”.",
+        "addWorkflowHint": "GitHub không mang được nội dung file trong đường dẫn, nên hãy bấm “Sao chép nội dung”, mở “Thêm file workflow”, dán vào ô nội dung của tệp {path}, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra”.",
         "editWorkflow": "Sửa file workflow",
         "editWorkflowHint": "Tệp {path} đã có trong dự án, và trang sửa của GitHub không điền sẵn được nội dung. Bấm “Sao chép nội dung”, mở “Sửa file workflow”, thay toàn bộ nội dung cũ bằng nội dung vừa chép, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra”.",
         "workflowNotChecked": "Bấm “Kiểm tra” sau khi lưu file trên GitHub.",
@@ -1446,10 +1446,10 @@
         "rechecking": "Đang kiểm tra…",
         "ready": "Ứng dụng vibefix được cài cho đúng kho {repo}, và file workflow đúng bản vibefix công bố.",
         "notChecked": "vibefix chưa kiểm tra ứng dụng vibefix và file workflow của {repo}. Bấm “Kiểm tra lại” để kiểm tra ngay.",
-        "wrongRepository": "Ứng dụng vibefix phải được cài cho đúng một kho là {repo}. Trên GitHub, chọn “Only select repositories”, rồi chỉ chọn {repo}.",
+        "wrongRepository": "Ứng dụng vibefix phải được cài cho {repo}. Trên GitHub, chọn “Only select repositories”, rồi chọn {repo} trong danh sách. Các kho khác bạn đã chọn cứ để nguyên.",
         "installReturn": "Sau khi cài, GitHub đưa bạn về trang Sản phẩm. Mở lại sản phẩm này và bấm “Kiểm tra lại”.",
         "reselectHint": "Sau khi chọn lại trên GitHub, quay lại đây và bấm “Kiểm tra lại”.",
-        "addWorkflowHint": "GitHub mở trang tạo tệp {path} với nội dung đã điền sẵn. Bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra lại”.",
+        "addWorkflowHint": "GitHub không mang được nội dung file trong đường dẫn, nên hãy bấm “Sao chép nội dung”, mở “Thêm file workflow”, dán vào ô nội dung của tệp {path}, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra lại”.",
         "editWorkflowHint": "Tệp {path} đã có trong dự án, và trang sửa của GitHub không điền sẵn được nội dung. Bấm “Sao chép nội dung”, mở “Sửa file workflow”, thay toàn bộ nội dung cũ bằng nội dung vừa chép, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra lại”.",
         "ending": "vibefix đã cập nhật file workflow. Hãy thêm lại bản mới trước {date}, nếu không các công việc của sản phẩm này sẽ không bắt đầu hay kết thúc được.",
         "selfScanHint": "Không bắt buộc. Trên GitHub, chọn vibefix, bấm “Run workflow” và chọn scan. Kết quả chỉ hiện trên GitHub của bạn."
@@ -1467,7 +1467,7 @@
       "drift": {
         "title": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại.",
         "kindCOMMITS": "Có {n} thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày {date}).",
-        "kindGONE": "Ứng dụng vibefix không còn đến được dự án gốc {name}: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày {date}). Cần sửa lại trên GitHub để ứng dụng chọn đúng một kho là dự án này.",
+        "kindGONE": "Ứng dụng vibefix không còn đến được dự án gốc {name}: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày {date}). Cần sửa lại trên GitHub để ứng dụng có chọn dự án này.",
         "kindARCHIVED": "Dự án gốc đã được lưu trữ trên GitHub, nên không nhận thay đổi mới (ghi nhận ngày {date}).",
         "kindRENAMED": "Dự án gốc đã đổi tên thành {name} (ghi nhận ngày {date}).",
         "kindTRANSFERRED": "Dự án gốc đã được chuyển sang {name} (ghi nhận ngày {date}).",
@@ -1537,7 +1537,7 @@
           "noticeChanged": "Lưu ý xác nhận vừa được cập nhật, nên lần xác nhận của bạn chưa được gửi. Hãy tải lại trang để đọc bản mới rồi xác nhận lại.",
           "reload": "Tải lại trang"
         },
-        "addWorkflowHint": "GitHub mở trang tạo tệp {path} với nội dung đã điền sẵn. Bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Thử lại”.",
+        "addWorkflowHint": "GitHub không mang được nội dung file trong đường dẫn, nên hãy bấm “Sao chép nội dung”, mở “Thêm file workflow”, dán vào ô nội dung của tệp {path}, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Thử lại”.",
         "editWorkflowHint": "Tệp {path} đã có trong dự án, và trang sửa của GitHub không điền sẵn được nội dung. Bấm “Sao chép nội dung”, mở “Sửa file workflow”, thay toàn bộ nội dung cũ bằng nội dung vừa chép, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Thử lại”.",
         "openProduct": "Mở trang sản phẩm",
         "busyOperation": "việc đang chạy trên công việc này",
@@ -4821,7 +4821,7 @@
     "product": {
       "NOT_GITHUB": "Đường dẫn này không phải kho mã GitHub.",
       "SOURCE_APP_MISSING": "Ứng dụng vibefix chưa được cài trên {repo}. Hãy cài ứng dụng trên GitHub rồi quay lại.",
-      "SOURCE_APP_WRONG_REPOSITORY": "Ứng dụng vibefix phải được cài cho đúng một kho là {repo}. Hãy chọn lại trên GitHub: chọn “Only select repositories”, rồi chỉ chọn {repo}.",
+      "SOURCE_APP_WRONG_REPOSITORY": "Ứng dụng vibefix phải được cài cho {repo}. Hãy chọn lại trên GitHub: chọn “Only select repositories”, rồi chọn {repo} trong danh sách. Các kho khác bạn đã chọn cứ để nguyên.",
       "REPO_NOT_FOUND": "Không tìm thấy kho mã này trên GitHub. Hãy kiểm tra đường dẫn.",
       "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị kho mã này, nên không thể đăng ký.",
       "WORKFLOW_MISSING": "Chưa có file workflow .github/workflows/vibefix.yml trong {repo}. Hãy bấm “Thêm file workflow”, lưu trên GitHub, rồi bấm “Kiểm tra”.",
