@@ -27,7 +27,9 @@ import vn.vibefix.support.TestPeople;
 /**
  * FR-28, AD-33, AD-39: JOB-1's progress per Milestone counts criteria only through approvals; the
  * Customer sees no Work Item, the Mentor sees the Crew's open work, a Crew member their own; nobody else
- * reads it.
+ * reads it. FR-10, R6: {@code assessment} tells the Mentor and the active Crew of an Assessment Job that it
+ * is one, which is what makes JOB-1 show N-12 and their own link to its private read-only copy (Story 23.11b);
+ * the Customer never reads it as one, and a Code Job is never one.
  */
 class ProgressIT extends IntegrationTest {
 
@@ -125,6 +127,29 @@ class ProgressIT extends IntegrationTest {
 			.andExpect(jsonPath("$.mine[0].status").value("IN_REVIEW"));
 	}
 
+	/**
+	 * The flag the team's N-12 notice and their read-only-copy link hang on (FR-10, Story 23.11b): true for the
+	 * Mentor and an {@code ACTIVE} member of an Assessment Job, false for that Job's own Customer, and false on a
+	 * Job of any other type.
+	 */
+	@Test
+	void jobOneNamesAnAssessmentJobForItsTeamAndForNobodyElse() throws Exception {
+		UUID bao = WorkTestSupport.student(this.jdbc, "Phạm Quốc Bảo");
+		UUID assessment = assessmentJob(bao);
+
+		for (RequestPostProcessor team : List.of(as(this.hung, Role.MENTOR), as(bao, Role.STUDENT))) {
+			this.mvc.perform(get("/api/v1/boards/" + assessment + "/progress").with(team))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assessment").value(true));
+		}
+		this.mvc.perform(get("/api/v1/boards/" + assessment + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.assessment").value(false));
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.assessment").value(false));
+	}
+
 	@Test
 	void nobodyElseReadsTheProgress() throws Exception {
 		UUID otherCustomer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
@@ -135,6 +160,19 @@ class ProgressIT extends IntegrationTest {
 				as(admin, Role.ADMINISTRATOR))) {
 			this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(outsider)).andExpect(status().isNotFound());
 		}
+	}
+
+	/**
+	 * A second Active Job of the same Customer and Mentor, this one an Assessment, with its Board seeded and
+	 * {@code member} on its Crew. The member is its own: a Student runs one Job at a time (AD-41).
+	 */
+	private UUID assessmentJob(UUID member) {
+		UUID product = WorkTestSupport.product(this.jdbc, this.lan, "Sổ đánh giá");
+		UUID assessment = WorkTestSupport.activeJob(this.jdbc, product, this.lan, this.hung,
+				List.of(UUID.randomUUID()), List.of(List.of(UUID.randomUUID())), this.clock.instant(), "ASSESSMENT");
+		this.boards.seed(assessment, true);
+		WorkTestSupport.crewRow(this.jdbc, assessment, member, "ACTIVE", this.clock.instant().minus(Duration.ofMinutes(5)));
+		return assessment;
 	}
 
 	private UUID item(UUID criterion) {

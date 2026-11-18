@@ -83,7 +83,7 @@ class RetiredCrewTermsTest {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
 		for (String text : List.of("SELECT id FROM job.job WHERE id = :id FOR SHARE",
-				"SELECT id FROM job.job FOR KEY SHARE", "CREW_SHARE", "NOT_SHAREABLE", "Pages.Visibility.SHARED",
+				"SELECT id FROM job.job FOR KEY SHARE", "CREW_SHARE", "AUTOMATIC_SHARE", "status = 'SHARED'",
 				"a share of the pool", "MILESTONE_NOT_HELD", "the Crew's terms of work")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}

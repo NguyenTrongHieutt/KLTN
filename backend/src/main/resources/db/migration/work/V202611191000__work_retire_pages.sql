@@ -13,7 +13,8 @@
 -- The Administrator read grants go with it: AdminReadScope has no PAGES any more, and WorkGrants calls
 -- AdminReadScope.valueOf on each stored item, so a grant naming it could not be read back at all. A Dispute's grant
 -- is the only one that ever held PAGES, beside the Job Chat, Work Items, their notes and the Attachment list, so
--- stripping that one item leaves every such grant with four and none of them empty; chat and job strip their own.
+-- stripping that one item leaves every such grant with four; a grant that somehow held PAGES alone keeps an empty
+-- list rather than the NULL jsonb_agg would give a NOT NULL column. chat and job strip their own.
 -- Personal data: rows deleted; nothing new is kept. These three tables leave WorkPersonalData's export, its erasure
 -- pass and its Product-deletion pass in the same story, so no participant is left naming a table that is gone.
 
@@ -24,5 +25,6 @@ DROP TABLE work.page_version;
 DROP TABLE work.page;
 
 UPDATE work.admin_read_grant
-SET items = (SELECT jsonb_agg(item) FROM jsonb_array_elements(items) AS item WHERE item ->> 'scope' <> 'PAGES')
+SET items = coalesce((SELECT jsonb_agg(item) FROM jsonb_array_elements(items) AS item
+                      WHERE item ->> 'scope' <> 'PAGES'), '[]'::jsonb)
 WHERE items @> '[{"scope": "PAGES"}]';

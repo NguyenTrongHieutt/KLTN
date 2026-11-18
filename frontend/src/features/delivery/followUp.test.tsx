@@ -109,15 +109,18 @@ describe('JOB-1 follow-up Jobs (FR-11, UX-DR16)', () => {
     expect(within(section).getByText(/những đề xuất bạn đã nêu/)).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Gửi khách hàng' })).toBeDisabled()
     await user.click(within(section).getByRole('button', { name: 'Thêm công việc tiếp theo' }))
-    await user.type(
-      within(section).getByLabelText(/Đề xuất bạn đang làm tiếp/),
-      'Đề xuất số 2: nhắc lịch trước giờ hẹn',
-    )
     await user.type(within(section).getByLabelText('Tiêu đề'), 'Thêm nhắc lịch')
     await user.click(within(section).getByLabelText('Tính năng mới'))
     await user.type(within(section).getByLabelText('Phạm vi'), 'Nhắc khách trước giờ hẹn.')
     await user.type(within(section).getByLabelText(/Tiêu chí nghiệm thu đề xuất/), 'Khách nhận nhắc trước 1 giờ')
     await user.type(within(section).getByLabelText('Ước lượng công sức (ngày)'), '5')
+    // The draft names the recommendation it follows, so "Lưu" waits for it even with everything else filled.
+    expect(within(section).getByRole('button', { name: 'Lưu' })).toBeDisabled()
+    await user.type(
+      within(section).getByLabelText(/Đề xuất bạn đang làm tiếp/),
+      'Đề xuất số 2: nhắc lịch trước giờ hẹn',
+    )
+    expect(within(section).getByRole('button', { name: 'Lưu' })).toBeEnabled()
     await user.click(within(section).getByRole('button', { name: 'Lưu' }))
     await waitFor(() =>
       expect(sent).toEqual([

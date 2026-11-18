@@ -37,9 +37,9 @@ import vn.vibefix.shared.IdGenerator;
  * Follow-up Jobs (FR-11): once an Assessment Job's Milestone Handover is accepted, the Mentor drafts
  * follow-up Jobs, each naming in their own words the recommendation it follows, and submits them
  * together; the Customer opens each as a Draft Job Post through {@link JobDrafts}, which only their J1
- * publishes, or discards it. Nothing reads a Page: the Documentation Space is retired (Story 24.1), so
- * the Mentor writes the citation instead of a number scraped out of a Report's Markdown. Every command
- * takes the follow-ups' Job row order: the Job's follow-ups are read {@code FOR UPDATE} first.
+ * publishes, or discards it. vibefix keeps no documents (Story 24.1), so the Mentor writes the citation
+ * themselves instead of citing a number scraped out of a Report's Markdown. Every command takes the
+ * follow-ups' Job row order: the Job's follow-ups are read {@code FOR UPDATE} first.
  */
 @Component
 class FollowUps {
@@ -208,8 +208,7 @@ class FollowUps {
 	}
 
 	List<FollowUp> of(UUID jobId) {
-		return this.jdbc
-			.sql("SELECT * FROM delivery.follow_up WHERE job_id = :job ORDER BY recommendation_text, created_at, id")
+		return this.jdbc.sql("SELECT * FROM delivery.follow_up WHERE job_id = :job ORDER BY created_at, id")
 			.param("job", jobId)
 			.query(FollowUps::followUp)
 			.list();

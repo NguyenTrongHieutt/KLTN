@@ -114,7 +114,7 @@ class RetirePagesMigrationIT {
 		assertThat(rows(db, """
 				SELECT indexdef FROM pg_indexes WHERE schemaname = 'delivery' AND indexname = 'follow_up_job_idx'
 				""")).as("the index the dropped column took with it is back, without it")
-			.containsExactly("CREATE INDEX follow_up_job_idx ON delivery.follow_up USING btree (job_id, recommendation_text, created_at)");
+			.containsExactly("CREATE INDEX follow_up_job_idx ON delivery.follow_up USING btree (job_id, created_at)");
 
 		assertThat(rows(db, "SELECT type FROM notification.notification ORDER BY type"))
 			.as("the shares' notices go, read or not; another type stays")

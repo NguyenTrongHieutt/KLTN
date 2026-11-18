@@ -31,9 +31,9 @@ ALTER TABLE delivery.follow_up
     DROP COLUMN report_version_no,
     DROP COLUMN recommendation_no;
 
--- follow_up_job_idx was dropped with recommendation_no, which it ordered by; the follow-ups of a Job are read by
--- the recommendation each one names instead, so the drafts that follow one recommendation stay together.
-CREATE INDEX follow_up_job_idx ON delivery.follow_up (job_id, recommendation_text, created_at);
+-- follow_up_job_idx was dropped with recommendation_no, which it ordered by; the follow-ups of a Job are read in
+-- the order the Mentor wrote them now, since free text has no order the Customer would expect.
+CREATE INDEX follow_up_job_idx ON delivery.follow_up (job_id, created_at);
 
 GRANT UPDATE (recommendation_text) ON delivery.follow_up TO ${runtime_role};
 

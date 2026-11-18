@@ -157,8 +157,10 @@ class WorkAccess {
 
 	/**
 	 * A reader of JOB-1's progress (FR-28, AD-39): as {@link #reader}, and also the Job's Customer, who
-	 * reads the Milestones but no Work Item. It reads no Page: the Documentation Space is retired
-	 * (Story 24.1), so a Customer never reaches Board content through it.
+	 * reads the Milestones but no Work Item. vibefix keeps no documents (Story 24.1), so a Customer reaches
+	 * no Board content through this reader either. An Administrator is no viewer of
+	 * JOB-1 at all, whatever grant they hold: {@link ProgressController} answers {@code NOT_FOUND} to every
+	 * {@code ADMIN} viewer, and the Evidence Package is where a case reads a Job (AD-20).
 	 */
 	@Transactional(readOnly = true)
 	BoardViewer progressReader(UUID boardId, Caller caller) {

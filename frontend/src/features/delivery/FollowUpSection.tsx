@@ -24,8 +24,8 @@ const JOB_TYPES = [
  * JOB-1's "Công việc tiếp theo" (FR-11, UX-DR16): once the Assessment Job's handover is accepted the
  * Mentor drafts follow-up Jobs, each naming in their own words the recommendation it follows, and sends
  * them all to the Customer; the Customer opens each as a Draft Job Post in CUS-6, where only their own
- * "Đăng tin" publishes it, or skips it. Nothing reads a Page: the Documentation Space is retired
- * (Story 24.1), so the citation is the Mentor's own sentence.
+ * "Đăng tin" publishes it, or skips it. vibefix keeps no documents (Story 24.1), so the citation is the
+ * Mentor's own sentence.
  */
 export function FollowUpSection({ jobId }: { jobId: string }) {
   const followUps = useFollowUps(jobId)

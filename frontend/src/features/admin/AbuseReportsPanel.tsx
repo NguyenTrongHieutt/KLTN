@@ -26,6 +26,9 @@ import {
  * message or note (each read audited); and the decision: hide through FR-60, record the action taken, or
  * dismiss, with the outcome the reporter reads. A recruitment note shows in the detail as it read at filing: it was
  * public text, so it takes no grant and no audited read. The author's name leads to ADM-2, where they are acted on.
+ * `screen.admin.reports.kind.PAGE` is kept for the reports filed on a Page before Story 24.1, when vibefix still
+ * kept documents: no migration deletes that moderation history, so the queue still has to name its kind. No new
+ * report can carry it -- `AbuseReports.KINDS` refuses it.
  */
 export function AbuseReportsPanel() {
   const reports = useAbuseReports()

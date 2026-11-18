@@ -634,7 +634,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
               truncated: false,
               sensitiveChanges: [],
               sensitiveChangeCount: 0,
-                            teamCodeConfirmedAt: null,
+              teamCodeConfirmedAt: null,
             },
           }),
         ),

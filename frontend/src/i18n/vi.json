@@ -1232,6 +1232,7 @@
         "kind": {
           "PRODUCT": "Sản phẩm",
           "JOB_POST": "Tin tuyển",
+          "PAGE": "Trang",
           "RATING": "Đánh giá",
           "JOB_CHAT_MESSAGE": "Tin nhắn trò chuyện công việc",
           "CREW_CHAT_MESSAGE": "Tin nhắn trò chuyện nhóm",
@@ -4857,20 +4858,13 @@
       "MOVE_NOT_ALLOWED": "Không chuyển việc sang cột này được.",
       "SELF_CHECK_INCOMPLETE": "Hãy đánh dấu đủ bốn mục tự kiểm trước khi gửi duyệt.",
       "REVIEW_COMMENT_REQUIRED": "Hãy viết nhận xét trước khi duyệt hoặc trả lại.",
-      "PAGE_TOO_DEEP": "Tài liệu chỉ có hai cấp: trang gốc và trang con.",
-      "PAGE_PARENT_UNKNOWN": "Không tìm thấy trang cha.",
-      "TEMPLATE_NOT_AVAILABLE": "Mẫu báo cáo đánh giá chỉ dùng cho công việc đánh giá.",
-      "REPORT_EXISTS": "Công việc này đã có báo cáo đánh giá.",
-      "REPORT_ALWAYS_VISIBLE": "Báo cáo đánh giá luôn để khách hàng xem.",
       "NOT_AUTHOR": "Chỉ người đã thêm tệp hoặc viết ghi chú làm được việc này.",
       "WORK_ITEM_DONE": "Hạng mục đã Xong nên không gỡ tệp được nữa.",
       "LINK_INVALID": "Liên kết phải bắt đầu bằng https:// và không chứa tên đăng nhập hay mật khẩu.",
       "LINK_SENSITIVE": "Liên kết có thể chứa khóa bí mật hoặc dữ liệu khách hàng. Hãy bỏ phần đó khỏi liên kết.",
       "JOB_FILE_QUOTA": "Tệp của một công việc tối đa 200 MB.",
       "NOTE_EMPTY": "Hãy viết nội dung ghi chú.",
-      "QUOTE_UNKNOWN": "Không tìm thấy ghi chú cần sửa.",
-      "SHARING_CLOSED": "Chỉ thay đổi được việc chia sẻ khi công việc đang thỏa thuận, chuẩn bị, đang làm hoặc đang kết thúc.",
-      "NOT_SHAREABLE": "Chỉ chia sẻ được công việc khác của cùng sản phẩm có tài liệu khách hàng xem được."
+      "QUOTE_UNKNOWN": "Không tìm thấy ghi chú cần sửa."
     },
     "delivery": {
       "MENTOR_ONLY": "Chỉ người hướng dẫn bàn giao được.",
