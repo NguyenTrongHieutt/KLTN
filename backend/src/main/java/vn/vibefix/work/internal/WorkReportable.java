@@ -13,13 +13,11 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.shared.ReportableContent;
 import vn.vibefix.work.internal.Boards.Item;
-import vn.vibefix.work.internal.Pages.Page;
 import vn.vibefix.work.internal.WorkAccess.BoardViewer;
 
 /**
- * FR-69: a Page is reportable by whoever the Documentation Space shows it to, and a Work Item note by whoever
- * the Board shows it to (a former member only within their window). The queue reads the Page's title or the
- * Work Item's key and title, never the note's text.
+ * FR-69: a Work Item note is reportable by whoever the Board shows it to (a former member only within their
+ * window). The queue reads the Work Item's key and title, never the note's text.
  */
 @Component
 class WorkReportable implements ReportableContent {
@@ -28,23 +26,20 @@ class WorkReportable implements ReportableContent {
 
 	private final WorkAccess access;
 
-	private final Pages pages;
-
 	private final Boards boards;
 
 	private final WorkReads reads;
 
-	WorkReportable(JdbcClient jdbc, WorkAccess access, Pages pages, Boards boards, WorkReads reads) {
+	WorkReportable(JdbcClient jdbc, WorkAccess access, Boards boards, WorkReads reads) {
 		this.jdbc = jdbc;
 		this.access = access;
-		this.pages = pages;
 		this.boards = boards;
 		this.reads = reads;
 	}
 
 	@Override
 	public Set<String> kinds() {
-		return Set.of("PAGE", "WORK_ITEM_NOTE");
+		return Set.of("WORK_ITEM_NOTE");
 	}
 
 	/** Runs outside any transaction: a refused read must not mark the caller's transaction rollback-only. */
@@ -54,25 +49,11 @@ class WorkReportable implements ReportableContent {
 			return Optional.empty();
 		}
 		try {
-			return switch (kind) {
-				case "PAGE" -> page(id, caller);
-				case "WORK_ITEM_NOTE" -> note(id, caller);
-				default -> Optional.empty();
-			};
+			return "WORK_ITEM_NOTE".equals(kind) ? note(id, caller) : Optional.empty();
 		}
 		catch (ApiException unseen) {
 			return Optional.empty();
 		}
-	}
-
-	private Optional<Reported> page(UUID pageId, Caller caller) {
-		Page page = this.pages.page(pageId).orElse(null);
-		if (page == null) {
-			return Optional.empty();
-		}
-		BoardViewer viewer = this.access.pageReader(page.jobId(), caller);
-		Pages.Seen seen = this.pages.seen(viewer, page);
-		return Optional.of(new Reported(page.jobId(), viewer.board().productId(), page.createdBy(), seen.version().title()));
 	}
 
 	private Optional<Reported> note(UUID noteId, Caller caller) {

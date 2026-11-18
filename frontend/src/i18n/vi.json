@@ -580,7 +580,6 @@
             "agreement": "Phiên bản thỏa thuận",
             "criteria": "Tiêu chí trong báo cáo bàn giao",
             "work": "Công việc",
-            "pages": "Trang",
             "chat": "Trò chuyện",
             "decisions": "Duyệt và yêu cầu sửa",
             "payments": "Thanh toán",
@@ -604,7 +603,6 @@
           "unchecked": "Chưa kiểm tra",
           "attachments": "Tệp đính kèm: {names}",
           "system": "vibefix",
-          "pageVersion": "Bản {n} · {time}",
           "decision": {
             "AGREEMENT_APPROVED": "Khách hàng duyệt thỏa thuận phiên bản {n}",
             "AGREEMENT_CONFIRMED": "Người hướng dẫn xác nhận thỏa thuận phiên bản {n}",
@@ -653,7 +651,7 @@
           "agreement": "Thỏa thuận: phiên bản {versions}",
           "noAgreement": "Thỏa thuận: chưa có phiên bản được xác nhận",
           "report": "Bàn giao Giai đoạn {n} lần {round}: {status} · người hướng dẫn báo đạt {reported}/{total} tiêu chí, khách hàng xác nhận đạt {checked}/{total}",
-          "work": "Công việc: {items} mục · Trang: {pages} trang",
+          "work": "Công việc: {items} mục",
           "chat": "Trò chuyện: {n} tin nhắn, tin cuối lúc {time}",
           "noChat": "Trò chuyện: chưa có tin nhắn",
           "payment": "Giai đoạn {n}: nạp {in} · hoàn {refunds} · đã giải ngân {released} · còn giữ {releasable}",
@@ -764,7 +762,6 @@
         "kind": {
           "PRODUCT": "Sản phẩm",
           "JOB_POST": "Tin tuyển",
-          "PAGE": "Trang",
           "RATING": "Đánh giá",
           "REPORTS": "Báo cáo vi phạm"
         },
@@ -779,7 +776,6 @@
         "effects": {
           "PRODUCT": "Sản phẩm không còn xuất hiện công khai và các tin tuyển đang mở của nó bị ẩn theo. Công việc đang chạy vẫn tiếp tục.",
           "JOB_POST": "Tin tuyển rời khỏi danh sách và tìm kiếm, không nhận ứng tuyển mới; lời mời ứng tuyển hết hiệu lực và người đã ứng tuyển được báo.",
-          "PAGE": "Không ai đọc được trang này và các trang con của nó nữa. Công việc vẫn tiếp tục.",
           "RATING": "Đánh giá không còn hiện ở bất kỳ đâu và không được tính vào điểm trung bình."
         },
         "reason": "Lý do (tác giả sẽ đọc)",
@@ -1236,7 +1232,6 @@
         "kind": {
           "PRODUCT": "Sản phẩm",
           "JOB_POST": "Tin tuyển",
-          "PAGE": "Trang",
           "RATING": "Đánh giá",
           "JOB_CHAT_MESSAGE": "Tin nhắn trò chuyện công việc",
           "CREW_CHAT_MESSAGE": "Tin nhắn trò chuyện nhóm",
@@ -2688,62 +2683,6 @@
         "noNotes": "Chưa có ghi chú nào."
       }
     },
-    "docs": {
-      "tab": "Tài liệu",
-      "title": "Tài liệu · {job}",
-      "tree": "Các trang tài liệu",
-      "newPage": "Trang mới",
-      "newChild": "Thêm trang con cho {title}",
-      "empty": "Chưa có trang nào. Hãy tạo trang đầu tiên cho công việc này.",
-      "notFound": "Không tìm thấy trang này.",
-      "versionLine": "Phiên bản {n} · {author} · {time}",
-      "unknownAuthor": "Người đã rời",
-      "history": "Lịch sử phiên bản",
-      "edit": "Sửa",
-      "emptyBody": "Trang này chưa có nội dung.",
-      "editing": "Sửa trang",
-      "pageTitle": "Tên trang",
-      "parent": "Nằm trong",
-      "topLevel": "Trang gốc",
-      "mode": "Chế độ soạn",
-      "write": "Soạn",
-      "preview": "Xem trước",
-      "body": "Nội dung (Markdown)",
-      "titleRequired": "Hãy nhập tên trang.",
-      "cancel": "Hủy",
-      "save": "Lưu",
-      "saved": "Đã lưu phiên bản {n}",
-      "sensitiveBody": "Ai xem được tài liệu đều đọc được nội dung này. Hãy che trước khi lưu.",
-      "staleBody": "Trang này vừa được lưu ở nơi khác nên thay đổi của bạn chưa được lưu. Hãy xem bản mới nhất rồi sửa lại.",
-      "latest": "Xem bản mới nhất",
-      "leaveTitle": "Rời trang khi chưa lưu?",
-      "leaveBody": "Những thay đổi chưa lưu sẽ mất.",
-      "stay": "Ở lại",
-      "leave": "Rời trang",
-      "versionTitle": "Phiên bản {n}: {title}",
-      "restoredFrom": "khôi phục từ phiên bản {n}",
-      "view": "Xem",
-      "restore": "Khôi phục",
-      "restored": "Đã khôi phục phiên bản {from} thành phiên bản {n}",
-      "blank": "Trang trống",
-      "fromTemplate": "Bắt đầu từ mẫu",
-      "created": "Đã tạo trang {title}",
-      "emptyCustomer": "Người hướng dẫn chưa chia sẻ tài liệu nào với bạn.",
-      "reportVisible": "Báo cáo đánh giá luôn để khách hàng xem.",
-      "n12": "Mã của khách hàng có thể chứa phần mềm độc hại. Hãy chạy nó trong môi trường tách biệt (máy ảo hoặc container), không dùng tài khoản và khóa cá nhân của bạn, và xóa môi trường khi xong.",
-      "template": {
-        "ASSESSMENT_REPORT": "Báo cáo đánh giá",
-        "SCOPE": "Phạm vi và tiêu chí",
-        "TECHNICAL_NOTES": "Ghi chú kỹ thuật và quyết định",
-        "MEETING_NOTES": "Biên bản họp",
-        "HANDOVER": "Tài liệu bàn giao",
-        "USER_GUIDE": "Hướng dẫn sử dụng"
-      },
-      "visibility": {
-        "TEAM": "Chỉ nhóm",
-        "CUSTOMER": "Khách hàng xem được"
-      }
-    },
     "milestoneState": {
       "notStarted": "Chưa bắt đầu",
       "ACCEPTED": "Đã nghiệm thu",
@@ -2783,8 +2722,7 @@
       },
       "mine": "Việc của tôi",
       "noOpenItems": "Không có việc nào đang mở.",
-      "pages": "Tài liệu khách hàng xem được",
-      "noPages": "Chưa có tài liệu nào được chia sẻ với khách hàng.",
+      "n12": "Mã của khách hàng có thể chứa phần mềm độc hại. Hãy chạy nó trong môi trường tách biệt (máy ảo hoặc container), không dùng tài khoản và khóa cá nhân của bạn, và xóa môi trường khi xong.",
       "aside": "Thông tin công việc",
       "deadline": "Hạn sắp tới",
       "deadlineLine": "Giai đoạn {n}: {date}",
@@ -2842,7 +2780,6 @@
         "selfNotMet": "Người hướng dẫn tự nhận xét: Chưa đạt",
         "checkSteps": "Cách kiểm tra",
         "items": "Hạng mục chưa Xong khi bàn giao",
-        "assessment": "{title} · phiên bản {version}",
         "customerMet": "Khách hàng kiểm tra: Đạt",
         "customerNotMet": "Khách hàng kiểm tra: Chưa đạt"
       },
@@ -2858,9 +2795,6 @@
         "met": "Đạt",
         "notMet": "Chưa đạt",
         "note": "Ghi chú cho tiêu chí {n}",
-        "report": "Báo cáo đánh giá",
-        "reportVersion": "Bàn giao {title} ở phiên bản {version}. Sửa sau đó sẽ tạo phiên bản mới, không đổi bản đã bàn giao.",
-        "openReport": "Mở báo cáo",
         "incomplete": "Hãy hoàn tất các mục trên trước khi gửi.",
         "send": "Gửi bàn giao",
         "sent": "Đã bàn giao Giai đoạn {n}.",
@@ -2911,9 +2845,6 @@
         "kindDEPENDENCIES": "Danh sách thư viện mà ứng dụng dùng. Thư viện mới có thể chạy chương trình khi được cài đặt.",
         "kindBUILD_SCRIPT": "Tập lệnh dựng hoặc cài đặt. Nó có thể chạy chương trình trên máy chủ của bạn.",
         "kindBINARY": "Tệp chương trình đã đóng gói sẵn, không đọc được như mã nguồn.",
-        "pagesTitle": "Trang tài liệu đã cập nhật",
-        "pagesNone": "Không có trang tài liệu nào được cập nhật trong giai đoạn này.",
-        "pageVersion": "{title} · phiên bản {version}",
         "technical": "Chi tiết kỹ thuật",
         "technicalLead": "Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.",
         "openDiff": "Xem thay đổi trên GitHub",
@@ -3160,11 +3091,10 @@
     },
     "followUps": {
       "heading": "Công việc tiếp theo",
-      "mentorLead": "Soạn công việc tiếp theo từ các đề xuất của báo cáo đánh giá (phiên bản {version}). Khách hàng sẽ tự sửa và đăng tin.",
-      "customerLead": "Người hướng dẫn đã soạn các công việc này từ báo cáo đánh giá. Mở một công việc để sửa và đăng tin, hoặc bỏ qua.",
+      "mentorLead": "Soạn công việc tiếp theo từ những đề xuất bạn đã nêu khi đánh giá. Khách hàng sẽ tự sửa và đăng tin.",
+      "customerLead": "Người hướng dẫn đã soạn các công việc này từ đề xuất của họ. Mở một công việc để sửa và đăng tin, hoặc bỏ qua.",
       "sent": "Đã gửi khách hàng. Khách hàng sẽ tự sửa và đăng tin.",
-      "recommendation": "Đề xuất {n}",
-      "recommendationLabel": "Đề xuất trong báo cáo",
+      "recommendationLabel": "Đề xuất bạn đang làm tiếp (viết bằng lời của bạn)",
       "title": "Tiêu đề",
       "jobTypes": "Loại công việc",
       "scope": "Phạm vi",
@@ -3374,24 +3304,6 @@
       },
       "blockerOn": "{reason} · {name}",
       "githubNothingKept": "Từ nay vibefix không giữ quyền GitHub nào và thu hồi quyền ngay sau khi liên kết. Nếu bạn đã liên kết GitHub trước đây, sau khi tài khoản bị xóa bạn có thể gỡ vibefix trong GitHub, ở mục Settings › Applications."
-    },
-    "pageShares": {
-      "heading": "Chia sẻ tài liệu cũ",
-      "body": "Chọn công việc trước của sản phẩm này để người hướng dẫn và nhóm thực hiện đọc những trang tài liệu bạn xem được. Họ chỉ đọc, không sửa, và quyền đọc kết thúc khi công việc này kết thúc.",
-      "closed": "Tài liệu đã chia sẻ với người hướng dẫn và nhóm thực hiện của công việc này. Không thay đổi được nữa.",
-      "report": "Báo cáo đánh giá",
-      "pages": "{n} trang tài liệu",
-      "save": "Lưu chia sẻ",
-      "saved": "Đã lưu chia sẻ tài liệu."
-    },
-    "sharedDocs": {
-      "title": "Tài liệu từ công việc trước",
-      "heading": "Tài liệu từ công việc trước",
-      "note": "Khách hàng chia sẻ các trang này từ công việc trước của cùng sản phẩm. Bạn chỉ đọc được, cho đến khi công việc này kết thúc.",
-      "back": "Quay lại công việc",
-      "empty": "Chưa có tài liệu nào được chia sẻ.",
-      "noPages": "Không còn trang nào để đọc.",
-      "link": "Tài liệu từ công việc trước ({n})"
     },
     "person": {
       "title": "{name} · Hồ sơ công khai",
@@ -3964,12 +3876,6 @@
     },
     "workItemNote": {
       "label": "Ghi chú"
-    },
-    "documentationSpace": {
-      "label": "Tài liệu"
-    },
-    "page": {
-      "label": "Trang tài liệu"
     },
     "jobChat": {
       "label": "Trò chuyện",
@@ -4629,9 +4535,6 @@
       },
       "work_item_returned": {
         "title": "{key} bị trả lại: {reason}"
-      },
-      "pages_shared": {
-        "title": "Khách hàng đã chia sẻ tài liệu từ công việc trước"
       }
     },
     "delivery": {
@@ -4976,14 +4879,12 @@
       "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán hoặc đã bàn giao.",
       "WORK_ITEMS_NOT_DONE": "Còn {n} hạng mục chưa Xong. Hãy ghi chú cho từng hạng mục.",
       "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",
-      "REPORT_MISSING": "Công việc đánh giá cần có báo cáo đánh giá trước khi bàn giao.",
       "SENSITIVE_CONTENT": "Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
       "HANDOVER_COMMIT_MISSING": "Kho làm việc của công việc chưa sẵn sàng nên chưa thể bàn giao mã.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",
       "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa.",
-      "REPORT_NOT_ACCEPTED": "Bạn soạn công việc tiếp theo được sau khi khách hàng chấp nhận báo cáo đánh giá.",
-      "RECOMMENDATION_UNKNOWN": "Hãy chọn một đề xuất có trong báo cáo đã được chấp nhận.",
+      "REPORT_NOT_ACCEPTED": "Bạn soạn công việc tiếp theo được sau khi khách hàng nghiệm thu bàn giao đánh giá.",
       "FOLLOW_UPS_SUBMITTED": "Các công việc tiếp theo đã được gửi cho khách hàng.",
       "NO_FOLLOW_UPS": "Hãy soạn ít nhất một công việc tiếp theo trước khi gửi.",
       "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua.",

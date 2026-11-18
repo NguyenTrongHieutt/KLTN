@@ -103,38 +103,3 @@ export function useWorkItemEvidence(workItemId: string) {
   })
 }
 
-/** "Trang": the Documentation Space's Pages. */
-export function usePagesEvidence(jobId: string) {
-  return useQuery({
-    queryKey: [...EVIDENCE_QUERY_KEY, 'pages', jobId],
-    queryFn: () => unwrap(apiClient.GET('/api/v1/boards/{boardId}/pages', { params: { path: { boardId: jobId } } })),
-    retry: false,
-    staleTime: Infinity,
-  })
-}
-
-/** One Page's versions, the latest first. */
-export function usePageVersionsEvidence(pageId: string) {
-  return useQuery({
-    queryKey: [...EVIDENCE_QUERY_KEY, 'page-versions', pageId],
-    queryFn: () => unwrap(apiClient.GET('/api/v1/pages/{pageId}/versions', { params: { path: { pageId } } })),
-    retry: false,
-    staleTime: Infinity,
-  })
-}
-
-/** One Page version's text. */
-export function usePageVersionEvidence(pageId: string, versionNo: number | undefined) {
-  return useQuery({
-    queryKey: [...EVIDENCE_QUERY_KEY, 'page-version', pageId, versionNo ?? 0],
-    queryFn: () =>
-      unwrap(
-        apiClient.GET('/api/v1/pages/{pageId}/versions/{versionNo}', {
-          params: { path: { pageId, versionNo: versionNo ?? 0 } },
-        }),
-      ),
-    enabled: versionNo !== undefined,
-    retry: false,
-    staleTime: Infinity,
-  })
-}

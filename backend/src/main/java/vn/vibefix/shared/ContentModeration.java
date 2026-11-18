@@ -13,12 +13,12 @@ import org.jspecify.annotations.Nullable;
  */
 public interface ContentModeration {
 
-	/** {@code PRODUCT}, {@code JOB_POST}, {@code PAGE}, or {@code RATING}. */
+	/** {@code PRODUCT}, {@code JOB_POST}, or {@code RATING}. */
 	String kind();
 
 	/**
 	 * One item as ADM-6 lists it.
-	 * @param authorId who reads why it was hidden: the Customer, the Page's creator, or the rater
+	 * @param authorId who reads why it was hidden: the Customer or the rater
 	 */
 	record Item(UUID id, String title, @Nullable String excerpt, @Nullable UUID authorId, Instant createdAt,
 			@Nullable Instant hiddenAt, @Nullable String hiddenReason) {

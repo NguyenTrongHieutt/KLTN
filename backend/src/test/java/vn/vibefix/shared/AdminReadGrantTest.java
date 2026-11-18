@@ -37,7 +37,7 @@ class AdminReadGrantTest {
 	@Test
 	void anOpenDisputeGrantReadsItsScopesOnly() {
 		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.WORK_ITEMS,
-				AdminReadScope.WORK_ITEM_NOTES, AdminReadScope.ATTACHMENTS, AdminReadScope.PAGES)) {
+				AdminReadScope.WORK_ITEM_NOTES, AdminReadScope.ATTACHMENTS)) {
 			assertThat(this.dispute.permits(ADMIN, JOB, scope, ITEM, Set.of(), NOW)).as(scope.name()).isTrue();
 		}
 		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, ITEM, Set.of(), NOW)).isFalse();
@@ -54,9 +54,9 @@ class AdminReadGrantTest {
 	void aGrantStopsAtItsEndAndAnEndNeverExtendsIt() {
 		AdminReadGrant ended = this.dispute.endingAt(NOW.plus(Duration.ofDays(30)));
 
-		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.PAGES, ITEM, Set.of(), NOW.plus(Duration.ofDays(29))))
+		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.ATTACHMENTS, ITEM, Set.of(), NOW.plus(Duration.ofDays(29))))
 			.isTrue();
-		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.PAGES, ITEM, Set.of(), NOW.plus(Duration.ofDays(30))))
+		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.ATTACHMENTS, ITEM, Set.of(), NOW.plus(Duration.ofDays(30))))
 			.isFalse();
 		assertThat(ended.endingAt(NOW.plus(Duration.ofDays(60))).endsAt()).isEqualTo(NOW.plus(Duration.ofDays(30)));
 		assertThat(ended.endingAt(NOW).endsAt()).isEqualTo(NOW);
@@ -90,8 +90,8 @@ class AdminReadGrantTest {
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, DISPUTE, Set.of(), NOW)).isTrue();
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(RAISER), NOW)).isTrue();
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(OTHER_ADMIN), NOW)).isFalse();
-		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.PAGES,
-				AdminReadScope.WORK_ITEM_NOTES, AdminReadScope.ATTACHMENTS)) {
+		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.WORK_ITEM_NOTES,
+				AdminReadScope.ATTACHMENTS)) {
 			assertThat(resolution.permits(ADMIN, JOB, scope, ITEM, Set.of(RAISER), NOW)).as(scope.name()).isFalse();
 		}
 		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW))
@@ -105,12 +105,12 @@ class AdminReadGrantTest {
 
 		assertThat(report.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(), NOW)).isTrue();
 		assertThat(report.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, RAISER, Set.of(), NOW)).isFalse();
-		assertThat(report.permits(ADMIN, JOB, AdminReadScope.PAGES, ITEM, Set.of(), NOW)).isFalse();
+		assertThat(report.permits(ADMIN, JOB, AdminReadScope.ATTACHMENTS, ITEM, Set.of(), NOW)).isFalse();
 	}
 
 	@Test
 	void anItemCoversOneObjectOrOneAccountNotBoth() {
-		assertThatThrownBy(() -> new AdminReadItem(AdminReadScope.PAGES, ITEM, RAISER))
+		assertThatThrownBy(() -> new AdminReadItem(AdminReadScope.ATTACHMENTS, ITEM, RAISER))
 			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> AdminReadGrant.open(GRANT, ADMIN, JOB, Set.of(), DISPUTE))
 			.isInstanceOf(IllegalArgumentException.class);

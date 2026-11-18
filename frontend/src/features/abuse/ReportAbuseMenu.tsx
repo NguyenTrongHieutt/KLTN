@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 export type ReportKind =
   | 'PRODUCT'
   | 'JOB_POST'
-  | 'PAGE'
   | 'RATING'
   | 'JOB_CHAT_MESSAGE'
   | 'CREW_CHAT_MESSAGE'
@@ -40,7 +39,7 @@ const itemClass =
   'flex min-h-tap-min cursor-pointer items-center rounded-md px-3 py-1.5 text-body-sm data-highlighted:bg-muted'
 
 /**
- * Report abuse (FR-69, AD-34, UX-DR64): the "…" menu of a Product, Job Post, recruitment note, Page, Rating, chat
+ * Report abuse (FR-69, AD-34, UX-DR64): the "…" menu of a Product, Job Post, recruitment note, Rating, chat
  * message, Work Item note, or public profile. The dialog requires a reason, and once sent reads "Quản trị viên sẽ
  * xem xét và báo kết quả cho bạn." A refusal (not visible any more, reported already, 10 reports today)
  * shows its sentence.

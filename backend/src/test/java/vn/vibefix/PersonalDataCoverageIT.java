@@ -231,7 +231,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM chat.message")).isOne();
 		assertThat(count("SELECT count(*) FROM work.work_item WHERE id = '" + evidence.item() + "'")).isOne();
 		assertThat(count("SELECT count(*) FROM work.work_item_history")).isEqualTo(2);
-		assertThat(count("SELECT count(*) FROM work.page")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
 		assertThat(count("SELECT author_github_id FROM delivery.handover_commit")).isEqualTo(4242);
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
@@ -375,7 +374,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertDeferred(world, "RETIRE");
 		assertThat(this.jdbc.sql("SELECT kind FROM chat.chat").query(String.class).list()).containsExactly("CREW");
 		assertThat(count("SELECT count(*) FROM work.work_item")).isOne();
-		assertThat(count("SELECT count(*) FROM work.page")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
 		assertFilesWhileDeferred(evidence);
@@ -748,7 +746,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		JobContent.note(this.jdbc, item, world.job(), world.vy(), "Đã xong", at);
 		UUID attachmentFile = storedFile(world.vy(), "bao-cao.pdf");
 		JobContent.attachment(this.jdbc, item, world.job(), world.vy(), "bao-cao.pdf", attachmentFile, at);
-		JobContent.page(this.jdbc, world.job(), world.vy(), "Trang", at);
 		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,

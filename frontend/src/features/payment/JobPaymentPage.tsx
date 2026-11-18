@@ -290,7 +290,6 @@ function Header({ job }: { job: Job }) {
         chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
         agreement={job.agreementShared}
         payment={job.agreementConfirmed}
-        docs={hasBoard(job.state)}
         handover={hasBoard(job.state)}
       />
     </JobHeader>

@@ -38,26 +38,11 @@ import vn.vibefix.support.TestPeople;
 
 /**
  * FR-11, FR-9: M5 on an Assessment Job opens the Mentor's follow-up to-do; the Mentor drafts follow-up
- * Jobs citing the accepted Report's numbered recommendations and submits them; the Customer opens each as
- * a Draft Job Post or discards it, and nothing is published without their own J1.
+ * Jobs, each naming in their own words the recommendation it follows, and submits them; the Customer opens
+ * each as a Draft Job Post or discards it, and nothing is published without their own J1. Nothing reads a
+ * Page: the Documentation Space is retired (Story 24.1).
  */
 class FollowUpIT extends IntegrationTest {
-
-	private static final String REPORT = """
-			# Báo cáo đánh giá
-
-			## Đề xuất
-
-			Xếp theo thứ tự ưu tiên.
-
-			1. Sửa lỗi hai khách đặt trùng bàn.
-			2. Thêm nhắc lịch trước giờ hẹn.
-			3. Viết hướng dẫn cho nhân viên.
-
-			## Giải thích thuật ngữ
-
-			- **Đặt bàn**: giữ chỗ.
-			""";
 
 	@Autowired
 	private MockMvc mvc;
@@ -78,7 +63,7 @@ class FollowUpIT extends IntegrationTest {
 	private UUID vy;
 
 	@Test
-	void theMentorDraftsFromTheAcceptedReportAndTheCustomerOpensOrDiscards() throws Exception {
+	void theMentorDraftsFromTheAcceptedHandoverAndTheCustomerOpensOrDiscards() throws Exception {
 		people();
 		UUID job = job("ACCEPTED");
 		this.listeners.onAssessmentAccepted(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), job, "M5", "USER",
@@ -87,17 +72,19 @@ class FollowUpIT extends IntegrationTest {
 
 		read(this.hung, Role.MENTOR, job).andExpect(status().isOk())
 			.andExpect(jsonPath("$.available").value(true))
-			.andExpect(jsonPath("$.reportVersionNo").value(1))
-			.andExpect(jsonPath("$.recommendations.length()").value(3))
-			.andExpect(jsonPath("$.recommendations[1].text").value("Thêm nhắc lịch trước giờ hẹn."))
 			.andExpect(jsonPath("$.skillIds[0]").value(TestPeople.REACT));
 		read(this.vy, Role.STUDENT, job).andExpect(status().isNotFound());
-		create(this.hung, Role.MENTOR, job, 7, "Không có").andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.reason").value("RECOMMENDATION_UNKNOWN"));
+		this.mvc
+			.perform(post("/api/v1/boards/" + job + "/follow-ups").with(as(this.hung, Role.MENTOR))
+				.with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content("   ", "Không có đề xuất", "BUG_FIX")))
+			.andExpect(status().isBadRequest());
 		create(this.lan, Role.CUSTOMER, job, 1, "Không được").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
 
-		create(this.hung, Role.MENTOR, job, 1, "Sửa lỗi đặt trùng bàn").andExpect(status().isCreated());
+		create(this.hung, Role.MENTOR, job, 1, "Sửa lỗi đặt trùng bàn").andExpect(status().isCreated())
+			.andExpect(jsonPath("$.followUps[0].recommendationText").value("Đề xuất số 1"));
 		String body = create(this.hung, Role.MENTOR, job, 3, "Hướng dẫn nhân viên").andExpect(status().isCreated())
 			.andExpect(jsonPath("$.followUps.length()").value(2))
 			.andReturn()
@@ -105,13 +92,13 @@ class FollowUpIT extends IntegrationTest {
 			.getContentAsString();
 		String second = JsonPath.read(body, "$.followUps[1].id");
 		String extra = JsonPath.read(create(this.hung, Role.MENTOR, job, 2, "Nhắc lịch").andReturn().getResponse()
-			.getContentAsString(), "$.followUps[1].id");
+			.getContentAsString(), "$.followUps[2].id");
 		this.mvc.perform(delete("/api/v1/follow-ups/" + extra).with(as(this.hung, Role.MENTOR)).with(csrf()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.followUps.length()").value(2));
 		this.mvc.perform(put("/api/v1/follow-ups/" + second).with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content(content(3, "Viết hướng dẫn cho nhân viên", "DOCUMENTATION")))
+			.content(content("Đề xuất số 3", "Viết hướng dẫn cho nhân viên", "DOCUMENTATION")))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.followUps[1].title").value("Viết hướng dẫn cho nhân viên"));
 		read(this.lan, Role.CUSTOMER, job).andExpect(jsonPath("$.followUps.length()").value(0))
@@ -156,22 +143,15 @@ class FollowUpIT extends IntegrationTest {
 	}
 
 	@Test
-	void nothingIsDraftedBeforeTheReportIsAccepted() throws Exception {
+	void nothingIsDraftedBeforeTheHandoverIsAccepted() throws Exception {
 		people();
 		UUID job = job("SUBMITTED");
 		this.listeners.onAssessmentAccepted(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), job, "M5", "USER",
 				"SUBMITTED", "ACCEPTED", 9, 1, Map.of()));
-		read(this.hung, Role.MENTOR, job).andExpect(jsonPath("$.available").value(false))
-			.andExpect(jsonPath("$.recommendations.length()").value(0));
+		read(this.hung, Role.MENTOR, job).andExpect(jsonPath("$.available").value(false));
 		create(this.hung, Role.MENTOR, job, 1, "Sớm").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("REPORT_NOT_ACCEPTED"));
 		assertThat(openTodo("delivery.draft_follow_ups", this.hung, job)).isFalse();
-	}
-
-	@Test
-	void theRecommendationsAreTheNumberedItemsUnderDeXuat() {
-		assertThat(FollowUps.parse(REPORT)).extracting(FollowUps.Recommendation::number).containsExactly(1, 2, 3);
-		assertThat(FollowUps.parse("## Hiện trạng\n\n1. Không phải đề xuất.\n")).isEmpty();
 	}
 
 	private void people() {
@@ -182,7 +162,7 @@ class FollowUpIT extends IntegrationTest {
 				LocalDate.parse("2026-09-30"));
 	}
 
-	/** An Active Assessment Job whose one handover, with the Report pinned, is in {@code handoverStatus}. */
+	/** An Active Assessment Job whose one Milestone Handover is in {@code handoverStatus}. */
 	private UUID job(String handoverStatus) {
 		UUID product = UUID.randomUUID();
 		this.jdbc.sql("""
@@ -212,21 +192,11 @@ class FollowUpIT extends IntegrationTest {
 		this.jdbc.sql("""
 				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
 				""").param("job", job).param("product", product).param("now", now).update();
-		UUID page = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
-				VALUES (:id, :job, 'Báo cáo đánh giá', 1, :mentor, :now, :now)
-				""").param("id", page).param("job", job).param("mentor", this.hung).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.page_version (page_id, version_no, title, body, author_account_id, created_at)
-				VALUES (:id, 1, 'Báo cáo đánh giá', :body, :mentor, :now)
-				""").param("id", page).param("body", REPORT).param("mentor", this.hung).param("now", now).update();
 		boolean accepted = "ACCEPTED".equals(handoverStatus);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
-				    mentor_account_id, status, job_version, transition_id, report_page_id, report_version_no, check_by,
-				    created_at, decided_at, decided_by)
-				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, :status, 7, :transition, :page, 1,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
+				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, :status, 7, :transition,
 				    :now, :now, :decided, :decider)
 				""")
 			.param("id", UUID.randomUUID())
@@ -236,7 +206,6 @@ class FollowUpIT extends IntegrationTest {
 			.param("mentor", this.hung)
 			.param("status", handoverStatus)
 			.param("transition", UUID.randomUUID())
-			.param("page", page)
 			.param("now", now)
 			.param("decided", accepted ? now : null)
 			.param("decider", accepted ? this.lan : null)
@@ -251,16 +220,16 @@ class FollowUpIT extends IntegrationTest {
 	private ResultActions create(UUID account, Role role, UUID job, int recommendation, String title) throws Exception {
 		return this.mvc.perform(post("/api/v1/boards/" + job + "/follow-ups").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
-			.content(content(recommendation, title, recommendation == 3 ? "DOCUMENTATION" : "BUG_FIX")));
+			.content(content("Đề xuất số " + recommendation, title, recommendation == 3 ? "DOCUMENTATION" : "BUG_FIX")));
 	}
 
 	private ResultActions submit(UUID account, UUID job) throws Exception {
 		return this.mvc.perform(post("/api/v1/boards/" + job + "/follow-ups/submit").with(as(account, Role.MENTOR)).with(csrf()));
 	}
 
-	private static String content(int recommendation, String title, String type) {
+	private static String content(String recommendation, String title, String type) {
 		return """
-				{"recommendationNo":%d,"title":"%s","jobTypes":["%s"],"skillIds":["%s"],"scope":"Phạm vi của việc.",
+				{"recommendationText":"%s","title":"%s","jobTypes":["%s"],"skillIds":["%s"],"scope":"Phạm vi của việc.",
 				 "criteria":["Hai khách không đặt trùng bàn","Có thông báo khi trùng"],"effortDays":5}
 				""".formatted(recommendation, title, type, TestPeople.REACT);
 	}

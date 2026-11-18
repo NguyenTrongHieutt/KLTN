@@ -8,7 +8,7 @@ export type FollowUps = components['schemas']['FollowUpsView']
 export type FollowUp = components['schemas']['FollowUpView']
 type FollowUpRequest = components['schemas']['FollowUpRequest']
 
-/** JOB-1's follow-up Jobs (FR-11): the accepted Report's recommendations and the drafts. */
+/** JOB-1's follow-up Jobs (FR-11): whether the Assessment Job's handover is accepted, and the drafts. */
 export function useFollowUps(jobId: string) {
   return useQuery({
     queryKey: ['follow-ups', jobId],

@@ -1380,22 +1380,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/boards/{boardId}/pages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["pageTree"];
-        put?: never;
-        post: operations["createPage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/boards/{boardId}/portfolio": {
         parameters: {
             query?: never;
@@ -2388,22 +2372,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/jobs/{jobId}/page-shares": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["pageShares"];
-        put: operations["sharePages"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/jobs/{jobId}/publish": {
         parameters: {
             query?: never;
@@ -2542,22 +2510,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["retry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/jobs/{jobId}/shared-pages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["sharedPages"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3198,86 +3150,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["read"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/pages/{pageId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page"];
-        put: operations["savePage"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/pages/{pageId}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["pageVersions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/pages/{pageId}/versions/{versionNo}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["pageVersion"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/pages/{pageId}/versions/{versionNo}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["restorePage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/pages/{pageId}/visibility": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["setPageVisibility"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5342,7 +5214,6 @@ export interface components {
             /** Format: int32 */
             number: number;
             preview: components["schemas"]["HandoverPreviewView"];
-            report?: components["schemas"]["HandoverReportView"];
             /** Format: int32 */
             round: number;
             /** Format: int32 */
@@ -5567,7 +5438,6 @@ export interface components {
             agreementVersions: number[];
             driftWarnings: components["schemas"]["SnapshotDrift"][];
             jobChat: components["schemas"]["SnapshotChat"];
-            pages: components["schemas"]["SnapshotPage"][];
             payments: components["schemas"]["SnapshotPayment"][];
             reports: components["schemas"]["SnapshotReport"][];
             statements: components["schemas"]["SnapshotStatement"][];
@@ -5690,8 +5560,7 @@ export interface components {
             /** Format: int32 */
             effortDays: number;
             jobTypes: string[];
-            /** Format: int32 */
-            recommendationNo: number;
+            recommendationText: string;
             scope: string;
             skillIds: string[];
             title: string;
@@ -5705,8 +5574,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             jobTypes: string[];
-            /** Format: int32 */
-            recommendationNo: number;
+            recommendationText: string;
             scope: string;
             skillIds: string[];
             status: string;
@@ -5718,9 +5586,6 @@ export interface components {
             followUps: components["schemas"]["FollowUpView"][];
             /** Format: uuid */
             jobId: string;
-            recommendations: components["schemas"]["RecommendationView"][];
-            /** Format: int32 */
-            reportVersionNo?: number;
             skillIds: string[];
             submitted: boolean;
         };
@@ -5791,7 +5656,6 @@ export interface components {
             commits: components["schemas"]["HandoverCommitView"][];
             diff?: components["schemas"]["HandoverLinkView"];
             handoverCommit: string;
-            pages: components["schemas"]["HandoverPageView"][];
             /** Format: int32 */
             pullNumber: number;
             /** Format: int32 */
@@ -5879,13 +5743,6 @@ export interface components {
             number: number;
             title: string;
         };
-        HandoverPageView: {
-            /** Format: uuid */
-            pageId: string;
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
-        };
         HandoverPreflightView: {
             assessment: boolean;
             /** Format: int32 */
@@ -5894,7 +5751,6 @@ export interface components {
             milestone: components["schemas"]["HandoverMilestoneView"];
             previewRequired: boolean;
             problems: string[];
-            report?: components["schemas"]["HandoverReportRefView"];
             screenshots: components["schemas"]["HandoverScreenshotView"][];
             sensitiveChanges: components["schemas"]["SensitiveChangeView"][];
             state: string;
@@ -5906,21 +5762,6 @@ export interface components {
             noPreviewReason?: string;
             preview?: components["schemas"]["HandoverLinkView"];
             recording?: components["schemas"]["HandoverLinkView"];
-        };
-        HandoverReportRefView: {
-            /** Format: uuid */
-            pageId: string;
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
-        };
-        HandoverReportView: {
-            body: string;
-            /** Format: uuid */
-            pageId: string;
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
         };
         HandoverRequest: {
             criteria: components["schemas"]["HandoverCriterionMarkRequest"][];
@@ -6198,7 +6039,6 @@ export interface components {
             mentorName: string;
             milestones: components["schemas"]["MilestoneProgressView"][];
             mine: components["schemas"]["OpenItemView"][];
-            pages: components["schemas"]["PageLinkView"][];
             productName: string;
             state: string;
             title: string;
@@ -6702,38 +6542,6 @@ export interface components {
             stalledEvents: components["schemas"]["Queue"];
             teamIssues: components["schemas"]["Queue"];
         };
-        PageLinkView: {
-            /** Format: uuid */
-            id: string;
-            title: string;
-        };
-        PageNodeView: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            parentId?: string;
-            /** @enum {string} */
-            template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
-            title: string;
-            /** Format: date-time */
-            updatedAt: string;
-            /** Format: int32 */
-            versionNo: number;
-            /** @enum {string} */
-            visibility: "TEAM" | "CUSTOMER";
-        };
-        PageRequest: {
-            body?: string;
-            /** Format: uuid */
-            parentId?: string;
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
-            /** @enum {string} */
-            template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
-            title: string;
-            /** Format: int32 */
-            version?: number;
-        };
         PageResponseJobPostSummaryView: {
             items: components["schemas"]["JobPostSummaryView"][];
             /** Format: int32 */
@@ -6751,83 +6559,6 @@ export interface components {
             size: number;
             /** Format: int64 */
             total: number;
-        };
-        PageShareOptionView: {
-            assessmentReport: boolean;
-            /** Format: uuid */
-            jobId: string;
-            /** Format: int32 */
-            pages: number;
-            shared: boolean;
-            state: string;
-            title: string;
-        };
-        PageSharesRequest: {
-            jobIds: string[];
-        };
-        PageSharesView: {
-            editable: boolean;
-            jobs: components["schemas"]["PageShareOptionView"][];
-        };
-        PageTemplateView: {
-            /** @enum {string} */
-            template: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
-            title: string;
-        };
-        PageTreeView: {
-            /** Format: uuid */
-            boardId: string;
-            customer: boolean;
-            mentor: boolean;
-            pages: components["schemas"]["PageNodeView"][];
-            readOnly: boolean;
-            templates: components["schemas"]["PageTemplateView"][];
-            title: string;
-        };
-        PageVersionDetailView: {
-            /** Format: date-time */
-            at: string;
-            author: string;
-            body: string;
-            /** Format: int32 */
-            restoredFrom?: number;
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
-        };
-        PageVersionView: {
-            /** Format: date-time */
-            at: string;
-            author: string;
-            /** Format: int32 */
-            restoredFrom?: number;
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
-        };
-        PageView: {
-            /** Format: date-time */
-            at: string;
-            author: string;
-            /** Format: uuid */
-            boardId: string;
-            body: string;
-            /** Format: uuid */
-            id: string;
-            mentor: boolean;
-            /** Format: uuid */
-            parentId?: string;
-            readOnly: boolean;
-            /** Format: int32 */
-            restoredFrom?: number;
-            shared: boolean;
-            /** @enum {string} */
-            template?: "ASSESSMENT_REPORT" | "SCOPE" | "TECHNICAL_NOTES" | "MEETING_NOTES" | "HANDOVER" | "USER_GUIDE";
-            title: string;
-            /** Format: int32 */
-            versionNo: number;
-            /** @enum {string} */
-            visibility: "TEAM" | "CUSTOMER";
         };
         PaymentOrderDetailView: {
             /** Format: int64 */
@@ -7169,11 +6900,6 @@ export interface components {
             /** Format: uuid */
             confirmedBy: string;
         };
-        RecommendationView: {
-            /** Format: int32 */
-            number: number;
-            text: string;
-        };
         RecommendedMentorView: {
             /** Format: uuid */
             accountId: string;
@@ -7272,10 +6998,6 @@ export interface components {
             mentor: components["schemas"]["RoleSummaryView"];
             newcomer: boolean;
             username: string;
-        };
-        RestoreRequest: {
-            /** Format: int32 */
-            version: number;
         };
         RetryRequest: {
             stepUpCode: string;
@@ -7525,12 +7247,6 @@ export interface components {
             /** Format: int32 */
             revision: number;
         };
-        SharedJobView: {
-            /** Format: uuid */
-            jobId: string;
-            pages: components["schemas"]["PageNodeView"][];
-            title: string;
-        };
         SignUpRequest: {
             privacyNoticeVersion: string;
         };
@@ -7583,12 +7299,6 @@ export interface components {
             /** Format: uuid */
             id: string;
             kind: string;
-        };
-        SnapshotPage: {
-            /** Format: uuid */
-            pageId: string;
-            /** Format: int32 */
-            versionNo: number;
         };
         SnapshotPayment: {
             /** Format: uuid */
@@ -8206,10 +7916,6 @@ export interface components {
             sharedAt: string;
             /** Format: int32 */
             versionNo: number;
-        };
-        VisibilityRequest: {
-            /** @enum {string} */
-            visibility: "TEAM" | "CUSTOMER";
         };
         WorkAttachmentView: {
             /** Format: date-time */
@@ -10551,54 +10257,6 @@ export interface operations {
             };
         };
     };
-    pageTree: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                boardId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageTreeView"];
-                };
-            };
-        };
-    };
-    createPage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                boardId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PageRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageView"];
-                };
-            };
-        };
-    };
     portfolio: {
         parameters: {
             query?: never;
@@ -12310,54 +11968,6 @@ export interface operations {
             };
         };
     };
-    pageShares: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageSharesView"];
-                };
-            };
-        };
-    };
-    sharePages: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PageSharesRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageSharesView"];
-                };
-            };
-        };
-    };
     publish: {
         parameters: {
             query?: never;
@@ -12569,28 +12179,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupView"];
-                };
-            };
-        };
-    };
-    sharedPages: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SharedJobView"][];
                 };
             };
         };
@@ -13598,152 +13186,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    page: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                pageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageView"];
-                };
-            };
-        };
-    };
-    savePage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                pageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PageRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageView"];
-                };
-            };
-        };
-    };
-    pageVersions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                pageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageVersionView"][];
-                };
-            };
-        };
-    };
-    pageVersion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                pageId: string;
-                versionNo: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageVersionDetailView"];
-                };
-            };
-        };
-    };
-    restorePage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                pageId: string;
-                versionNo: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RestoreRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageView"];
-                };
-            };
-        };
-    };
-    setPageVisibility: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                pageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VisibilityRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageView"];
-                };
             };
         };
     };

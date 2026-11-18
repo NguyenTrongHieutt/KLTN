@@ -1,6 +1,6 @@
 import { Check, TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
@@ -45,8 +45,8 @@ function refusal(submission: HandoverSubmission): string {
 /**
  * "Tạo bàn giao" (FR-10, FR-32, AD-23, UX-DR54), a focused route for the Mentor: the preflight of the
  * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
- * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra"; for an Assessment
- * Job, the Report version to hand over; for a Code Job, its new commits and the Sensitive change
+ * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra" -- on an Assessment
+ * Job those criteria are the Assessment Report's own sections (Story 24.1); for a Code Job, its new commits and the Sensitive change
  * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). A Code Job also needs
  * N-33's Mentor checkbox, the duty to keep credentials and real data out of the handover's commits, since vibefix
  * scans no team code (FR-25, R28, Story 23.8b); the request names the version of that text, and a reworded one
@@ -304,20 +304,6 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
         value={evidence}
         onChange={setEvidence}
       />
-      {preflight.report && (
-        <section aria-labelledby={`${ids}-report`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-body-sm">
-          <h2 id={`${ids}-report`} className="text-h3">
-            {t('screen.handover.form.report')}
-          </h2>
-          <p>{t('screen.handover.form.reportVersion', { title: preflight.report.title, version: preflight.report.versionNo })}</p>
-          <Link
-            to={`/cong-viec/${jobId}/tai-lieu/${preflight.report.pageId}`}
-            className="w-fit text-primary underline-offset-4 hover:underline"
-          >
-            {t('screen.handover.form.openReport')}
-          </Link>
-        </section>
-      )}
       {!preflight.assessment && (
         <section
           aria-labelledby={`${ids}-team-code`}

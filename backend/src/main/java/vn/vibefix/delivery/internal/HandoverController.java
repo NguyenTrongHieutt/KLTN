@@ -54,7 +54,6 @@ import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.work.MilestoneWork.ReportVersion;
 
 /**
  * JOB-5 "Bàn giao" (FR-10, FR-32, AD-20, AD-23, UX-DR53, UX-DR54): the Job's handovers, the Mentor's
@@ -94,9 +93,6 @@ class HandoverController {
 	record HandoverWorkItemView(UUID id, String key, String title, String status, boolean approved) {
 	}
 
-	record HandoverReportRefView(UUID pageId, int versionNo, String title) {
-	}
-
 	/**
 	 * The "Tạo bàn giao" form.
 	 * @param version the Job's version, which the handover carries (AD-23)
@@ -107,9 +103,9 @@ class HandoverController {
 	 * @param screenshots the Mentor's uploads waiting for this handover
 	 */
 	record HandoverPreflightView(HandoverMilestoneView milestone, String state, long version, boolean assessment,
-			List<HandoverCriterionInputView> criteria, List<HandoverWorkItemView> workItems,
-			@Nullable HandoverReportRefView report, List<String> problems, List<SensitiveChangeView> sensitiveChanges,
-			int commitCount, boolean previewRequired, List<HandoverScreenshotView> screenshots) {
+			List<HandoverCriterionInputView> criteria, List<HandoverWorkItemView> workItems, List<String> problems,
+			List<SensitiveChangeView> sensitiveChanges, int commitCount, boolean previewRequired,
+			List<HandoverScreenshotView> screenshots) {
 	}
 
 	/** One screenshot: read through {@code /api/v1/files/{fileId}}. */
@@ -144,10 +140,6 @@ class HandoverController {
 	record HandoverCommitView(String sha, String message, List<String> workItemKeys) {
 	}
 
-	/** A Page updated during the Milestone; the Customer sees only customer-visible ones. */
-	record HandoverPageView(UUID pageId, String title, int versionNo) {
-	}
-
 	/**
 	 * What a Code Job's handover copied (FR-32, AD-11, AD-33).
 	 * @param unattributed commits whose author GitHub resolved to no account
@@ -161,8 +153,7 @@ class HandoverController {
 	 */
 	record HandoverCodeView(String handoverCommit, int pullNumber, List<HandoverCommitView> commits, int unattributed,
 			boolean truncated, List<SensitiveChangeView> sensitiveChanges, int sensitiveChangeCount,
-			List<HandoverPageView> pages, @Nullable HandoverLinkView diff, @Nullable HandoverLinkView branch,
-			@Nullable Instant teamCodeConfirmedAt) {
+			@Nullable HandoverLinkView diff, @Nullable HandoverLinkView branch, @Nullable Instant teamCodeConfirmedAt) {
 	}
 
 	/**
@@ -215,9 +206,6 @@ class HandoverController {
 	record HandoverItemNoteView(UUID workItemId, String key, String title, String status, String note) {
 	}
 
-	record HandoverReportView(UUID pageId, int versionNo, String title, String body) {
-	}
-
 	/** The Customer's mark on one criterion, once the handover is decided. */
 	record HandoverCheckView(UUID criterionId, boolean met, @Nullable String comment) {
 	}
@@ -246,22 +234,21 @@ class HandoverController {
 	/**
 	 * The Delivery Report.
 	 * @param itemNotes the notes on Work Items that were not done; empty for the Customer (AD-39)
-	 * @param report an Assessment Job's Report at the version handed over
 	 * @param version the Job's version, which a decision carries (AD-23)
 	 * @param roundsLeft the Milestone's Revision Rounds left (FR-34)
 	 * @param decision for the Customer while the handover waits for them
 	 * @param checks the Customer's marks once decided
 	 * @param auto accepted by Auto-acceptance (FR-35)
-	 * @param code a Code Job's Handover Commit, its range, Sensitive Changes, and updated Pages
+	 * @param code a Code Job's Handover Commit, its range, and Sensitive Changes
 	 * @param acceptance a Code Job's acceptance while the handover waits: {@code MERGING} under the busy
 	 * marker, {@code FAILED} when its merge did not go through (FR-33), or {@code VOIDED} when its merge
 	 * answered 409 and M3 applied, until the handover itself shows {@code VOIDED}
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
-			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, @Nullable HandoverReportView report,
-			long version, int roundsLeft, @Nullable HandoverDecisionView decision, @Nullable Instant decidedAt,
-			List<HandoverCheckView> checks, boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
+			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, long version, int roundsLeft,
+			@Nullable HandoverDecisionView decision, @Nullable Instant decidedAt, List<HandoverCheckView> checks,
+			boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
 			List<HandoverScreenshotView> screenshots, @Nullable String acceptance) {
 	}
 
@@ -348,7 +335,6 @@ class HandoverController {
 		// A Code Job's checks read GitHub, so they run here, outside the preflight's transaction.
 		CodeHandovers.Check code = mentor.job().assessment() ? null : this.code.check(jobId);
 		Preflight preflight = this.handovers.preflight(mentor, target, code);
-		ReportVersion report = preflight.report();
 		return new HandoverPreflightView(
 				new HandoverMilestoneView(preflight.milestone().milestoneId(), preflight.milestone().number(),
 						preflight.milestone().title()),
@@ -361,7 +347,6 @@ class HandoverController {
 					.stream()
 					.map(i -> new HandoverWorkItemView(i.id(), i.key(), i.title(), i.status(), i.approved()))
 					.toList(),
-				report == null ? null : new HandoverReportRefView(report.pageId(), report.versionNo(), report.title()),
 				preflight.problems(),
 				preflight.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
 				preflight.commitCount(), mentor.job().previewRequired(),
@@ -514,9 +499,6 @@ class HandoverController {
 					.stream()
 					.map(n -> new HandoverItemNoteView(n.workItemId(), n.key(), n.title(), n.status(), n.note()))
 					.toList();
-		HandoverReportView report = this.handovers.report(handover)
-			.map(r -> new HandoverReportView(r.pageId(), r.versionNo(), r.title(), r.body()))
-			.orElse(null);
 		int roundsLeft = this.jobs.rounds(handover.milestoneId()).map(Rounds::left).orElse(0);
 		String acceptance = "SUBMITTED".equals(handover.status())
 				? this.merges.latestStatus(handover.id())
@@ -535,15 +517,14 @@ class HandoverController {
 					.map(c -> new HandoverCriterionView(c.criterionId(), c.number(), c.statement(), c.checkSteps(), c.met(),
 							c.note()))
 					.toList(),
-				notes, report, viewer.job().version(), roundsLeft, decision, handover.decidedAt(),
+				notes, viewer.job().version(), roundsLeft, decision, handover.decidedAt(),
 				this.decisions.checks(handover.id())
 					.stream()
 					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
 					.toList(),
 				handover.auto(),
 				this.handovers.code(handover.id())
-					.map(found -> codeView(viewer, handover.id(), found, this.branches.intermediaryUrl(handover.jobId())
-						.orElse(null)))
+					.map(found -> codeView(handover.id(), found, this.branches.intermediaryUrl(handover.jobId()).orElse(null)))
 					.orElse(null),
 				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null, null))),
 				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(), acceptance);
@@ -567,17 +548,12 @@ class HandoverController {
 	 * Intermediary Repository.
 	 * @param intermediary the Intermediary's page on GitHub, or {@code null} while vibefix keeps no record of it
 	 */
-	private static HandoverCodeView codeView(Viewer viewer, UUID handoverId, CodeRecord code,
-			@Nullable String intermediary) {
+	private static HandoverCodeView codeView(UUID handoverId, CodeRecord code, @Nullable String intermediary) {
 		return new HandoverCodeView(code.commit(), code.pullNumber(),
 				code.commits().stream().map(c -> new HandoverCommitView(c.sha(), c.message(), c.workItemKeys())).toList(),
 				code.unattributed(), code.truncated(),
 				code.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
-				code.sensitiveCount(), code.pages()
-					.stream()
-					.filter(page -> viewer.kind() != Kind.CUSTOMER || page.customerVisible())
-					.map(page -> new HandoverPageView(page.pageId(), page.title(), page.versionNo()))
-					.toList(),
+				code.sensitiveCount(),
 				outside(intermediary == null ? null : intermediary + "/pull/" + code.pullNumber() + "/files"),
 				outside(intermediary == null ? null : intermediary + "/tree/" + HandoverCopies.branch(handoverId)),
 				code.teamCodeConfirmedAt());

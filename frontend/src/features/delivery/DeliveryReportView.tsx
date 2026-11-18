@@ -1,6 +1,5 @@
 import { CircleCheck, CircleX } from 'lucide-react'
 import { Link } from 'react-router'
-import { SafeMarkdown } from '@/components/SafeMarkdown'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
@@ -12,9 +11,10 @@ import { SensitiveChangeList } from './SensitiveChangeList'
 /**
  * The Delivery Report (FR-10, FR-32, AD-33, UX-DR53): per criterion the Mentor's own statement
  * "Người hướng dẫn tự nhận xét: Đạt / Chưa đạt", never counted as a criterion done, their note, and
- * "Cách kiểm tra"; the notes on Work Items that were not done for the Mentor and the Crew only; an
- * Assessment Job's Report at the version handed over, in the Markdown view. A Code Job's report adds the
- * Sensitive change list, the Pages updated during the Milestone, and the collapsed "Chi tiết kỹ thuật"
+ * "Cách kiểm tra"; the notes on Work Items that were not done for the Mentor and the Crew only. An
+ * Assessment Job's criteria are the Assessment Report's sections, which is its whole deliverable until
+ * Story 24.3 adds the Mentor's own document link (Story 24.1). A Code Job's report adds the
+ * Sensitive change list and the collapsed "Chi tiết kỹ thuật"
  * with the commits, all rendered as text (NFR-3). While it waits for the Customer, they get "Kiểm tra
  * từng tiêu chí" and the Revision Rounds left; once decided, everyone sees the Customer's marks. A Code
  * Job's acceptance says while it merges, and when the merge did not go through (FR-33). A handover voided at
@@ -142,14 +142,6 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         </section>
       )}
       {report.code && <CodeSections report={report} code={report.code} />}
-      {report.report && (
-        <section aria-labelledby="delivery-assessment" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
-          <h3 id="delivery-assessment" className="text-h3 break-words">
-            {t('screen.handover.report.assessment', { title: report.report.title, version: report.report.versionNo })}
-          </h3>
-          <SafeMarkdown>{report.report.body}</SafeMarkdown>
-        </section>
-      )}
     </article>
   )
 }
@@ -221,27 +213,6 @@ function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) 
   return (
     <>
       <SensitiveChangeList changes={code.sensitiveChanges} headingId="delivery-sensitive" />
-      <section aria-labelledby="delivery-pages" className="flex flex-col gap-2">
-        <h3 id="delivery-pages" className="text-h3">
-          {t('screen.handover.code.pagesTitle')}
-        </h3>
-        {code.pages.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">{t('screen.handover.code.pagesNone')}</p>
-        ) : (
-          <ul className="flex flex-col gap-1 text-body-sm">
-            {code.pages.map((page) => (
-              <li key={page.pageId}>
-                <Link
-                  to={`/cong-viec/${report.jobId}/tai-lieu/${page.pageId}`}
-                  className="break-words text-primary underline-offset-4 hover:underline"
-                >
-                  {t('screen.handover.code.pageVersion', { title: page.title, version: page.versionNo })}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
       <details className="rounded-lg border border-border bg-card p-4 text-body-sm">
         <summary className="cursor-pointer font-semibold">{t('screen.handover.code.technical')}</summary>
         <div className="mt-2 flex flex-col gap-2">

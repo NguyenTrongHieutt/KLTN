@@ -151,8 +151,8 @@ class MatrixFilesTest {
 
 	/**
 	 * Every read of Job content of every grant scope (review iteration 4, G8): the Job Chat's messages, the four Crew
-	 * Chat reads and a Crew Chat file, the Work Items (the active member's and the raiser's) with their
-	 * notes and an attachment's file, and the Pages. Each grant caller runs each, so a read outside its scope is
+	 * Chat reads and a Crew Chat file, and the Work Items (the active member's and the raiser's) with their
+	 * notes and an attachment's file. Each grant caller runs each, so a read outside its scope is
 	 * scanned for the canaries hidden from it.
 	 */
 	static final Set<ContentRead> CONTENT_READS = Set.of(new ContentRead("GET /api/v1/jobs/{jobId}/chat/messages", "job=crew"),
@@ -164,15 +164,12 @@ class MatrixFilesTest {
 			ContentRead.of("GET /api/v1/boards/{boardId}/work-items"), ContentRead.of("GET /api/v1/work-items/{workItemId}"),
 			new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"),
 			ContentRead.of("GET /api/v1/work-item-notes/{workItemNoteId}"),
-			new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"),
-			ContentRead.of("GET /api/v1/boards/{boardId}/pages"), ContentRead.of("GET /api/v1/pages/{pageId}"),
-			ContentRead.of("GET /api/v1/pages/{pageId}/versions"),
-			ContentRead.of("GET /api/v1/pages/{pageId}/versions/{versionNo}"));
+			new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"));
 
 	/**
 	 * Each grant caller's scope, the reads that serve its content: the Dispute grant ({@code AdminReadItem.forDispute})
-	 * reads the Job Chat's messages (not the Customer and Mentor's {@code /chat} summary), every Work Item with its notes
-	 * and attachments, and the Pages; the escalated Team Issue's reads the Crew Chat by its ID and by the Board, with
+	 * reads the Job Chat's messages (not the Customer and Mentor's {@code /chat} summary) and every Work Item with its
+	 * notes and attachments; the escalated Team Issue's reads the Crew Chat by its ID and by the Board, with
 	 * its files, and the raiser's Work Items; the Abuse Report's reads the reported message only; and the Split
 	 * Resolution's reads the Crew Chat by its ID and by the Board, with its files, and the Work Items that involve a party of
 	 * the split with their attachments, never the Job Chat or a Work Item nothing of theirs touches (Story 22.3).
@@ -184,10 +181,7 @@ class MatrixFilesTest {
 							ContentRead.of("GET /api/v1/work-items/{workItemId}"),
 							new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"),
 							ContentRead.of("GET /api/v1/work-item-notes/{workItemNoteId}"),
-							new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"),
-							ContentRead.of("GET /api/v1/boards/{boardId}/pages"), ContentRead.of("GET /api/v1/pages/{pageId}"),
-							ContentRead.of("GET /api/v1/pages/{pageId}/versions"),
-							ContentRead.of("GET /api/v1/pages/{pageId}/versions/{versionNo}"))),
+							new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"))),
 			MatrixCaller.ADMIN_TEAM_ISSUE_GRANT,
 			new GrantScope("/api/v1/admin/team-issues/{teamIssueId}",
 					Set.of(ContentRead.of("GET /api/v1/crew-chats/{crewChatId}/messages"),
@@ -267,9 +261,9 @@ class MatrixFilesTest {
 
 	/** The Crew canaries: none reaches the Customer (AD-20, UX-DR108), a Crew Application's included (Story 21.4). */
 	static final Set<String> CREW_CANARIES = Set.of("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN",
-			"WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE",
-			"CREW_PAGE_TITLE", "EARLY_PAGE", "TEAM_ISSUE_ID", "STUDENT_HIDDEN_NAME", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
-			"CROSS_PAGE", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK",
+			"WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED",
+			"TEAM_ISSUE_ID", "STUDENT_HIDDEN_NAME", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT",
+			"CROSS_WORK_ITEM_NOTE", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK",
 			"SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID",
 			"SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT", "SPLIT_DECISION_REASONING");
 
@@ -284,7 +278,7 @@ class MatrixFilesTest {
 			"CREW_APPLICATION_PROOF_LINK");
 
 	static final Set<String> CROSS_CANARIES = Set.of("CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
-			"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE");
+			"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE");
 
 	@Test
 	void parsesAFullRow() {
@@ -776,26 +770,22 @@ class MatrixFilesTest {
 
 		assertThat(canaries.all()).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN", "WORK_ITEM_NOTE",
-					"ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE", "JOB_CHAT", "TEAM_ISSUE_ID",
+					"ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT", "TEAM_ISSUE_ID",
 					"NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME",
 					"PRIVATE_FEEDBACK", "SKILL_SUGGESTION", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
-					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE",
-					"CUSTOMER_PAGE", "EARLY_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
+					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "WORK_ITEM_TITLE",
+					"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 					"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
 					"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT",
 					"SPLIT_DECISION_REASONING");
 		// The canaries of Job content are written after the former members' windows ended, so a Crew state other than
 		// ACTIVE, which reads at most up to its window_end (AD-41), reads none of them; a bid grants nothing on the Job.
-		// EARLY_PAGE alone was written inside the window, so the former member reads it (review iteration 4). The bid's
-		// proof is the Bidder's own, which they and the Job's Customer read (Story 21.2).
+		// The bid's proof is the Bidder's own, which they and the Job's Customer read (Story 21.2).
 		Set<MatrixCaller> neverSee = EnumSet.of(MatrixCaller.ANONYMOUS, MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED,
 				MatrixCaller.LOCKED, MatrixCaller.BIDDER, MatrixCaller.CREW_APPLICANT, MatrixCaller.CREW_ASSIGNED,
 				MatrixCaller.CREW_FORMER, MatrixCaller.AUTHOR);
 		assertThat(canaries.all()).allSatisfy(canary -> {
 			Set<MatrixCaller> hidden = EnumSet.copyOf(neverSee);
-			if (canary.name().equals("EARLY_PAGE")) {
-				hidden.remove(MatrixCaller.CREW_FORMER);
-			}
 			if (canary.name().startsWith("BID_PROOF_")) {
 				hidden.remove(MatrixCaller.BIDDER);
 			}
@@ -804,7 +794,6 @@ class MatrixFilesTest {
 			}
 			assertThat(canary.visibleTo()).as(canary.name()).doesNotContainAnyElementsOf(hidden);
 		});
-		assertThat(canaries.get("EARLY_PAGE").visibleTo()).contains(MatrixCaller.CREW_FORMER);
 		assertThat(canaries.get("BID_PROOF_CAPTION").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.BIDDER,
 				MatrixCaller.CUSTOMER);
 		assertThat(canaries.get("BID_PROOF_LINK").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.BIDDER,
@@ -840,8 +829,8 @@ class MatrixFilesTest {
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CUSTOMER))).containsAll(CREW_CANARIES);
 		assertThat(names(canaries.all()).stream().filter(name -> !canaries.get(name).hiddenFrom(MatrixCaller.CUSTOMER)))
-			.as("the Job Chat, their own contact, the Customer-visible Page, and the proof of a bid on their Job")
-			.containsExactlyInAnyOrder("JOB_CHAT", "CONTACT_EMAIL", "CUSTOMER_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
+			.as("the Job Chat, their own contact, and the proof of a bid on their Job")
+			.containsExactlyInAnyOrder("JOB_CHAT", "CONTACT_EMAIL", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
 	}
 
 	@Test
@@ -856,14 +845,13 @@ class MatrixFilesTest {
 				"CREW_EMAIL", "JOB_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL",
 				"SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION",
 				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
-				"CROSS_PAGE", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
+				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 				"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
 				"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT",
 				"SPLIT_DECISION_REASONING");
-		// The Pages and the Story were written after the former member's window ended; EARLY_PAGE inside it.
-		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("CREW_PAGE", "CREW_PAGE_TITLE",
-				"CUSTOMER_PAGE", "WORK_ITEM_TITLE", "CREW_NAME", "CREW_LINKEDIN")
-			.doesNotContain("EARLY_PAGE");
+		// The Story was written after the former member's window ended.
+		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("WORK_ITEM_TITLE", "CREW_NAME",
+				"CREW_LINKEDIN");
 	}
 
 	@Test
@@ -879,9 +867,9 @@ class MatrixFilesTest {
 		Canaries canaries = Canaries.load();
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR))).containsExactlyInAnyOrder("CREW_SHARE",
-				"WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_PAGE", "JOB_CHAT",
+				"WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT",
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
-				"CROSS_WORK_ITEM_NOTE", "CROSS_PAGE", "WORK_ITEM_TITLE", "CREW_PAGE_TITLE", "CUSTOMER_PAGE", "EARLY_PAGE",
+				"CROSS_WORK_ITEM_NOTE", "WORK_ITEM_TITLE",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
 				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART",
 				"CREW_LEFT_NOTE", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
@@ -893,16 +881,15 @@ class MatrixFilesTest {
 		// A Dispute grant reads no Crew Chat (AdminReadItem.forDispute).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT)))
 			.contains("CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_SHARE")
-			.doesNotContain("JOB_CHAT", "WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_PAGE", "CREW_PAGE_TITLE");
+			.doesNotContain("JOB_CHAT", "WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT");
 		// An escalated Team Issue's grant reads the Crew Chat and its raiser's Stories only, never the
 		// Job Chat or another member's Story (WORK_ITEM_TITLE).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_TEAM_ISSUE_GRANT))).contains("JOB_CHAT", "WORK_ITEM_NOTE",
-				"WORK_ITEM_TITLE", "CREW_PAGE", "CREW_SHARE")
+				"WORK_ITEM_TITLE", "CREW_SHARE")
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED");
-		// A Split Resolution's grant reads the Crew Chat and the Work Items of its parties, never the Job Chat, the Pages, or
+		// A Split Resolution's grant reads the Crew Chat and the Work Items of its parties, never the Job Chat or
 		// another member's part of a release (A-20).
-		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT))).contains("JOB_CHAT", "CREW_SHARE",
-				"CREW_PAGE", "CUSTOMER_PAGE", "EARLY_PAGE")
+		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT))).contains("JOB_CHAT", "CREW_SHARE")
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
 		// A Dispute's grant reads no Split Resolution's words either (A-20).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT))).containsAll(SPLIT_RESOLUTION_CANARIES);

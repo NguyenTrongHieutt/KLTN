@@ -32,7 +32,6 @@ const progress = (overrides: object = {}) => ({
     { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', state: 'PLANNED', priceVnd: 1500000, dueOn: '2026-12-10', done: 0, total: 1, inReview: 0 },
     { milestoneId: 'm3', number: 3, title: 'Báo cáo', state: 'PLANNED', priceVnd: 500000, done: 0, total: 1, inReview: 0 },
   ],
-  pages: [{ id: 'p1', title: 'Hướng dẫn sử dụng' }],
   crew: [],
   mine: [],
   assessment: false,
@@ -136,7 +135,6 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(second).getByText('Chưa thanh toán')).toBeInTheDocument()
     const third = screen.getByRole('heading', { level: 3, name: 'Giai đoạn 3 · Báo cáo' }).closest('li')!
     expect(within(third).getByText('Chưa bắt đầu')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Hướng dẫn sử dụng' })).toHaveAttribute('href', '/cong-viec/j1/tai-lieu/p1')
     const next = await screen.findByRole('region', { name: 'Việc cần làm cho công việc này' })
     expect(within(next).getByText(/Thanh toán Giai đoạn 2/)).toBeInTheDocument()
     const aside = screen.getByRole('complementary', { name: 'Thông tin công việc' })

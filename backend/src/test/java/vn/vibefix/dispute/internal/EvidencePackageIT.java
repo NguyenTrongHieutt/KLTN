@@ -38,7 +38,7 @@ import vn.vibefix.support.IntegrationTest;
 
 /**
  * Story 15.2 (FR-53, FR-63, AD-8, AD-20, AD-31): taking a Dispute pushes its read grant down to {@code chat}
- * and {@code work}; the assignee reads the Evidence Package's nine tabs, each view audited, never the Crew
+ * and {@code work}; the assignee reads the Evidence Package's tabs, each view audited, never the Crew
  * Chat; a takeover ends the old grant at once, and the decision ends it 30 days later. Story 15.3 (SG-27,
  * AD-24, AD-31): the decision keeps an evidence snapshot of IDs, versions, counts, and totals that outlives the
  * NFR-10 retirement of the Job's data and the erasure of the people.
@@ -68,8 +68,6 @@ class EvidencePackageIT extends IntegrationTest {
 	private HeldCrewJob world;
 
 	private Administrator ha;
-
-	private UUID page;
 
 	private UUID item;
 
@@ -121,16 +119,6 @@ class EvidencePackageIT extends IntegrationTest {
 				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :at)
 				ON CONFLICT DO NOTHING
 				""").param("job", this.world.job()).param("product", this.world.product()).param("at", at).update();
-		this.page = UUID.randomUUID();
-		UUID page = this.page;
-		this.jdbc.sql("""
-				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
-				VALUES (:id, :job, 'Ghi chú kỹ thuật', 1, :mentor, :at, :at)
-				""").param("id", page).param("job", this.world.job()).param("mentor", this.world.hung()).param("at", at).update();
-		this.jdbc.sql("""
-				INSERT INTO work.page_version (page_id, version_no, title, body, author_account_id, created_at)
-				VALUES (:id, 1, 'Ghi chú kỹ thuật', '# Cách chạy', :mentor, :at)
-				""").param("id", page).param("mentor", this.world.hung()).param("at", at).update();
 		this.item = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, created_at,
@@ -180,21 +168,12 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(content().string(containsString("Bản sửa đã gửi hôm qua")));
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/crew-chat/messages").with(admin(this.ha.accountId())))
 			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/pages").with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("Ghi chú kỹ thuật")));
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/work-items").with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.items[0].id").value(this.item.toString()));
 		this.mvc.perform(get("/api/v1/work-items/" + this.item).with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.item.title").value("Tiêu chí 1"));
-		this.mvc.perform(get("/api/v1/pages/" + this.page + "/versions").with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].versionNo").value(1));
-		this.mvc.perform(get("/api/v1/pages/" + this.page + "/versions/1").with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.body").value("# Cách chạy"));
 		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.ha.accountId())))
 			.andExpect(status().isNotFound());
 
@@ -312,7 +291,7 @@ class EvidencePackageIT extends IntegrationTest {
 			.param("id", dispute)
 			.query(String.class)
 			.single();
-		assertThat(snapshot).doesNotContain("Bản sửa đã gửi", "Cách chạy", "Vẫn đặt trùng bàn", "Khách đổi yêu cầu",
+		assertThat(snapshot).doesNotContain("Bản sửa đã gửi", "Vẫn đặt trùng bàn", "Khách đổi yêu cầu",
 				this.world.lan().toString(), this.world.hung().toString(), this.ha.accountId().toString());
 		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
@@ -321,7 +300,6 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].reportedMet").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].checkedMet").value(0))
 			.andExpect(jsonPath("$.evidenceSnapshot.workItems[0].workItemId").value(this.item.toString()))
-			.andExpect(jsonPath("$.evidenceSnapshot.pages[0].versionNo").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].moneyInVnd").value(HeldCrewJob.PRICE))
 			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].releasableVnd").value(HeldCrewJob.PRICE))
@@ -329,7 +307,6 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$.evidenceSnapshot.statements[0].side").value("MENTOR"));
 
 		this.personalData.retireJobData(this.world.product());
-		assertThat(count("SELECT count(*) FROM work.page WHERE job_id = '" + this.world.job() + "'")).isZero();
 		// AD-24: the decision's release left the Milestone's split open, so the Crew Chat waits for it as evidence.
 		assertThat(this.jdbc.sql("SELECT c.kind FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id WHERE c.job_id = :job")
 			.param("job", this.world.job())
@@ -347,7 +324,7 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.decision.reasoning").value("Hai bên cùng có lỗi"))
 			.andExpect(jsonPath("$.decision.releaseVnd").value(500000))
-			.andExpect(jsonPath("$.evidenceSnapshot.pages[0].versionNo").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.workItems[0].workItemId").value(this.item.toString()))
 			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
 			.andExpect(jsonPath("$.statements[0].text").value("Khách đổi yêu cầu giữa chừng."));
 	}

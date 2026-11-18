@@ -2934,68 +2934,6 @@
         "tags" : [ "handover-controller" ]
       }
     },
-    "/api/v1/boards/{boardId}/pages" : {
-      "get" : {
-        "operationId" : "pageTree",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "boardId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageTreeView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      },
-      "post" : {
-        "operationId" : "createPage",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "boardId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/PageRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageView"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      }
-    },
     "/api/v1/boards/{boardId}/portfolio" : {
       "get" : {
         "operationId" : "portfolio",
@@ -5301,68 +5239,6 @@
         "tags" : [ "payment-controller" ]
       }
     },
-    "/api/v1/jobs/{jobId}/page-shares" : {
-      "get" : {
-        "operationId" : "pageShares",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageSharesView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-share-controller" ]
-      },
-      "put" : {
-        "operationId" : "sharePages",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/PageSharesRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageSharesView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-share-controller" ]
-      }
-    },
     "/api/v1/jobs/{jobId}/publish" : {
       "post" : {
         "operationId" : "publish",
@@ -5666,36 +5542,6 @@
           }
         },
         "tags" : [ "job-setup-controller" ]
-      }
-    },
-    "/api/v1/jobs/{jobId}/shared-pages" : {
-      "get" : {
-        "operationId" : "sharedPages",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "jobId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/SharedJobView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-share-controller" ]
       }
     },
     "/api/v1/jobs/{jobId}/source/reconfirm" : {
@@ -7060,215 +6906,6 @@
           }
         },
         "tags" : [ "notification-controller" ]
-      }
-    },
-    "/api/v1/pages/{pageId}" : {
-      "get" : {
-        "operationId" : "page",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "pageId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      },
-      "put" : {
-        "operationId" : "savePage",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "pageId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/PageRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      }
-    },
-    "/api/v1/pages/{pageId}/versions" : {
-      "get" : {
-        "operationId" : "pageVersions",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "pageId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/PageVersionView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      }
-    },
-    "/api/v1/pages/{pageId}/versions/{versionNo}" : {
-      "get" : {
-        "operationId" : "pageVersion",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "pageId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "versionNo",
-          "required" : true,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageVersionDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      }
-    },
-    "/api/v1/pages/{pageId}/versions/{versionNo}/restore" : {
-      "post" : {
-        "operationId" : "restorePage",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "pageId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "versionNo",
-          "required" : true,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RestoreRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
-      }
-    },
-    "/api/v1/pages/{pageId}/visibility" : {
-      "put" : {
-        "operationId" : "setPageVisibility",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "pageId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/VisibilityRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PageView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "page-controller" ]
       }
     },
     "/api/v1/payment-orders/{paymentOrderId}" : {
@@ -12380,9 +12017,6 @@
           "preview" : {
             "$ref" : "#/components/schemas/HandoverPreviewView"
           },
-          "report" : {
-            "$ref" : "#/components/schemas/HandoverReportView"
-          },
           "round" : {
             "type" : "integer",
             "format" : "int32"
@@ -13005,12 +12639,6 @@
           "jobChat" : {
             "$ref" : "#/components/schemas/SnapshotChat"
           },
-          "pages" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SnapshotPage"
-            }
-          },
           "payments" : {
             "type" : "array",
             "items" : {
@@ -13040,7 +12668,7 @@
             }
           }
         },
-        "required" : [ "agreementVersions", "driftWarnings", "jobChat", "pages", "payments", "reports", "statements", "takenAt", "workItems" ]
+        "required" : [ "agreementVersions", "driftWarnings", "jobChat", "payments", "reports", "statements", "takenAt", "workItems" ]
       },
       "ExecutionView" : {
         "type" : "object",
@@ -13378,10 +13006,10 @@
             "maxItems" : 8,
             "minItems" : 1
           },
-          "recommendationNo" : {
-            "type" : "integer",
-            "format" : "int32",
-            "minimum" : 1
+          "recommendationText" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
           },
           "scope" : {
             "type" : "string",
@@ -13403,7 +13031,7 @@
             "minLength" : 0
           }
         },
-        "required" : [ "criteria", "effortDays", "jobTypes", "recommendationNo", "scope", "skillIds", "title" ]
+        "required" : [ "criteria", "effortDays", "jobTypes", "recommendationText", "scope", "skillIds", "title" ]
       },
       "FollowUpView" : {
         "type" : "object",
@@ -13432,9 +13060,8 @@
               "type" : "string"
             }
           },
-          "recommendationNo" : {
-            "type" : "integer",
-            "format" : "int32"
+          "recommendationText" : {
+            "type" : "string"
           },
           "scope" : {
             "type" : "string"
@@ -13453,7 +13080,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "criteria", "effortDays", "id", "jobTypes", "recommendationNo", "scope", "skillIds", "status", "title" ]
+        "required" : [ "criteria", "effortDays", "id", "jobTypes", "recommendationText", "scope", "skillIds", "status", "title" ]
       },
       "FollowUpsView" : {
         "type" : "object",
@@ -13474,16 +13101,6 @@
             "type" : "string",
             "format" : "uuid"
           },
-          "recommendations" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/RecommendationView"
-            }
-          },
-          "reportVersionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "skillIds" : {
             "type" : "array",
             "items" : {
@@ -13495,7 +13112,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "audience", "available", "followUps", "jobId", "recommendations", "skillIds", "submitted" ]
+        "required" : [ "audience", "available", "followUps", "jobId", "skillIds", "submitted" ]
       },
       "FundingMilestoneView" : {
         "type" : "object",
@@ -13683,12 +13300,6 @@
           "handoverCommit" : {
             "type" : "string"
           },
-          "pages" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HandoverPageView"
-            }
-          },
           "pullNumber" : {
             "type" : "integer",
             "format" : "int32"
@@ -13715,7 +13326,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "commits", "handoverCommit", "pages", "pullNumber", "sensitiveChangeCount", "sensitiveChanges", "truncated", "unattributed" ]
+        "required" : [ "commits", "handoverCommit", "pullNumber", "sensitiveChangeCount", "sensitiveChanges", "truncated", "unattributed" ]
       },
       "HandoverCommitView" : {
         "type" : "object",
@@ -13932,23 +13543,6 @@
         },
         "required" : [ "milestoneId", "number", "title" ]
       },
-      "HandoverPageView" : {
-        "type" : "object",
-        "properties" : {
-          "pageId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "pageId", "title", "versionNo" ]
-      },
       "HandoverPreflightView" : {
         "type" : "object",
         "properties" : {
@@ -13976,9 +13570,6 @@
             "items" : {
               "type" : "string"
             }
-          },
-          "report" : {
-            "$ref" : "#/components/schemas/HandoverReportRefView"
           },
           "screenshots" : {
             "type" : "array",
@@ -14021,43 +13612,6 @@
             "$ref" : "#/components/schemas/HandoverLinkView"
           }
         }
-      },
-      "HandoverReportRefView" : {
-        "type" : "object",
-        "properties" : {
-          "pageId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "pageId", "title", "versionNo" ]
-      },
-      "HandoverReportView" : {
-        "type" : "object",
-        "properties" : {
-          "body" : {
-            "type" : "string"
-          },
-          "pageId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "body", "pageId", "title", "versionNo" ]
       },
       "HandoverRequest" : {
         "type" : "object",
@@ -14864,12 +14418,6 @@
               "$ref" : "#/components/schemas/OpenItemView"
             }
           },
-          "pages" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PageLinkView"
-            }
-          },
           "productName" : {
             "type" : "string"
           },
@@ -14880,7 +14428,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "assessment", "audience", "boardId", "crew", "leavers", "mentorName", "milestones", "mine", "pages", "productName", "state", "title" ]
+        "required" : [ "assessment", "audience", "boardId", "crew", "leavers", "mentorName", "milestones", "mine", "productName", "state", "title" ]
       },
       "JobRoleView" : {
         "type" : "object",
@@ -16214,84 +15762,6 @@
         },
         "required" : [ "activeAdministrators", "disputes", "failedExecutions", "failedOperations", "lowFeedback", "skillSuggestions", "splitResolutions", "stalledEvents", "teamIssues" ]
       },
-      "PageLinkView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "id", "title" ]
-      },
-      "PageNodeView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "parentId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "template" : {
-            "type" : "string",
-            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "updatedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "visibility" : {
-            "type" : "string",
-            "enum" : [ "TEAM", "CUSTOMER" ]
-          }
-        },
-        "required" : [ "id", "title", "updatedAt", "versionNo", "visibility" ]
-      },
-      "PageRequest" : {
-        "type" : "object",
-        "properties" : {
-          "body" : {
-            "type" : "string",
-            "maxLength" : 100000,
-            "minLength" : 0
-          },
-          "parentId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
-          "template" : {
-            "type" : "string",
-            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
-          },
-          "title" : {
-            "type" : "string",
-            "maxLength" : 200,
-            "minLength" : 0
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "title" ]
-      },
       "PageResponseJobPostSummaryView" : {
         "type" : "object",
         "properties" : {
@@ -16339,216 +15809,6 @@
           }
         },
         "required" : [ "items", "page", "size", "total" ]
-      },
-      "PageShareOptionView" : {
-        "type" : "object",
-        "properties" : {
-          "assessmentReport" : {
-            "type" : "boolean"
-          },
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "pages" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "shared" : {
-            "type" : "boolean"
-          },
-          "state" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "assessmentReport", "jobId", "pages", "shared", "state", "title" ]
-      },
-      "PageSharesRequest" : {
-        "type" : "object",
-        "properties" : {
-          "jobIds" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string",
-              "format" : "uuid"
-            },
-            "maxItems" : 100,
-            "minItems" : 0
-          }
-        },
-        "required" : [ "jobIds" ]
-      },
-      "PageSharesView" : {
-        "type" : "object",
-        "properties" : {
-          "editable" : {
-            "type" : "boolean"
-          },
-          "jobs" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PageShareOptionView"
-            }
-          }
-        },
-        "required" : [ "editable", "jobs" ]
-      },
-      "PageTemplateView" : {
-        "type" : "object",
-        "properties" : {
-          "template" : {
-            "type" : "string",
-            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "template", "title" ]
-      },
-      "PageTreeView" : {
-        "type" : "object",
-        "properties" : {
-          "boardId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "customer" : {
-            "type" : "boolean"
-          },
-          "mentor" : {
-            "type" : "boolean"
-          },
-          "pages" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PageNodeView"
-            }
-          },
-          "readOnly" : {
-            "type" : "boolean"
-          },
-          "templates" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PageTemplateView"
-            }
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "boardId", "customer", "mentor", "pages", "readOnly", "templates", "title" ]
-      },
-      "PageVersionDetailView" : {
-        "type" : "object",
-        "properties" : {
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "author" : {
-            "type" : "string"
-          },
-          "body" : {
-            "type" : "string"
-          },
-          "restoredFrom" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "at", "author", "body", "title", "versionNo" ]
-      },
-      "PageVersionView" : {
-        "type" : "object",
-        "properties" : {
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "author" : {
-            "type" : "string"
-          },
-          "restoredFrom" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "at", "author", "title", "versionNo" ]
-      },
-      "PageView" : {
-        "type" : "object",
-        "properties" : {
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "author" : {
-            "type" : "string"
-          },
-          "boardId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "body" : {
-            "type" : "string"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "mentor" : {
-            "type" : "boolean"
-          },
-          "parentId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "readOnly" : {
-            "type" : "boolean"
-          },
-          "restoredFrom" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "shared" : {
-            "type" : "boolean"
-          },
-          "template" : {
-            "type" : "string",
-            "enum" : [ "ASSESSMENT_REPORT", "SCOPE", "TECHNICAL_NOTES", "MEETING_NOTES", "HANDOVER", "USER_GUIDE" ]
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "visibility" : {
-            "type" : "string",
-            "enum" : [ "TEAM", "CUSTOMER" ]
-          }
-        },
-        "required" : [ "at", "author", "boardId", "body", "id", "mentor", "readOnly", "shared", "title", "versionNo", "visibility" ]
       },
       "PaymentOrderDetailView" : {
         "type" : "object",
@@ -17516,19 +16776,6 @@
         },
         "required" : [ "confirmedAt", "confirmedBy" ]
       },
-      "RecommendationView" : {
-        "type" : "object",
-        "properties" : {
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "text" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "number", "text" ]
-      },
       "RecommendedMentorView" : {
         "type" : "object",
         "properties" : {
@@ -17804,16 +17051,6 @@
           }
         },
         "required" : [ "crew", "mentor", "newcomer", "username" ]
-      },
-      "RestoreRequest" : {
-        "type" : "object",
-        "properties" : {
-          "version" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "version" ]
       },
       "RetryRequest" : {
         "type" : "object",
@@ -18540,25 +17777,6 @@
         },
         "required" : [ "revision" ]
       },
-      "SharedJobView" : {
-        "type" : "object",
-        "properties" : {
-          "jobId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "pages" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/PageNodeView"
-            }
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "jobId", "pages", "title" ]
-      },
       "SignUpRequest" : {
         "type" : "object",
         "properties" : {
@@ -18727,20 +17945,6 @@
           }
         },
         "required" : [ "commits", "id", "kind" ]
-      },
-      "SnapshotPage" : {
-        "type" : "object",
-        "properties" : {
-          "pageId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "versionNo" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "pageId", "versionNo" ]
       },
       "SnapshotPayment" : {
         "type" : "object",
@@ -20360,16 +19564,6 @@
           }
         },
         "required" : [ "sharedAt", "versionNo" ]
-      },
-      "VisibilityRequest" : {
-        "type" : "object",
-        "properties" : {
-          "visibility" : {
-            "type" : "string",
-            "enum" : [ "TEAM", "CUSTOMER" ]
-          }
-        },
-        "required" : [ "visibility" ]
       },
       "WorkAttachmentView" : {
         "type" : "object",

@@ -18,7 +18,7 @@ import vn.vibefix.support.TestPeople;
 /**
  * The rows a Job's people and content take (AD-41, AD-20), written directly, for the matrix fixtures and the
  * cross-role suite (Story 20.5): a Product, an Active Job, Crew rows in each state, the Job Chat and the Crew
- * Chat with their messages, the Board with a Work Item, its note and Attachment, and a Page. Each method writes
+ * Chat with their messages, and the Board with a Work Item, its note and Attachment. Each method writes
  * only what it names, so a world adds exactly the content its canaries need.
  */
 public final class JobContent {
@@ -361,27 +361,6 @@ public final class JobContent {
 			.param("at", Timestamp.from(at))
 			.update();
 		return attachment;
-	}
-
-	/** A team-only Page of {@code author} at version 1 with {@code body}; returns its ID. */
-	public static UUID page(JdbcClient jdbc, UUID job, UUID author, String body, Instant at) {
-		return page(jdbc, job, author, "Ghi chú kỹ thuật", body, at);
-	}
-
-	/** A team-only Page of {@code author} titled {@code title} at version 1 with {@code body}; returns its ID. */
-	public static UUID page(JdbcClient jdbc, UUID job, UUID author, String title, String body, Instant at) {
-		UUID page = UUID.randomUUID();
-		jdbc.sql("""
-				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
-				VALUES (:id, :job, :title, 1, :author, :at, :at)
-				""").param("id", page).param("job", job).param("title", title).param("author", author)
-			.param("at", Timestamp.from(at)).update();
-		jdbc.sql("""
-				INSERT INTO work.page_version (page_id, version_no, title, body, author_account_id, created_at)
-				VALUES (:id, 1, :title, :body, :author, :at)
-				""").param("id", page).param("title", title).param("body", body).param("author", author)
-			.param("at", Timestamp.from(at)).update();
-		return page;
 	}
 
 	/**

@@ -17,22 +17,19 @@ import {
   useDriftEvidence,
   useEvidenceAudit,
   useJobChatEvidence,
-  usePageVersionEvidence,
-  usePageVersionsEvidence,
-  usePagesEvidence,
   usePaymentsEvidence,
   useWorkItemEvidence,
 } from './disputeEvidenceApi'
 
-const TABS = ['agreement', 'criteria', 'work', 'pages', 'chat', 'decisions', 'payments', 'drift', 'audit'] as const
+const TABS = ['agreement', 'criteria', 'work', 'chat', 'decisions', 'payments', 'drift', 'audit'] as const
 
 type Tab = (typeof TABS)[number]
 
 /**
  * ADM-4's Evidence Package (FR-53, FR-63, AD-20, AD-31, UX-DR58): one tab per FR-53 source, read only when
  * it opens. The Agreement versions, the criteria in each Delivery Report, the approvals and revision
- * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat, the Work
- * Items, and the Pages from `chat` and `work` under the assignee's grant. Every view is audited, and the
+ * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat and the Work
+ * Items from `chat` and `work` under the assignee's grant. Every view is audited, and the
  * note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
  * `DecisionEvidence`, its evidence snapshot.
  */
@@ -65,7 +62,6 @@ export function DisputeEvidence({ data }: { data: AdminDispute }) {
         {tab === 'agreement' && <AgreementTab disputeId={data.id} />}
         {tab === 'criteria' && <CriteriaTab disputeId={data.id} />}
         {tab === 'work' && <WorkTab jobId={data.jobId} />}
-        {tab === 'pages' && <PagesTab jobId={data.jobId} />}
         {tab === 'chat' && <ChatTab jobId={data.jobId} />}
         {tab === 'decisions' && <DecisionsTab disputeId={data.id} />}
         {tab === 'payments' && <PaymentsTab disputeId={data.id} />}
@@ -229,60 +225,6 @@ function WorkItemHistory({ workItemId }: { workItemId: string }) {
               </li>
             ))}
           </ol>
-        </div>
-      )}
-    </RegionState>
-  )
-}
-
-function PagesTab({ jobId }: { jobId: string }) {
-  const tree = usePagesEvidence(jobId)
-  const [open, setOpen] = useState<string>()
-  return (
-    <RegionState query={tree} skeleton={<Skeleton className="h-32 w-full" />}>
-      {tree.data && tree.data.pages.length === 0 && <Empty />}
-      <ul className="flex flex-col gap-2">
-        {tree.data?.pages.map((page) => (
-          <li key={page.id} className="flex flex-col gap-1 rounded-md bg-muted p-3">
-            <button
-              type="button"
-              aria-expanded={open === page.id}
-              onClick={() => setOpen(open === page.id ? undefined : page.id)}
-              className="text-left font-semibold break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              {page.title}
-            </button>
-            {open === page.id && <PageVersions pageId={page.id} />}
-          </li>
-        ))}
-      </ul>
-    </RegionState>
-  )
-}
-
-function PageVersions({ pageId }: { pageId: string }) {
-  const versions = usePageVersionsEvidence(pageId)
-  const [shown, setShown] = useState<number>()
-  const version = usePageVersionEvidence(pageId, shown)
-  return (
-    <RegionState query={versions} skeleton={<Skeleton className="h-16 w-full" />}>
-      <div className="flex flex-wrap gap-2">
-        {versions.data?.map((entry) => (
-          <Button
-            key={entry.versionNo}
-            type="button"
-            variant={shown === entry.versionNo ? 'primary' : 'secondary'}
-            size="compact"
-            onClick={() => setShown(entry.versionNo)}
-          >
-            {t('screen.admin.disputes.evidence.pageVersion', { n: entry.versionNo, time: formatDayMonthTime(entry.at) })}
-          </Button>
-        ))}
-      </div>
-      {version.data && (
-        <div className="rounded-md bg-background p-3">
-          <p className="text-caption text-muted-foreground">{version.data.author}</p>
-          <p className="break-words whitespace-pre-line">{version.data.body}</p>
         </div>
       )}
     </RegionState>
@@ -467,7 +409,7 @@ export function DecisionEvidence({ snapshot }: { snapshot: Snapshot }) {
             })}
           </li>
         ))}
-        <li>{t('screen.admin.disputes.snapshot.work', { items: snapshot.workItems.length, pages: snapshot.pages.length })}</li>
+        <li>{t('screen.admin.disputes.snapshot.work', { items: snapshot.workItems.length })}</li>
         <li>
           {snapshot.jobChat.lastSentAt
             ? t('screen.admin.disputes.snapshot.chat', {

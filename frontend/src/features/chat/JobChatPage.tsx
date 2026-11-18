@@ -61,7 +61,6 @@ function CustomerHeader({ job }: { job: Job }) {
         chat={{ unread: false }}
         agreement={job.agreementShared}
         payment={job.agreementConfirmed}
-        docs={hasBoard(job.state)}
         handover={hasBoard(job.state)}
       />
     </JobHeader>

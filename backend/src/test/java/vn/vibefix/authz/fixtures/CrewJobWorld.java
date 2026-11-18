@@ -53,7 +53,7 @@ import vn.vibefix.support.TestPeople;
  * MEN-7 lists their own part of the decided one and the pools of the others as pending (Story 22.5); the other members
  * are no party of any, so being on the Crew opens no split;</li>
  * <li>{@link MatrixCaller#CROSS_ROLE}, an {@code ACTIVE} member who is the Customer of a second Active Job, whose
- * Crew member (shown name, email, LinkedIn link), Crew Chat, Work Item note and Page are the {@code CROSS_*}
+ * Crew member (shown name, email, LinkedIn link), Crew Chat and Work Item note are the {@code CROSS_*}
  * canaries;</li>
  * <li>{@link MatrixCaller#ADMIN_DISPUTE_GRANT}, the Administrator who took this Job's open Dispute
  * ({@code {disputeId}}) with its real grant ({@link AdminReadItem#forDispute()});</li>
@@ -81,8 +81,7 @@ import vn.vibefix.support.TestPeople;
  * active member's Crew row and {@code {accessId}} the Job's External Access item. The Job's Board
  * ({@code {boardId}}) holds the criterion's seeded Story ({@code {workItemId}}), which carries the Mentor's
  * {@code WORK_ITEM_NOTE} note ({@code {workItemNoteId}}) and {@code ATTACHMENT} file ({@code {attachmentId}}, stored
- * as work stores it: {@code {attachmentFileId}}, which {@code file=attachment} binds to {@code {fileId}}), and a
- * team-only Page ({@code {pageId}}, version {@code {versionNo}}) whose body is the {@code CREW_PAGE} canary, all
+ * as work stores it: {@code {attachmentFileId}}, which {@code file=attachment} binds to {@code {fileId}}), both
  * written by the Mentor after the windows ended, and a
  * Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary. The Story is
  * the active member's to work on, the Crew Chat holds a second message no Abuse Report names
@@ -96,7 +95,7 @@ import vn.vibefix.support.TestPeople;
  * for the Mentor's answer, and the Customer's open due-date Change Request ({@code {changeRequestId}}) without the
  * Mentor's impact. The Mentor's
  * earlier Job of the Product, Closed with its Milestone released to the former member and the hiding member, holds
- * the former member's {@code PRIVATE_FEEDBACK} about the Mentor; the Customer's Assessment Job, whose Report was
+ * the former member's {@code PRIVATE_FEEDBACK} about the Mentor; the Customer's Assessment Job, whose handover was
  * accepted, holds the Mentor's drafted follow-up ({@code {followUpId}}). Every running Job has its selected bid
  * and its confirmed Agreement. The public profiles' {@code {username}} is the Mentor's. A row's
  * {@code job=crew} makes {@code {jobId}} this Job ({@code {crewJobId}}), and {@code teamIssue=escalated} makes
@@ -502,16 +501,6 @@ final class CrewJobWorld {
 		decidedResolution(world, job, product, owner);
 		world.put("crewCriterionId", criterion);
 		world.put("item", "NON_CODE_DATA");
-		world.put("pageId", JobContent.page(this.jdbc, job, this.mentor, value("CREW_PAGE_TITLE"), value("CREW_PAGE"),
-				WRITTEN));
-		// A Page the Customer reads, written after the windows ended, and a team-only one written inside them, so
-		// each Page filter is seen to keep something (review iteration 4).
-		UUID customerPage = JobContent.page(this.jdbc, job, this.mentor, value("CUSTOMER_PAGE"), value("CUSTOMER_PAGE"),
-				WRITTEN);
-		this.jdbc.sql("UPDATE work.page SET visibility = 'CUSTOMER' WHERE id = :id").param("id", customerPage).update();
-		JobContent.page(this.jdbc, job, this.mentor, value("EARLY_PAGE"), value("EARLY_PAGE"),
-				WINDOW_END.minus(Duration.ofDays(2)));
-		world.put("versionNo", 1);
 		privateFeedback(product, owner, escalating);
 		secondJob();
 		world.put("username", TestPeople.login(this.jdbc, this.mentor));
@@ -991,9 +980,9 @@ final class CrewJobWorld {
 
 	/**
 	 * The Customer's Assessment Job on a Product of theirs, mentored by the Mentor (FR-10, FR-11, review iteration 4,
-	 * G9): its Report's Milestone was Funded, accepted (M5, which pinned the Report version) and released to the
-	 * Mentor alone, so the Mentor drafts follow-up Jobs citing the Report's recommendations. Returns the drafted
-	 * follow-up's ID: a follow-up exists only after an accepted Assessment.
+	 * G9): its Milestone was Funded, handed over, accepted (M5) and released to the Mentor alone, so the Mentor drafts
+	 * follow-up Jobs, each naming the recommendation it follows. Returns the drafted follow-up's ID: a follow-up
+	 * exists only after an accepted Assessment.
 	 */
 	private UUID assessment(UUID owner) {
 		UUID product = JobContent.product(this.jdbc, owner, "Sản phẩm đánh giá");
@@ -1005,9 +994,6 @@ final class CrewJobWorld {
 		JobContent.confirmedAgreement(this.jdbc, job, owner, this.mentor, true, milestone, "Báo cáo đánh giá", price,
 				SIGNED);
 		JobContent.board(this.jdbc, job, product, "DGA");
-		UUID report = JobContent.page(this.jdbc, job, this.mentor, "Báo cáo đánh giá",
-				"## Đánh giá\nỨng dụng chạy ổn.\n\n## Đề xuất\n1. Sửa lỗi hai khách đặt trùng bàn.\n",
-				ACCEPTED.minus(Duration.ofDays(2)));
 		UUID handover = UUID.randomUUID();
 		JobContent.milestone(this.jdbc, job, milestone, 0, "Báo cáo đánh giá", price, "ACCEPTED", FUNDED, ACCEPTED, handover,
 				SIGNED);
@@ -1016,10 +1002,9 @@ final class CrewJobWorld {
 				ACCEPTED);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
-				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by,
-				    report_page_id, report_version_no)
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
 				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, 'ACCEPTED', 3, :transition, :at, :at,
-				    :decided, :owner, :report, 1)
+				    :decided, :owner)
 				""")
 			.param("id", handover)
 			.param("job", job)
@@ -1030,18 +1015,17 @@ final class CrewJobWorld {
 			.param("at", Timestamp.from(ACCEPTED.minus(Duration.ofDays(1))))
 			.param("decided", Timestamp.from(ACCEPTED))
 			.param("owner", owner)
-			.param("report", report)
 			.update();
 		UUID followUp = UUID.randomUUID();
 		Timestamp written = Timestamp.from(WRITTEN);
 		this.jdbc.sql("""
-				INSERT INTO delivery.follow_up (id, job_id, product_id, handover_id, report_page_id, report_version_no,
-				    recommendation_no, title, job_types, skill_ids, scope, criteria, effort_days, status, mentor_account_id,
-				    created_at, updated_at)
-				VALUES (:id, :job, :product, :handover, :report, 1, 1, 'Sửa lỗi đặt trùng bàn', ARRAY['BUG_FIX'], '{}',
-				    'Sửa lỗi hai khách đặt trùng bàn.', ARRAY['Hai khách không đặt trùng bàn'], 5, 'DRAFTING', :mentor, :at, :at)
+				INSERT INTO delivery.follow_up (id, job_id, product_id, handover_id, recommendation_text, title, job_types,
+				    skill_ids, scope, criteria, effort_days, status, mentor_account_id, created_at, updated_at)
+				VALUES (:id, :job, :product, :handover, 'Đề xuất số 1: sửa lỗi đặt trùng bàn', 'Sửa lỗi đặt trùng bàn',
+				    ARRAY['BUG_FIX'], '{}', 'Sửa lỗi hai khách đặt trùng bàn.', ARRAY['Hai khách không đặt trùng bàn'], 5,
+				    'DRAFTING', :mentor, :at, :at)
 				""").param("id", followUp).param("job", job).param("product", product).param("handover", handover)
-			.param("report", report).param("mentor", this.mentor).param("at", written).update();
+			.param("mentor", this.mentor).param("at", written).update();
 		return followUp;
 	}
 
@@ -1068,7 +1052,6 @@ final class CrewJobWorld {
 		JobContent.board(this.jdbc, job, product, "VHT");
 		UUID item = JobContent.workItem(this.jdbc, job, null, null, MutableClock.DEFAULT_INSTANT);
 		JobContent.note(this.jdbc, item, job, this.mentor, value("CROSS_WORK_ITEM_NOTE"), WRITTEN);
-		JobContent.page(this.jdbc, job, this.mentor, value("CROSS_PAGE"), WRITTEN);
 	}
 
 }

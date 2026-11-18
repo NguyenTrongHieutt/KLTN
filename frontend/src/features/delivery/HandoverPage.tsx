@@ -62,7 +62,6 @@ function CustomerHandovers({ jobId, handoverId }: { jobId: string; handoverId: s
                 chat={{ unread: false }}
                 agreement={job.data.agreementShared}
                 payment={job.data.agreementConfirmed}
-                docs
                 handover
               />
             </JobHeader>

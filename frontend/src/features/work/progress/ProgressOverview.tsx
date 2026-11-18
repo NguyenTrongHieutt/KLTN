@@ -29,7 +29,7 @@ export type ProgressAudience = 'customer' | 'mentor' | 'crew'
 /**
  * JOB-1 from Active on (FR-28, AD-33, AD-39, UX-DR14, UX-DR19, UX-DR32, UX-DR68, UX-DR71): each
  * Milestone's card with its status text, price, progress bar, and due date; the Job's most urgent to-do;
- * the customer-visible Pages; and a side column with the next due date, the people, and the Product.
+ * and a side column with the next due date, the people, and the Product.
  * The Mentor also sees the Crew with each member's open Work Items; a Crew member sees their own and
  * N-12. On an Assessment Job the Mentor and the Crew get N-12 and, under it, their own link to the private read-only
  * copy they may read (FR-10, UX-DR8, R6, Story 23.11b). The Customer never sees a Work Item. It polls every 30 s. A
@@ -66,7 +66,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         {(audience === 'crew' || (audience === 'mentor' && progress.assessment)) && (
           <p role="note" className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
             <ShieldAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-            {t('screen.docs.n12')}
+            {t('screen.progress.n12')}
           </p>
         )}
         {audience !== 'customer' && progress.assessment && <AssessmentCopyLink jobId={jobId} />}
@@ -128,27 +128,6 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             <ItemList items={progress.mine} jobId={jobId} empty={t('screen.progress.noOpenItems')} />
           </section>
         )}
-        <section aria-labelledby="progress-pages" className="flex flex-col gap-2">
-          <h2 id="progress-pages" className="text-h2">
-            {t('screen.progress.pages')}
-          </h2>
-          {progress.pages.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">{t('screen.progress.noPages')}</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {progress.pages.map((page) => (
-                <li key={page.id}>
-                  <Link
-                    to={`/cong-viec/${jobId}/tai-lieu/${page.id}`}
-                    className="text-body-sm text-primary underline-offset-4 hover:underline"
-                  >
-                    {page.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
       </div>
       <aside aria-label={t('screen.progress.aside')} className="flex flex-col gap-4">
         <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">

@@ -46,7 +46,6 @@ const progress = (overrides: object = {}) => ({
   mentorName: 'Đỗ Mạnh Hùng',
   audience: 'MENTOR',
   milestones: [],
-  pages: [],
   crew: [],
   mine: [],
   assessment: false,
@@ -265,7 +264,7 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
   })
 
-  it('keeps a former member\'s links to Board and Documentation on a cancelled Job', { timeout: 20_000 }, async () => {
+  it('keeps a former member\'s link to the Board on a cancelled Job', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...role({ role: 'CREW', crewKind: 'FORMER', left: false, noCrew: false }),
       'GET /api/v1/jobs/j1/crew/me': () => json(crewMe({ state: 'CANCELLED', former: true, canLeave: false })),
@@ -281,7 +280,6 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
     renderAt('/cong-viec/j1')
 
     expect(await screen.findByRole('link', { name: 'Bảng công việc' })).toHaveAttribute('href', '/cong-viec/j1/bang')
-    expect(screen.getByRole('link', { name: 'Tài liệu' })).toHaveAttribute('href', '/cong-viec/j1/tai-lieu')
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
     expect(await screen.findByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeEnabled()
   })

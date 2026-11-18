@@ -21,7 +21,7 @@ import { ProgressOverview } from './ProgressOverview'
 
 /**
  * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before the
- * Board too: the Job's title and Product, "Bạn là: Thành viên nhóm", the ways to its Board, Documentation Space, and
+ * Board too: the Job's title and Product, "Bạn là: Thành viên nhóm", the ways to its Board and
  * Crew Chat, "Rời công việc" until Closing, the step tracker while it has anything to show (UX-DR23), and the progress
  * overview with their own Work Items and N-12. A former member, one whose lock counted as leaving included, reads
  * JOB-H's banner and gets their post-Job duties instead, with no way to the handovers (AD-41). "Phân chia tiền"
@@ -66,9 +66,6 @@ function Content({ me }: { me: CrewMe }) {
               <>
                 <Link to={`/cong-viec/${jobId}/bang`} className={tab}>
                   {t('screen.board.tab')}
-                </Link>
-                <Link to={`/cong-viec/${jobId}/tai-lieu`} className={tab}>
-                  {t('screen.docs.tab')}
                 </Link>
                 {!me.former && (
                   <Link to={`/cong-viec/${jobId}/ban-giao`} className={tab}>

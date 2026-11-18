@@ -8,16 +8,13 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * What a decided Dispute's evidence snapshot records of a Job's Board (AD-31, SG-27): the IDs and versions
- * of its Work Items and Pages, never their text. A Split Resolution's Evidence Package reads a Milestone's Work Items with
+ * of its Work Items, never their text. A Split Resolution's Evidence Package reads a Milestone's Work Items with
  * their histories under its grant, and its decision records their IDs and versions (AD-40).
  */
 public interface WorkEvidence {
 
 	/** @param version the Work Item's edit version (AD-23) */
 	record ItemLine(UUID workItemId, int number, long version, String status) {
-	}
-
-	record PageLine(UUID pageId, int versionNo) {
 	}
 
 	/** The Job's Work Items, by number. */
@@ -52,8 +49,5 @@ public interface WorkEvidence {
 
 	/** The Milestone's Work Items that involve one of these accounts, by number, for a decision's record. */
 	List<ItemLine> milestoneItems(UUID jobId, UUID milestoneId, List<UUID> accounts);
-
-	/** The Job's Pages at their current version, oldest first. */
-	List<PageLine> pages(UUID jobId);
 
 }

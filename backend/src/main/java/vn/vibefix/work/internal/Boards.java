@@ -258,7 +258,7 @@ class Boards {
 			.optional();
 	}
 
-	/** The Board, locked for the rest of the transaction: Page tree changes run under it. */
+	/** The Board, locked for the rest of the transaction: the Job's upload quota is counted under it. */
 	Optional<Board> lockBoard(UUID jobId) {
 		return lock(jobId);
 	}

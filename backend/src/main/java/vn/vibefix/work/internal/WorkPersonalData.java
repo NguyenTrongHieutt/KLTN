@@ -22,15 +22,15 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code work}'s part in exports, erasure, and Product deletion (AD-24): an account exports the Work
- * Items it created or is assigned, its history entries with their notes, the Attachments it added, and
- * the Page versions it wrote; erasing it clears it as creator, assignee, history actor, Attachment author,
- * and version author (the entries, Attachments, and versions stay, without a person), and deletes an
- * Administrator's read grants; deleting a Product deletes its Boards with their Work Items, history,
- * Attachments and their files, Pages, and grants. A running Job blocks erasure through {@code job}.
+ * Items it created or is assigned, its history entries with their notes, and the Attachments it added;
+ * erasing it clears it as creator, assignee, history actor, and Attachment author (the entries and
+ * Attachments stay, without a person), and deletes an Administrator's read grants; deleting a Product
+ * deletes its Boards with their Work Items, history, Attachments and their files, and grants. A running
+ * Job blocks erasure through {@code job}.
  * <p>
  * While a Milestone Split of a Job is not final, its Work Items with their history, notes, and Attachments stay as
- * evidence a Split Resolution reads (AD-24, A-01): its Pages go, a row in {@code work.split_deferral} says what waits,
- * and the listener on {@link MilestoneSplitFinalized} finishes it once the Job has no open split.
+ * evidence a Split Resolution reads (AD-24, A-01): a row in {@code work.split_deferral} says what waits, and the
+ * listener on {@link MilestoneSplitFinalized} finishes it once the Job has no open split.
  */
 @Component
 class WorkPersonalData implements PersonalDataParticipant {
@@ -53,7 +53,7 @@ class WorkPersonalData implements PersonalDataParticipant {
 	@Override
 	public Set<String> tables() {
 		return Set.of("work.board", "work.work_item", "work.work_item_history", "work.attachment", "work.admin_read_grant",
-				"work.page", "work.page_version", "work.work_item_commit");
+				"work.work_item_commit");
 	}
 
 	@Override
@@ -102,23 +102,11 @@ class WorkPersonalData implements PersonalDataParticipant {
 			attachment.put("removed", rs.getTimestamp("removed_at") != null);
 			return attachment;
 		}).list();
-		List<Map<String, Object>> versions = this.jdbc.sql("""
-				SELECT v.page_id, v.version_no, v.title, v.body, v.created_at FROM work.page_version v
-				WHERE v.author_account_id = :id ORDER BY v.created_at, v.page_id, v.version_no
-				""").param("id", accountId).query((rs, n) -> {
-			Map<String, Object> version = new LinkedHashMap<>();
-			version.put("pageId", rs.getObject("page_id", UUID.class).toString());
-			version.put("versionNo", rs.getInt("version_no"));
-			version.put("title", rs.getString("title"));
-			version.put("body", rs.getString("body"));
-			version.put("at", rs.getTimestamp("created_at").toInstant().toString());
-			return version;
-		}).list();
-		if (items.isEmpty() && history.isEmpty() && attachments.isEmpty() && versions.isEmpty()) {
+		if (items.isEmpty() && history.isEmpty() && attachments.isEmpty()) {
 			return Optional.empty();
 		}
-		return Optional.of(new PersonalDataSection("work",
-				Map.of("workItems", items, "history", history, "attachments", attachments, "pageVersions", versions)));
+		return Optional
+			.of(new PersonalDataSection("work", Map.of("workItems", items, "history", history, "attachments", attachments)));
 	}
 
 	@Override
@@ -141,12 +129,6 @@ class WorkPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("UPDATE work.attachment SET removed_by = NULL WHERE removed_by = :id")
 			.param("id", accountId)
 			.update();
-		this.jdbc.sql("UPDATE work.page_version SET author_account_id = NULL WHERE author_account_id = :id")
-			.param("id", accountId)
-			.update();
-		this.jdbc.sql("UPDATE work.page SET created_by_account_id = NULL WHERE created_by_account_id = :id")
-			.param("id", accountId)
-			.update();
 		this.jdbc.sql("DELETE FROM work.admin_read_grant WHERE admin_account_id = :id").param("id", accountId).update();
 	}
 
@@ -155,13 +137,13 @@ class WorkPersonalData implements PersonalDataParticipant {
 		deleteOrDefer(productId, "DELETE");
 	}
 
-	/** NFR-10: Pages, Work Items with their history, notes, and Attachments go; each Board stays, empty. */
+	/** NFR-10: Work Items with their history, notes, and Attachments go; each Board stays, empty. */
 	@Override
 	public void retireJobData(UUID productId) {
 		deleteOrDefer(productId, "RETIRE");
 	}
 
-	/** Each Job's Pages go; its Work Items go too, unless an open split makes them wait. */
+	/** Each Job's Work Items go, unless an open split makes them wait. */
 	private void deleteOrDefer(UUID productId, String waiting) {
 		Set<UUID> open = this.splits.openSplitJobs(productId);
 		open.forEach(job -> defer(job, productId, waiting));
@@ -169,12 +151,9 @@ class WorkPersonalData implements PersonalDataParticipant {
 			.param("id", productId)
 			.query(UUID.class)
 			.list()
-			.forEach(job -> {
-				deletePages(job);
-				if (!open.contains(job)) {
-					finish(job, waiting);
-				}
-			});
+			.stream()
+			.filter(job -> !open.contains(job))
+			.forEach(job -> finish(job, waiting));
 	}
 
 	/** The Job's last split is final: what waited goes. A replay finds no deferral. */
@@ -206,14 +185,6 @@ class WorkPersonalData implements PersonalDataParticipant {
 		if ("DELETE".equals(waiting)) {
 			this.jdbc.sql("DELETE FROM work.board WHERE job_id = :job").param("job", jobId).update();
 		}
-	}
-
-	private void deletePages(UUID jobId) {
-		this.jdbc.sql("DELETE FROM work.page_version WHERE page_id IN (SELECT id FROM work.page WHERE job_id = :job)")
-			.param("job", jobId)
-			.update();
-		this.jdbc.sql("UPDATE work.page SET parent_id = NULL WHERE job_id = :job").param("job", jobId).update();
-		this.jdbc.sql("DELETE FROM work.page WHERE job_id = :job").param("job", jobId).update();
 	}
 
 	/** Records what waits for the Job's open split; a deletion outranks a retirement. */

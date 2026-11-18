@@ -40,7 +40,7 @@ export function JobTabRow({ tabs, current }: { tabs: JobTab[]; current: string }
  * The Customer's Job tabs (UX-DR17) as routes: "Tổng quan" always; "Đơn ứng tuyển ({n})" with
  * "Tìm người hướng dẫn" while the Job Post takes Applications (UX-DR66); "Trò chuyện" from Agreement
  * on, with the unread dot; "Thỏa thuận" once the Mentor shared a draft; "Thanh toán" once the
- * Agreement is confirmed (JOB-7); "Tài liệu" and "Bàn giao" (JOB-5) from Active on. Later tabs join with
+ * Agreement is confirmed (JOB-7); "Bàn giao" (JOB-5) from Active on. Later tabs join with
  * their stories.
  */
 export function JobTabs({
@@ -50,11 +50,10 @@ export function JobTabs({
   chat,
   agreement = false,
   payment = false,
-  docs = false,
   handover = false,
 }: {
   jobId: string
-  current: 'overview' | 'applications' | 'find' | 'chat' | 'agreement' | 'payment' | 'docs' | 'handover'
+  current: 'overview' | 'applications' | 'find' | 'chat' | 'agreement' | 'payment' | 'handover'
   /** The open Applications, when the tab is shown. */
   applications?: number
   /** The Job Chat, when the Job has one: whether the Mentor wrote since the Customer last read. */
@@ -63,8 +62,6 @@ export function JobTabs({
   agreement?: boolean
   /** Whether the Agreement is confirmed, so its Milestones can be funded (FR-41). */
   payment?: boolean
-  /** Whether the Job has its Documentation Space (from Active on), whose customer-visible Pages they read (FR-31). */
-  docs?: boolean
   /** Whether the Job is Active or later, so its Milestones are handed over on JOB-5 (FR-32). */
   handover?: boolean
 }) {
@@ -81,7 +78,6 @@ export function JobTabs({
       : [{ key: 'chat', to: `/cong-viec/${jobId}/tro-chuyen`, label: t('screen.chat.tab'), dot: chat.unread }]),
     ...(agreement ? [{ key: 'agreement', to: `/cong-viec/${jobId}/thoa-thuan`, label: t('screen.agreement.tab') }] : []),
     ...(payment ? [{ key: 'payment', to: `/cong-viec/${jobId}/thanh-toan`, label: t('screen.payment.tab') }] : []),
-    ...(docs ? [{ key: 'docs', to: `/cong-viec/${jobId}/tai-lieu`, label: t('screen.docs.tab') }] : []),
     ...(handover ? [{ key: 'handover', to: `/cong-viec/${jobId}/ban-giao`, label: t('screen.handover.tab') }] : []),
   ]
   return <JobTabRow tabs={tabs} current={current} />

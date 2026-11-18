@@ -113,7 +113,6 @@ const report = (overrides: object = {}) => ({
     },
   ],
   itemNotes: [],
-  report: { pageId: 'p1', versionNo: 3, title: 'Báo cáo đánh giá', body: '## Hiện trạng\n\nỨng dụng chạy trên điện thoại.' },
   version: 13,
   roundsLeft: 2,
   checks: [],
@@ -132,7 +131,6 @@ const preflight = (overrides: object = {}) => ({
     { id: 'w1', key: 'BCD-1', title: 'Báo cáo nêu đủ chín mục', status: 'DONE', approved: true },
     { id: 'w2', key: 'BCD-2', title: 'Phụ lục thuật ngữ', status: 'IN_PROGRESS', approved: false },
   ],
-  report: { pageId: 'p1', versionNo: 3, title: 'Báo cáo đánh giá' },
   problems: [],
   sensitiveChanges: [],
   commitCount: 0,
@@ -170,7 +168,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Bàn giao Giai đoạn 1 · Báo cáo' })).toBeInTheDocument()
     expect(screen.getByText('Đã duyệt')).toBeInTheDocument()
-    expect(screen.getByText(/Bàn giao Báo cáo đánh giá ở phiên bản 3/)).toBeInTheDocument()
     const send = screen.getByRole('button', { name: 'Gửi bàn giao' })
     expect(send).toBeDisabled()
     await user.type(screen.getByRole('textbox', { name: 'Vì sao BCD-2 chưa Xong' }), 'Làm ở giai đoạn sau.')
@@ -198,15 +195,16 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
   it('shows a refusal the preflight finds and keeps "Gửi bàn giao" off', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
-      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight({ report: null, problems: ['REPORT_MISSING'] })),
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(preflight({ state: 'PLANNED', problems: ['MILESTONE_NOT_HELD'] })),
     })
     renderAt('/cong-viec/j1/ban-giao/tao')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Công việc đánh giá cần có báo cáo đánh giá trước khi bàn giao.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Giai đoạn này chưa được thanh toán hoặc đã bàn giao.')
     expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeDisabled()
   })
 
-  it('gives the Customer the criteria with the Mentor’s own marks, the check steps, and the Report', { timeout: 20_000 }, async () => {
+  it('gives the Customer the criteria with the Mentor’s own marks and the check steps', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
@@ -222,8 +220,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(within(article).getByText('Đã rà đủ chín mục.')).toBeInTheDocument()
     expect(within(article).getByText('Mở báo cáo, đếm các mục')).toBeInTheDocument()
     expect(within(article).getByText('Chờ bạn nghiệm thu · tự nghiệm thu 27/10')).toBeInTheDocument()
-    expect(within(article).getByRole('heading', { name: 'Báo cáo đánh giá · phiên bản 3' })).toBeInTheDocument()
-    expect(within(article).getByText('Ứng dụng chạy trên điện thoại.')).toBeInTheDocument()
     expect(within(article).queryByRole('heading', { name: 'Hạng mục chưa Xong khi bàn giao' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Tạo bàn giao' })).toBeNull()
   })
@@ -281,7 +277,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
               met: index % 2 === 0,
               note: payload,
             })),
-            report: { pageId: 'p1', versionNo: 1, title: 'Báo cáo đánh giá', body: PAYLOADS.join('\n\n') },
           }),
         ),
     })
@@ -297,7 +292,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     }
   })
 
-  it('gives a Code Job report its Sensitive Changes, updated Pages, and inert commit list (FR-32, NFR-3)', { timeout: 20_000 }, async () => {
+  it('gives a Code Job report its Sensitive Changes and inert commit list (FR-32, NFR-3)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
@@ -307,7 +302,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           report({
             assessment: false,
-            report: null,
             code: {
               handoverCommit: '9c41a02' + '0'.repeat(33),
               pullNumber: 101,
@@ -319,7 +313,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
               unattributed: 1,
               truncated: false,
               sensitiveChanges: [{ path: 'package.json', kind: 'DEPENDENCIES' }],
-              pages: [{ pageId: 'p2', title: 'Hướng dẫn dùng', versionNo: 2 }],
               diff: {
                 url: 'https://github.com/vibefix-dev/job-1-intermediary/pull/101/files',
                 domain: 'github.com',
@@ -339,7 +332,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     const sensitive = (await screen.findByText('package.json')).closest('section')!
     expect(within(sensitive).getByText(/Danh sách thư viện mà ứng dụng dùng/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Hướng dẫn dùng · phiên bản 2' })).toHaveAttribute('href', '/cong-viec/j1/tai-lieu/p2')
     // N-33 (FR-33, R28, Story 23.8b): the Customer reads it above their decision, and never ticks it.
     expect(
       screen.getByText(/vibefix không quét mã của nhóm\. Người hướng dẫn Đỗ Mạnh Hùng đã xác nhận/),
@@ -412,7 +404,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           preflight({
             assessment: false,
-            report: null,
             previewRequired: true,
             workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
           }),
@@ -425,7 +416,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         return json(submission(), 202)
       },
       'GET /api/v1/boards/j1/handovers/submission': () => json(submission()),
-      'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false, report: null })),
+      'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false })),
       'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
     })
     renderAt('/cong-viec/j1/ban-giao/tao')
@@ -460,7 +451,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           preflight({
             assessment: false,
-            report: null,
             workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
           }),
         ),
@@ -474,7 +464,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
             ? submission({ runStatus: 'IN_PROGRESS' })
             : submission({ state: 'DONE', handoverId: 'h1', runStatus: 'COMPLETED', runConclusion: 'success' }),
         ),
-      'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false, report: null })),
+      'GET /api/v1/handovers/h1': () => json(report({ audience: 'MENTOR', assessment: false })),
       'GET /api/v1/boards/j1/handovers': () => json(list({ assessment: false })),
     })
     renderAt('/cong-viec/j1/ban-giao/tao')
@@ -508,7 +498,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           preflight({
             assessment: false,
-            report: null,
             workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
           }),
         ),
@@ -541,7 +530,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           preflight({
             assessment: false,
-            report: null,
             workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
           }),
         ),
@@ -570,7 +558,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           preflight({
             assessment: false,
-            report: null,
             workItems: [{ id: 'w1', key: 'SDB-1', title: 'Chặn đặt trùng', status: 'DONE', approved: true }],
           }),
         ),
@@ -639,7 +626,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           report({
             assessment: false,
-            report: null,
             code: {
               handoverCommit: '9c41a02' + '0'.repeat(33),
               pullNumber: 101,
@@ -648,8 +634,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
               truncated: false,
               sensitiveChanges: [],
               sensitiveChangeCount: 0,
-              pages: [],
-              teamCodeConfirmedAt: null,
+                            teamCodeConfirmedAt: null,
             },
           }),
         ),
@@ -685,7 +670,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           preflight({
             assessment: false,
-            report: null,
             problems: ['WORKFLOW_FILES_CHANGED'],
             commitCount: 2,
             sensitiveChanges: [{ path: 'Dockerfile', kind: 'BUILD_SCRIPT' }],

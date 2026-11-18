@@ -3,7 +3,7 @@ import type { components } from '@/api/schema'
 import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type ModerationItem = components['schemas']['ModerationItemView']
-export type ContentKind = 'PRODUCT' | 'JOB_POST' | 'PAGE' | 'RATING'
+export type ContentKind = 'PRODUCT' | 'JOB_POST' | 'RATING'
 
 const MODERATION_QUERY_KEY = ['admin', 'moderation'] as const
 

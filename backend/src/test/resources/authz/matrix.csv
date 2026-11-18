@@ -543,8 +543,7 @@ GET /api/v1/jobs/{jobId}/role,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 # The Customer's Job (FR-8, AD-20, AD-43): {jobId} is the Customer's Draft, and with job=crew the crew Job. Only
 # the Customer reads and changes it; the crew Job's own Mentor and Crew (job=crew) find nothing, as everyone else
 # does (review iteration 1, V1). The Customer's commands answer as each Job's state allows: the Draft's edits and
-# screenshots save and the Active crew Job refuses them (JOB_NOT_DRAFT), while the earlier Pages a Job shares
-# change only once it runs (FR-70), so that command runs on the crew Job alone.
+# screenshots save, and the Active crew Job refuses them (JOB_NOT_DRAFT).
 GET /api/v1/jobs/{jobId},ANONYMOUS,,,401
 GET /api/v1/jobs/{jobId},USER_UNVERIFIED,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId},USER,job=crew,,404 NOT_FOUND
@@ -571,46 +570,6 @@ PUT /api/v1/jobs/{jobId},CREW_ACTIVE,job=crew,job-draft.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId},CREW_FORMER,job=crew,job-draft.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId},CROSS_ROLE,job=crew,job-draft.json,404 NOT_FOUND
 PUT /api/v1/jobs/{jobId},ADMINISTRATOR,job=crew,job-draft.json,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,ANONYMOUS,,,401
-GET /api/v1/jobs/{jobId}/page-shares,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,USER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,LOCKED,job=crew,,401
-GET /api/v1/jobs/{jobId}/page-shares,CUSTOMER,,,200
-GET /api/v1/jobs/{jobId}/page-shares,CUSTOMER,job=crew,,200
-GET /api/v1/jobs/{jobId}/page-shares,MENTOR,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,CREW_ACTIVE,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,CREW_FORMER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,CROSS_ROLE,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/page-shares,ADMINISTRATOR,job=crew,,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,ANONYMOUS,,page-shares.json,401
-PUT /api/v1/jobs/{jobId}/page-shares,USER_UNVERIFIED,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,USER,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,LOCKED,job=crew,page-shares.json,401
-PUT /api/v1/jobs/{jobId}/page-shares,CUSTOMER,job=crew,page-shares.json,200
-PUT /api/v1/jobs/{jobId}/page-shares,MENTOR,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,BIDDER,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,CREW_ASSIGNED,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,CREW_ACTIVE,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,CREW_FORMER,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,CROSS_ROLE,job=crew,page-shares.json,404 NOT_FOUND
-PUT /api/v1/jobs/{jobId}/page-shares,ADMINISTRATOR,job=crew,page-shares.json,404 NOT_FOUND
-# Earlier Jobs' Pages shared with this Job (FR-70): the crew Job's Mentor and ACTIVE members read them
-# (job=crew); the Customer and every other Crew state find nothing.
-GET /api/v1/jobs/{jobId}/shared-pages,ANONYMOUS,,,401
-GET /api/v1/jobs/{jobId}/shared-pages,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,USER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,LOCKED,job=crew,,401
-GET /api/v1/jobs/{jobId}/shared-pages,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,CUSTOMER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,MENTOR,job=crew,,200
-GET /api/v1/jobs/{jobId}/shared-pages,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,CREW_ASSIGNED,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,CREW_ACTIVE,job=crew,,200
-GET /api/v1/jobs/{jobId}/shared-pages,CREW_FORMER,job=crew,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/shared-pages,CROSS_ROLE,job=crew,,200
-GET /api/v1/jobs/{jobId}/shared-pages,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/screenshots,ANONYMOUS,,upload.png,401
 POST /api/v1/jobs/{jobId}/screenshots,USER_UNVERIFIED,job=crew,upload.png,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/screenshots,USER,job=crew,upload.png,404 NOT_FOUND
@@ -1651,7 +1610,7 @@ POST /api/v1/boards/{boardId}/disputes,ADMIN_TEAM_ISSUE_GRANT,,dispute.json,404 
 # Administrator sees the Dispute, so its decision answers CONFLICT NOT_ASSIGNED, never FORBIDDEN (SG-31). The
 # fixture's {disputeId} is the crew Job's open Dispute, which ADMIN_DISPUTE_GRANT took: it reads its case and its
 # decision waits for the statements (STATEMENT_PERIOD_OPEN); its grant (AdminReadItem.forDispute) reads the Job
-# Chat's messages, the Work Items and the Pages, never the Crew Chat.
+# Chat's messages and the Work Items, never the Crew Chat.
 GET /api/v1/admin/disputes,ANONYMOUS,,,401
 GET /api/v1/admin/disputes,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/admin/disputes,USER,,,404 NOT_FOUND
@@ -2214,124 +2173,6 @@ POST /api/v1/work-items/{workItemId}/notes,CREW_FORMER,,work-item-note.json,404 
 POST /api/v1/work-items/{workItemId}/notes,CROSS_ROLE,,work-item-note.json,201
 POST /api/v1/work-items/{workItemId}/notes,ADMINISTRATOR,,work-item-note.json,404 NOT_FOUND
 POST /api/v1/work-items/{workItemId}/notes,ADMIN_TEAM_ISSUE_GRANT,,work-item-note.json,404 NOT_FOUND
-# The Documentation Space (FR-29, AD-20, AD-41): the Mentor and ACTIVE members read and write;
-# former members read only Pages with a version in their window ({pageId}, titled CREW_PAGE_TITLE, was written
-# after it; EARLY_PAGE inside it), never write; the Job's Customer reads customer-visible Pages only ({pageId} is
-# team-only; CUSTOMER_PAGE is theirs), never their history; everyone else, and an Administrator without a PAGES grant, finds nothing (FR-31). The Dispute
-# grant reads the Pages and their history (AdminReadItem.forDispute); the Team Issue and Abuse Report grants read
-# none.
-GET /api/v1/boards/{boardId}/pages,ANONYMOUS,,,401
-GET /api/v1/boards/{boardId}/pages,USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,USER,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,LOCKED,,,401
-GET /api/v1/boards/{boardId}/pages,CUSTOMER,,,200
-GET /api/v1/boards/{boardId}/pages,MENTOR,,,200
-GET /api/v1/boards/{boardId}/pages,BIDDER,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,CREW_ACTIVE,,,200
-GET /api/v1/boards/{boardId}/pages,CREW_FORMER,,,200
-GET /api/v1/boards/{boardId}/pages,CROSS_ROLE,,,200
-GET /api/v1/boards/{boardId}/pages,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/boards/{boardId}/pages,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,ANONYMOUS,,page.json,401
-POST /api/v1/boards/{boardId}/pages,USER_UNVERIFIED,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,USER,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,LOCKED,,page.json,401
-POST /api/v1/boards/{boardId}/pages,CUSTOMER,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,MENTOR,,page.json,201
-POST /api/v1/boards/{boardId}/pages,BIDDER,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,CREW_ASSIGNED,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,CREW_ACTIVE,,page.json,201
-POST /api/v1/boards/{boardId}/pages,CREW_FORMER,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,CROSS_ROLE,,page.json,201
-POST /api/v1/boards/{boardId}/pages,ADMINISTRATOR,,page.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/pages,ADMIN_TEAM_ISSUE_GRANT,,page.json,404 NOT_FOUND
-GET /api/v1/pages/{pageId},ANONYMOUS,,,401
-GET /api/v1/pages/{pageId},USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},USER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},LOCKED,,,401
-GET /api/v1/pages/{pageId},CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},MENTOR,,,200
-GET /api/v1/pages/{pageId},BIDDER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},CREW_ACTIVE,,,200
-GET /api/v1/pages/{pageId},CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},CROSS_ROLE,,,200
-GET /api/v1/pages/{pageId},ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/pages/{pageId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},ANONYMOUS,,page-edit.json,401
-PUT /api/v1/pages/{pageId},USER_UNVERIFIED,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},USER,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},LOCKED,,page-edit.json,401
-PUT /api/v1/pages/{pageId},CUSTOMER,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},MENTOR,,page-edit.json,200
-PUT /api/v1/pages/{pageId},BIDDER,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},CREW_ASSIGNED,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},CREW_ACTIVE,,page-edit.json,200
-PUT /api/v1/pages/{pageId},CREW_FORMER,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},CROSS_ROLE,,page-edit.json,200
-PUT /api/v1/pages/{pageId},ADMINISTRATOR,,page-edit.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId},ADMIN_TEAM_ISSUE_GRANT,,page-edit.json,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,ANONYMOUS,,,401
-GET /api/v1/pages/{pageId}/versions,USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,USER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,LOCKED,,,401
-GET /api/v1/pages/{pageId}/versions,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,MENTOR,,,200
-GET /api/v1/pages/{pageId}/versions,BIDDER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,CREW_ACTIVE,,,200
-GET /api/v1/pages/{pageId}/versions,CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,CROSS_ROLE,,,200
-GET /api/v1/pages/{pageId}/versions,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/pages/{pageId}/versions,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},ANONYMOUS,,,401
-GET /api/v1/pages/{pageId}/versions/{versionNo},USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},USER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},LOCKED,,,401
-GET /api/v1/pages/{pageId}/versions/{versionNo},CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},MENTOR,,,200
-GET /api/v1/pages/{pageId}/versions/{versionNo},BIDDER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_ACTIVE,,,200
-GET /api/v1/pages/{pageId}/versions/{versionNo},CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},CROSS_ROLE,,,200
-GET /api/v1/pages/{pageId}/versions/{versionNo},ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/pages/{pageId}/versions/{versionNo},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,ANONYMOUS,,page-restore.json,401
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,USER_UNVERIFIED,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,USER,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,LOCKED,,page-restore.json,401
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CUSTOMER,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,MENTOR,,page-restore.json,200
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,BIDDER,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_ASSIGNED,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_ACTIVE,,page-restore.json,200
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CREW_FORMER,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,CROSS_ROLE,,page-restore.json,200
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,ADMINISTRATOR,,page-restore.json,404 NOT_FOUND
-POST /api/v1/pages/{pageId}/versions/{versionNo}/restore,ADMIN_TEAM_ISSUE_GRANT,,page-restore.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,ANONYMOUS,,page-visibility.json,401
-PUT /api/v1/pages/{pageId}/visibility,USER_UNVERIFIED,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,USER,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,LOCKED,,page-visibility.json,401
-PUT /api/v1/pages/{pageId}/visibility,CUSTOMER,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,MENTOR,,page-visibility.json,200
-PUT /api/v1/pages/{pageId}/visibility,BIDDER,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,CREW_ASSIGNED,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,CREW_ACTIVE,,page-visibility.json,403 FORBIDDEN MENTOR_ONLY
-PUT /api/v1/pages/{pageId}/visibility,CREW_FORMER,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,CROSS_ROLE,,page-visibility.json,403 FORBIDDEN MENTOR_ONLY
-PUT /api/v1/pages/{pageId}/visibility,ADMINISTRATOR,,page-visibility.json,404 NOT_FOUND
-PUT /api/v1/pages/{pageId}/visibility,ADMIN_TEAM_ISSUE_GRANT,,page-visibility.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,USER_UNVERIFIED,job=crew,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,USER,job=crew,,404 NOT_FOUND,requireActiveAccount
@@ -3621,10 +3462,6 @@ GET /api/v1/boards/{boardId}/work-items,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,item=raiser,,404 NOT_FOUND
 GET /api/v1/work-item-notes/{workItemNoteId},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/pages,ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions,ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
-GET /api/v1/pages/{pageId}/versions/{versionNo},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=chat,,200
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=attachment,,200
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=screenshot,,404 NOT_FOUND

@@ -27,7 +27,7 @@ import vn.vibefix.work.WorkEvidence;
  * A decision's evidence snapshot (SG-27, AD-31, AD-24): written with the decision, from the same owning
  * modules' queries the Evidence Package reads, as IDs, versions, counts, and totals, never copies of the
  * content and never an account ID. It stays with the decision after the NFR-10 retirement of the Job's
- * chat, Pages, and Work Items, so the decision remains explainable.
+ * chat and Work Items, so the decision remains explainable.
  */
 @Component
 class EvidenceSnapshots {
@@ -38,9 +38,6 @@ class EvidenceSnapshots {
 	}
 
 	record SnapshotWorkItem(UUID workItemId, int number, long version, String status) {
-	}
-
-	record SnapshotPage(UUID pageId, int versionNo) {
 	}
 
 	/** @param lastMessageId the newest Job Chat message when the decision was made */
@@ -61,7 +58,7 @@ class EvidenceSnapshots {
 
 	/** Everything the decision was based on, as it stood at {@code takenAt}. */
 	record EvidenceSnapshot(Instant takenAt, List<Integer> agreementVersions, List<SnapshotReport> reports,
-			List<SnapshotWorkItem> workItems, List<SnapshotPage> pages, SnapshotChat jobChat, List<SnapshotPayment> payments,
+			List<SnapshotWorkItem> workItems, SnapshotChat jobChat, List<SnapshotPayment> payments,
 			List<SnapshotDrift> driftWarnings, List<SnapshotStatement> statements) {
 	}
 
@@ -131,7 +128,6 @@ class EvidenceSnapshots {
 					.stream()
 					.map(item -> new SnapshotWorkItem(item.workItemId(), item.number(), item.version(), item.status()))
 					.toList(),
-				this.work.pages(job).stream().map(page -> new SnapshotPage(page.pageId(), page.versionNo())).toList(),
 				new SnapshotChat(extent.messageCount(), extent.lastMessageId(), extent.lastSentAt()), payments,
 				this.drift.driftWarnings(job)
 					.stream()

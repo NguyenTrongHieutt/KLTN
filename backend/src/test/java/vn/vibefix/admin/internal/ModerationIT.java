@@ -38,8 +38,8 @@ import vn.vibefix.support.TestPeople;
 
 /**
  * ADM-6 (FR-60, FR-14, FR-49, FR-63): a hidden Job Post leaves browse, lapses its invitations, and tells
- * its applicants; a hidden Product hides its Open Job Posts; a hidden Page is read by no one; a hidden
- * Rating leaves the summary. Each author is told the reason, and each hide is audited once.
+ * its applicants; a hidden Product hides its Open Job Posts; a hidden Rating leaves the summary. Each
+ * author is told the reason, and each hide is audited once.
  */
 class ModerationIT extends IntegrationTest {
 
@@ -140,24 +140,18 @@ class ModerationIT extends IntegrationTest {
 	}
 
 	@Test
-	void aHiddenPageIsReadByNoOneAndAHiddenRatingLeavesTheSummary() throws Exception {
+	void aHiddenRatingLeavesTheSummary() throws Exception {
 		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
 		world();
 		UUID job = activeJob();
-		UUID page = page(job);
-		this.mvc.perform(get("/api/v1/pages/" + page).with(as(this.hung, Role.MENTOR))).andExpect(status().isOk());
-		hide(ha, "PAGE", page, "Chứa thông tin cá nhân").andExpect(status().isOk());
-		this.mvc.perform(get("/api/v1/pages/" + page).with(as(this.hung, Role.MENTOR))).andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/boards/" + job + "/pages").with(as(this.hung, Role.MENTOR)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[?(@.id == '" + page + "')]").isEmpty());
+		// Story 24.1: the Documentation Space is retired, so PAGE is no kind ADM-6 hides any more.
+		hide(ha, "PAGE", UUID.randomUUID(), "Chứa thông tin cá nhân").andExpect(status().isNotFound());
 
 		UUID rating = rating(job);
 		assertThat(this.reputation.visibleSummary(this.hung, RatingRole.MENTOR).count()).isEqualTo(1);
 		hide(ha, "RATING", rating, "Lời lẽ xúc phạm").andExpect(status().isOk());
 		assertThat(this.reputation.visibleSummary(this.hung, RatingRole.MENTOR).count()).isZero();
 		assertThat(notices("admin.content_hidden", this.lan)).isEqualTo(1);
-		assertThat(notices("admin.content_hidden", this.hung)).isEqualTo(1);
 	}
 
 	private void world() {
@@ -253,20 +247,6 @@ class ModerationIT extends IntegrationTest {
 				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
 				""").param("job", job).param("product", this.product).param("now", now).update();
 		return job;
-	}
-
-	private UUID page(UUID job) {
-		UUID page = UUID.randomUUID();
-		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("""
-				INSERT INTO work.page (id, job_id, title, version_no, created_by_account_id, created_at, updated_at)
-				VALUES (:id, :job, 'Ghi chú', 1, :mentor, :now, :now)
-				""").param("id", page).param("job", job).param("mentor", this.hung).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.page_version (page_id, version_no, title, body, author_account_id, created_at)
-				VALUES (:id, 1, 'Ghi chú', 'Nội dung', :mentor, :now)
-				""").param("id", page).param("mentor", this.hung).param("now", now).update();
-		return page;
 	}
 
 	private UUID rating(UUID job) {
