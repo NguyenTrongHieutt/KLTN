@@ -38,7 +38,7 @@ import { finalText, partyName, pendingText, pendingTone } from './partText'
 import { RefundLine } from './RefundLine'
 import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '@/features/job/jobState'
 
 const STATE_TONE: Record<string, string> = {
   PLANNED: 'bg-warning-soft text-warning',

@@ -19,8 +19,7 @@ import vn.vibefix.work.MilestoneWork;
 
 /**
  * {@link MilestoneWork} (FR-10, FR-32, AD-39): a Work Item counts as done for a handover only in "Xong"
- * with the Mentor's approval, or their own unreviewed move, as its latest review entry, as {@code work.criteriaDone}
- * counts it.
+ * with the Mentor's approval, or their own unreviewed move, as its latest review entry.
  */
 @Component
 class WorkMilestones implements MilestoneWork {

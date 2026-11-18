@@ -50,7 +50,7 @@ class Reviews {
 
 	static final String FIX_TODO = "work.fix_returned_item";
 
-	/** The history action of the Mentor's own move to "Xong", which {@code work.criteriaDone} counts like an approval. */
+	/** The history action of the Mentor's own move to "Xong", which counts like an approval. */
 	static final String UNREVIEWED = "UNREVIEWED";
 
 	enum Decision {

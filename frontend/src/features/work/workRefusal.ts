@@ -3,7 +3,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import vi from '@/i18n/vi.json'
 import { ApiError } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
-import type { SensitiveMatch } from './workApi'
+import type { SensitiveMatch } from '@/features/delivery/SensitiveDialog'
 
 const REASONS = vi as { reason: { work: Record<string, string>; files: Record<string, string> } }
 

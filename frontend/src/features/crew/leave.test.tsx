@@ -47,9 +47,7 @@ const progress = (overrides: object = {}) => ({
   audience: 'MENTOR',
   milestones: [],
   crew: [],
-  mine: [],
   assessment: false,
-  leavers: [],
   ...overrides,
 })
 
@@ -297,12 +295,12 @@ describe('JOB-1 for a Crew member before the Board (FR-77, UX-DR104)', () => {
 })
 
 describe('No Crew left (Q7, R8, UX-DR104)', () => {
-  it('shows the Mentor the banner on JOB-1 with "Tuyển thành viên", and who left open Work Items', { timeout: 20_000 }, async () => {
+  /** Story 24.2a: JOB-1 carries no Work Item of anyone's, so the reassignment line stays on JOB-2 alone. */
+  it('shows the Mentor the banner on JOB-1 with "Tuyển thành viên", and no reassignment line', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...role({ role: 'MENTOR', left: false, noCrew: true }),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
-      'GET /api/v1/boards/j1/progress': () =>
-        json(progress({ leavers: [{ name: 'Trần Thảo Vy', leftAt: '2026-10-20T03:00:00Z' }] })),
+      'GET /api/v1/boards/j1/progress': () => json(progress()),
     })
     renderAt('/cong-viec/j1')
 
@@ -311,7 +309,7 @@ describe('No Crew left (Q7, R8, UX-DR104)', () => {
       'href',
       '/cong-viec/j1/tuyen-thanh-vien',
     )
-    expect(await screen.findByText('Trần Thảo Vy đã rời công việc ngày 20/10. Hãy giao lại các hạng mục đang mở.')).toBeInTheDocument()
+    expect(screen.queryByText(/đã rời công việc ngày/)).toBeNull()
     expect(screen.queryByRole('button', { name: /Đóng/ })).toBeNull()
   })
 
@@ -595,21 +593,20 @@ describe('JOB-9 (FR-82)', () => {
     ],
   }
 
-  it('reads the Mentor the reason a member gave, says who left open Work Items, and has no remove action', { timeout: 20_000 }, async () => {
+  it('reads the Mentor the reason a member gave, and has no remove action', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...role({ role: 'MENTOR', left: false, noCrew: true }),
       ...heldJobs(),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
       'GET /api/v1/mentor/jobs/j1/recruitment': () => json(recruitment),
       'GET /api/v1/mentor/jobs/j1/crew-applications': () => json([]),
-      'GET /api/v1/boards/j1/progress': () =>
-        json(progress({ leavers: [{ name: 'Trần Thảo Vy', leftAt: '2026-10-20T03:00:00Z' }] })),
     })
     renderAt('/cong-viec/j1/tuyen-thanh-vien')
 
     expect(await screen.findByText('Lý do (chỉ bạn đọc được): Mình đi thực tập')).toBeInTheDocument()
     expect(screen.getAllByText(/Lý do/)).toHaveLength(1)
-    expect(await screen.findByText(/Trần Thảo Vy đã rời công việc ngày 20\/10/)).toBeInTheDocument()
+    // Story 24.2a: JOB-9 no longer reads JOB-1's progress, which carried the reassignment line.
+    expect(screen.queryByText(/đã rời công việc ngày/)).toBeNull()
     expect(screen.queryByRole('button', { name: /Xóa khỏi nhóm/ })).toBeNull()
   })
 })

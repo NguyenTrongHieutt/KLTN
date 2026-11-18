@@ -206,18 +206,20 @@ class CrewLeaveIT extends IntegrationTest {
 		assertThat(text("SELECT link FROM notification.todo WHERE todo_key = 'repo.confirm_data_deletion'"))
 			.isEqualTo("/cong-viec/" + this.job);
 
-		// UX-DR87: "· đã rời", and the Mentor reads who left open Work Items behind.
+		// UX-DR87: "· đã rời", and the Mentor reads on the Board who left open Work Items behind (Story 24.2a: JOB-1
+		// no longer carries the line, since it carries no Work Item at all).
 		role(this.vy).andExpect(jsonPath("$.crewKind").value("FORMER")).andExpect(jsonPath("$.left").value(true));
 		me(this.vy).andExpect(status().isOk())
 			.andExpect(jsonPath("$.former").value(true))
 			.andExpect(jsonPath("$.canLeave").value(false))
 			.andExpect(jsonPath("$.partyMilestones.length()").value(0));
-		for (String read : List.of("/api/v1/boards/" + this.job + "/work-items", "/api/v1/boards/" + this.job + "/progress")) {
-			this.mvc.perform(get(read).with(as(this.hung, Role.MENTOR)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.leavers.length()").value(1))
-				.andExpect(jsonPath("$.leavers[0].name").value("Trần Thảo Vy"));
-		}
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.leavers.length()").value(1))
+			.andExpect(jsonPath("$.leavers[0].name").value("Trần Thảo Vy"));
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(content -> assertThat(content.getResponse().getContentAsString()).doesNotContain("leavers"));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.minh, Role.STUDENT)))
 			.andExpect(jsonPath("$.leavers.length()").value(0));
 
@@ -225,7 +227,7 @@ class CrewLeaveIT extends IntegrationTest {
 		for (UUID item : List.of(todo, doing, inReview, returned)) {
 			assign(item, this.minh).andExpect(status().isOk());
 		}
-		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.leavers.length()").value(0));
 	}
 
@@ -890,7 +892,8 @@ class CrewLeaveIT extends IntegrationTest {
 	// ---- Helpers --------------------------------------------------------------------------------
 
 	private ResultActions leavers() throws Exception {
-		return this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR))).andExpect(status().isOk());
+		return this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk());
 	}
 
 	/** J8 or J10 as a cancellation's cascade applies them, whatever Milestone is still Held. */

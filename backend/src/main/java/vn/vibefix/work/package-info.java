@@ -5,13 +5,13 @@
  * with a full history, and only the Mentor assigns them. Only the Job's Mentor and its Crew read a
  * Board, as {@code job} says (AD-41), a former member only their own window's; an Administrator reads
  * only under a grant a case module pushed down ({@link vn.vibefix.shared.AdminReadGrants}), each read
- * audited (AD-20). No Customer endpoint returns Work Items (AD-39).
+ * audited (AD-20). The Job's Customer reaches no {@code work} surface at all: JOB-1's progress is
+ * {@code job}'s own endpoint since Story 24.2a, and no Customer endpoint returns Work Items (AD-39).
  * Nothing reaches "Xong" without the Mentor's approval (the Review Gate). Work Items carry Attachments,
  * whose files {@code files} stores and serves only when {@code work} allows it, and append-only notes
  * (FR-76).
  * <p>
- * Public API: {@link vn.vibefix.work.CriteriaDone}, the one count of criteria done (AD-33), and
- * {@link vn.vibefix.work.MilestoneWork}, what a Milestone Handover reads (FR-32), and
+ * Public API: {@link vn.vibefix.work.MilestoneWork}, what a Milestone Handover reads (FR-32), and
  * {@link vn.vibefix.work.WorkFacts}, the Board's facts for Portfolio Entries (FR-50), and
  * {@link vn.vibefix.work.WorkEvidence}, the IDs and versions a Dispute decision's snapshot records (SG-27).
  * The listener, the endpoints, the grants, and the personal-data participant are wiring in

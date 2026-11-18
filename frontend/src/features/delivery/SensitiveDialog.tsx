@@ -2,11 +2,20 @@ import { Dialog } from '@base-ui/react/dialog'
 import { TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
-import type { SensitiveMatch } from './workApi'
+
+/** What the writer chose after the FR-47 warning: check first, or store the masked text. */
+export type Resolution = 'CHECK' | 'MASK'
+
+/** One masked FR-47 match, as the warning dialog lists it. */
+export interface SensitiveMatch {
+  kind: string
+  type: string
+  masked: string
+}
 
 /**
- * FR-47 on the Board (AD-18): the masked matches, then "Che và lưu" stores the masked text and "Sửa
- * lại" goes back. It serves Work Item fields, notes, link labels, and text files alike.
+ * FR-47 (AD-18): the masked matches, then "Che và lưu" stores the masked text and "Sửa lại" goes back. It
+ * serves the handover form, the guided check, and the Board's fields, notes, link labels and text files alike.
  */
 export function SensitiveDialog({
   matches,

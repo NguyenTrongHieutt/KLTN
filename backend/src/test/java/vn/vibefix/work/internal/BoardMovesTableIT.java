@@ -28,7 +28,6 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
-import vn.vibefix.work.CriteriaDone;
 import vn.vibefix.work.MilestoneWork;
 import vn.vibefix.work.WorkFacts;
 
@@ -55,9 +54,6 @@ class BoardMovesTableIT extends IntegrationTest {
 
 	@Autowired
 	private Boards boards;
-
-	@Autowired
-	private CriteriaDone criteriaDone;
 
 	@Autowired
 	private MilestoneWork milestoneWork;
@@ -222,7 +218,7 @@ class BoardMovesTableIT extends IntegrationTest {
 			.isZero();
 	}
 
-	/** An unreviewed move needs the four answers, reads as such in the history, and counts in {@code criteriaDone}. */
+	/** An unreviewed move needs the four answers and reads as such in the history, where an approval would count. */
 	@Test
 	void anUnreviewedMoveNeedsTheSelfCheckAndCountsWhereAnApprovalCounts() throws Exception {
 		noCrewLeft();
@@ -234,7 +230,8 @@ class BoardMovesTableIT extends IntegrationTest {
 		String incomplete = "{\"version\":%d,\"selfCheck\":{\"meetsCriteria\":true,\"tested\":false,\"docsUpdated\":true,\"noSecrets\":true}}"
 			.formatted(version());
 		assertThat(mentor("/api/v1/work-items/" + story + "/submit", incomplete).getStatus()).isEqualTo(400);
-		assertThat(this.criteriaDone.criteriaDone(this.job, MILESTONE).done()).isZero();
+		assertThat(this.jdbc.sql("SELECT status FROM work.work_item WHERE id = :id").param("id", story)
+			.query(String.class).single()).as("the refused submission moved nothing").isEqualTo("IN_PROGRESS");
 
 		String complete = "{\"version\":%d,\"selfCheck\":{\"meetsCriteria\":true,\"tested\":true,\"docsUpdated\":true,\"noSecrets\":true},\"note\":\"Mình tự làm\"}"
 			.formatted(version());
@@ -249,7 +246,6 @@ class BoardMovesTableIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'work.review_work_item' AND closed_at IS NULL
 				""").query(Long.class).single()).as("nobody reviews it").isZero();
-		assertThat(this.criteriaDone.criteriaDone(this.job, MILESTONE).done()).isOne();
 		assertThat(this.milestoneWork.items(this.job, MILESTONE)).filteredOn(state -> state.id().equals(story))
 			.singleElement().satisfies(state -> assertThat(state.approved()).isTrue());
 		// Portfolio's and ADM-9's counts stay with approvals: nobody reviewed this one.

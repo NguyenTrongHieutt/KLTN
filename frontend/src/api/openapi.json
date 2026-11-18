@@ -3116,7 +3116,7 @@
             "description" : "OK"
           }
         },
-        "tags" : [ "progress-controller" ]
+        "tags" : [ "job-progress-controller" ]
       }
     },
     "/api/v1/boards/{boardId}/ratings" : {
@@ -11635,17 +11635,11 @@
           "name" : {
             "type" : "string"
           },
-          "openItems" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/OpenItemView"
-            }
-          },
           "state" : {
             "type" : "string"
           }
         },
-        "required" : [ "accountId", "name", "openItems", "state" ]
+        "required" : [ "accountId", "name", "state" ]
       },
       "CrewView" : {
         "type" : "object",
@@ -14397,12 +14391,6 @@
               "$ref" : "#/components/schemas/CrewProgressView"
             }
           },
-          "leavers" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/LeaverView"
-            }
-          },
           "mentorName" : {
             "type" : "string"
           },
@@ -14410,12 +14398,6 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/MilestoneProgressView"
-            }
-          },
-          "mine" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/OpenItemView"
             }
           },
           "productName" : {
@@ -14428,7 +14410,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "assessment", "audience", "boardId", "crew", "leavers", "mentorName", "milestones", "mine", "productName", "state", "title" ]
+        "required" : [ "assessment", "audience", "boardId", "crew", "mentorName", "milestones", "productName", "state", "title" ]
       },
       "JobRoleView" : {
         "type" : "object",
@@ -15215,17 +15197,9 @@
           "autoAccepted" : {
             "type" : "boolean"
           },
-          "done" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "dueOn" : {
             "type" : "string",
             "format" : "date"
-          },
-          "inReview" : {
-            "type" : "integer",
-            "format" : "int32"
           },
           "milestoneId" : {
             "type" : "string",
@@ -15259,13 +15233,9 @@
           },
           "title" : {
             "type" : "string"
-          },
-          "total" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
-        "required" : [ "autoAccepted", "done", "inReview", "milestoneId", "number", "refunded", "roundsLeft", "state", "title", "total" ]
+        "required" : [ "autoAccepted", "milestoneId", "number", "refunded", "roundsLeft", "state", "title" ]
       },
       "MilestoneRequest" : {
         "type" : "object",
@@ -15593,25 +15563,6 @@
           }
         },
         "required" : [ "canState", "concern", "id", "mine", "openedAt", "openedBy", "reason", "statementDueAt", "statements" ]
-      },
-      "OpenItemView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "key" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "id", "key", "status", "title" ]
       },
       "OpenedView" : {
         "type" : "object",

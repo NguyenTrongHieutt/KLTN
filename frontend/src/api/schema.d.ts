@@ -5077,7 +5077,6 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             name: string;
-            openItems: components["schemas"]["OpenItemView"][];
             state: string;
         };
         CrewView: {
@@ -6035,10 +6034,8 @@ export interface components {
             /** Format: uuid */
             boardId: string;
             crew: components["schemas"]["CrewProgressView"][];
-            leavers: components["schemas"]["LeaverView"][];
             mentorName: string;
             milestones: components["schemas"]["MilestoneProgressView"][];
-            mine: components["schemas"]["OpenItemView"][];
             productName: string;
             state: string;
             title: string;
@@ -6338,12 +6335,8 @@ export interface components {
         };
         MilestoneProgressView: {
             autoAccepted: boolean;
-            /** Format: int32 */
-            done: number;
             /** Format: date */
             dueOn?: string;
-            /** Format: int32 */
-            inReview: number;
             /** Format: uuid */
             milestoneId: string;
             /** Format: int32 */
@@ -6359,8 +6352,6 @@ export interface components {
             roundsLeft: number;
             state: string;
             title: string;
-            /** Format: int32 */
-            total: number;
         };
         MilestoneRequest: {
             criteria: components["schemas"]["CriterionRequest"][];
@@ -6481,13 +6472,6 @@ export interface components {
             /** Format: date-time */
             statementDueAt: string;
             statements: components["schemas"]["DisputeStatementView"][];
-        };
-        OpenItemView: {
-            /** Format: uuid */
-            id: string;
-            key: string;
-            status: string;
-            title: string;
         };
         OpenedView: {
             /** Format: uuid */

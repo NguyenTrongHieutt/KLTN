@@ -16,7 +16,7 @@ import { SetupTracker } from '@/features/job/SetupTracker'
 import { useJobSplits } from '@/features/split/splitApi'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '../jobState'
 import { ProgressOverview } from './ProgressOverview'
 
 /**

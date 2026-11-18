@@ -15,7 +15,7 @@ import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
 import { ChatPanel } from './ChatPanel'
 import { hasChat, useJobChat } from './chatApi'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '@/features/job/jobState'
 
 /**
  * JOB-4 "Trò chuyện" (`/cong-viec/{jobId}/tro-chuyen`, FR-46, UX-DR17): the Job Chat for its Customer

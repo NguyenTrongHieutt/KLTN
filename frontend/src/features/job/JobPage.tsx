@@ -24,12 +24,12 @@ import { LeaverRevocations } from './closure/RevocationChecklist'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '@/features/job/jobState'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from './cancellation/CancellationSection'
 import { SetupTracker } from './SetupTracker'
-import { CrewJobPage } from '@/features/work/progress/CrewJobPage'
-import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
+import { CrewJobPage } from './progress/CrewJobPage'
+import { ProgressOverview } from './progress/ProgressOverview'
 
 /**
  * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the

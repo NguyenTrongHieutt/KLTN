@@ -8,13 +8,13 @@ import { Sheet } from '@/components/Sheet'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { SensitiveDialog, type SensitiveMatch } from '@/features/delivery/SensitiveDialog'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
 import { AttachmentList } from './Attachments'
 import { MoveMenu } from './MoveMenu'
 import { NoteThread } from './NoteThread'
-import { SensitiveDialog } from './SensitiveDialog'
 import type { WorkItemCard } from './workApi'
 import {
   PRIORITIES,
@@ -22,7 +22,6 @@ import {
   useSaveWorkItem,
   useWorkItem,
   type Board,
-  type SensitiveMatch,
   type WorkItemDetail,
   type WorkItemRequest,
 } from './workApi'

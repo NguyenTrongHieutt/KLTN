@@ -28,12 +28,11 @@ const progress = (overrides: object = {}) => ({
   mentorName: 'Đỗ Mạnh Hùng',
   audience: 'CUSTOMER',
   milestones: [
-    { milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', state: 'FUNDED', priceVnd: 1500000, dueOn: '2026-11-20', done: 1, total: 2, inReview: 0 },
-    { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', state: 'PLANNED', priceVnd: 1500000, dueOn: '2026-12-10', done: 0, total: 1, inReview: 0 },
-    { milestoneId: 'm3', number: 3, title: 'Báo cáo', state: 'PLANNED', priceVnd: 500000, done: 0, total: 1, inReview: 0 },
+    { milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', state: 'FUNDED', priceVnd: 1500000, dueOn: '2026-11-20' },
+    { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', state: 'PLANNED', priceVnd: 1500000, dueOn: '2026-12-10' },
+    { milestoneId: 'm3', number: 3, title: 'Báo cáo', state: 'PLANNED', priceVnd: 500000 },
   ],
   crew: [],
-  mine: [],
   assessment: false,
   ...overrides,
 })
@@ -103,7 +102,7 @@ const assessmentSetup = (own?: Record<string, unknown>) => ({
 })
 
 describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
-  it('tells the Customer how far each Milestone has come, and nothing of the Board', { timeout: 20_000 }, async () => {
+  it("tells the Customer each Milestone's own state, with no progress figure", { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/jobs/j1': () => json(customerJob),
@@ -127,8 +126,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     renderAt('/cong-viec/j1')
 
     const first = (await screen.findByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ' })).closest('li')!
-    expect(within(first).getByText('Đang làm · 1/2 tiêu chí đã xong')).toBeInTheDocument()
-    expect(within(first).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
+    expect(within(first).getByText('Đang làm')).toBeInTheDocument()
+    expect(within(first).queryByRole('progressbar')).toBeNull()
     expect(within(first).getByText('THỬ NGHIỆM')).toBeInTheDocument()
     expect(within(first).getByText('Hạn 20/11')).toBeInTheDocument()
     const second = screen.getByRole('heading', { level: 3, name: 'Giai đoạn 2 · Email nhắc lịch' }).closest('li')!
@@ -142,6 +141,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(aside).getByText('Giai đoạn 1: 20/11')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Nhóm thực hiện' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Việc của tôi' })).toBeNull()
+    expect(screen.queryByText(/tiêu chí đã xong/)).toBeNull()
     expect(screen.queryByText(/phần mềm độc hại/)).toBeNull()
     expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
   })
@@ -222,7 +222,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.queryByText(/đang gửi lời mời/)).toBeNull()
   })
 
-  it('adds the Crew and their open Work Items for the Mentor', { timeout: 20_000 }, async () => {
+  it("adds the Crew with each member's state for the Mentor, and no work of theirs", { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
@@ -230,27 +230,22 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
         json(
           progress({
             audience: 'MENTOR',
-            milestones: [{ ...progress().milestones[0], inReview: 1 }],
+            milestones: [progress().milestones[0]],
             crew: [
-              {
-                accountId: 's1',
-                name: 'Trần Thảo Vy',
-                state: 'ACTIVE',
-                openItems: [{ id: 'w2', key: 'SDB-2', title: 'Khách thấy giờ còn trống', status: 'IN_REVIEW' }],
-              },
-              { accountId: 's2', name: 'Lê Minh Tùng', state: 'ASSIGNED', openItems: [] },
-              { accountId: 's4', name: 'Hoàng Kim Ngân', state: 'RELEASED', openItems: [] },
+              { accountId: 's1', name: 'Trần Thảo Vy', state: 'ACTIVE' },
+              { accountId: 's2', name: 'Lê Minh Tùng', state: 'ASSIGNED' },
+              { accountId: 's4', name: 'Hoàng Kim Ngân', state: 'RELEASED' },
             ],
           }),
         ),
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByText('Đang làm · hạn 20/11 · 1 hạng mục chờ duyệt')).toBeInTheDocument()
+    expect(await screen.findByText('Đang làm · hạn 20/11')).toBeInTheDocument()
     const crew = screen.getByRole('heading', { level: 2, name: 'Nhóm thực hiện' }).closest('section')!
     expect(within(crew).getByText('Trần Thảo Vy')).toBeInTheDocument()
-    expect(within(crew).getByText('SDB-2')).toBeInTheDocument()
-    expect(within(crew).getByText('Chờ duyệt')).toBeInTheDocument()
+    expect(within(crew).queryByText('SDB-2')).toBeNull()
+    expect(within(crew).queryByText('Chờ duyệt')).toBeNull()
     // UX-DR68, AD-41: each member's state on the Crew list; a former member is not in the people aside.
     for (const state of ['Đang tham gia', 'Đã phân công', 'Đã rời']) {
       expect(within(crew).getByText(state)).toBeInTheDocument()
@@ -263,17 +258,11 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(people).queryByText('Nhóm thực hiện: Hoàng Kim Ngân')).toBeNull()
   })
 
-  it('gives an active Crew member their overview with their Work Items and N-12', { timeout: 20_000 }, async () => {
+  it('gives an active Crew member their overview with N-12, and no work list', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       'GET /api/v1/jobs/j1/crew/me': () => json({ ...crewMe, codeJob: true }),
-      'GET /api/v1/boards/j1/progress': () =>
-        json(
-          progress({
-            audience: 'CREW',
-            mine: [{ id: 'w1', key: 'SDB-1', title: 'Hai khách không đặt trùng bàn', status: 'IN_PROGRESS' }],
-          }),
-        ),
+      'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'CREW' })),
     })
     renderAt('/cong-viec/j1')
 
@@ -281,8 +270,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(await screen.findByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
     expect(screen.getByText('Đang làm · hạn 20/11')).toBeInTheDocument()
     expect(screen.getByText('Chờ khách thanh toán')).toBeInTheDocument()
-    const mine = screen.getByRole('heading', { level: 2, name: 'Việc của tôi' }).closest('section')!
-    expect(within(mine).getByText('SDB-1')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Việc của tôi' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Bảng công việc' })).toHaveAttribute('href', '/cong-viec/j1/bang')
   })
 

@@ -25,14 +25,9 @@ export function jobStateText(state: JobState, audience: JobAudience = 'customer'
 
 /** What a Milestone's status text needs besides its state (EXPERIENCE.md "Job and Milestone status text"). */
 export interface MilestoneContext {
-  /** Criteria done through an approval, from `work.criteriaDone` (AD-33). */
-  done: number
-  total: number
   /** The first Planned Milestone: the next one the Customer funds. */
   nextToFund: boolean
   dueOn?: string | null
-  /** Work Items waiting for the Mentor's review, shown to the Mentor. */
-  inReview?: number
   /** The Revision Rounds left (FR-34). */
   roundsLeft?: number
   /** How many criteria the latest revision request named (FR-33). */
@@ -44,19 +39,19 @@ export interface MilestoneContext {
 }
 
 /**
- * The single state-text mapping for Milestone states (UX-DR19): the Customer's words, or the Mentor's
- * and the Crew's; `{done}/{total}` never comes from anywhere but `work.criteriaDone`.
+ * The single state-text mapping for Milestone states (UX-DR19): the Customer's words, or the Mentor's and
+ * the Crew's. No label counts anything inside a Milestone: the platform no longer tracks the team's tasks
+ * (Story 24.2a), so the state, the due date, the Revision Rounds and the decision are all a label has.
  */
 export function milestoneStateText(state: string, audience: JobAudience, context: MilestoneContext): string {
-  const counts = { done: context.done, total: context.total }
   if (audience === 'customer') {
     switch (state) {
       case 'PLANNED':
         return t(context.nextToFund ? 'screen.milestoneState.customer.unpaid' : 'screen.milestoneState.notStarted')
       case 'FUNDED':
-        return t('screen.milestoneState.customer.funded', counts)
+        return t('screen.milestoneState.customer.funded')
       case 'REVISION_REQUESTED':
-        return t('screen.milestoneState.customer.revision', counts)
+        return t('screen.milestoneState.customer.revision')
       case 'SUBMITTED':
         return context.roundsLeft === undefined
           ? t('screen.milestoneState.customer.submitted')
@@ -72,12 +67,10 @@ export function milestoneStateText(state: string, audience: JobAudience, context
   switch (state) {
     case 'PLANNED':
       return t(context.nextToFund ? 'screen.milestoneState.team.unpaid' : 'screen.milestoneState.notStarted')
-    case 'FUNDED': {
-      const base = context.dueOn
+    case 'FUNDED':
+      return context.dueOn
         ? t('screen.milestoneState.team.fundedDue', { date: formatCalendarDayMonth(context.dueOn) })
         : t('screen.milestoneState.team.funded')
-      return context.inReview ? `${base} · ${t('screen.milestoneState.team.inReview', { n: context.inReview })}` : base
-    }
     case 'REVISION_REQUESTED':
       return context.revisionCriteria
         ? t('screen.milestoneState.team.revisionCount', { n: context.revisionCriteria, r: context.roundsLeft ?? 0 })

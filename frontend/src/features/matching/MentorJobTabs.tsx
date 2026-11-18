@@ -1,7 +1,7 @@
 import { hasChat, useCrewChat, useJobChat } from '@/features/chat/chatApi'
 import { JobTabRow } from '@/features/job/JobTabs'
 import { useJobSplits } from '@/features/split/splitApi'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '@/features/job/jobState'
 import { t } from '@/i18n/t'
 
 /** The states the Mentor recruits the Crew in: from J4 until J8 (AD-41). */

@@ -272,7 +272,7 @@ class CrewLockIT extends IntegrationTest {
 		assertThat(notices("job.crew_login_removed", lan)).isOne();
 		assertThat(notices("job.party_locked", ha.accountId())).isOne();
 		assertThat(notices("job.party_locked", hung)).isZero();
-		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(hung, Role.MENTOR)))
+		this.mvc.perform(get("/api/v1/boards/" + job + "/work-items").with(as(hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.leavers[0].name").value("Nguyễn Văn Minh"));
 
 		// Both of repo's listeners ran on this one grant: it was revoked once, and a replay leaves a revoked grant alone.

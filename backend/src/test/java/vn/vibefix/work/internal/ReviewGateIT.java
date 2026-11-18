@@ -27,14 +27,12 @@ import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
-import vn.vibefix.work.CriteriaDone;
-import vn.vibefix.work.CriteriaDone.Progress;
 
 /**
  * FR-25, FR-28, AD-33, AD-39: the assignee submits with all four Self-check answers; the Mentor returns
  * it with a reason ("Bị trả lại", email, to-do) and, after a new submission, approves it; each step is a
  * history entry with its comment and answers, tells the other side, and opens or closes the to-dos; a
- * seeded Story counts as a criterion done only once approved.
+ * seeded Story reaches "Xong" only through the Mentor's approval.
  */
 class ReviewGateIT extends IntegrationTest {
 
@@ -53,9 +51,6 @@ class ReviewGateIT extends IntegrationTest {
 
 	@Autowired
 	private Boards boards;
-
-	@Autowired
-	private CriteriaDone criteriaDone;
 
 	private UUID hung;
 
@@ -105,7 +100,7 @@ class ReviewGateIT extends IntegrationTest {
 			.andExpect(jsonPath("$.review.selfCheck.docsUpdated").value(true));
 		assertThat(notifications("work.review_requested", this.hung)).isOne();
 		assertThat(openTodos("work.review_work_item", this.hung)).isOne();
-		assertThat(this.criteriaDone.criteriaDone(this.job, MILESTONE)).isEqualTo(new Progress(0, 2));
+		assertThat(itemStatus(this.story)).as("waiting for the Mentor, not done").isEqualTo("IN_REVIEW");
 
 		review(this.vy, Role.STUDENT, 4, "APPROVE", "Tự duyệt").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
@@ -128,7 +123,7 @@ class ReviewGateIT extends IntegrationTest {
 			.andExpect(jsonPath("$.history[?(@.action == 'APPROVED')].comment").value("Đạt yêu cầu"));
 		assertThat(notifications("work.work_item_approved", this.vy)).isOne();
 		assertThat(openTodos("work.review_work_item", this.hung)).isZero();
-		assertThat(this.criteriaDone.criteriaDone(this.job, MILESTONE)).isEqualTo(new Progress(1, 2));
+		assertThat(itemStatus(this.story)).isEqualTo("DONE");
 		assertThat(this.jdbc.sql("""
 				SELECT array_agg(action ORDER BY seq)::text FROM work.work_item_history WHERE work_item_id = :id
 				""").param("id", this.story).query(String.class).single())
@@ -142,8 +137,10 @@ class ReviewGateIT extends IntegrationTest {
 			.andExpect(status().isUnprocessableContent())
 			.andExpect(jsonPath("$.reason").value("MOVE_NOT_ALLOWED"));
 		this.jdbc.sql("UPDATE work.work_item SET status = 'DONE' WHERE id = :id").param("id", this.story).update();
-		assertThat(this.criteriaDone.criteriaDone(this.job, MILESTONE)).as("Done without an approval")
-			.isEqualTo(new Progress(0, 2));
+		assertThat(itemStatus(this.story)).isEqualTo("DONE");
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM work.work_item_history WHERE work_item_id = :id AND action IN ('APPROVED', 'UNREVIEWED')
+				""").param("id", this.story).query(Long.class).single()).as("Done without an approval").isZero();
 	}
 
 	private static final String ALL = "{\"meetsCriteria\":true,\"tested\":true,\"docsUpdated\":true,\"noSecrets\":true}";
@@ -158,6 +155,11 @@ class ReviewGateIT extends IntegrationTest {
 		return this.mvc.perform(post("/api/v1/work-items/" + this.story + "/review").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"version\":" + version + ",\"decision\":\"" + decision + "\",\"comment\":\"" + comment + "\"}"));
+	}
+
+	private String itemStatus(UUID item) {
+		return this.jdbc.sql("SELECT status FROM work.work_item WHERE id = :id").param("id", item).query(String.class)
+			.single();
 	}
 
 	private long notifications(String type, UUID account) {

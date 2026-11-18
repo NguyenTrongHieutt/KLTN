@@ -57,9 +57,6 @@ const overdueMilestone = {
   state: 'FUNDED',
   priceVnd: 800000,
   dueOn: '2026-11-20',
-  done: 0,
-  total: 1,
-  inReview: 0,
   roundsLeft: 2,
   revisionCriteria: null,
   autoAccepted: false,
@@ -75,9 +72,7 @@ const progress = (audience: string) => ({
   mentorName: 'Đỗ Mạnh Hùng',
   audience,
   milestones: [overdueMilestone],
-  pages: [],
   crew: [],
-  mine: [],
   assessment: false,
 })
 
