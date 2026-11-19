@@ -9,8 +9,8 @@ import vn.vibefix.shared.DomainEvent;
 
 /**
  * A Milestone Split became final (AD-9, AD-15, AD-29): {@code payment}'s replay-safe listener alone turns the
- * Milestone's pool into RELEASE entries, by these percentages. {@code chat}, {@code work}, {@code delivery} and
- * {@code job} finish what a Product deletion or the retention run left waiting once the Job has no open split (AD-24).
+ * Milestone's pool into RELEASE entries, by these percentages. {@code chat}, {@code delivery} and {@code job}
+ * finish what a Product deletion or the retention run left waiting once the Job has no open split (AD-24).
  * Published in the transaction that made it final, under the Job row lock.
  * @param milestoneSplitId the split, which keys the RELEASE entries
  * @param milestoneNumber the Milestone's number, for the payees' notice

@@ -29,15 +29,14 @@ import vn.vibefix.identity.AdministratorStepUp;
 import vn.vibefix.job.TeamIssueLocks;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.shared.AdminReadItem;
-import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 
 /**
  * An Administrator decides an escalated Team Issue (FR-63, FR-79, AD-20, AD-40). "Nhận xử lý" records the
- * assigned Administrator and pushes their read grant (the Crew Chat and the raiser's Work Item histories; the Rating
- * itself is read through {@code reputation}) to every module holding that content; taking it over ends the previous
+ * assigned Administrator and pushes their read grant (the Crew Chat; the Rating itself is read
+ * through {@code reputation}) to every module holding that content; taking it over ends the previous
  * grant at once. The assignee's decision, keeping or removing the Rating with written reasoning and after the step-up,
  * is recorded and final, and ends the issue (ending 3) through {@link TeamIssueEndings}, which executes it exactly and
  * ends the grant 30 days after the decision.
@@ -132,9 +131,7 @@ class TeamIssueDecisions {
 			this.grants.forEach(module -> module.endAdminRead(previous, now));
 		}
 		UUID grant = this.ids.newId();
-		Set<AdminReadItem> items = issue.raiserId() == null
-				? Set.of(AdminReadItem.all(AdminReadScope.CREW_CHAT))
-				: AdminReadItem.forEscalatedTeamIssue(issue.raiserId());
+		Set<AdminReadItem> items = AdminReadItem.forEscalatedTeamIssue();
 		this.grants.forEach(module -> module.grantAdminRead(grant, adminId, issue.jobId(), items, issueId));
 		this.jdbc.sql("UPDATE dispute.team_issue SET assigned_admin_id = :admin, assigned_at = :now, grant_id = :grant WHERE id = :id")
 			.param("admin", adminId)

@@ -29,7 +29,8 @@ import vn.vibefix.shared.Gate;
 /**
  * JOB-1's Revocation Checklist (FR-66, UX-DR51, UX-DR55): the Customer reads each item with what to remove
  * and confirms it as "Đã gỡ quyền" or "Đã đổi khóa", a leaver's in every state (R15, Story 21.6); the Mentor sees each
- * item of the Job's end done or pending in the closure section. A Board's ID is its Job's. Everyone else finds nothing.
+ * item of the Job's end done or pending in the closure section. The path carries the Job's ID. Everyone else finds
+ * nothing.
  */
 @RestController
 @Access(Gate.SIGNED_IN)

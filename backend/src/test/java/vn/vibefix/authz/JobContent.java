@@ -17,9 +17,9 @@ import vn.vibefix.support.TestPeople;
 
 /**
  * The rows a Job's people and content take (AD-41, AD-20), written directly, for the matrix fixtures and the
- * cross-role suite (Story 20.5): a Product, an Active Job, Crew rows in each state, the Job Chat and the Crew
- * Chat with their messages, and the Board with a Work Item, its note and Attachment. Each method writes
- * only what it names, so a world adds exactly the content its canaries need.
+ * cross-role suite (Story 20.5): a Product, an Active Job, Crew rows in each state, and the Job Chat and the Crew
+ * Chat with their messages. Each method writes only what it names, so a world adds exactly the content its canaries
+ * need. Story 24.2 retired the Board, so no fixture seeds a Work Item, a note on one or an Attachment.
  */
 public final class JobContent {
 
@@ -264,103 +264,6 @@ public final class JobContent {
 			.param("at", Timestamp.from(at))
 			.update();
 		return id;
-	}
-
-	/** The Job's Board, whose code is {@code code}, with room for one Work Item. */
-	public static void board(JdbcClient jdbc, UUID job, UUID product, String code) {
-		board(jdbc, job, product, code, 1);
-	}
-
-	/** The Job's Board, whose code is {@code code}, with room for {@code items} Work Items. */
-	public static void board(JdbcClient jdbc, UUID job, UUID product, String code, int items) {
-		jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at)
-				VALUES (:job, :product, :code, :next, :at)
-				""")
-			.param("job", job)
-			.param("product", product)
-			.param("code", code)
-			.param("next", items + 1)
-			.param("at", Timestamp.from(SIGNED))
-			.update();
-	}
-
-	/** Work Item 1 of the Board, a Story for the criterion when one is given; returns its ID. */
-	public static UUID workItem(JdbcClient jdbc, UUID job, @Nullable UUID milestone, @Nullable UUID criterion, Instant at) {
-		return workItem(jdbc, job, 1, "Hai khách không đặt trùng bàn", milestone, criterion, at);
-	}
-
-	/** Work Item {@code number} of the Board titled {@code title}, a Story for the criterion when one is given. */
-	public static UUID workItem(JdbcClient jdbc, UUID job, int number, String title, @Nullable UUID milestone,
-			@Nullable UUID criterion, Instant at) {
-		UUID item = UUID.randomUUID();
-		jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, created_at,
-				    updated_at)
-				VALUES (:id, :job, :number, 'STORY', :title, '1. Mở. 2. Đặt.', :criterion, :milestone, :at, :at)
-				""")
-			.param("id", item)
-			.param("job", job)
-			.param("number", number)
-			.param("title", title)
-			.param("criterion", criterion)
-			.param("milestone", milestone)
-			.param("at", Timestamp.from(at))
-			.update();
-		return item;
-	}
-
-	/** A note of {@code author} on the Work Item; returns its history entry's ID. */
-	public static UUID note(JdbcClient jdbc, UUID item, UUID job, UUID author, String text, Instant at) {
-		UUID note = UUID.randomUUID();
-		jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
-				VALUES (:id, :item, :job, :author, 'NOTE', '{}'::jsonb, :note, :at)
-				""")
-			.param("id", note)
-			.param("item", item)
-			.param("job", job)
-			.param("author", author)
-			.param("note", text)
-			.param("at", Timestamp.from(at))
-			.update();
-		return note;
-	}
-
-	/** A file Attachment named {@code fileName} that {@code author} added to the Work Item; returns its ID. */
-	public static UUID attachment(JdbcClient jdbc, UUID item, UUID job, UUID author, String fileName, Instant at) {
-		return attachment(jdbc, item, job, author, fileName, UUID.randomUUID(), at);
-	}
-
-	/** A file Attachment of the stored file {@code fileId}, named {@code fileName}; returns its ID. */
-	public static UUID attachment(JdbcClient jdbc, UUID item, UUID job, UUID author, String fileName, UUID fileId,
-			Instant at) {
-		UUID attachment = UUID.randomUUID();
-		jdbc.sql("""
-				INSERT INTO work.attachment (id, work_item_id, job_id, kind, file_id, file_name, media_type, size_bytes,
-				    author_account_id, added_at)
-				VALUES (:id, :item, :job, 'FILE', :file, :name, 'application/pdf', 2048, :author, :at)
-				""")
-			.param("id", attachment)
-			.param("item", item)
-			.param("job", job)
-			.param("file", fileId)
-			.param("name", fileName)
-			.param("author", author)
-			.param("at", Timestamp.from(at))
-			.update();
-		jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, attachment_id, at)
-				VALUES (:id, :item, :job, :author, 'ATTACHED', '{}'::jsonb, :attachment, :at)
-				""")
-			.param("id", UUID.randomUUID())
-			.param("item", item)
-			.param("job", job)
-			.param("author", author)
-			.param("attachment", attachment)
-			.param("at", Timestamp.from(at))
-			.update();
-		return attachment;
 	}
 
 	/**

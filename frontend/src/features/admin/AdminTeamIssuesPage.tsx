@@ -17,15 +17,14 @@ import {
   useAdminTeamIssues,
   useCrewChatEvidence,
   useTeamIssueCommand,
-  useWorkEvidence,
   type AdminTeamIssue,
 } from './adminTeamIssuesApi'
 import { StepUpDialog } from './StepUpDialog'
 
 /**
  * ADM-4's "Khiếu nại nội bộ" tab (FR-63, FR-79, AD-20, AD-40, UX-DR84): the escalated Team Issues about a Rating, the
- * undecided first; one with "Nhận xử lý", the Team Evidence Package (the Crew Chat, the raiser's Work Items, the
- * Rating), each read under the assignee's grant and audited by its module, and the decision: keeping or removing the
+ * undecided first; one with "Nhận xử lý", the Team Evidence Package (the Crew Chat and the Rating),
+ * each read under the assignee's grant and audited by its module, and the decision: keeping or removing the
  * Rating, with written reasoning and the step-up. Decisions are final.
  */
 export function AdminTeamIssuesPage() {
@@ -241,9 +240,9 @@ function DecisionForm({
   )
 }
 
-type EvidenceTab = 'chat' | 'work' | 'rating'
+type EvidenceTab = 'chat' | 'rating'
 
-const EVIDENCE_TABS: EvidenceTab[] = ['chat', 'work', 'rating']
+const EVIDENCE_TABS: EvidenceTab[] = ['chat', 'rating']
 
 /** The Team Evidence Package, each part read from its module under the grant (AD-40, UX-DR84). */
 function Evidence({ data }: { data: AdminTeamIssue }) {
@@ -272,7 +271,6 @@ function Evidence({ data }: { data: AdminTeamIssue }) {
       </div>
       <div role="tabpanel">
         {tab === 'chat' && <ChatEvidence jobId={data.jobId} />}
-        {tab === 'work' && <WorkEvidence jobId={data.jobId} />}
         {tab === 'rating' && data.rating && (
           <div className="flex flex-col gap-1 rounded-md bg-muted p-3">
             <p className="font-semibold">{t('screen.admin.teamIssues.evidence.stars', { n: data.rating.stars })}</p>
@@ -302,27 +300,6 @@ function ChatEvidence({ jobId }: { jobId: string }) {
                   {message.author} · {formatDayMonthTime(message.sentAt)}
                 </p>
                 <p className="break-words whitespace-pre-line">{message.body}</p>
-              </li>
-            ))}
-          </ul>
-        ))}
-    </RegionState>
-  )
-}
-
-function WorkEvidence({ jobId }: { jobId: string }) {
-  const board = useWorkEvidence(jobId, true)
-  return (
-    <RegionState query={board} skeleton={<Skeleton className="h-24 w-full" />}>
-      {board.data &&
-        (board.data.items.length === 0 ? (
-          <p className="text-muted-foreground">{t('screen.admin.teamIssues.evidence.noItems')}</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {board.data.items.map((item) => (
-              <li key={item.id} className="rounded-md bg-muted p-3">
-                <span className="font-semibold">{item.key}</span> <span className="break-words">{item.title}</span>
-                {item.assignee && <span className="text-caption text-muted-foreground"> · {item.assignee.name}</span>}
               </li>
             ))}
           </ul>

@@ -788,22 +788,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["workItems_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/split-resolutions/{resolutionId}/preview": {
         parameters: {
             query?: never;
@@ -1550,22 +1534,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["answer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/boards/{boardId}/work-items": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["workItems"];
-        put?: never;
-        post: operations["createWorkItem"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3716,150 +3684,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/work-item-notes/{workItemNoteId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["note"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["workItem"];
-        put: operations["updateWorkItem"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["attachFile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/attachments/{attachmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["removeAttachment"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/links": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["attachLink"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["moveWorkItem"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/notes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["addNote"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["reviewWorkItem"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/work-items/{workItemId}/submit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["submitWorkItem"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/github/actions/exchange": {
         parameters: {
             query?: never;
@@ -4574,30 +4398,6 @@ export interface components {
             sizeBytes?: number;
             url?: string;
         };
-        BoardMilestoneView: {
-            held: boolean;
-            /** Format: uuid */
-            milestoneId: string;
-            /** Format: int32 */
-            number: number;
-            title: string;
-        };
-        BoardView: {
-            /** Format: uuid */
-            boardId: string;
-            code: string;
-            crew: components["schemas"]["CrewPickView"][];
-            items: components["schemas"]["WorkItemCardView"][];
-            leavers: components["schemas"]["LeaverView"][];
-            mentor: boolean;
-            milestones: components["schemas"]["BoardMilestoneView"][];
-            noCrew: boolean;
-            readOnly: boolean;
-            title: string;
-            /** Format: uuid */
-            viewerId: string;
-            workload: components["schemas"]["WorkloadView"][];
-        };
         BusyView: {
             audience: string;
             busy: boolean;
@@ -4817,14 +4617,6 @@ export interface components {
             chatId: string;
             readOnly: boolean;
             unread: boolean;
-        };
-        ChecklistLineRequest: {
-            done: boolean;
-            text: string;
-        };
-        ChecklistLineView: {
-            done: boolean;
-            text: string;
         };
         ChoiceView: {
             /** Format: date-time */
@@ -5067,12 +4859,6 @@ export interface components {
             /** Format: int32 */
             percent?: number;
         };
-        CrewPickView: {
-            /** Format: uuid */
-            accountId: string;
-            available: boolean;
-            name: string;
-        };
         CrewProgressView: {
             /** Format: uuid */
             accountId: string;
@@ -5102,14 +4888,6 @@ export interface components {
             milestoneNumber?: number;
             oldStatement?: string;
             statement?: string;
-        };
-        CriterionLinkView: {
-            /** Format: uuid */
-            criterionId: string;
-            /** Format: int32 */
-            milestoneNumber: number;
-            /** Format: int32 */
-            number: number;
         };
         CriterionRequest: {
             checkSteps: string;
@@ -5204,7 +4982,6 @@ export interface components {
             decision?: components["schemas"]["HandoverDecisionView"];
             /** Format: uuid */
             id: string;
-            itemNotes: components["schemas"]["HandoverItemNoteView"][];
             /** Format: uuid */
             jobId: string;
             jobTitle: string;
@@ -5272,6 +5049,8 @@ export interface components {
             secret: string;
         };
         EntryView: {
+            /** Format: int32 */
+            commitsAuthored?: number;
             jobTypes: string[];
             /** Format: int32 */
             milestones: number;
@@ -5279,13 +5058,9 @@ export interface components {
             milestonesHandedOver?: number;
             /** Format: date-time */
             publishedAt?: string;
-            /** Format: int32 */
-            reviewsWritten?: number;
             role: string;
             skills: string[];
             title: string;
-            /** Format: int32 */
-            workItemsApproved?: number;
         };
         EnvironmentResponse: {
             name: string;
@@ -5442,7 +5217,6 @@ export interface components {
             statements: components["schemas"]["SnapshotStatement"][];
             /** Format: date-time */
             takenAt: string;
-            workItems: components["schemas"]["SnapshotWorkItem"][];
         };
         ExecutionView: {
             failure?: string;
@@ -5669,7 +5443,6 @@ export interface components {
         HandoverCommitView: {
             message: string;
             sha: string;
-            workItemKeys: string[];
         };
         HandoverCriterionInputView: {
             checkSteps: string;
@@ -5707,19 +5480,6 @@ export interface components {
             releaseVnd: number;
             revisionAllowed: boolean;
         };
-        HandoverItemNoteRequest: {
-            note: string;
-            /** Format: uuid */
-            workItemId: string;
-        };
-        HandoverItemNoteView: {
-            key: string;
-            note: string;
-            status: string;
-            title: string;
-            /** Format: uuid */
-            workItemId: string;
-        };
         HandoverLinkView: {
             /** Format: date-time */
             checkedAt?: string;
@@ -5755,7 +5515,6 @@ export interface components {
             state: string;
             /** Format: int64 */
             version: number;
-            workItems: components["schemas"]["HandoverWorkItemView"][];
         };
         HandoverPreviewView: {
             noPreviewReason?: string;
@@ -5764,7 +5523,6 @@ export interface components {
         };
         HandoverRequest: {
             criteria: components["schemas"]["HandoverCriterionMarkRequest"][];
-            itemNotes?: components["schemas"]["HandoverItemNoteRequest"][];
             /** Format: uuid */
             milestoneId: string;
             noPreviewReason?: string;
@@ -5816,14 +5574,6 @@ export interface components {
             round: number;
             status: string;
         };
-        HandoverWorkItemView: {
-            approved: boolean;
-            /** Format: uuid */
-            id: string;
-            key: string;
-            status: string;
-            title: string;
-        };
         HeldMilestoneView: {
             /** Format: uuid */
             milestoneId: string;
@@ -5835,20 +5585,6 @@ export interface components {
         };
         HideRequest: {
             reason: string;
-        };
-        HistoryEntryView: {
-            action: string;
-            actor: string;
-            assignedTo?: string;
-            /** Format: date-time */
-            at: string;
-            attachment?: string;
-            comment?: string;
-            fields: string[];
-            /** Format: uuid */
-            id: string;
-            mine: boolean;
-            quoted?: components["schemas"]["QuotedNoteView"];
         };
         HistoryJobTypeView: {
             /** Format: int32 */
@@ -6123,17 +5859,6 @@ export interface components {
         LeaveRequest: {
             reason?: string;
         };
-        LeaverView: {
-            /** Format: date-time */
-            leftAt: string;
-            name: string;
-        };
-        LinkRequest: {
-            label?: string;
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
-            url: string;
-        };
         LinkedInFact: {
             /** Format: date-time */
             since: string;
@@ -6378,12 +6103,6 @@ export interface components {
             kind: string;
             title: string;
         };
-        MoveRequest: {
-            /** @enum {string} */
-            to: "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
-            /** Format: int64 */
-            version: number;
-        };
         MyDataView: {
             blockers: components["schemas"]["ErasureBlockerView"][];
             /** Format: date-time */
@@ -6427,13 +6146,6 @@ export interface components {
         NewCriterionRequest: {
             checkSteps: string;
             statement: string;
-        };
-        NoteRequest: {
-            /** Format: uuid */
-            quotes?: string;
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
-            text: string;
         };
         NotificationItem: {
             /** Format: date-time */
@@ -6620,14 +6332,11 @@ export interface components {
             mentor: components["schemas"]["RoleReputationView"];
             newcomer: boolean;
         };
-        PersonView: {
-            /** Format: uuid */
-            accountId: string;
-            name: string;
-        };
         PortfolioEntry: {
             /** Format: date-time */
             closedAt: string;
+            /** Format: int32 */
+            commitsAuthored?: number;
             jobTypes: string[];
             /** Format: int32 */
             milestones: number;
@@ -6636,14 +6345,10 @@ export interface components {
             productName?: string;
             /** Format: int32 */
             rating?: number;
-            /** Format: int32 */
-            reviewsWritten?: number;
             role: string;
             skills: string[];
             summary?: string;
             title: string;
-            /** Format: int32 */
-            workItemsApproved?: number;
         };
         PortfolioView: {
             audience: string;
@@ -6807,14 +6512,6 @@ export interface components {
             priceVnd: number;
             /** Format: int32 */
             timelineDays: number;
-        };
-        QuotedNoteView: {
-            actor: string;
-            /** Format: date-time */
-            at: string;
-            /** Format: uuid */
-            id: string;
-            text: string;
         };
         RaiseTeamIssueRequest: {
             /** Format: uuid */
@@ -6986,23 +6683,6 @@ export interface components {
         RetryRequest: {
             stepUpCode: string;
         };
-        ReviewRequest: {
-            comment?: string;
-            /** @enum {string} */
-            decision: "APPROVE" | "RETURN";
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
-            /** Format: int64 */
-            version: number;
-        };
-        ReviewView: {
-            action: string;
-            /** Format: date-time */
-            at: string;
-            by: string;
-            comment?: string;
-            selfCheck?: components["schemas"]["SelfCheckView"];
-        };
         RevocationChecklistView: {
             audience: string;
             items: components["schemas"]["RevocationItemView"][];
@@ -7130,18 +6810,6 @@ export interface components {
         SelectedView: {
             /** Format: int64 */
             version: number;
-        };
-        SelfCheckRequest: {
-            docsUpdated: boolean;
-            meetsCriteria: boolean;
-            noSecrets: boolean;
-            tested: boolean;
-        };
-        SelfCheckView: {
-            docsUpdated: boolean;
-            meetsCriteria: boolean;
-            noSecrets: boolean;
-            tested: boolean;
         };
         SendRequest: {
             body: string;
@@ -7318,15 +6986,6 @@ export interface components {
             /** Format: date-time */
             submittedAt: string;
         };
-        SnapshotWorkItem: {
-            /** Format: int32 */
-            number: number;
-            status: string;
-            /** Format: int64 */
-            version: number;
-            /** Format: uuid */
-            workItemId: string;
-        };
         SourceAppInstallLinkView: {
             url: string;
         };
@@ -7421,13 +7080,6 @@ export interface components {
             round: number;
             sha: string;
         };
-        SplitEvidenceHistoryView: {
-            action: string;
-            actorName?: string;
-            /** Format: date-time */
-            at: string;
-            comment?: string;
-        };
         SplitEvidenceLineView: {
             /** Format: date-time */
             confirmedAt?: string;
@@ -7472,7 +7124,6 @@ export interface components {
             /** Format: date-time */
             takenAt: string;
             versions: components["schemas"]["SplitSnapshotVersion"][];
-            workItems: components["schemas"]["SplitSnapshotWorkItem"][];
         };
         SplitEvidenceVersionView: {
             authorName?: string;
@@ -7489,15 +7140,6 @@ export interface components {
         SplitEvidenceVersionsView: {
             parties: components["schemas"]["SplitEvidencePartyView"][];
             versions: components["schemas"]["SplitEvidenceVersionView"][];
-        };
-        SplitEvidenceWorkItemView: {
-            assigneeName?: string;
-            history: components["schemas"]["SplitEvidenceHistoryView"][];
-            key: string;
-            status: string;
-            title: string;
-            /** Format: uuid */
-            workItemId: string;
         };
         SplitLineView: {
             /** Format: int64 */
@@ -7622,15 +7264,6 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
         };
-        SplitSnapshotWorkItem: {
-            /** Format: int32 */
-            number: number;
-            status: string;
-            /** Format: int64 */
-            version: number;
-            /** Format: uuid */
-            workItemId: string;
-        };
         SplitVersionRequest: {
             shares: components["schemas"]["SplitShareRequest"][];
             /** Format: int32 */
@@ -7685,14 +7318,6 @@ export interface components {
             validUntil: string;
             /** Format: date-time */
             verifiedAt: string;
-        };
-        SubmitRequest: {
-            note?: string;
-            selfCheck: components["schemas"]["SelfCheckRequest"];
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
-            /** Format: int64 */
-            version: number;
         };
         SuggestedInactiveSkill: {
             /** Format: uuid */
@@ -7901,86 +7526,6 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
         };
-        WorkAttachmentView: {
-            /** Format: date-time */
-            addedAt: string;
-            author: string;
-            domain?: string;
-            downloadUrl?: string;
-            /** Format: uuid */
-            id: string;
-            kind: string;
-            mediaType?: string;
-            name: string;
-            removable: boolean;
-            /** Format: int64 */
-            size?: number;
-            url?: string;
-        };
-        WorkItemCardView: {
-            assignee?: components["schemas"]["PersonView"];
-            /** Format: int32 */
-            checklistDone: number;
-            /** Format: int32 */
-            checklistTotal: number;
-            criterion?: components["schemas"]["CriterionLinkView"];
-            description: string;
-            estimateHours?: number;
-            /** Format: uuid */
-            id: string;
-            key: string;
-            /** Format: uuid */
-            milestoneId?: string;
-            priority?: string;
-            returnedReason?: string;
-            seeded: boolean;
-            status: string;
-            title: string;
-            type: string;
-            /** Format: int64 */
-            version: number;
-        };
-        WorkItemDetailView: {
-            attachments: components["schemas"]["WorkAttachmentView"][];
-            checklist: components["schemas"]["ChecklistLineView"][];
-            /** Format: date-time */
-            createdAt: string;
-            createdBy?: string;
-            history: components["schemas"]["HistoryEntryView"][];
-            item: components["schemas"]["WorkItemCardView"];
-            readOnly: boolean;
-            review?: components["schemas"]["ReviewView"];
-        };
-        WorkItemNoteView: {
-            /** Format: date-time */
-            at: string;
-            author: string;
-            /** Format: uuid */
-            id: string;
-            itemKey: string;
-            itemTitle: string;
-            text: string;
-            /** Format: uuid */
-            workItemId: string;
-        };
-        WorkItemRequest: {
-            /** Format: uuid */
-            assigneeId?: string;
-            checklist?: components["schemas"]["ChecklistLineRequest"][];
-            description?: string;
-            estimateHours?: number;
-            /** Format: uuid */
-            milestoneId: string;
-            /** @enum {string} */
-            priority?: "HIGH" | "MEDIUM" | "LOW";
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
-            title: string;
-            /** @enum {string} */
-            type: "STORY" | "TASK" | "BUG";
-            /** Format: int64 */
-            version?: number;
-        };
         WorkflowCheckView: {
             defaultBranch: string;
             fullName: string;
@@ -7989,14 +7534,6 @@ export interface components {
             blob: string;
             content: string;
             path: string;
-        };
-        WorkloadView: {
-            /** Format: uuid */
-            accountId: string;
-            estimateHours: number;
-            name: string;
-            /** Format: int32 */
-            openItems: number;
         };
     };
     responses: never;
@@ -9238,28 +8775,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SplitEvidenceVersionsView"];
-                };
-            };
-        };
-    };
-    workItems_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                resolutionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SplitEvidenceWorkItemView"][];
                 };
             };
         };
@@ -10525,54 +10040,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamIssueView"];
-                };
-            };
-        };
-    };
-    workItems: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                boardId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BoardView"];
-                };
-            };
-        };
-    };
-    createWorkItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                boardId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkItemRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
                 };
             };
         };
@@ -14080,260 +13547,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    note: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemNoteId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemNoteView"];
-                };
-            };
-        };
-    };
-    workItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    updateWorkItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkItemRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    attachFile: {
-        parameters: {
-            query?: {
-                sensitive?: "CHECK" | "MASK";
-            };
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    removeAttachment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    attachLink: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LinkRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    moveWorkItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MoveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    addNote: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NoteRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    reviewWorkItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReviewRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
-            };
-        };
-    };
-    submitWorkItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workItemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SubmitRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemDetailView"];
-                };
             };
         };
     };

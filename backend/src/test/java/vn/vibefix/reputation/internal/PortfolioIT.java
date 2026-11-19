@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -16,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -33,6 +37,7 @@ import vn.vibefix.repo.DataDeletionConfirmed;
 import vn.vibefix.reputation.PortfolioEntry;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.PostgresTestDatabase;
 import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
@@ -87,11 +92,12 @@ class PortfolioIT extends IntegrationTest {
 			.andExpect(jsonPath("$.mine.role").value("MENTOR"))
 			.andExpect(jsonPath("$.mine.milestones").value(1))
 			.andExpect(jsonPath("$.mine.milestonesHandedOver").value(1))
-			.andExpect(jsonPath("$.mine.reviewsWritten").value(2))
+			.andExpect(jsonPath("$.mine.commitsAuthored").doesNotExist())
 			.andExpect(jsonPath("$.mine.skills[0]").isNotEmpty())
 			.andExpect(jsonPath("$.mine.publishedAt").doesNotExist());
 		read(this.vy, Role.STUDENT, job).andExpect(jsonPath("$.mine.role").value("CREW"))
-			.andExpect(jsonPath("$.mine.workItemsApproved").value(1))
+			.andExpect(jsonPath("$.mine.commitsAuthored").value(2))
+			.andExpect(jsonPath("$.mine.milestonesHandedOver").doesNotExist())
 			.andExpect(jsonPath("$.productName").doesNotExist());
 
 		draft(this.lan, Role.CUSTOMER, job, "Không được").andExpect(status().isForbidden())
@@ -130,7 +136,7 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(entry.role()).isEqualTo("CREW");
 		assertThat(entry.jobTypes()).containsExactly("ASSESSMENT");
 		assertThat(entry.skills()).hasSize(1);
-		assertThat(entry.workItemsApproved()).isEqualTo(1);
+		assertThat(entry.commitsAuthored()).isEqualTo(2);
 		assertThat(entry.summary()).isEqualTo("Nhóm đánh giá kỹ toàn bộ luồng đặt bàn.");
 		assertThat(entry.productName()).isEqualTo("Sổ đặt bàn");
 		assertThat(entry.rating()).isNull();
@@ -145,6 +151,47 @@ class PortfolioIT extends IntegrationTest {
 		this.poller.runDue();
 		assertThat(this.reputation.portfolio(this.vy).getFirst().rating()).isEqualTo(4);
 		assertThat(text("SELECT status FROM reputation.portfolio_summary WHERE job_id = '" + job + "'")).isEqualTo("APPROVED");
+	}
+
+	/**
+	 * FR-50, Story 24.2: a fact vibefix did not count is frozen as none, never as zero. An Assessment Job's handover
+	 * records no commit at all -- its deliverable is the Assessment Report -- so its Crew entry carries no count, and
+	 * the screen leaves the fact out instead of publishing "0 commit" of a member who did the work.
+	 */
+	@Test
+	void anAcceptedMilestoneWithNoCommitRecordedFreezesNoCountAtAll() throws Exception {
+		people();
+		UUID job = job(true);
+		this.jdbc.sql("DELETE FROM delivery.handover_commit").update();
+
+		closes(job);
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + job + "'") == 2);
+
+		assertThat(frozenFacts(job, this.vy)).as("none, not zero").isEqualTo("CREW:-:-");
+		assertThat(frozenFacts(job, this.hung)).as("the Mentor's own fact is counted as before").isEqualTo("MENTOR:-:1");
+		read(this.vy, Role.STUDENT, job).andExpect(status().isOk())
+			.andExpect(jsonPath("$.mine.role").value("CREW"))
+			.andExpect(jsonPath("$.mine.commitsAuthored").doesNotExist());
+	}
+
+	/**
+	 * FR-50, Story 24.2: GitHub's compare lists 300 commits at most, so a long Milestone's record is partial. A
+	 * count read from a partial record would be wrong for everyone on it, so nobody's entry carries one.
+	 */
+	@Test
+	void aTruncatedCommitListFreezesNoCountAtAll() throws Exception {
+		people();
+		UUID job = job(true);
+		// delivery writes the flag when the copy run reports it; the runtime role may not write the column at all.
+		asMigrator("UPDATE delivery.handover SET commits_truncated = TRUE WHERE job_id = '" + job + "'");
+
+		closes(job);
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + job + "'") == 2);
+
+		assertThat(frozenFacts(job, this.vy)).as("the two commits of Vy are in a partial record").isEqualTo("CREW:-:-");
+		read(this.vy, Role.STUDENT, job).andExpect(jsonPath("$.mine.commitsAuthored").doesNotExist());
 	}
 
 	@Test
@@ -242,6 +289,23 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(this.reputation.portfolio(this.hung)).isEmpty();
 	}
 
+	/** One statement as the migration role, for a column the application may never write. */
+	private static void asMigrator(String sql) throws SQLException {
+		try (Connection connection = database.migratorConnection(PostgresTestDatabase.DATABASE);
+				Statement statement = connection.createStatement()) {
+			statement.executeUpdate(sql);
+		}
+	}
+
+	/** The facts the person's entry froze on the Job, as {@code role:commits:milestonesHandedOver}, {@code -} for none. */
+	private String frozenFacts(UUID job, UUID account) {
+		return this.jdbc.sql("""
+				SELECT role || ':' || coalesce(commits_authored::text, '-') || ':'
+				       || coalesce(milestones_handed_over::text, '-')
+				FROM reputation.portfolio_entry WHERE job_id = :job AND account_id = :account
+				""").param("job", job).param("account", account).query(String.class).single();
+	}
+
 	/** A Crew row activated {@code activated} ago and left {@code left} ago (or still active for {@code ZERO}). */
 	private void crewRow(UUID job, UUID member, Duration activated, Duration left) {
 		Timestamp from = Timestamp.from(this.clock.instant().minus(activated));
@@ -333,48 +397,40 @@ class PortfolioIT extends IntegrationTest {
 				VALUES (:id, :job, :student, 'RELEASED', :signed, :signed, :now, :now, 'JOB_ENDED', now())
 				""").param("id", UUID.randomUUID()).param("job", job).param("student", this.vy).param("signed", signed)
 			.param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 3, :now)
-				""").param("job", job).param("product", product).param("now", now).update();
-		UUID done = item(job, 1, "DONE", now);
-		UUID returned = item(job, 2, "IN_PROGRESS", now);
-		history(done, job, this.vy, "SUBMITTED", now);
-		history(done, job, this.hung, "APPROVED", now);
-		history(returned, job, this.vy, "SUBMITTED", now);
-		history(returned, job, this.hung, "RETURNED", now);
+		// The Milestone's accepted Handover, whose commits are a Crew member's frozen facts (FR-50, Story 24.2).
+		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
-				    mentor_account_id, status, job_version, transition_id, check_by, created_at)
-				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, 'SUBMITTED', 5, :transition, :now, :now)
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
+				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, 'ACCEPTED', 5, :transition, :now,
+				    :now, :now, :owner)
 				""")
-			.param("id", UUID.randomUUID())
+			.param("id", handover)
 			.param("job", job)
 			.param("product", product)
 			.param("milestone", milestone)
 			.param("mentor", this.hung)
+			.param("owner", this.lan)
 			.param("transition", UUID.randomUUID())
 			.param("now", now)
 			.update();
+		Long github = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id")
+			.param("id", this.vy)
+			.query(Long.class)
+			.single();
+		commit(handover, 0, "a", github);
+		commit(handover, 1, "b", github);
+		commit(handover, 2, "c", null);
 		return job;
 	}
 
-	private UUID item(UUID job, int number, String status, Timestamp now) {
-		UUID item = UUID.randomUUID();
+	/** One commit of the handover: {@code author} is the GitHub numeric ID, or none when GitHub resolved nobody. */
+	private void commit(UUID handover, int position, String sha, @Nullable Long author) {
 		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, status, assignee_account_id, created_at,
-				    updated_at)
-				VALUES (:id, :job, :number, 'TASK', 'Kiểm tra luồng', 'Kiểm tra.', :status, :assignee, :now, :now)
-				""").param("id", item).param("job", job).param("number", number).param("status", status)
-			.param("assignee", this.vy).param("now", now).update();
-		return item;
-	}
-
-	private void history(UUID item, UUID job, UUID actor, String action, Timestamp at) {
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, at)
-				VALUES (:id, :item, :job, :actor, :action, '{}'::jsonb, :at)
-				""").param("id", UUID.randomUUID()).param("item", item).param("job", job).param("actor", actor)
-			.param("action", action).param("at", at).update();
+				INSERT INTO delivery.handover_commit (handover_id, position, sha, message, author_github_id)
+				VALUES (:id, :position, :sha, 'Sửa luồng đặt bàn', :author)
+				""").param("id", handover).param("position", position).param("sha", sha.repeat(40)).param("author", author)
+			.update();
 	}
 
 	private ResultActions read(UUID account, Role role, UUID job) throws Exception {

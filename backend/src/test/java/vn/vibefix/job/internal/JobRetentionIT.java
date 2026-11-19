@@ -87,8 +87,6 @@ class JobRetentionIT extends IntegrationTest {
 		this.poller.runDue();
 
 		assertThat(identifiers()).isZero();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM work.board WHERE job_id = :job").param("job", this.first)
-			.query(Long.class).single()).as("the Board stays, empty").isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM job.job WHERE id = :job").param("job", this.first).query(Long.class)
 			.single()).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM product.product WHERE id = :id").param("id", this.product)
@@ -140,9 +138,6 @@ class JobRetentionIT extends IntegrationTest {
 		if (!"CLOSED".equals(state)) {
 			return id;
 		}
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
-				""").param("job", id).param("product", this.product).param("now", now).update();
 		UUID access = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO job.external_access (id, job_id, position, system, purpose, created_at)

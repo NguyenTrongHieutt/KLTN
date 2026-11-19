@@ -115,8 +115,6 @@ class FullChangeRequestIT extends IntegrationTest {
 		milestone(this.second, 1, "Nhắc lịch", "2026-11-30", false, now);
 		criterion(this.c1, this.first, "Hai khách không trùng bàn", now);
 		criterion(this.c2, this.second, "Khách nhận lời nhắc", now);
-		this.jdbc.sql("INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)")
-			.param("job", this.job).param("product", this.product).param("now", now).update();
 		for (UUID milestone : List.of(this.first, this.second)) {
 			this.jdbc.sql("""
 					INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
@@ -179,10 +177,6 @@ class FullChangeRequestIT extends IntegrationTest {
 			.isEqualTo(4);
 		await().atMost(Duration.ofSeconds(15))
 			.until(() -> count("SELECT count(*) FROM payment.ledger_account WHERE milestone_id = '" + added + "'") == 1);
-		await().atMost(Duration.ofSeconds(15)).until(() -> count("""
-				SELECT count(*) FROM work.work_item w JOIN job.acceptance_criterion c ON c.id = w.criterion_id
-				WHERE w.job_id = '%s' AND c.statement IN ('Lời nhắc có giờ đặt', 'Có báo cáo số bàn')
-				""".formatted(this.job)) == 2);
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/agreement-versions").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.versions[0].scope").value("Sửa lỗi đặt bàn và thêm báo cáo"))

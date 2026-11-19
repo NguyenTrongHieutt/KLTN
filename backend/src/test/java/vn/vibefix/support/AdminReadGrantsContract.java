@@ -18,7 +18,7 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * The contract every implementation of {@link AdminReadGrants} must meet (AD-20, AD-8). A module
- * holding Job content ({@code chat}, {@code work}, {@code job}) implements this interface in a test
+ * holding Job content ({@code chat} and {@code job}) implements this interface in a test
  * of its own story (usually an {@code IntegrationTest}) and fills in the hooks; the tests then prove
  * that it reads nothing without a grant, nothing outside a grant's items or after its end, and
  * audits every read a grant permits.

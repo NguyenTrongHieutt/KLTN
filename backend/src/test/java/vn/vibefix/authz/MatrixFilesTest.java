@@ -150,46 +150,35 @@ class MatrixFilesTest {
 	}
 
 	/**
-	 * Every read of Job content of every grant scope (review iteration 4, G8): the Job Chat's messages, the four Crew
-	 * Chat reads and a Crew Chat file, and the Work Items (the active member's and the raiser's) with their
-	 * notes and an attachment's file. Each grant caller runs each, so a read outside its scope is
-	 * scanned for the canaries hidden from it.
+	 * Every read of Job content of every grant scope (review iteration 4, G8): the Job Chat's messages, and the four
+	 * Crew Chat reads with a Crew Chat file. Each grant caller runs each, so a read outside its scope is
+	 * scanned for the canaries hidden from it. Story 24.2 retired the Board, so no read of a Work Item, a note on
+	 * one or an Attachment is left to run.
 	 */
 	static final Set<ContentRead> CONTENT_READS = Set.of(new ContentRead("GET /api/v1/jobs/{jobId}/chat/messages", "job=crew"),
 			new ContentRead("GET /api/v1/jobs/{jobId}/crew-chat", "job=crew"),
 			ContentRead.of("GET /api/v1/crew-chats/{crewChatId}/messages"),
 			ContentRead.of("GET /api/v1/boards/{boardId}/crew-chat/messages"),
 			ContentRead.of("GET /api/v1/chat-messages/{messageId}"),
-			new ContentRead("GET /api/v1/files/{fileId}", "file=chat"),
-			ContentRead.of("GET /api/v1/boards/{boardId}/work-items"), ContentRead.of("GET /api/v1/work-items/{workItemId}"),
-			new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"),
-			ContentRead.of("GET /api/v1/work-item-notes/{workItemNoteId}"),
-			new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"));
+			new ContentRead("GET /api/v1/files/{fileId}", "file=chat"));
 
 	/**
-	 * Each grant caller's scope, the reads that serve its content: the Dispute grant ({@code AdminReadItem.forDispute})
-	 * reads the Job Chat's messages (not the Customer and Mentor's {@code /chat} summary) and every Work Item with its
-	 * notes and attachments; the escalated Team Issue's reads the Crew Chat by its ID and by the Board, with
-	 * its files, and the raiser's Work Items; the Abuse Report's reads the reported message only; and the Split
-	 * Resolution's reads the Crew Chat by its ID and by the Board, with its files, and the Work Items that involve a party of
-	 * the split with their attachments, never the Job Chat or a Work Item nothing of theirs touches (Story 22.3).
+	 * Each grant caller's scope, the reads that serve its content (narrowed by Story 24.2, which retired the Board):
+	 * the Dispute grant ({@code AdminReadItem.forDispute}) reads the Job Chat's messages alone, not the Customer and
+	 * Mentor's {@code /chat} summary; the escalated Team Issue's reads the Crew Chat by its ID and by the Board, with
+	 * its files; the Abuse Report's reads the reported message only; and the Split Resolution's reads the Crew Chat by
+	 * its ID and by the Board, with its files, never the Job Chat (Story 22.3). A Milestone Split's versions are read
+	 * through the Split Evidence Package, which is no content read of the matrix.
 	 */
 	static final Map<MatrixCaller, GrantScope> GRANT_SCOPES = Map.of(MatrixCaller.ADMIN_DISPUTE_GRANT,
 			new GrantScope("/api/v1/admin/disputes/{disputeId}",
-					Set.of(new ContentRead("GET /api/v1/jobs/{jobId}/chat/messages", "job=crew"),
-							ContentRead.of("GET /api/v1/boards/{boardId}/work-items"),
-							ContentRead.of("GET /api/v1/work-items/{workItemId}"),
-							new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"),
-							ContentRead.of("GET /api/v1/work-item-notes/{workItemNoteId}"),
-							new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"))),
+					Set.of(new ContentRead("GET /api/v1/jobs/{jobId}/chat/messages", "job=crew"))),
 			MatrixCaller.ADMIN_TEAM_ISSUE_GRANT,
 			new GrantScope("/api/v1/admin/team-issues/{teamIssueId}",
 					Set.of(ContentRead.of("GET /api/v1/crew-chats/{crewChatId}/messages"),
 							ContentRead.of("GET /api/v1/boards/{boardId}/crew-chat/messages"),
 							ContentRead.of("GET /api/v1/chat-messages/{messageId}"),
-							new ContentRead("GET /api/v1/files/{fileId}", "file=chat"),
-							ContentRead.of("GET /api/v1/boards/{boardId}/work-items"),
-							new ContentRead("GET /api/v1/work-items/{workItemId}", "item=raiser"))),
+							new ContentRead("GET /api/v1/files/{fileId}", "file=chat"))),
 			MatrixCaller.ADMIN_ABUSE_REPORT_GRANT, new GrantScope("/api/v1/admin/abuse-reports/{reportId}",
 					Set.of(ContentRead.of("GET /api/v1/chat-messages/{messageId}"))),
 			MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT,
@@ -197,18 +186,15 @@ class MatrixFilesTest {
 						Set.of(ContentRead.of("GET /api/v1/crew-chats/{crewChatId}/messages"),
 								ContentRead.of("GET /api/v1/boards/{boardId}/crew-chat/messages"),
 								ContentRead.of("GET /api/v1/chat-messages/{messageId}"),
-								new ContentRead("GET /api/v1/files/{fileId}", "file=chat"),
-								ContentRead.of("GET /api/v1/boards/{boardId}/work-items"),
-								ContentRead.of("GET /api/v1/work-items/{workItemId}"),
-								new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"))));
+								new ContentRead("GET /api/v1/files/{fileId}", "file=chat"))));
 
 	/**
 	 * The file read policies (review iteration 4, G7), each by its class: the file binding whose {@code /files/{fileId}}
 	 * rows run it ({@code ""} for the Open Job Post's public screenshot, the default {@code {fileId}}).
 	 */
-	static final Map<String, String> FILE_POLICIES = Map.of("JobScreenshotFiles", "", "AttachmentFiles",
-			"file=attachment", "ChatAttachmentFiles", "file=chat", "HandoverScreenshotFiles", "file=screenshot",
-			"BidProofFiles", "file=proof", "CrewApplicationProofFiles", "file=crew-proof");
+	static final Map<String, String> FILE_POLICIES = Map.of("JobScreenshotFiles", "", "ChatAttachmentFiles",
+			"file=chat", "HandoverScreenshotFiles", "file=screenshot", "BidProofFiles", "file=proof",
+			"CrewApplicationProofFiles", "file=crew-proof");
 
 	/**
 	 * The file read policies no fixture world can reach, each with why. Empty since Story 23.10d retired the final
@@ -261,9 +247,9 @@ class MatrixFilesTest {
 
 	/** The Crew canaries: none reaches the Customer (AD-20, UX-DR108), a Crew Application's included (Story 21.4). */
 	static final Set<String> CREW_CANARIES = Set.of("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN",
-			"WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED",
+			"CREW_CHAT", "CREW_CHAT_UNREPORTED",
 			"TEAM_ISSUE_ID", "STUDENT_HIDDEN_NAME", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT",
-			"CROSS_WORK_ITEM_NOTE", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK",
+			"CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK",
 			"SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID",
 			"SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT", "SPLIT_DECISION_REASONING");
 
@@ -278,7 +264,7 @@ class MatrixFilesTest {
 			"CREW_APPLICATION_PROOF_LINK");
 
 	static final Set<String> CROSS_CANARIES = Set.of("CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
-			"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE");
+			"CROSS_CREW_CHAT");
 
 	@Test
 	void parsesAFullRow() {
@@ -446,7 +432,7 @@ class MatrixFilesTest {
 				GET /api/v1/jobs/{jobId}/chat,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
 				POST /api/v1/jobs/{jobId}/withdraw,LOCKED,,,401
 				POST /api/v1/jobs/{jobId}/withdraw,CUSTOMER,job=crew,,409 STALE
-				GET /api/v1/boards/{boardId}/work-items,MENTOR,job=crew,,200
+				GET /api/v1/boards/{boardId}/handovers,MENTOR,job=crew,,200
 				"""))).containsExactly(
 						"GET /api/v1/jobs/{jobId}/chat as MENTOR -> 404 NOT_FOUND names the Draft: the caller's Job is job=crew",
 						"GET /api/v1/jobs/{jobId}/chat as USER_UNVERIFIED -> 404 NOT_FOUND is not on the crew Job, whose objects it"
@@ -456,7 +442,7 @@ class MatrixFilesTest {
 						"GET /api/v1/jobs/{jobId}/chat as ADMIN_DISPUTE_GRANT -> 404 NOT_FOUND names the Draft: the caller's Job is"
 								+ " job=crew",
 						"POST /api/v1/jobs/{jobId}/withdraw as LOCKED -> 401 names the Draft: the caller's Job is job=crew",
-						"GET /api/v1/boards/{boardId}/work-items as MENTOR {job=crew} -> 200 binds a Job but names no {jobId}",
+						"GET /api/v1/boards/{boardId}/handovers as MENTOR {job=crew} -> 200 binds a Job but names no {jobId}",
 						"GET /api/v1/jobs/{jobId}/chat has no CUSTOMER row with job=crew",
 						"POST /api/v1/jobs/{jobId}/withdraw has no CUSTOMER row on the Draft or the post beside the crew Job's");
 	}
@@ -529,8 +515,8 @@ class MatrixFilesTest {
 				GET /api/v1/boards/{boardId}/z,CUSTOMER,,,404 NOT_FOUND
 				GET /api/v1/boards/{boardId}/gate,USER_UNVERIFIED,,,403 FORBIDDEN GITHUB_NOT_LINKED
 				GET /api/v1/boards/{boardId}/gate,MENTOR,,,404 NOT_FOUND
-				POST /api/v1/work-items/{workItemId}/held,CREW_ACTIVE,,,403 FORBIDDEN NOT_ASSIGNEE
-				POST /api/v1/work-items/{workItemId}/held,MENTOR,,,403 FORBIDDEN NOT_ASSIGNEE
+				POST /api/v1/handovers/{handoverId}/held,CREW_ACTIVE,,,403 FORBIDDEN NOT_ASSIGNEE
+				POST /api/v1/handovers/{handoverId}/held,MENTOR,,,403 FORBIDDEN NOT_ASSIGNEE
 				POST /api/v1/admin/disputes/{disputeId}/taken,ADMINISTRATOR,,,409 CONFLICT NOT_ASSIGNED
 				POST /api/v1/admin/disputes/{disputeId}/taken,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
 				POST /api/v1/admin/disputes/{disputeId}/stale,ADMINISTRATOR,,,409 STALE
@@ -541,7 +527,7 @@ class MatrixFilesTest {
 			.containsExactly("GET /api/v1/boards/{boardId}/x has no row past its policy: none answers 2xx, 409 or 422",
 					"GET /api/v1/boards/{boardId}/y is listed unreachable, but a row passes its policy",
 					"GET /api/v1/boards/{boardId}/gate has no row past its policy: none answers 2xx, 409 or 422",
-					"POST /api/v1/work-items/{workItemId}/held has no row past its policy: none answers 2xx, 409 or 422",
+					"POST /api/v1/handovers/{handoverId}/held has no row past its policy: none answers 2xx, 409 or 422",
 					"POST /api/v1/admin/disputes/{disputeId}/taken has no row past its policy: none answers 2xx, 409 or 422");
 		assertThat(pastThePolicy(Expectation.parse("204"))).isTrue();
 		assertThat(pastThePolicy(Expectation.parse("409 CONFLICT TEAM_ISSUE_OPEN"))).isTrue();
@@ -596,21 +582,21 @@ class MatrixFilesTest {
 						Set.of(new ContentRead("GET /api/v1/jobs/{jobId}/chat/messages", "job=crew"))),
 				MatrixCaller.ADMIN_ABUSE_REPORT_GRANT, new GrantScope("/api/v1/admin/reports/{reportId}", Set.of()));
 		Set<ContentRead> reads = Set.of(ContentRead.of("GET /api/v1/chat-messages/{messageId}"),
-				new ContentRead("GET /api/v1/files/{fileId}", "file=attachment"),
+				new ContentRead("GET /api/v1/files/{fileId}", "file=chat"),
 				ContentRead.of("GET /api/v1/pages/{pageId}"));
 		assertThat(grantViolations(rows, scopes, reads)).containsExactlyInAnyOrder(
 				"the content read GET /api/v1/pages/{pageId} is no endpoint of the matrix",
 				"ADMIN_ABUSE_REPORT_GRANT's case path /api/v1/admin/reports/{reportId} names no endpoint of the matrix",
 				"GET /api/v1/chat-messages/{messageId} has no row for ADMIN_ABUSE_REPORT_GRANT: every grant reads every"
 						+ " content read",
-				"GET /api/v1/files/{fileId} {file=attachment} has no row for ADMIN_ABUSE_REPORT_GRANT: every grant reads"
+				"GET /api/v1/files/{fileId} {file=chat} has no row for ADMIN_ABUSE_REPORT_GRANT: every grant reads"
 						+ " every content read",
 				"GET /api/v1/jobs/{jobId}/chat/messages {job=crew} has no row for ADMIN_ABUSE_REPORT_GRANT: every grant"
 						+ " reads every content read",
 				"POST /api/v1/admin/disputes/{disputeId}/decision has no row for ADMIN_DISPUTE_GRANT, whose case it is",
 				"GET /api/v1/chat-messages/{messageId} has no row for ADMIN_DISPUTE_GRANT: every grant reads every content"
 						+ " read",
-				"GET /api/v1/files/{fileId} {file=attachment} has no row for ADMIN_DISPUTE_GRANT: every grant reads every"
+				"GET /api/v1/files/{fileId} {file=chat} has no row for ADMIN_DISPUTE_GRANT: every grant reads every"
 						+ " content read",
 				"GET /api/v1/jobs/{jobId}/chat/messages {job=crew} is inside ADMIN_DISPUTE_GRANT's scope, but its row answers"
 						+ " 404 NOT_FOUND, not 2xx");
@@ -626,28 +612,28 @@ class MatrixFilesTest {
 	@Test
 	void theFileRuleFindsAPolicyNoRowRunsAndABindingWithoutItsCallers() {
 		List<MatrixRow> rows = MatrixRow.parse(HEADER + """
-				GET /api/v1/files/{fileId},USER,file=attachment,,404 NOT_FOUND
-				GET /api/v1/files/{fileId},MENTOR,file=attachment,,200
+				GET /api/v1/files/{fileId},USER,file=chat,,404 NOT_FOUND
+				GET /api/v1/files/{fileId},MENTOR,file=chat,,200
 				""");
 		// UnreachableFiles is fictional: no file read policy is listed unreachable any more (Story 23.10d).
-		assertThat(fileViolations(rows, Set.of("AttachmentFiles", "ChatAttachmentFiles", "UnreachableFiles"),
-				Map.of("AttachmentFiles", "file=attachment", "GoneFiles", ""), Map.of("UnreachableFiles", "never")))
+		assertThat(fileViolations(rows, Set.of("ChatAttachmentFiles", "HandoverScreenshotFiles", "UnreachableFiles"),
+				Map.of("ChatAttachmentFiles", "file=chat", "GoneFiles", ""), Map.of("UnreachableFiles", "never")))
 			.containsExactly(
-					"ChatAttachmentFiles reads files no row runs: bind {fileId} to one, or list it unreachable with the reason",
+					"HandoverScreenshotFiles reads files no row runs: bind {fileId} to one, or list it unreachable with the"
+							+ " reason",
 					"GoneFiles is no file read policy",
-					"GET /api/v1/files/{fileId} {file=attachment} (AttachmentFiles) has no row for [CUSTOMER, CREW_ASSIGNED,"
+					"GET /api/v1/files/{fileId} {file=chat} (ChatAttachmentFiles) has no row for [CUSTOMER, CREW_ASSIGNED,"
 							+ " CREW_ACTIVE, CREW_FORMER, CROSS_ROLE, ADMINISTRATOR, ADMIN_DISPUTE_GRANT, ADMIN_TEAM_ISSUE_GRANT,"
 							+ " ADMIN_ABUSE_REPORT_GRANT, ADMIN_SPLIT_RESOLUTION_GRANT]");
 	}
 
 	@Test
-	void theFileAndWorkItemBindingsNameTheirOwnObjects() {
+	void theFileBindingsNameTheirOwnObjects() {
 		MatrixWorld world = new MatrixWorld();
 		world.put("fileId", "post-screenshot");
 		world.put("boardId", "board");
-		world.put("workItemId", "active-item");
-		Map<String, String> rebound = Map.of("file=upload", "handoverUploadId", "file=attachment", "attachmentFileId",
-				"file=chat", "chatFileId", "file=screenshot", "handoverScreenshotFileId");
+		Map<String, String> rebound = Map.of("file=upload", "handoverUploadId", "file=chat", "chatFileId",
+				"file=screenshot", "handoverScreenshotFileId");
 		rebound.forEach((state, value) -> {
 			MatrixRow row = MatrixRow.parse(HEADER + "GET /api/v1/files/{fileId},MENTOR," + state + ",,200").getFirst();
 			assertThat(row.rebound()).as(state).isEqualTo(Map.of("fileId", value));
@@ -655,21 +641,14 @@ class MatrixFilesTest {
 			world.put(value, value + "-file");
 			assertThat(world.expand(row.path(), row.rebound())).as(state).isEqualTo("/api/v1/files/" + value + "-file");
 		});
-		MatrixRow raiser = MatrixRow.parse(HEADER + "GET /api/v1/work-items/{workItemId},MENTOR,item=raiser,,200").getFirst();
-		world.put("raiserWorkItemId", "raiser-item");
-		assertThat(world.expand(raiser.path(), raiser.rebound())).isEqualTo("/api/v1/work-items/raiser-item");
-		assertThat(world.expand(raiser.path())).isEqualTo("/api/v1/work-items/active-item");
 		assertThat(bindingPlaceholderViolations(MatrixRow.loadMatrix())).isEmpty();
 		assertThat(bindingPlaceholderViolations(MatrixRow.parse(HEADER + """
 				DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},MENTOR,file=upload,,204
 				GET /api/v1/files/{fileId},MENTOR,,,404 NOT_FOUND
 				GET /api/v1/boards/{boardId}/handovers,MENTOR,file=upload,,200
-				GET /api/v1/boards/{boardId}/work-items,MENTOR,item=raiser,,200
 				"""))).containsExactly(
 						"GET /api/v1/boards/{boardId}/handovers as MENTOR {file=upload} -> 200 binds file=upload but names no"
-								+ " {fileId}",
-						"GET /api/v1/boards/{boardId}/work-items as MENTOR {item=raiser} -> 200 binds item=raiser but names no"
-								+ " {workItemId}");
+								+ " {fileId}");
 	}
 
 	@Test
@@ -683,15 +662,15 @@ class MatrixFilesTest {
 				GET /api/v1/jobs/{jobId}/chat,USER,job=crew,,404 NOT_FOUND
 				GET /api/v1/jobs/{jobId}/chat,USER_UNVERIFIED,job=crew,,403 FORBIDDEN GITHUB_NOT_LINKED
 				POST /api/v1/jobs/{jobId}/withdraw,USER,job=crew,,409 STALE
-				POST /api/v1/work-items/{workItemId}/move,BIDDER,,work-item-move.json,422 GUARD_FAILED X
+				POST /api/v1/handovers/{handoverId}/revision,BIDDER,,handover-revision.json,422 GUARD_FAILED X
 				GET /api/v1/files/{fileId},USER,file=chat,,403 FORBIDDEN NOT_ASSIGNEE
 				GET /api/v1/files/{fileId},USER,,,200
 				GET /api/v1/jobs/{jobId}/applications,BIDDER,job=post,,200
 				"""))).containsExactly(
 						"POST /api/v1/jobs/{jobId}/withdraw as USER {job=crew} -> 409 STALE tells an unrelated caller about the"
 								+ " crew Job's object: answer NOT_FOUND",
-						"POST /api/v1/work-items/{workItemId}/move as BIDDER -> 422 GUARD_FAILED X tells an unrelated caller about"
-								+ " the crew Job's object: answer NOT_FOUND",
+						"POST /api/v1/handovers/{handoverId}/revision as BIDDER -> 422 GUARD_FAILED X tells an unrelated caller"
+								+ " about the crew Job's object: answer NOT_FOUND",
 						"GET /api/v1/files/{fileId} as USER {file=chat} -> 403 FORBIDDEN NOT_ASSIGNEE tells an unrelated caller"
 								+ " about the crew Job's object: answer NOT_FOUND");
 	}
@@ -700,16 +679,14 @@ class MatrixFilesTest {
 	void theCrossRolePersonReadsTheCrewJobAsAnActiveMember() {
 		assertThat(crossRoleViolations(MatrixRow.loadMatrix())).isEmpty();
 		assertThat(crossRoleViolations(MatrixRow.parse(HEADER + """
-				GET /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,,200
-				GET /api/v1/boards/{boardId}/work-items,CROSS_ROLE,,,404 NOT_FOUND
+				GET /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,,,200
+				GET /api/v1/boards/{boardId}/handovers,CROSS_ROLE,,,404 NOT_FOUND
 				GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,job=crew,,200
 				GET /api/v1/jobs/{jobId}/crew-chat,CROSS_ROLE,job=crew,,200
-				POST /api/v1/work-items/{workItemId}/move,CREW_ACTIVE,,work-item-move.json,200
-				POST /api/v1/work-items/{workItemId}/move,CROSS_ROLE,,work-item-move.json,403 FORBIDDEN NOT_ASSIGNEE
 				GET /api/v1/files/{fileId},CREW_ACTIVE,file=chat,,200
 				GET /api/v1/files/{fileId},CROSS_ROLE,,,200
 				"""))).containsExactly(
-						"GET /api/v1/boards/{boardId}/work-items as CROSS_ROLE -> 404 NOT_FOUND differs from CREW_ACTIVE's 200",
+						"GET /api/v1/boards/{boardId}/handovers as CROSS_ROLE -> 404 NOT_FOUND differs from CREW_ACTIVE's 200",
 						"GET /api/v1/files/{fileId} as CREW_ACTIVE {file=chat} -> 200 has no CROSS_ROLE row with its state");
 	}
 
@@ -769,11 +746,11 @@ class MatrixFilesTest {
 		Canaries canaries = Canaries.load();
 
 		assertThat(canaries.all()).extracting(Canaries.Canary::name)
-			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN", "WORK_ITEM_NOTE",
-					"ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT", "TEAM_ISSUE_ID",
+			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN",
+					"CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT", "TEAM_ISSUE_ID",
 					"NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL", "SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME",
 					"PRIVATE_FEEDBACK", "SKILL_SUGGESTION", "CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN",
-					"CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE", "WORK_ITEM_TITLE",
+					"CROSS_CREW_CHAT",
 					"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 					"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
 					"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT",
@@ -844,13 +821,13 @@ class MatrixFilesTest {
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_ACTIVE))).containsExactlyInAnyOrder("CREW_SHARE",
 				"CREW_EMAIL", "JOB_CHAT", "TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "CONTACT_EMAIL",
 				"SCHOOL_EMAIL", "PERSON_SIGNAL", "STUDENT_HIDDEN_NAME", "PRIVATE_FEEDBACK", "SKILL_SUGGESTION",
-				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT", "CROSS_WORK_ITEM_NOTE",
+				"CROSS_CREW_NAME", "CROSS_CREW_EMAIL", "CROSS_LINKEDIN", "CROSS_CREW_CHAT",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 				"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
 				"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT",
 				"SPLIT_DECISION_REASONING");
-		// The Story was written after the former member's window ended.
-		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("WORK_ITEM_TITLE", "CREW_NAME",
+		// The Crew Chat message was written after the former member's window ended.
+		assertThat(names(canaries.hiddenFrom(MatrixCaller.CREW_FORMER))).contains("CREW_CHAT", "CREW_NAME",
 				"CREW_LINKEDIN");
 	}
 
@@ -867,9 +844,8 @@ class MatrixFilesTest {
 		Canaries canaries = Canaries.load();
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR))).containsExactlyInAnyOrder("CREW_SHARE",
-				"WORK_ITEM_NOTE", "ATTACHMENT", "CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT",
+				"CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT",
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
-				"CROSS_WORK_ITEM_NOTE", "WORK_ITEM_TITLE",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
 				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART",
 				"CREW_LEFT_NOTE", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
@@ -878,16 +854,14 @@ class MatrixFilesTest {
 			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")
 				.containsAll(CREW_APPLICATION_CANARIES);
 		}
-		// A Dispute grant reads no Crew Chat (AdminReadItem.forDispute).
+		// A Dispute grant reads the Job Chat alone, no Crew Chat (AdminReadItem.forDispute, narrowed by Story 24.2).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT)))
 			.contains("CREW_CHAT", "CREW_CHAT_UNREPORTED", "CREW_SHARE")
-			.doesNotContain("JOB_CHAT", "WORK_ITEM_NOTE", "WORK_ITEM_TITLE", "ATTACHMENT");
-		// An escalated Team Issue's grant reads the Crew Chat and its raiser's Stories only, never the
-		// Job Chat or another member's Story (WORK_ITEM_TITLE).
-		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_TEAM_ISSUE_GRANT))).contains("JOB_CHAT", "WORK_ITEM_NOTE",
-				"WORK_ITEM_TITLE", "CREW_SHARE")
+			.doesNotContain("JOB_CHAT");
+		// An escalated Team Issue's grant reads the Crew Chat only, never the Job Chat (Story 24.2).
+		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_TEAM_ISSUE_GRANT))).contains("JOB_CHAT", "CREW_SHARE")
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED");
-		// A Split Resolution's grant reads the Crew Chat and the Work Items of its parties, never the Job Chat or
+		// A Split Resolution's grant reads the Crew Chat and its split's versions, never the Job Chat or
 		// another member's part of a release (A-20).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT))).contains("JOB_CHAT", "CREW_SHARE")
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
@@ -1226,8 +1200,8 @@ class MatrixFilesTest {
 				|| row.binds(Binding.CREW_PROOF_FILE) || row.binds(Binding.CREW_PROOF_UPLOAD)) {
 			return false;
 		}
-		if (row.binds(Binding.CREW_JOB) || row.binds(Binding.WORK_ITEM_FILE) || row.binds(Binding.CHAT_FILE)
-				|| row.binds(Binding.HANDOVER_FILE) || row.binds(Binding.HANDOVER_UPLOAD) || row.binds(Binding.RAISER_ITEM)) {
+		if (row.binds(Binding.CREW_JOB) || row.binds(Binding.CHAT_FILE) || row.binds(Binding.HANDOVER_FILE)
+				|| row.binds(Binding.HANDOVER_UPLOAD)) {
 			return true;
 		}
 		return MatrixRow.placeholders(row.path())

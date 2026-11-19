@@ -1,4 +1,4 @@
-import { Check, TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -43,8 +43,7 @@ function refusal(submission: HandoverSubmission): string {
 
 /**
  * "Tạo bàn giao" (FR-10, FR-32, AD-23, UX-DR54), a focused route for the Mentor: the preflight of the
- * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
- * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra" -- on an Assessment
+ * Milestone waiting for its handover: every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra" -- on an Assessment
  * Job those criteria are the Assessment Report's own sections (Story 24.1); for a Code Job, its new commits and the Sensitive change
  * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). A Code Job also needs
  * N-33's Mentor checkbox, the duty to keep credentials and real data out of the handover's commits, since vibefix
@@ -74,7 +73,6 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const navigate = useNavigate()
   const handOver = useHandOver(jobId)
   const [marks, setMarks] = useState<Record<string, Mark>>({})
-  const [itemNotes, setItemNotes] = useState<Record<string, string>>({})
   const [error, setError] = useState<string>()
   const [matches, setMatches] = useState<SensitiveMatch[]>()
   // N-33 (FR-25, R28, Story 23.8b): the Mentor's duty, which a Code Job's handover cannot go without.
@@ -89,20 +87,15 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
     ...NO_EVIDENCE,
     screenshotIds: preflight.screenshots.slice(0, 5).map((upload) => upload.fileId),
   }))
-  const unfinished = preflight.workItems.filter((item) => !item.approved)
+  // Story 24.2: every criterion marked with a note is the whole of FR-32's enforcement.
   const criteriaReady = preflight.criteria.every((criterion) => {
     const mark = marks[criterion.criterionId]
     return mark?.met !== undefined && mark.note.trim() !== ''
   })
-  const itemsReady = unfinished.every((item) => (itemNotes[item.id] ?? '').trim() !== '')
   // An Assessment Job hands over no code, so N-33 is neither shown nor needed there.
   const teamCodeReady = preflight.assessment || teamCode
   const ready =
-    preflight.problems.length === 0 &&
-    criteriaReady &&
-    itemsReady &&
-    teamCodeReady &&
-    evidenceReady(evidence, preflight.previewRequired)
+    preflight.problems.length === 0 && criteriaReady && teamCodeReady && evidenceReady(evidence, preflight.previewRequired)
 
   // The copy is over when this send's submission is no longer pending; a refusal names its reason inline.
   const waiting = copying !== undefined && !submission.isError && (copied === undefined || copied.state === 'PENDING')
@@ -133,7 +126,6 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           met: marks[criterion.criterionId]?.met ?? false,
           note: marks[criterion.criterionId]?.note.trim() ?? '',
         })),
-        itemNotes: unfinished.map((item) => ({ workItemId: item.id, note: (itemNotes[item.id] ?? '').trim() })),
         sensitive,
         teamCodeNoticeVersion: preflight.assessment ? undefined : TEAM_CODE_NOTICE_VERSION,
         ...evidenceBody(evidence),
@@ -198,47 +190,6 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           <SensitiveChangeList changes={preflight.sensitiveChanges} headingId={`${ids}-sensitive`} level={2} />
         </div>
       )}
-      <section aria-labelledby={`${ids}-items`} className="flex flex-col gap-3">
-        <h2 id={`${ids}-items`} className="text-h2">
-          {t('screen.handover.form.items')}
-        </h2>
-        {preflight.workItems.length === 0 && (
-          <p className="text-body-sm text-muted-foreground">{t('screen.handover.form.noItems')}</p>
-        )}
-        <ul className="flex flex-col gap-2">
-          {preflight.workItems.map((item) => (
-            <li key={item.id} className="flex flex-col gap-2 rounded-md border border-border p-3 text-body-sm">
-              <span className="flex flex-wrap items-center gap-2">
-                <code className="font-mono text-caption">{item.key}</code>
-                <span className="break-words">{item.title}</span>
-                {item.approved ? (
-                  <span className="flex items-center gap-1 text-caption text-success">
-                    <Check aria-hidden="true" className="size-4" />
-                    {t('screen.handover.form.approved')}
-                  </span>
-                ) : (
-                  <span className="text-caption text-muted-foreground">{t(`screen.board.status.${item.status}` as MessageKey)}</span>
-                )}
-              </span>
-              {!item.approved && (
-                <>
-                  <label htmlFor={`${ids}-item-${item.id}`} className="text-label">
-                    {t('screen.handover.form.itemNote', { key: item.key })}
-                  </label>
-                  <textarea
-                    id={`${ids}-item-${item.id}`}
-                    value={itemNotes[item.id] ?? ''}
-                    maxLength={2000}
-                    rows={2}
-                    onChange={(event) => setItemNotes({ ...itemNotes, [item.id]: event.target.value })}
-                    className={inputClass}
-                  />
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
       <section aria-labelledby={`${ids}-criteria`} className="flex flex-col gap-3">
         <h2 id={`${ids}-criteria`} className="text-h2">
           {t('screen.handover.form.criteria')}

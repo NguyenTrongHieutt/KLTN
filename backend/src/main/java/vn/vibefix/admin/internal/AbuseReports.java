@@ -49,8 +49,8 @@ import vn.vibefix.shared.ReportableContent.Reported;
 /**
  * Abuse Reports (FR-69, AD-20, AD-34): any signed-in user but an Administrator files one on content or a user
  * the owning module says they can see, at most 10 a day. An Administrator takes a report; for a chat message
- * or a Work Item note that pushes a read grant on that one item down to {@code chat} and {@code work}, a
- * takeover ends the old grant at once, and the decision ends it 30 days later. The assignee hides the content
+ * that pushes a read grant on that one message down to {@code chat}, a takeover ends the old grant at once,
+ * and the decision ends it 30 days later. The assignee hides the content
  * through FR-60, records an action taken elsewhere, or dismisses the report, and the reporter is told.
  */
 @Component
@@ -65,12 +65,12 @@ class AbuseReports {
 	static final String RESOLVED = "admin.abuse_report_resolved";
 
 	static final Set<String> KINDS = Set.of("PRODUCT", "JOB_POST", "RATING", "JOB_CHAT_MESSAGE", "CREW_CHAT_MESSAGE",
-			"WORK_ITEM_NOTE", "USER", "RECRUITMENT_NOTE");
+			"USER", "RECRUITMENT_NOTE");
 
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private static final Map<String, AdminReadScope> GRANTED = Map.of("JOB_CHAT_MESSAGE", AdminReadScope.JOB_CHAT,
-			"CREW_CHAT_MESSAGE", AdminReadScope.CREW_CHAT, "WORK_ITEM_NOTE", AdminReadScope.WORK_ITEM_NOTES);
+			"CREW_CHAT_MESSAGE", AdminReadScope.CREW_CHAT);
 
 	/** How an Administrator decided: hid the content (FR-60), acted elsewhere, or dismissed the report. */
 	enum Action {

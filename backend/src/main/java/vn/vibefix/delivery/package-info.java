@@ -1,13 +1,12 @@
 /**
  * Layer 8 (AD-3): Milestone Handovers and their Delivery Reports (FR-10, FR-32). The Mentor hands a
- * Funded or Revision Requested Milestone over once its preflight passes: every Work Item of it in "Xong"
- * through the Mentor's approval or explained by a note, and each Acceptance Criterion marked "Đạt" or
- * "Chưa đạt" with a note, all FR-47 checked; {@code job} applies M2 with the handover as its evidence
- * (AD-4). An Assessment Job hands over the Milestone itself, whose Acceptance Criteria the Assessment
- * Report template writes; Story 24.3 adds the Mentor's own document link to the handover. The Customer,
- * the Mentor, and the active Crew read the Delivery Report; the
- * Customer's never names a Work Item (AD-39). The Mentor's marks are a statement, never a criterion done
- * (AD-33). The Customer accepts a handover, with {@code payment} writing the split release in the same
+ * Funded or Revision Requested Milestone over once its preflight passes: each Acceptance Criterion of it
+ * marked "Đạt" or "Chưa đạt" with a note, all FR-47 checked; {@code job} applies M2 with the handover as
+ * its evidence (AD-4). An Assessment Job hands over the Milestone itself, whose Acceptance Criteria the
+ * Assessment Report template writes; Story 24.3 adds the Mentor's own document link to the handover. The
+ * Customer, the Mentor, and the active Crew read the Delivery Report, all of them the same criteria with
+ * the Mentor's own notes: an unmet criterion is declared "Chưa đạt" with the reason in the Mentor's words
+ * (Story 24.2). The Mentor's marks are a statement, never a criterion done (AD-33). The Customer accepts a handover, with {@code payment} writing the split release in the same
  * transaction (AD-5), or asks for a revision within the Revision Rounds (FR-33, FR-34); left undecided,
  * it is reminded twice and then accepted automatically by a pausable Deadline (FR-35, AD-7).
  * <p>
@@ -31,7 +30,7 @@
  * the personal-data participant are wiring in {@code delivery.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "operations", "timers",
-		"scanning", "job", "work", "payment", "repo", "files" })
+		"scanning", "job", "payment", "repo", "files" })
 package vn.vibefix.delivery;
 
 import org.springframework.modulith.ApplicationModule;

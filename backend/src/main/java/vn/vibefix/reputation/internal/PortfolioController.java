@@ -37,7 +37,7 @@ class PortfolioController {
 
 	/** The viewer's own entry, frozen at J9. */
 	record EntryView(String role, String title, List<String> jobTypes, List<String> skills, int milestones,
-			@Nullable Integer workItemsApproved, @Nullable Integer milestonesHandedOver, @Nullable Integer reviewsWritten,
+			@Nullable Integer commitsAuthored, @Nullable Integer milestonesHandedOver,
 			@Nullable Instant publishedAt) {
 	}
 
@@ -131,7 +131,7 @@ class PortfolioController {
 
 	private EntryView entryView(Entry entry) {
 		return new EntryView(entry.role(), entry.jobTitle(), entry.jobTypes(), this.skills.namesOf(entry.skillIds()),
-				entry.milestones(), entry.workItemsApproved(), entry.milestonesHandedOver(), entry.reviewsWritten(),
+				entry.milestones(), entry.commitsAuthored(), entry.milestonesHandedOver(),
 				entry.publishedAt());
 	}
 

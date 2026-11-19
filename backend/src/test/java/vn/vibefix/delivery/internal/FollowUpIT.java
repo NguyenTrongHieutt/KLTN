@@ -195,9 +195,6 @@ class FollowUpIT extends IntegrationTest {
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", UUID.randomUUID()).param("job", job).param("student", this.vy).param("signed", signed).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
-				""").param("job", job).param("product", product).param("now", now).update();
 		boolean accepted = "ACCEPTED".equals(handoverStatus);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,

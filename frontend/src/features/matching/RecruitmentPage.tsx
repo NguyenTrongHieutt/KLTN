@@ -55,7 +55,7 @@ import { ProofList } from './ProofList'
  * signing deadline) and "Không chọn" (no reason asked); a pick shows "Đã chọn · chờ ký trước {date}" with "Rút lựa
  * chọn" (R4, Story 21.5); the closed ones under "Đơn đã đóng"; and the Crew list with join and leave dates, the reason
  * a member gave when leaving, which only the Mentor reads (FR-82), and no remove action: nobody who signed is removed
- * (FR-75). While a former member's open Work Items wait, their line says so (Story 21.6).
+ * (FR-75).
  */
 export function RecruitmentPage() {
   const { jobId } = useParams()

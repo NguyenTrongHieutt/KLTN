@@ -16,7 +16,7 @@
  * HTTP endpoints, the listener, and the Deadlines are wiring in {@code reputation.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "catalog", "identity", "notification", "timers", "product",
-		"job", "repo", "work", "delivery" })
+		"job", "repo", "delivery" })
 package vn.vibefix.reputation;
 
 import org.springframework.modulith.ApplicationModule;

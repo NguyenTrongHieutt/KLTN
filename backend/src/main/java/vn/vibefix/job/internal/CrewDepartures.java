@@ -35,8 +35,8 @@ import vn.vibefix.shared.IdGenerator;
  * A signed member's departure (FR-59, FR-82, AD-41, UX-DR104), the same consequences whether they left or a lock counted
  * as leaving, so nobody can tell the two apart: the Mentor and the other active members hear
  * {@code job.crew_member_left}, the Customer {@code job.crew_login_removed} with the GitHub username only (R15), the
- * Customer's grant to-dos for the member close, and {@link CrewMemberRemoved} lets {@code repo} and {@code work} react
- * (FR-21, FR-66). When no counted {@code ACTIVE} row is left, {@link CrewEmptied} lets {@code matching} and {@code payment}
+ * Customer's grant to-dos for the member close, and {@link CrewMemberRemoved} lets {@code repo} react (FR-21,
+ * FR-66). When no counted {@code ACTIVE} row is left, {@link CrewEmptied} lets {@code matching} and {@code payment}
  * react before J6, and after J6 the Customer hears {@code job.crew_empty}; no Dispute opens for a Job with no Crew (Q7). A
  * reason never reaches a notice, a to-do or an event: it stays on the row, for JOB-9's Mentor alone.
  */

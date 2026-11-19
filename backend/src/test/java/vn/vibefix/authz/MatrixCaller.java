@@ -88,8 +88,8 @@ public enum MatrixCaller {
 	ADMIN_DISPUTE_GRANT,
 
 	/**
-	 * The Administrator who took an escalated Team Issue on the crew Job, holding its read grant: the Crew Chat and the
-	 * raiser's Work Items ({@code forEscalatedTeamIssue}).
+	 * The Administrator who took an escalated Team Issue on the crew Job, holding its read grant: the Crew Chat
+	 * ({@code forEscalatedTeamIssue}).
 	 */
 	ADMIN_TEAM_ISSUE_GRANT,
 
@@ -97,8 +97,8 @@ public enum MatrixCaller {
 	ADMIN_ABUSE_REPORT_GRANT,
 
 	/**
-	 * The Administrator who took the crew Job's open Split Resolution, holding its read grant: the split's versions, the Crew
-	 * Chat, and every party's Work Items ({@code forSplitResolution}, Story 22.3).
+	 * The Administrator who took the crew Job's open Split Resolution, holding its read grant: the split's versions and
+	 * the Crew Chat ({@code forSplitResolution}, Story 22.3).
 	 */
 	ADMIN_SPLIT_RESOLUTION_GRANT,
 

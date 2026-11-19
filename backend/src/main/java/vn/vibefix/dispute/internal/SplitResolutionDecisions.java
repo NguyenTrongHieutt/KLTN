@@ -39,8 +39,8 @@ import vn.vibefix.shared.IdGenerator;
 
 /**
  * An Administrator takes and decides a Split Resolution (FR-84, AD-20, AD-24, AD-29, AD-40, SG-10). "Nhận xử lý" records the
- * assignee and pushes their grant, the split's versions, the Crew Chat and every party's Work Item histories, never the Job
- * Chat, to every module holding that content; a takeover ends the old grant at once. The assignee's decision, with written
+ * assignee and pushes their grant, the split's versions and the Crew Chat, never the Job Chat, to every module holding that
+ * content; a takeover ends the old grant at once. The assignee's decision, with written
  * reasoning and after the step-up, saves the {@code DECISION} version under {@code job.decideSplit}, checked against the cap
  * stored on the latest version, and is final: {@code payment}'s listener alone moves the pool. Its record keeps the decision,
  * the reasoning, the VND amounts, and the IDs and versions of the evidence read; the grant ends 30 days later.
@@ -138,7 +138,7 @@ class SplitResolutionDecisions {
 			this.grants.forEach(module -> module.endAdminRead(previous, now));
 		}
 		UUID grant = this.ids.newId();
-		Set<AdminReadItem> items = AdminReadItem.forSplitResolution(resolution.splitId(), partyAccounts(split));
+		Set<AdminReadItem> items = AdminReadItem.forSplitResolution(resolution.splitId());
 		this.grants.forEach(module -> module.grantAdminRead(grant, adminId, resolution.jobId(), items, resolutionId));
 		this.jdbc.sql("UPDATE dispute.split_resolution SET assigned_admin_id = :admin, assigned_at = :now, grant_id = :grant WHERE id = :id")
 			.param("admin", adminId)

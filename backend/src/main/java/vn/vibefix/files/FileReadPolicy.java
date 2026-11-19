@@ -10,7 +10,7 @@ import vn.vibefix.shared.Caller;
  */
 public interface FileReadPolicy {
 
-	/** The purpose this policy answers for, for example {@code work.attachment}. */
+	/** The purpose this policy answers for, for example {@code chat.attachment}. */
 	String purpose();
 
 	/**

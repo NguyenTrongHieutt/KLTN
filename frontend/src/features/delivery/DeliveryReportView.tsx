@@ -11,7 +11,7 @@ import { SensitiveChangeList } from './SensitiveChangeList'
 /**
  * The Delivery Report (FR-10, FR-32, AD-33, UX-DR53): per criterion the Mentor's own statement
  * "Người hướng dẫn tự nhận xét: Đạt / Chưa đạt", never counted as a criterion done, their note, and
- * "Cách kiểm tra"; the notes on Work Items that were not done for the Mentor and the Crew only. An
+ * "Cách kiểm tra". An
  * Assessment Job's criteria are the Assessment Report's sections, which is its whole deliverable until
  * Story 24.3 adds the Mentor's own document link (Story 24.1). A Code Job's report adds the
  * Sensitive change list and the collapsed "Chi tiết kỹ thuật"
@@ -124,23 +124,6 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           ))}
         </ol>
       </section>
-      {!customer && report.itemNotes.length > 0 && (
-        <section aria-labelledby="delivery-items" className="flex flex-col gap-2">
-          <h3 id="delivery-items" className="text-h3">
-            {t('screen.handover.report.items')}
-          </h3>
-          <ul className="flex flex-col gap-2 text-body-sm">
-            {report.itemNotes.map((note) => (
-              <li key={note.workItemId} className="flex flex-col gap-0.5 rounded-md bg-muted px-3 py-2">
-                <span>
-                  <code className="font-mono text-caption">{note.key}</code> <span className="break-words">{note.title}</span>
-                </span>
-                <span className="break-words whitespace-pre-wrap">{note.note}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
       {report.code && <CodeSections report={report} code={report.code} />}
     </article>
   )
@@ -222,11 +205,6 @@ function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) 
               <li key={commit.sha} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <code className="font-mono text-caption">{commit.sha.slice(0, 7)}</code>
                 <span className="min-w-0 break-words">{commit.message}</span>
-                {commit.workItemKeys.map((key) => (
-                  <code key={key} className="rounded bg-muted px-1 font-mono text-caption">
-                    {key}
-                  </code>
-                ))}
               </li>
             ))}
           </ul>

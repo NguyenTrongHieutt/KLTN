@@ -63,14 +63,13 @@ class RetiredCrewTermsTest {
 				"dispute/internal/DisputeReason.java")) {
 			assertThat(NOT_HELD.matcher(read(javaSource(reason))).find()).as(reason).isFalse();
 		}
-		for (String reason : List.of("work/internal/WorkReason.java", "delivery/internal/DeliveryReason.java")) {
-			assertThat(NOT_HELD.matcher(read(javaSource(reason))).find()).as("%s keeps it for its own command", reason).isTrue();
-		}
+		assertThat(NOT_HELD.matcher(read(javaSource("delivery/internal/DeliveryReason.java"))).find())
+			.as("delivery keeps it for its own command").isTrue();
 		JsonNode reasons = JsonMapper.builder().build().readTree(read(VI)).path("reason");
 		for (String module : List.of("job", "payment", "dispute")) {
 			assertThat(reasons.path(module).has("MILESTONE_NOT_HELD")).as("reason.%s", module).isFalse();
 		}
-		assertThat(reasons.path("work").has("MILESTONE_NOT_HELD")).isTrue();
+		assertThat(reasons.has("work")).as("Story 24.2 retired the module's reasons").isFalse();
 		assertThat(reasons.path("delivery").has("MILESTONE_NOT_HELD")).isTrue();
 	}
 

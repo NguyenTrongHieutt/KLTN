@@ -14,7 +14,7 @@ import { JobTabs } from '@/features/job/JobTabs'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { hasBoard } from '@/features/job/jobState'
+import { hasStarted } from '@/features/job/jobState'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonth } from '@/lib/dates'
 import { isNotFound } from '@/lib/problemMessage'
@@ -45,7 +45,7 @@ function CustomerHandovers({ jobId, handoverId }: { jobId: string; handoverId: s
   if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
   }
-  if (job.data && !hasBoard(job.data.state)) {
+  if (job.data && !hasStarted(job.data.state)) {
     return <Navigate to={`/cong-viec/${job.data.id}`} replace />
   }
   return (
@@ -77,7 +77,7 @@ function MentorHandovers({ jobId, handoverId }: { jobId: string; handoverId: str
   if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
   }
-  if (job.data && !hasBoard(job.data.state)) {
+  if (job.data && !hasStarted(job.data.state)) {
     return <Navigate to={`/cong-viec/${job.data.id}`} replace />
   }
   return (

@@ -8,7 +8,7 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 export type Closure = components['schemas']['ClosureView']
 export type DataDeletion = components['schemas']['DataDeletionView']
 
-/** JOB-1's closure section (FR-37, FR-67, UX-DR55); a Board's ID is its Job's. */
+/** JOB-1's closure section (FR-37, FR-67, UX-DR55); the path carries the Job's ID. */
 export function useClosure(jobId: string | undefined) {
   return useQuery({
     queryKey: ['closure', jobId ?? ''],

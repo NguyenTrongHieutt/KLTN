@@ -47,14 +47,14 @@ class TodoRoleMigrationIT {
 				""".formatted(LAN, HUNG, VY), """
 				INSERT INTO identity.account (id, kind, role, created_at) VALUES ('%s', 'ADMINISTRATOR', 'ADMINISTRATOR', now())
 				""".formatted(ADMIN), todo("job.review_agreement", LAN, JOB), todo("job.draft_agreement", HUNG, JOB),
-				todo("work.fix_returned_item", VY, JOB), todo("job.answer_closure", LAN, JOB),
+				todo("dispute.decide_team_issue_answer", VY, JOB), todo("job.answer_closure", LAN, JOB),
 				todo("identity.link_github", LAN, null), todo("matching.answer_invitation_to_apply", HUNG, JOB));
 
 		flyway(db, "latest").migrate();
 
 		assertThat(rows(db, "SELECT todo_key || ' ' || coalesce(role, '-') FROM notification.todo ORDER BY todo_key"))
-			.containsExactly("identity.link_github -", "job.answer_closure -", "job.draft_agreement MENTOR",
-					"job.review_agreement CUSTOMER", "matching.answer_invitation_to_apply -", "work.fix_returned_item CREW");
+			.containsExactly("dispute.decide_team_issue_answer CREW", "identity.link_github -", "job.answer_closure -",
+					"job.draft_agreement MENTOR", "job.review_agreement CUSTOMER", "matching.answer_invitation_to_apply -");
 		assertThat(rows(db, """
 				SELECT count(*) FROM information_schema.columns
 				WHERE table_schema = 'identity' AND table_name = 'account' AND column_name = 'role'

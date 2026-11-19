@@ -406,21 +406,13 @@ class SplitResolutionIT extends IntegrationTest {
 	// ---- The grant and the evidence ---------------------------------------------------------------
 
 	@Test
-	void theGrantReadsTheCrewChatAndThePartiesWorkAndNeverTheJobChat() throws Exception {
+	void theGrantReadsTheCrewChatAndTheSplitsVersionsAndNeverTheJobChat() throws Exception {
 		UUID crew = JobContent.chat(this.jdbc, this.world.job(), this.world.product(), "CREW");
 		UUID jobChat = JobContent.chat(this.jdbc, this.world.job(), this.world.product(), "JOB");
 		Instant funded = this.clock.instant().minus(Duration.ofDays(1));
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin trước giai đoạn", funded.minus(Duration.ofHours(1)));
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin trong giai đoạn", funded.plus(Duration.ofHours(1)));
 		JobContent.message(this.jdbc, jobChat, this.world.hung(), "Tin với khách hàng", funded.plus(Duration.ofHours(2)));
-		JobContent.board(this.jdbc, this.world.job(), this.world.product(), "VNM", 3);
-		UUID mine = JobContent.workItem(this.jdbc, this.world.job(), 1, "Việc của Vy", this.world.milestone(), null, this.clock.instant());
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :vy WHERE id = :id").param("vy", this.world.vy()).param("id", mine).update();
-		UUID other = stranger();
-		UUID theirs = JobContent.workItem(this.jdbc, this.world.job(), 2, "Việc của người khác", this.world.milestone(), null, this.clock.instant());
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :other WHERE id = :id").param("other", other).param("id", theirs).update();
-		UUID elsewhere = JobContent.workItem(this.jdbc, this.world.job(), 3, "Việc giai đoạn khác", null, null, this.clock.instant());
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :vy WHERE id = :id").param("vy", this.world.vy()).param("id", elsewhere).update();
 		UUID handover = handover();
 		long githubVy = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id").param("id", this.world.vy()).query(Long.class).single();
 		commit(handover, 0, "a", githubVy);
@@ -438,8 +430,6 @@ class SplitResolutionIT extends IntegrationTest {
 
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/crew-chat/messages").with(admin(admin))).andExpect(status().isOk());
 		this.mvc.perform(get("/api/v1/jobs/" + this.world.job() + "/chat/messages").with(admin(admin))).andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/work-items/" + mine).with(admin(admin))).andExpect(status().isOk());
-		this.mvc.perform(get("/api/v1/work-items/" + theirs).with(admin(admin))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(admin))).andExpect(status().isNotFound());
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'chat.admin_read'")).isOne();
 
@@ -452,10 +442,7 @@ class SplitResolutionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.parties", hasSize(3)))
 			.andExpect(jsonPath("$.parties[1].activeFrom").exists())
 			.andExpect(jsonPath("$.parties[1].activeTo").exists());
-		evidence(admin, id, "work-items").andExpect(status().isOk())
-			.andExpect(jsonPath("$", hasSize(1)))
-			.andExpect(jsonPath("$[0].title").value("Việc của Vy"))
-			.andExpect(jsonPath("$[0].assigneeName").value("Trần Thảo Vy"));
+		evidence(admin, id, "work-items").andExpect(status().isNotFound());
 		evidence(admin, id, "commits").andExpect(status().isOk())
 			.andExpect(jsonPath("$", hasSize(3)))
 			.andExpect(jsonPath("$[0].partyName").value("Trần Thảo Vy"))
@@ -471,12 +458,11 @@ class SplitResolutionIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].kind").value("EMAIL"))
 			.andExpect(content().string(not(containsString("ef".repeat(32)))));
 
-		for (String tab : List.of("versions", "work_items", "commits", "crew_chat", "person_links")) {
+		for (String tab : List.of("versions", "commits", "crew_chat", "person_links")) {
 			assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.split_evidence_viewed." + tab + "'"))
 				.as(tab).isOne();
 		}
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.admin_read'")).isOne();
-		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'work.admin_read'")).isEqualTo(2);
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'chat.admin_read'")).isEqualTo(2);
 	}
 
@@ -730,9 +716,6 @@ class SplitResolutionIT extends IntegrationTest {
 		UUID jobChat = JobContent.chat(this.jdbc, this.world.job(), this.world.product(), "JOB");
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin trong giai đoạn", this.clock.instant().minus(Duration.ofHours(1)));
 		JobContent.message(this.jdbc, jobChat, this.world.hung(), "Tin với khách hàng", this.clock.instant().minus(Duration.ofHours(1)));
-		JobContent.board(this.jdbc, this.world.job(), this.world.product(), "VNM", 1);
-		UUID item = JobContent.workItem(this.jdbc, this.world.job(), 1, "Việc của Vy", this.world.milestone(), null, this.clock.instant());
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :vy WHERE id = :id").param("vy", this.world.vy()).param("id", item).update();
 		accepted();
 		closeJob();
 		raise(this.world.vy(), 1, "Phần của tôi quá ít").andExpect(status().isCreated());
@@ -751,11 +734,9 @@ class SplitResolutionIT extends IntegrationTest {
 		statement(this.world.hung(), id, "Ý kiến của tôi").andExpect(status().isCreated());
 		evidence(this.ha.accountId(), id, "versions").andExpect(status().isOk())
 			.andExpect(jsonPath("$.parties[1].activeFrom").exists());
-		evidence(this.ha.accountId(), id, "work-items").andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)));
 		evidence(this.ha.accountId(), id, "crew-chat").andExpect(status().isOk()).andExpect(jsonPath("$.messages", hasSize(1)));
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/crew-chat/messages").with(admin(this.ha.accountId())))
 			.andExpect(status().isOk());
-		this.mvc.perform(get("/api/v1/work-items/" + item).with(admin(this.ha.accountId()))).andExpect(status().isOk());
 		this.mvc.perform(get("/api/v1/jobs/" + this.world.job() + "/chat/messages").with(admin(this.ha.accountId())))
 			.andExpect(status().isNotFound());
 
@@ -770,7 +751,6 @@ class SplitResolutionIT extends IntegrationTest {
 		readsTheRecordAndNoEvidence(id);
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/crew-chat/messages").with(admin(this.ha.accountId())))
 			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/work-items/" + item).with(admin(this.ha.accountId()))).andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -963,7 +943,6 @@ class SplitResolutionIT extends IntegrationTest {
 	@Test
 	void aTakeoverClosesTheOldAssigneesReadsAndARepeatTakeChangesNoGrant() throws Exception {
 		JobContent.chat(this.jdbc, this.world.job(), this.world.product(), "CREW");
-		UUID mine = itemOf(this.world.vy(), 1, "Việc của Vy");
 		accepted();
 		raise(this.world.vy(), 1, "Phần của tôi quá ít").andExpect(status().isCreated());
 		String id = onlyCase();
@@ -975,21 +954,18 @@ class SplitResolutionIT extends IntegrationTest {
 		take(ha, id).andExpect(status().isOk());
 
 		assertThat(text("SELECT grant_id::text FROM dispute.split_resolution")).isEqualTo(grant);
-		for (String table : List.of("chat", "work", "job")) {
+		for (String table : List.of("chat", "job")) {
 			assertThat(text("SELECT string_agg(grant_id::text, ',') FROM %s.admin_read_grant WHERE ends_at IS NULL".formatted(table)))
 				.as(table).isEqualTo(grant);
 			assertThat(number("SELECT count(*) FROM %s.admin_read_grant".formatted(table))).as(table).isOne();
 		}
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.split_resolution_taken'")).isOne();
 		this.mvc.perform(get(crewChat).with(admin(ha))).andExpect(status().isOk());
-		this.mvc.perform(get("/api/v1/work-items/" + mine).with(admin(ha))).andExpect(status().isOk());
 
 		take(this.quan, id).andExpect(status().isOk());
 
 		this.mvc.perform(get(crewChat).with(admin(ha))).andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/work-items/" + mine).with(admin(ha))).andExpect(status().isNotFound());
 		this.mvc.perform(get(crewChat).with(admin(this.quan))).andExpect(status().isOk());
-		this.mvc.perform(get("/api/v1/work-items/" + mine).with(admin(this.quan))).andExpect(status().isOk());
 	}
 
 	@Test
@@ -1095,27 +1071,6 @@ class SplitResolutionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.crewChat.messageCount").value(2));
 		assertThat(splitStatus()).isEqualTo("FINAL");
 		awaitListeners();
-	}
-
-	@Test
-	void theWorkItemsTabShowsEachHistoryAndAnItemAPartyActedOn() throws Exception {
-		UUID theirs = itemOf(stranger(), 1, "Việc của người khác");
-		JobContent.note(this.jdbc, theirs, this.world.job(), this.world.vy(), "Vy đã sửa phần này", this.clock.instant());
-		JobContent.note(this.jdbc, theirs, this.world.job(), this.world.hung(), "Hùng đã xem", this.clock.instant().plusSeconds(1));
-		accepted();
-		raise(this.world.minh(), 1, "Phần của tôi quá ít").andExpect(status().isCreated());
-		String id = onlyCase();
-		take(this.ha.accountId(), id).andExpect(status().isOk());
-
-		evidence(this.ha.accountId(), id, "work-items").andExpect(status().isOk())
-			.andExpect(jsonPath("$", hasSize(1)))
-			.andExpect(jsonPath("$[0].workItemId").value(theirs.toString()))
-			.andExpect(jsonPath("$[0].history", hasSize(2)))
-			.andExpect(jsonPath("$[0].history[0].action").value("NOTE"))
-			.andExpect(jsonPath("$[0].history[0].actorName").value("Trần Thảo Vy"))
-			.andExpect(jsonPath("$[0].history[0].comment").value("Vy đã sửa phần này"))
-			.andExpect(jsonPath("$[0].history[1].actorName").value("Đỗ Mạnh Hùng"))
-			.andExpect(jsonPath("$[0].history[1].comment").value("Hùng đã xem"));
 	}
 
 	@Test
@@ -1233,8 +1188,6 @@ class SplitResolutionIT extends IntegrationTest {
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin trước giai đoạn", funded.minus(Duration.ofHours(1)));
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin đầu", funded.plus(Duration.ofHours(1)));
 		UUID last = JobContent.message(this.jdbc, crew, this.world.minh(), "Tin cuối", funded.plus(Duration.ofHours(2)));
-		UUID item = itemOf(this.world.vy(), 1, "Việc của Vy");
-		this.jdbc.sql("UPDATE work.work_item SET version = 4 WHERE id = :id").param("id", item).update();
 		commit(handover(), 0, "a", null);
 		accepted();
 		confirm(this.world.minh(), 1).andExpect(status().isOk());
@@ -1247,8 +1200,7 @@ class SplitResolutionIT extends IntegrationTest {
 		decide(this.ha, id, 30, 40, 30, "Đã xem đủ").andExpect(status().isOk())
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.crewChat.messageCount").value(2))
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.crewChat.lastMessageId").value(last.toString()))
-			.andExpect(jsonPath("$.decision.evidenceSnapshot.workItems[0].workItemId").value(item.toString()))
-			.andExpect(jsonPath("$.decision.evidenceSnapshot.workItems[0].version").value(4))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.workItems").doesNotExist())
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.commits[0].sha").value("a".repeat(40)))
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.personLinks").value(1))
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.versions[0].confirmations").value(1));
@@ -1670,7 +1622,7 @@ class SplitResolutionIT extends IntegrationTest {
 				.andExpect(jsonPath("$.decision.versionNo").value(2));
 		}
 		long viewed = number("SELECT count(*) FROM audit.audit_entry WHERE action LIKE 'dispute.split_evidence_viewed.%'");
-		for (String tab : List.of("versions", "work-items", "commits", "crew-chat", "person-links")) {
+		for (String tab : List.of("versions", "commits", "crew-chat", "person-links")) {
 			evidence(this.ha.accountId(), id, tab).andExpect(status().isNotFound());
 		}
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action LIKE 'dispute.split_evidence_viewed.%'"))
@@ -1685,17 +1637,6 @@ class SplitResolutionIT extends IntegrationTest {
 					WHERE job_id = :job AND member_account_id = :member
 					""").param("end", Timestamp.from(left)).param("job", this.world.job()).param("member", member).update();
 		}
-	}
-
-	/** Work Item {@code number} of the Milestone, assigned to {@code assignee}, on a Board created for it. */
-	private UUID itemOf(UUID assignee, int number, String title) {
-		JobContent.board(this.jdbc, this.world.job(), this.world.product(), "VNM", number);
-		UUID item = JobContent.workItem(this.jdbc, this.world.job(), number, title, this.world.milestone(), null, this.clock.instant());
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :assignee WHERE id = :id")
-			.param("assignee", assignee)
-			.param("id", item)
-			.update();
-		return item;
 	}
 
 	private UUID handover() {

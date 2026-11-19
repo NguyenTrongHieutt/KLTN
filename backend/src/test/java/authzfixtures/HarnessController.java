@@ -121,7 +121,7 @@ public class HarnessController {
 	@Access(Gate.PUBLIC)
 	@GetMapping("/api/v1/fixture/leak-body")
 	Map<String, Object> leakBody() {
-		return Map.of("note", Canaries.load().get("WORK_ITEM_NOTE").value());
+		return Map.of("note", Canaries.load().get("CREW_CHAT").value());
 	}
 
 	@Access(Gate.PUBLIC)

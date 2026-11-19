@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * The Administrator read-grant contract (AD-20, AD-3 push-down grant). The modules holding Job
- * content ({@code chat}, {@code work}, {@code job}) implement it in their own stories; only the
+ * content ({@code chat} and {@code job}) implement it in their own stories; only the
  * owning case modules ({@code dispute}, {@code admin}) call it, when an Administrator takes a case,
  * is reassigned, or decides. {@code AdminReadGrantCallersTest} enforces who calls.
  * <p>

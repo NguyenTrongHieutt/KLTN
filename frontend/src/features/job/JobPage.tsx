@@ -24,7 +24,7 @@ import { LeaverRevocations } from './closure/RevocationChecklist'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
-import { hasBoard } from '@/features/job/jobState'
+import { hasStarted } from '@/features/job/jobState'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from './cancellation/CancellationSection'
 import { SetupTracker } from './SetupTracker'
@@ -106,7 +106,7 @@ function Overview({ job }: { job: Job }) {
           chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
           agreement={job.agreementShared}
           payment={job.agreementConfirmed}
-          handover={hasBoard(job.state)}
+          handover={hasStarted(job.state)}
         />
       </div>
       {job.mentor && <NoCrewAlert jobId={job.id} mentor={job.mentor.displayName} />}
@@ -157,7 +157,7 @@ function Overview({ job }: { job: Job }) {
           </div>
           <Aside job={job} lapsesAt={job.lapsesAt} />
         </div>
-      ) : hasBoard(job.state) || job.state === 'CANCELLED' ? (
+      ) : hasStarted(job.state) || job.state === 'CANCELLED' ? (
         <ProgressOverview jobId={job.id} audience="customer" optional={job.state === 'CANCELLED'} />
       ) : (
         <>

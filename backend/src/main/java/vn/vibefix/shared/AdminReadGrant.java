@@ -1,7 +1,6 @@
 package vn.vibefix.shared;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -50,15 +49,13 @@ public record AdminReadGrant(UUID grantId, UUID adminId, UUID jobId, Set<AdminRe
 
 	/**
 	 * Whether {@code adminId} may read, at {@code at}, the object {@code objectId} of {@code scope}
-	 * on {@code jobId} that involves {@code involvedAccountIds}. A serving module answers
-	 * {@code NOT_FOUND} when no grant permits the read, and writes an audit entry for every read a
-	 * grant permits (AD-8).
+	 * on {@code jobId}. A serving module answers {@code NOT_FOUND} when no grant permits the read,
+	 * and writes an audit entry for every read a grant permits (AD-8).
 	 */
-	public boolean permits(UUID adminId, UUID jobId, AdminReadScope scope, UUID objectId,
-			Collection<UUID> involvedAccountIds, Instant at) {
+	public boolean permits(UUID adminId, UUID jobId, AdminReadScope scope, UUID objectId, Instant at) {
 		return this.adminId.equals(adminId) && this.jobId.equals(jobId)
 				&& (this.endsAt == null || at.isBefore(this.endsAt))
-				&& this.items.stream().anyMatch(item -> item.covers(scope, objectId, involvedAccountIds));
+				&& this.items.stream().anyMatch(item -> item.covers(scope, objectId));
 	}
 
 }

@@ -3,7 +3,6 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
-import { entryText } from '@/features/work/historyText'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
@@ -11,26 +10,23 @@ import { cn } from '@/lib/utils'
 import type { AdminDispute } from './adminDisputesApi'
 import {
   useAgreementEvidence,
-  useBoardEvidence,
   useCriteriaEvidence,
   useDecisionsEvidence,
   useDriftEvidence,
   useEvidenceAudit,
   useJobChatEvidence,
   usePaymentsEvidence,
-  useWorkItemEvidence,
 } from './disputeEvidenceApi'
 
-const TABS = ['agreement', 'criteria', 'work', 'chat', 'decisions', 'payments', 'drift', 'audit'] as const
+const TABS = ['agreement', 'criteria', 'chat', 'decisions', 'payments', 'drift', 'audit'] as const
 
 type Tab = (typeof TABS)[number]
 
 /**
  * ADM-4's Evidence Package (FR-53, FR-63, AD-20, AD-31, UX-DR58): one tab per FR-53 source, read only when
  * it opens. The Agreement versions, the criteria in each Delivery Report, the approvals and revision
- * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat and the Work
- * Items from `chat` and `work` under the assignee's grant. Every view is audited, and the
- * note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
+ * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat from `chat` under the assignee's
+ * grant. Every view is audited, and the note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
  * `DecisionEvidence`, its evidence snapshot.
  */
 export function DisputeEvidence({ data }: { data: AdminDispute }) {
@@ -61,7 +57,6 @@ export function DisputeEvidence({ data }: { data: AdminDispute }) {
       <div role="tabpanel" className="flex flex-col gap-2">
         {tab === 'agreement' && <AgreementTab disputeId={data.id} />}
         {tab === 'criteria' && <CriteriaTab disputeId={data.id} />}
-        {tab === 'work' && <WorkTab jobId={data.jobId} />}
         {tab === 'chat' && <ChatTab jobId={data.jobId} />}
         {tab === 'decisions' && <DecisionsTab disputeId={data.id} />}
         {tab === 'payments' && <PaymentsTab disputeId={data.id} />}
@@ -173,60 +168,6 @@ function CriteriaTab({ disputeId }: { disputeId: string }) {
           </li>
         ))}
       </ul>
-    </RegionState>
-  )
-}
-
-function WorkTab({ jobId }: { jobId: string }) {
-  const board = useBoardEvidence(jobId)
-  const [open, setOpen] = useState<string>()
-  return (
-    <RegionState query={board} skeleton={<Skeleton className="h-32 w-full" />}>
-      {board.data && board.data.items.length === 0 && <Empty />}
-      <ul className="flex flex-col gap-2">
-        {board.data?.items.map((item) => (
-          <li key={item.id} className="flex flex-col gap-1 rounded-md bg-muted p-3">
-            <button
-              type="button"
-              aria-expanded={open === item.id}
-              onClick={() => setOpen(open === item.id ? undefined : item.id)}
-              className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <span className="font-semibold">{item.key}</span> <span className="break-words">{item.title}</span>
-              {item.assignee && <span className="text-caption text-muted-foreground"> · {item.assignee.name}</span>}
-            </button>
-            {open === item.id && <WorkItemHistory workItemId={item.id} />}
-          </li>
-        ))}
-      </ul>
-    </RegionState>
-  )
-}
-
-function WorkItemHistory({ workItemId }: { workItemId: string }) {
-  const detail = useWorkItemEvidence(workItemId)
-  return (
-    <RegionState query={detail} skeleton={<Skeleton className="h-16 w-full" />}>
-      {detail.data && (
-        <div className="flex flex-col gap-1 text-caption">
-          {detail.data.attachments.length > 0 && (
-            <p className="break-words">
-              {t('screen.admin.disputes.evidence.attachments', {
-                names: detail.data.attachments.map((attachment) => attachment.name).join(', '),
-              })}
-            </p>
-          )}
-          <ol className="flex flex-col gap-1">
-            {detail.data.history.map((entry) => (
-              <li key={entry.id} className="break-words">
-                <span className="text-muted-foreground">{formatDayMonthTime(entry.at)} · </span>
-                {entryText(entry)}
-                {entry.comment ? `: ${entry.comment}` : ''}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
     </RegionState>
   )
 }
@@ -409,7 +350,6 @@ export function DecisionEvidence({ snapshot }: { snapshot: Snapshot }) {
             })}
           </li>
         ))}
-        <li>{t('screen.admin.disputes.snapshot.work', { items: snapshot.workItems.length })}</li>
         <li>
           {snapshot.jobChat.lastSentAt
             ? t('screen.admin.disputes.snapshot.chat', {

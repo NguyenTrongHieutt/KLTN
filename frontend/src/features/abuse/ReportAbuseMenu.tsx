@@ -20,7 +20,6 @@ export type ReportKind =
   | 'RATING'
   | 'JOB_CHAT_MESSAGE'
   | 'CREW_CHAT_MESSAGE'
-  | 'WORK_ITEM_NOTE'
   | 'USER'
   | 'RECRUITMENT_NOTE'
 
@@ -40,7 +39,7 @@ const itemClass =
 
 /**
  * Report abuse (FR-69, AD-34, UX-DR64): the "…" menu of a Product, Job Post, recruitment note, Rating, chat
- * message, Work Item note, or public profile. The dialog requires a reason, and once sent reads "Quản trị viên sẽ
+ * message, or public profile. The dialog requires a reason, and once sent reads "Quản trị viên sẽ
  * xem xét và báo kết quả cho bạn." A refusal (not visible any more, reported already, 10 reports today)
  * shows its sentence.
  */

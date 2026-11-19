@@ -175,7 +175,8 @@ class RetiredPagesTest {
 		return BACKEND_MAIN.resolve(Path.of("java", "vn", "vibefix")).resolve(path);
 	}
 
-	private static String read(Path file) {
+	/** The file's text, read as UTF-8; {@link RetiredBoardTest} reads the same files with the same rule. */
+	static String read(Path file) {
 		try {
 			return Files.readString(file, StandardCharsets.UTF_8);
 		}

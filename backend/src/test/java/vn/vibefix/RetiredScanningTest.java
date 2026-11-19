@@ -110,7 +110,7 @@ class RetiredScanningTest {
 		for (String module : List.of("product", "admin")) {
 			assertThat(packageInfo(module)).as(module).doesNotContain("\"scanning\"");
 		}
-		for (String module : List.of("repo", "delivery", "job", "work", "chat")) {
+		for (String module : List.of("repo", "delivery", "job", "chat")) {
 			assertThat(packageInfo(module)).as(module).contains("\"scanning\"");
 		}
 		assertThat(BACKEND_MAIN.resolve(Path.of("resources", "scanning", "rules.yaml"))).isRegularFile();

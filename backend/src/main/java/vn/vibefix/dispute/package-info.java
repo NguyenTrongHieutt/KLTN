@@ -3,7 +3,7 @@
  * its money and pausable Deadlines (§4.0 freeze rule) until an Administrator decides and the System
  * executes the decision (Story 9.5). The other side gets a statement period (Story 15.1), and the assignee
  * reads the Evidence Package, assembled on demand from the owning modules' queries and the grant pushed down
- * to {@code chat} and {@code work}, each view audited (Story 15.2). A decision keeps an evidence snapshot of IDs,
+ * to {@code chat} and {@code job}, each view audited (Story 15.2). A decision keeps an evidence snapshot of IDs,
  * versions, counts, and totals that outlives the NFR-10 retirement of the Job's data (Story 15.3).
  * <p>
  * Team Issues (FR-79, AD-40, Tier 3), kept apart from Disputes: a Crew member raises one with the Job's
@@ -12,14 +12,14 @@
  * <p>
  * Split Resolutions (FR-84, AD-40): a party other than the Mentor asks an Administrator to decide a Milestone Split, which holds
  * the whole Milestone's money in {@code job} and {@code payment} until it is withdrawn or decided, from the Split Evidence
- * Package assembled from {@code job}, {@code work}, {@code delivery}, {@code chat} and {@code identity}. They never freeze the
+ * Package assembled from {@code job}, {@code delivery}, {@code chat} and {@code identity}. They never freeze the
  * Job or read its state, carry on after it ends, and the Customer never sees them.
  * <p>
  * Public API: {@link vn.vibefix.dispute.DisputeQueue}, the Disputes awaiting a decision for ADM-1. The
  * HTTP endpoints, the execution, and the personal-data participant are wiring in {@code dispute.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "operations", "timers", "job",
-		"payment", "reputation", "delivery", "repo", "chat", "work" })
+		"payment", "reputation", "delivery", "repo", "chat" })
 package vn.vibefix.dispute;
 
 import org.springframework.modulith.ApplicationModule;

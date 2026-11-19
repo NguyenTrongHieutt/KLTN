@@ -127,8 +127,8 @@ class VisibleRatings implements Reputation {
 			String product = approved && summary.showProductName() && !entry.productName().isEmpty()
 					&& !hiddenProducts.contains(productOf.get(entry.jobId())) ? entry.productName() : null;
 			return new PortfolioEntry(entry.jobTitle(), entry.role(), entry.jobTypes(), this.skills.namesOf(entry.skillIds()),
-					entry.closedAt(), entry.milestones(), entry.workItemsApproved(), entry.milestonesHandedOver(),
-					entry.reviewsWritten(), ratings.get(entry.jobId()), approved ? summary.text() : null, product);
+					entry.closedAt(), entry.milestones(), entry.commitsAuthored(), entry.milestonesHandedOver(),
+					ratings.get(entry.jobId()), approved ? summary.text() : null, product);
 		}).toList();
 	}
 

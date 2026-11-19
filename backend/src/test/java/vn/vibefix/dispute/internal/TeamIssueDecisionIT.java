@@ -95,18 +95,18 @@ class TeamIssueDecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.raiserName").value("Trần Thảo Vy"))
 			.andExpect(jsonPath("$.rating.stars").value(2))
 			.andExpect(jsonPath("$.split").doesNotExist());
-		for (String table : new String[] { "chat.admin_read_grant", "work.admin_read_grant", "job.admin_read_grant" }) {
+		for (String table : new String[] { "chat.admin_read_grant", "job.admin_read_grant" }) {
 			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
 				.as(table).isOne();
 			assertThat(text("SELECT items::text FROM " + table + " WHERE reason_id = '" + issue + "'"))
-				.as("Story 22.4: the grant names no Crew Terms in %s", table)
-				.contains("CREW_CHAT", "WORK_ITEMS")
-				.doesNotContain("CREW_TERMS");
+				.as("Story 22.4: no Crew Terms; Story 24.2: no Work Items, in %s", table)
+				.contains("CREW_CHAT")
+				.doesNotContain("CREW_TERMS", "WORK_ITEMS");
 		}
 		this.mvc.perform(get("/api/v1/crew-chats/" + chat + "/messages").with(admin(this.minh))).andExpect(status().isOk());
 
 		take(this.ha.accountId(), issue).andExpect(status().isOk());
-		for (String table : new String[] { "chat.admin_read_grant", "work.admin_read_grant", "job.admin_read_grant" }) {
+		for (String table : new String[] { "chat.admin_read_grant", "job.admin_read_grant" }) {
 			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND ends_at IS NULL"))
 				.as("Minh's grant ended in %s, Hà's is open", table).isOne();
 			assertThat(count("SELECT count(*) FROM " + table + " WHERE reason_id = '" + issue + "' AND admin_account_id = '"

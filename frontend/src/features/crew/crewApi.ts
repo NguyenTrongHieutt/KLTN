@@ -24,7 +24,7 @@ export function useMentorCrew(jobId: string) {
 }
 
 /**
- * JOB-1 as an active or a former member reads it, before the Board exists too (FR-77, Story 21.6): anyone else, a pick
+ * JOB-1 as an active or a former member reads it, from their signature on (FR-77, Story 21.6): anyone else, a pick
  * not yet signed included, answers `NOT_FOUND`.
  */
 export function useCrewMe(jobId: string) {
@@ -50,7 +50,6 @@ export function useLeaveJob(jobId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: JOBS_QUERY_KEY })
       void queryClient.invalidateQueries({ queryKey: ['progress', jobId] })
-      void queryClient.invalidateQueries({ queryKey: ['board', jobId] })
       void queryClient.invalidateQueries({ queryKey: ['data-deletion', jobId] })
       void queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
     },

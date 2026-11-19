@@ -160,7 +160,7 @@ class DataDeletionConfirmations implements DataDeletions {
 		return updated;
 	}
 
-	/** The Job with a Board's people, when it has a Mentor. */
+	/** A started Job's people, when it has a Mentor. */
 	@Transactional(readOnly = true)
 	Optional<JobPostState> job(UUID jobId) {
 		return this.posts.post(jobId).filter(post -> post.mentorId() != null);

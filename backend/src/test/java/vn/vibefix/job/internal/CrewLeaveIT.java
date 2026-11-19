@@ -140,21 +140,9 @@ class CrewLeaveIT extends IntegrationTest {
 
 	@Test
 	void aMemberLeavesAtOnceAndEveryoneHearsWhatConcernsThem() throws Exception {
-		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
-		UUID todo = item("Việc cần làm", this.vy);
-		UUID doing = item("Việc đang làm", this.vy);
-		UUID inReview = item("Việc chờ duyệt", this.vy);
-		UUID returned = item("Việc bị trả lại", this.vy);
-		UUID done = item("Việc đã xong", this.vy);
-		UUID others = item("Việc của Minh", this.minh);
-		setStatus(doing, "IN_PROGRESS");
-		setStatus(inReview, "IN_REVIEW");
-		setStatus(returned, "IN_PROGRESS");
-		setStatus(done, "DONE");
-		this.transactions.executeWithoutResult(tx -> this.todos.open(new TodoRequest("work.fix_returned_item", this.vy,
-				Audience.CREW_ACTIVE, returned, Map.of("key", "SDB-5"), "/cong-viec/" + this.job + "/bang", null, this.job)));
 		UUID grant = grant(this.vy);
-		UUID elsewhere = otherJobsItem(this.vy);
+		long mentorTodos = count("SELECT count(*) FROM notification.todo WHERE account_id = '" + this.hung
+				+ "' AND job_id = '" + this.job + "' AND closed_at IS NULL");
 		long version = count("SELECT version FROM job.job WHERE id = '" + this.job + "'");
 		long crewVersion = count("SELECT crew_version FROM job.job WHERE id = '" + this.job + "'");
 		this.clock.advance(Duration.ofMinutes(1));
@@ -185,20 +173,13 @@ class CrewLeaveIT extends IntegrationTest {
 		// FR-21: Story 7.7's revocation runs from the event: REVOKING at once, its operation reads the removal back.
 		assertThat(text("SELECT status FROM repo.job_grant WHERE id = '" + grant + "'")).isEqualTo("REVOKING");
 
-		// Every status but Done goes unassigned, each with a history entry by vibefix; nothing reassigns.
-		for (UUID item : List.of(todo, doing, inReview, returned)) {
-			assertThat(this.jdbc.sql("SELECT assignee_account_id FROM work.work_item WHERE id = :id").param("id", item)
-				.query((rs, n) -> rs.getObject(1, UUID.class)).optional()).isEmpty();
-			assertThat(count("""
-					SELECT count(*) FROM work.work_item_history WHERE work_item_id = '%s' AND action = 'UPDATED'
-					  AND actor_account_id IS NULL AND changes -> 'assigneeId' ->> 'from' = '%s'
-					""".formatted(item, this.vy))).isOne();
-		}
-		assertThat(assignee(done)).isEqualTo(this.vy);
-		assertThat(assignee(others)).isEqualTo(this.minh);
-		assertThat(assignee(elsewhere)).as("another Job's Board").isEqualTo(this.vy);
-		assertThat(openTodos("work.fix_returned_item", this.vy)).isZero();
-		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'work.reassign_work_items'")).isZero();
+		// FR-82, AD-41: nothing is reassigned, because there is nothing to reassign. A departure therefore asks the
+		// Mentor to do nothing at all -- the reassignment duty the Board opened has no successor -- and it leaves
+		// every other member's row alone.
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE account_id = '" + this.hung + "' AND job_id = '"
+				+ this.job + "' AND closed_at IS NULL")).as("the Mentor's open duties on the Job").isEqualTo(mentorTodos);
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + this.minh + "'"))
+			.as("the member who stayed").isEqualTo("ACTIVE");
 
 		// FR-66: the data-deletion confirmation is asked at once, on their JOB-1.
 		assertThat(openTodos("repo.confirm_data_deletion", this.vy)).isOne();
@@ -206,35 +187,21 @@ class CrewLeaveIT extends IntegrationTest {
 		assertThat(text("SELECT link FROM notification.todo WHERE todo_key = 'repo.confirm_data_deletion'"))
 			.isEqualTo("/cong-viec/" + this.job);
 
-		// UX-DR87: "· đã rời", and the Mentor reads on the Board who left open Work Items behind (Story 24.2a: JOB-1
-		// no longer carries the line, since it carries no Work Item at all).
+		// UX-DR87: "· đã rời". JOB-1 names no leaver's unfinished work any more, because it carries no Work Item
+		// at all (Story 24.2a moved the page into job; Story 24.2 retired the Board).
 		role(this.vy).andExpect(jsonPath("$.crewKind").value("FORMER")).andExpect(jsonPath("$.left").value(true));
 		me(this.vy).andExpect(status().isOk())
 			.andExpect(jsonPath("$.former").value(true))
 			.andExpect(jsonPath("$.canLeave").value(false))
 			.andExpect(jsonPath("$.partyMilestones.length()").value(0));
-		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.leavers.length()").value(1))
-			.andExpect(jsonPath("$.leavers[0].name").value("Trần Thảo Vy"));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
 			.andExpect(status().isOk())
 			.andExpect(content -> assertThat(content.getResponse().getContentAsString()).doesNotContain("leavers"));
-		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.minh, Role.STUDENT)))
-			.andExpect(jsonPath("$.leavers.length()").value(0));
-
-		// The line goes once the Mentor has given every open Work Item to someone else.
-		for (UUID item : List.of(todo, doing, inReview, returned)) {
-			assign(item, this.minh).andExpect(status().isOk());
-		}
-		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)))
-			.andExpect(jsonPath("$.leavers.length()").value(0));
 	}
 
 	/** The reason (FR-82): the Mentor reads it on JOB-9, and no notice, to-do, event or other view holds it. */
 	@Test
 	void theReasonIsTheMentorsAlone() throws Exception {
-		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
 		leave(this.vy, "  " + REASON + "  ").andExpect(status().isNoContent());
 		awaitListeners();
 
@@ -575,29 +542,16 @@ class CrewLeaveIT extends IntegrationTest {
 	/** AD-41, FR-77: every tab reads read-only and only up to the end of their window; nothing is written any more. */
 	@Test
 	void aFormerMemberReadsOnlyTheirWindow() throws Exception {
-		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
-		UUID mine = item("Việc của Vy", this.vy);
 		UUID chat = JobContent.chat(this.jdbc, this.job, this.world.product(), "CREW");
 		JobContent.message(this.jdbc, chat, this.hung, "Tin trong thời gian của Vy", this.clock.instant());
 		this.clock.advance(Duration.ofMinutes(1));
 		leave(this.vy, null).andExpect(status().isNoContent());
 		awaitListeners();
 		this.clock.advance(Duration.ofHours(1));
-		UUID later = item("Việc sau khi Vy rời", this.minh);
 		JobContent.message(this.jdbc, chat, this.hung, "Tin sau khi Vy rời", this.clock.instant());
 
-		this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.vy, Role.STUDENT)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.readOnly").value(true))
-			.andExpect(jsonPath("$.items.length()").value(1))
-			.andExpect(jsonPath("$.items[0].id").value(mine.toString()));
-		this.mvc.perform(get("/api/v1/work-items/" + later).with(as(this.vy, Role.STUDENT))).andExpect(status().isNotFound());
 		assertThat(body("/api/v1/boards/" + this.job + "/crew-chat/messages", this.vy)).contains("Tin trong thời gian của Vy")
 			.doesNotContain("Tin sau khi Vy rời");
-		this.mvc.perform(post("/api/v1/work-items/" + mine + "/move").with(as(this.vy, Role.STUDENT)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"to\":\"IN_PROGRESS\",\"version\":1}"))
-			.andExpect(status().isNotFound());
 		this.mvc.perform(post("/api/v1/crew-chats/" + chat + "/messages").with(as(this.vy, Role.STUDENT)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"body\":\"Mình vẫn còn đây\"}"))
@@ -854,47 +808,7 @@ class CrewLeaveIT extends IntegrationTest {
 		assertThat(openTodos("repo.confirm_data_deletion", this.minh)).as("the end released Minh").isOne();
 	}
 
-	// ---- The Mentor's line ----------------------------------------------------------------------
-
-	/** The line names who left work behind: not what the Mentor took back, and only while it can be assigned. */
-	@Test
-	void theLineNamesOnlyWhoLeftWorkBehindAndOnlyWhileItCanBeAssigned() throws Exception {
-		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
-		UUID takenBack = item("Việc Hùng lấy lại", this.vy);
-		assign(takenBack, null).andExpect(status().isOk());
-		leave(this.vy, null).andExpect(status().isNoContent());
-		awaitListeners();
-		leavers().andExpect(jsonPath("$.leavers.length()").value(0));
-
-		item("Việc của Minh", this.minh);
-		leave(this.minh, null).andExpect(status().isNoContent());
-		awaitListeners();
-		leavers().andExpect(jsonPath("$.leavers.length()").value(1)).andExpect(jsonPath("$.leavers[0].name").value("Nguyễn Văn Minh"));
-
-		this.jdbc.sql("UPDATE job.job SET state = 'CLOSING', closing_at = now() WHERE id = :id").param("id", this.job).update();
-		leavers().andExpect(jsonPath("$.leavers.length()").value(0));
-	}
-
-	/** A person with neither a name nor a GitHub username reads as {@code CrewDepartures.shownName} calls them. */
-	@Test
-	void aLeaverErasedSinceReadsAsAMemberWithNoName() throws Exception {
-		JobContent.board(this.jdbc, this.job, this.world.product(), "SDB");
-		item("Việc của Vy", this.vy);
-		leave(this.vy, null).andExpect(status().isNoContent());
-		awaitListeners();
-		this.jdbc.sql("UPDATE job.milestone SET state = 'CANCELLED' WHERE id = :id").param("id", this.world.milestone()).update();
-		ErasureOutcome outcome = this.transactions.execute(status -> this.personalData.erase(this.vy));
-		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
-
-		leavers().andExpect(jsonPath("$.leavers[0].name").value("Một thành viên nhóm"));
-	}
-
 	// ---- Helpers --------------------------------------------------------------------------------
-
-	private ResultActions leavers() throws Exception {
-		return this.mvc.perform(get("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)))
-			.andExpect(status().isOk());
-	}
 
 	/** J8 or J10 as a cancellation's cascade applies them, whatever Milestone is still Held. */
 	private void end(String end) {
@@ -967,46 +881,6 @@ class CrewLeaveIT extends IntegrationTest {
 		return this.mvc.perform(get(read).with(as(account, Role.STUDENT)))
 			.andExpect(status().isOk())
 			.andReturn().getResponse().getContentAsString();
-	}
-
-	/** A Work Item the Mentor creates, assigned to {@code assignee}. */
-	private UUID item(String title, UUID assignee) throws Exception {
-		String created = this.mvc.perform(post("/api/v1/boards/" + this.job + "/work-items").with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"type\":\"TASK\",\"title\":\"%s\",\"milestoneId\":\"%s\",\"assigneeId\":\"%s\"}"
-				.formatted(title, this.world.milestone(), assignee)))
-			.andExpect(status().isCreated())
-			.andReturn().getResponse().getContentAsString();
-		return UUID.fromString(JsonPath.read(created, "$.item.id"));
-	}
-
-	private ResultActions assign(UUID item, @Nullable UUID assignee) throws Exception {
-		String title = text("SELECT title FROM work.work_item WHERE id = '" + item + "'");
-		long version = count("SELECT version FROM work.work_item WHERE id = '" + item + "'");
-		return this.mvc.perform(put("/api/v1/work-items/" + item)
-			.with(as(this.hung, Role.MENTOR)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"type\":\"TASK\",\"title\":\"%s\",\"milestoneId\":\"%s\",\"assigneeId\":%s,\"version\":%d}"
-				.formatted(title, this.world.milestone(), assignee == null ? "null" : "\"" + assignee + "\"", version)));
-	}
-
-	private void setStatus(UUID item, String status) {
-		this.jdbc.sql("UPDATE work.work_item SET status = :status WHERE id = :id").param("status", status).param("id", item).update();
-	}
-
-	private @Nullable UUID assignee(UUID item) {
-		return this.jdbc.sql("SELECT assignee_account_id FROM work.work_item WHERE id = :id").param("id", item)
-			.query((rs, n) -> rs.getObject(1, UUID.class)).single();
-	}
-
-	/** The member's Work Item on another Job's Board, which a leave leaves alone. */
-	private UUID otherJobsItem(UUID member) {
-		UUID other = JobContent.activeJob(this.jdbc, this.world.product(), this.lan, this.hung, "Việc khác");
-		JobContent.board(this.jdbc, other, this.world.product(), "VKH");
-		UUID item = JobContent.workItem(this.jdbc, other, null, null, this.clock.instant());
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :member WHERE id = :id").param("member", member).param("id", item)
-			.update();
-		return item;
 	}
 
 	/** The member's write access to the Working Repository, read back (AD-11). */

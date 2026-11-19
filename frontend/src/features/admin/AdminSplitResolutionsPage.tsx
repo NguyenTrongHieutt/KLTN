@@ -22,7 +22,6 @@ import {
   useSplitEvidenceCommits,
   useSplitEvidencePersonLinks,
   useSplitEvidenceVersions,
-  useSplitEvidenceWorkItems,
   useSplitResolutionCommand,
   type AdminSplitParty,
   type AdminSplitResolution,
@@ -487,7 +486,7 @@ function decisionRefusal(error: unknown, data: AdminSplitResolution): string {
   return refusal(error)
 }
 
-const TABS = ['versions', 'workItems', 'commits', 'crewChat', 'personLinks'] as const
+const TABS = ['versions', 'commits', 'crewChat', 'personLinks'] as const
 
 type EvidenceTab = (typeof TABS)[number]
 
@@ -524,7 +523,6 @@ function Evidence({ resolutionId }: { resolutionId: string }) {
       </div>
       <div role="tabpanel">
         {tab === 'versions' && <VersionsTab resolutionId={resolutionId} />}
-        {tab === 'workItems' && <WorkItemsTab resolutionId={resolutionId} />}
         {tab === 'commits' && <CommitsTab resolutionId={resolutionId} />}
         {tab === 'crewChat' && <CrewChatTab resolutionId={resolutionId} />}
         {tab === 'personLinks' && <PersonLinksTab resolutionId={resolutionId} />}
@@ -601,62 +599,6 @@ function VersionsTab({ resolutionId }: { resolutionId: string }) {
           )}
         </div>
       )}
-    </RegionState>
-  )
-}
-
-const ACTIONS = [
-  'SEEDED',
-  'CREATED',
-  'UPDATED',
-  'MOVED',
-  'SUBMITTED',
-  'APPROVED',
-  'RETURNED',
-  'UNREVIEWED',
-  'NOTE',
-  'ATTACHED',
-  'DETACHED',
-]
-
-/** A history entry's action in plain words: a code never appears as text. */
-function actionText(action: string): string {
-  return t(`screen.admin.splitResolutions.evidence.action.${ACTIONS.includes(action) ? action : 'OTHER'}` as MessageKey)
-}
-
-function WorkItemsTab({ resolutionId }: { resolutionId: string }) {
-  const items = useSplitEvidenceWorkItems(resolutionId)
-  return (
-    <RegionState query={items} skeleton={<Skeleton className="h-24 w-full" />}>
-      {items.data &&
-        (items.data.length === 0 ? (
-          <p className="text-muted-foreground">{t('screen.admin.splitResolutions.evidence.noItems')}</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {items.data.map((item) => (
-              <li key={item.workItemId} className="flex flex-col gap-0.5 rounded-md bg-muted p-3">
-                <p className="break-words">
-                  <span className="font-semibold">{item.key}</span> {item.title}
-                </p>
-                {item.assigneeName && (
-                  <p className="text-caption text-muted-foreground">
-                    {t('screen.admin.splitResolutions.evidence.assignee', { name: item.assigneeName })}
-                  </p>
-                )}
-                {item.history.map((line, index) => (
-                  <p key={`${item.workItemId}-${index}`} className="text-caption break-words">
-                    {t('screen.admin.splitResolutions.evidence.history', {
-                      action: actionText(line.action),
-                      time: formatDayMonthTime(line.at),
-                    })}
-                    {line.actorName ? ` · ${line.actorName}` : ''}
-                    {line.comment ? ` · ${line.comment}` : ''}
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ul>
-        ))}
     </RegionState>
   )
 }

@@ -42,8 +42,8 @@ class ChatGrants implements AdminReadGrants {
 		AdminReadGrant grant = AdminReadGrant.open(grantId, adminId, jobId, items, reasonId);
 		List<Map<String, String>> stored = new ArrayList<>();
 		for (AdminReadItem item : grant.items()) {
-			stored.add(Map.of("scope", item.scope().name(), "objectId", item.objectId() == null ? "" : item.objectId().toString(),
-					"accountId", item.accountId() == null ? "" : item.accountId().toString()));
+			stored.add(Map.of("scope", item.scope().name(), "objectId",
+					item.objectId() == null ? "" : item.objectId().toString()));
 		}
 		this.jdbc.sql("""
 				INSERT INTO chat.admin_read_grant (grant_id, admin_account_id, job_id, items, reason_id)
@@ -69,10 +69,8 @@ class ChatGrants implements AdminReadGrants {
 
 	/** Whether a grant lets {@code adminId} read the Chat {@code chatId} of {@code jobId} at {@code at}. */
 	@Transactional(readOnly = true)
-	boolean permits(UUID adminId, UUID jobId, AdminReadScope scope, UUID chatId, Collection<UUID> participants,
-			Instant at) {
-		return grants(adminId, jobId).stream()
-			.anyMatch(grant -> grant.permits(adminId, jobId, scope, chatId, participants, at));
+	boolean permits(UUID adminId, UUID jobId, AdminReadScope scope, UUID chatId, Instant at) {
+		return grants(adminId, jobId).stream().anyMatch(grant -> grant.permits(adminId, jobId, scope, chatId, at));
 	}
 
 	private List<AdminReadGrant> grants(UUID adminId, UUID jobId) {
@@ -83,9 +81,8 @@ class ChatGrants implements AdminReadGrants {
 			Set<AdminReadItem> items = new HashSet<>();
 			for (JsonNode item : JSON.readTree(rs.getString("items"))) {
 				String object = item.path("objectId").asString();
-				String account = item.path("accountId").asString();
 				items.add(new AdminReadItem(AdminReadScope.valueOf(item.path("scope").asString()),
-						object.isEmpty() ? null : UUID.fromString(object), account.isEmpty() ? null : UUID.fromString(account)));
+						object.isEmpty() ? null : UUID.fromString(object)));
 			}
 			Timestamp ends = rs.getTimestamp("ends_at");
 			return new AdminReadGrant(rs.getObject("grant_id", UUID.class), adminId, jobId, items,

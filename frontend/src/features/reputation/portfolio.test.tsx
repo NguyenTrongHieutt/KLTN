@@ -70,7 +70,6 @@ const mentorEntry = {
   skills: ['React'],
   milestones: 1,
   milestonesHandedOver: 1,
-  reviewsWritten: 4,
   publishedAt: null,
 }
 
@@ -110,7 +109,7 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Hồ sơ năng lực' })).closest('section')!
-    expect(within(section).getByText(/1 giai đoạn đã bàn giao · 4 lượt duyệt việc/)).toBeInTheDocument()
+    expect(within(section).getByText(/1 giai đoạn đã bàn giao/)).toBeInTheDocument()
     expect(within(section).getByText('Kỹ năng: React')).toBeInTheDocument()
     expect(within(section).getByText(/sẽ đăng sau khi bạn xác nhận đã xóa dữ liệu/)).toBeInTheDocument()
     await user.type(within(section).getByLabelText('Tóm tắt (tối đa 600 ký tự)'), 'Nhóm đánh giá toàn bộ luồng.')
@@ -162,46 +161,75 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
     expect(await within(section).findByText('Khách hàng đã duyệt tóm tắt.')).toBeInTheDocument()
   })
 
-  it('shows a Crew member their published entry and the approved summary', { timeout: 20_000 }, async () => {
-    fakeBackend(signedInUser, {
-      ...inEveryJob('CREW'),
-      'GET /api/v1/jobs/j1/crew/me': () =>
-        json({
-          jobId: 'j1',
-          title: progress.title,
-          state: progress.state,
-          productName: progress.productName,
-          mentorName: progress.mentorName,
-          former: false,
-          canLeave: false,
-          codeJob: true,
-          partyMilestones: [],
+  const crewRoutes = (mine: object) => ({
+    ...inEveryJob('CREW'),
+    'GET /api/v1/jobs/j1/crew/me': () =>
+      json({
+        jobId: 'j1',
+        title: progress.title,
+        state: progress.state,
+        productName: progress.productName,
+        mentorName: progress.mentorName,
+        former: false,
+        canLeave: false,
+        codeJob: true,
+        partyMilestones: [],
+      }),
+    'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
+    'GET /api/v1/boards/j1/portfolio': () =>
+      json(
+        portfolioView({
+          audience: 'CREW',
+          summaryStatus: 'APPROVED',
+          summaryText: 'Bản đã duyệt.',
+          showProductName: null,
+          productName: null,
+          open: false,
+          mine,
         }),
-      'GET /api/v1/boards/j1/progress': () => json({ ...progress, audience: 'CREW' }),
-      'GET /api/v1/boards/j1/portfolio': () =>
-        json(
-          portfolioView({
-            audience: 'CREW',
-            summaryStatus: 'APPROVED',
-            summaryText: 'Bản đã duyệt.',
-            showProductName: null,
-            productName: null,
-            open: false,
-            mine: {
-              ...mentorEntry,
-              role: 'CREW',
-              milestonesHandedOver: null,
-              reviewsWritten: null,
-              workItemsApproved: 3,
-              publishedAt: '2026-10-21T03:00:00Z',
-            },
-          }),
-        ),
-    })
+      ),
+  })
+
+  /**
+   * Story 24.2: vibefix freezes no commit count for a Job it did not count -- an entry from before the story, an
+   * Assessment Job, or a commit list GitHub's compare had cut. The card then leaves the fact out: "0 commit" would
+   * tell the member, and anyone they show the page to, that they wrote nothing.
+   */
+  it('leaves the commit fact out of the Crew card when the server sends none', { timeout: 20_000 }, async () => {
+    fakeBackend(
+      signedInUser,
+      crewRoutes({
+        ...mentorEntry,
+        role: 'CREW',
+        milestonesHandedOver: null,
+        commitsAuthored: null,
+        publishedAt: '2026-10-21T03:00:00Z',
+      }),
+    )
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Hồ sơ năng lực' })).closest('section')!
-    expect(within(section).getByText(/3 việc hoàn thành qua duyệt/)).toBeInTheDocument()
+    expect(within(section).getByText(/1 giai đoạn được chấp nhận/)).toBeInTheDocument()
+    expect(within(section).queryByText(/commit/)).toBeNull()
+    expect(within(section).queryByText(/giai đoạn đã bàn giao/)).toBeNull()
+    expect(within(section).getByText('Đã đăng lên hồ sơ công khai của bạn.')).toBeInTheDocument()
+  })
+
+  it('shows a Crew member their published entry and the approved summary', { timeout: 20_000 }, async () => {
+    fakeBackend(
+      signedInUser,
+      crewRoutes({
+        ...mentorEntry,
+        role: 'CREW',
+        milestonesHandedOver: null,
+        commitsAuthored: 3,
+        publishedAt: '2026-10-21T03:00:00Z',
+      }),
+    )
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hồ sơ năng lực' })).closest('section')!
+    expect(within(section).getByText(/3 commit trong giai đoạn đã nghiệm thu/)).toBeInTheDocument()
     expect(within(section).getByText('Đã đăng lên hồ sơ công khai của bạn.')).toBeInTheDocument()
     expect(within(section).getByText('Bản đã duyệt.')).toBeInTheDocument()
     expect(within(section).queryByRole('button')).toBeNull()

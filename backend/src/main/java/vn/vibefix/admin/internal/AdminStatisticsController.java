@@ -24,7 +24,7 @@ import vn.vibefix.shared.PlatformCounts.Unit;
 class AdminStatisticsController {
 
 	static final List<String> ORDER = List.of("usersByVerification", "usersByJobRole", "lockedAccounts", "crewsBySize",
-			"jobsByState", "jobsByType", "rates", "workItemReviews", "milestones", "acceptances", "ratings",
+			"jobsByState", "jobsByType", "rates", "acceptedMilestones", "milestones", "acceptances", "ratings",
 			"privateFeedback", "disputesByOutcome", "teamIssuesByOutcome");
 
 	record StatisticView(String key, long value, Unit unit) {

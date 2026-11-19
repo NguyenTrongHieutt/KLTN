@@ -70,7 +70,7 @@ class JobChatEvidence implements ChatEvidence {
 		if (chat == null) {
 			return new CrewMessages(List.of(), 0);
 		}
-		if (!this.grants.permits(adminId, jobId, AdminReadScope.CREW_CHAT, chat, List.of(), this.clock.instant())) {
+		if (!this.grants.permits(adminId, jobId, AdminReadScope.CREW_CHAT, chat, this.clock.instant())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(adminId), "chat.admin_read", AuditObject.of("chat.chat", chat))

@@ -50,4 +50,11 @@ public interface DeliveryEvidence {
 	/** The commits every handover of the Milestone recorded, oldest first: a Split Evidence Package's (AD-40). */
 	List<CommitLine> commitsOf(UUID milestoneId);
 
+	/**
+	 * Whether any Handover of the Milestone recorded a commit list GitHub's compare had cut (FR-32, Story 8.2):
+	 * past 250 commits the range is incomplete, so a count over {@link #commitsOf} is a floor and not a count. The
+	 * Delivery Report says so beside the list; a caller that freezes a figure instead (FR-50) must not publish one.
+	 */
+	boolean commitsTruncatedOf(UUID milestoneId);
+
 }

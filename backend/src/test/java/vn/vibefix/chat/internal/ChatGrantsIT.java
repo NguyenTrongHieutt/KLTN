@@ -1,10 +1,14 @@
 package vn.vibefix.chat.internal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -13,6 +17,7 @@ import vn.vibefix.chat.internal.Chats.Kind;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.AdminReadGrants;
+import vn.vibefix.shared.AdminReadItem;
 import vn.vibefix.shared.AdminReadScope;
 import vn.vibefix.shared.Caller;
 import vn.vibefix.support.AdminReadGrantsContract;
@@ -81,6 +86,28 @@ class ChatGrantsIT extends IntegrationTest implements AdminReadGrantsContract {
 	@Override
 	public void advance(Duration duration) {
 		this.clock.advance(duration);
+	}
+
+	/**
+	 * Story 24.2: the strip migration leaves the items it keeps exactly as they were stored, {@code accountId} and
+	 * all, and {@link AdminReadItem} no longer has that component. The row mapper builds the record itself, so a
+	 * stored key it stopped reading must not fail the read -- and the one grant left on a Job is read before
+	 * anything is filtered, so a row it cannot build refuses every read of that Administrator on the Job.
+	 */
+	@Test
+	void aGrantStoredBeforeTheStripReadsBackThroughItsOwnMapper() {
+		Seeded item = seed();
+		this.grants.grantAdminRead(UUID.randomUUID(), ADMIN, item.jobId(), AdminReadItem.forDispute(), REASON);
+		int rewritten = this.jdbc.sql("""
+				UPDATE chat.admin_read_grant SET items = (
+				    SELECT jsonb_agg(item || jsonb_build_object('accountId', ''))
+				    FROM jsonb_array_elements(items) AS item)
+				WHERE admin_account_id = :admin
+				""").param("admin", ADMIN).update();
+
+		assertThat(rewritten).as("the grant was stored").isOne();
+		assertThatCode(() -> read(ADMIN, item)).doesNotThrowAnyException();
+		assertThat(auditedReads(ADMIN)).as("the read happened under the grant").isPositive();
 	}
 
 }

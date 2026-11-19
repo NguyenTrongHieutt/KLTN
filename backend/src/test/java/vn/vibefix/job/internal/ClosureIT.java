@@ -270,21 +270,6 @@ class ClosureIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("key", "FUND:" + UUID.randomUUID()).param("job", this.job)
 			.param("product", product).param("milestone", this.first)
 			.param("no", String.valueOf(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE))).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'BCD', 2, :now)
-				""").param("job", this.job).param("product", product).param("now", now).update();
-		UUID story = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, status,
-				    created_at, updated_at)
-				VALUES (:id, :job, 1, 'STORY', 'Báo cáo nêu đủ chín mục', '', :criterion, :milestone, 'DONE', now(), now())
-				""").param("id", story).param("job", this.job).param("criterion", this.criterion).param("milestone", this.first)
-			.update();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
-				VALUES (:id, :item, :job, :mentor, 'APPROVED', '{}'::jsonb, 'Đạt yêu cầu', :now)
-				""").param("id", UUID.randomUUID()).param("item", story).param("job", this.job).param("mentor", this.hung)
-			.param("now", now).update();
 	}
 
 	private String handOver() throws Exception {

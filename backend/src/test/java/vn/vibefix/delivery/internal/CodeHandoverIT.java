@@ -164,8 +164,6 @@ class CodeHandoverIT extends IntegrationTest {
 
 	private UUID criterion;
 
-	private UUID story;
-
 	private String intermediary;
 
 	private String working;
@@ -245,21 +243,6 @@ class CodeHandoverIT extends IntegrationTest {
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 2, :now)
-				""").param("job", this.job).param("product", product).param("now", now).update();
-		this.story = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, status,
-				    created_at, updated_at)
-				VALUES (:id, :job, 1, 'STORY', 'Hai khách không đặt trùng bàn', '', :criterion, :milestone, 'DONE', now(), now())
-				""").param("id", this.story).param("job", this.job).param("criterion", this.criterion)
-			.param("milestone", this.milestone).update();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
-				VALUES (:id, :item, :job, :mentor, 'APPROVED', '{}'::jsonb, 'Đạt', :now)
-				""").param("id", UUID.randomUUID()).param("item", this.story).param("job", this.job).param("mentor", this.hung)
-			.param("now", now).update();
 		// The repositories as Setup leaves them (Story 23.3): two private copies at the commit Setup approved, so every
 		// pull-request call and the Working head read need contents read, and the pin clones Working with a read token.
 		this.intermediary = "job-" + id + "-intermediary";
@@ -327,8 +310,6 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(GITHUB.pullHeads.get(this.intermediary)).containsEntry(pull, "handover/" + submission);
 		assertThat(this.jdbc.sql("SELECT author_github_id FROM delivery.handover_commit WHERE handover_id = :id ORDER BY position")
 			.param("id", submission).query(Long.class).list()).containsExactly(4242L, null);
-		assertThat(this.jdbc.sql("SELECT count(*) FROM work.work_item_commit WHERE work_item_id = :item").param("item", this.story)
-			.query(Long.class).single()).isOne();
 		assertThat(this.jdbc.sql("SELECT state FROM job.milestone WHERE id = :id").param("id", this.milestone)
 			.query(String.class).single()).isEqualTo("SUBMITTED");
 		assertThat(this.jdbc.sql("SELECT commits_truncated FROM delivery.handover WHERE id = :id").param("id", submission)
@@ -337,7 +318,7 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.code.handoverCommit").value(head))
 			.andExpect(jsonPath("$.code.commits.length()").value(2))
 			.andExpect(jsonPath("$.code.commits[0].message").value(message))
-			.andExpect(jsonPath("$.code.commits[0].workItemKeys[0]").value("SDB-1"))
+			.andExpect(jsonPath("$.code.commits[0].workItemKeys").doesNotExist())
 			.andExpect(jsonPath("$.code.unattributed").value(1))
 			.andExpect(jsonPath("$.preview.preview.domain").value("so-dat-ban-gd1.vercel.app"))
 			.andExpect(jsonPath("$.preview.preview.checkedAt").exists());
@@ -623,6 +604,41 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover_submission").query(Long.class).single()).isZero();
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
 		preflight().andExpect(jsonPath("$.problems").isEmpty());
+	}
+
+	/**
+	 * Story 24.2: a submission sent before this story holds in its draft the notes on the Work Items that were not
+	 * done ({@code itemNotes}, Story 23.8a). The record no longer has that field, and the draft is read back from
+	 * JSONB when the copy ends, so a field the record lost must not fail that read: the handover would be lost
+	 * together with the run that carried it, and the Milestone would sit in Funded with its commits already pushed.
+	 */
+	@Test
+	void aSubmissionSentBeforeTheBoardWasRetiredIsStillRecordedWhenItsCopyEnds() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn()
+			.getResponse()
+			.getContentAsString(), "$.id"));
+		this.jdbc.sql("""
+				UPDATE delivery.handover_submission
+				SET draft = jsonb_set(draft, '{itemNotes}', CAST(:notes AS JSONB), true)
+				WHERE id = :id
+				""")
+			.param("notes", "[{\"workItemId\": \"" + UUID.randomUUID() + "\", \"key\": \"SDB-7\","
+					+ " \"title\": \"Sửa trang đặt bàn\", \"note\": \"Chưa làm kịp giai đoạn này\"}]")
+			.param("id", submission)
+			.update();
+
+		dispatchCopy();
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		assertThat(handoverStatus(submission)).as("the handover was recorded from the legacy draft").isEqualTo("SUBMITTED");
+		assertThat(this.jdbc.sql("""
+				SELECT met || ' ' || note FROM delivery.handover_criterion WHERE handover_id = :id
+				""").param("id", submission).query(String.class).single())
+			.as("the Mentor's own marks came through the read")
+			.isEqualTo("true Đạt: không còn đặt trùng.");
 	}
 
 	/** One copy at a time: a second "Gửi bàn giao" while the runner copies is refused. */

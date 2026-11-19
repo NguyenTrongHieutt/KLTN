@@ -15,7 +15,7 @@ export interface SensitiveMatch {
 
 /**
  * FR-47 (AD-18): the masked matches, then "Che và lưu" stores the masked text and "Sửa lại" goes back. It
- * serves the handover form, the guided check, and the Board's fields, notes, link labels and text files alike.
+ * serves the handover form and the Customer's guided check alike.
  */
 export function SensitiveDialog({
   matches,
@@ -33,7 +33,7 @@ export function SensitiveDialog({
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-[80] bg-foreground/50" />
         <Dialog.Popup className="fixed top-24 left-1/2 z-[90] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
-          <Dialog.Title className="text-h2">{t('screen.board.item.sensitiveTitle')}</Dialog.Title>
+          <Dialog.Title className="text-h2">{t('screen.handover.sensitive.title')}</Dialog.Title>
           <div className="flex gap-3 rounded-md border-l-4 border-destructive bg-destructive-soft p-4 text-body-sm">
             <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
             <div className="flex flex-col gap-1.5">
@@ -45,7 +45,7 @@ export function SensitiveDialog({
                   </li>
                 ))}
               </ul>
-              <Dialog.Description>{t('screen.board.item.sensitiveBody')}</Dialog.Description>
+              <Dialog.Description>{t('screen.handover.sensitive.body')}</Dialog.Description>
             </div>
           </div>
           <div className="flex flex-wrap justify-end gap-3">
@@ -53,7 +53,7 @@ export function SensitiveDialog({
               {t('screen.chat.warning.edit')}
             </Button>
             <Button type="button" disabled={pending} onClick={onMask}>
-              {t('screen.board.item.mask')}
+              {t('screen.handover.sensitive.mask')}
             </Button>
           </div>
         </Dialog.Popup>

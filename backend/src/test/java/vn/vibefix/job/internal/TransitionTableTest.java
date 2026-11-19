@@ -53,7 +53,7 @@ class TransitionTableTest {
 	/** The modules of ARCHITECTURE-SPINE.md, L0 to L11, but the shell {@code team}, which no effect names (AD-37). */
 	private static final Set<String> MODULES = Set.of("shared", "audit", "files", "settings", "catalog", "github",
 			"operations", "timers", "notification", "identity", "scanning", "product", "job", "matching", "repo",
-			"payment", "work", "chat", "delivery", "reputation", "dispute", "admin");
+			"payment", "chat", "delivery", "reputation", "dispute", "admin");
 
 	@Test
 	void theTableIsSection40AndNothingElse() {

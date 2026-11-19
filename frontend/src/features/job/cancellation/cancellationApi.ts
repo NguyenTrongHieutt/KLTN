@@ -7,7 +7,7 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type Cancellation = components['schemas']['CancellationView']
 
-/** JOB-1's "Hủy công việc" (FR-40); a Board's ID is its Job's. */
+/** JOB-1's "Hủy công việc" (FR-40); the path carries the Job's ID. */
 export function useCancellation(jobId: string) {
   return useQuery({
     queryKey: ['cancellation', jobId],

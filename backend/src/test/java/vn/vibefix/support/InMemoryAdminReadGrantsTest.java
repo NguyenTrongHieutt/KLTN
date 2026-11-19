@@ -86,7 +86,7 @@ class InMemoryAdminReadGrantsTest implements AdminReadGrantsContract {
 		void read(UUID adminId, Seeded item) {
 			Policies.requireVisible(this.grants.values()
 				.stream()
-				.anyMatch(grant -> grant.permits(adminId, item.jobId(), item.scope(), item.objectId(), List.of(),
+				.anyMatch(grant -> grant.permits(adminId, item.jobId(), item.scope(), item.objectId(),
 						this.clock.instant())));
 			this.audited.computeIfAbsent(adminId, id -> new AtomicLong()).incrementAndGet();
 		}

@@ -55,6 +55,15 @@ class HandoverEvidence implements DeliveryEvidence {
 			.list();
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public boolean commitsTruncatedOf(UUID milestoneId) {
+		return Boolean.TRUE.equals(this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM delivery.handover
+				               WHERE milestone_id = :milestone AND commits_truncated)
+				""").param("milestone", milestoneId).query(Boolean.class).single());
+	}
+
 	private List<CriterionStatus> criteria(UUID handoverId) {
 		return this.jdbc.sql("""
 				SELECT c.criterion_id, c.number, c.statement, c.met, c.note, k.met AS customer_met, k.comment

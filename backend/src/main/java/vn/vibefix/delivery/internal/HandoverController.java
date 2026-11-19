@@ -33,7 +33,6 @@ import vn.vibefix.delivery.internal.Handovers.CriterionMark;
 import vn.vibefix.delivery.internal.Handovers.Draft;
 import vn.vibefix.delivery.internal.Handovers.Evidence;
 import vn.vibefix.delivery.internal.Handovers.Handover;
-import vn.vibefix.delivery.internal.Handovers.ItemNote;
 import vn.vibefix.delivery.internal.Handovers.Pending;
 import vn.vibefix.delivery.internal.Handovers.Preflight;
 import vn.vibefix.delivery.internal.Handovers.Preview;
@@ -58,8 +57,8 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * JOB-5 "Bàn giao" (FR-10, FR-32, AD-20, AD-23, UX-DR53, UX-DR54): the Job's handovers, the Mentor's
  * preflight and "Gửi bàn giao", and the Delivery Report, under {@code /api/v1/boards/{boardId}} like the
- * Job's other Active-phase reads (a Board's ID is its Job's). The Customer, the Mentor, and the active
- * Crew read; only the Mentor hands over; the Customer's report names no Work Item (AD-39).
+ * Job's other Active-phase reads (the path carries the Job's ID). The Customer, the Mentor, and the active
+ * Crew read; only the Mentor hands over.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -89,10 +88,6 @@ class HandoverController {
 	record HandoverCriterionInputView(UUID criterionId, int number, String statement, String checkSteps) {
 	}
 
-	/** @param approved in "Xong" through the Mentor's approval */
-	record HandoverWorkItemView(UUID id, String key, String title, String status, boolean approved) {
-	}
-
 	/**
 	 * The "Tạo bàn giao" form.
 	 * @param version the Job's version, which the handover carries (AD-23)
@@ -103,7 +98,7 @@ class HandoverController {
 	 * @param screenshots the Mentor's uploads waiting for this handover
 	 */
 	record HandoverPreflightView(HandoverMilestoneView milestone, String state, long version, boolean assessment,
-			List<HandoverCriterionInputView> criteria, List<HandoverWorkItemView> workItems, List<String> problems,
+			List<HandoverCriterionInputView> criteria, List<String> problems,
 			List<SensitiveChangeView> sensitiveChanges, int commitCount, boolean previewRequired,
 			List<HandoverScreenshotView> screenshots) {
 	}
@@ -137,7 +132,7 @@ class HandoverController {
 	}
 
 	/** One commit of a Code handover, as "Chi tiết kỹ thuật" lists it (NFR-3: text only). */
-	record HandoverCommitView(String sha, String message, List<String> workItemKeys) {
+	record HandoverCommitView(String sha, String message) {
 	}
 
 	/**
@@ -178,9 +173,6 @@ class HandoverController {
 			@NotNull @Size(max = Handovers.MAX_NOTE) String note) {
 	}
 
-	record HandoverItemNoteRequest(@NotNull UUID workItemId, @NotNull @Size(max = Handovers.MAX_NOTE) String note) {
-	}
-
 	/**
 	 * "Gửi bàn giao".
 	 * @param version the Job's version the form loaded
@@ -189,8 +181,7 @@ class HandoverController {
 	 * handover must name and records (FR-25, R28); an Assessment Job hands over no code and sends none
 	 */
 	record HandoverRequest(@NotNull UUID milestoneId, @NotNull Long version,
-			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria,
-			@Nullable @Size(max = 200) List<@Valid HandoverItemNoteRequest> itemNotes, @Nullable Resolution sensitive,
+			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria, @Nullable Resolution sensitive,
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String previewUrl,
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String recordingUrl,
 			@Nullable @Size(max = 500) String noPreviewReason,
@@ -201,9 +192,6 @@ class HandoverController {
 	/** One criterion as the Mentor marked it: their own statement, never a criterion done (AD-33). */
 	record HandoverCriterionView(UUID criterionId, int number, String statement, String checkSteps, boolean met,
 			String note) {
-	}
-
-	record HandoverItemNoteView(UUID workItemId, String key, String title, String status, String note) {
 	}
 
 	/** The Customer's mark on one criterion, once the handover is decided. */
@@ -233,7 +221,6 @@ class HandoverController {
 
 	/**
 	 * The Delivery Report.
-	 * @param itemNotes the notes on Work Items that were not done; empty for the Customer (AD-39)
 	 * @param version the Job's version, which a decision carries (AD-23)
 	 * @param roundsLeft the Milestone's Revision Rounds left (FR-34)
 	 * @param decision for the Customer while the handover waits for them
@@ -246,7 +233,7 @@ class HandoverController {
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
-			List<HandoverCriterionView> criteria, List<HandoverItemNoteView> itemNotes, long version, int roundsLeft,
+			List<HandoverCriterionView> criteria, long version, int roundsLeft,
 			@Nullable HandoverDecisionView decision, @Nullable Instant decidedAt, List<HandoverCheckView> checks,
 			boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
 			List<HandoverScreenshotView> screenshots, @Nullable String acceptance) {
@@ -343,10 +330,6 @@ class HandoverController {
 					.stream()
 					.map(c -> new HandoverCriterionInputView(c.criterionId(), c.number(), c.statement(), c.checkSteps()))
 					.toList(),
-				preflight.items()
-					.stream()
-					.map(i -> new HandoverWorkItemView(i.id(), i.key(), i.title(), i.status(), i.approved()))
-					.toList(),
 				preflight.problems(),
 				preflight.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
 				preflight.commitCount(), mentor.job().previewRequired(),
@@ -412,8 +395,6 @@ class HandoverController {
 		}
 		Draft draft = this.handovers.draft(mentor, body.milestoneId(),
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
-				body.itemNotes() == null ? List.of()
-						: body.itemNotes().stream().map(n -> new ItemNote(n.workItemId(), n.note())).toList(),
 				body.sensitive() == null ? Resolution.CHECK : body.sensitive(),
 				new Evidence(body.previewUrl(), body.recordingUrl(), body.noPreviewReason(),
 						body.screenshotIds() == null ? List.of() : body.screenshotIds()));
@@ -494,11 +475,6 @@ class HandoverController {
 	private DeliveryReportView report(Viewer viewer, Handover handover) {
 		String mentor = handover.mentorId() == null ? ""
 				: this.mentors.cards(List.of(handover.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
-		List<HandoverItemNoteView> notes = viewer.kind() == Kind.CUSTOMER ? List.of()
-				: this.handovers.notes(handover.id())
-					.stream()
-					.map(n -> new HandoverItemNoteView(n.workItemId(), n.key(), n.title(), n.status(), n.note()))
-					.toList();
 		int roundsLeft = this.jobs.rounds(handover.milestoneId()).map(Rounds::left).orElse(0);
 		String acceptance = "SUBMITTED".equals(handover.status())
 				? this.merges.latestStatus(handover.id())
@@ -517,7 +493,7 @@ class HandoverController {
 					.map(c -> new HandoverCriterionView(c.criterionId(), c.number(), c.statement(), c.checkSteps(), c.met(),
 							c.note()))
 					.toList(),
-				notes, viewer.job().version(), roundsLeft, decision, handover.decidedAt(),
+				viewer.job().version(), roundsLeft, decision, handover.decidedAt(),
 				this.decisions.checks(handover.id())
 					.stream()
 					.map(c -> new HandoverCheckView(c.criterionId(), c.met(), c.comment()))
@@ -550,7 +526,7 @@ class HandoverController {
 	 */
 	private static HandoverCodeView codeView(UUID handoverId, CodeRecord code, @Nullable String intermediary) {
 		return new HandoverCodeView(code.commit(), code.pullNumber(),
-				code.commits().stream().map(c -> new HandoverCommitView(c.sha(), c.message(), c.workItemKeys())).toList(),
+				code.commits().stream().map(c -> new HandoverCommitView(c.sha(), c.message())).toList(),
 				code.unattributed(), code.truncated(),
 				code.sensitive().stream().map(change -> new SensitiveChangeView(change.path(), change.kind())).toList(),
 				code.sensitiveCount(),

@@ -229,8 +229,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertDeferred(world, "DELETE");
 		assertThat(this.jdbc.sql("SELECT kind FROM chat.chat").query(String.class).list()).containsExactly("CREW");
 		assertThat(count("SELECT count(*) FROM chat.message")).isOne();
-		assertThat(count("SELECT count(*) FROM work.work_item WHERE id = '" + evidence.item() + "'")).isOne();
-		assertThat(count("SELECT count(*) FROM work.work_item_history")).isEqualTo(2);
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
 		assertThat(count("SELECT author_github_id FROM delivery.handover_commit")).isEqualTo(4242);
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
@@ -243,8 +241,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
 		assertThat(count("SELECT count(*) FROM chat.message")).isZero();
-		assertThat(count("SELECT count(*) FROM work.work_item")).isZero();
-		assertThat(count("SELECT count(*) FROM work.board")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isZero();
 		assertThat(count("SELECT count(*) FROM job.milestone_split_party WHERE split_id = '" + split + "'")).isEqualTo(2);
@@ -338,14 +334,13 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM job.job")).isZero();
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
-		assertThat(count("SELECT count(*) FROM work.board")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 		assertThat(count("SELECT count(*) FROM job.milestone_split")).isOne();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(ledger);
 	}
 
 	@Test
-	void theRetentionRunWithNoOpenSplitRetiresAtOnceAndKeepsTheBoardAndTheHandovers() {
+	void theRetentionRunWithNoOpenSplitRetiresAtOnceAndKeepsTheHandovers() {
 		HeldCrewJob world = closedJob();
 		UUID split = world.split(this.jdbc, this.clock.instant(), world.milestone(), world.vy());
 		Evidence evidence = evidence(world);
@@ -355,9 +350,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
-		assertThat(count("SELECT count(*) FROM work.work_item")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isZero();
-		assertThat(count("SELECT count(*) FROM work.board")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
 		assertFilesFinished(evidence);
 	}
@@ -373,7 +366,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(text("SELECT state || ':' || (product_deleted_at IS NULL) FROM job.job")).isEqualTo("CLOSED:true");
 		assertDeferred(world, "RETIRE");
 		assertThat(this.jdbc.sql("SELECT kind FROM chat.chat").query(String.class).list()).containsExactly("CREW");
-		assertThat(count("SELECT count(*) FROM work.work_item")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
 		assertFilesWhileDeferred(evidence);
@@ -383,8 +375,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertFilesFinished(evidence);
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
-		assertThat(count("SELECT count(*) FROM work.work_item")).isZero();
-		assertThat(count("SELECT count(*) FROM work.board")).as("a retirement leaves each Board, empty").isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).as("a retirement leaves each handover row").isOne();
 		assertThat(count("SELECT count(*) FROM job.job")).as("the Product stays, and so does its Job").isOne();
@@ -401,7 +391,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertDeferred(world, "DELETE");
 
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
-		assertThat(count("SELECT count(*) FROM work.board")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 	}
 
@@ -658,7 +647,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	}
 
 	/** What a split's evidence hangs from, and the stored files of what waits and of what does not. */
-	private record Evidence(UUID item, UUID handover, UUID crewChatFile, UUID attachmentFile, UUID jobChatFile, UUID screenshotFile) {
+	private record Evidence(UUID handover, UUID crewChatFile, UUID jobChatFile, UUID screenshotFile) {
 	}
 
 	/** What the Customer and the Mentor wrote on the Job, for its bare row to lose. */
@@ -695,13 +684,12 @@ class PersonalDataCoverageIT extends IntegrationTest {
 
 	private void assertFilesWhileDeferred(Evidence evidence) {
 		assertThat(fileDeleted(evidence.crewChatFile())).as("the Crew Chat's file waits").isFalse();
-		assertThat(fileDeleted(evidence.attachmentFile())).as("the Attachment's file waits").isFalse();
 		assertThat(fileDeleted(evidence.jobChatFile())).as("the Job Chat's file goes at once").isTrue();
 		assertThat(fileDeleted(evidence.screenshotFile())).as("the screenshot goes at once").isTrue();
 	}
 
 	private void assertFilesFinished(Evidence evidence) {
-		for (UUID file : List.of(evidence.crewChatFile(), evidence.attachmentFile(), evidence.jobChatFile(), evidence.screenshotFile())) {
+		for (UUID file : List.of(evidence.crewChatFile(), evidence.jobChatFile(), evidence.screenshotFile())) {
 			assertThat(fileDeleted(file)).isTrue();
 		}
 	}
@@ -741,11 +729,6 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		UUID crewChat = JobContent.chat(this.jdbc, world.job(), world.product(), "CREW");
 		UUID crewChatFile = storedFile(world.vy(), "phan-viec.pdf");
 		JobContent.attachmentMessage(this.jdbc, crewChat, world.vy(), crewChatFile, "phan-viec.pdf", at);
-		JobContent.board(this.jdbc, world.job(), world.product(), "SDB");
-		UUID item = JobContent.workItem(this.jdbc, world.job(), null, null, at);
-		JobContent.note(this.jdbc, item, world.job(), world.vy(), "Đã xong", at);
-		UUID attachmentFile = storedFile(world.vy(), "bao-cao.pdf");
-		JobContent.attachment(this.jdbc, item, world.job(), world.vy(), "bao-cao.pdf", attachmentFile, at);
 		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
@@ -775,11 +758,11 @@ class PersonalDataCoverageIT extends IntegrationTest {
 				VALUES (:file, :job, :product, :account, 'man-hinh.png', 2048, :handover, 0, :at)
 				""").param("file", screenshotFile).param("job", world.job()).param("product", world.product())
 			.param("account", world.hung()).param("handover", handover).param("at", Timestamp.from(at)).update();
-		return new Evidence(item, handover, crewChatFile, attachmentFile, jobChatFile, screenshotFile);
+		return new Evidence(handover, crewChatFile, jobChatFile, screenshotFile);
 	}
 
 	private void assertDeferred(HeldCrewJob world, String waiting) {
-		for (String table : List.of("chat.split_deferral", "work.split_deferral", "delivery.split_deferral")) {
+		for (String table : List.of("chat.split_deferral", "delivery.split_deferral")) {
 			assertThat(text("SELECT job_id || ':' || product_id || ':' || waiting FROM " + table))
 				.as(table)
 				.isEqualTo(world.job() + ":" + world.product() + ":" + waiting);
@@ -827,7 +810,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	}
 
 	private void assertNoDeferrals() {
-		for (String table : List.of("chat.split_deferral", "work.split_deferral", "delivery.split_deferral")) {
+		for (String table : List.of("chat.split_deferral", "delivery.split_deferral")) {
 			assertThat(count("SELECT count(*) FROM " + table)).as(table).isZero();
 		}
 	}

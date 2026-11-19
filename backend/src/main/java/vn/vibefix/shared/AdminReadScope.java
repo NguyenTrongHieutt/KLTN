@@ -12,15 +12,6 @@ public enum AdminReadScope {
 	/** The Crew Chat ({@code chat}). */
 	CREW_CHAT,
 
-	/** Work Items with their history ({@code work}). */
-	WORK_ITEMS,
-
-	/** Work Item notes ({@code work}). */
-	WORK_ITEM_NOTES,
-
-	/** The Attachment list ({@code work}). */
-	ATTACHMENTS,
-
 	/** One Milestone Split's versions with their edits and confirmations ({@code job}): the split is the object. */
 	SPLIT_VERSIONS
 

@@ -73,10 +73,6 @@ class AbuseReportIT extends IntegrationTest {
 
 	private UUID otherMessage;
 
-	private UUID note;
-
-	private UUID otherNote;
-
 	@BeforeEach
 	void aRunningJobWithItsRecordsAnOpenJobPostAndTwoAdministrators() {
 		this.world = HeldCrewJob.create(this.jdbc, this.clock.instant());
@@ -101,17 +97,6 @@ class AbuseReportIT extends IntegrationTest {
 			.param("id", chat).param("job", this.world.job()).param("product", this.world.product()).param("at", at).update();
 		this.crewMessage = message(chat, "Lời lẽ xúc phạm trong nhóm", at);
 		this.otherMessage = message(chat, "Tin nhắn khác của nhóm", at);
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 2, :at)
-				ON CONFLICT DO NOTHING
-				""").param("job", this.world.job()).param("product", this.world.product()).param("at", at).update();
-		UUID item = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, created_at, updated_at)
-				VALUES (:id, :job, 1, 'TASK', 'Sửa trang đặt bàn', 'Mô tả', :at, :at)
-				""").param("id", item).param("job", this.world.job()).param("at", at).update();
-		this.note = note(item, "Ghi chú bị báo cáo", at);
-		this.otherNote = note(item, "Ghi chú khác", at);
 	}
 
 	@Test
@@ -360,27 +345,34 @@ class AbuseReportIT extends IntegrationTest {
 		message(this.quan, this.crewMessage).andExpect(status().isNotFound());
 	}
 
+	/**
+	 * Story 24.2 (FR-69, AD-8): the Board is retired, so no new report may name a Work Item note -- and the ones
+	 * filed before it stay in ADM-7, labelled by their kind. No migration deletes them and the column still accepts
+	 * the kind, so the Administrator who has to decide such a report must still be able to read its queue row.
+	 */
 	@Test
-	void aWorkItemNoteReportOpensThatNoteOnly() throws Exception {
-		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", this.note).andExpect(status().isCreated());
-		file(this.world.lan(), Role.CUSTOMER, "WORK_ITEM_NOTE", this.otherNote).andExpect(status().isNotFound());
-		UUID report = reportOf("WORK_ITEM_NOTE");
-		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.label").value("SDB-1 Sửa trang đặt bàn"))
-			.andExpect(content().string(not(containsString("Ghi chú bị báo cáo"))));
-		take(this.ha.accountId(), report);
+	void aWorkItemNoteIsNoLongerReportableAndTheOnesFiledBeforeStay() throws Exception {
+		UUID filedBefore = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id, label,
+				    reason, status, created_at)
+				VALUES (:id, :reporter, 'WORK_ITEM_NOTE', :target, :job, :product, 'SDB-1 Sửa trang đặt bàn',
+				    'Lời lẽ xúc phạm', 'OPEN', :at)
+				""").param("id", filedBefore).param("reporter", this.world.minh()).param("target", UUID.randomUUID())
+			.param("job", this.world.job()).param("product", this.world.product())
+			.param("at", Timestamp.from(this.clock.instant().minus(Duration.ofDays(3))))
+			.update();
 
-		this.mvc.perform(get("/api/v1/work-item-notes/" + this.note).with(admin(this.ha.accountId())))
+		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isBadRequest());
+
+		this.mvc.perform(get("/api/v1/admin/abuse-reports").with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.text").value("Ghi chú bị báo cáo"))
-			.andExpect(jsonPath("$.author").value("Trần Thảo Vy"));
-		this.mvc.perform(get("/api/v1/work-item-notes/" + this.otherNote).with(admin(this.ha.accountId())))
-			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/work-items").with(admin(this.ha.accountId())))
-			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/work-item-notes/" + this.note).with(as(this.world.minh(), Role.STUDENT)))
-			.andExpect(status().isOk());
+			.andExpect(jsonPath("$[?(@.kind == 'WORK_ITEM_NOTE')].label").value("SDB-1 Sửa trang đặt bàn"));
+		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + filedBefore).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.kind").value("WORK_ITEM_NOTE"))
+			// ContentHiding knows no such kind, so ADM-6 offers no hide on it.
+			.andExpect(jsonPath("$.hideable").value(false));
 	}
 
 	@Test
@@ -403,8 +395,9 @@ class AbuseReportIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"kind\":\"RATING\",\"targetLogin\":\"" + minh + "\",\"reason\":\"Sai loại\"}"))
 			.andExpect(status().isBadRequest());
-		file(this.world.vy(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isNotFound());
-		// Story 24.1: the Documentation Space is retired, so PAGE is no kind of reportable content at all.
+		// Story 24.2 and Story 24.1: the Board and the Documentation Space are retired, so neither WORK_ITEM_NOTE nor
+		// PAGE is a kind of reportable content at all; an unknown kind is refused before anything is looked up.
+		file(this.world.vy(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isBadRequest());
 		file(this.world.vy(), Role.STUDENT, "PAGE", UUID.randomUUID()).andExpect(status().isBadRequest());
 
 		for (int i = 0; i < 9; i++) {
@@ -504,16 +497,6 @@ class AbuseReportIT extends IntegrationTest {
 		UUID id = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO chat.message (id, chat_id, author_account_id, body, sent_at) VALUES (:id, :chat, :author, :body, :at)")
 			.param("id", id).param("chat", chat).param("author", this.world.hung()).param("body", body).param("at", at).update();
-		return id;
-	}
-
-	private UUID note(UUID item, String text, Timestamp at) {
-		UUID id = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
-				VALUES (:id, :item, :job, :author, 'NOTE', '{}'::jsonb, :text, :at)
-				""").param("id", id).param("item", item).param("job", this.world.job()).param("author", this.world.vy())
-			.param("text", text).param("at", at).update();
 		return id;
 	}
 
