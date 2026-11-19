@@ -102,6 +102,23 @@ export function useSplitEvidenceVersions(resolutionId: string) {
   })
 }
 
+/**
+ * "Bàn giao": every round handed over on the case's Milestone, oldest first, each with its criteria, the preview or why
+ * there is none, its links and its images (Story 24.3b), in the Dispute's "criteria" tab's view.
+ */
+export function useSplitEvidenceHandovers(resolutionId: string) {
+  return useQuery({
+    queryKey: evidenceKey(resolutionId, 'handovers'),
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers', {
+          params: { path: { resolutionId } },
+        }),
+      ),
+    retry: false,
+  })
+}
+
 /** "Commit": the Handover Commits' authors by GitHub numeric ID, matched to the parties. */
 export function useSplitEvidenceCommits(resolutionId: string) {
   return useQuery({

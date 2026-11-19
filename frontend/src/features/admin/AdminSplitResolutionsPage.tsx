@@ -20,6 +20,7 @@ import {
   useAdminSplitResolutions,
   useSplitEvidenceChat,
   useSplitEvidenceCommits,
+  useSplitEvidenceHandovers,
   useSplitEvidencePersonLinks,
   useSplitEvidenceVersions,
   useSplitResolutionCommand,
@@ -28,6 +29,7 @@ import {
   type AdminSplitShare,
 } from './adminSplitResolutionsApi'
 import { CaseTabs } from './CaseTabs'
+import { EvidenceReportItem } from './EvidenceReportItem'
 import { StepUpDialog } from './StepUpDialog'
 
 /**
@@ -486,11 +488,14 @@ function decisionRefusal(error: unknown, data: AdminSplitResolution): string {
   return refusal(error)
 }
 
-const TABS = ['versions', 'commits', 'crewChat', 'personLinks'] as const
+const TABS = ['versions', 'handovers', 'commits', 'crewChat', 'personLinks'] as const
 
 type EvidenceTab = (typeof TABS)[number]
 
-/** The Split Evidence Package, each tab one audited read of the server's, mounted only when opened. */
+/**
+ * The Split Evidence Package, each tab one audited read of the server's, mounted only when opened. "Bàn giao" shows the
+ * case's Milestone's handovers as the Dispute's Evidence Package shows a Job's (Story 24.3b).
+ */
 function Evidence({ resolutionId }: { resolutionId: string }) {
   const [tab, setTab] = useState<EvidenceTab>('versions')
   return (
@@ -523,6 +528,7 @@ function Evidence({ resolutionId }: { resolutionId: string }) {
       </div>
       <div role="tabpanel">
         {tab === 'versions' && <VersionsTab resolutionId={resolutionId} />}
+        {tab === 'handovers' && <HandoversTab resolutionId={resolutionId} />}
         {tab === 'commits' && <CommitsTab resolutionId={resolutionId} />}
         {tab === 'crewChat' && <CrewChatTab resolutionId={resolutionId} />}
         {tab === 'personLinks' && <PersonLinksTab resolutionId={resolutionId} />}
@@ -599,6 +605,26 @@ function VersionsTab({ resolutionId }: { resolutionId: string }) {
           )}
         </div>
       )}
+    </RegionState>
+  )
+}
+
+/**
+ * "Bàn giao" (FR-84, AD-40, Story 24.3b): every round of the case's Milestone, a voided one included, oldest first, each
+ * with its criteria, the Mentor's marks and notes, the Customer's marks, and what it carried.
+ */
+function HandoversTab({ resolutionId }: { resolutionId: string }) {
+  const handovers = useSplitEvidenceHandovers(resolutionId)
+  return (
+    <RegionState query={handovers} skeleton={<Skeleton className="h-24 w-full" />}>
+      {handovers.data &&
+        (handovers.data.length === 0 ? (
+          <p className="text-muted-foreground">{t('screen.admin.splitResolutions.evidence.noHandovers')}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {handovers.data.map((report) => <EvidenceReportItem key={report.handoverId} report={report} />)}
+          </ul>
+        ))}
     </RegionState>
   )
 }

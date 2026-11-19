@@ -17,6 +17,7 @@ import {
   useJobChatEvidence,
   usePaymentsEvidence,
 } from './disputeEvidenceApi'
+import { EvidenceReportItem } from './EvidenceReportItem'
 
 const TABS = ['agreement', 'criteria', 'chat', 'decisions', 'payments', 'drift', 'audit'] as const
 
@@ -24,7 +25,8 @@ type Tab = (typeof TABS)[number]
 
 /**
  * ADM-4's Evidence Package (FR-53, FR-63, AD-20, AD-31, UX-DR58): one tab per FR-53 source, read only when
- * it opens. The Agreement versions, the criteria in each Delivery Report, the approvals and revision
+ * it opens. The Agreement versions, each handover with its criteria and what it carried (the preview or why there is
+ * none, its links and its images, Story 24.3b), the approvals and revision
  * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat from `chat` under the assignee's
  * grant. Every view is audited, and the note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
  * `DecisionEvidence`, its evidence snapshot.
@@ -113,60 +115,13 @@ function AgreementTab({ disputeId }: { disputeId: string }) {
   )
 }
 
-function mark(met: boolean | null | undefined) {
-  if (met == null) {
-    return t('screen.admin.disputes.evidence.unchecked')
-  }
-  return t(met ? 'screen.admin.disputes.evidence.met' : 'screen.admin.disputes.evidence.notMet')
-}
-
 function CriteriaTab({ disputeId }: { disputeId: string }) {
   const reports = useCriteriaEvidence(disputeId)
   return (
     <RegionState query={reports} skeleton={<Skeleton className="h-32 w-full" />}>
       {reports.data && reports.data.length === 0 && <Empty />}
       <ul className="flex flex-col gap-2">
-        {reports.data?.map((report) => (
-          <li key={report.handoverId} className="flex flex-col gap-1 rounded-md bg-muted p-3">
-            <p className="font-semibold">
-              {t('screen.admin.disputes.evidence.report', {
-                n: report.milestoneNumber,
-                title: report.milestoneTitle,
-                round: report.round,
-              })}
-            </p>
-            <p className="text-caption text-muted-foreground">
-              {t(`screen.admin.disputes.evidence.reportStatus.${report.status}` as MessageKey)} ·{' '}
-              {formatDayMonthTime(report.submittedAt)}
-            </p>
-            <table className="w-full text-left text-caption">
-              <thead>
-                <tr>
-                  <th className="py-1 pr-2 font-semibold">{t('screen.admin.disputes.evidence.criterion')}</th>
-                  <th className="py-1 pr-2 font-semibold">{t('screen.admin.disputes.evidence.reported')}</th>
-                  <th className="py-1 font-semibold">{t('screen.admin.disputes.evidence.checked')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.criteria.map((criterion) => (
-                  <tr key={criterion.criterionId} className="border-t border-border align-top">
-                    <td className="py-1 pr-2 break-words">
-                      {criterion.number}. {criterion.statement}
-                    </td>
-                    <td className="py-1 pr-2 break-words">
-                      {mark(criterion.reportedMet)}
-                      {criterion.reportNote ? ` · ${criterion.reportNote}` : ''}
-                    </td>
-                    <td className="py-1 break-words">
-                      {mark(criterion.customerMet)}
-                      {criterion.customerComment ? ` · ${criterion.customerComment}` : ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </li>
-        ))}
+        {reports.data?.map((report) => <EvidenceReportItem key={report.handoverId} report={report} />)}
       </ul>
     </RegionState>
   )
@@ -321,7 +276,8 @@ type Snapshot = NonNullable<AdminDispute['evidenceSnapshot']>
 
 /**
  * "Bằng chứng khi quyết định" (SG-27, AD-31): the decision's evidence snapshot, IDs, versions, counts, and
- * totals as they stood when it was made. It stays after the Job's data is retired (NFR-10).
+ * totals as they stood when it was made, each handover with how many images and links it carried (Story 24.3b).
+ * It stays after the Job's data is retired (NFR-10).
  */
 export function DecisionEvidence({ snapshot }: { snapshot: Snapshot }) {
   return (
@@ -347,6 +303,8 @@ export function DecisionEvidence({ snapshot }: { snapshot: Snapshot }) {
               reported: report.reportedMet,
               checked: report.checkedMet,
               total: report.criteria,
+              images: report.images,
+              links: report.links,
             })}
           </li>
         ))}

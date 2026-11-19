@@ -197,6 +197,103 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(seen.some((request) => request.url.includes('crew-chat'))).toBe(false)
   })
 
+  it('shows each handover with its criteria, preview or reason, links and images (Story 24.3b)', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const criterion = {
+      criterionId: 'c1',
+      number: 1,
+      statement: 'Hai khách không đặt trùng bàn',
+      reportedMet: true,
+      reportNote: 'Đã kiểm tra trên điện thoại',
+      customerMet: false,
+      customerComment: 'Vẫn đặt trùng bàn',
+    }
+    const seen = fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/disputes': () => json([{ ...row, assigned: true, assignedToMe: true }]),
+      'GET /api/v1/admin/disputes/d1': () => json(detail({ assigned: true, assignedToMe: true, evidenceReadable: true })),
+      'GET /api/v1/admin/disputes/d1/evidence/agreement': () => json([]),
+      'GET /api/v1/admin/disputes/d1/evidence/criteria': () =>
+        json([
+          {
+            handoverId: 'h1',
+            milestoneNumber: 1,
+            milestoneTitle: 'Báo cáo',
+            round: 1,
+            status: 'REVISION_REQUESTED',
+            submittedAt: '2026-10-18T03:00:00Z',
+            decidedAt: '2026-10-19T03:00:00Z',
+            auto: false,
+            criteria: [criterion],
+            preview: { url: 'https://so-dat-ban.vercel.app/dat-ban', domain: 'so-dat-ban.vercel.app' },
+            images: [
+              { fileId: 'f1', fileName: 'man-hinh-dat-ban.png', size: 2048 },
+              { fileId: 'f2', fileName: 'man-hinh-lich.png', size: 4096 },
+            ],
+            links: [
+              {
+                kind: 'DOCUMENT',
+                label: 'Ghi chú phát hành',
+                url: 'https://docs.google.com/document/d/ghi-chu',
+                domain: 'docs.google.com',
+              },
+              { kind: 'VIDEO', label: 'Video thao tác', url: 'https://www.loom.com/share/dat-ban', domain: 'www.loom.com' },
+            ],
+          },
+          {
+            handoverId: 'h2',
+            milestoneNumber: 1,
+            milestoneTitle: 'Báo cáo',
+            round: 2,
+            status: 'SUBMITTED',
+            submittedAt: '2026-10-20T03:00:00Z',
+            auto: false,
+            criteria: [{ ...criterion, customerMet: undefined, customerComment: undefined }],
+            noPreviewReason: 'Ứng dụng chỉ chạy trên máy của quán',
+            images: [],
+            links: [{ kind: 'VIDEO', label: 'Video quay màn hình', url: 'https://youtu.be/quay', domain: 'youtu.be' }],
+          },
+        ]),
+    })
+    renderAt('/quan-tri/tranh-chap/d1')
+
+    await user.click(await screen.findByRole('tab', { name: 'Tiêu chí trong báo cáo bàn giao' }))
+    const first = (await screen.findByText('Giai đoạn 1: Báo cáo · lần 1')).closest('li') as HTMLElement
+    const second = screen.getByText('Giai đoạn 1: Báo cáo · lần 2').closest('li') as HTMLElement
+    expect(within(first).getByText(/Đã kiểm tra trên điện thoại/)).toBeInTheDocument()
+    expect(within(first).getByText(/Vẫn đặt trùng bàn/)).toBeInTheDocument()
+    expect(within(first).getByRole('link', { name: 'Mở bản xem thử' })).toHaveAttribute(
+      'href',
+      'https://so-dat-ban.vercel.app/dat-ban',
+    )
+    for (const [name, url] of [
+      ['Ghi chú phát hành', 'https://docs.google.com/document/d/ghi-chu'],
+      ['Video thao tác', 'https://www.loom.com/share/dat-ban'],
+      ['Mở bản xem thử', 'https://so-dat-ban.vercel.app/dat-ban'],
+    ]) {
+      const link = within(first).getByRole('link', { name })
+      expect(link).toHaveAttribute('href', url)
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+    expect(within(first).getByText('Tài liệu')).toBeInTheDocument()
+    expect(within(first).getByText('Bản ghi / video')).toBeInTheDocument()
+    expect(within(first).getByText('(docs.google.com)')).toBeInTheDocument()
+    expect(within(first).getByText('(www.loom.com)')).toBeInTheDocument()
+    expect(within(first).getAllByText(/Trang này nằm ngoài vibefix/)).toHaveLength(3)
+    const image = within(first).getByRole('img', { name: 'man-hinh-dat-ban.png' })
+    expect(image).toHaveAttribute('src', '/api/v1/files/f1')
+    expect(image.closest('a')).toHaveAttribute('href', '/api/v1/files/f1')
+    expect(image.closest('a')).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(within(first).getAllByRole('img')).toHaveLength(2)
+
+    expect(within(second).getByText('Ứng dụng chỉ chạy trên máy của quán')).toBeInTheDocument()
+    expect(within(second).queryByRole('link', { name: 'Mở bản xem thử' })).toBeNull()
+    expect(within(second).getByRole('link', { name: 'Video quay màn hình' })).toHaveAttribute('href', 'https://youtu.be/quay')
+    expect(within(second).queryByRole('img')).toBeNull()
+    expect(seen.some((request) => request.url.includes('/evidence/criteria'))).toBe(true)
+  })
+
   it('names each Source App drift in the Evidence Package drift tab (Story 23.5b)', { timeout: 30_000 }, async () => {
     const user = userEvent.setup()
     const drift = (id: string, kind: string, fullName: string | null) => ({
@@ -248,7 +345,17 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
               takenAt: '2026-10-21T03:00:00Z',
               agreementVersions: [1, 2],
               reports: [
-                { handoverId: 'h1', milestoneNumber: 1, round: 1, status: 'REVISION_REQUESTED', criteria: 3, reportedMet: 3, checkedMet: 1 },
+                {
+                  handoverId: 'h1',
+                  milestoneNumber: 1,
+                  round: 1,
+                  status: 'REVISION_REQUESTED',
+                  criteria: 3,
+                  reportedMet: 3,
+                  checkedMet: 1,
+                  images: 2,
+                  links: 1,
+                },
               ],
               jobChat: { messageCount: 14, lastMessageId: 'x14', lastSentAt: '2026-10-20T03:00:00Z' },
               payments: [
@@ -265,7 +372,7 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(await screen.findByRole('heading', { name: 'Bằng chứng khi quyết định' })).toBeInTheDocument()
     expect(screen.getByText('Thỏa thuận: phiên bản 1, 2')).toBeInTheDocument()
     expect(screen.getByText(/Trò chuyện: 14 tin nhắn/)).toBeInTheDocument()
-    expect(screen.getByText(/khách hàng xác nhận đạt 1\/3/)).toBeInTheDocument()
+    expect(screen.getByText(/khách hàng xác nhận đạt 1\/3 · 2 hình ảnh, 1 liên kết/)).toBeInTheDocument()
     expect(screen.getByText(/Hồ sơ bằng chứng chỉ mở cho quản trị viên nhận xử lý/)).toBeInTheDocument()
   })
 
