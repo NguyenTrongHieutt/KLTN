@@ -462,8 +462,6 @@ class SplitResolutionIT extends IntegrationTest {
 			assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.split_evidence_viewed." + tab + "'"))
 				.as(tab).isOne();
 		}
-		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.split_evidence_viewed.work_items'"))
-			.as("Story 24.2 retired the Work Items tab").isZero();
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.admin_read'")).isOne();
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'chat.admin_read'")).isEqualTo(2);
 	}

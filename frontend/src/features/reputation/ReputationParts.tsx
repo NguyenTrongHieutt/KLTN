@@ -99,11 +99,19 @@ export function PortfolioSection({
   )
 }
 
+/**
+ * The frozen facts of one entry. A fact the server sends as absent is left out, never drawn as zero: vibefix
+ * freezes no count for a Job it did not count -- an entry from before Story 24.2, an Assessment Job, or a commit
+ * list GitHub's compare had cut -- and a zero here would assert that the person contributed nothing.
+ */
 function EntryFacts({ entry }: { entry: PortfolioEntry }) {
-  const facts =
+  const fact =
     entry.role === 'MENTOR'
-      ? [t('screen.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 })]
-      : [t('screen.reputation.portfolioFacts.commitsAuthored', { n: entry.commitsAuthored ?? 0 })]
+      ? entry.milestonesHandedOver != null &&
+        t('screen.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver })
+      : entry.commitsAuthored != null &&
+        t('screen.reputation.portfolioFacts.commitsAuthored', { n: entry.commitsAuthored })
+  const facts = fact === false ? [] : [fact]
   return (
     <p className="flex flex-wrap items-center gap-1.5 text-caption">
       <span>{facts.join(' · ')}</span>

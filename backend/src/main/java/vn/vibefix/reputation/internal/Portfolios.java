@@ -55,7 +55,7 @@ import vn.vibefix.shared.IdGenerator;
  * the work of at least one Accepted Milestone, leavers included, under their history as Crew member
  * ({@code job.activeDuringAcceptedWork}, Story 21.3), with facts frozen from records: the Mentor's Milestones
  * handed over, a Crew member's commits in the accepted Milestone Handovers, and never a Work Item or a review
- * (FR-50, AD-33, Story 24.2). The Mentor drafts the summary,
+ * (FR-50, AD-33, Story 24.2). A fact vibefix did not count is frozen as none, never as zero ({@link #counted}). The Mentor drafts the summary,
  * the Customer approves (possibly edited, with or without the Product name) or declines it, all before the Rating
  * Window ends; otherwise there is none. Each entry is published once its person confirmed the data deletion
  * (FR-66).
@@ -172,8 +172,10 @@ class Portfolios {
 		insert(post, mentor, "MENTOR", product, skills, accepted, null, this.handovers.milestonesHandedOver(jobId), now);
 		List<UUID> crew = this.crews.activeDuringAcceptedWork(jobId);
 		Map<UUID, Integer> authored = commitsAuthored(acceptedMilestones, crew);
+		boolean counted = counted(acceptedMilestones);
 		for (UUID member : crew) {
-			insert(post, member, "CREW", product, skills, accepted, authored.getOrDefault(member, 0), null, now);
+			insert(post, member, "CREW", product, skills, accepted, counted ? authored.getOrDefault(member, 0) : null,
+					null, now);
 		}
 		this.jdbc.sql("""
 				INSERT INTO reputation.portfolio_summary (job_id, product_id, status, created_at)
@@ -345,10 +347,34 @@ class Portfolios {
 	}
 
 	/**
+	 * Whether a commit count of this Job is a count at all (FR-50, FR-32, Story 24.2). Two Jobs give no figure, and
+	 * both freeze NULL rather than zero, because a published zero is vibefix asserting that a person contributed
+	 * nothing:
+	 * <ul>
+	 * <li>an Assessment Job, which hands over no code, so no accepted Milestone recorded a single commit;</li>
+	 * <li>a Job whose contributing Handover hit GitHub's 250-commit compare cut, where
+	 * {@link DeliveryEvidence#commitsTruncatedOf} says the range is incomplete and a count over it is a floor.</li>
+	 * </ul>
+	 * A Code Job whose commits were all recorded gives a count, and zero is then a fact about the person: vibefix
+	 * counted, and none of the commits was theirs.
+	 */
+	private boolean counted(List<UUID> acceptedMilestones) {
+		boolean anyCommit = false;
+		for (UUID milestone : acceptedMilestones) {
+			if (this.deliveries.commitsTruncatedOf(milestone)) {
+				return false;
+			}
+			anyCommit = anyCommit || !this.deliveries.commitsOf(milestone).isEmpty();
+		}
+		return anyCommit;
+	}
+
+	/**
 	 * How many commits each of these people authored in the Handovers of the Job's accepted Milestones (FR-50,
 	 * AD-33, Story 24.2): the facts a Crew member's entry freezes, read from the records {@code delivery} kept,
 	 * never typed by anyone. Every round of an accepted Milestone counts, the revised ones included. A commit
-	 * GitHub resolved to no account, or to nobody in {@code people}, counts for nobody.
+	 * GitHub resolved to no account, or to nobody in {@code people}, counts for nobody. Only {@link #counted} says
+	 * whether the result may be frozen as a figure at all.
 	 */
 	private Map<UUID, Integer> commitsAuthored(List<UUID> acceptedMilestones, List<UUID> people) {
 		Map<UUID, Integer> authored = new HashMap<>();

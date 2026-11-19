@@ -1,7 +1,7 @@
 -- Story 24.2b (D1, FR-22, FR-23, FR-24, FR-25, FR-26, FR-76 removed, FR-28, FR-32, FR-48, FR-50, FR-62, FR-69,
 -- FR-76, FR-79, FR-82, FR-84, NFR-3, NFR-10, AD-2, AD-3, AD-8, AD-20, AD-23, AD-33, AD-39 removed, AD-41): vibefix
 -- tracks no task of its own any more. The Board, Work Items, their history, the Review Gate, the workload view,
--- Attachments and notes are retired with the module vn.vibefix.work, so the schema goes with them. The ten
+-- Attachments and notes are retired with the module vn.vibefix.work, so the schema goes with them. The fourteen
 -- work/V2026* files before this one are superseded; they stay on disk as Flyway history, and AD-3's layer entry for
 -- the module goes in the same change.
 --

@@ -270,6 +270,23 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$.evidenceSnapshot.driftWarnings[0].commits").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.statements[0].side").value("MENTOR"));
 
+		// Story 24.2: a decision recorded before this story stored the Work Items it was based on. The record no
+		// longer has that field, so the stored row would be unreadable if the read were strict -- and ADM-4 would
+		// answer 500 for the one decision that has to stay explainable.
+		this.jdbc.sql("""
+				UPDATE dispute.decision
+				SET evidence_snapshot = jsonb_set(evidence_snapshot, '{workItems}', CAST(:items AS JSONB), true)
+				WHERE dispute_id = :id
+				""")
+			.param("items", "[{\"workItemId\": \"" + UUID.randomUUID()
+					+ "\", \"number\": 7, \"version\": 3, \"status\": \"DONE\"}]")
+			.param("id", dispute)
+			.update();
+		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].status").value("REVISION_REQUESTED"))
+			.andExpect(jsonPath("$.evidenceSnapshot.workItems").doesNotExist());
+
 		this.personalData.retireJobData(this.world.product());
 		// AD-24: the decision's release left the Milestone's split open, so the Crew Chat waits for it as evidence.
 		assertThat(this.jdbc.sql("SELECT c.kind FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id WHERE c.job_id = :job")

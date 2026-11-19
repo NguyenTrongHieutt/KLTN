@@ -149,6 +149,46 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(text("SELECT status FROM reputation.portfolio_summary WHERE job_id = '" + job + "'")).isEqualTo("APPROVED");
 	}
 
+	/**
+	 * FR-50, Story 24.2: a fact vibefix did not count is frozen as none, never as zero. An Assessment Job's handover
+	 * records no commit at all -- its deliverable is the Assessment Report -- so its Crew entry carries no count, and
+	 * the screen leaves the fact out instead of publishing "0 commit" of a member who did the work.
+	 */
+	@Test
+	void anAcceptedMilestoneWithNoCommitRecordedFreezesNoCountAtAll() throws Exception {
+		people();
+		UUID job = job(true);
+		this.jdbc.sql("DELETE FROM delivery.handover_commit").update();
+
+		closes(job);
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + job + "'") == 2);
+
+		assertThat(frozenFacts(job, this.vy)).as("none, not zero").isEqualTo("CREW:-:-");
+		assertThat(frozenFacts(job, this.hung)).as("the Mentor's own fact is counted as before").isEqualTo("MENTOR:-:1");
+		read(this.vy, Role.STUDENT, job).andExpect(status().isOk())
+			.andExpect(jsonPath("$.mine.role").value("CREW"))
+			.andExpect(jsonPath("$.mine.commitsAuthored").doesNotExist());
+	}
+
+	/**
+	 * FR-50, Story 24.2: GitHub's compare lists 300 commits at most, so a long Milestone's record is partial. A
+	 * count read from a partial record would be wrong for everyone on it, so nobody's entry carries one.
+	 */
+	@Test
+	void aTruncatedCommitListFreezesNoCountAtAll() throws Exception {
+		people();
+		UUID job = job(true);
+		this.jdbc.sql("UPDATE delivery.handover SET commits_truncated = TRUE WHERE job_id = :job").param("job", job).update();
+
+		closes(job);
+		await().atMost(Duration.ofSeconds(10))
+			.until(() -> count("SELECT count(*) FROM reputation.portfolio_entry WHERE job_id = '" + job + "'") == 2);
+
+		assertThat(frozenFacts(job, this.vy)).as("the two commits of Vy are in a partial record").isEqualTo("CREW:-:-");
+		read(this.vy, Role.STUDENT, job).andExpect(jsonPath("$.mine.commitsAuthored").doesNotExist());
+	}
+
 	@Test
 	void aJobWithoutAcceptedWorkHasNoEntry() throws Exception {
 		people();
@@ -242,6 +282,15 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(this.reputation.portfolio(this.vy)).singleElement()
 			.satisfies(entry -> assertThat(entry.role()).isEqualTo("CREW"));
 		assertThat(this.reputation.portfolio(this.hung)).isEmpty();
+	}
+
+	/** The facts the person's entry froze on the Job, as {@code role:commits:milestonesHandedOver}, {@code -} for none. */
+	private String frozenFacts(UUID job, UUID account) {
+		return this.jdbc.sql("""
+				SELECT role || ':' || coalesce(commits_authored::text, '-') || ':'
+				       || coalesce(milestones_handed_over::text, '-')
+				FROM reputation.portfolio_entry WHERE job_id = :job AND account_id = :account
+				""").param("job", job).param("account", account).query(String.class).single();
 	}
 
 	/** A Crew row activated {@code activated} ago and left {@code left} ago (or still active for {@code ZERO}). */

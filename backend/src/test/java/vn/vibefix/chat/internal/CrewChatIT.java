@@ -220,13 +220,13 @@ class CrewChatIT extends IntegrationTest {
 		sendCrew(this.hung, Role.MENTOR, "Chào cả nhóm").andExpect(status().isCreated());
 		UUID admin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		this.grants.grantAdminRead(UUID.randomUUID(), admin, this.job,
-				Set.of(new AdminReadItem(AdminReadScope.JOB_CHAT, null, null)), UUID.randomUUID());
+				Set.of(AdminReadItem.all(AdminReadScope.JOB_CHAT)), UUID.randomUUID());
 		// A Job Chat grant reads no Crew Chat.
 		this.mvc.perform(get("/api/v1/crew-chats/" + this.crewChat + "/messages").with(as(admin, Role.ADMINISTRATOR)))
 			.andExpect(status().isNotFound());
 
 		this.grants.grantAdminRead(UUID.randomUUID(), admin, this.job,
-				Set.of(new AdminReadItem(AdminReadScope.CREW_CHAT, null, this.hung)), UUID.randomUUID());
+				Set.of(AdminReadItem.all(AdminReadScope.CREW_CHAT)), UUID.randomUUID());
 		this.mvc.perform(get("/api/v1/crew-chats/" + this.crewChat + "/messages").with(as(admin, Role.ADMINISTRATOR)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.items.length()").value(1))

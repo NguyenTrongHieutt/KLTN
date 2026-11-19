@@ -70,17 +70,6 @@ class ChatAccess {
 					|| this.windows.stream().anyMatch(window -> !at.isBefore(window.from()) && !at.isAfter(window.to()));
 		}
 
-		/** Everyone whose content the Chat holds, for a grant naming an account. */
-		List<UUID> people() {
-			List<UUID> people = new ArrayList<>();
-			people.add(this.mentorId);
-			if (this.customerId != null) {
-				people.add(this.customerId);
-			}
-			people.addAll(this.crew);
-			return people;
-		}
-
 	}
 
 	private final Chats chats;
@@ -138,7 +127,7 @@ class ChatAccess {
 		Viewer granted = granted(jobId, kind, admin);
 		Chat chat = granted.chat();
 		AdminReadScope scope = kind == Kind.JOB ? AdminReadScope.JOB_CHAT : AdminReadScope.CREW_CHAT;
-		if (!this.grants.permits(admin, jobId, scope, chat.id(), granted.people(), this.clock.instant())) {
+		if (!this.grants.permits(admin, jobId, scope, chat.id(), this.clock.instant())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(admin), "chat.admin_read", AuditObject.of("chat.chat", chat.id()))
@@ -177,7 +166,7 @@ class ChatAccess {
 		UUID admin = caller.requireAccountId();
 		Viewer granted = granted(chat.jobId(), chat.kind(), admin);
 		AdminReadScope scope = chat.kind() == Kind.JOB ? AdminReadScope.JOB_CHAT : AdminReadScope.CREW_CHAT;
-		if (!this.grants.permits(admin, chat.jobId(), scope, messageId, granted.people(), this.clock.instant())) {
+		if (!this.grants.permits(admin, chat.jobId(), scope, messageId, this.clock.instant())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(admin), "chat.admin_read", AuditObject.of("chat.message", messageId))

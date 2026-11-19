@@ -141,6 +141,8 @@ class CrewLeaveIT extends IntegrationTest {
 	@Test
 	void aMemberLeavesAtOnceAndEveryoneHearsWhatConcernsThem() throws Exception {
 		UUID grant = grant(this.vy);
+		long mentorTodos = count("SELECT count(*) FROM notification.todo WHERE account_id = '" + this.hung
+				+ "' AND job_id = '" + this.job + "' AND closed_at IS NULL");
 		long version = count("SELECT version FROM job.job WHERE id = '" + this.job + "'");
 		long crewVersion = count("SELECT crew_version FROM job.job WHERE id = '" + this.job + "'");
 		this.clock.advance(Duration.ofMinutes(1));
@@ -171,8 +173,13 @@ class CrewLeaveIT extends IntegrationTest {
 		// FR-21: Story 7.7's revocation runs from the event: REVOKING at once, its operation reads the removal back.
 		assertThat(text("SELECT status FROM repo.job_grant WHERE id = '" + grant + "'")).isEqualTo("REVOKING");
 
-		// Nothing is reassigned, because there is nothing to reassign: Story 24.2 retired the Board (FR-82, AD-41).
-		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key LIKE 'work.%'")).isZero();
+		// FR-82, AD-41: nothing is reassigned, because there is nothing to reassign. A departure therefore asks the
+		// Mentor to do nothing at all -- the reassignment duty the Board opened has no successor -- and it leaves
+		// every other member's row alone.
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE account_id = '" + this.hung + "' AND job_id = '"
+				+ this.job + "' AND closed_at IS NULL")).as("the Mentor's open duties on the Job").isEqualTo(mentorTodos);
+		assertThat(text("SELECT status FROM job.crew_row WHERE member_account_id = '" + this.minh + "'"))
+			.as("the member who stayed").isEqualTo("ACTIVE");
 
 		// FR-66: the data-deletion confirmation is asked at once, on their JOB-1.
 		assertThat(openTodos("repo.confirm_data_deletion", this.vy)).isOne();

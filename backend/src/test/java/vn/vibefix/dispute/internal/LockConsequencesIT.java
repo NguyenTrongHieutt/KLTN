@@ -147,6 +147,31 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(this.verification.isVerified(this.vy)).as("a lock removes no Verification").isTrue();
 	}
 
+	/**
+	 * UX-DR104: a member whose card shows neither a declared name nor a GitHub username is named by
+	 * {@code CrewDepartures.shownName}'s fallback in every notice the lock sends, never by a blank. An erasure
+	 * leaves exactly that card, and so does a member who hides their student details with GitHub unlinked. Story
+	 * 24.2 retired the Board, which was the third reader of that fallback.
+	 */
+	@Test
+	void aMemberWithNoNameAndNoUsernameIsNamedByTheFallback() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		world();
+		this.jdbc.sql("UPDATE identity.profile SET hide_student_details = TRUE WHERE account_id = :id")
+			.param("id", this.vy)
+			.update();
+		IdentityTestSupport.unlinkGitHub(this.jdbc, this.vy);
+
+		lock(ha, this.vy).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(param("job.crew_member_left", this.hung, "name")).as("the Mentor's notice")
+			.isEqualTo("Một thành viên nhóm");
+		assertThat(param("job.party_locked", ha.accountId(), "name")).as("the Administrators' notice")
+			.isEqualTo("Một thành viên nhóm");
+		assertThat(notices("job.crew_login_removed", this.lan)).as("no username to remove").isZero();
+	}
+
 	/** Q7, FR-82: a Crew emptied in Starting tells the Customer too, and opens no Dispute. */
 	@Test
 	void theOnlyMembersLockInStartingTellsTheCustomerTheCrewIsEmpty() throws Exception {

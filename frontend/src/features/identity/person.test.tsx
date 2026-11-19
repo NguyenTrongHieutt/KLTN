@@ -39,7 +39,14 @@ const bothRoles = personReputation({
     count: 6,
     portfolio: [entry('MENTOR', 'Sửa lỗi đặt bàn', { productName: 'Sổ đặt bàn Quán Mây', summary: 'Sửa đặt trùng bàn.' })],
   },
-  crew: { jobs: 1, jobTypes: [{ jobType: 'BUG_FIX', count: 1 }], average: 4, count: 1, portfolio: [entry('CREW', 'Thêm thanh toán')] },
+  crew: {
+    jobs: 1,
+    jobTypes: [{ jobType: 'BUG_FIX', count: 1 }],
+    average: 4,
+    count: 1,
+    // Story 24.2: the second entry's commits were never counted (an Assessment Job here), so it carries no fact.
+    portfolio: [entry('CREW', 'Thêm thanh toán'), entry('CREW', 'Đánh giá sổ đặt bàn', { commitsAuthored: undefined })],
+  },
   newcomer: false,
 })
 
@@ -88,6 +95,12 @@ describe('PUB-4, one public profile (UX-DR96, Story 21.3)', () => {
     expect(within(asCrew).getByText('(1 lượt từ người hướng dẫn)')).toBeInTheDocument()
     expect(within(asCrew).getByText('Thêm thanh toán')).toBeInTheDocument()
     expect(within(asCrew).queryByText('Sửa lỗi đặt bàn')).toBeNull()
+    expect(within(asMentor).getByText('2 giai đoạn đã bàn giao')).toBeInTheDocument()
+    expect(within(asCrew).getByText('4 commit trong giai đoạn đã nghiệm thu')).toBeInTheDocument()
+    // The uncounted entry shows itself and no fact: never "0 commit" of a member who did the work.
+    expect(within(asCrew).getByText('Đánh giá sổ đặt bàn')).toBeInTheDocument()
+    expect(within(asCrew).queryByText(/0 commit/)).toBeNull()
+    expect(within(asCrew).getAllByText(/commit trong giai đoạn đã nghiệm thu/)).toHaveLength(1)
     expect(screen.getByText(/không hiện cách liên lạc, số dư hay email trường/)).toBeInTheDocument()
     expect(screen.queryByText('Đây là hồ sơ người khác thấy.')).toBeNull()
   })

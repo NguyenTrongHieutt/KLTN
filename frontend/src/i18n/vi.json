@@ -968,9 +968,9 @@
             "ON_TIME": "Bàn giao đúng hạn (trên số giai đoạn đã nghiệm thu)"
           },
           "acceptedMilestones": {
-            "FIRST_PASS": "Nghiệm thu ngay lần bàn giao đầu",
+            "FIRST_PASS": "Nghiệm thu mà không cần yêu cầu sửa",
             "AFTER_REVISION": "Nghiệm thu sau khi yêu cầu sửa",
-            "FIRST_PASS_SHARE": "Tỷ lệ nghiệm thu ngay lần đầu"
+            "FIRST_PASS_SHARE": "Tỷ lệ nghiệm thu mà không cần yêu cầu sửa"
           },
           "milestones": {
             "OVERDUE": "Đang trễ hạn"
@@ -1089,7 +1089,7 @@
           "WITHDRAW_RATING": "Người hướng dẫn đề nghị rút lại điểm."
         },
         "take": "Nhận xử lý",
-        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm, lịch sử công việc của thành viên nhóm và điểm bị khiếu nại, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "takeNote": "Khi nhận xử lý, bạn được xem trao đổi nhóm và điểm bị khiếu nại, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "evidence": {
           "title": "Hồ sơ bằng chứng nội bộ",
           "chat": "Trao đổi nhóm",
@@ -1137,7 +1137,7 @@
         "statements": "Ý kiến của các bên",
         "noStatements": "Chưa có ý kiến nào.",
         "take": "Nhận xử lý",
-        "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, hạng mục của từng người trong phân chia và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, các lần lưu thay đổi (commit) của giai đoạn này và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "alreadyDecided": "Yêu cầu này đã có quyết định.",
         "takenByOther": "Một quản trị viên khác đang xử lý. Bạn có thể nhận lại nếu cần.",
         "contentGone": "Nội dung của công việc đã xóa theo thời hạn lưu; bản ghi quyết định vẫn còn.",
@@ -2266,10 +2266,9 @@
         "done": "Bạn đã rời công việc này."
       },
       "noCrew": {
-        "mentor": "Nhóm thực hiện không còn ai. Bạn có thể tiếp tục một mình: hạng mục bạn tự làm chuyển sang Xong mà không cần duyệt, vì khách hàng nghiệm thu là bước kiểm tra. Bạn cũng có thể tuyển thêm thành viên.",
+        "mentor": "Nhóm thực hiện không còn ai. Bạn có thể tiếp tục một mình: bạn vẫn bàn giao từng giai đoạn như thường, và khách hàng nghiệm thu là bước kiểm tra. Bạn cũng có thể tuyển thêm thành viên.",
         "customer": "Nhóm thực hiện của người hướng dẫn hiện không còn thành viên. Người hướng dẫn {mentor} vẫn tiếp tục công việc. Nếu bạn lo lắng, hãy trao đổi trong Trò chuyện; bạn vẫn có thể đề nghị hủy như thường lệ."
       },
-      "leftLine": "{name} đã rời công việc ngày {date}. Hãy giao lại các hạng mục đang mở.",
       "customer": {
         "title": "Nhóm thực hiện",
         "none": "Chưa có thành viên nào ký · người hướng dẫn đang tìm nhóm thực hiện.",
@@ -2693,7 +2692,7 @@
       },
       "sensitive": {
         "title": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng",
-        "body": "Ai xem được bảng công việc đều đọc được nội dung này. Hãy che trước khi lưu.",
+        "body": "Ai xem được bàn giao này đều đọc được nội dung này. Hãy che trước khi lưu.",
         "mask": "Che và lưu"
       }
     },
@@ -3247,8 +3246,8 @@
         "asked": "Đã nhờ xem xét",
         "ask": "Nhờ quản trị viên xem xét",
         "dialogTitle": "Nhờ quản trị viên xem xét phân chia Giai đoạn {n}?",
-        "n31": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, hạng mục và commit của từng người, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa {cap}% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
-        "n31NoCap": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, hạng mục và commit của từng người, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "n31": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các lần lưu thay đổi (commit) của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa {cap}% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "n31NoCap": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các lần lưu thay đổi (commit) của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
         "reason": "Lý do bạn thấy phân chia chưa đúng",
         "reasonHint": "Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được. Khách hàng không thấy.",
         "send": "Gửi yêu cầu",
@@ -3528,7 +3527,7 @@
     },
     "mentor": {
       "label": "Người hướng dẫn",
-      "hint": "Người có kinh nghiệm bạn chọn từ các đơn chào giá. Họ nhận công việc, trao đổi với bạn, giao việc cho nhóm thực hiện và duyệt từng phần trước khi bàn giao."
+      "hint": "Người có kinh nghiệm bạn chọn từ các đơn chào giá. Họ nhận công việc, trao đổi với bạn, và bàn giao từng giai đoạn kèm nhận xét cho từng tiêu chí nghiệm thu."
     },
     "student": {
       "label": "Sinh viên đã xác minh"

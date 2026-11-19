@@ -345,10 +345,34 @@ class AbuseReportIT extends IntegrationTest {
 		message(this.quan, this.crewMessage).andExpect(status().isNotFound());
 	}
 
-	/** Story 24.2: the Board is retired, so {@code WORK_ITEM_NOTE} is no kind a report may name any more (FR-69). */
+	/**
+	 * Story 24.2 (FR-69, AD-8): the Board is retired, so no new report may name a Work Item note -- and the ones
+	 * filed before it stay in ADM-7, labelled by their kind. No migration deletes them and the column still accepts
+	 * the kind, so the Administrator who has to decide such a report must still be able to read its queue row.
+	 */
 	@Test
-	void aWorkItemNoteIsNoLongerReportable() throws Exception {
+	void aWorkItemNoteIsNoLongerReportableAndTheOnesFiledBeforeStay() throws Exception {
+		UUID filedBefore = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO admin.abuse_report (id, reporter_account_id, kind, target_id, job_id, product_id, label,
+				    reason, status, created_at)
+				VALUES (:id, :reporter, 'WORK_ITEM_NOTE', :target, :job, :product, 'SDB-1 Sửa trang đặt bàn',
+				    'Lời lẽ xúc phạm', 'OPEN', :at)
+				""").param("id", filedBefore).param("reporter", this.world.minh()).param("target", UUID.randomUUID())
+			.param("job", this.world.job()).param("product", this.world.product())
+			.param("at", Timestamp.from(this.clock.instant().minus(Duration.ofDays(3))))
+			.update();
+
 		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isBadRequest());
+
+		this.mvc.perform(get("/api/v1/admin/abuse-reports").with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[?(@.kind == 'WORK_ITEM_NOTE')].label").value("SDB-1 Sửa trang đặt bàn"));
+		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + filedBefore).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.kind").value("WORK_ITEM_NOTE"))
+			// ContentHiding knows no such kind, so ADM-6 offers no hide on it.
+			.andExpect(jsonPath("$.hideable").value(false));
 	}
 
 	@Test

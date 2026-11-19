@@ -56,7 +56,9 @@ class JobCounts implements PlatformCounts {
 				WHERE removed_at IS NULL AND accepted_at IS NOT NULL GROUP BY 1
 				""");
 		// FR-62, Story 24.2: what the Board's approved Work Items used to say, over the Milestones themselves.
-		// A Milestone accepted with no Revision Round used was accepted on its first handover.
+		// revision_rounds_used counts the Customer's revision requests alone (M4RequestRevision); M3Void sends a
+		// Milestone back without using a round, so FIRST_PASS means "accepted without a Revision Round", which is
+		// what FR-62 asks for and what the label says -- never "accepted on the very first handover".
 		grouped(counts, "acceptedMilestones", "SELECT CASE WHEN revision_rounds_used = 0 THEN 'FIRST_PASS'"
 				+ " ELSE 'AFTER_REVISION' END AS key, count(*) AS value FROM job.milestone WHERE " + ACCEPTED + " GROUP BY 1");
 		// Story 17.2's FR-62 formulas (SPEC.md Open Questions): completion counts the Jobs that ended after

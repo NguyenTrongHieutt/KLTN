@@ -1,6 +1,5 @@
 package vn.vibefix.shared;
 
-import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -8,36 +7,31 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What one Administrator read grant covers in one {@link AdminReadScope} (AD-20): all of it, the
- * content involving one account, or a single object. The named scopes below are the only
- * definition of what each case kind may read (AD-33).
+ * What one Administrator read grant covers in one {@link AdminReadScope} (AD-20): all of it or a single object. The
+ * named scopes below are the only definition of what each case kind may read (AD-33).
+ * <p>
+ * A third breadth, the content involving one account, went with the Work Item histories it was made for: a Split
+ * Resolution's grant covered each party's, and an escalated Team Issue's the raiser's, and Story 24.2 retired both
+ * with the Board. Nothing produces an account-scoped item now, so nothing checks one -- a live-looking breadth that
+ * no caller can produce is how a future grant silently gets the wrong reach. Stored rows keep their
+ * {@code "accountId": ""} field, which the readers no longer look at.
  * @param scope the kind of content
- * @param objectId the single object covered, or {@code null}
- * @param accountId the account whose content is covered, or {@code null}; at most one of the two
- * is set
+ * @param objectId the single object covered, or {@code null} for all of the scope on the Job
  */
-public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Nullable UUID accountId) {
+public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId) {
 
 	public AdminReadItem {
 		Objects.requireNonNull(scope, "scope");
-		if (objectId != null && accountId != null) {
-			throw new IllegalArgumentException("An item covers one object or one account's content, not both");
-		}
 	}
 
 	/** Everything of {@code scope} on the Job. */
 	public static AdminReadItem all(AdminReadScope scope) {
-		return new AdminReadItem(scope, null, null);
+		return new AdminReadItem(scope, null);
 	}
 
 	/** The single object {@code objectId} of {@code scope}. */
 	public static AdminReadItem one(AdminReadScope scope, UUID objectId) {
-		return new AdminReadItem(scope, Objects.requireNonNull(objectId, "objectId"), null);
-	}
-
-	/** The content of {@code scope} that involves {@code accountId}, as the serving module defines it. */
-	public static AdminReadItem involving(AdminReadScope scope, UUID accountId) {
-		return new AdminReadItem(scope, null, Objects.requireNonNull(accountId, "accountId"));
+		return new AdminReadItem(scope, Objects.requireNonNull(objectId, "objectId"));
 	}
 
 	/** A Dispute's grant: the Job Chat; never the Crew Chat or split versions. */
@@ -65,21 +59,12 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 		return Set.of(one(scope, reportedItemId));
 	}
 
-	/**
-	 * Whether this item covers the object {@code objectId} of {@code scope}, whose content involves
-	 * {@code involvedAccountIds} (for a Chat message: its author).
-	 */
-	public boolean covers(AdminReadScope scope, UUID objectId, Collection<UUID> involvedAccountIds) {
+	/** Whether this item covers the object {@code objectId} of {@code scope}. */
+	public boolean covers(AdminReadScope scope, UUID objectId) {
 		if (this.scope != scope) {
 			return false;
 		}
-		if (this.objectId != null) {
-			return this.objectId.equals(objectId);
-		}
-		if (this.accountId != null) {
-			return involvedAccountIds.contains(this.accountId);
-		}
-		return true;
+		return this.objectId == null || this.objectId.equals(objectId);
 	}
 
 }

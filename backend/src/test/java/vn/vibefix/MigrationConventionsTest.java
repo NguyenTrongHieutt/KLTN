@@ -49,10 +49,17 @@ class MigrationConventionsTest {
 	/**
 	 * The schemas of retired modules, which keep their Flyway history although {@link ModuleLayersTest}'s layer table
 	 * no longer names them: {@code work}, whose Board, Work Items and module Story 24.2 deleted with the schema. The
-	 * eleven {@code work/V2026*} files stay on disk, so the folder stays a legal place for a migration; nothing new
+	 * fifteen {@code work/V2026*} files stay on disk, so the folder stays a legal place for a migration; nothing new
 	 * may be added there, because the schema is gone.
 	 */
 	static final Set<String> RETIRED_SCHEMAS = Set.of("work");
+
+	/**
+	 * The migration that dropped each retired schema. Its folder stays a legal place for the files already there,
+	 * and for nothing newer: the schema is gone, so a later migration could only fail. Nothing else guards this --
+	 * {@link RetiredBoardTest} excludes {@code db/migration} by design, so the rule lives here.
+	 */
+	static final Map<String, String> RETIRED_AT = Map.of("work", "202611191100");
 
 	/** Every schema a migration could name: one per module, the retired ones, plus the framework schema. */
 	static final Set<String> SCHEMAS = schemas();
@@ -170,6 +177,19 @@ class MigrationConventionsTest {
 				"""))).isEmpty();
 	}
 
+	/** A retired schema keeps its history and takes nothing newer: the schema is gone, so a later file could only fail. */
+	@Test
+	void rejectsAMigrationAddedUnderARetiredSchema() {
+		assertThat(check(Map.of("work/V202611191100__work_retire_board.sql", "DROP SCHEMA work CASCADE;"))).isEmpty();
+		assertThat(check(Map.of("work/V202610210100__work_init.sql", "CREATE TABLE work.board (job_id UUID PRIMARY KEY);")))
+			.as("the history already there")
+			.isEmpty();
+		assertThat(check(Map.of("work/V202611200900__work_again.sql", "CREATE TABLE work.board (job_id UUID PRIMARY KEY);")))
+			.singleElement()
+			.asString()
+			.contains("was dropped by V202611191100");
+	}
+
 	@Test
 	void rejectsMisplacedOrMisnamedMigrations() {
 		assertThat(check(Map.of("V202611010900__identity_accounts.sql", "SELECT 1;"))).hasSize(1);
@@ -246,6 +266,11 @@ class MigrationConventionsTest {
 			String previous = versions.putIfAbsent(version, path);
 			if (previous != null) {
 				violations.add(path + ": duplicate version " + version + " (also " + previous + ")");
+			}
+			String droppedAt = RETIRED_AT.get(folder);
+			if (droppedAt != null && version.compareTo(droppedAt) > 0) {
+				violations.add(path + ": schema '" + folder + "' was dropped by V" + droppedAt
+						+ "; a retired schema's folder keeps its history and takes nothing newer");
 			}
 			violations.addAll(schemaViolations(path, folder, sql));
 		});

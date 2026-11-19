@@ -60,8 +60,8 @@ class SplitVersionGrants implements AdminReadGrants {
 		AdminReadGrant grant = AdminReadGrant.open(grantId, adminId, jobId, items, reasonId);
 		List<Map<String, String>> stored = new ArrayList<>();
 		for (AdminReadItem item : grant.items()) {
-			stored.add(Map.of("scope", item.scope().name(), "objectId", item.objectId() == null ? "" : item.objectId().toString(),
-					"accountId", item.accountId() == null ? "" : item.accountId().toString()));
+			stored.add(Map.of("scope", item.scope().name(), "objectId",
+					item.objectId() == null ? "" : item.objectId().toString()));
 		}
 		this.jdbc.sql("""
 				INSERT INTO job.admin_read_grant (grant_id, admin_account_id, job_id, items, reason_id)
@@ -93,7 +93,7 @@ class SplitVersionGrants implements AdminReadGrants {
 	List<EvidenceVersion> versions(UUID adminId, UUID jobId, UUID splitId) {
 		Instant now = this.clock.instant();
 		boolean permitted = grants(adminId, jobId).stream()
-			.anyMatch(grant -> grant.permits(adminId, jobId, AdminReadScope.SPLIT_VERSIONS, splitId, List.of(), now));
+			.anyMatch(grant -> grant.permits(adminId, jobId, AdminReadScope.SPLIT_VERSIONS, splitId, now));
 		if (!permitted) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
@@ -111,9 +111,8 @@ class SplitVersionGrants implements AdminReadGrants {
 			Set<AdminReadItem> items = new HashSet<>();
 			for (JsonNode item : JSON.readTree(rs.getString("items"))) {
 				String object = item.path("objectId").asString();
-				String account = item.path("accountId").asString();
 				items.add(new AdminReadItem(AdminReadScope.valueOf(item.path("scope").asString()),
-						object.isEmpty() ? null : UUID.fromString(object), account.isEmpty() ? null : UUID.fromString(account)));
+						object.isEmpty() ? null : UUID.fromString(object)));
 			}
 			Timestamp ends = rs.getTimestamp("ends_at");
 			return new AdminReadGrant(rs.getObject("grant_id", UUID.class), adminId, jobId, items,

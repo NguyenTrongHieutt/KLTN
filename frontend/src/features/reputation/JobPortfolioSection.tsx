@@ -176,11 +176,17 @@ function ApprovalForm({ jobId, portfolio, date }: { jobId: string; portfolio: Jo
   )
 }
 
+/**
+ * The person's own entry. A fact the server sends as absent is left out, never drawn as zero, for the reason
+ * {@code ReputationParts.EntryFacts} gives: vibefix freezes no count for a Job it did not count.
+ */
 function OwnEntryCard({ entry }: { entry: OwnEntry }) {
-  const facts =
+  const fact =
     entry.role === 'MENTOR'
-      ? [t('screen.portfolioSection.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 })]
-      : [t('screen.portfolioSection.commitsAuthored', { n: entry.commitsAuthored ?? 0 })]
+      ? entry.milestonesHandedOver != null &&
+        t('screen.portfolioSection.milestonesHandedOver', { n: entry.milestonesHandedOver })
+      : entry.commitsAuthored != null && t('screen.portfolioSection.commitsAuthored', { n: entry.commitsAuthored })
+  const facts = fact === false ? [] : [fact]
   return (
     <div className="flex flex-col gap-1 rounded-md border border-border bg-background p-3 text-body-sm">
       <h3 className="text-h3">{t('screen.portfolioSection.mine')}</h3>

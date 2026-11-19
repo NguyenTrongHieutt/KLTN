@@ -606,6 +606,41 @@ class CodeHandoverIT extends IntegrationTest {
 		preflight().andExpect(jsonPath("$.problems").isEmpty());
 	}
 
+	/**
+	 * Story 24.2: a submission sent before this story holds in its draft the notes on the Work Items that were not
+	 * done ({@code itemNotes}, Story 23.8a). The record no longer has that field, and the draft is read back from
+	 * JSONB when the copy ends, so a field the record lost must not fail that read: the handover would be lost
+	 * together with the run that carried it, and the Milestone would sit in Funded with its commits already pushed.
+	 */
+	@Test
+	void aSubmissionSentBeforeTheBoardWasRetiredIsStillRecordedWhenItsCopyEnds() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn()
+			.getResponse()
+			.getContentAsString(), "$.id"));
+		this.jdbc.sql("""
+				UPDATE delivery.handover_submission
+				SET draft = jsonb_set(draft, '{itemNotes}', CAST(:notes AS JSONB), true)
+				WHERE id = :id
+				""")
+			.param("notes", "[{\"workItemId\": \"" + UUID.randomUUID() + "\", \"key\": \"SDB-7\","
+					+ " \"title\": \"Sửa trang đặt bàn\", \"note\": \"Chưa làm kịp giai đoạn này\"}]")
+			.param("id", submission)
+			.update();
+
+		dispatchCopy();
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		assertThat(handoverStatus(submission)).as("the handover was recorded from the legacy draft").isEqualTo("SUBMITTED");
+		assertThat(this.jdbc.sql("""
+				SELECT met || ' ' || note FROM delivery.handover_criterion WHERE handover_id = :id
+				""").param("id", submission).query(String.class).single())
+			.as("the Mentor's own marks came through the read")
+			.isEqualTo("true Đạt: không còn đặt trùng.");
+	}
+
 	/** One copy at a time: a second "Gửi bàn giao" while the runner copies is refused. */
 	@Test
 	void aSecondHandoverWhileTheRunnerCopiesIsRefused() throws Exception {

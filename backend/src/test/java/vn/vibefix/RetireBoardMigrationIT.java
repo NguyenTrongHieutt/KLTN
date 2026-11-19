@@ -24,12 +24,14 @@ import vn.vibefix.support.PostgresTestDatabase;
  * scopes in all three schemas, and two Portfolio Entries frozen before the story.
  * <p>
  * Afterwards the schema {@code work} is gone with its seven tables, {@code delivery.handover_item_note} and
- * {@code delivery.handover_commit.work_item_keys} are gone while the commit keeps its SHA, message and author, each
- * surviving grant reads back with its remaining items, the retired notices and to-dos are gone while another type
+ * {@code delivery.handover_commit.work_item_keys} are gone while the commit keeps its SHA, message and author, the
+ * grant that still covers the Job Chat keeps that one item and its open end while the grant of retired scopes alone
+ * is deleted, no stored item names an account any more, the retired notices and to-dos are gone while another type
  * stays, the Attachment's stored file is marked deleted while the Crew Chat's is untouched, the publication to the
  * deleted listener is gone while another stays, and {@code reputation.portfolio_entry} carries
- * {@code commits_authored} in place of the two Board facts, NULL on the rows frozen before. What stays: the audit
- * entries of every Work Item action (AD-8), and the Job, its Milestones, its handover and its money.
+ * {@code commits_authored} in place of the two Board facts, NULL on the rows frozen before, which still publish.
+ * What stays: the audit entries of every Work Item action (AD-8), and the Job, its Milestones, its handover and its
+ * money.
  */
 class RetireBoardMigrationIT {
 
@@ -78,7 +80,13 @@ class RetireBoardMigrationIT {
 			 {"scope": "ATTACHMENTS", "objectId": "", "accountId": ""}]
 			""";
 
-	/** A grant that held nothing but retired scopes keeps an empty list, never the NULL jsonb_agg would give. */
+	/**
+	 * A grant that held nothing but retired scopes is deleted, not emptied: {@link vn.vibefix.shared.AdminReadGrant}
+	 * refuses a grant that covers nothing, and every reader builds the record from the row before it filters by
+	 * Administrator, Job or time -- so one such row would make every grant read of that Administrator on the Job
+	 * fail. Its one item also names an account, the only breadth {@code involving} ever stored (always of
+	 * {@code WORK_ITEMS}), which is why no stored item names an account after the strip.
+	 */
 	private static final String RETIRED_ONLY = """
 			[{"scope": "WORK_ITEMS", "objectId": "", "accountId": "%s"}]
 			""".formatted(CREW);
@@ -111,12 +119,18 @@ class RetireBoardMigrationIT {
 			assertThat(rows(db, """
 					SELECT grant_id::text || ':' || coalesce((SELECT string_agg(item ->> 'scope', ',' ORDER BY item ->> 'scope')
 					    FROM jsonb_array_elements(items) AS item), '-') FROM %s.admin_read_grant ORDER BY grant_id
-					""".formatted(schema))).as(schema)
-				.containsExactly(GRANT + ":JOB_CHAT", "00000000-0000-7000-8000-000000241002:-");
+					""".formatted(schema))).as("%s: the grant of retired scopes alone is deleted, not emptied", schema)
+				.containsExactly(GRANT + ":JOB_CHAT");
 			assertThat(rows(db, "SELECT (ends_at IS NULL)::text FROM %s.admin_read_grant WHERE grant_id = '%s'"
 					.formatted(schema, GRANT)))
 				.as("%s: a grant that still serves its case keeps its end open", schema)
 				.containsExactly("true");
+			assertThat(rows(db, """
+					SELECT count(*)::text FROM %s.admin_read_grant g, jsonb_array_elements(g.items) AS item
+					WHERE item ->> 'accountId' <> ''
+					""".formatted(schema)))
+				.as("%s: no stored item names an account, so no read of one can widen", schema)
+				.containsExactly("0");
 		}
 
 		assertThat(rows(db, "SELECT type FROM notification.notification ORDER BY type"))
@@ -145,6 +159,18 @@ class RetireBoardMigrationIT {
 				FROM reputation.portfolio_entry ORDER BY role
 				""")).as("a Crew entry frozen before this story counts no commit, and the Mentor's keeps its Milestones")
 			.containsExactly("CREW:-:-", "MENTOR:-:1");
+		// A row constraint is evaluated on every later INSERT and UPDATE, not only when it is added: publishing an
+		// entry frozen before this story is an UPDATE, so a constraint that required a count would refuse it for good.
+		execute(db, "UPDATE reputation.portfolio_entry SET published_at = now()");
+		assertThat(rows(db, """
+				SELECT role FROM reputation.portfolio_entry WHERE published_at IS NOT NULL ORDER BY role
+				""")).as("both entries still publish, counted or not").containsExactly("CREW", "MENTOR");
+		assertThat(refused(db, "UPDATE reputation.portfolio_entry SET commits_authored = 2 WHERE role = 'MENTOR'"))
+			.as("a Mentor entry counts no commit of its own")
+			.contains("portfolio_entry_crew_facts");
+		assertThat(refused(db, "UPDATE reputation.portfolio_entry SET milestones_handed_over = 2 WHERE role = 'CREW'"))
+			.as("a Crew entry hands nothing over")
+			.contains("portfolio_entry_mentor_facts");
 
 		assertThat(rows(db, "SELECT id || ':' || action FROM audit.audit_entry ORDER BY id"))
 			.as("no audit row is touched")
@@ -257,6 +283,17 @@ class RetireBoardMigrationIT {
 					""".formatted(schema, GRANT, ADMIN, JOB, DISPUTE_ITEMS.strip(), RETIRED_ONLY.strip()));
 		}
 		return statements.toArray(String[]::new);
+	}
+
+	/** The message of the error {@code sql} raises; it must raise one. */
+	private static String refused(String db, String sql) throws SQLException {
+		try {
+			execute(db, sql);
+		}
+		catch (SQLException refused) {
+			return refused.getMessage();
+		}
+		throw new AssertionError("Expected a refusal: " + sql);
 	}
 
 	private static Flyway flyway(String db, String target) {
