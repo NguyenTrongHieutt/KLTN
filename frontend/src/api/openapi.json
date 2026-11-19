@@ -1604,36 +1604,6 @@
         "tags" : [ "admin-split-evidence-controller" ]
       }
     },
-    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items" : {
-      "get" : {
-        "operationId" : "workItems_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "resolutionId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/SplitEvidenceWorkItemView"
-                  }
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-split-evidence-controller" ]
-      }
-    },
     "/api/v1/admin/split-resolutions/{resolutionId}/preview" : {
       "post" : {
         "operationId" : "preview_1",
@@ -3323,68 +3293,6 @@
           }
         },
         "tags" : [ "team-issue-controller" ]
-      }
-    },
-    "/api/v1/boards/{boardId}/work-items" : {
-      "get" : {
-        "operationId" : "workItems",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "boardId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/BoardView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      },
-      "post" : {
-        "operationId" : "createWorkItem",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "boardId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/WorkItemRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "board-controller" ]
       }
     },
     "/api/v1/catalog" : {
@@ -7948,366 +7856,6 @@
         "tags" : [ "verification-controller" ]
       }
     },
-    "/api/v1/work-item-notes/{workItemNoteId}" : {
-      "get" : {
-        "operationId" : "note",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemNoteId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemNoteView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}" : {
-      "get" : {
-        "operationId" : "workItem",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      },
-      "put" : {
-        "operationId" : "updateWorkItem",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/WorkItemRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/attachments" : {
-      "post" : {
-        "operationId" : "attachFile",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "query",
-          "name" : "sensitive",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "multipart/form-data" : {
-              "schema" : {
-                "type" : "object",
-                "properties" : {
-                  "file" : {
-                    "type" : "string",
-                    "format" : "binary"
-                  }
-                },
-                "required" : [ "file" ]
-              }
-            }
-          }
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/attachments/{attachmentId}" : {
-      "delete" : {
-        "operationId" : "removeAttachment",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "in" : "path",
-          "name" : "attachmentId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/links" : {
-      "post" : {
-        "operationId" : "attachLink",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/LinkRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/move" : {
-      "post" : {
-        "operationId" : "moveWorkItem",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/MoveRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/notes" : {
-      "post" : {
-        "operationId" : "addNote",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/NoteRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/review" : {
-      "post" : {
-        "operationId" : "reviewWorkItem",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/ReviewRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
-    "/api/v1/work-items/{workItemId}/submit" : {
-      "post" : {
-        "operationId" : "submitWorkItem",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "workItemId",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/SubmitRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/WorkItemDetailView"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "board-controller" ]
-      }
-    },
     "/github/actions/exchange" : {
       "post" : {
         "operationId" : "exchange",
@@ -10177,85 +9725,6 @@
         },
         "required" : [ "caption", "kind", "position" ]
       },
-      "BoardMilestoneView" : {
-        "type" : "object",
-        "properties" : {
-          "held" : {
-            "type" : "boolean"
-          },
-          "milestoneId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "held", "milestoneId", "number", "title" ]
-      },
-      "BoardView" : {
-        "type" : "object",
-        "properties" : {
-          "boardId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "code" : {
-            "type" : "string"
-          },
-          "crew" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/CrewPickView"
-            }
-          },
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/WorkItemCardView"
-            }
-          },
-          "leavers" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/LeaverView"
-            }
-          },
-          "mentor" : {
-            "type" : "boolean"
-          },
-          "milestones" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/BoardMilestoneView"
-            }
-          },
-          "noCrew" : {
-            "type" : "boolean"
-          },
-          "readOnly" : {
-            "type" : "boolean"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "viewerId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "workload" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/WorkloadView"
-            }
-          }
-        },
-        "required" : [ "boardId", "code", "crew", "items", "leavers", "mentor", "milestones", "noCrew", "readOnly", "title", "viewerId", "workload" ]
-      },
       "BusyView" : {
         "type" : "object",
         "properties" : {
@@ -10900,32 +10369,6 @@
           }
         },
         "required" : [ "chatId", "readOnly", "unread" ]
-      },
-      "ChecklistLineRequest" : {
-        "type" : "object",
-        "properties" : {
-          "done" : {
-            "type" : "boolean"
-          },
-          "text" : {
-            "type" : "string",
-            "maxLength" : 300,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "done", "text" ]
-      },
-      "ChecklistLineView" : {
-        "type" : "object",
-        "properties" : {
-          "done" : {
-            "type" : "boolean"
-          },
-          "text" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "done", "text" ]
       },
       "ChoiceView" : {
         "type" : "object",
@@ -11609,22 +11052,6 @@
         },
         "required" : [ "amountVnd", "erased", "name" ]
       },
-      "CrewPickView" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "available" : {
-            "type" : "boolean"
-          },
-          "name" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "accountId", "available", "name" ]
-      },
       "CrewProgressView" : {
         "type" : "object",
         "properties" : {
@@ -11705,24 +11132,6 @@
           }
         },
         "required" : [ "criterionId", "kind" ]
-      },
-      "CriterionLinkView" : {
-        "type" : "object",
-        "properties" : {
-          "criterionId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "milestoneNumber" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "criterionId", "milestoneNumber", "number" ]
       },
       "CriterionRequest" : {
         "type" : "object",
@@ -11985,12 +11394,6 @@
             "type" : "string",
             "format" : "uuid"
           },
-          "itemNotes" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HandoverItemNoteView"
-            }
-          },
           "jobId" : {
             "type" : "string",
             "format" : "uuid"
@@ -12033,7 +11436,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "itemNotes", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
+        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
       },
       "DisputeDecisionRequest" : {
         "type" : "object",
@@ -12190,6 +11593,10 @@
       "EntryView" : {
         "type" : "object",
         "properties" : {
+          "commitsAuthored" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "jobTypes" : {
             "type" : "array",
             "items" : {
@@ -12208,10 +11615,6 @@
             "type" : "string",
             "format" : "date-time"
           },
-          "reviewsWritten" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "role" : {
             "type" : "string"
           },
@@ -12223,10 +11626,6 @@
           },
           "title" : {
             "type" : "string"
-          },
-          "workItemsApproved" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
         "required" : [ "jobTypes", "milestones", "role", "skills", "title" ]
@@ -12654,15 +12053,9 @@
           "takenAt" : {
             "type" : "string",
             "format" : "date-time"
-          },
-          "workItems" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SnapshotWorkItem"
-            }
           }
         },
-        "required" : [ "agreementVersions", "driftWarnings", "jobChat", "payments", "reports", "statements", "takenAt", "workItems" ]
+        "required" : [ "agreementVersions", "driftWarnings", "jobChat", "payments", "reports", "statements", "takenAt" ]
       },
       "ExecutionView" : {
         "type" : "object",
@@ -13330,15 +12723,9 @@
           },
           "sha" : {
             "type" : "string"
-          },
-          "workItemKeys" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
           }
         },
-        "required" : [ "message", "sha", "workItemKeys" ]
+        "required" : [ "message", "sha" ]
       },
       "HandoverCriterionInputView" : {
         "type" : "object",
@@ -13438,43 +12825,6 @@
           }
         },
         "required" : [ "releaseVnd", "revisionAllowed" ]
-      },
-      "HandoverItemNoteRequest" : {
-        "type" : "object",
-        "properties" : {
-          "note" : {
-            "type" : "string",
-            "maxLength" : 2000,
-            "minLength" : 0
-          },
-          "workItemId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "note", "workItemId" ]
-      },
-      "HandoverItemNoteView" : {
-        "type" : "object",
-        "properties" : {
-          "key" : {
-            "type" : "string"
-          },
-          "note" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "workItemId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "key", "note", "status", "title", "workItemId" ]
       },
       "HandoverLinkView" : {
         "type" : "object",
@@ -13583,15 +12933,9 @@
           "version" : {
             "type" : "integer",
             "format" : "int64"
-          },
-          "workItems" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HandoverWorkItemView"
-            }
           }
         },
-        "required" : [ "assessment", "commitCount", "criteria", "milestone", "previewRequired", "problems", "screenshots", "sensitiveChanges", "state", "version", "workItems" ]
+        "required" : [ "assessment", "commitCount", "criteria", "milestone", "previewRequired", "problems", "screenshots", "sensitiveChanges", "state", "version" ]
       },
       "HandoverPreviewView" : {
         "type" : "object",
@@ -13616,14 +12960,6 @@
               "$ref" : "#/components/schemas/HandoverCriterionMarkRequest"
             },
             "maxItems" : 100,
-            "minItems" : 0
-          },
-          "itemNotes" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HandoverItemNoteRequest"
-            },
-            "maxItems" : 200,
             "minItems" : 0
           },
           "milestoneId" : {
@@ -13764,28 +13100,6 @@
         },
         "required" : [ "auto", "checkBy", "createdAt", "id", "milestoneTitle", "number", "round", "status" ]
       },
-      "HandoverWorkItemView" : {
-        "type" : "object",
-        "properties" : {
-          "approved" : {
-            "type" : "boolean"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "key" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "approved", "id", "key", "status", "title" ]
-      },
       "HeldMilestoneView" : {
         "type" : "object",
         "properties" : {
@@ -13817,47 +13131,6 @@
           }
         },
         "required" : [ "reason" ]
-      },
-      "HistoryEntryView" : {
-        "type" : "object",
-        "properties" : {
-          "action" : {
-            "type" : "string"
-          },
-          "actor" : {
-            "type" : "string"
-          },
-          "assignedTo" : {
-            "type" : "string"
-          },
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "attachment" : {
-            "type" : "string"
-          },
-          "comment" : {
-            "type" : "string"
-          },
-          "fields" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "mine" : {
-            "type" : "boolean"
-          },
-          "quoted" : {
-            "$ref" : "#/components/schemas/QuotedNoteView"
-          }
-        },
-        "required" : [ "action", "actor", "at", "fields", "id", "mine" ]
       },
       "HistoryJobTypeView" : {
         "type" : "object",
@@ -14633,39 +13906,6 @@
           }
         }
       },
-      "LeaverView" : {
-        "type" : "object",
-        "properties" : {
-          "leftAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "name" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "leftAt", "name" ]
-      },
-      "LinkRequest" : {
-        "type" : "object",
-        "properties" : {
-          "label" : {
-            "type" : "string",
-            "maxLength" : 200,
-            "minLength" : 0
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
-          "url" : {
-            "type" : "string",
-            "maxLength" : 2000,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "url" ]
-      },
       "LinkedInFact" : {
         "type" : "object",
         "properties" : {
@@ -15309,20 +14549,6 @@
         },
         "required" : [ "createdAt", "id", "kind", "title" ]
       },
-      "MoveRequest" : {
-        "type" : "object",
-        "properties" : {
-          "to" : {
-            "type" : "string",
-            "enum" : [ "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE" ]
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "to", "version" ]
-      },
       "MyDataView" : {
         "type" : "object",
         "properties" : {
@@ -15444,25 +14670,6 @@
           }
         },
         "required" : [ "checkSteps", "statement" ]
-      },
-      "NoteRequest" : {
-        "type" : "object",
-        "properties" : {
-          "quotes" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
-          "text" : {
-            "type" : "string",
-            "maxLength" : 4000,
-            "minLength" : 0
-          }
-        },
-        "required" : [ "text" ]
       },
       "NotificationItem" : {
         "type" : "object",
@@ -15949,25 +15156,16 @@
         },
         "required" : [ "crew", "mentor", "newcomer" ]
       },
-      "PersonView" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "name" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "accountId", "name" ]
-      },
       "PortfolioEntry" : {
         "type" : "object",
         "properties" : {
           "closedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "commitsAuthored" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "jobTypes" : {
             "type" : "array",
@@ -15990,10 +15188,6 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "reviewsWritten" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "role" : {
             "type" : "string"
           },
@@ -16008,10 +15202,6 @@
           },
           "title" : {
             "type" : "string"
-          },
-          "workItemsApproved" : {
-            "type" : "integer",
-            "format" : "int32"
           }
         },
         "required" : [ "closedAt", "jobTypes", "milestones", "role", "skills", "title" ]
@@ -16523,26 +15713,6 @@
         },
         "required" : [ "priceVnd", "timelineDays" ]
       },
-      "QuotedNoteView" : {
-        "type" : "object",
-        "properties" : {
-          "actor" : {
-            "type" : "string"
-          },
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "text" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "actor", "at", "id", "text" ]
-      },
       "RaiseTeamIssueRequest" : {
         "type" : "object",
         "properties" : {
@@ -17014,51 +16184,6 @@
         },
         "required" : [ "stepUpCode" ]
       },
-      "ReviewRequest" : {
-        "type" : "object",
-        "properties" : {
-          "comment" : {
-            "type" : "string",
-            "maxLength" : 4000,
-            "minLength" : 0
-          },
-          "decision" : {
-            "type" : "string",
-            "enum" : [ "APPROVE", "RETURN" ]
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "decision", "version" ]
-      },
-      "ReviewView" : {
-        "type" : "object",
-        "properties" : {
-          "action" : {
-            "type" : "string"
-          },
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "by" : {
-            "type" : "string"
-          },
-          "comment" : {
-            "type" : "string"
-          },
-          "selfCheck" : {
-            "$ref" : "#/components/schemas/SelfCheckView"
-          }
-        },
-        "required" : [ "action", "at", "by" ]
-      },
       "RevocationChecklistView" : {
         "type" : "object",
         "properties" : {
@@ -17443,42 +16568,6 @@
           }
         },
         "required" : [ "version" ]
-      },
-      "SelfCheckRequest" : {
-        "type" : "object",
-        "properties" : {
-          "docsUpdated" : {
-            "type" : "boolean"
-          },
-          "meetsCriteria" : {
-            "type" : "boolean"
-          },
-          "noSecrets" : {
-            "type" : "boolean"
-          },
-          "tested" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "docsUpdated", "meetsCriteria", "noSecrets", "tested" ]
-      },
-      "SelfCheckView" : {
-        "type" : "object",
-        "properties" : {
-          "docsUpdated" : {
-            "type" : "boolean"
-          },
-          "meetsCriteria" : {
-            "type" : "boolean"
-          },
-          "noSecrets" : {
-            "type" : "boolean"
-          },
-          "tested" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "docsUpdated", "meetsCriteria", "noSecrets", "tested" ]
       },
       "SendRequest" : {
         "type" : "object",
@@ -17973,27 +17062,6 @@
         },
         "required" : [ "side", "submittedAt" ]
       },
-      "SnapshotWorkItem" : {
-        "type" : "object",
-        "properties" : {
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "workItemId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "number", "status", "version", "workItemId" ]
-      },
       "SourceAppInstallLinkView" : {
         "type" : "object",
         "properties" : {
@@ -18229,25 +17297,6 @@
         },
         "required" : [ "handoverId", "message", "round", "sha" ]
       },
-      "SplitEvidenceHistoryView" : {
-        "type" : "object",
-        "properties" : {
-          "action" : {
-            "type" : "string"
-          },
-          "actorName" : {
-            "type" : "string"
-          },
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "comment" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "action", "at" ]
-      },
       "SplitEvidenceLineView" : {
         "type" : "object",
         "properties" : {
@@ -18365,15 +17414,9 @@
             "items" : {
               "$ref" : "#/components/schemas/SplitSnapshotVersion"
             }
-          },
-          "workItems" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SplitSnapshotWorkItem"
-            }
           }
         },
-        "required" : [ "commits", "crewChat", "personLinks", "takenAt", "versions", "workItems" ]
+        "required" : [ "commits", "crewChat", "personLinks", "takenAt", "versions" ]
       },
       "SplitEvidenceVersionView" : {
         "type" : "object",
@@ -18423,34 +17466,6 @@
           }
         },
         "required" : [ "parties", "versions" ]
-      },
-      "SplitEvidenceWorkItemView" : {
-        "type" : "object",
-        "properties" : {
-          "assigneeName" : {
-            "type" : "string"
-          },
-          "history" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SplitEvidenceHistoryView"
-            }
-          },
-          "key" : {
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "workItemId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "history", "key", "status", "title", "workItemId" ]
       },
       "SplitLineView" : {
         "type" : "object",
@@ -18775,27 +17790,6 @@
         },
         "required" : [ "confirmations", "createdAt", "kind", "versionNo" ]
       },
-      "SplitSnapshotWorkItem" : {
-        "type" : "object",
-        "properties" : {
-          "number" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "workItemId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "number", "status", "version", "workItemId" ]
-      },
       "SplitVersionRequest" : {
         "type" : "object",
         "properties" : {
@@ -18949,28 +17943,6 @@
           }
         },
         "required" : [ "method", "school", "validUntil", "verifiedAt" ]
-      },
-      "SubmitRequest" : {
-        "type" : "object",
-        "properties" : {
-          "note" : {
-            "type" : "string",
-            "maxLength" : 4000,
-            "minLength" : 0
-          },
-          "selfCheck" : {
-            "$ref" : "#/components/schemas/SelfCheckRequest"
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "selfCheck", "version" ]
       },
       "SuggestedInactiveSkill" : {
         "type" : "object",
@@ -19516,230 +18488,6 @@
         },
         "required" : [ "sharedAt", "versionNo" ]
       },
-      "WorkAttachmentView" : {
-        "type" : "object",
-        "properties" : {
-          "addedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "author" : {
-            "type" : "string"
-          },
-          "domain" : {
-            "type" : "string"
-          },
-          "downloadUrl" : {
-            "type" : "string"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "kind" : {
-            "type" : "string"
-          },
-          "mediaType" : {
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "removable" : {
-            "type" : "boolean"
-          },
-          "size" : {
-            "type" : "integer",
-            "format" : "int64"
-          },
-          "url" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "addedAt", "author", "id", "kind", "name", "removable" ]
-      },
-      "WorkItemCardView" : {
-        "type" : "object",
-        "properties" : {
-          "assignee" : {
-            "$ref" : "#/components/schemas/PersonView"
-          },
-          "checklistDone" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "checklistTotal" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "criterion" : {
-            "$ref" : "#/components/schemas/CriterionLinkView"
-          },
-          "description" : {
-            "type" : "string"
-          },
-          "estimateHours" : {
-            "type" : "number"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "key" : {
-            "type" : "string"
-          },
-          "milestoneId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "priority" : {
-            "type" : "string"
-          },
-          "returnedReason" : {
-            "type" : "string"
-          },
-          "seeded" : {
-            "type" : "boolean"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "type" : {
-            "type" : "string"
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "checklistDone", "checklistTotal", "description", "id", "key", "seeded", "status", "title", "type", "version" ]
-      },
-      "WorkItemDetailView" : {
-        "type" : "object",
-        "properties" : {
-          "attachments" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/WorkAttachmentView"
-            }
-          },
-          "checklist" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ChecklistLineView"
-            }
-          },
-          "createdAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "createdBy" : {
-            "type" : "string"
-          },
-          "history" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/HistoryEntryView"
-            }
-          },
-          "item" : {
-            "$ref" : "#/components/schemas/WorkItemCardView"
-          },
-          "readOnly" : {
-            "type" : "boolean"
-          },
-          "review" : {
-            "$ref" : "#/components/schemas/ReviewView"
-          }
-        },
-        "required" : [ "attachments", "checklist", "createdAt", "history", "item", "readOnly" ]
-      },
-      "WorkItemNoteView" : {
-        "type" : "object",
-        "properties" : {
-          "at" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "author" : {
-            "type" : "string"
-          },
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "itemKey" : {
-            "type" : "string"
-          },
-          "itemTitle" : {
-            "type" : "string"
-          },
-          "text" : {
-            "type" : "string"
-          },
-          "workItemId" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        },
-        "required" : [ "at", "author", "id", "itemKey", "itemTitle", "text", "workItemId" ]
-      },
-      "WorkItemRequest" : {
-        "type" : "object",
-        "properties" : {
-          "assigneeId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "checklist" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ChecklistLineRequest"
-            },
-            "maxItems" : 20,
-            "minItems" : 0
-          },
-          "description" : {
-            "type" : "string",
-            "maxLength" : 4000,
-            "minLength" : 0
-          },
-          "estimateHours" : {
-            "type" : "number",
-            "maximum" : 999,
-            "minimum" : 0.5
-          },
-          "milestoneId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "priority" : {
-            "type" : "string",
-            "enum" : [ "HIGH", "MEDIUM", "LOW" ]
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
-          "title" : {
-            "type" : "string",
-            "maxLength" : 500,
-            "minLength" : 0
-          },
-          "type" : {
-            "type" : "string",
-            "enum" : [ "STORY", "TASK", "BUG" ]
-          },
-          "version" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        },
-        "required" : [ "milestoneId", "title", "type" ]
-      },
       "WorkflowCheckView" : {
         "type" : "object",
         "properties" : {
@@ -19766,26 +18514,6 @@
           }
         },
         "required" : [ "blob", "content", "path" ]
-      },
-      "WorkloadView" : {
-        "type" : "object",
-        "properties" : {
-          "accountId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "estimateHours" : {
-            "type" : "number"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "openItems" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "accountId", "estimateHours", "name", "openItems" ]
       }
     }
   }

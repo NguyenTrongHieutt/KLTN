@@ -15,7 +15,6 @@ import {
   useAbuseReportCommand,
   useAbuseReports,
   useReportedMessage,
-  useReportedNote,
   type AbuseAction,
   type AbuseReport,
 } from './adminAbuseReportsApi'
@@ -175,31 +174,23 @@ function Detail({ data }: { data: AbuseReport }) {
   )
 }
 
-/** The one message or note the report names, read under its grant; the note says each read is recorded. */
+/**
+ * The one message the report names, read under its grant; the note says each read is recorded. Story 24.2 retired
+ * the Board, so a Chat message is the only Job content a report can name.
+ */
 function ReportedItem({ data }: { data: AbuseReport }) {
-  const chat = data.kind === 'JOB_CHAT_MESSAGE' || data.kind === 'CREW_CHAT_MESSAGE'
-  const message = useReportedMessage(data.targetId, chat)
-  const note = useReportedNote(data.targetId, data.kind === 'WORK_ITEM_NOTE')
-  const query = chat ? message : note
+  const message = useReportedMessage(data.targetId, true)
   return (
     <div className="flex flex-col gap-1 rounded-md border border-border p-3">
       <span className="text-label">{t('screen.admin.reports.item')}</span>
       <span className="text-caption text-muted-foreground">{t('screen.admin.reports.itemNote')}</span>
-      <RegionState query={query} skeleton={<Skeleton className="h-16 w-full" />}>
-        {chat && message.data && (
+      <RegionState query={message} skeleton={<Skeleton className="h-16 w-full" />}>
+        {message.data && (
           <>
             <p className="text-caption text-muted-foreground">
               {message.data.author} · {formatDayMonthTime(message.data.sentAt)}
             </p>
             <p className="break-words whitespace-pre-line">{message.data.body}</p>
-          </>
-        )}
-        {!chat && note.data && (
-          <>
-            <p className="text-caption text-muted-foreground">
-              {note.data.itemKey} {note.data.itemTitle} · {note.data.author} · {formatDayMonthTime(note.data.at)}
-            </p>
-            <p className="break-words whitespace-pre-line">{note.data.text}</p>
           </>
         )}
       </RegionState>

@@ -25,9 +25,8 @@ const entry = (role: string, title: string, overrides: object = {}) => ({
   skills: ['React'],
   closedAt: '2026-09-20T03:00:00Z',
   milestones: 2,
-  workItemsApproved: role === 'CREW' ? 4 : undefined,
+  commitsAuthored: role === 'CREW' ? 4 : undefined,
   milestonesHandedOver: role === 'MENTOR' ? 2 : undefined,
-  reviewsWritten: role === 'MENTOR' ? 5 : undefined,
   ...overrides,
 })
 

@@ -1,12 +1,8 @@
 import { Info, TriangleAlert } from 'lucide-react'
 import { Link } from 'react-router'
-import type { components } from '@/api/schema'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { useJobRole } from '@/features/job/jobRoleApi'
 import { t } from '@/i18n/t'
-import { formatDayMonth } from '@/lib/dates'
-
-type Leaver = components['schemas']['LeaverView']
 
 /**
  * The No-Crew banner on JOB-H, so on JOB-1 and JOB-2 too (FR-82, Q7, R8, UX-DR104): for the Mentor of a Job in Starting
@@ -51,25 +47,3 @@ export function NoCrewAlert({ jobId, mentor }: { jobId: string; mentor: string }
   )
 }
 
-/**
- * "{name} đã rời công việc ngày {date}" on JOB-2, for the Mentor, while a former member's open Work Items wait to be
- * assigned again (UX-DR104): one text for a leave and a lock, so nobody can tell them apart. The Board is its only
- * surface since Story 24.2a -- JOB-1 and JOB-9 read it from JOB-1's progress, which carries no Work Item any more.
- */
-export function CrewLeftLines({ leavers }: { leavers: Leaver[] | undefined }) {
-  if (!leavers || leavers.length === 0) {
-    return null
-  }
-  return (
-    <ul className="flex flex-col gap-1.5">
-      {leavers.map((leaver) => (
-        <li
-          key={`${leaver.name}-${leaver.leftAt}`}
-          className="rounded-md border-l-4 border-warning bg-warning-soft px-4 py-3 text-body-sm break-words"
-        >
-          {t('screen.crew.leftLine', { name: leaver.name, date: formatDayMonth(leaver.leftAt) })}
-        </li>
-      ))}
-    </ul>
-  )
-}

@@ -177,7 +177,7 @@ function AssessmentCopyLink({ jobId }: { jobId: string }) {
     >
       <ExternalLink aria-hidden="true" className="size-4" />
       {t(own.accepted ? 'screen.progress.assessmentCopy' : 'screen.progress.assessmentCopyInvitation')}
-      <span className="sr-only"> ({t('screen.board.attachments.external')})</span>
+      <span className="sr-only"> ({t('screen.progress.externalLink')})</span>
     </a>
   )
 }

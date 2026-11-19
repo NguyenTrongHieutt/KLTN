@@ -25,14 +25,9 @@ export function CrewJobCard({ job }: { job: MyJob }) {
       <ExternalAccessSection jobId={job.jobId} level={3} />
       <div className="flex flex-wrap gap-2">
         {hasBoard(job.state) && (
-          <>
-            <Link to={`/cong-viec/${job.jobId}`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
-              {t('screen.job.detail.overview')}
-            </Link>
-            <Link to={`/cong-viec/${job.jobId}/bang`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
-              {t('screen.board.tab')}
-            </Link>
-          </>
+          <Link to={`/cong-viec/${job.jobId}`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+            {t('screen.job.detail.overview')}
+          </Link>
         )}
         <Link
           to={`/cong-viec/${job.jobId}/trao-doi-nhom`}

@@ -131,7 +131,6 @@ const record = {
   evidenceSnapshot: {
     takenAt: '2026-10-25T03:00:00Z',
     versions: [],
-    workItems: [],
     commits: [],
     crewChat: { messageCount: 0 },
     personLinks: 0,
@@ -246,19 +245,6 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
       'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
       'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
       ...emptyEvidence,
-      'GET /api/v1/admin/split-resolutions/r1/evidence/work-items': () =>
-        json([
-          {
-            workItemId: 'w1',
-            key: 'VNM-1',
-            title: 'Làm phần thanh toán',
-            status: 'DONE',
-            assigneeName: 'Trần Thảo Vy',
-            history: [
-              { action: 'RETURNED', actorName: 'Đỗ Mạnh Hùng', comment: 'Sửa lại', at: '2026-10-10T03:00:00Z' },
-            ],
-          },
-        ]),
       'GET /api/v1/admin/split-resolutions/r1/evidence/commits': () =>
         json([
           {
@@ -301,11 +287,9 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     expect(versions).toBeInTheDocument()
     expect(screen.getByText(/Trần Thảo Vy · 70%/)).toHaveTextContent('xác nhận')
     expect(screen.getByText(/Không còn thông tin về thời gian tham gia/)).toBeInTheDocument()
-    expect(seen.some((request) => request.url.endsWith('/evidence/work-items'))).toBe(false)
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Hạng mục' }))
-    expect(await screen.findByText('Làm phần thanh toán')).toBeInTheDocument()
-    expect(screen.getByText(/Sửa lại/)).toBeInTheDocument()
+    // Story 24.2 retired the Work Items tab: the Package is the versions, the commits, the Crew Chat and the links.
+    expect(screen.queryByRole('tab', { name: 'Hạng mục' })).toBeNull()
+    expect(seen.some((request) => request.url.includes('/evidence/commits'))).toBe(false)
 
     fireEvent.click(screen.getByRole('tab', { name: 'Commit' }))
     expect(await screen.findByText(/Trần Thảo Vy · GitHub 42/)).toBeInTheDocument()
@@ -339,7 +323,6 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
           evidenceSnapshot: {
             takenAt: '2026-10-25T03:00:00Z',
             versions: [],
-            workItems: [],
             commits: [],
             crewChat: { messageCount: 0 },
             personLinks: 0,

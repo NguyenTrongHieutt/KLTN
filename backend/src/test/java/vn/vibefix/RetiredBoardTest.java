@@ -28,9 +28,10 @@ import tools.jackson.databind.json.JsonMapper;
  * One name keeps its place on purpose: the URL prefix {@code /api/v1/boards/{boardId}}, which every Job-scoped
  * endpoint of several modules still uses and which names the Job, never a Board. Story 24.2a re-homed JOB-1's
  * progress endpoint under it while the module still stood, and renaming the prefix is no part of this story.
- * {@code screen.admin.reports.kind.WORK_ITEM_NOTE} is gone with the kind: unlike Story 24.1's {@code PAGE},
- * ADM-7 labels a reported Work Item note nowhere, because no such report was ever filed on the dev database and
- * {@code AbuseReports.KINDS} no longer accepts the kind.
+ * {@code screen.admin.reports.kind.WORK_ITEM_NOTE} also keeps its place, as Story 24.1's {@code PAGE} does: it
+ * labels the Abuse Reports filed on a Work Item note before this story, which no migration deletes, so ADM-7 still
+ * has to name their kind. The kind is gone from {@code AbuseReports.KINDS} and from the SPA's {@code ReportKind},
+ * so no new one can carry it.
  */
 class RetiredBoardTest {
 
@@ -88,7 +89,9 @@ class RetiredBoardTest {
 		for (String screen : List.of("board", "workItem", "attachment", "workload")) {
 			assertThat(vi.path("screen").has(screen)).as("screen.%s", screen).isFalse();
 		}
-		assertThat(vi.at("/screen/admin/reports/kind").has("WORK_ITEM_NOTE")).as("ADM-7's kind").isFalse();
+		assertThat(vi.at("/screen/admin/reports/kind/WORK_ITEM_NOTE").asString())
+			.as("ADM-7 still labels the reports filed before this story")
+			.isEqualTo("Ghi chú công việc");
 		assertThat(vi.at("/screen/admin/statistics/group").has("acceptedMilestones"))
 			.as("FR-62's section over accepted Milestones takes its place").isTrue();
 		assertThat(vi.at("/screen/handover/sensitive/title").asString())
@@ -103,6 +106,9 @@ class RetiredBoardTest {
 			.doesNotContain("\"WORK_ITEM_NOTE\"");
 		assertThat(RetiredPagesTest.read(javaSource("admin/internal/ContentHiding.java"))).as("ContentHiding.KINDS")
 			.doesNotContain("\"WORK_ITEM_NOTE\"");
+		assertThat(RetiredPagesTest.read(FRONTEND_SRC.resolve(Path.of("features", "abuse", "ReportAbuseMenu.tsx"))))
+			.as("the SPA's ReportKind")
+			.doesNotContain("WORK_ITEM_NOTE");
 	}
 
 	/** AD-20's surviving scopes: the two Chats and one Milestone Split's versions, and nothing else. */

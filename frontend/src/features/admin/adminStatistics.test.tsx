@@ -113,11 +113,11 @@ describe('ADM-9 rates and averages (FR-62, Story 17.2)', () => {
               ],
             },
             {
-              group: 'workItemReviews',
+              group: 'acceptedMilestones',
               counts: [
                 { key: 'FIRST_PASS', value: 2, unit: 'COUNT' },
                 { key: 'FIRST_PASS_SHARE', value: 667, unit: 'PERCENT_TENTHS' },
-                { key: 'RETURNED', value: 1, unit: 'COUNT' },
+                { key: 'AFTER_REVISION', value: 1, unit: 'COUNT' },
               ],
             },
             {
@@ -137,8 +137,9 @@ describe('ADM-9 rates and averages (FR-62, Story 17.2)', () => {
     expect(within(rates).getByText('Hoàn thành (trên số công việc đã kết thúc sau thỏa thuận)')).toBeInTheDocument()
     expect(within(rates).getByText('75,0 %')).toBeInTheDocument()
     expect(within(rates).getByText('50,0 %')).toBeInTheDocument()
-    const reviews = screen.getByRole('region', { name: 'Việc được duyệt' })
-    expect(within(reviews).getByText('66,7 %')).toBeInTheDocument()
+    const accepted = screen.getByRole('region', { name: 'Giai đoạn được nghiệm thu' })
+    expect(within(accepted).getByText('66,7 %')).toBeInTheDocument()
+    expect(within(accepted).getByText('Nghiệm thu sau khi yêu cầu sửa')).toBeInTheDocument()
     const ratings = screen.getByRole('region', { name: 'Đánh giá công khai' })
     expect(within(ratings).getByText('Khách hàng chấm người hướng dẫn: trung bình (sao)')).toBeInTheDocument()
     expect(within(ratings).getByText('4,5')).toBeInTheDocument()

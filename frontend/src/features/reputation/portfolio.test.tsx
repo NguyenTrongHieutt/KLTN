@@ -70,7 +70,6 @@ const mentorEntry = {
   skills: ['React'],
   milestones: 1,
   milestonesHandedOver: 1,
-  reviewsWritten: 4,
   publishedAt: null,
 }
 
@@ -110,7 +109,7 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Hồ sơ năng lực' })).closest('section')!
-    expect(within(section).getByText(/1 giai đoạn đã bàn giao · 4 lượt duyệt việc/)).toBeInTheDocument()
+    expect(within(section).getByText(/1 giai đoạn đã bàn giao/)).toBeInTheDocument()
     expect(within(section).getByText('Kỹ năng: React')).toBeInTheDocument()
     expect(within(section).getByText(/sẽ đăng sau khi bạn xác nhận đã xóa dữ liệu/)).toBeInTheDocument()
     await user.type(within(section).getByLabelText('Tóm tắt (tối đa 600 ký tự)'), 'Nhóm đánh giá toàn bộ luồng.')
@@ -191,8 +190,7 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
               ...mentorEntry,
               role: 'CREW',
               milestonesHandedOver: null,
-              reviewsWritten: null,
-              workItemsApproved: 3,
+              commitsAuthored: 3,
               publishedAt: '2026-10-21T03:00:00Z',
             },
           }),
@@ -201,7 +199,7 @@ describe('JOB-1 portfolio section (FR-50, UX-DR55)', () => {
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Hồ sơ năng lực' })).closest('section')!
-    expect(within(section).getByText(/3 việc hoàn thành qua duyệt/)).toBeInTheDocument()
+    expect(within(section).getByText(/3 commit trong giai đoạn đã nghiệm thu/)).toBeInTheDocument()
     expect(within(section).getByText('Đã đăng lên hồ sơ công khai của bạn.')).toBeInTheDocument()
     expect(within(section).getByText('Bản đã duyệt.')).toBeInTheDocument()
     expect(within(section).queryByRole('button')).toBeNull()

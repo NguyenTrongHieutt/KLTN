@@ -20,7 +20,6 @@ export type ReportKind =
   | 'RATING'
   | 'JOB_CHAT_MESSAGE'
   | 'CREW_CHAT_MESSAGE'
-  | 'WORK_ITEM_NOTE'
   | 'USER'
   | 'RECRUITMENT_NOTE'
 

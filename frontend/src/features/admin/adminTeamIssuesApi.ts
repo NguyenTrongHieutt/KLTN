@@ -62,13 +62,3 @@ export function useCrewChatEvidence(jobId: string, enabled: boolean) {
     retry: false,
   })
 }
-
-/** The raiser's Work Items with their history, as far as the grant covers them. */
-export function useWorkEvidence(jobId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ['admin', 'evidence', 'work', jobId],
-    queryFn: () => unwrap(apiClient.GET('/api/v1/boards/{boardId}/work-items', { params: { path: { boardId: jobId } } })),
-    enabled,
-    retry: false,
-  })
-}

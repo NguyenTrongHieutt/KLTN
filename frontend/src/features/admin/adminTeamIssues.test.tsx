@@ -100,7 +100,7 @@ describe('ADM-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR84)', () => {
 
     expect(await screen.findByText('Mình làm tiếp phần đặt bàn nhé')).toBeInTheDocument()
     const tabs = within(screen.getByRole('tablist', { name: 'Hồ sơ bằng chứng nội bộ' })).getAllByRole('tab')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Trao đổi nhóm', 'Lịch sử công việc', 'Điểm'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Trao đổi nhóm', 'Điểm'])
     await user.click(screen.getByRole('tab', { name: 'Điểm' }))
     expect(screen.getByText('2 sao')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: /điểm phần trăm/ })).toBeNull()

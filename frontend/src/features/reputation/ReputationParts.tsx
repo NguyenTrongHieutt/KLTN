@@ -102,11 +102,8 @@ export function PortfolioSection({
 function EntryFacts({ entry }: { entry: PortfolioEntry }) {
   const facts =
     entry.role === 'MENTOR'
-      ? [
-          t('screen.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 }),
-          t('screen.reputation.portfolioFacts.reviewsWritten', { n: entry.reviewsWritten ?? 0 }),
-        ]
-      : [t('screen.reputation.portfolioFacts.workItemsApproved', { n: entry.workItemsApproved ?? 0 })]
+      ? [t('screen.reputation.portfolioFacts.milestonesHandedOver', { n: entry.milestonesHandedOver ?? 0 })]
+      : [t('screen.reputation.portfolioFacts.commitsAuthored', { n: entry.commitsAuthored ?? 0 })]
   return (
     <p className="flex flex-wrap items-center gap-1.5 text-caption">
       <span>{facts.join(' · ')}</span>

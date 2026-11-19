@@ -44,10 +44,7 @@ export function MentorJobTabs({
       tabs={[
         { key: 'overview', to: `/cong-viec/${jobId}`, label: t('screen.job.detail.overview') },
         ...(hasBoard(state)
-          ? [
-              { key: 'board', to: `/cong-viec/${jobId}/bang`, label: t('screen.board.tab') },
-              { key: 'handover', to: `/cong-viec/${jobId}/ban-giao`, label: t('screen.handover.tab') },
-            ]
+          ? [{ key: 'handover', to: `/cong-viec/${jobId}/ban-giao`, label: t('screen.handover.tab') }]
           : []),
         ...(hasChat(state)
           ? [

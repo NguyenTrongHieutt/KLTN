@@ -65,7 +65,6 @@ const report = (overrides: object = {}) => ({
   assessment: true,
   audience: 'CUSTOMER',
   criteria: [criterion('c1', 1, 'Báo cáo nêu đủ chín mục'), criterion('c2', 2, 'Có giải thích thuật ngữ')],
-  itemNotes: [],
   version: 13,
   roundsLeft: 2,
   decision: { releaseVnd: 1000001, revisionAllowed: true },

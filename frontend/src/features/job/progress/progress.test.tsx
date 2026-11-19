@@ -271,7 +271,9 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.getByText('Đang làm · hạn 20/11')).toBeInTheDocument()
     expect(screen.getByText('Chờ khách thanh toán')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: 'Việc của tôi' })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Bảng công việc' })).toHaveAttribute('href', '/cong-viec/j1/bang')
+    // Story 24.2: the Board is retired, so JOB-1 offers the handovers and the Crew Chat, never a Board.
+    expect(screen.queryByRole('link', { name: 'Bảng công việc' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Bàn giao' })).toHaveAttribute('href', '/cong-viec/j1/ban-giao')
   })
 
   it('states the Revision Rounds left and what the Mentor must fix (FR-33, FR-34)', { timeout: 20_000 }, async () => {

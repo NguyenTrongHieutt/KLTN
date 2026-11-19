@@ -83,23 +83,3 @@ export function useJobChatEvidence(jobId: string) {
   })
 }
 
-/** "Công việc": the Work Items, which `work` serves under the grant. */
-export function useBoardEvidence(jobId: string) {
-  return useQuery({
-    queryKey: [...EVIDENCE_QUERY_KEY, 'work-items', jobId],
-    queryFn: () => unwrap(apiClient.GET('/api/v1/boards/{boardId}/work-items', { params: { path: { boardId: jobId } } })),
-    retry: false,
-    staleTime: Infinity,
-  })
-}
-
-/** One Work Item with its reviews, notes, Attachments, and history. */
-export function useWorkItemEvidence(workItemId: string) {
-  return useQuery({
-    queryKey: [...EVIDENCE_QUERY_KEY, 'work-item', workItemId],
-    queryFn: () => unwrap(apiClient.GET('/api/v1/work-items/{workItemId}', { params: { path: { workItemId } } })),
-    retry: false,
-    staleTime: Infinity,
-  })
-}
-

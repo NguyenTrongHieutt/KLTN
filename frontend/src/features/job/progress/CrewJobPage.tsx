@@ -62,17 +62,10 @@ function Content({ me }: { me: CrewMe }) {
         <JobRoleLine jobId={jobId} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav aria-label={t('screen.job.detail.tabs')} className="flex flex-wrap gap-2">
-            {boardLinks && (
-              <>
-                <Link to={`/cong-viec/${jobId}/bang`} className={tab}>
-                  {t('screen.board.tab')}
-                </Link>
-                {!me.former && (
-                  <Link to={`/cong-viec/${jobId}/ban-giao`} className={tab}>
-                    {t('screen.handover.tab')}
-                  </Link>
-                )}
-              </>
+            {boardLinks && !me.former && (
+              <Link to={`/cong-viec/${jobId}/ban-giao`} className={tab}>
+                {t('screen.handover.tab')}
+              </Link>
             )}
             <Link to={`/cong-viec/${jobId}/trao-doi-nhom`} className={tab}>
               {t('screen.crewChat.tab')}

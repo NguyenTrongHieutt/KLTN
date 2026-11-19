@@ -58,14 +58,3 @@ export function useReportedMessage(messageId: string, enabled: boolean) {
   })
 }
 
-/** The reported Work Item note, which `work` serves under the report's grant and audits. */
-export function useReportedNote(noteId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: [...REPORTS_QUERY_KEY, 'note', noteId],
-    queryFn: () =>
-      unwrap(apiClient.GET('/api/v1/work-item-notes/{workItemNoteId}', { params: { path: { workItemNoteId: noteId } } })),
-    enabled,
-    retry: false,
-    staleTime: Infinity,
-  })
-}

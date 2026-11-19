@@ -103,19 +103,6 @@ export function useSplitEvidenceVersions(resolutionId: string) {
 }
 
 /** "Hạng mục": each party's Work Items of the Milestone with their histories. */
-export function useSplitEvidenceWorkItems(resolutionId: string) {
-  return useQuery({
-    queryKey: evidenceKey(resolutionId, 'work-items'),
-    queryFn: () =>
-      unwrap(
-        apiClient.GET('/api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items', {
-          params: { path: { resolutionId } },
-        }),
-      ),
-    retry: false,
-  })
-}
-
 /** "Commit": the Handover Commits' authors by GitHub numeric ID, matched to the parties. */
 export function useSplitEvidenceCommits(resolutionId: string) {
   return useQuery({
