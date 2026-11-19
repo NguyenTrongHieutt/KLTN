@@ -2691,15 +2691,14 @@
       "SETTLED": "Đã phân xử",
       "customer": {
         "unpaid": "Chưa thanh toán",
-        "funded": "Đang làm · {done}/{total} tiêu chí đã xong",
-        "revision": "Đang sửa theo yêu cầu · {done}/{total} tiêu chí đã xong",
+        "funded": "Đang làm",
+        "revision": "Đang sửa theo yêu cầu",
         "submitted": "Đã bàn giao · chờ bạn nghiệm thu"
       },
       "team": {
         "unpaid": "Chờ khách thanh toán",
         "funded": "Đang làm",
         "fundedDue": "Đang làm · hạn {date}",
-        "inReview": "{n} hạng mục chờ duyệt",
         "revision": "Cần sửa theo yêu cầu",
         "submitted": "Chờ khách nghiệm thu",
         "revisionCount": "Cần sửa: {n} tiêu chí · còn {r} lượt"
@@ -2711,8 +2710,6 @@
     "progress": {
       "milestones": "Các giai đoạn",
       "milestone": "Giai đoạn {n} · {title}",
-      "bar": "Tiến độ giai đoạn {n}",
-      "barText": "{done} trên {total} tiêu chí đã xong",
       "due": "Hạn {date}",
       "crew": "Nhóm thực hiện",
       "noCrew": "Chưa có thành viên nào đang làm.",
@@ -2721,8 +2718,6 @@
         "ACTIVE": "Đang tham gia",
         "RELEASED": "Đã rời"
       },
-      "mine": "Việc của tôi",
-      "noOpenItems": "Không có việc nào đang mở.",
       "n12": "Mã của khách hàng có thể chứa phần mềm độc hại. Hãy chạy nó trong môi trường tách biệt (máy ảo hoặc container), không dùng tài khoản và khóa cá nhân của bạn, và xóa môi trường khi xong.",
       "aside": "Thông tin công việc",
       "deadline": "Hạn sắp tới",
@@ -2787,7 +2782,7 @@
       "form": {
         "title": "Tạo bàn giao",
         "heading": "Bàn giao Giai đoạn {n} · {title}",
-        "lead": "Khách hàng sẽ kiểm tra từng tiêu chí theo báo cáo này. Nhận xét Đạt hay Chưa đạt là của bạn, không được tính là tiêu chí đã xong.",
+        "lead": "Khách hàng sẽ kiểm tra từng tiêu chí theo báo cáo này. Nhận xét Đạt hay Chưa đạt là của bạn; quyết định nghiệm thu là của khách hàng.",
         "items": "Hạng mục công việc",
         "noItems": "Giai đoạn này chưa có hạng mục nào.",
         "approved": "Đã duyệt",

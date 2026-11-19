@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -19,8 +20,7 @@ import vn.vibefix.work.MilestoneWork;
 
 /**
  * {@link MilestoneWork} (FR-10, FR-32, AD-39): a Work Item counts as done for a handover only in "Xong"
- * with the Mentor's approval, or their own unreviewed move, as its latest review entry, as {@code work.criteriaDone}
- * counts it.
+ * with the Mentor's approval, or their own unreviewed move, as its latest review entry.
  */
 @Component
 class WorkMilestones implements MilestoneWork {
@@ -95,9 +95,17 @@ class WorkMilestones implements MilestoneWork {
 			.param("job", jobId)
 			.param("milestone", milestoneId)
 			.query((rs, n) -> new ItemState(rs.getObject("id", UUID.class), rs.getString("code") + "-" + rs.getInt("number"),
-					rs.getString("title"), rs.getString("status"),
-					"DONE".equals(rs.getString("status")) && List.of("APPROVED", "UNREVIEWED").contains(rs.getString("review"))))
+					rs.getString("title"), rs.getString("status"), approved(rs.getString("status"), rs.getString("review"))))
 			.list();
+	}
+
+	/**
+	 * Whether the Work Item counts as done for a handover (R8): in "Xong" with the Mentor's approval, or their own
+	 * unreviewed move, as its latest review entry. A Work Item nobody has submitted yet has no review entry at all,
+	 * and {@code review} is then null -- which is not an approval.
+	 */
+	private static boolean approved(@Nullable String status, @Nullable String review) {
+		return "DONE".equals(status) && ("APPROVED".equals(review) || "UNREVIEWED".equals(review));
 	}
 
 }

@@ -15,14 +15,11 @@ import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { PersonProfileContent } from '@/features/identity/PersonProfile'
 import { VerifiedFactLines } from '@/features/identity/VerifiedFacts'
-import { CrewLeftLines } from '@/features/crew/NoCrew'
 import { JobPhaseBadge, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { useReputationHistories, type Histories } from '@/features/reputation/historyApi'
 import { HistoryRegion, RoleSummaryLine } from '@/features/reputation/RoleHistories'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { useJobProgress } from '@/features/work/progress/progressApi'
-import { hasBoard } from '@/features/work/workApi'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth } from '@/lib/dates'
@@ -84,7 +81,6 @@ export function RecruitmentPage() {
 }
 
 function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruitment }) {
-  const progress = useJobProgress(hasBoard(job.state) ? job.id : undefined)
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -103,7 +99,6 @@ function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruit
         <JobRoleLine jobId={job.id} />
         <MentorJobTabs jobId={job.id} state={job.state} current="recruitment" payment={job.agreementConfirmed} />
       </div>
-      <CrewLeftLines leavers={progress.data?.leavers} />
       {recruitment.state === 'AGREEMENT' && !recruitment.signedMember && (
         <div role="alert" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />

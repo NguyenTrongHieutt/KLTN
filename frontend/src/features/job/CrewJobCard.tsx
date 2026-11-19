@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { ExternalAccessSection } from '@/features/agreement/ExternalAccessSection'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '@/features/job/jobState'
 import { t } from '@/i18n/t'
 import type { MyJob } from './jobRoleApi'
 

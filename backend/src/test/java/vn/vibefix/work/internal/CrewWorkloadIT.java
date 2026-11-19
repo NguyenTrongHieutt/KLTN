@@ -32,8 +32,8 @@ import vn.vibefix.support.TestPeople;
 /**
  * Story 11.2 (FR-23, FR-26, AD-41, UX-DR37, UX-DR68), with {@code features.largeCrews} on: the Mentor's
  * picker lists the active, unlocked members and one whose lock is not carried out yet disabled; the workload line counts each
- * active member's open Work Items and estimated hours for the Mentor only; JOB-1 names every member's
- * AD-41 state.
+ * active member's open Work Items and estimated hours for the Mentor only. JOB-1's own Crew list, with every
+ * member's AD-41 state, is {@code job.internal.ProgressIT}'s since Story 24.2a.
  */
 @TestPropertySource(properties = "vibefix.features.large-crews=true")
 class CrewWorkloadIT extends IntegrationTest {
@@ -138,19 +138,6 @@ class CrewWorkloadIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.crew.length()").value(0))
 			.andExpect(jsonPath("$.workload.length()").value(0));
-	}
-
-	@Test
-	void theMentorsCrewListNamesEveryMembersState() throws Exception {
-		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.crew.length()").value(5))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Trần Thảo Vy')].state").value("ACTIVE"))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Trần Thảo Vy')].openItems.length()").value(2))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Lê Minh Tùng')].state").value("ACTIVE"))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Nguyễn Văn Minh')].state").value("ACTIVE"))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Phạm Thu An')].state").value("ASSIGNED"))
-			.andExpect(jsonPath("$.crew[?(@.name == 'Hoàng Kim Ngân')].state").value("RELEASED"));
 	}
 
 	private void assign(UUID item, UUID assignee, String hours, String status) {

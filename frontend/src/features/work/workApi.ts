@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
+import type { Resolution } from '@/features/delivery/SensitiveDialog'
 import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 
 export type Board = components['schemas']['BoardView']
@@ -8,23 +9,6 @@ export type WorkItemDetail = components['schemas']['WorkItemDetailView']
 export type WorkItemRequest = components['schemas']['WorkItemRequest']
 export type WorkAttachment = components['schemas']['WorkAttachmentView']
 export type HistoryEntry = components['schemas']['HistoryEntryView']
-
-/** What the writer chose after the FR-47 warning: check first, or store the masked text. */
-export type Resolution = 'CHECK' | 'MASK'
-
-/** One masked FR-47 match, as the warning dialog lists it. */
-export interface SensitiveMatch {
-  kind: string
-  type: string
-  masked: string
-}
-
-/** The Job states with a Board: from Active on (J7 seeds it, FR-22). */
-const BOARD_STATES = ['ACTIVE', 'CLOSING', 'CLOSED']
-
-export function hasBoard(state: string): boolean {
-  return BOARD_STATES.includes(state)
-}
 
 /** The four Board statuses in their order (AD-39): Cần làm → Đang làm → Chờ duyệt → Xong. */
 export const STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'] as const

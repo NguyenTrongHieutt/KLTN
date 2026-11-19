@@ -104,7 +104,6 @@ class WorkReads {
 				audit(viewer, AuditObject.of("work.board", viewer.board().jobId()));
 				yield granted;
 			}
-			case CUSTOMER -> throw new ApiException(ErrorCode.NOT_FOUND);
 		};
 	}
 
@@ -126,7 +125,6 @@ class WorkReads {
 				audit(viewer, AuditObject.of("work.work_item", item.id()));
 				yield item;
 			}
-			case CUSTOMER -> throw new ApiException(ErrorCode.NOT_FOUND);
 		};
 	}
 
@@ -226,7 +224,6 @@ class WorkReads {
 				Instant cutoff = cutoff(viewer);
 				yield !attachment.addedAt().isAfter(cutoff) && !attachment.removedBy(cutoff);
 			}
-			case CUSTOMER -> false;
 		};
 	}
 

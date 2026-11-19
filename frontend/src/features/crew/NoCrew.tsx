@@ -52,8 +52,9 @@ export function NoCrewAlert({ jobId, mentor }: { jobId: string; mentor: string }
 }
 
 /**
- * "{name} đã rời công việc ngày {date}" on JOB-1, JOB-2 and JOB-9, for the Mentor, while a former member's open Work
- * Items wait to be assigned again (UX-DR104): one text for a leave and a lock, so nobody can tell them apart.
+ * "{name} đã rời công việc ngày {date}" on JOB-2, for the Mentor, while a former member's open Work Items wait to be
+ * assigned again (UX-DR104): one text for a leave and a lock, so nobody can tell them apart. The Board is its only
+ * surface since Story 24.2a -- JOB-1 and JOB-9 read it from JOB-1's progress, which carries no Work Item any more.
  */
 export function CrewLeftLines({ leavers }: { leavers: Leaver[] | undefined }) {
   if (!leavers || leavers.length === 0) {

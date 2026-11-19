@@ -142,7 +142,7 @@ class OverdueIT extends IntegrationTest {
 			.andExpect(jsonPath("$.milestones[0].overdueSince").doesNotExist());
 	}
 
-	/** An Active Job with a Board and a confirmed Agreement: its one Milestone, due 20/01, Funded. */
+	/** An Active Job with a confirmed Agreement: its one Milestone, due 20/01, Funded. */
 	private UUID world() {
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
@@ -190,9 +190,6 @@ class OverdueIT extends IntegrationTest {
 				    funded_at)
 				VALUES (:id, :job, 0, 'Sửa lỗi trùng giờ', 800000, :due, 2, :now, 'FUNDED', :now)
 				""").param("id", this.milestone).param("job", job).param("due", DUE).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
-				""").param("job", job).param("product", product).param("now", now).update();
 		Timestamp signed = Timestamp.from(this.clock.instant().minus(Duration.ofDays(5)));
 		this.jdbc.sql("""
 				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)

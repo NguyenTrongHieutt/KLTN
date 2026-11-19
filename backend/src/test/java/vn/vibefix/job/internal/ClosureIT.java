@@ -118,12 +118,17 @@ class ClosureIT extends IntegrationTest {
 			.andExpect(jsonPath("$.state").value("CLOSED"));
 		command(this.vy, Role.STUDENT, "decline", 8).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
+		// The Mentor still reads Vy on the roster, so the former member's empty Crew is their audience's, not the Job's.
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.audience").value("MENTOR"))
+			.andExpect(jsonPath("$.crew[?(@.name == 'Trần Thảo Vy')].state").value("RELEASED"));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.vy, Role.STUDENT)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.audience").value("FORMER"))
 			.andExpect(jsonPath("$.state").value("CLOSED"))
 			.andExpect(jsonPath("$.milestones.length()").value(0))
-			.andExpect(jsonPath("$.mine.length()").value(0));
+			.andExpect(jsonPath("$.crew.length()").value(0));
 		assertThat(notifications("job.job_closing")).isEqualTo(3);
 		assertThat(notifications("job.job_closed")).isEqualTo(3);
 		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'job.answer_closure' AND closed_at IS NULL"))

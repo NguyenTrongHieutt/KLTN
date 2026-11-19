@@ -1,5 +1,3 @@
-import { CrewLeftLines } from '@/features/crew/NoCrew'
-import { DriftWarning } from '@/features/job/DriftWarning'
 import { ExternalLink, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router'
 import { RegionState } from '@/components/RegionState'
@@ -8,6 +6,7 @@ import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { FollowUpSection } from '@/features/delivery/FollowUpSection'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
+import { DriftWarning } from '@/features/job/DriftWarning'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
@@ -27,13 +26,14 @@ import { useJobProgress, type JobProgress, type MilestoneProgress } from './prog
 export type ProgressAudience = 'customer' | 'mentor' | 'crew'
 
 /**
- * JOB-1 from Active on (FR-28, AD-33, AD-39, UX-DR14, UX-DR19, UX-DR32, UX-DR68, UX-DR71): each
- * Milestone's card with its status text, price, progress bar, and due date; the Job's most urgent to-do;
- * and a side column with the next due date, the people, and the Product.
- * The Mentor also sees the Crew with each member's open Work Items; a Crew member sees their own and
- * N-12. On an Assessment Job the Mentor and the Crew get N-12 and, under it, their own link to the private read-only
- * copy they may read (FR-10, UX-DR8, R6, Story 23.11b). The Customer never sees a Work Item. It polls every 30 s. A
- * cancelled Job shows it when it had a Board (`optional`: nothing when it never did).
+ * JOB-1 from Active on (FR-28, AD-33, UX-DR14, UX-DR19, UX-DR32, UX-DR68, UX-DR71): each Milestone's card
+ * with its status text, price, and due date; the Job's most urgent to-do; and a side column with the next due
+ * date, the people, and the Product. No card carries a progress figure: the platform no longer tracks the
+ * team's tasks (Story 24.2a), and the per-criterion detail the Customer decides on is in each Delivery Report.
+ * The Mentor also sees the Crew with each member's state. On an Assessment Job the Mentor and the Crew get N-12
+ * and, under it, their own link to the private read-only copy they may read (FR-10, UX-DR8, R6, Story 23.11b).
+ * It polls every 30 s. A cancelled Job shows it when the Job answers at all (`optional`: nothing when it does
+ * not).
  */
 export function ProgressOverview({
   jobId,
@@ -70,7 +70,6 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
           </p>
         )}
         {audience !== 'customer' && progress.assessment && <AssessmentCopyLink jobId={jobId} />}
-        <CrewLeftLines leavers={progress.leavers} />
         {!progress.assessment && <DriftWarning jobId={jobId} />}
         <DisputeSection jobId={jobId} />
         {audience === 'mentor' && <JobTeamIssues jobId={jobId} />}
@@ -79,23 +78,28 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         <CancellationSection jobId={jobId} />
         {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
         {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
-        {progress.assessment && <FollowUpSection jobId={jobId} />}
-        <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
-          <h2 id="progress-milestones" className="text-h2">
-            {t('screen.progress.milestones')}
-          </h2>
-          <ul className="flex flex-col gap-3">
-            {progress.milestones.map((milestone) => (
-              <MilestoneCard
-                key={milestone.milestoneId}
-                jobId={jobId}
-                milestone={milestone}
-                audience={audience}
-                nextToFund={milestone.milestoneId === nextToFund}
-              />
-            ))}
-          </ul>
-        </section>
+        {/* FR-11: the Customer answers the follow-ups here, and `assessment` is false for them by design, so the
+            section decides for itself -- it renders nothing for a Mentor with none to send and a Customer with none
+            to answer. */}
+        <FollowUpSection jobId={jobId} />
+        {progress.milestones.length > 0 && (
+          <section aria-labelledby="progress-milestones" className="flex flex-col gap-3">
+            <h2 id="progress-milestones" className="text-h2">
+              {t('screen.progress.milestones')}
+            </h2>
+            <ul className="flex flex-col gap-3">
+              {progress.milestones.map((milestone) => (
+                <MilestoneCard
+                  key={milestone.milestoneId}
+                  jobId={jobId}
+                  milestone={milestone}
+                  audience={audience}
+                  nextToFund={milestone.milestoneId === nextToFund}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
         {audience === 'mentor' && (
           <section aria-labelledby="progress-crew" className="flex flex-col gap-3">
             <h2 id="progress-crew" className="text-h2">
@@ -106,26 +110,18 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             ) : (
               <ul className="flex flex-col gap-3">
                 {progress.crew.map((member) => (
-                  <li key={member.accountId} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-label font-semibold">{member.name}</p>
-                      <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', crewStateTone(member.state))}>
-                        {t(`screen.progress.crewState.${member.state}` as MessageKey)}
-                      </span>
-                    </div>
-                    <ItemList items={member.openItems} jobId={jobId} empty={t('screen.progress.noOpenItems')} />
+                  <li
+                    key={member.accountId}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4"
+                  >
+                    <p className="text-label font-semibold">{member.name}</p>
+                    <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', crewStateTone(member.state))}>
+                      {t(`screen.progress.crewState.${member.state}` as MessageKey)}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
-          </section>
-        )}
-        {audience === 'crew' && (
-          <section aria-labelledby="progress-mine" className="flex flex-col gap-3">
-            <h2 id="progress-mine" className="text-h2">
-              {t('screen.progress.mine')}
-            </h2>
-            <ItemList items={progress.mine} jobId={jobId} empty={t('screen.progress.noOpenItems')} />
           </section>
         )}
       </div>
@@ -220,13 +216,9 @@ function MilestoneCard({
   nextToFund: boolean
 }) {
   const textAudience = audience === 'customer' ? 'customer' : 'mentor'
-  const percent = milestone.total === 0 ? 0 : Math.round((milestone.done / milestone.total) * 100)
   const text = milestoneStateText(milestone.state, textAudience, {
-    done: milestone.done,
-    total: milestone.total,
     nextToFund,
     dueOn: milestone.dueOn,
-    inReview: audience === 'mentor' ? milestone.inReview : 0,
     roundsLeft: milestone.roundsLeft,
     revisionCriteria: milestone.revisionCriteria,
     autoAccepted: milestone.autoAccepted,
@@ -247,17 +239,6 @@ function MilestoneCard({
           </span>
         </span>
       </div>
-      <div
-        role="progressbar"
-        aria-label={t('screen.progress.bar', { n: milestone.number })}
-        aria-valuemin={0}
-        aria-valuemax={milestone.total}
-        aria-valuenow={milestone.done}
-        aria-valuetext={t('screen.progress.barText', { done: milestone.done, total: milestone.total })}
-        className="h-2 w-full overflow-hidden rounded-full bg-muted"
-      >
-        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-      </div>
       <p className="flex flex-wrap gap-x-5 gap-y-1 text-body-sm tabular-nums">
         {milestone.priceVnd != null && (
           <span>
@@ -274,25 +255,6 @@ function MilestoneCard({
 /** AD-41: an active member reads as success, and the rest muted. */
 function crewStateTone(state: string): string {
   return state === 'ACTIVE' ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'
-}
-
-function ItemList({ items, jobId, empty }: { items: JobProgress['mine']; jobId: string; empty: string }) {
-  if (items.length === 0) {
-    return <p className="text-body-sm text-muted-foreground">{empty}</p>
-  }
-  return (
-    <ul className="flex flex-col gap-1 text-body-sm">
-      {items.map((item) => (
-        <li key={item.id} className="flex flex-wrap items-center gap-2">
-          <code className="font-mono text-caption">{item.key}</code>
-          <Link to={`/cong-viec/${jobId}/bang`} className="break-words text-primary underline-offset-4 hover:underline">
-            {item.title}
-          </Link>
-          <span className="text-caption text-muted-foreground">{t(`screen.board.status.${item.status}` as MessageKey)}</span>
-        </li>
-      ))}
-    </ul>
-  )
 }
 
 /** The Job's most urgent to-do (UX-DR14), when the viewer has one on this Job. */

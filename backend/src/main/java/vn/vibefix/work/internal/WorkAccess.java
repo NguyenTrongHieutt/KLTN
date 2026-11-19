@@ -30,17 +30,16 @@ import vn.vibefix.work.internal.Boards.Board;
  * ({@link WorkReads});</li>
  * <li>an Administrator reads only what an open {@code WORK_ITEMS} grant covers, each read audited.</li>
  * </ul>
- * An {@code ASSIGNED} Student and everyone else find nothing. The Job's Customer reaches no Work Item
- * either (AD-39): they reach only JOB-1's progress, through {@link #progressReader}.
+ * An {@code ASSIGNED} Student and everyone else find nothing. The Job's Customer reaches no {@code work}
+ * surface at all (AD-39): JOB-1's progress is {@code job}'s own endpoint (Story 24.2a).
  */
 @Component
 class WorkAccess {
 
 	enum Kind {
-		MENTOR, CREW, FORMER, ADMIN,
 
-		/** The Job's Customer: JOB-1's progress only, never the Board (AD-39). */
-		CUSTOMER
+		MENTOR, CREW, FORMER, ADMIN
+
 	}
 
 	/** A span of a former member's time on the Crew, both ends included. */
@@ -153,26 +152,6 @@ class WorkAccess {
 			}
 			default -> throw new ApiException(ErrorCode.NOT_FOUND);
 		};
-	}
-
-	/**
-	 * A reader of JOB-1's progress (FR-28, AD-39): as {@link #reader}, and also the Job's Customer, who
-	 * reads the Milestones but no Work Item. vibefix keeps no documents (Story 24.1), so a Customer reaches
-	 * no Board content through this reader either. An Administrator is no viewer of
-	 * JOB-1 at all, whatever grant they hold: {@link ProgressController} answers {@code NOT_FOUND} to every
-	 * {@code ADMIN} viewer, and the Evidence Package is where a case reads a Job (AD-20).
-	 */
-	@Transactional(readOnly = true)
-	BoardViewer progressReader(UUID boardId, Caller caller) {
-		Board board = this.boards.board(boardId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (!this.roles.roleOf(board.jobId(), caller).isCustomer()) {
-			return reader(boardId, caller);
-		}
-		UUID account = caller.requireAccountId();
-		JobPostState post = this.posts.post(board.jobId())
-			.filter(found -> found.mentorId() != null)
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		return viewer(board, post, account, Kind.CUSTOMER, List.of(), List.of());
 	}
 
 	/** A caller who may write the Board now. */

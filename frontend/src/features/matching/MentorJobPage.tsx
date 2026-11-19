@@ -20,11 +20,11 @@ import { MentorJobTabs } from './MentorJobTabs'
 import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from './mentorJobApi'
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
-import { ProgressOverview } from '@/features/work/progress/ProgressOverview'
+import { ProgressOverview } from '@/features/job/progress/ProgressOverview'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { SetupTracker } from '@/features/job/SetupTracker'
-import { hasBoard } from '@/features/work/workApi'
+import { hasBoard } from '@/features/job/jobState'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text

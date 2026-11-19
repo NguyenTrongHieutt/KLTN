@@ -5,20 +5,12 @@ import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { SensitiveDialog, type Resolution, type SensitiveMatch } from '@/features/delivery/SensitiveDialog'
 import { precheckAttachment } from '@/features/files/uploadRules'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatSize } from '@/lib/fileSize'
-import { SensitiveDialog } from './SensitiveDialog'
-import {
-  useAttachFile,
-  useAttachLink,
-  useRemoveAttachment,
-  type Resolution,
-  type SensitiveMatch,
-  type WorkAttachment,
-  type WorkItemDetail,
-} from './workApi'
+import { useAttachFile, useAttachLink, useRemoveAttachment, type WorkAttachment, type WorkItemDetail } from './workApi'
 import { sensitiveMatches, workRefusal } from './workRefusal'
 
 const itemClass =

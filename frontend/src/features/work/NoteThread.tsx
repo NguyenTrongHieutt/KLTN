@@ -3,11 +3,11 @@ import { inputClass } from '@/components/formField-props'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { ReportAbuseMenu } from '@/features/abuse/ReportAbuseMenu'
+import { SensitiveDialog, type Resolution, type SensitiveMatch } from '@/features/delivery/SensitiveDialog'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
-import { SensitiveDialog } from './SensitiveDialog'
 import { entryText } from './historyText'
-import { useAddNote, type HistoryEntry, type Resolution, type SensitiveMatch, type WorkItemDetail } from './workApi'
+import { useAddNote, type HistoryEntry, type WorkItemDetail } from './workApi'
 import { sensitiveMatches, workRefusal } from './workRefusal'
 
 /**
