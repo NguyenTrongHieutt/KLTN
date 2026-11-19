@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.vibefix.chat.ChatEvidence;
 import vn.vibefix.delivery.DeliveryEvidence;
+import vn.vibefix.dispute.internal.EvidenceReports.EvidenceReport;
 import vn.vibefix.dispute.internal.SplitEvidencePackage.Tab;
 import vn.vibefix.dispute.internal.SplitResolutions.Resolution;
 import vn.vibefix.identity.AccountAdministration;
@@ -153,6 +154,21 @@ class AdminSplitEvidenceController {
 								.map(line -> new SplitEvidenceLineView(line.partyId(), line.percent(), line.confirmedAt()))
 								.toList()))
 					.toList());
+	}
+
+	/**
+	 * "Bàn giao": every round handed over on the case's Milestone, voided ones included, oldest first, each with its
+	 * criteria, the Mentor's notes, the preview or why there is none, its images and its links (FR-84, AD-40, Story
+	 * 24.3b). The view is the Dispute's "criteria" tab's, and no other Milestone of the Job is shown.
+	 */
+	@GetMapping("/handovers")
+	List<EvidenceReport> handovers(@PathVariable UUID resolutionId) {
+		SplitCase split = view(resolutionId, this.callers.get().requireAccountId(), Tab.HANDOVERS);
+		return this.deliveries.reports(split.jobId())
+			.stream()
+			.filter(report -> report.milestoneId().equals(split.milestoneId()))
+			.map(EvidenceReports::of)
+			.toList();
 	}
 
 	/** "Commit": the Handover Commits' authors by GitHub numeric ID, matched to the parties (AD-33). */

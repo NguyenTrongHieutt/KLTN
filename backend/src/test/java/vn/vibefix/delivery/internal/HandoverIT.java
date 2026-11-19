@@ -71,6 +71,8 @@ class HandoverIT extends IntegrationTest {
 
 	private UUID vy;
 
+	private UUID product;
+
 	private UUID job;
 
 	private UUID milestone;
@@ -264,6 +266,55 @@ class HandoverIT extends IntegrationTest {
 			.query(String.class).single()).isEqualTo("0,1,2,3,4,5,6,7,8,9");
 	}
 
+	/**
+	 * Story 24.3b (FR-53, AD-20, AD-31): an Administrator holds no role in the Job, so its readers refuse them a handover's
+	 * image, and only then does {@code delivery} ask {@link vn.vibefix.delivery.HandoverEvidenceReaders}, for an image a
+	 * handover carries and never for an upload no handover took. The assignee of a Dispute on the Job reads it, audited
+	 * by the case's module; any other Administrator is refused as anyone is, with 404. Nothing is granted for it, so the
+	 * case ending ends it, and the Job's own readers are untouched.
+	 */
+	@Test
+	void anAdministratorReadsAHandoversImageOnlyThroughTheCaseThatShowsIt() throws Exception {
+		world("ASSESSMENT");
+		String attached = upload();
+		this.screenshotIds = "[\"" + attached + "\"]";
+		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null).andExpect(status().isAccepted());
+		String pending = upload();
+		UUID assignee = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
+		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
+		file(attached, assignee, Role.ADMINISTRATOR).andExpect(status().isNotFound());
+
+		UUID dispute = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO dispute.dispute (id, job_id, product_id, opened_by, opener_account_id, reason, concern, milestone_id,
+				    job_state, status, opened_at, response_days, statement_due_at, assigned_admin_id, assigned_at, grant_id)
+				VALUES (:id, :job, :product, 'CUSTOMER', :lan, 'Báo cáo chưa đạt', 'HELD_MILESTONE', :milestone, 'ACTIVE', 'OPEN',
+				    :now, 5, :due, :admin, :now, :grant)
+				""").param("id", dispute).param("job", this.job).param("product", this.product).param("lan", this.lan)
+			.param("milestone", this.milestone).param("now", now)
+			.param("due", Timestamp.from(this.clock.instant().plus(Duration.ofDays(5)))).param("admin", assignee)
+			.param("grant", UUID.randomUUID()).update();
+
+		file(attached, assignee, Role.ADMINISTRATOR).andExpect(status().isOk());
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.evidence_viewed.handover_image'"
+				+ " AND actor_account_id = '" + assignee + "' AND job_id = '" + this.job + "'")).isOne();
+		file(pending, assignee, Role.ADMINISTRATOR).andExpect(status().isNotFound());
+		file(attached, other, Role.ADMINISTRATOR).andExpect(status().isNotFound());
+		file(attached, this.lan, Role.CUSTOMER).andExpect(status().isOk());
+		file(attached, this.vy, Role.STUDENT).andExpect(status().isOk());
+		file(pending, this.hung, Role.MENTOR).andExpect(status().isOk());
+		file(pending, this.lan, Role.CUSTOMER).andExpect(status().isNotFound());
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action LIKE '%.handover_image'"))
+			.as("only the read the case let through").isOne();
+
+		// The case moves to another Administrator: nothing was granted, so the first reads nothing more.
+		this.jdbc.sql("UPDATE dispute.dispute SET assigned_admin_id = :other WHERE id = :id").param("other", other)
+			.param("id", dispute).update();
+		file(attached, assignee, Role.ADMINISTRATOR).andExpect(status().isNotFound());
+		file(attached, other, Role.ADMINISTRATOR).andExpect(status().isOk());
+	}
+
 	@Test
 	void notesPassTheSensitiveCheck() throws Exception {
 		world("ASSESSMENT");
@@ -310,6 +361,7 @@ class HandoverIT extends IntegrationTest {
 		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		UUID product = UUID.randomUUID();
+		this.product = product;
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
 				    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,
@@ -387,6 +439,10 @@ class HandoverIT extends IntegrationTest {
 			.file(new MockMultipartFile("file", "bao-cao.png", "image/png", png)).with(as(this.hung, Role.MENTOR)).with(csrf()))
 			.andExpect(status().isCreated())
 			.andReturn().getResponse().getContentAsString(), "$.fileId");
+	}
+
+	private ResultActions file(String fileId, UUID account, Role role) throws Exception {
+		return this.mvc.perform(get("/api/v1/files/" + fileId).with(as(account, role)));
 	}
 
 	private long count(String sql) {

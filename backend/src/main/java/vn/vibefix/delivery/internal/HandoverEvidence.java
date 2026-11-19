@@ -14,15 +14,24 @@ import vn.vibefix.delivery.DeliveryEvidence;
 
 /**
  * {@link DeliveryEvidence} over {@code delivery.handover}: the Mentor's criteria as reported
- * ({@code handover_criterion}) next to the Customer's checks ({@code handover_check}).
+ * ({@code handover_criterion}) next to the Customer's checks ({@code handover_check}), and what the handover
+ * carried beside them, read as the Delivery Report reads it: the preview or the reason there is none, the images
+ * ({@link HandoverScreenshots#of}) and the links ({@link Handovers#links}), each link's domain from its text alone
+ * (AD-32, AD-35). Nothing a link names is ever requested.
  */
 @Component
 class HandoverEvidence implements DeliveryEvidence {
 
 	private final JdbcClient jdbc;
 
-	HandoverEvidence(JdbcClient jdbc) {
+	private final Handovers handovers;
+
+	private final HandoverScreenshots screenshots;
+
+	HandoverEvidence(JdbcClient jdbc, Handovers handovers, HandoverScreenshots screenshots) {
 		this.jdbc = jdbc;
+		this.handovers = handovers;
+		this.screenshots = screenshots;
 	}
 
 	@Override
@@ -30,14 +39,17 @@ class HandoverEvidence implements DeliveryEvidence {
 	public List<Report> reports(UUID jobId) {
 		return this.jdbc.sql("""
 				SELECT id, milestone_id, milestone_number, milestone_title, round, status, created_at, decided_at, auto,
-				       voided_at, handover_commit
+				       voided_at, handover_commit, preview_url, no_preview_reason
 				FROM delivery.handover WHERE job_id = :job ORDER BY created_at, seq
 				""").param("job", jobId).query((rs, n) -> {
 			UUID handover = rs.getObject("id", UUID.class);
+			String preview = rs.getString("preview_url");
 			return new Report(handover, rs.getObject("milestone_id", UUID.class), rs.getInt("milestone_number"),
 					rs.getString("milestone_title"), rs.getInt("round"), rs.getString("status"),
 					rs.getTimestamp("created_at").toInstant(), instant(rs.getTimestamp("decided_at")), rs.getBoolean("auto"),
-					instant(rs.getTimestamp("voided_at")), rs.getString("handover_commit"), criteria(handover));
+					instant(rs.getTimestamp("voided_at")), rs.getString("handover_commit"), criteria(handover), preview,
+					preview == null ? null : PreviewChecks.domain(preview), rs.getString("no_preview_reason"), images(handover),
+					links(handover));
 		}).list();
 	}
 
@@ -76,6 +88,29 @@ class HandoverEvidence implements DeliveryEvidence {
 					rs.getBoolean("met"), rs.getString("note"), checked ? rs.getBoolean("customer_met") : null,
 					rs.getString("comment"));
 		}).list();
+	}
+
+	private List<Image> images(UUID handoverId) {
+		return this.screenshots.of(handoverId)
+			.stream()
+			.map(screenshot -> new Image(screenshot.fileId(), screenshot.fileName(), screenshot.size()))
+			.toList();
+	}
+
+	/** Each link with its host as the Delivery Report shows it: lowercased ASCII, as typed (AD-35). */
+	private List<Link> links(UUID handoverId) {
+		return this.handovers.links(handoverId)
+			.stream()
+			.map(link -> new Link(kind(link.kind()), link.label(), link.url(),
+					Handovers.linkHost(link.url()).orElse(link.url())))
+			.toList();
+	}
+
+	private static LinkKind kind(Handovers.Link.Kind kind) {
+		return switch (kind) {
+			case VIDEO -> LinkKind.VIDEO;
+			case DOCUMENT -> LinkKind.DOCUMENT;
+		};
 	}
 
 	private static @Nullable Instant instant(@Nullable Timestamp at) {

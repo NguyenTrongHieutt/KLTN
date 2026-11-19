@@ -16,8 +16,12 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +33,15 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.authz.JobContent;
+import vn.vibefix.files.FileKind;
+import vn.vibefix.files.FileUpload;
+import vn.vibefix.files.PreparedFile;
+import vn.vibefix.files.StoredFile;
+import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
@@ -39,17 +50,23 @@ import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
+import vn.vibefix.support.TestFiles;
 
 /**
  * Story 15.2 (FR-53, FR-63, AD-8, AD-20, AD-31): taking a Dispute pushes its read grant down to {@code chat}
  * and {@code work}; the assignee reads the Evidence Package's tabs, each view audited, never the Crew
  * Chat; a takeover ends the old grant at once, and the decision ends it 30 days later. Story 15.3 (SG-27,
  * AD-24, AD-31): the decision keeps an evidence snapshot of IDs, versions, counts, and totals that outlives the
- * NFR-10 retirement of the Job's data and the erasure of the people.
+ * NFR-10 retirement of the Job's data and the erasure of the people. Story 24.3b (FR-53, AD-31): the "criteria" tab
+ * shows each handover's preview, links and images, the assignee alone opens those images while the Package reads, and
+ * the snapshot counts them.
  */
 class EvidencePackageIT extends IntegrationTest {
 
 	private static final String SHA = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
+
+	/** The preview the handover linked, which the Customer opened before deciding. */
+	private static final String PREVIEW = "https://so-dat-ban-quan-may.vercel.app/dat-ban";
 
 	@Autowired
 	private MockMvc mvc;
@@ -69,7 +86,22 @@ class EvidencePackageIT extends IntegrationTest {
 	@Autowired
 	private DisputePersonalData disputePersonalData;
 
+	@Autowired
+	private StoredFiles files;
+
+	@Autowired
+	private PlatformTransactionManager transactionManager;
+
 	private HeldCrewJob world;
+
+	/** The Job's handover, with its preview, two links and two images (Story 24.3b). */
+	private UUID handover;
+
+	/** The handover's images, in the Mentor's order. */
+	private List<UUID> images;
+
+	/** The Mentor's upload that no handover took yet. */
+	private UUID upload;
 
 	private Administrator ha;
 
@@ -97,13 +129,20 @@ class EvidencePackageIT extends IntegrationTest {
 		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
-				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by,
+				    preview_url, preview_checked_at)
 				VALUES (:id, :job, :product, :milestone, 1, 'Giai đoạn 1', 1, :mentor, 'REVISION_REQUESTED', 5, :transition, :at,
-				    :at, :at, :lan)
+				    :at, :at, :lan, :preview, :at)
 				""")
 			.param("id", handover).param("job", this.world.job()).param("product", this.world.product())
 			.param("milestone", this.world.milestone()).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
-			.param("at", at).param("lan", this.world.lan()).update();
+			.param("at", at).param("lan", this.world.lan()).param("preview", PREVIEW).update();
+		this.handover = handover;
+		// Story 24.3b: what the handover carried beside its criteria, which both Evidence Packages show.
+		link(handover, 0, "DOCUMENT", "https://docs.google.com/document/d/ghi-chu-phat-hanh", "Ghi chú phát hành");
+		link(handover, 1, "VIDEO", "https://www.loom.com/share/dat-ban", "Video thao tác đặt bàn");
+		this.images = List.of(image(handover, 0, "man-hinh-dat-ban.pdf"), image(handover, 1, "man-hinh-lich.pdf"));
+		this.upload = image(null, null, "anh-chua-gui.pdf");
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Tiêu chí 1', 'Cách kiểm tra 1', true, 'Đã kiểm tra trên điện thoại')
@@ -166,6 +205,76 @@ class EvidencePackageIT extends IntegrationTest {
 				+ this.ha.accountId() + "'")).isEqualTo(6);
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'chat.admin_read' AND actor_account_id = '"
 				+ this.ha.accountId() + "'")).isOne();
+	}
+
+	/**
+	 * Story 24.3b (FR-53, FR-63, AD-8, AD-31): the "criteria" tab shows every handover of the Job with what it carried
+	 * beside its criteria -- the preview and its domain, or the Mentor's reason there is none, the links in the Mentor's
+	 * order with their kind, label, URL and domain, and the images. Only the assignee opens an image, each read audited
+	 * as the case's view of it; an unassigned Administrator, a former assignee and an upload no handover took are
+	 * refused as the file endpoint refuses anything: 404.
+	 */
+	@Test
+	void theCriteriaTabShowsWhatEachHandoverCarriedAndOnlyTheAssigneeOpensItsImages() throws Exception {
+		UUID second = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, no_preview_reason)
+				VALUES (:id, :job, :product, :milestone, 1, 'Giai đoạn 1', 2, :mentor, 'SUBMITTED', 6, :transition, :at, :at,
+				    'Ứng dụng chỉ chạy trên máy của quán')
+				""").param("id", second).param("job", this.world.job()).param("product", this.world.product())
+			.param("milestone", this.world.milestone()).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
+			.param("at", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)))).update();
+		link(second, 0, "VIDEO", "https://youtu.be/quay-man-hinh", "Video quay màn hình");
+		UUID dispute = open();
+		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isNotFound());
+
+		take(this.ha.accountId(), dispute);
+		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(2))
+			.andExpect(jsonPath("$[0].handoverId").value(this.handover.toString()))
+			.andExpect(jsonPath("$[0].criteria[0].reportNote").value("Đã kiểm tra trên điện thoại"))
+			.andExpect(jsonPath("$[0].preview.url").value(PREVIEW))
+			.andExpect(jsonPath("$[0].preview.domain").value("so-dat-ban-quan-may.vercel.app"))
+			.andExpect(jsonPath("$[0].noPreviewReason").doesNotExist())
+			.andExpect(jsonPath("$[0].links[*].kind").value(Matchers.contains("DOCUMENT", "VIDEO")))
+			.andExpect(jsonPath("$[0].links[*].label").value(Matchers.contains("Ghi chú phát hành", "Video thao tác đặt bàn")))
+			.andExpect(jsonPath("$[0].links[*].url").value(Matchers.contains(
+					"https://docs.google.com/document/d/ghi-chu-phat-hanh", "https://www.loom.com/share/dat-ban")))
+			.andExpect(jsonPath("$[0].links[*].domain").value(Matchers.contains("docs.google.com", "www.loom.com")))
+			.andExpect(jsonPath("$[0].images[*].fileId")
+				.value(Matchers.contains(this.images.get(0).toString(), this.images.get(1).toString())))
+			.andExpect(jsonPath("$[0].images[0].fileName").value("man-hinh-dat-ban.pdf"))
+			.andExpect(jsonPath("$[0].images[0].size").value(Matchers.greaterThan(0)))
+			.andExpect(jsonPath("$[1].round").value(2))
+			.andExpect(jsonPath("$[1].status").value("SUBMITTED"))
+			.andExpect(jsonPath("$[1].preview").doesNotExist())
+			.andExpect(jsonPath("$[1].noPreviewReason").value("Ứng dụng chỉ chạy trên máy của quán"))
+			.andExpect(jsonPath("$[1].links[0].kind").value("VIDEO"))
+			.andExpect(jsonPath("$[1].links[0].domain").value("youtu.be"))
+			.andExpect(jsonPath("$[1].images").isEmpty())
+			.andExpect(content().string(not(containsString(this.upload.toString()))));
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.evidence_viewed.criteria'")).isOne();
+
+		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isOk());
+		file(this.images.get(1), admin(this.ha.accountId())).andExpect(status().isOk());
+		assertThat(count("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'dispute.evidence_viewed.handover_image' AND o.object_type = 'dispute.dispute'
+				    AND o.object_id = '%s' AND e.actor_account_id = '%s' AND e.job_id = '%s'
+				""".formatted(dispute, this.ha.accountId(), this.world.job()))).isEqualTo(2);
+		file(this.images.get(0), admin(this.quan)).andExpect(status().isNotFound());
+		file(this.upload, admin(this.ha.accountId())).andExpect(status().isNotFound());
+		// The Job's own readers are untouched: the Customer reads the image, and the Mentor their own upload.
+		file(this.images.get(0), as(this.world.lan(), Role.CUSTOMER)).andExpect(status().isOk());
+		file(this.upload, as(this.world.hung(), Role.MENTOR)).andExpect(status().isOk());
+
+		// A takeover moves the reading with the case: nothing was granted, so nothing is left behind.
+		take(this.quan, dispute);
+		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isNotFound());
+		file(this.images.get(0), admin(this.quan)).andExpect(status().isOk());
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.evidence_viewed.handover_image'"))
+			.isEqualTo(3);
 	}
 
 	/**
@@ -232,9 +341,13 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].releasableVnd").value(0))
 			.andExpect(content().string(not(containsString("party"))));
 		this.mvc.perform(get(jobChat()).with(admin(this.ha.accountId()))).andExpect(status().isOk());
+		// Story 24.3b: the handovers' images read as long as the Package does, and no longer.
+		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isOk());
 
 		this.clock.advance(Duration.ofDays(2));
 		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isNotFound());
+		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isNotFound());
+		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isNotFound());
 		this.mvc.perform(get(jobChat()).with(admin(this.ha.accountId()))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
@@ -261,12 +374,17 @@ class EvidencePackageIT extends IntegrationTest {
 			.single();
 		assertThat(snapshot).doesNotContain("Bản sửa đã gửi", "Vẫn đặt trùng bàn", "Khách đổi yêu cầu",
 				this.world.lan().toString(), this.world.hung().toString(), this.ha.accountId().toString());
+		// Story 24.3b: a handover's images and links are counted, never copied.
+		assertThat(snapshot).doesNotContain(PREVIEW, "docs.google.com", "loom.com", "Ghi chú phát hành", "man-hinh-dat-ban",
+				this.images.get(0).toString());
 		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.evidenceSnapshot.agreementVersions[0]").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].status").value("REVISION_REQUESTED"))
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].reportedMet").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].checkedMet").value(0))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].images").value(2))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].links").value(2))
 			.andExpect(jsonPath("$.evidenceSnapshot.workItems").doesNotExist())
 			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].moneyInVnd").value(HeldCrewJob.PRICE))
@@ -288,6 +406,19 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].status").value("REVISION_REQUESTED"))
 			.andExpect(jsonPath("$.evidenceSnapshot.workItems").doesNotExist());
+		// Story 24.3b: a decision recorded before this story counted no image or link. Its stored row reads back with
+		// both counts at 0 rather than failing ADM-4.
+		asMigrator("""
+				UPDATE dispute.decision SET evidence_snapshot = jsonb_set(evidence_snapshot, '{reports}',
+				    (SELECT jsonb_agg(report - 'images' - 'links') FROM jsonb_array_elements(evidence_snapshot -> 'reports') report))
+				""");
+		assertThat(this.jdbc.sql("SELECT evidence_snapshot::text FROM dispute.decision WHERE dispute_id = :id")
+			.param("id", dispute).query(String.class).single()).doesNotContain("\"images\"", "\"links\"");
+		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].reportedMet").value(1))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].images").value(0))
+			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].links").value(0));
 
 		this.personalData.retireJobData(this.world.product());
 		// AD-24: the decision's release left the Milestone's split open, so the Crew Chat waits for it as evidence.
@@ -369,6 +500,37 @@ class EvidencePackageIT extends IntegrationTest {
 
 	private long count(String sql) {
 		return this.jdbc.sql(sql).query(Long.class).single();
+	}
+
+	private void link(UUID handover, int position, String kind, String url, String label) {
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_link (handover_id, position, kind, url, label)
+				VALUES (:handover, :position, :kind, :url, :label)
+				""").param("handover", handover).param("position", position).param("kind", kind).param("url", url)
+			.param("label", label).update();
+	}
+
+	/**
+	 * A file the Mentor uploaded for a handover, stored through {@code files} as {@code delivery} stores it: attached to
+	 * {@code handover} at {@code position}, or waiting for the next handover when both are null.
+	 */
+	private UUID image(UUID handover, Integer position, String fileName) {
+		PreparedFile prepared = this.files.prepare(new FileUpload("delivery.handover_screenshot", this.world.hung(), fileName,
+				TestFiles.pdf(), Set.of(FileKind.PDF)));
+		StoredFile stored = Objects.requireNonNull(
+				new TransactionTemplate(this.transactionManager).execute(status -> this.files.store(prepared)));
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_screenshot (file_id, job_id, product_id, account_id, file_name, size_bytes,
+				    handover_id, position, uploaded_at)
+				VALUES (:file, :job, :product, :mentor, :name, :size, :handover, :position, now())
+				""").param("file", stored.id()).param("job", this.world.job()).param("product", this.world.product())
+			.param("mentor", this.world.hung()).param("name", fileName).param("size", stored.size())
+			.param("handover", handover, java.sql.Types.OTHER).param("position", position, java.sql.Types.INTEGER).update();
+		return stored.id();
+	}
+
+	private ResultActions file(UUID fileId, RequestPostProcessor caller) throws Exception {
+		return this.mvc.perform(get("/api/v1/files/" + fileId).with(caller));
 	}
 
 	private RequestPostProcessor admin(UUID account) {

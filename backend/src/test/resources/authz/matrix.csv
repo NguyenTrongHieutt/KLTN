@@ -400,8 +400,8 @@ DELETE /api/v1/verification/student,ADMINISTRATOR,,,404 NOT_FOUND
 # stored files (review iteration 4, MatrixFilesTest.FILE_POLICIES): file=chat, a
 # Crew Chat file sent after the former members' windows ended (ChatAttachmentFiles: the Crew Chat's readers, the
 # Team Issue grant included); file=screenshot, a handover's screenshot (HandoverScreenshotFiles: the Delivery Report's
-# readers). Each binding runs every caller of the Job, the cross-role member, an unrelated user, the grant-less
-# Administrator (who reads none) and every grant caller.
+# readers, and then the Administrator whose case shows the handover, Story 24.3b). Each binding runs every caller of
+# the Job, the cross-role member, an unrelated user, the grant-less Administrator (who reads none) and every grant caller.
 GET /api/v1/files/{fileId},ANONYMOUS,,,401
 GET /api/v1/files/{fileId},USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER,,,200
@@ -432,7 +432,9 @@ GET /api/v1/files/{fileId},ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMINISTRATOR,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMINISTRATOR,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=chat,,404 NOT_FOUND
-GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=screenshot,,404 NOT_FOUND
+# The screenshot is on the handover of the second Milestone, which the open Dispute's "criteria" tab shows, so its
+# assignee opens it through HandoverEvidenceReaders, a check and no grant (Story 24.3b); no other grant's case shows it.
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=screenshot,,200
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=chat,,200
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=chat,,404 NOT_FOUND
@@ -3211,6 +3213,21 @@ GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,MENTOR,,,40
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
+# "Bàn giao" (Story 24.3b): the case's Milestone's handovers with their criteria, images and links, for the assignee only.
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,ANONYMOUS,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,LOCKED,,,401
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,USER_UNVERIFIED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,USER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,CUSTOMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,BIDDER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,CREW_ASSIGNED,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,CREW_ACTIVE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,CREW_FORMER,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,CROSS_ROLE,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,MENTOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,ADMINISTRATOR,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,ANONYMOUS,,,401
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,LOCKED,,,401
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,USER_UNVERIFIED,,,404 NOT_FOUND
@@ -3259,6 +3276,8 @@ GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=chat,,200
+# The screenshot is on the second Milestone's handover; the open Split Resolution is on the fifth, whose "Bàn giao" tab
+# shows only its own Milestone (Story 24.3b), so HandoverEvidenceReaders answers no.
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=crew-proof,,404 NOT_FOUND

@@ -7,8 +7,9 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Job's Milestone Handovers as a Dispute's Evidence Package reads them (FR-53, AD-31): each Delivery
- * Report with every criterion's reported state next to the Customer's mark, and how the handover was decided.
+ * A Job's Milestone Handovers as a Dispute's Evidence Package and a Split Evidence Package read them (FR-53, FR-84,
+ * AD-31, AD-40): each Delivery Report with every criterion's reported state next to the Customer's mark, what the
+ * handover carried beside them (its preview or why there is none, its images and its links), and how it was decided.
  */
 public interface DeliveryEvidence {
 
@@ -21,17 +22,43 @@ public interface DeliveryEvidence {
 			@Nullable Boolean customerMet, @Nullable String customerComment) {
 	}
 
+	/** One image a handover carries, read through {@code /api/v1/files/{fileId}} (FR-32). */
+	record Image(UUID fileId, String fileName, long size) {
+	}
+
+	/** A link's kind as the Mentor picked it: a recording or video, or a document (Story 24.3). */
+	enum LinkKind {
+
+		VIDEO, DOCUMENT
+
+	}
+
+	/**
+	 * One link a handover carries (FR-10, FR-32, AD-32, AD-35), which vibefix never requests.
+	 * @param domain its host as typed, lowercased ASCII, read from the URL's text alone
+	 */
+	record Link(LinkKind kind, String label, String url, String domain) {
+	}
+
 	/**
 	 * One Milestone Handover.
 	 * @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED}
 	 * @param auto accepted by the System when the check period passed
+	 * @param previewUrl the preview the Mentor linked, which the Customer opened before deciding; {@code null} without one
+	 * @param previewDomain that preview's domain, read from its text
+	 * @param noPreviewReason why a preview was impossible, in the Mentor's words; {@code null} beside a preview
+	 * @param images the images in the Mentor's order
+	 * @param links the links in the Mentor's order
 	 */
 	record Report(UUID handoverId, UUID milestoneId, int milestoneNumber, String milestoneTitle, int round, String status,
 			Instant submittedAt, @Nullable Instant decidedAt, boolean auto, @Nullable Instant voidedAt,
-			@Nullable String handoverCommit, List<CriterionStatus> criteria) {
+			@Nullable String handoverCommit, List<CriterionStatus> criteria, @Nullable String previewUrl,
+			@Nullable String previewDomain, @Nullable String noPreviewReason, List<Image> images, List<Link> links) {
 
 		public Report {
 			criteria = List.copyOf(criteria);
+			images = List.copyOf(images);
+			links = List.copyOf(links);
 		}
 
 	}

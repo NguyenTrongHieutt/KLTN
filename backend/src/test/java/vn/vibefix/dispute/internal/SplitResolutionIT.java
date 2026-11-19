@@ -19,6 +19,8 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +44,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.authz.JobContent;
+import vn.vibefix.files.FileKind;
+import vn.vibefix.files.FileUpload;
+import vn.vibefix.files.PreparedFile;
+import vn.vibefix.files.StoredFile;
+import vn.vibefix.files.StoredFiles;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.identity.internal.IdentityTestSupport;
@@ -55,6 +62,7 @@ import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.PostgresTestDatabase;
+import vn.vibefix.support.TestFiles;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
 /**
@@ -88,6 +96,9 @@ class SplitResolutionIT extends IntegrationTest {
 
 	@Autowired
 	private PersonalData personalData;
+
+	@Autowired
+	private StoredFiles files;
 
 	@Autowired
 	private MockMvc mvc;
@@ -464,6 +475,76 @@ class SplitResolutionIT extends IntegrationTest {
 		}
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.admin_read'")).isOne();
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'chat.admin_read'")).isEqualTo(2);
+	}
+
+	/**
+	 * Story 24.3b (FR-84, FR-63, AD-8, AD-40): "Bàn giao" shows every round handed over on the case's Milestone, a voided
+	 * one included, oldest first, each with its criteria, the preview or why there is none, its links and its images, and
+	 * nothing of another Milestone of the Job. The assignee opens those images, each read audited as the case's; an
+	 * image of another Milestone, another Administrator and an upload no handover took are refused, and a withdrawal
+	 * ends the tab and the images at once.
+	 */
+	@Test
+	void theHandoversTabShowsTheMilestonesRoundsAndOnlyItsAssigneeOpensTheirImages() throws Exception {
+		UUID voided = handover(this.world.milestone(), 1, "VOIDED", this.clock.instant().minus(Duration.ofDays(2)));
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
+				VALUES (:id, :criterion, 1, 'Tiêu chí 1', 'Cách kiểm tra 1', false, 'Còn lỗi khi đặt hai bàn')
+				""").param("id", voided).param("criterion", UUID.randomUUID()).update();
+		UUID second = handover(this.world.milestone(), 2, "SUBMITTED", this.clock.instant().minus(Duration.ofDays(1)));
+		this.jdbc.sql("UPDATE delivery.handover SET no_preview_reason = 'Ứng dụng chỉ chạy trên máy của quán' WHERE id = :id")
+			.param("id", second).update();
+		handoverLink(second, 0, "VIDEO", "https://youtu.be/quay-man-hinh", "Video quay màn hình");
+		handoverLink(second, 1, "DOCUMENT", "https://docs.google.com/document/d/huong-dan", "Hướng dẫn thử");
+		UUID image = image(second, 0, "man-hinh-dat-ban.pdf");
+		UUID other = handover(UUID.randomUUID(), 1, "SUBMITTED", this.clock.instant().minus(Duration.ofHours(12)));
+		handoverLink(other, 0, "DOCUMENT", "https://docs.google.com/document/d/giai-doan-khac", "Giai đoạn khác");
+		UUID otherImage = image(other, 0, "giai-doan-khac.pdf");
+		UUID upload = image(null, null, "anh-chua-gui.pdf");
+		accepted();
+		raise(this.world.vy(), 1, "Phần của tôi quá ít").andExpect(status().isCreated());
+		String id = onlyCase();
+		evidence(this.ha.accountId(), id, "handovers").andExpect(status().isNotFound());
+		file(image, admin(this.ha.accountId())).andExpect(status().isNotFound());
+		take(this.ha.accountId(), id).andExpect(status().isOk());
+
+		evidence(this.ha.accountId(), id, "handovers").andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(2)))
+			.andExpect(jsonPath("$[0].handoverId").value(voided.toString()))
+			.andExpect(jsonPath("$[0].round").value(1))
+			.andExpect(jsonPath("$[0].status").value("VOIDED"))
+			.andExpect(jsonPath("$[0].criteria[0].statement").value("Tiêu chí 1"))
+			.andExpect(jsonPath("$[0].criteria[0].reportedMet").value(false))
+			.andExpect(jsonPath("$[0].criteria[0].reportNote").value("Còn lỗi khi đặt hai bàn"))
+			.andExpect(jsonPath("$[1].handoverId").value(second.toString()))
+			.andExpect(jsonPath("$[1].round").value(2))
+			.andExpect(jsonPath("$[1].preview").doesNotExist())
+			.andExpect(jsonPath("$[1].noPreviewReason").value("Ứng dụng chỉ chạy trên máy của quán"))
+			.andExpect(jsonPath("$[1].links[*].kind").value(org.hamcrest.Matchers.contains("VIDEO", "DOCUMENT")))
+			.andExpect(jsonPath("$[1].links[*].domain").value(org.hamcrest.Matchers.contains("youtu.be", "docs.google.com")))
+			.andExpect(jsonPath("$[1].links[1].label").value("Hướng dẫn thử"))
+			.andExpect(jsonPath("$[1].images[0].fileId").value(image.toString()))
+			.andExpect(jsonPath("$[1].images[0].fileName").value("man-hinh-dat-ban.pdf"))
+			.andExpect(content().string(not(containsString(other.toString()))))
+			.andExpect(content().string(not(containsString("giai-doan-khac"))));
+		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.split_evidence_viewed.handovers'"))
+			.isOne();
+
+		file(image, admin(this.ha.accountId())).andExpect(status().isOk());
+		assertThat(number("""
+				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				WHERE e.action = 'dispute.split_evidence_viewed.handover_image' AND o.object_type = 'dispute.split_resolution'
+				    AND o.object_id = '%s' AND e.actor_account_id = '%s' AND e.job_id = '%s'
+				""".formatted(id, this.ha.accountId(), this.world.job()))).isOne();
+		file(otherImage, admin(this.ha.accountId())).andExpect(status().isNotFound());
+		file(image, admin(this.quan)).andExpect(status().isNotFound());
+		file(upload, admin(this.ha.accountId())).andExpect(status().isNotFound());
+		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action LIKE '%.handover_image'"))
+			.as("a refused read audits nothing").isOne();
+
+		withdraw(this.world.vy()).andExpect(status().isOk());
+		evidence(this.ha.accountId(), id, "handovers").andExpect(status().isNotFound());
+		file(image, admin(this.ha.accountId())).andExpect(status().isNotFound());
 	}
 
 	// ---- The decision (SM-8) ----------------------------------------------------------------------
@@ -1188,7 +1269,11 @@ class SplitResolutionIT extends IntegrationTest {
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin trước giai đoạn", funded.minus(Duration.ofHours(1)));
 		JobContent.message(this.jdbc, crew, this.world.vy(), "Tin đầu", funded.plus(Duration.ofHours(1)));
 		UUID last = JobContent.message(this.jdbc, crew, this.world.minh(), "Tin cuối", funded.plus(Duration.ofHours(2)));
-		commit(handover(), 0, "a", null);
+		UUID handover = handover();
+		commit(handover, 0, "a", null);
+		handoverLink(handover, 0, "DOCUMENT", "https://docs.google.com/document/d/ghi-chu", "Ghi chú phát hành");
+		image(handover, 0, "man-hinh-dat-ban.pdf");
+		handover(UUID.randomUUID(), 1, "SUBMITTED", this.clock.instant());
 		accepted();
 		confirm(this.world.minh(), 1).andExpect(status().isOk());
 		signal(this.world.vy(), "ef".repeat(32));
@@ -1203,7 +1288,28 @@ class SplitResolutionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.workItems").doesNotExist())
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.commits[0].sha").value("a".repeat(40)))
 			.andExpect(jsonPath("$.decision.evidenceSnapshot.personLinks").value(1))
-			.andExpect(jsonPath("$.decision.evidenceSnapshot.versions[0].confirmations").value(1));
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.versions[0].confirmations").value(1))
+			// Story 24.3b: the Milestone's handovers, each by its ID and counts, and no other Milestone's.
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers", hasSize(1)))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers[0].handoverId").value(handover.toString()))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers[0].round").value(1))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers[0].status").value("SUBMITTED"))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers[0].criteria").value(0))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers[0].images").value(1))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers[0].links").value(1));
+		assertThat(text("SELECT evidence_snapshot::text FROM dispute.split_resolution"))
+			.as("counted, never copied").doesNotContain("docs.google.com", "Ghi chú phát hành", "man-hinh-dat-ban");
+
+		// A decision recorded before this story listed no handover. The stored row reads back with none rather than
+		// failing ADM-4; the runtime role cannot rewrite a decision, so only the migration role can put one there.
+		try (Connection connection = database.migratorConnection(PostgresTestDatabase.DATABASE);
+				Statement update = connection.createStatement()) {
+			update.executeUpdate("UPDATE dispute.split_resolution SET evidence_snapshot = evidence_snapshot - 'handovers'");
+		}
+		assertThat(text("SELECT evidence_snapshot::text FROM dispute.split_resolution")).doesNotContain("handovers");
+		detail(this.quan, id).andExpect(status().isOk())
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.handovers", hasSize(0)))
+			.andExpect(jsonPath("$.decision.evidenceSnapshot.commits[0].sha").value("a".repeat(40)));
 		awaitListeners();
 	}
 
@@ -1622,7 +1728,7 @@ class SplitResolutionIT extends IntegrationTest {
 				.andExpect(jsonPath("$.decision.versionNo").value(2));
 		}
 		long viewed = number("SELECT count(*) FROM audit.audit_entry WHERE action LIKE 'dispute.split_evidence_viewed.%'");
-		for (String tab : List.of("versions", "commits", "crew-chat", "person-links")) {
+		for (String tab : List.of("versions", "handovers", "commits", "crew-chat", "person-links")) {
 			evidence(this.ha.accountId(), id, tab).andExpect(status().isNotFound());
 		}
 		assertThat(number("SELECT count(*) FROM audit.audit_entry WHERE action LIKE 'dispute.split_evidence_viewed.%'"))
@@ -1649,6 +1755,52 @@ class SplitResolutionIT extends IntegrationTest {
 			.param("milestone", this.world.milestone()).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
 			.param("at", Timestamp.from(this.clock.instant())).update();
 		return handover;
+	}
+
+	/** A handover of {@code milestone} at {@code round}, created at {@code at}; a voided one was voided then too. */
+	private UUID handover(UUID milestone, int round, String status, Instant at) {
+		UUID handover = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, voided_at)
+				VALUES (:id, :job, :product, :milestone, :number, 'Giai đoạn 1', :round, :mentor, :status, 3, :transition, :at, :at,
+				    :voided)
+				""").param("id", handover).param("job", this.world.job()).param("product", this.world.product())
+			.param("milestone", milestone).param("number", milestone.equals(this.world.milestone()) ? 1 : 2)
+			.param("round", round).param("mentor", this.world.hung()).param("status", status)
+			.param("transition", UUID.randomUUID()).param("at", Timestamp.from(at))
+			.param("voided", "VOIDED".equals(status) ? Timestamp.from(at) : null, java.sql.Types.TIMESTAMP).update();
+		return handover;
+	}
+
+	private void handoverLink(UUID handover, int position, String kind, String url, String label) {
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_link (handover_id, position, kind, url, label)
+				VALUES (:handover, :position, :kind, :url, :label)
+				""").param("handover", handover).param("position", position).param("kind", kind).param("url", url)
+			.param("label", label).update();
+	}
+
+	/**
+	 * A file the Mentor uploaded for a handover, stored through {@code files} as {@code delivery} stores it: attached to
+	 * {@code handover} at {@code position}, or waiting for the next handover when both are null.
+	 */
+	private UUID image(UUID handover, Integer position, String fileName) {
+		PreparedFile prepared = this.files.prepare(new FileUpload("delivery.handover_screenshot", this.world.hung(), fileName,
+				TestFiles.pdf(), Set.of(FileKind.PDF)));
+		StoredFile stored = Objects.requireNonNull(this.transactions.execute(status -> this.files.store(prepared)));
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_screenshot (file_id, job_id, product_id, account_id, file_name, size_bytes,
+				    handover_id, position, uploaded_at)
+				VALUES (:file, :job, :product, :mentor, :name, :size, :handover, :position, now())
+				""").param("file", stored.id()).param("job", this.world.job()).param("product", this.world.product())
+			.param("mentor", this.world.hung()).param("name", fileName).param("size", stored.size())
+			.param("handover", handover, java.sql.Types.OTHER).param("position", position, java.sql.Types.INTEGER).update();
+		return stored.id();
+	}
+
+	private ResultActions file(UUID fileId, RequestPostProcessor caller) throws Exception {
+		return this.mvc.perform(get("/api/v1/files/" + fileId).with(caller));
 	}
 
 	/** A case's row on a Milestone of its own, as the queue reads it. */

@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.chat.ChatEvidence;
 import vn.vibefix.chat.ChatEvidence.ChatExtent;
@@ -25,15 +26,21 @@ import vn.vibefix.repo.DriftEvidence;
 /**
  * A decision's evidence snapshot (SG-27, AD-31, AD-24): written with the decision, from the same owning
  * modules' queries the Evidence Package reads, as IDs, versions, counts, and totals, never copies of the
- * content and never an account ID. It stays with the decision after the NFR-10 retirement of the Job's
- * chat and handovers, so the decision remains explainable.
+ * content and never an account ID. Each handover counts its images and links, never their files or URLs
+ * (Story 24.3b). It stays with the decision after the NFR-10 retirement of the Job's chat and handovers, so the
+ * decision remains explainable.
  */
 @Component
 class EvidenceSnapshots {
 
-	/** @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED} */
+	/**
+	 * One handover as the decision saw it.
+	 * @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED}
+	 * @param images how many images it carried; {@code 0} in a snapshot taken before Story 24.3b, which counted none
+	 * @param links how many links it carried; {@code 0} in such a snapshot too
+	 */
 	record SnapshotReport(UUID handoverId, int milestoneNumber, int round, String status, int criteria, int reportedMet,
-			int checkedMet) {
+			int checkedMet, int images, int links) {
 	}
 
 	/** @param lastMessageId the newest Job Chat message when the decision was made */
@@ -58,7 +65,13 @@ class EvidenceSnapshots {
 			List<SnapshotStatement> statements) {
 	}
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
+	/**
+	 * Reads a snapshot stored before a count was added as one with that count at {@code 0}: a decision is never
+	 * rewritten, and ADM-4 must still explain it (Story 24.3b).
+	 */
+	private static final JsonMapper JSON = JsonMapper.builder()
+		.disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+		.build();
 
 	private final JdbcClient jdbc;
 
@@ -95,7 +108,8 @@ class EvidenceSnapshots {
 			.stream()
 			.map(report -> new SnapshotReport(report.handoverId(), report.milestoneNumber(), report.round(), report.status(),
 					report.criteria().size(), (int) report.criteria().stream().filter(CriterionStatus::reportedMet).count(),
-					(int) report.criteria().stream().filter(criterion -> Boolean.TRUE.equals(criterion.customerMet())).count()))
+					(int) report.criteria().stream().filter(criterion -> Boolean.TRUE.equals(criterion.customerMet())).count(),
+					report.images().size(), report.links().size()))
 			.toList();
 		ChatExtent extent = this.chat.jobChat(job);
 		List<SnapshotPayment> payments = this.jobs.job(job)
