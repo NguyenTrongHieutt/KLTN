@@ -138,7 +138,7 @@ class SplitResolutionDecisions {
 			this.grants.forEach(module -> module.endAdminRead(previous, now));
 		}
 		UUID grant = this.ids.newId();
-		Set<AdminReadItem> items = AdminReadItem.forSplitResolution(resolution.splitId(), partyAccounts(split));
+		Set<AdminReadItem> items = AdminReadItem.forSplitResolution(resolution.splitId());
 		this.grants.forEach(module -> module.grantAdminRead(grant, adminId, resolution.jobId(), items, resolutionId));
 		this.jdbc.sql("UPDATE dispute.split_resolution SET assigned_admin_id = :admin, assigned_at = :now, grant_id = :grant WHERE id = :id")
 			.param("admin", adminId)

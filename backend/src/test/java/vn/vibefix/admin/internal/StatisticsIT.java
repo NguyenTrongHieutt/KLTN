@@ -146,12 +146,11 @@ class StatisticsIT extends IntegrationTest {
 		job(product, lan, hung, "CANCELLED", true);
 		job(product, lan, hung, "CANCELLED", false);
 		// due 2026-11-20 ends at 17:00 UTC: one handover in time, one an hour late
-		milestone(closed.get(0), Instant.parse("2026-11-20T16:00:00Z"), false);
-		milestone(closed.get(1), Instant.parse("2026-11-20T18:00:00Z"), true);
+		milestone(closed.get(0), Instant.parse("2026-11-20T16:00:00Z"), false, 0);
+		milestone(closed.get(1), Instant.parse("2026-11-20T18:00:00Z"), true, 1);
 		rating(closed.get(0), product, lan, hung, 5, false);
 		rating(closed.get(1), product, lan, hung, 4, false);
 		rating(closed.get(2), product, lan, hung, 1, true);
-		reviews(closed.get(0), product, List.of(List.of("APPROVED"), List.of("RETURNED", "APPROVED"), List.of("APPROVED")));
 		teamIssue(closed.get(0), product, null, null);
 		teamIssue(closed.get(1), product, Instant.parse("2026-11-22T03:00:00Z"), null);
 		teamIssue(closed.get(2), product, null, "ACCEPTED");
@@ -163,8 +162,11 @@ class StatisticsIT extends IntegrationTest {
 			.andExpect(jsonPath("$.groups[?(@.group == 'acceptances')].counts[?(@.key == 'MANUAL_SHARE')].value").value(500))
 			.andExpect(jsonPath("$.groups[?(@.group == 'acceptances')].counts[?(@.key == 'AUTOMATIC_SHARE')].value").value(500))
 			.andExpect(jsonPath("$.groups[?(@.group == 'acceptances')].counts[?(@.key == 'MANUAL')].unit").value("COUNT"))
-			.andExpect(jsonPath("$.groups[?(@.group == 'workItemReviews')].counts[?(@.key == 'FIRST_PASS_SHARE')].value")
-				.value(667))
+			.andExpect(jsonPath("$.groups[?(@.group == 'acceptedMilestones')].counts[?(@.key == 'FIRST_PASS')].value").value(1))
+			.andExpect(jsonPath("$.groups[?(@.group == 'acceptedMilestones')].counts[?(@.key == 'AFTER_REVISION')].value")
+				.value(1))
+			.andExpect(jsonPath("$.groups[?(@.group == 'acceptedMilestones')].counts[?(@.key == 'FIRST_PASS_SHARE')].value")
+				.value(500))
 			.andExpect(jsonPath("$.groups[?(@.group == 'ratings')].counts[?(@.key == 'CUSTOMER_TO_MENTOR_AVERAGE')].value")
 				.value(45))
 			.andExpect(jsonPath("$.groups[?(@.group == 'ratings')].counts[?(@.key == 'CUSTOMER_TO_MENTOR_AVERAGE')].unit")
@@ -219,15 +221,18 @@ class StatisticsIT extends IntegrationTest {
 		return id;
 	}
 
-	/** An accepted Milestone due 2026-11-20 whose accepted handover was submitted at {@code submitted}. */
-	private void milestone(UUID job, Instant submitted, boolean automatic) {
+	/**
+	 * An accepted Milestone due 2026-11-20 whose accepted handover was submitted at {@code submitted}, after
+	 * {@code roundsUsed} Revision Rounds (FR-62, Story 24.2: none means it was accepted on its first handover).
+	 */
+	private void milestone(UUID job, Instant submitted, boolean automatic, int roundsUsed) {
 		Timestamp now = Timestamp.from(this.clock.instant());
 		this.jdbc.sql("""
-				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
-				    funded_at, submitted_at, handover_id, accepted_at, auto_accepted)
-				VALUES (:id, :job, 0, 'Đánh giá', 800000, DATE '2026-11-20', 2, :now, 'ACCEPTED', :now, :submitted,
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds,
+				    revision_rounds_used, created_at, state, funded_at, submitted_at, handover_id, accepted_at, auto_accepted)
+				VALUES (:id, :job, 0, 'Đánh giá', 800000, DATE '2026-11-20', 2, :rounds, :now, 'ACCEPTED', :now, :submitted,
 				    :handover, :accepted, :automatic)
-				""").param("id", UUID.randomUUID()).param("job", job).param("now", now)
+				""").param("id", UUID.randomUUID()).param("job", job).param("now", now).param("rounds", roundsUsed)
 			.param("submitted", Timestamp.from(submitted)).param("handover", UUID.randomUUID())
 			.param("accepted", Timestamp.from(submitted.plusSeconds(3600))).param("automatic", automatic).update();
 	}
@@ -247,28 +252,6 @@ class StatisticsIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("job", job).param("customer", customer).param("mentor", mentor)
 			.param("stars", stars).param("now", now).param("hidden", hidden ? now : null)
 			.param("reason", hidden ? "Vi phạm quy tắc" : null).update();
-	}
-
-	/** Work Items on the Job's Board, each with its review actions in order. */
-	private void reviews(UUID job, UUID product, List<List<String>> items) {
-		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', :next, :now)
-				""").param("job", job).param("product", product).param("next", items.size() + 1).param("now", now).update();
-		for (int i = 0; i < items.size(); i++) {
-			UUID item = UUID.randomUUID();
-			this.jdbc.sql("""
-					INSERT INTO work.work_item (id, job_id, number, type, title, created_at, updated_at)
-					VALUES (:id, :job, :number, 'TASK', 'Kiểm tra', :now, :now)
-					""").param("id", item).param("job", job).param("number", i + 1).param("now", now).update();
-			for (String action : items.get(i)) {
-				this.jdbc.sql("""
-						INSERT INTO work.work_item_history (id, work_item_id, job_id, action, changes, at)
-						VALUES (:id, :item, :job, :action, '{}'::jsonb, :now)
-						""").param("id", UUID.randomUUID()).param("item", item).param("job", job).param("action", action)
-					.param("now", now).update();
-			}
-		}
 	}
 
 	private void teamIssue(UUID job, UUID product, Instant escalated, String ending) {

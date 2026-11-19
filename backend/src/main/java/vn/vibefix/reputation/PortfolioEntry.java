@@ -14,16 +14,15 @@ import org.jspecify.annotations.Nullable;
  * @param jobTypes the Job Types' codes
  * @param skills the frozen Skills by their current names (AD-38)
  * @param milestones how many Milestones were accepted
- * @param workItemsApproved a Crew member's Work Items completed through an approval
+ * @param commitsAuthored a Crew member's commits in the Job's accepted Milestone Handovers
  * @param milestonesHandedOver the Mentor's Milestones handed over
- * @param reviewsWritten the Mentor's reviews (approvals and returns)
  * @param rating the Customer's Rating of the Mentor, or the Mentor's of the Crew member, once visible
  * @param summary the summary the Customer approved
  * @param productName the Product's name, when the Customer allowed it
  */
 public record PortfolioEntry(String title, String role, List<String> jobTypes, List<String> skills, Instant closedAt,
-		int milestones, @Nullable Integer workItemsApproved, @Nullable Integer milestonesHandedOver,
-		@Nullable Integer reviewsWritten, @Nullable Integer rating, @Nullable String summary, @Nullable String productName) {
+		int milestones, @Nullable Integer commitsAuthored, @Nullable Integer milestonesHandedOver,
+		@Nullable Integer rating, @Nullable String summary, @Nullable String productName) {
 
 	public PortfolioEntry {
 		Objects.requireNonNull(title, "title");

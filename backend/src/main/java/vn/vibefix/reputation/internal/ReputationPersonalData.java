@@ -66,8 +66,8 @@ class ReputationPersonalData implements PersonalDataParticipant {
 			return row;
 		}).list();
 		List<Map<String, Object>> entries = this.jdbc.sql("""
-				SELECT job_id, role, job_title, job_types, milestones_accepted, work_items_approved, milestones_handed_over,
-				       reviews_written, closed_at, published_at
+				SELECT job_id, role, job_title, job_types, milestones_accepted, commits_authored, milestones_handed_over,
+				       closed_at, published_at
 				FROM reputation.portfolio_entry WHERE account_id = :id ORDER BY closed_at, job_id
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> row = new LinkedHashMap<>();
@@ -76,9 +76,8 @@ class ReputationPersonalData implements PersonalDataParticipant {
 			row.put("title", rs.getString("job_title"));
 			row.put("jobTypes", List.of((Object[]) rs.getArray("job_types").getArray()));
 			row.put("milestones", rs.getInt("milestones_accepted"));
-			row.put("workItemsApproved", rs.getObject("work_items_approved"));
+			row.put("commitsAuthored", rs.getObject("commits_authored"));
 			row.put("milestonesHandedOver", rs.getObject("milestones_handed_over"));
-			row.put("reviewsWritten", rs.getObject("reviews_written"));
 			row.put("closedAt", rs.getTimestamp("closed_at").toInstant().toString());
 			row.put("published", rs.getTimestamp("published_at") != null);
 			return row;

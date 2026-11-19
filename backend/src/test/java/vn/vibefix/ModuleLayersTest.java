@@ -24,7 +24,7 @@ class ModuleLayersTest {
 			entry("settings", 1), entry("catalog", 1), entry("github", 1), entry("operations", 1), entry("timers", 1),
 			entry("notification", 1), entry("identity", 2), entry("team", 3), entry("scanning", 4),
 			entry("product", 5), entry("job", 6), entry("matching", 7), entry("repo", 7), entry("payment", 7),
-			entry("work", 7), entry("chat", 7), entry("delivery", 8), entry("reputation", 9), entry("dispute", 10),
+			entry("chat", 7), entry("delivery", 8), entry("reputation", 9), entry("dispute", 10),
 			entry("admin", 11));
 
 	/**

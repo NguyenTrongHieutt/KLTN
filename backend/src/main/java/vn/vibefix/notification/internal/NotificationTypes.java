@@ -600,38 +600,6 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
-	/** The Mentor assigned a Work Item (FR-23): the assignee, in-app only. */
-	static final NotificationType WORK_WORK_ITEM_ASSIGNED = new NotificationType("work.work_item_assigned",
-			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("mentor", "key"));
-
-	/** A Work Item was submitted (FR-25): the Mentor, in-app. */
-	static final NotificationType WORK_REVIEW_REQUESTED = new NotificationType("work.review_requested",
-			Set.of(Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("name", "key"));
-
-	/** The Mentor approved a Work Item (FR-25): the assignee, in-app. */
-	static final NotificationType WORK_WORK_ITEM_APPROVED = new NotificationType("work.work_item_approved",
-			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "check", Set.of("key"));
-
-	/** The Mentor returned a Work Item (FR-25): the assignee, in-app and by email. */
-	static final NotificationType WORK_WORK_ITEM_RETURNED = new NotificationType("work.work_item_returned",
-			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
-			Set.of("key", "reason"));
-
-	/** A Work Item waits for the Mentor's review (FR-25): until it is approved or returned. */
-	static final TodoType WORK_REVIEW_WORK_ITEM = new TodoType("work.review_work_item", Set.of(Audience.MENTOR), 2,
-			Set.of("key", "title"));
-
-	/**
-	 * A locked Crew member's open Work Items wait for the Mentor to reassign them (FR-59, Story 11.4). None opens since
-	 * Story 20.4, which unassigns them; one opened before closes once nothing of that person's is open.
-	 */
-	static final TodoType WORK_REASSIGN_WORK_ITEMS = new TodoType("work.reassign_work_items", Set.of(Audience.MENTOR), 2,
-			Set.of("job", "name", "n"));
-
-	/** A returned Work Item waits for its assignee (FR-25): until it is submitted again. */
-	static final TodoType WORK_FIX_RETURNED_ITEM = new TodoType("work.fix_returned_item", Set.of(Audience.CREW_ACTIVE), 2,
-			Set.of("key"));
-
 	/** M2 (FR-32): the Customer may check the handed-over Milestone, by the Auto-acceptance date. */
 	static final NotificationType JOB_MILESTONE_SUBMITTED = new NotificationType("job.milestone_submitted",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
@@ -1021,8 +989,7 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_JOB_STARTING, JOB_SPLIT_DRAFT_DUE, JOB_SPLIT_PENDING, JOB_SPLIT_DRAFT_REMINDER,
 				JOB_SPLIT_PROPOSED, JOB_SPLIT_DEFAULTED, JOB_SPLIT_EDITED, JOB_SPLIT_CONFIRMATION_REMINDER,
 				JOB_SPLIT_PARTY_CONFIRMED, JOB_SPLIT_FINAL,
-				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED, WORK_WORK_ITEM_ASSIGNED,
-				WORK_REVIEW_REQUESTED, WORK_WORK_ITEM_APPROVED, WORK_WORK_ITEM_RETURNED);
+				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED);
 	}
 
 	@Override
@@ -1035,7 +1002,7 @@ class NotificationTypes implements NotificationCatalog {
 				MATCHING_OPEN_CREW_RECRUITMENT, MATCHING_REVIEW_CREW_APPLICATIONS, MATCHING_SIGN_COMMITMENT, JOB_DRAFT_SPLIT,
 				JOB_CONFIRM_SPLIT, JOB_DRAFT_AGREEMENT,
 				JOB_REVIEW_AGREEMENT, JOB_REVISE_AGREEMENT, JOB_CONFIRM_AGREEMENT_MENTOR,
-				PAYMENT_FUND_MILESTONE, WORK_REVIEW_WORK_ITEM, WORK_FIX_RETURNED_ITEM, WORK_REASSIGN_WORK_ITEMS, DELIVERY_HAND_OVER,
+				PAYMENT_FUND_MILESTONE, DELIVERY_HAND_OVER,
 				DELIVERY_REVIEW_HANDOVER, JOB_ANSWER_CLOSURE, REPO_CONFIRM_DATA_DELETION, REPUTATION_RATE,
 				REPUTATION_GIVE_PRIVATE_FEEDBACK, REPUTATION_DRAFT_PORTFOLIO_SUMMARY, REPUTATION_APPROVE_PORTFOLIO_SUMMARY,
 				DELIVERY_DRAFT_FOLLOW_UPS, DELIVERY_APPROVE_FOLLOW_UPS, JOB_ADD_CHANGE_IMPACT, JOB_ANSWER_CHANGE_REQUEST,

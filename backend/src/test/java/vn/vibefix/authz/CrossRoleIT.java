@@ -100,11 +100,9 @@ class CrossRoleIT extends IntegrationTest {
 					"/api/v1/jobs/{jobId}/chat", "/api/v1/jobs/{jobId}/chat/messages"),
 			Held.MENTOR,
 			List.of("/api/v1/mentor/jobs/{jobId}", "/api/v1/mentor/jobs/{jobId}/crew",
-					"/api/v1/crew-chats/{crewChatId}/messages", "/api/v1/boards/{boardId}/work-items",
-					"/api/v1/boards/{boardId}/handovers"),
+					"/api/v1/crew-chats/{crewChatId}/messages", "/api/v1/boards/{boardId}/handovers"),
 			Held.ACTIVE_CREW,
-			List.of("/api/v1/crew-chats/{crewChatId}/messages", "/api/v1/boards/{boardId}/work-items",
-					"/api/v1/work-items/{workItemId}"),
+			List.of("/api/v1/crew-chats/{crewChatId}/messages", "/api/v1/boards/{boardId}/handovers"),
 			Held.FORMER_CREW, List.of("/api/v1/crew-chats/{crewChatId}/messages"));
 
 	/**
@@ -471,8 +469,6 @@ class CrossRoleIT extends IntegrationTest {
 				hidden.addAll(job.crewIdentity());
 				hidden.addAll(job.crewContent());
 				hidden.addAll(job.crewSplit());
-				// The Work Items, whose titles the Customer's screens never name (AD-39).
-				hidden.add(job.canary("item-title"));
 			}
 			case MENTOR -> {
 			}
@@ -486,8 +482,6 @@ class CrossRoleIT extends IntegrationTest {
 				hidden.addAll(job.crewContent());
 				hidden.addAll(job.coSplit());
 				hidden.addAll(job.writtenAfterTheWindow());
-				// Written after the window ended: the Work Item's title.
-				hidden.add(job.canary("item-title"));
 			}
 		}
 		return hidden;
@@ -733,6 +727,9 @@ class CrossRoleIT extends IntegrationTest {
 				JobContent.message(jdbc, this.crewChat, mentor, canary("early-chat"), WINDOW_END.minus(Duration.ofDays(2)));
 			}
 			UUID message = JobContent.message(jdbc, this.crewChat, mentor, canary("crew-chat"), WRITTEN);
+			// The Crew Chat's file, which {fileId} names: ChatAttachmentFiles serves it to the Crew Chat's readers.
+			UUID file = uploads.store("chat.attachment", mentor, "phan-viec-" + tag + ".pdf");
+			JobContent.attachmentMessage(jdbc, this.crewChat, mentor, file, "phan-viec-" + tag + ".pdf", WRITTEN);
 			UUID jobChat = JobContent.chat(jdbc, this.job, product, "JOB");
 			JobContent.message(jdbc, jobChat, mentor, canary("job-chat"), WRITTEN);
 			// Two Milestones: the first accepted and released before the former member's
@@ -813,13 +810,6 @@ class CrossRoleIT extends IntegrationTest {
 				.param("milestone", released).param("mentor", mentor).param("transition", UUID.randomUUID())
 				.param("at", Timestamp.from(accepted.minus(Duration.ofDays(1)))).param("decided", Timestamp.from(accepted))
 				.param("customer", customer).update();
-			JobContent.board(jdbc, this.job, product, "X" + tag);
-			UUID item = JobContent.workItem(jdbc, this.job, 1, canary("item-title"), milestone, criterion, WRITTEN);
-			UUID note = JobContent.note(jdbc, item, this.job, mentor, canary("note"), WRITTEN);
-			// The Attachment's file, stored as work stores it: {fileId} is the Job's own file (review iteration 4, G7).
-			UUID file = uploads.store("work.attachment", mentor, canary("attachment") + ".pdf");
-			UUID attachment = JobContent.attachment(jdbc, item, this.job, mentor, canary("attachment") + ".pdf", file,
-					WRITTEN);
 			jdbc.sql("""
 					INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title,
 					    round, mentor_account_id, status, job_version, transition_id, check_by, created_at)
@@ -833,7 +823,7 @@ class CrossRoleIT extends IntegrationTest {
 			String draft = """
 					{"id":"%s","jobId":"%s","productId":"%s","customerId":"%s","mentorId":"%s","version":5,
 					 "milestoneId":"%s","milestoneNumber":2,"milestoneTitle":"Sửa lỗi trùng giờ",
-					 "criteria":[],"itemNotes":[],"screenshotIds":[]}
+					 "criteria":[],"screenshotIds":[]}
 					""".formatted(handover, this.job, product, customer, mentor, milestone);
 			jdbc.sql("""
 					INSERT INTO delivery.handover_submission (id, job_id, product_id, milestone_id, milestone_number,
@@ -961,9 +951,6 @@ class CrossRoleIT extends IntegrationTest {
 			this.values.put("productId", product.toString());
 			this.values.put("crewChatId", this.crewChat.toString());
 			this.values.put("messageId", message.toString());
-			this.values.put("workItemId", item.toString());
-			this.values.put("workItemNoteId", note.toString());
-			this.values.put("attachmentId", attachment.toString());
 			this.values.put("milestoneId", milestone.toString());
 			this.values.put("crewMilestoneId", milestone.toString());
 			this.values.put("crewCriterionId", criterion.toString());
@@ -984,7 +971,7 @@ class CrossRoleIT extends IntegrationTest {
 			this.values.put("contentId", product.toString());
 			this.values.put("username", TestPeople.login(jdbc, mentor));
 			List<UUID> objects = new ArrayList<>(List.of(this.job, product, post, invitation, this.crewChat, jobChat,
-					message, item, note, attachment, file, application, order, coRow, screenshot, dispute,
+					message, file, application, order, coRow, screenshot, dispute,
 					changeRequest, teamIssue, report, access, handover, releasedHandover, milestone, released,
 					criterion));
 			for (@Nullable UUID row : new UUID[] { activeRow, formerRow }) {
@@ -993,9 +980,7 @@ class CrossRoleIT extends IntegrationTest {
 				}
 			}
 			objects.forEach(id -> this.objectIds.add(id.toString()));
-			this.objectIds.add(canary("item-title"));
-			for (UUID id : List.of(message, item, note, attachment, file, handover, changeRequest,
-					dispute, teamIssue, report)) {
+			for (UUID id : List.of(message, file, handover, changeRequest, dispute, teamIssue, report)) {
 				this.contentAfterTheWindow.add(id.toString());
 			}
 			this.writtenAfterTheWindow.addAll(this.contentAfterTheWindow);
@@ -1029,7 +1014,7 @@ class CrossRoleIT extends IntegrationTest {
 
 		/** What the Crew writes and reads, all of it written after the former member's window ended. */
 		Set<String> crewContent() {
-			return Set.of(canary("crew-chat"), canary("note"), canary("attachment"));
+			return Set.of(canary("crew-chat"));
 		}
 
 		/** The Customer's: the Job Chat and, when the Customer is no one of the three, their contact email. */
@@ -1058,9 +1043,9 @@ class CrossRoleIT extends IntegrationTest {
 
 		/**
 		 * What another Job's reader may never see of this Job (review iterations 3 and 4, B8, B5): the IDs of the Job,
-		 * its Product, its Open post and invitation, its Chats and message, Work Item, note and attachment, the
-		 * bid, the payment order, the Crew rows and the screenshot, the Dispute, Change Request, Team Issue, Abuse
-		 * Report, External Access item, handovers, Milestones and criterion, and the Work Item's title.
+		 * its Product, its Open post and invitation, its Chats and message, the bid, the payment order, the Crew rows
+		 * and the screenshot, the Dispute, Change Request, Team Issue, Abuse Report, External Access item, handovers,
+		 * Milestones and criterion.
 		 */
 		Set<String> objectIds() {
 			return this.objectIds;
@@ -1083,7 +1068,6 @@ class CrossRoleIT extends IntegrationTest {
 		/** Every canary of the Job. */
 		Set<String> all() {
 			Set<String> all = new HashSet<>(crewIdentity());
-			all.add(canary("item-title"));
 			all.addAll(crewSplit());
 			all.addAll(crewContent());
 			all.addAll(customerData());

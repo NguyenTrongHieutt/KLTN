@@ -46,7 +46,15 @@ class MigrationConventionsTest {
 	static final DateTimeFormatter VERSION_FORMAT = DateTimeFormatter.ofPattern("uuuuMMddHHmm")
 		.withResolverStyle(ResolverStyle.STRICT);
 
-	/** Every schema a migration could name: one per module, plus the framework schema. */
+	/**
+	 * The schemas of retired modules, which keep their Flyway history although {@link ModuleLayersTest}'s layer table
+	 * no longer names them: {@code work}, whose Board, Work Items and module Story 24.2 deleted with the schema. The
+	 * eleven {@code work/V2026*} files stay on disk, so the folder stays a legal place for a migration; nothing new
+	 * may be added there, because the schema is gone.
+	 */
+	static final Set<String> RETIRED_SCHEMAS = Set.of("work");
+
+	/** Every schema a migration could name: one per module, the retired ones, plus the framework schema. */
 	static final Set<String> SCHEMAS = schemas();
 
 	@Test
@@ -425,6 +433,7 @@ class MigrationConventionsTest {
 
 	private static Set<String> schemas() {
 		Set<String> schemas = new HashSet<>(ModuleLayersTest.LAYERS.keySet());
+		schemas.addAll(RETIRED_SCHEMAS);
 		schemas.add("platform");
 		return Set.copyOf(schemas);
 	}

@@ -228,11 +228,6 @@ class FundingIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.transition_j7' AND job_id = '" + this.job + "'"))
 			.as("J7 waits for the read-only copy").isZero();
 		assertThat(notifications("job.job_starting", this.lan)).as("no write access to prepare").isZero();
-		// Story 5.1 seeds one Story per criterion at J7, so an Assessment Job's Work Items wait for its copy too.
-		long criteria = count("SELECT count(*) FROM job.confirmed_agreement c, jsonb_array_elements(c.content -> 'milestones') m,"
-				+ " jsonb_array_elements(m -> 'criteria') k WHERE c.job_id = '" + this.job + "'");
-		assertThat(criteria).isPositive();
-		assertThat(count("SELECT count(*) FROM work.work_item WHERE job_id = '" + this.job + "'")).isZero();
 	}
 
 	@Test

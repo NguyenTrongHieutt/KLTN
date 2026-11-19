@@ -65,12 +65,12 @@ class AbuseReports {
 	static final String RESOLVED = "admin.abuse_report_resolved";
 
 	static final Set<String> KINDS = Set.of("PRODUCT", "JOB_POST", "RATING", "JOB_CHAT_MESSAGE", "CREW_CHAT_MESSAGE",
-			"WORK_ITEM_NOTE", "USER", "RECRUITMENT_NOTE");
+			"USER", "RECRUITMENT_NOTE");
 
 	private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	private static final Map<String, AdminReadScope> GRANTED = Map.of("JOB_CHAT_MESSAGE", AdminReadScope.JOB_CHAT,
-			"CREW_CHAT_MESSAGE", AdminReadScope.CREW_CHAT, "WORK_ITEM_NOTE", AdminReadScope.WORK_ITEM_NOTES);
+			"CREW_CHAT_MESSAGE", AdminReadScope.CREW_CHAT);
 
 	/** How an Administrator decided: hid the content (FR-60), acted elsewhere, or dismissed the report. */
 	enum Action {

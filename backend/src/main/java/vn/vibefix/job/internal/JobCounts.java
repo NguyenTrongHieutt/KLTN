@@ -9,8 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.shared.PlatformCounts;
 
-/** ADM-9 (FR-62, FR-35, FR-68): Jobs by state and by Job Type, Crews by size, overdue Milestones, and
- * acceptances by how they happened. */
+/** ADM-9 (FR-62, FR-35, FR-68): Jobs by state and by Job Type, Crews by size, overdue Milestones, accepted
+ * Milestones by whether a Revision Round was used, and acceptances by how they happened. */
 @Component
 class JobCounts implements PlatformCounts {
 
@@ -22,6 +22,9 @@ class JobCounts implements PlatformCounts {
 
 	/** The Milestones {@link #ON_TIME} counts over: live, accepted, and with a due date. */
 	static final String ACCEPTED_DATED = "m.removed_at IS NULL AND m.accepted_at IS NOT NULL AND m.due_on IS NOT NULL";
+
+	/** The accepted Milestones FR-62's first-pass figures count over: live and accepted (Story 24.2). */
+	static final String ACCEPTED = "removed_at IS NULL AND accepted_at IS NOT NULL";
 
 	private final JdbcClient jdbc;
 
@@ -52,6 +55,10 @@ class JobCounts implements PlatformCounts {
 				SELECT CASE WHEN auto_accepted THEN 'AUTOMATIC' ELSE 'MANUAL' END AS key, count(*) AS value FROM job.milestone
 				WHERE removed_at IS NULL AND accepted_at IS NOT NULL GROUP BY 1
 				""");
+		// FR-62, Story 24.2: what the Board's approved Work Items used to say, over the Milestones themselves.
+		// A Milestone accepted with no Revision Round used was accepted on its first handover.
+		grouped(counts, "acceptedMilestones", "SELECT CASE WHEN revision_rounds_used = 0 THEN 'FIRST_PASS'"
+				+ " ELSE 'AFTER_REVISION' END AS key, count(*) AS value FROM job.milestone WHERE " + ACCEPTED + " GROUP BY 1");
 		// Story 17.2's FR-62 formulas (SPEC.md Open Questions): completion counts the Jobs that ended after
 		// their Agreement was confirmed; on time means the accepted handover was submitted by the end of the
 		// due date in Vietnam.
@@ -63,6 +70,9 @@ class JobCounts implements PlatformCounts {
 				""");
 		rate(counts, "rates", "ON_TIME", "SELECT count(*) FILTER (WHERE " + ON_TIME + ") AS part, count(*) AS whole"
 				+ " FROM job.milestone m WHERE " + ACCEPTED_DATED);
+		rate(counts, "acceptedMilestones", "FIRST_PASS_SHARE",
+				"SELECT count(*) FILTER (WHERE revision_rounds_used = 0) AS part, count(*) AS whole FROM job.milestone"
+						+ " WHERE " + ACCEPTED);
 		rate(counts, "acceptances", "MANUAL_SHARE", """
 				SELECT count(*) FILTER (WHERE NOT auto_accepted) AS part, count(*) AS whole FROM job.milestone
 				WHERE removed_at IS NULL AND accepted_at IS NOT NULL

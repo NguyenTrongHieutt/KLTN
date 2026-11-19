@@ -1,7 +1,6 @@
 package vn.vibefix.dispute.internal;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,7 +30,6 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
-import vn.vibefix.work.WorkEvidence;
 
 /**
  * The Split Evidence Package (FR-84, AD-8, AD-19, AD-20, AD-40, UX-DR107): the tabs {@code dispute} assembles on demand from the
@@ -67,15 +65,6 @@ class AdminSplitEvidenceController {
 
 	/** "Các bản phân chia": every version oldest first, and each party's active interval. */
 	record SplitEvidenceVersionsView(List<SplitEvidencePartyView> parties, List<SplitEvidenceVersionView> versions) {
-	}
-
-	/** One entry of a Work Item's history. */
-	record SplitEvidenceHistoryView(String action, @Nullable String actorName, @Nullable String comment, Instant at) {
-	}
-
-	/** One Work Item with its history. */
-	record SplitEvidenceWorkItemView(UUID workItemId, String key, String title, String status, @Nullable String assigneeName,
-			List<SplitEvidenceHistoryView> history) {
 	}
 
 	/**
@@ -116,8 +105,6 @@ class AdminSplitEvidenceController {
 
 	private final MilestoneSplits splits;
 
-	private final WorkEvidence work;
-
 	private final DeliveryEvidence deliveries;
 
 	private final ChatEvidence chat;
@@ -132,13 +119,12 @@ class AdminSplitEvidenceController {
 
 	private final CurrentCaller callers;
 
-	AdminSplitEvidenceController(SplitEvidencePackage evidence, MilestoneSplits splits, WorkEvidence work,
+	AdminSplitEvidenceController(SplitEvidencePackage evidence, MilestoneSplits splits,
 			DeliveryEvidence deliveries, ChatEvidence chat, PersonSignals signals, SplitResolutionPeople people,
 			CustomerNames customers, AccountAdministration accounts, CurrentCaller callers) {
 		this.accounts = accounts;
 		this.evidence = evidence;
 		this.splits = splits;
-		this.work = work;
 		this.deliveries = deliveries;
 		this.chat = chat;
 		this.signals = signals;
@@ -167,31 +153,6 @@ class AdminSplitEvidenceController {
 								.map(line -> new SplitEvidenceLineView(line.partyId(), line.percent(), line.confirmedAt()))
 								.toList()))
 					.toList());
-	}
-
-	/** "Hạng mục": the Milestone's Work Items the grant covers, each party's, with their histories. */
-	@GetMapping("/work-items")
-	List<SplitEvidenceWorkItemView> workItems(@PathVariable UUID resolutionId) {
-		UUID me = this.callers.get().requireAccountId();
-		Resolution resolution = this.evidence.view(resolutionId, me, Tab.WORK_ITEMS);
-		SplitCase split = caseOf(resolution);
-		List<WorkEvidence.PartyItem> items = this.work.milestoneItemsUnderGrant(me, Objects.requireNonNull(resolution.grantId()),
-				split.jobId(), split.milestoneId());
-		List<UUID> mentioned = new ArrayList<>();
-		items.forEach(item -> {
-			if (item.assigneeId() != null) {
-				mentioned.add(item.assigneeId());
-			}
-			item.history().stream().map(WorkEvidence.HistoryLine::actorId).filter(Objects::nonNull).forEach(mentioned::add);
-		});
-		Map<UUID, String> names = names(split, mentioned);
-		return items.stream()
-			.map(item -> new SplitEvidenceWorkItemView(item.workItemId(), item.key(), item.title(), item.status(),
-					nameOf(item.assigneeId(), names), item.history()
-						.stream()
-						.map(line -> new SplitEvidenceHistoryView(line.action(), nameOf(line.actorId(), names), line.comment(), line.at()))
-						.toList()))
-			.toList();
 	}
 
 	/** "Commit": the Handover Commits' authors by GitHub numeric ID, matched to the parties (AD-33). */

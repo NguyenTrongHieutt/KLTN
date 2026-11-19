@@ -22,9 +22,6 @@ enum DeliveryReason {
 	/** Only a Funded or Revision Requested Milestone is handed over (FR-32). */
 	MILESTONE_NOT_HELD,
 
-	/** A Work Item of the Milestone is not in "Xong" through an approval and has no note (FR-32). */
-	WORK_ITEMS_NOT_DONE,
-
 	/** Every Acceptance Criterion of the Milestone needs "Đạt" or "Chưa đạt" and a note (FR-32). */
 	CRITERION_MARK_MISSING,
 

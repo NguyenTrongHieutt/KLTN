@@ -89,7 +89,7 @@ class SplitVersionGrantsIT extends IntegrationTest implements AdminReadGrantsCon
 	void aGrantNamingAnotherSplitReadsNothingOfThisOne() {
 		Seeded item = seed();
 		this.grants.grantAdminRead(UUID.randomUUID(), ADMIN, item.jobId(),
-				AdminReadItem.forSplitResolution(UUID.randomUUID(), Set.of()), REASON);
+				AdminReadItem.forSplitResolution(UUID.randomUUID()), REASON);
 
 		assertThatThrownBy(() -> read(ADMIN, item)).isInstanceOf(ApiException.class);
 	}

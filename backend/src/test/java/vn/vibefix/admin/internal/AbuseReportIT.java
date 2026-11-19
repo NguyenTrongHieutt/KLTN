@@ -73,10 +73,6 @@ class AbuseReportIT extends IntegrationTest {
 
 	private UUID otherMessage;
 
-	private UUID note;
-
-	private UUID otherNote;
-
 	@BeforeEach
 	void aRunningJobWithItsRecordsAnOpenJobPostAndTwoAdministrators() {
 		this.world = HeldCrewJob.create(this.jdbc, this.clock.instant());
@@ -101,17 +97,6 @@ class AbuseReportIT extends IntegrationTest {
 			.param("id", chat).param("job", this.world.job()).param("product", this.world.product()).param("at", at).update();
 		this.crewMessage = message(chat, "Lời lẽ xúc phạm trong nhóm", at);
 		this.otherMessage = message(chat, "Tin nhắn khác của nhóm", at);
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 2, :at)
-				ON CONFLICT DO NOTHING
-				""").param("job", this.world.job()).param("product", this.world.product()).param("at", at).update();
-		UUID item = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, created_at, updated_at)
-				VALUES (:id, :job, 1, 'TASK', 'Sửa trang đặt bàn', 'Mô tả', :at, :at)
-				""").param("id", item).param("job", this.world.job()).param("at", at).update();
-		this.note = note(item, "Ghi chú bị báo cáo", at);
-		this.otherNote = note(item, "Ghi chú khác", at);
 	}
 
 	@Test
@@ -360,27 +345,12 @@ class AbuseReportIT extends IntegrationTest {
 		message(this.quan, this.crewMessage).andExpect(status().isNotFound());
 	}
 
+	/** Story 24.2: the Board is retired, so {@code WORK_ITEM_NOTE} is no kind a report may name any more (FR-69). */
 	@Test
-	void aWorkItemNoteReportOpensThatNoteOnly() throws Exception {
-		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", this.note).andExpect(status().isCreated());
-		file(this.world.lan(), Role.CUSTOMER, "WORK_ITEM_NOTE", this.otherNote).andExpect(status().isNotFound());
-		UUID report = reportOf("WORK_ITEM_NOTE");
-		this.mvc.perform(get("/api/v1/admin/abuse-reports/" + report).with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.label").value("SDB-1 Sửa trang đặt bàn"))
-			.andExpect(content().string(not(containsString("Ghi chú bị báo cáo"))));
-		take(this.ha.accountId(), report);
-
-		this.mvc.perform(get("/api/v1/work-item-notes/" + this.note).with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.text").value("Ghi chú bị báo cáo"))
-			.andExpect(jsonPath("$.author").value("Trần Thảo Vy"));
-		this.mvc.perform(get("/api/v1/work-item-notes/" + this.otherNote).with(admin(this.ha.accountId())))
-			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/work-items").with(admin(this.ha.accountId())))
-			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/work-item-notes/" + this.note).with(as(this.world.minh(), Role.STUDENT)))
-			.andExpect(status().isOk());
+	void aWorkItemNoteIsNoLongerReportable() throws Exception {
+		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID())
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("VALIDATION"));
 	}
 
 	@Test
@@ -504,16 +474,6 @@ class AbuseReportIT extends IntegrationTest {
 		UUID id = UUID.randomUUID();
 		this.jdbc.sql("INSERT INTO chat.message (id, chat_id, author_account_id, body, sent_at) VALUES (:id, :chat, :author, :body, :at)")
 			.param("id", id).param("chat", chat).param("author", this.world.hung()).param("body", body).param("at", at).update();
-		return id;
-	}
-
-	private UUID note(UUID item, String text, Timestamp at) {
-		UUID id = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
-				VALUES (:id, :item, :job, :author, 'NOTE', '{}'::jsonb, :text, :at)
-				""").param("id", id).param("item", item).param("job", this.world.job()).param("author", this.world.vy())
-			.param("text", text).param("at", at).update();
 		return id;
 	}
 

@@ -69,8 +69,6 @@ class EvidencePackageIT extends IntegrationTest {
 
 	private Administrator ha;
 
-	private UUID item;
-
 	/** A second Administrator, without a step-up secret: only the first is enrolled through the bootstrap. */
 	private UUID quan;
 
@@ -115,17 +113,6 @@ class EvidencePackageIT extends IntegrationTest {
 				VALUES (:id, :job, :product, 'COMMITS', :sha, ARRAY[:sha], :at)
 				""").param("id", UUID.randomUUID()).param("job", this.world.job()).param("product", this.world.product())
 			.param("sha", SHA).param("at", at).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :at)
-				ON CONFLICT DO NOTHING
-				""").param("job", this.world.job()).param("product", this.world.product()).param("at", at).update();
-		this.item = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, created_at,
-				    updated_at)
-				VALUES (:id, :job, 1, 'STORY', 'Tiêu chí 1', 'Cách kiểm tra 1', :criterion, :milestone, :at, :at)
-				""").param("id", this.item).param("job", this.world.job()).param("criterion", criterion)
-			.param("milestone", this.world.milestone()).param("at", at).update();
 	}
 
 	@Test
@@ -168,12 +155,6 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(content().string(containsString("Bản sửa đã gửi hôm qua")));
 		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/crew-chat/messages").with(admin(this.ha.accountId())))
 			.andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/work-items").with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.items[0].id").value(this.item.toString()));
-		this.mvc.perform(get("/api/v1/work-items/" + this.item).with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.item.title").value("Tiêu chí 1"));
 		this.mvc.perform(get("/api/v1/admin/jobs/" + this.world.job() + "/crew-terms").with(admin(this.ha.accountId())))
 			.andExpect(status().isNotFound());
 
@@ -211,23 +192,6 @@ class EvidencePackageIT extends IntegrationTest {
 		this.mvc.perform(get(crewChat).with(admin(this.quan))).andExpect(status().isNotFound());
 	}
 
-	/** Story 22.3 (AD-20): the Work Items tab reads its own case's grant, whatever else its Administrator holds on the Job. */
-	@Test
-	void theSplitWorkItemsTabListsWhatItsOwnGrantCoversNotADisputesOfTheSameAdministrator() throws Exception {
-		UUID dispute = open();
-		UUID resolution = splitResolution();
-		take(this.ha.accountId(), dispute);
-		this.mvc.perform(post("/api/v1/admin/split-resolutions/" + resolution + "/take").with(admin(this.ha.accountId())).with(csrf()))
-			.andExpect(status().isOk());
-
-		this.mvc.perform(get("/api/v1/boards/" + this.world.job() + "/work-items").with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.items[0].id").value(this.item.toString()));
-		this.mvc.perform(get("/api/v1/admin/split-resolutions/" + resolution + "/evidence/work-items").with(admin(this.ha.accountId())))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(0));
-	}
-
 	@Test
 	void aTakeoverEndsTheOldGrantAndTheDecisionEndsItThirtyDaysLater() throws Exception {
 		UUID dispute = open();
@@ -253,7 +217,7 @@ class EvidencePackageIT extends IntegrationTest {
 					+ "\"stepUpCode\":\"" + AdministratorTestSupport.code(this.ha, decidedAt) + "\"}"))
 			.andExpect(status().isOk());
 		assertThat(this.jdbc.sql("""
-				SELECT ends_at FROM work.admin_read_grant g JOIN dispute.dispute d ON d.grant_id = g.grant_id WHERE d.id = :id
+				SELECT ends_at FROM chat.admin_read_grant g JOIN dispute.dispute d ON d.grant_id = g.grant_id WHERE d.id = :id
 				""").param("id", dispute).query(Timestamp.class).single().toInstant()).isEqualTo(decidedAt.plus(Duration.ofDays(30)));
 
 		this.clock.advance(Duration.ofDays(29));
@@ -299,7 +263,7 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].status").value("REVISION_REQUESTED"))
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].reportedMet").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].checkedMet").value(0))
-			.andExpect(jsonPath("$.evidenceSnapshot.workItems[0].workItemId").value(this.item.toString()))
+			.andExpect(jsonPath("$.evidenceSnapshot.workItems").doesNotExist())
 			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
 			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].moneyInVnd").value(HeldCrewJob.PRICE))
 			.andExpect(jsonPath("$.evidenceSnapshot.payments[0].releasableVnd").value(HeldCrewJob.PRICE))
@@ -324,7 +288,7 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.decision.reasoning").value("Hai bên cùng có lỗi"))
 			.andExpect(jsonPath("$.decision.releaseVnd").value(500000))
-			.andExpect(jsonPath("$.evidenceSnapshot.workItems[0].workItemId").value(this.item.toString()))
+			.andExpect(jsonPath("$.evidenceSnapshot.workItems").doesNotExist())
 			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
 			.andExpect(jsonPath("$.statements[0].text").value("Khách đổi yêu cầu giữa chừng."));
 	}

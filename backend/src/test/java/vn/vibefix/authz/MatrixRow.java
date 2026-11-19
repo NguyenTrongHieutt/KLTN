@@ -35,16 +35,15 @@ import org.springframework.http.HttpMethod;
  * is and where {@code {applicationId}} lives; {@code teamIssue=escalated} makes {@code {teamIssueId}} name the
  * escalated Team Issue that {@code ADMIN_TEAM_ISSUE_GRANT} took, instead of the one waiting for the Mentor's
  * answer; {@code rating=former} and {@code rating=cross} make {@code {ratingId}} the Mentor's Rating of the crew Job's
- * former or cross-role member instead of the active member's; {@code file=upload}, {@code file=attachment}, {@code file=chat} and {@code file=screenshot} make
+ * former or cross-role member instead of the active member's; {@code file=upload}, {@code file=chat} and {@code file=screenshot} make
  * {@code {fileId}} name one of the crew Job's stored files (the Mentor's screenshot upload waiting for the next
- * handover, a Work Item attachment, a Crew Chat attachment, a handover's screenshot) instead of the Open Job Post's
+ * handover, a Crew Chat attachment, a handover's screenshot) instead of the Open Job Post's
  * public screenshot; {@code file=proof} and {@code file=proof-upload} make it name the post's bid's proof file or the
  * Bidder's proof upload no bid took yet (Story 21.2); {@code job=recruit} and {@code post=recruit} make {@code {jobId}}
  * and {@code {postId}} the recruiting Job, where {@code {crewApplicationId}} lives, and {@code file=crew-proof} and
  * {@code file=crew-proof-upload} make {@code {fileId}} its Crew Application's proof file or the applicant's waiting
  * upload (Story 21.4); {@code split=resolution} and {@code split=decided} make {@code {splitId}} the crew Job's split under an
- * open Split Resolution or the one an Administrator decided (Story 22.3); and {@code item=raiser} makes {@code {workItemId}} name the escalated Team Issue's raiser's
- * Work Item instead of the active member's. The
+ * open Split Resolution or the one an Administrator decided (Story 22.3). The
  * fixture that realizes the caller must understand every other key; since Story 20.5 no caller takes one: a
  * locked account is the caller {@code LOCKED}, and the GitHub link tells {@code USER} from
  * {@code USER_UNVERIFIED}.</li>
@@ -73,12 +72,12 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	static final String MENTOR_PATH = "/api/v1/mentor/";
 
 	/**
-	 * The placeholders that name a Job or an object of one (Story 20.5): a Job, a Board, a Job Post, or an object
+	 * The placeholders that name a Job or an object of one (Story 20.5): a Job, a Job Post, or an object
 	 * of the crew Job, its stored files included (review iteration 4). An endpoint whose path or body holds one is
 	 * Job-scoped, so every caller of a Job runs it.
 	 */
 	public static final Set<String> JOB_SCOPED = Set.of("jobId", "boardId", "postId", "applicationId", "crewChatId",
-			"messageId", "workItemId", "workItemNoteId", "attachmentId", "handoverId", "followUpId", "changeRequestId",
+			"messageId", "handoverId", "followUpId", "changeRequestId",
 			"teamIssueId", "crewMilestoneId", "crewCriterionId", "crewRowId", "milestoneId", "paymentOrderId",
 			"accessId", "screenshotId", "disputeId", "reportId", "fileId", "crewApplicationId", "splitId", "resolutionId");
 
@@ -118,12 +117,6 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		HANDOVER_UPLOAD("file", "upload", "fileId", "handoverUploadId"),
 
 		/**
-		 * {@code file=attachment}: {@code {fileId}} names the stored file of the crew Job's Work Item attachment
-		 * ({@code ATTACHMENT}), which {@code AttachmentFiles} serves (review iteration 4).
-		 */
-		WORK_ITEM_FILE("file", "attachment", "fileId", "attachmentFileId"),
-
-		/**
 		 * {@code file=chat}: {@code {fileId}} names a file sent in the crew Job's Crew Chat after the former members'
 		 * windows ended, which {@code ChatAttachmentFiles} serves.
 		 */
@@ -146,12 +139,6 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		 * which only the Bidder reads and removes (Story 21.2).
 		 */
 		PROOF_UPLOAD("file", "proof-upload", "fileId", "proofUploadId"),
-
-		/**
-		 * {@code item=raiser}: {@code {workItemId}} names the Work Item of the escalated Team Issue's raiser, which that
-		 * issue's grant reads (AdminReadItem.forEscalatedTeamIssue, review iteration 4).
-		 */
-		RAISER_ITEM("item", "raiser", "workItemId", "raiserWorkItemId"),
 
 		/**
 		 * {@code user=member}: {@code {username}} names the crew Job's member who hides their student name, whose PUB-4

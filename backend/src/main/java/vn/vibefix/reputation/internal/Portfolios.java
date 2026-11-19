@@ -23,7 +23,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.delivery.DeliveryEvidence;
+import vn.vibefix.delivery.DeliveryEvidence.CommitLine;
 import vn.vibefix.delivery.HandoverFacts;
+import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.job.AgreementSkills;
 import vn.vibefix.job.Crews;
 import vn.vibefix.job.JobPosts;
@@ -44,14 +47,15 @@ import vn.vibefix.reputation.internal.Ratings.Window;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.work.WorkFacts;
 
 /**
  * Portfolio Entries (FR-50, AD-33, AD-38, AD-41): when a Job with Accepted work reaches Closed or Cancelled, which J9
  * does for both (J10 refuses a Job with Accepted work), one is
  * created for the Mentor, under their history as Mentor, and one for every Crew member whose active window overlaps
  * the work of at least one Accepted Milestone, leavers included, under their history as Crew member
- * ({@code job.activeDuringAcceptedWork}, Story 21.3), with facts frozen from records. The Mentor drafts the summary,
+ * ({@code job.activeDuringAcceptedWork}, Story 21.3), with facts frozen from records: the Mentor's Milestones
+ * handed over, a Crew member's commits in the accepted Milestone Handovers, and never a Work Item or a review
+ * (FR-50, AD-33, Story 24.2). The Mentor drafts the summary,
  * the Customer approves (possibly edited, with or without the Product name) or declines it, all before the Rating
  * Window ends; otherwise there is none. Each entry is published once its person confirmed the data deletion
  * (FR-66).
@@ -82,8 +86,8 @@ class Portfolios {
 	}
 
 	record Entry(UUID jobId, UUID accountId, String role, String jobTitle, String productName, List<String> jobTypes,
-			List<UUID> skillIds, int milestones, @Nullable Integer workItemsApproved, @Nullable Integer milestonesHandedOver,
-			@Nullable Integer reviewsWritten, Instant closedAt, @Nullable Instant publishedAt) {
+			List<UUID> skillIds, int milestones, @Nullable Integer commitsAuthored, @Nullable Integer milestonesHandedOver,
+			Instant closedAt, @Nullable Instant publishedAt) {
 	}
 
 	private final JdbcClient jdbc;
@@ -94,9 +98,11 @@ class Portfolios {
 
 	private final AgreementSkills agreementSkills;
 
-	private final WorkFacts work;
-
 	private final HandoverFacts handovers;
+
+	private final DeliveryEvidence deliveries;
+
+	private final PersonDirectory people;
 
 	private final ProductDirectory products;
 
@@ -114,16 +120,18 @@ class Portfolios {
 
 	private final Clock clock;
 
-	Portfolios(JdbcClient jdbc, JobPosts posts, MilestoneStates milestones, AgreementSkills agreementSkills, WorkFacts work,
-			HandoverFacts handovers, ProductDirectory products, DataDeletions deletions, Ratings ratings, Crews crews,
-			Notifications notifications, Todos todos, IdGenerator ids, Clock clock) {
+	Portfolios(JdbcClient jdbc, JobPosts posts, MilestoneStates milestones, AgreementSkills agreementSkills,
+			HandoverFacts handovers, DeliveryEvidence deliveries, PersonDirectory people, ProductDirectory products,
+			DataDeletions deletions, Ratings ratings, Crews crews, Notifications notifications, Todos todos,
+			IdGenerator ids, Clock clock) {
 		this.crews = crews;
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.milestones = milestones;
 		this.agreementSkills = agreementSkills;
-		this.work = work;
 		this.handovers = handovers;
+		this.deliveries = deliveries;
+		this.people = people;
 		this.products = products;
 		this.deletions = deletions;
 		this.ratings = ratings;
@@ -144,7 +152,13 @@ class Portfolios {
 		if (post == null || summary(jobId).isPresent()) {
 			return;
 		}
-		int accepted = (int) this.milestones.statesOf(jobId).values().stream().filter(ACCEPTED::contains).count();
+		List<UUID> acceptedMilestones = this.milestones.statesOf(jobId)
+			.entrySet()
+			.stream()
+			.filter(state -> ACCEPTED.contains(state.getValue()))
+			.map(Map.Entry::getKey)
+			.toList();
+		int accepted = acceptedMilestones.size();
 		if (accepted == 0) {
 			return;
 		}
@@ -155,12 +169,11 @@ class Portfolios {
 		}
 		String product = this.products.find(post.productId()).map(ProductInfo::name).orElse("");
 		Instant now = this.clock.instant();
-		insert(post, mentor, "MENTOR", product, skills, accepted, null, this.handovers.milestonesHandedOver(jobId),
-				this.work.reviewsWritten(jobId, mentor), now);
-		Map<UUID, Integer> approved = this.work.approvedItems(jobId);
+		insert(post, mentor, "MENTOR", product, skills, accepted, null, this.handovers.milestonesHandedOver(jobId), now);
 		List<UUID> crew = this.crews.activeDuringAcceptedWork(jobId);
+		Map<UUID, Integer> authored = commitsAuthored(acceptedMilestones, crew);
 		for (UUID member : crew) {
-			insert(post, member, "CREW", product, skills, accepted, approved.getOrDefault(member, 0), null, null, now);
+			insert(post, member, "CREW", product, skills, accepted, authored.getOrDefault(member, 0), null, now);
 		}
 		this.jdbc.sql("""
 				INSERT INTO reputation.portfolio_summary (job_id, product_id, status, created_at)
@@ -331,6 +344,36 @@ class Portfolios {
 		return counts;
 	}
 
+	/**
+	 * How many commits of the Job's accepted Milestone Handovers each of these people authored (FR-50, AD-33,
+	 * Story 24.2): the facts a Crew member's entry freezes, read from the records {@code delivery} kept, never
+	 * typed by anyone. A commit GitHub resolved to no account, or to nobody in {@code people}, counts for nobody.
+	 */
+	private Map<UUID, Integer> commitsAuthored(List<UUID> acceptedMilestones, List<UUID> people) {
+		Map<UUID, Integer> authored = new HashMap<>();
+		if (people.isEmpty() || acceptedMilestones.isEmpty()) {
+			return authored;
+		}
+		Map<Long, UUID> byGithub = new HashMap<>();
+		this.people.cards(people).forEach(card -> {
+			if (card.githubUserId() != null) {
+				byGithub.put(card.githubUserId(), card.accountId());
+			}
+		});
+		if (byGithub.isEmpty()) {
+			return authored;
+		}
+		for (UUID milestone : acceptedMilestones) {
+			for (CommitLine commit : this.deliveries.commitsOf(milestone)) {
+				UUID account = commit.authorGithubId() == null ? null : byGithub.get(commit.authorGithubId());
+				if (account != null) {
+					authored.merge(account, 1, Integer::sum);
+				}
+			}
+		}
+		return authored;
+	}
+
 	/** Which of these Mentors have an entry: a Job closed with Accepted work (FR-14). */
 	Set<UUID> withEntries(Collection<UUID> mentorIds) {
 		if (mentorIds.isEmpty()) {
@@ -342,13 +385,12 @@ class Portfolios {
 	}
 
 	private void insert(JobPostState post, UUID account, String role, String product, List<UUID> skills, int accepted,
-			@Nullable Integer approved, @Nullable Integer handedOver, @Nullable Integer reviews, Instant now) {
+			@Nullable Integer commits, @Nullable Integer handedOver, Instant now) {
 		this.jdbc.sql("""
 				INSERT INTO reputation.portfolio_entry (id, job_id, product_id, account_id, role, job_title, product_name, job_types,
-				    skill_ids, milestones_accepted, work_items_approved, milestones_handed_over, reviews_written, closed_at,
-				    created_at)
-				VALUES (:id, :job, :product, :account, :role, :title, :productName, :types, :skills, :accepted, :approved,
-				    :handedOver, :reviews, :now, :now)
+				    skill_ids, milestones_accepted, commits_authored, milestones_handed_over, closed_at, created_at)
+				VALUES (:id, :job, :product, :account, :role, :title, :productName, :types, :skills, :accepted, :commits,
+				    :handedOver, :now, :now)
 				ON CONFLICT (job_id, account_id) DO NOTHING
 				""")
 			.param("id", this.ids.newId())
@@ -361,9 +403,8 @@ class Portfolios {
 			.param("types", post.jobTypes().toArray(String[]::new))
 			.param("skills", skills.toArray(UUID[]::new))
 			.param("accepted", accepted)
-			.param("approved", approved)
+			.param("commits", commits)
 			.param("handedOver", handedOver)
-			.param("reviews", reviews)
 			.param("now", Timestamp.from(now))
 			.update();
 	}
@@ -406,8 +447,8 @@ class Portfolios {
 		Timestamp published = rs.getTimestamp("published_at");
 		return new Entry(rs.getObject("job_id", UUID.class), rs.getObject("account_id", UUID.class), rs.getString("role"),
 				rs.getString("job_title"), rs.getString("product_name"), strings(rs.getArray("job_types")),
-				uuids(rs.getArray("skill_ids")), rs.getInt("milestones_accepted"), integer(rs, "work_items_approved"),
-				integer(rs, "milestones_handed_over"), integer(rs, "reviews_written"), rs.getTimestamp("closed_at").toInstant(),
+				uuids(rs.getArray("skill_ids")), rs.getInt("milestones_accepted"), integer(rs, "commits_authored"),
+				integer(rs, "milestones_handed_over"), rs.getTimestamp("closed_at").toInstant(),
 				published == null ? null : published.toInstant());
 	}
 

@@ -1,7 +1,6 @@
 package vn.vibefix.shared;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -41,34 +40,24 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 		return new AdminReadItem(scope, null, Objects.requireNonNull(accountId, "accountId"));
 	}
 
-	/**
-	 * A Dispute's grant: the Job Chat, Work Items with history, notes, and the Attachment list; never the
-	 * Crew Chat or split versions.
-	 */
+	/** A Dispute's grant: the Job Chat; never the Crew Chat or split versions. */
 	public static Set<AdminReadItem> forDispute() {
-		return Set.of(all(AdminReadScope.JOB_CHAT), all(AdminReadScope.WORK_ITEMS),
-				all(AdminReadScope.WORK_ITEM_NOTES), all(AdminReadScope.ATTACHMENTS));
+		return Set.of(all(AdminReadScope.JOB_CHAT));
 	}
 
 	/**
-	 * An escalated Team Issue's grant: the Crew Chat and the raiser's Work Item histories; the Rating itself is read
-	 * through {@code reputation}.
+	 * An escalated Team Issue's grant: the Crew Chat; the Rating itself is read through {@code reputation}.
 	 */
-	public static Set<AdminReadItem> forEscalatedTeamIssue(UUID raiserAccountId) {
-		return Set.of(all(AdminReadScope.CREW_CHAT), involving(AdminReadScope.WORK_ITEMS, raiserAccountId));
+	public static Set<AdminReadItem> forEscalatedTeamIssue() {
+		return Set.of(all(AdminReadScope.CREW_CHAT));
 	}
 
 	/**
-	 * A Split Resolution's grant (AD-20, AD-40): the Milestone's split versions, the Crew Chat, and every split party's
-	 * Work Item histories; never the Job Chat.
-	 * @param partyAccounts the split's parties who still have an account
+	 * A Split Resolution's grant (AD-20, AD-40): the Milestone's split versions and the Crew Chat; never the Job
+	 * Chat.
 	 */
-	public static Set<AdminReadItem> forSplitResolution(UUID splitId, Collection<UUID> partyAccounts) {
-		Set<AdminReadItem> items = new HashSet<>();
-		items.add(one(AdminReadScope.SPLIT_VERSIONS, splitId));
-		items.add(all(AdminReadScope.CREW_CHAT));
-		partyAccounts.forEach(account -> items.add(involving(AdminReadScope.WORK_ITEMS, account)));
-		return Set.copyOf(items);
+	public static Set<AdminReadItem> forSplitResolution(UUID splitId) {
+		return Set.of(one(AdminReadScope.SPLIT_VERSIONS, splitId), all(AdminReadScope.CREW_CHAT));
 	}
 
 	/** An Abuse Report's grant: the single item it names. */
@@ -78,7 +67,7 @@ public record AdminReadItem(AdminReadScope scope, @Nullable UUID objectId, @Null
 
 	/**
 	 * Whether this item covers the object {@code objectId} of {@code scope}, whose content involves
-	 * {@code involvedAccountIds} (for a Work Item: its assignees and history authors).
+	 * {@code involvedAccountIds} (for a Chat message: its author).
 	 */
 	public boolean covers(AdminReadScope scope, UUID objectId, Collection<UUID> involvedAccountIds) {
 		if (this.scope != scope) {

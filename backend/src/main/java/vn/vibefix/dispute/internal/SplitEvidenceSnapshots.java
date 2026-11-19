@@ -15,12 +15,11 @@ import vn.vibefix.delivery.DeliveryEvidence;
 import vn.vibefix.identity.PersonSignals;
 import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.job.MilestoneSplits.SplitCase;
-import vn.vibefix.work.WorkEvidence;
 
 /**
  * A Split Resolution decision's evidence snapshot (SG-27, AD-24, AD-40), written with the decision from the queries the Split
  * Evidence Package reads, as {@link EvidenceSnapshots} does for a Dispute: IDs, versions, counts, never copies of the content
- * and never an account ID. It stays with the decision after the Job's Crew Chat and Work Items go, so the decision remains
+ * and never an account ID. It stays with the decision after the Job's Crew Chat and handovers go, so the decision remains
  * explainable.
  */
 @Component
@@ -28,9 +27,6 @@ class SplitEvidenceSnapshots {
 
 	/** @param confirmations how many parties confirmed it */
 	record SplitSnapshotVersion(int versionNo, String kind, int confirmations, Instant createdAt) {
-	}
-
-	record SplitSnapshotWorkItem(UUID workItemId, int number, long version, String status) {
 	}
 
 	record SplitSnapshotCommit(UUID handoverId, String sha) {
@@ -44,7 +40,7 @@ class SplitEvidenceSnapshots {
 	 * Everything the decision was based on, as it stood at {@code takenAt}.
 	 * @param personLinks how many matched pairs the package listed
 	 */
-	record SplitEvidenceSnapshot(Instant takenAt, List<SplitSnapshotVersion> versions, List<SplitSnapshotWorkItem> workItems,
+	record SplitEvidenceSnapshot(Instant takenAt, List<SplitSnapshotVersion> versions,
 			List<SplitSnapshotCommit> commits, SplitSnapshotChat crewChat, int personLinks) {
 	}
 
@@ -52,18 +48,15 @@ class SplitEvidenceSnapshots {
 
 	private final MilestoneSplits splits;
 
-	private final WorkEvidence work;
-
 	private final DeliveryEvidence deliveries;
 
 	private final ChatEvidence chat;
 
 	private final PersonSignals signals;
 
-	SplitEvidenceSnapshots(MilestoneSplits splits, WorkEvidence work, DeliveryEvidence deliveries, ChatEvidence chat,
+	SplitEvidenceSnapshots(MilestoneSplits splits, DeliveryEvidence deliveries, ChatEvidence chat,
 			PersonSignals signals) {
 		this.splits = splits;
-		this.work = work;
 		this.deliveries = deliveries;
 		this.chat = chat;
 		this.signals = signals;
@@ -77,10 +70,6 @@ class SplitEvidenceSnapshots {
 					.stream()
 					.map(version -> new SplitSnapshotVersion(version.versionNo(), version.kind().name(),
 							(int) version.lines().stream().filter(line -> line.confirmedAt() != null).count(), version.createdAt()))
-					.toList(),
-				this.work.milestoneItems(split.jobId(), split.milestoneId(), parties)
-					.stream()
-					.map(item -> new SplitSnapshotWorkItem(item.workItemId(), item.number(), item.version(), item.status()))
 					.toList(),
 				this.deliveries.commitsOf(split.milestoneId())
 					.stream()

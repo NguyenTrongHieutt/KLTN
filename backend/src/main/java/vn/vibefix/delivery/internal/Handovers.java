@@ -41,22 +41,18 @@ import vn.vibefix.scanning.SensitiveText.Result;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
-import vn.vibefix.shared.WorkItemKey;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
-import vn.vibefix.work.MilestoneWork;
-import vn.vibefix.work.MilestoneWork.CommitMention;
-import vn.vibefix.work.MilestoneWork.ItemState;
 
 /**
  * Milestone Handovers (FR-10, FR-32, AD-4, AD-23, AD-33, SG-25): the preflight, the handover itself, and
- * its Delivery Report. A handover needs every Work Item of the Milestone in "Xong" through an approval or
- * a note for it, and each Acceptance Criterion marked with a note; the notes pass FR-47. {@code job}
- * applies M2 first, on the version the form loaded, so nothing is written when it refuses; then the
- * handover, its criteria, and its notes are stored, a Code Job's with its Handover Commit and range
- * (Story 8.2), and the to-dos move from the Mentor to the Customer. An Assessment Job hands over the
- * Milestone itself: its criteria are the Assessment Report's sections, and Story 24.3 adds the Mentor's
- * own document link.
+ * its Delivery Report. A handover needs each Acceptance Criterion of the Milestone marked "Đạt" or
+ * "Chưa đạt" with a note, which since Story 24.2 retired the Board is the whole of FR-32's enforcement;
+ * the notes pass FR-47. {@code job} applies M2 first, on the version the form loaded, so nothing is
+ * written when it refuses; then the handover and its criteria are stored, a Code Job's with its Handover
+ * Commit and range (Story 8.2), and the to-dos move from the Mentor to the Customer. An Assessment Job
+ * hands over the Milestone itself: its criteria are the Assessment Report's sections, and Story 24.3 adds
+ * the Mentor's own document link.
  */
 @Component
 class Handovers {
@@ -94,10 +90,6 @@ class Handovers {
 	record CriterionMark(UUID criterionId, boolean met, String note) {
 	}
 
-	/** The Mentor's note on one Work Item that is not done. */
-	record ItemNote(UUID workItemId, String note) {
-	}
-
 	/**
 	 * The Mentor's N-33 duty confirmation, as a Code Job's handover records it (FR-25, FR-32, R28, Story 23.8b):
 	 * vibefix scans no team code, so the Mentor confirms where they hand over that the handover's commits hold no
@@ -118,17 +110,13 @@ class Handovers {
 	record Criterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
 	}
 
-	record Note(UUID workItemId, String key, String title, String status, String note) {
-	}
-
 	/**
 	 * What the "Tạo bàn giao" form shows before anything is sent.
 	 * @param problems the refusals the handover would meet now, as reason codes
 	 * @param sensitive a Code Job's Sensitive Changes in the commits it would hand over
 	 */
 	record Preflight(MilestoneInForce milestone, String state, long jobVersion, boolean assessment,
-			List<CriterionInForce> criteria, List<ItemState> items, List<String> problems,
-			List<SensitiveChange> sensitive, int commitCount) {
+			List<CriterionInForce> criteria, List<String> problems, List<SensitiveChange> sensitive, int commitCount) {
 	}
 
 	/**
@@ -137,17 +125,12 @@ class Handovers {
 	 * @param noPreviewReason why a preview is impossible, masked; with {@code recordingUrl}
 	 */
 	record Draft(MilestoneInForce milestone, List<CriterionInForce> criteria, Map<UUID, Boolean> met,
-			Map<UUID, String> criterionNotes, List<ItemState> unfinished, Map<UUID, String> itemNotes,
-			@Nullable String previewUrl, @Nullable String recordingUrl, @Nullable String noPreviewReason,
-			List<UUID> screenshotIds) {
+			Map<UUID, String> criterionNotes, @Nullable String previewUrl, @Nullable String recordingUrl,
+			@Nullable String noPreviewReason, List<UUID> screenshotIds) {
 	}
 
 	/** One Acceptance Criterion as the Mentor marked it, ready to store. */
 	record PendingCriterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
-	}
-
-	/** One note on a Work Item that was not done, ready to store. */
-	record PendingItemNote(UUID workItemId, String key, String title, String status, String note) {
 	}
 
 	/**
@@ -159,13 +142,12 @@ class Handovers {
 	 * @param teamCode the Mentor's N-33 confirmation for a Code Job; none for an Assessment Job (Story 23.8b)
 	 */
 	record Pending(UUID id, UUID jobId, UUID productId, UUID customerId, UUID mentorId, long version, UUID milestoneId,
-			int milestoneNumber, String milestoneTitle, List<PendingCriterion> criteria, List<PendingItemNote> itemNotes,
-			@Nullable String previewUrl, @Nullable String recordingUrl, @Nullable String noPreviewReason,
-			List<UUID> screenshotIds, @Nullable TeamCodeConfirmation teamCode) {
+			int milestoneNumber, String milestoneTitle, List<PendingCriterion> criteria, @Nullable String previewUrl,
+			@Nullable String recordingUrl, @Nullable String noPreviewReason, List<UUID> screenshotIds,
+			@Nullable TeamCodeConfirmation teamCode) {
 
 		Pending {
 			criteria = List.copyOf(criteria);
-			itemNotes = List.copyOf(itemNotes);
 			screenshotIds = List.copyOf(screenshotIds);
 		}
 
@@ -179,11 +161,6 @@ class Handovers {
 						.map(criterion -> new PendingCriterion(criterion.criterionId(), criterion.number(),
 								criterion.statement(), criterion.checkSteps(), draft.met().get(criterion.criterionId()),
 								draft.criterionNotes().get(criterion.criterionId())))
-						.toList(),
-					draft.unfinished()
-						.stream()
-						.map(item -> new PendingItemNote(item.id(), item.key(), item.title(), item.status(),
-								draft.itemNotes().get(item.id())))
 						.toList(),
 					draft.previewUrl(), draft.recordingUrl(), draft.noPreviewReason(), draft.screenshotIds(), teamCode);
 		}
@@ -214,8 +191,8 @@ class Handovers {
 			List<SensitiveChange> sensitive) {
 	}
 
-	/** A recorded commit with the Work Item keys it linked. */
-	record RecordedCommit(String sha, String message, List<String> workItemKeys) {
+	/** A recorded commit of a Code Job's handover. */
+	record RecordedCommit(String sha, String message) {
 	}
 
 	/**
@@ -242,8 +219,6 @@ class Handovers {
 
 	private final MilestoneStates states;
 
-	private final MilestoneWork work;
-
 	private final SensitiveText check;
 
 	private final Todos todos;
@@ -259,7 +234,7 @@ class Handovers {
 	private final String noticeVersion;
 
 	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
-			MilestoneWork work, SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
+			SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
 			HandoverScreenshots screenshots,
 			@Value("${vibefix.delivery.team-code-notice-version}") String noticeVersion) {
 		if (noticeVersion == null || !NOTICE_VERSION.matcher(noticeVersion).matches()) {
@@ -272,7 +247,6 @@ class Handovers {
 		this.jobs = jobs;
 		this.criteria = criteria;
 		this.states = states;
-		this.work = work;
 		this.check = check;
 		this.todos = todos;
 		this.deadlines = deadlines;
@@ -310,12 +284,11 @@ class Handovers {
 		if (!HANDABLE.contains(state)) {
 			problems.add(DeliveryReason.MILESTONE_NOT_HELD.name());
 		}
-		List<ItemState> items = this.work.items(jobId, milestoneId);
 		if (!mentor.job().assessment() && code != null) {
 			problems.addAll(code.problems());
 		}
 		return new Preflight(milestone, state, mentor.job().version(), mentor.job().assessment(),
-				criteriaOf(jobId, milestoneId), items, problems, code == null ? List.of() : code.sensitive(),
+				criteriaOf(jobId, milestoneId), problems, code == null ? List.of() : code.sensitive(),
 				code == null || code.range() == null ? 0 : code.range().commits().size());
 	}
 
@@ -323,15 +296,13 @@ class Handovers {
 	 * "Gửi bàn giao", first step: everything the handover will store, checked and masked, before anything
 	 * is written or copied. A Code Job's commit is copied on the runner between this and {@link #record}.
 	 * @throws ApiException {@code NOT_FOUND} for a Milestone not in force; {@code GUARD_FAILED
-	 * MILESTONE_NOT_HELD}, {@code WORK_ITEMS_NOT_DONE} (with
-	 * {@code n}), or {@code SENSITIVE_CONTENT} (with the matches, under
+	 * MILESTONE_NOT_HELD} or {@code SENSITIVE_CONTENT} (with the matches, under
 	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}, {@code PREVIEW_REQUIRED},
 	 * {@code PREVIEW_OR_RECORDING}, {@code RECORDING_REASON_MISSING}, {@code TOO_MANY_SCREENSHOTS}, or
 	 * {@code SCREENSHOT_UNKNOWN}
 	 */
 	@Transactional(readOnly = true)
-	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, List<ItemNote> notes, Resolution resolution,
-			Evidence evidence) {
+	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, Resolution resolution, Evidence evidence) {
 		UUID jobId = mentor.job().jobId();
 		MilestoneInForce milestone = milestone(jobId, milestoneId);
 		if (!HANDABLE.contains(this.states.statesOf(jobId).getOrDefault(milestoneId, "PLANNED"))) {
@@ -346,22 +317,10 @@ class Handovers {
 				throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.CRITERION_MARK_MISSING);
 			}
 		}
-		Map<UUID, String> noted = new HashMap<>();
-		notes.stream().filter(note -> !note.note().isBlank()).forEach(note -> noted.put(note.workItemId(), note.note()));
-		List<ItemState> unfinished = this.work.items(jobId, milestoneId).stream().filter(item -> !item.approved()).toList();
-		long unexplained = unfinished.stream().filter(item -> !noted.containsKey(item.id())).count();
-		if (unexplained > 0) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.WORK_ITEMS_NOT_DONE,
-					Map.of("n", unexplained));
-		}
 		List<MatchView> matches = new ArrayList<>();
 		Map<UUID, String> criterionNotes = new HashMap<>();
 		for (CriterionInForce criterion : criteria) {
 			criterionNotes.put(criterion.criterionId(), masked(byCriterion.get(criterion.criterionId()).note(), matches));
-		}
-		Map<UUID, String> itemNotes = new HashMap<>();
-		for (ItemState item : unfinished) {
-			itemNotes.put(item.id(), masked(noted.get(item.id()), matches));
 		}
 		String preview = blankToNull(evidence.previewUrl());
 		String recording = blankToNull(evidence.recordingUrl());
@@ -382,14 +341,13 @@ class Handovers {
 		}
 		Map<UUID, Boolean> met = new HashMap<>();
 		criteria.forEach(criterion -> met.put(criterion.criterionId(), byCriterion.get(criterion.criterionId()).met()));
-		return new Draft(milestone, criteria, met, criterionNotes, unfinished, itemNotes, preview, recording,
-				maskedReason, evidence.screenshotIds());
+		return new Draft(milestone, criteria, met, criterionNotes, preview, recording, maskedReason,
+				evidence.screenshotIds());
 	}
 
 	/**
 	 * "Gửi bàn giao", last step: M2 on {@code version} with the drafted handover, then its rows; a Code
-	 * Job's with its Handover Commit, range, Sensitive Changes, and the Work Items its commits mention
-	 * (FR-23).
+	 * Job's with its Handover Commit, range, and Sensitive Changes.
 	 * @throws ApiException M2's refusals, {@code STALE} among them; nothing is written then
 	 */
 	@Transactional
@@ -458,19 +416,6 @@ class Handovers {
 				.param("note", criterion.note())
 				.update();
 		}
-		for (PendingItemNote item : pending.itemNotes()) {
-			this.jdbc.sql("""
-					INSERT INTO delivery.handover_item_note (handover_id, work_item_id, item_key, title, status, note)
-					VALUES (:id, :item, :key, :title, :status, :note)
-					""")
-				.param("id", id)
-				.param("item", item.workItemId())
-				.param("key", item.key())
-				.param("title", item.title())
-				.param("status", item.status())
-				.param("note", item.note())
-				.update();
-		}
 		if (code != null) {
 			recordCode(jobId, id, code);
 		}
@@ -484,24 +429,19 @@ class Handovers {
 		return find(id).orElseThrow();
 	}
 
-	/** The commits with the Work Items they mention, and the Sensitive Changes, of a Code handover. */
+	/** The commits and the Sensitive Changes of a Code handover. */
 	private void recordCode(UUID jobId, UUID id, Code code) {
-		Map<String, List<String>> linked = this.work.linkCommits(jobId, id, code.commits()
-			.stream()
-			.map(commit -> new CommitMention(commit.sha(), WorkItemKey.mentionedIn(commit.message())))
-			.toList());
 		for (int position = 0; position < code.commits().size(); position++) {
 			Commit commit = code.commits().get(position);
 			this.jdbc.sql("""
-					INSERT INTO delivery.handover_commit (handover_id, position, sha, message, author_github_id, work_item_keys)
-					VALUES (:id, :position, :sha, :message, :author, CAST(:keys AS TEXT[]))
+					INSERT INTO delivery.handover_commit (handover_id, position, sha, message, author_github_id)
+					VALUES (:id, :position, :sha, :message, :author)
 					""")
 				.param("id", id)
 				.param("position", position)
 				.param("sha", commit.sha())
 				.param("message", commit.message())
 				.param("author", commit.authorId())
-				.param("keys", linked.getOrDefault(commit.sha(), List.of()).toArray(String[]::new))
 				.update();
 		}
 		// One statement, whatever the run reported: a range of 100,000 paths is thousands of Sensitive Changes.
@@ -565,9 +505,10 @@ class Handovers {
 
 	private List<RecordedCommit> commits(UUID handoverId) {
 		return this.jdbc.sql("""
-				SELECT sha, message, work_item_keys FROM delivery.handover_commit WHERE handover_id = :id ORDER BY position
-				""").param("id", handoverId).query((rs, n) -> new RecordedCommit(rs.getString("sha"), rs.getString("message"),
-						java.util.Arrays.stream((Object[]) rs.getArray("work_item_keys").getArray()).map(String.class::cast).toList()))
+				SELECT sha, message FROM delivery.handover_commit WHERE handover_id = :id ORDER BY position
+				""")
+			.param("id", handoverId)
+			.query((rs, n) -> new RecordedCommit(rs.getString("sha"), rs.getString("message")))
 			.list();
 	}
 
@@ -609,18 +550,6 @@ class Handovers {
 			.param("id", handoverId)
 			.query((rs, n) -> new Criterion(rs.getObject("criterion_id", UUID.class), rs.getInt("number"),
 					rs.getString("statement"), rs.getString("check_steps"), rs.getBoolean("met"), rs.getString("note")))
-			.list();
-	}
-
-	@Transactional(readOnly = true)
-	List<Note> notes(UUID handoverId) {
-		return this.jdbc.sql("""
-				SELECT work_item_id, item_key, title, status, note FROM delivery.handover_item_note
-				WHERE handover_id = :id ORDER BY item_key
-				""")
-			.param("id", handoverId)
-			.query((rs, n) -> new Note(rs.getObject("work_item_id", UUID.class), rs.getString("item_key"),
-					rs.getString("title"), rs.getString("status"), rs.getString("note")))
 			.list();
 	}
 

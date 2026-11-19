@@ -106,7 +106,7 @@ class AuthorizationHarnessIT extends IntegrationTest {
 	void aCanaryInTheBodyFailsTheRow() {
 		assertThatThrownBy(() -> run("GET /api/v1/fixture/leak-body,CUSTOMER,,,200"))
 			.isInstanceOf(AssertionError.class)
-			.hasMessageContaining("Canary WORK_ITEM_NOTE is hidden from CUSTOMER but appears in the response body");
+			.hasMessageContaining("Canary CREW_CHAT is hidden from CUSTOMER but appears in the response body");
 		assertThatThrownBy(() -> run("GET /api/v1/fixture/leak-body,ADMINISTRATOR,,,200"))
 			.isInstanceOf(AssertionError.class)
 			.hasMessageContaining("hidden from ADMINISTRATOR");

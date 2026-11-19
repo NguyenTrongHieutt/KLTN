@@ -55,7 +55,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	@Override
 	public Set<String> tables() {
-		return Set.of("delivery.handover", "delivery.handover_criterion", "delivery.handover_item_note",
+		return Set.of("delivery.handover", "delivery.handover_criterion",
 				"delivery.handover_check", "delivery.follow_up", "delivery.handover_commit", "delivery.handover_sensitive_change",
 				"delivery.handover_screenshot", "delivery.handover_acceptance",
 				"delivery.handover_submission");
@@ -82,10 +82,6 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 				criterion.put("note", row.getString("note"));
 				return criterion;
 			}).list());
-			handover.put("itemNotes", this.jdbc.sql("""
-					SELECT item_key, note FROM delivery.handover_item_note WHERE handover_id = :id ORDER BY item_key
-					""").param("id", id).query((row, m) -> Map.<String, Object>of("key", row.getString("item_key"), "note",
-					row.getString("note"))).list());
 			return handover;
 		}).list();
 		List<Map<String, Object>> decisions = this.jdbc.sql("""
@@ -192,7 +188,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.forEach(this.files::delete);
 		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
 		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
-		for (String table : List.of("delivery.handover_criterion", "delivery.handover_item_note", "delivery.handover_check",
+		for (String table : List.of("delivery.handover_criterion", "delivery.handover_check",
 				"delivery.handover_sensitive_change", "delivery.handover_acceptance")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
 		}

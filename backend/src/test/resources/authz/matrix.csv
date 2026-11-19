@@ -5,16 +5,15 @@
 # account. {jobId} names the Customer's Draft, where only the Customer holds a role; a row's subject_state
 # job=crew makes it name the crew Job, where every caller of a Job holds theirs, job=post the Open Job Post's
 # Job, where the bid {applicationId} and its BIDDER live, and teamIssue=escalated makes {teamIssueId} the escalated
-# Team Issue an Administrator took. file=upload, file=attachment, file=chat and file=screenshot make {fileId} one of
-# the crew Job's stored files (the Mentor's waiting handover upload, a Work Item attachment, a Crew Chat file, a
-# handover's screenshot) instead of the Open post's public screenshot, and item=raiser makes {workItemId} the
-# escalated issue's raiser's Story, and rating=former and rating=cross make {ratingId} the former or the cross-role
-# member's own Rating (MatrixRow.Binding). The crew Job is frozen by its open Dispute, as opening one
+# Team Issue an Administrator took. file=upload, file=chat and file=screenshot make {fileId} one of
+# the crew Job's stored files (the Mentor's waiting handover upload, a Crew Chat file, a handover's screenshot)
+# instead of the Open post's public screenshot, and rating=former and rating=cross make {ratingId} the former or the
+# cross-role member's own Rating (MatrixRow.Binding). The crew Job is frozen by its open Dispute, as opening one
 # does, and has two Milestones: the first accepted and released to the Crew, the second
 # Funded and handed over. {milestoneId} (the second), {paymentOrderId} (its
 # paid funding order), {crewRowId} (the ACTIVE member's row) and {accessId} (an External Access item) are the crew
 # Job's. MatrixFilesTest keeps these rules: every endpoint has ANONYMOUS, USER_UNVERIFIED, USER, CUSTOMER and
-# ADMINISTRATOR rows, and a Job-scoped one (a Job, Board, Job Post, crew-Job object or stored file in its path or
+# ADMINISTRATOR rows, and a Job-scoped one (a Job, Job Post, crew-Job object or stored file in its path or
 # body) also MENTOR, BIDDER, CREW_ASSIGNED, CREW_ACTIVE, CREW_FORMER, CROSS_ROLE and LOCKED. On a {jobId} endpoint
 # the crew Job's callers, the grant callers, the ADMINISTRATOR and the unrelated USER, USER_UNVERIFIED and BIDDER
 # carry job=crew (the BIDDER job=post on the post's endpoints); every one runs the Customer on the crew Job, a GET or
@@ -398,8 +397,7 @@ DELETE /api/v1/verification/student,ADMINISTRATOR,,,404 NOT_FOUND
 # Stored files (files, AD-20, AD-21): the owning module's read policy decides. {fileId} is another
 # Customer's screenshot of an Open Job Post, which any unlocked user with GitHub linked reads through the
 # "Tìm việc" gate (X1, Story 20.3); nobody else does, Administrators included. The file bindings name the crew Job's
-# stored files (review iteration 4, MatrixFilesTest.FILE_POLICIES): file=attachment, the Work Item attachment
-# (AttachmentFiles: its Work Item's readers, never the Customer, the Dispute grant under WORK_ITEMS); file=chat, a
+# stored files (review iteration 4, MatrixFilesTest.FILE_POLICIES): file=chat, a
 # Crew Chat file sent after the former members' windows ended (ChatAttachmentFiles: the Crew Chat's readers, the
 # Team Issue grant included); file=screenshot, a handover's screenshot (HandoverScreenshotFiles: the Delivery Report's
 # readers). Each binding runs every caller of the Job, the cross-role member, an unrelated user, the grant-less
@@ -407,47 +405,36 @@ DELETE /api/v1/verification/student,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ANONYMOUS,,,401
 GET /api/v1/files/{fileId},USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER,,,200
-GET /api/v1/files/{fileId},USER,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},USER,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},LOCKED,,,401
 GET /api/v1/files/{fileId},CUSTOMER,,,200
-GET /api/v1/files/{fileId},CUSTOMER,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CUSTOMER,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CUSTOMER,file=screenshot,,200
 GET /api/v1/files/{fileId},MENTOR,,,200
-GET /api/v1/files/{fileId},MENTOR,file=attachment,,200
 GET /api/v1/files/{fileId},MENTOR,file=chat,,200
 GET /api/v1/files/{fileId},MENTOR,file=screenshot,,200
 GET /api/v1/files/{fileId},BIDDER,,,200
 GET /api/v1/files/{fileId},CREW_ASSIGNED,,,200
-GET /api/v1/files/{fileId},CREW_ASSIGNED,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CREW_ASSIGNED,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CREW_ASSIGNED,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CREW_ACTIVE,,,200
-GET /api/v1/files/{fileId},CREW_ACTIVE,file=attachment,,200
 GET /api/v1/files/{fileId},CREW_ACTIVE,file=chat,,200
 GET /api/v1/files/{fileId},CREW_ACTIVE,file=screenshot,,200
 GET /api/v1/files/{fileId},CREW_FORMER,,,200
-GET /api/v1/files/{fileId},CREW_FORMER,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CREW_FORMER,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CREW_FORMER,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},CROSS_ROLE,,,200
-GET /api/v1/files/{fileId},CROSS_ROLE,file=attachment,,200
 GET /api/v1/files/{fileId},CROSS_ROLE,file=chat,,200
 GET /api/v1/files/{fileId},CROSS_ROLE,file=screenshot,,200
 GET /api/v1/files/{fileId},SUBJECT,,,200
 GET /api/v1/files/{fileId},ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/files/{fileId},ADMINISTRATOR,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMINISTRATOR,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMINISTRATOR,file=screenshot,,404 NOT_FOUND
-GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=attachment,,200
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,file=screenshot,,404 NOT_FOUND
-GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=chat,,200
 GET /api/v1/files/{fileId},ADMIN_TEAM_ISSUE_GRANT,file=screenshot,,404 NOT_FOUND
-GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=attachment,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=chat,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_ABUSE_REPORT_GRANT,file=screenshot,,404 NOT_FOUND
 # file=proof, the Open post's bid's proof file (BidProofFiles, Story 21.2, AD-20): the Bidder and the post's Customer read it,
@@ -1073,31 +1060,9 @@ POST /api/v1/crew-chats/{crewChatId}/read,CREW_FORMER,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,CROSS_ROLE,,,204
 POST /api/v1/crew-chats/{crewChatId}/read,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/crew-chats/{crewChatId}/read,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-# The Board and its Work Items (FR-22, FR-23, FR-28, AD-20, AD-39, AD-41): the Job's Mentor and ACTIVE Crew
-# members read and write; former members read only the Work Items of their windows (none of the
-# fixture's), never write; the Customer, an ASSIGNED member, everyone else, and an Administrator without a
-# WORK_ITEMS grant find nothing. The fixture's Story is the ACTIVE member's: they move it and submit it (refused
-# from "Cần làm", MOVE_NOT_ALLOWED), while another member may not (NOT_ASSIGNEE); an edit keeps the assignee,
-# which only the Mentor changes. The Dispute grant reads every Work Item and its notes (AdminReadItem.forDispute);
-# the escalated Team Issue's grant reads only its raiser's Story (item=raiser), never the active member's; the Abuse
-# Report's grant reads none.
-GET /api/v1/boards/{boardId}/work-items,ANONYMOUS,,,401
-GET /api/v1/boards/{boardId}/work-items,USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,USER,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,LOCKED,,,401
-GET /api/v1/boards/{boardId}/work-items,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,MENTOR,,,200
-GET /api/v1/boards/{boardId}/work-items,BIDDER,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,,200
-GET /api/v1/boards/{boardId}/work-items,CREW_FORMER,,,200
-GET /api/v1/boards/{boardId}/work-items,CROSS_ROLE,,,200
-GET /api/v1/boards/{boardId}/work-items,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/work-items,ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/boards/{boardId}/work-items,ADMIN_TEAM_ISSUE_GRANT,,,200
-GET /api/v1/boards/{boardId}/work-items,ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
-# JOB-1 progress (FR-28, AD-39): the Job's Customer, its Mentor, and ACTIVE members read it; the
-# Customer's answer holds no Work Item; former members and everyone else find nothing.
+# JOB-1 progress (FR-28): the Job's Customer, its Mentor, and ACTIVE members read it; former members and
+# everyone else find nothing. Story 24.2 retired the Board, so the page carries no Work Item and no progress
+# figure: each Milestone reads the label its own state gives it.
 GET /api/v1/boards/{boardId}/progress,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/progress,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/progress,USER,,,404 NOT_FOUND
@@ -1610,7 +1575,7 @@ POST /api/v1/boards/{boardId}/disputes,ADMIN_TEAM_ISSUE_GRANT,,dispute.json,404 
 # Administrator sees the Dispute, so its decision answers CONFLICT NOT_ASSIGNED, never FORBIDDEN (SG-31). The
 # fixture's {disputeId} is the crew Job's open Dispute, which ADMIN_DISPUTE_GRANT took: it reads its case and its
 # decision waits for the statements (STATEMENT_PERIOD_OPEN); its grant (AdminReadItem.forDispute) reads the Job
-# Chat's messages and the Work Items, never the Crew Chat.
+# Chat's messages alone, never the Crew Chat (Story 24.2).
 GET /api/v1/admin/disputes,ANONYMOUS,,,401
 GET /api/v1/admin/disputes,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/admin/disputes,USER,,,404 NOT_FOUND
@@ -1894,10 +1859,10 @@ POST /api/v1/admin/catalog/skills/{skillId}/active,USER,,admin-catalog-active.js
 POST /api/v1/admin/catalog/skills/{skillId}/active,CUSTOMER,,admin-catalog-active.json,404 NOT_FOUND
 POST /api/v1/admin/catalog/skills/{skillId}/active,CROSS_ROLE,,admin-catalog-active.json,404 NOT_FOUND
 POST /api/v1/admin/catalog/skills/{skillId}/active,ADMINISTRATOR,,admin-catalog-active.json,200
-# Milestone Handovers (FR-32, AD-20, AD-39): the Customer, the Mentor, and ACTIVE members read;
+# Milestone Handovers (FR-32, AD-20): the Customer, the Mentor, and ACTIVE members read;
 # only the Mentor hands over, and the fixture's second Milestone is handed over already with no other one
-# Funded (MILESTONE_NOT_HELD). The Customer's Delivery Report never carries the Work Item note, whose text is
-# the WORK_ITEM_NOTE canary.
+# Funded (MILESTONE_NOT_HELD). Since Story 24.2 every audience reads the same Delivery Report: the criteria with
+# the Mentor's marks and notes, and no Work Item note at all.
 GET /api/v1/boards/{boardId}/handovers,ANONYMOUS,,,401
 GET /api/v1/boards/{boardId}/handovers,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/handovers,USER,,,404 NOT_FOUND
@@ -2036,143 +2001,6 @@ POST /api/v1/handovers/{handoverId}/revision,CREW_FORMER,,handover-revision.json
 POST /api/v1/handovers/{handoverId}/revision,CROSS_ROLE,,handover-revision.json,403 FORBIDDEN CUSTOMER_ONLY
 POST /api/v1/handovers/{handoverId}/revision,ADMINISTRATOR,,handover-revision.json,404 NOT_FOUND
 POST /api/v1/handovers/{handoverId}/revision,ADMIN_TEAM_ISSUE_GRANT,,handover-revision.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,ANONYMOUS,,work-item.json,401
-POST /api/v1/boards/{boardId}/work-items,USER_UNVERIFIED,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,USER,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,LOCKED,,work-item.json,401
-POST /api/v1/boards/{boardId}/work-items,CUSTOMER,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,MENTOR,,work-item.json,201
-POST /api/v1/boards/{boardId}/work-items,BIDDER,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,CREW_ASSIGNED,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,CREW_ACTIVE,,work-item.json,201
-POST /api/v1/boards/{boardId}/work-items,CREW_FORMER,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,CROSS_ROLE,,work-item.json,201
-POST /api/v1/boards/{boardId}/work-items,ADMINISTRATOR,,work-item.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/work-items,ADMIN_TEAM_ISSUE_GRANT,,work-item.json,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},ANONYMOUS,,,401
-GET /api/v1/work-items/{workItemId},USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},USER,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},LOCKED,,,401
-GET /api/v1/work-items/{workItemId},CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},MENTOR,,,200
-GET /api/v1/work-items/{workItemId},BIDDER,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},CREW_ACTIVE,,,200
-GET /api/v1/work-items/{workItemId},CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},CROSS_ROLE,,,200
-GET /api/v1/work-items/{workItemId},ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/work-items/{workItemId},ADMIN_DISPUTE_GRANT,item=raiser,,200
-GET /api/v1/work-items/{workItemId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},ADMIN_TEAM_ISSUE_GRANT,item=raiser,,200
-GET /api/v1/work-items/{workItemId},ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
-GET /api/v1/work-items/{workItemId},ADMIN_ABUSE_REPORT_GRANT,item=raiser,,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},ANONYMOUS,,work-item-edit.json,401
-PUT /api/v1/work-items/{workItemId},USER_UNVERIFIED,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},USER,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},LOCKED,,work-item-edit.json,401
-PUT /api/v1/work-items/{workItemId},CUSTOMER,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},MENTOR,,work-item-edit.json,200
-PUT /api/v1/work-items/{workItemId},BIDDER,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},CREW_ASSIGNED,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},CREW_ACTIVE,,work-item-edit.json,200
-PUT /api/v1/work-items/{workItemId},CREW_FORMER,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},CROSS_ROLE,,work-item-edit.json,200
-PUT /api/v1/work-items/{workItemId},ADMINISTRATOR,,work-item-edit.json,404 NOT_FOUND
-PUT /api/v1/work-items/{workItemId},ADMIN_TEAM_ISSUE_GRANT,,work-item-edit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,ANONYMOUS,,work-item-move.json,401
-POST /api/v1/work-items/{workItemId}/move,USER_UNVERIFIED,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,USER,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,LOCKED,,work-item-move.json,401
-POST /api/v1/work-items/{workItemId}/move,CUSTOMER,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,MENTOR,,work-item-move.json,200
-POST /api/v1/work-items/{workItemId}/move,BIDDER,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,CREW_ASSIGNED,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,CREW_ACTIVE,,work-item-move.json,200
-POST /api/v1/work-items/{workItemId}/move,CREW_FORMER,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,CROSS_ROLE,,work-item-move.json,403 FORBIDDEN NOT_ASSIGNEE
-POST /api/v1/work-items/{workItemId}/move,ADMINISTRATOR,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/move,ADMIN_TEAM_ISSUE_GRANT,,work-item-move.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,ANONYMOUS,,work-item-submit.json,401
-POST /api/v1/work-items/{workItemId}/submit,USER_UNVERIFIED,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,USER,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,LOCKED,,work-item-submit.json,401
-POST /api/v1/work-items/{workItemId}/submit,CUSTOMER,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,MENTOR,,work-item-submit.json,403 FORBIDDEN NOT_ASSIGNEE
-POST /api/v1/work-items/{workItemId}/submit,BIDDER,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,CREW_ASSIGNED,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,CREW_ACTIVE,,work-item-submit.json,422 GUARD_FAILED MOVE_NOT_ALLOWED
-POST /api/v1/work-items/{workItemId}/submit,CREW_FORMER,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,CROSS_ROLE,,work-item-submit.json,403 FORBIDDEN NOT_ASSIGNEE
-POST /api/v1/work-items/{workItemId}/submit,ADMINISTRATOR,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/submit,ADMIN_TEAM_ISSUE_GRANT,,work-item-submit.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,ANONYMOUS,,work-item-review.json,401
-POST /api/v1/work-items/{workItemId}/review,USER_UNVERIFIED,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,USER,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,LOCKED,,work-item-review.json,401
-POST /api/v1/work-items/{workItemId}/review,CUSTOMER,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,MENTOR,,work-item-review.json,422 GUARD_FAILED MOVE_NOT_ALLOWED
-POST /api/v1/work-items/{workItemId}/review,BIDDER,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,CREW_ASSIGNED,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,CREW_ACTIVE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
-POST /api/v1/work-items/{workItemId}/review,CREW_FORMER,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,CROSS_ROLE,,work-item-review.json,403 FORBIDDEN MENTOR_ONLY
-POST /api/v1/work-items/{workItemId}/review,ADMINISTRATOR,,work-item-review.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/review,ADMIN_TEAM_ISSUE_GRANT,,work-item-review.json,404 NOT_FOUND
-# Attachments and notes (FR-76, AD-39, AD-41): the Mentor and ACTIVE members add them; the fixture's
-# Attachment is the Mentor's, so only the Mentor removes it. The Customer and everyone else find nothing.
-POST /api/v1/work-items/{workItemId}/attachments,ANONYMOUS,,upload.png,401
-POST /api/v1/work-items/{workItemId}/attachments,USER_UNVERIFIED,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,USER,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,LOCKED,,upload.png,401
-POST /api/v1/work-items/{workItemId}/attachments,CUSTOMER,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,MENTOR,,upload.png,201
-POST /api/v1/work-items/{workItemId}/attachments,BIDDER,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CREW_ASSIGNED,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CREW_ACTIVE,,upload.png,201
-POST /api/v1/work-items/{workItemId}/attachments,CREW_FORMER,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,CROSS_ROLE,,upload.png,201
-POST /api/v1/work-items/{workItemId}/attachments,ADMINISTRATOR,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/attachments,ADMIN_TEAM_ISSUE_GRANT,,upload.png,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,ANONYMOUS,,work-item-link.json,401
-POST /api/v1/work-items/{workItemId}/links,USER_UNVERIFIED,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,USER,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,LOCKED,,work-item-link.json,401
-POST /api/v1/work-items/{workItemId}/links,CUSTOMER,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,MENTOR,,work-item-link.json,201
-POST /api/v1/work-items/{workItemId}/links,BIDDER,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,CREW_ASSIGNED,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,CREW_ACTIVE,,work-item-link.json,201
-POST /api/v1/work-items/{workItemId}/links,CREW_FORMER,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,CROSS_ROLE,,work-item-link.json,201
-POST /api/v1/work-items/{workItemId}/links,ADMINISTRATOR,,work-item-link.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/links,ADMIN_TEAM_ISSUE_GRANT,,work-item-link.json,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},ANONYMOUS,,,401
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},USER_UNVERIFIED,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},USER,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},LOCKED,,,401
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CUSTOMER,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},MENTOR,,,200
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},BIDDER,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_ASSIGNED,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_ACTIVE,,,403 FORBIDDEN NOT_AUTHOR
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CREW_FORMER,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},CROSS_ROLE,,,403 FORBIDDEN NOT_AUTHOR
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},ADMINISTRATOR,,,404 NOT_FOUND
-DELETE /api/v1/work-items/{workItemId}/attachments/{attachmentId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,ANONYMOUS,,work-item-note.json,401
-POST /api/v1/work-items/{workItemId}/notes,USER_UNVERIFIED,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,USER,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,LOCKED,,work-item-note.json,401
-POST /api/v1/work-items/{workItemId}/notes,CUSTOMER,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,MENTOR,,work-item-note.json,201
-POST /api/v1/work-items/{workItemId}/notes,BIDDER,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,CREW_ASSIGNED,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,CREW_ACTIVE,,work-item-note.json,201
-POST /api/v1/work-items/{workItemId}/notes,CREW_FORMER,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,CROSS_ROLE,,work-item-note.json,201
-POST /api/v1/work-items/{workItemId}/notes,ADMINISTRATOR,,work-item-note.json,404 NOT_FOUND
-POST /api/v1/work-items/{workItemId}/notes,ADMIN_TEAM_ISSUE_GRANT,,work-item-note.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/agreement,ANONYMOUS,,,401,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,USER_UNVERIFIED,job=crew,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/agreement,USER,job=crew,,404 NOT_FOUND,requireActiveAccount
@@ -2713,7 +2541,7 @@ POST /api/v1/team-issues/{teamIssueId}/escalate,ADMINISTRATOR,,,404 NOT_FOUND
 # issue ADMIN_TEAM_ISSUE_GRANT took (teamIssue=escalated): every Administrator reads it and may take it over,
 # and only its assignee decides (CONFLICT NOT_ASSIGNED for the others): enrolled with TOTP, it passes the step-up
 # with the fixed clock's code ({teamIssueStepUpCode}) and keeps the Rating; the fixture's own {teamIssueId} was never
-# escalated, so it is nobody's. That grant reads the Crew Chat and the raiser's Work Items; the Rating itself is in
+# escalated, so it is nobody's. That grant reads the Crew Chat alone (Story 24.2); the Rating itself is in
 # the case's detail, for its assignee.
 GET /api/v1/admin/team-issues,ANONYMOUS,,,401
 GET /api/v1/admin/team-issues,USER_UNVERIFIED,,,404 NOT_FOUND
@@ -2834,21 +2662,6 @@ GET /api/v1/chat-messages/{messageId},ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/chat-messages/{messageId},ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
 GET /api/v1/chat-messages/{messageId},ADMIN_TEAM_ISSUE_GRANT,,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_ABUSE_REPORT_GRANT,,,200
-GET /api/v1/work-item-notes/{workItemNoteId},ANONYMOUS,,,401
-GET /api/v1/work-item-notes/{workItemNoteId},USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},USER,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},LOCKED,,,401
-GET /api/v1/work-item-notes/{workItemNoteId},CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},MENTOR,,,200
-GET /api/v1/work-item-notes/{workItemNoteId},BIDDER,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},CREW_ACTIVE,,,200
-GET /api/v1/work-item-notes/{workItemNoteId},CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},CROSS_ROLE,,,200
-GET /api/v1/work-item-notes/{workItemNoteId},ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},ADMIN_DISPUTE_GRANT,,,200
-GET /api/v1/work-item-notes/{workItemNoteId},ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},ADMIN_ABUSE_REPORT_GRANT,,,404 NOT_FOUND
 GET /api/v1/admin/abuse-reports,ANONYMOUS,,,401
 GET /api/v1/admin/abuse-reports,USER_UNVERIFIED,,,404 NOT_FOUND
 GET /api/v1/admin/abuse-reports,USER,,,404 NOT_FOUND
@@ -3398,19 +3211,6 @@ GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,MENTOR,,,40
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMIN_DISPUTE_GRANT,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/versions,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,ANONYMOUS,,,401
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,LOCKED,,,401
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,USER_UNVERIFIED,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,USER,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CUSTOMER,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,BIDDER,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CREW_ASSIGNED,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CREW_ACTIVE,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CREW_FORMER,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,CROSS_ROLE,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,MENTOR,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,ADMINISTRATOR,,,404 NOT_FOUND
-GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/work-items,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,ANONYMOUS,,,401
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,LOCKED,,,401
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,USER_UNVERIFIED,,,404 NOT_FOUND
@@ -3452,18 +3252,13 @@ GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,MENTOR,
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,ADMINISTRATOR,,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 
-# The Split Resolution grant on every read of Job content (AD-20, A-20): the Crew Chat and the parties' Work Items, never the Job Chat.
+# The Split Resolution grant on every read of Job content (AD-20, A-20): the Crew Chat and the split's versions, never the Job Chat.
 GET /api/v1/jobs/{jobId}/chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
 GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
-GET /api/v1/boards/{boardId}/work-items,ADMIN_SPLIT_RESOLUTION_GRANT,,,200
-GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,,,200
-GET /api/v1/work-items/{workItemId},ADMIN_SPLIT_RESOLUTION_GRANT,item=raiser,,404 NOT_FOUND
-GET /api/v1/work-item-notes/{workItemNoteId},ADMIN_SPLIT_RESOLUTION_GRANT,,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=chat,,200
-GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=attachment,,200
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=screenshot,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=proof,,404 NOT_FOUND
 GET /api/v1/files/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,file=crew-proof,,404 NOT_FOUND

@@ -25,7 +25,7 @@ class SplitEvidencePackage {
 	/** The tabs of the Package (EXPERIENCE.md's Split Resolution decision). */
 	enum Tab {
 
-		VERSIONS, WORK_ITEMS, COMMITS, CREW_CHAT, PERSON_LINKS
+		VERSIONS, COMMITS, CREW_CHAT, PERSON_LINKS
 
 	}
 

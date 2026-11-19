@@ -21,13 +21,12 @@ import vn.vibefix.job.JobOversight;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.payment.Ledger.EvidenceView;
 import vn.vibefix.repo.DriftEvidence;
-import vn.vibefix.work.WorkEvidence;
 
 /**
  * A decision's evidence snapshot (SG-27, AD-31, AD-24): written with the decision, from the same owning
  * modules' queries the Evidence Package reads, as IDs, versions, counts, and totals, never copies of the
  * content and never an account ID. It stays with the decision after the NFR-10 retirement of the Job's
- * chat and Work Items, so the decision remains explainable.
+ * chat and handovers, so the decision remains explainable.
  */
 @Component
 class EvidenceSnapshots {
@@ -35,9 +34,6 @@ class EvidenceSnapshots {
 	/** @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED} */
 	record SnapshotReport(UUID handoverId, int milestoneNumber, int round, String status, int criteria, int reportedMet,
 			int checkedMet) {
-	}
-
-	record SnapshotWorkItem(UUID workItemId, int number, long version, String status) {
 	}
 
 	/** @param lastMessageId the newest Job Chat message when the decision was made */
@@ -58,8 +54,8 @@ class EvidenceSnapshots {
 
 	/** Everything the decision was based on, as it stood at {@code takenAt}. */
 	record EvidenceSnapshot(Instant takenAt, List<Integer> agreementVersions, List<SnapshotReport> reports,
-			List<SnapshotWorkItem> workItems, SnapshotChat jobChat, List<SnapshotPayment> payments,
-			List<SnapshotDrift> driftWarnings, List<SnapshotStatement> statements) {
+			SnapshotChat jobChat, List<SnapshotPayment> payments, List<SnapshotDrift> driftWarnings,
+			List<SnapshotStatement> statements) {
 	}
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -69,8 +65,6 @@ class EvidenceSnapshots {
 	private final AgreementHistory agreements;
 
 	private final DeliveryEvidence deliveries;
-
-	private final WorkEvidence work;
 
 	private final ChatEvidence chat;
 
@@ -82,12 +76,11 @@ class EvidenceSnapshots {
 
 	private final DisputeStatements statements;
 
-	EvidenceSnapshots(JdbcClient jdbc, AgreementHistory agreements, DeliveryEvidence deliveries, WorkEvidence work,
-			ChatEvidence chat, Ledger ledger, JobOversight jobs, DriftEvidence drift, DisputeStatements statements) {
+	EvidenceSnapshots(JdbcClient jdbc, AgreementHistory agreements, DeliveryEvidence deliveries, ChatEvidence chat,
+			Ledger ledger, JobOversight jobs, DriftEvidence drift, DisputeStatements statements) {
 		this.jdbc = jdbc;
 		this.agreements = agreements;
 		this.deliveries = deliveries;
-		this.work = work;
 		this.chat = chat;
 		this.ledger = ledger;
 		this.jobs = jobs;
@@ -124,10 +117,6 @@ class EvidenceSnapshots {
 			.toList();
 		return new EvidenceSnapshot(at,
 				this.agreements.confirmedVersions(job).stream().map(ConfirmedVersion::versionNo).toList(), reports,
-				this.work.workItems(job)
-					.stream()
-					.map(item -> new SnapshotWorkItem(item.workItemId(), item.number(), item.version(), item.status()))
-					.toList(),
 				new SnapshotChat(extent.messageCount(), extent.lastMessageId(), extent.lastSentAt()), payments,
 				this.drift.driftWarnings(job)
 					.stream()

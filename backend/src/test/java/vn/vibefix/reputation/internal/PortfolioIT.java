@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -87,11 +88,12 @@ class PortfolioIT extends IntegrationTest {
 			.andExpect(jsonPath("$.mine.role").value("MENTOR"))
 			.andExpect(jsonPath("$.mine.milestones").value(1))
 			.andExpect(jsonPath("$.mine.milestonesHandedOver").value(1))
-			.andExpect(jsonPath("$.mine.reviewsWritten").value(2))
+			.andExpect(jsonPath("$.mine.commitsAuthored").doesNotExist())
 			.andExpect(jsonPath("$.mine.skills[0]").isNotEmpty())
 			.andExpect(jsonPath("$.mine.publishedAt").doesNotExist());
 		read(this.vy, Role.STUDENT, job).andExpect(jsonPath("$.mine.role").value("CREW"))
-			.andExpect(jsonPath("$.mine.workItemsApproved").value(1))
+			.andExpect(jsonPath("$.mine.commitsAuthored").value(2))
+			.andExpect(jsonPath("$.mine.milestonesHandedOver").doesNotExist())
 			.andExpect(jsonPath("$.productName").doesNotExist());
 
 		draft(this.lan, Role.CUSTOMER, job, "Không được").andExpect(status().isForbidden())
@@ -130,7 +132,7 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(entry.role()).isEqualTo("CREW");
 		assertThat(entry.jobTypes()).containsExactly("ASSESSMENT");
 		assertThat(entry.skills()).hasSize(1);
-		assertThat(entry.workItemsApproved()).isEqualTo(1);
+		assertThat(entry.commitsAuthored()).isEqualTo(2);
 		assertThat(entry.summary()).isEqualTo("Nhóm đánh giá kỹ toàn bộ luồng đặt bàn.");
 		assertThat(entry.productName()).isEqualTo("Sổ đặt bàn");
 		assertThat(entry.rating()).isNull();
@@ -333,48 +335,40 @@ class PortfolioIT extends IntegrationTest {
 				VALUES (:id, :job, :student, 'RELEASED', :signed, :signed, :now, :now, 'JOB_ENDED', now())
 				""").param("id", UUID.randomUUID()).param("job", job).param("student", this.vy).param("signed", signed)
 			.param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 3, :now)
-				""").param("job", job).param("product", product).param("now", now).update();
-		UUID done = item(job, 1, "DONE", now);
-		UUID returned = item(job, 2, "IN_PROGRESS", now);
-		history(done, job, this.vy, "SUBMITTED", now);
-		history(done, job, this.hung, "APPROVED", now);
-		history(returned, job, this.vy, "SUBMITTED", now);
-		history(returned, job, this.hung, "RETURNED", now);
+		// The Milestone's accepted Handover, whose commits are a Crew member's frozen facts (FR-50, Story 24.2).
+		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
-				    mentor_account_id, status, job_version, transition_id, check_by, created_at)
-				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, 'SUBMITTED', 5, :transition, :now, :now)
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
+				VALUES (:id, :job, :product, :milestone, 1, 'Báo cáo đánh giá', 1, :mentor, 'ACCEPTED', 5, :transition, :now,
+				    :now, :now, :owner)
 				""")
-			.param("id", UUID.randomUUID())
+			.param("id", handover)
 			.param("job", job)
 			.param("product", product)
 			.param("milestone", milestone)
 			.param("mentor", this.hung)
+			.param("owner", this.lan)
 			.param("transition", UUID.randomUUID())
 			.param("now", now)
 			.update();
+		Long github = this.jdbc.sql("SELECT github_user_id FROM identity.account WHERE id = :id")
+			.param("id", this.vy)
+			.query(Long.class)
+			.single();
+		commit(handover, 0, "a", github);
+		commit(handover, 1, "b", github);
+		commit(handover, 2, "c", null);
 		return job;
 	}
 
-	private UUID item(UUID job, int number, String status, Timestamp now) {
-		UUID item = UUID.randomUUID();
+	/** One commit of the handover: {@code author} is the GitHub numeric ID, or none when GitHub resolved nobody. */
+	private void commit(UUID handover, int position, String sha, @Nullable Long author) {
 		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, status, assignee_account_id, created_at,
-				    updated_at)
-				VALUES (:id, :job, :number, 'TASK', 'Kiểm tra luồng', 'Kiểm tra.', :status, :assignee, :now, :now)
-				""").param("id", item).param("job", job).param("number", number).param("status", status)
-			.param("assignee", this.vy).param("now", now).update();
-		return item;
-	}
-
-	private void history(UUID item, UUID job, UUID actor, String action, Timestamp at) {
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, at)
-				VALUES (:id, :item, :job, :actor, :action, '{}'::jsonb, :at)
-				""").param("id", UUID.randomUUID()).param("item", item).param("job", job).param("actor", actor)
-			.param("action", action).param("at", at).update();
+				INSERT INTO delivery.handover_commit (handover_id, position, sha, message, author_github_id)
+				VALUES (:id, :position, :sha, 'Sửa luồng đặt bàn', :author)
+				""").param("id", handover).param("position", position).param("sha", sha.repeat(40)).param("author", author)
+			.update();
 	}
 
 	private ResultActions read(UUID account, Role role, UUID job) throws Exception {

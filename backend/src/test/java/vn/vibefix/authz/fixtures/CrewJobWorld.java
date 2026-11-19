@@ -53,8 +53,7 @@ import vn.vibefix.support.TestPeople;
  * MEN-7 lists their own part of the decided one and the pools of the others as pending (Story 22.5); the other members
  * are no party of any, so being on the Crew opens no split;</li>
  * <li>{@link MatrixCaller#CROSS_ROLE}, an {@code ACTIVE} member who is the Customer of a second Active Job, whose
- * Crew member (shown name, email, LinkedIn link), Crew Chat and Work Item note are the {@code CROSS_*}
- * canaries;</li>
+ * Crew member (shown name, email, LinkedIn link) and Crew Chat are the {@code CROSS_*} canaries;</li>
  * <li>{@link MatrixCaller#ADMIN_DISPUTE_GRANT}, the Administrator who took this Job's open Dispute
  * ({@code {disputeId}}) with its real grant ({@link AdminReadItem#forDispute()});</li>
  * <li>{@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}, the Administrator who took an escalated Rating Team Issue another
@@ -66,8 +65,7 @@ import vn.vibefix.support.TestPeople;
  * Two more {@code ACTIVE} members are no caller: the canary member, whose shown name, Google email, LinkedIn link,
  * released part ({@code CREW_SHARE}) and not escalated Team Issue ({@code TEAM_ISSUE_ID}) are the Crew canaries, and
  * the member who escalated the Team Issue, who hides their
- * student name ({@code STUDENT_HIDDEN_NAME}), owns a Story of their own ({@code {raiserWorkItemId}}, which
- * {@code item=raiser} binds to {@code {workItemId}}), and has a published Portfolio Entry on the Mentor's earlier
+ * student name ({@code STUDENT_HIDDEN_NAME}) and has a published Portfolio Entry on the Mentor's earlier
  * Job, so their public profile is {@code {memberUsername}}'s, which {@code user=member} binds to {@code {username}}
  * (Story 21.3). The Job Chat holds
  * the {@code JOB_CHAT} canary, which no Crew state reads, and the Mentor holds the contact grant on the Customer's
@@ -78,13 +76,10 @@ import vn.vibefix.support.TestPeople;
  * entries), the second ({@code {milestoneId}}, {@code {crewMilestoneId}}) Funded by the Customer's paid order
  * ({@code {paymentOrderId}}) and handed over. The Customer's open Dispute about it froze the Job as
  * {@code Disputes.open} does ({@code job.job.frozen_at} and {@code timers.frozen_job}). {@code {crewRowId}} is the
- * active member's Crew row and {@code {accessId}} the Job's External Access item. The Job's Board
- * ({@code {boardId}}) holds the criterion's seeded Story ({@code {workItemId}}), which carries the Mentor's
- * {@code WORK_ITEM_NOTE} note ({@code {workItemNoteId}}) and {@code ATTACHMENT} file ({@code {attachmentId}}, stored
- * as work stores it: {@code {attachmentFileId}}, which {@code file=attachment} binds to {@code {fileId}}), both
- * written by the Mentor after the windows ended, and a
- * Milestone Handover ({@code {handoverId}}) whose Work Item note is the {@code WORK_ITEM_NOTE} canary. The Story is
- * the active member's to work on, the Crew Chat holds a second message no Abuse Report names
+ * active member's Crew row and {@code {accessId}} the Job's External Access item. {@code {boardId}} is the Job
+ * itself, which the {@code /api/v1/boards/{boardId}/...} endpoints still name although Story 24.2 retired the Board.
+ * The Job has a Milestone Handover ({@code {handoverId}}) with its criterion as the Mentor marked it.
+ * The Crew Chat holds a second message no Abuse Report names
  * ({@code CREW_CHAT_UNREPORTED}) and a file the Mentor sent after the windows ended ({@code file=chat}), the
  * handover has an attached screenshot ({@code file=screenshot}), and the Mentor has a screenshot upload waiting
  * for the next handover ({@code {handoverUploadId}}, which {@code file=upload} binds to {@code {fileId}}); every file
@@ -109,8 +104,8 @@ import vn.vibefix.support.TestPeople;
  * A fifth Milestone's split ({@code {resolutionSplitId}}) is under an open Split Resolution (Story 22.3,
  * {@code {resolutionId}}), which {@link MatrixCaller#CREW_FORMER_PARTY} raised, with the {@code SPLIT_RESOLUTION_REASON} and
  * {@link MatrixCaller#CREW_ACTIVE_PARTY}'s {@code SPLIT_STATEMENT}; {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} took it
- * with its real grant ({@link AdminReadItem#forSplitResolution}), and reads a Story, a commit and the Crew Chat of that
- * Milestone's interval, the {@code CREW_CHAT} canaries lying outside it. Its two members share a person-link signal whose HMAC
+ * with its real grant ({@link AdminReadItem#forSplitResolution}), and reads that Milestone's split versions, its commits
+ * and the Crew Chat of its interval, the {@code CREW_CHAT} canaries lying outside it. Its two members share a person-link signal whose HMAC
  * is {@code PERSON_SIGNAL}, which the Package never shows. A sixth's ({@code {decidedSplitId}}) was decided
  * ({@code {decidedResolutionId}}, the {@code SPLIT_RESOLUTION_ID}, with its {@code SPLIT_DECISION_REASONING}). Both stand beside
  * {@code {splitId}}, which stays out for confirmation.
@@ -347,17 +342,7 @@ final class CrewJobWorld {
 				VALUES (:id, :job, 0, 'Bảng quản trị Supabase', 'Xem lỗi đặt bàn', :at)
 				""").param("id", access).param("job", job).param("at", Timestamp.from(SIGNED)).update();
 		world.put("accessId", access);
-		JobContent.board(this.jdbc, job, product, "VNM", 3);
-		// The active member's Story, written after the windows ended: its title is the WORK_ITEM_TITLE canary.
-		UUID item = JobContent.workItem(this.jdbc, job, 1, value("WORK_ITEM_TITLE"), milestone, criterion,
-				MutableClock.DEFAULT_INSTANT);
-		// The Mentor assigned the Story to the active member (FR-23), who moves and submits it.
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :member WHERE id = :id")
-			.param("member", this.active)
-			.param("id", item)
-			.update();
-		// An edit keeps the assignee, which only the Mentor changes (FR-23).
-		world.put("workItemAssigneeId", this.active);
+		// The /api/v1/boards/{boardId}/... endpoints name the Job itself; Story 24.2 retired the Board behind them.
 		world.put("boardId", job);
 		// A row's job=crew binds {jobId} to it (MatrixRow.Binding.CREW_JOB).
 		world.put("crewJobId", job);
@@ -368,22 +353,6 @@ final class CrewJobWorld {
 		// Another member's Team Issue, never escalated: its ID is for the Mentor only. A suite that seeds several
 		// worlds on one database keeps the first, since the canary is one fixed ID.
 		ratingIssue(UUID.fromString(value("TEAM_ISSUE_ID")), job, product, canaryMember, UUID.randomUUID());
-		world.put("workItemId", item);
-		// The escalated issue's raiser's own Story, which that issue's grant reads (forEscalatedTeamIssue, G8).
-		UUID raiserItem = JobContent.workItem(this.jdbc, job, 2, "Ghi phần việc đã làm", milestone, null,
-				MutableClock.DEFAULT_INSTANT);
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :member WHERE id = :id")
-			.param("member", escalating)
-			.param("id", raiserItem)
-			.update();
-		world.put("raiserWorkItemId", raiserItem);
-		// The Attachment's file, stored as work stores it, so AttachmentFiles finds it (file=attachment, G7).
-		UUID attachmentFile = storedFile("work.attachment", this.mentor, value("ATTACHMENT"));
-		world.put("attachmentFileId", attachmentFile);
-		UUID attachment = JobContent.attachment(this.jdbc, item, job, this.mentor, value("ATTACHMENT"), attachmentFile,
-				WRITTEN);
-		world.put("workItemNoteId", JobContent.note(this.jdbc, item, job, this.mentor, value("WORK_ITEM_NOTE"), WRITTEN));
-		world.put("attachmentId", attachment);
 		Timestamp written = Timestamp.from(WRITTEN);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
@@ -418,12 +387,6 @@ final class CrewJobWorld {
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', true, 'Đã kiểm tra trên điện thoại')
 				""").param("id", handover).param("criterion", criterion).update();
-		this.jdbc.sql("""
-				INSERT INTO delivery.handover_item_note (handover_id, work_item_id, item_key, title, status, note)
-				VALUES (:id, :item, 'VNM-1', :title, 'TODO', :note)
-				""").param("id", handover).param("item", item).param("title", value("WORK_ITEM_TITLE"))
-			.param("note", value("WORK_ITEM_NOTE"))
-			.update();
 		world.put("handoverId", handover);
 		// The handover's screenshot, attached at "Gửi bàn giao" (file=screenshot, G7).
 		UUID screenshotFile = storedFile("delivery.handover_screenshot", this.mentor, "man-hinh-da-sua.pdf");
@@ -477,7 +440,7 @@ final class CrewJobWorld {
 		UUID escalated = escalatedIssue(job, product, escalating);
 		// A row's teamIssue=escalated binds {teamIssueId} to it (MatrixRow.Binding.ESCALATED_TEAM_ISSUE).
 		world.put("escalatedTeamIssueId", escalated);
-		grant(this.teamIssueAdmin, job, AdminReadItem.forEscalatedTeamIssue(escalating), escalated, grant -> this.jdbc
+		grant(this.teamIssueAdmin, job, AdminReadItem.forEscalatedTeamIssue(), escalated, grant -> this.jdbc
 			.sql("UPDATE dispute.team_issue SET assigned_admin_id = :admin, assigned_at = :at, grant_id = :grant WHERE id = :id")
 			.param("admin", this.teamIssueAdmin)
 			.param("at", written)
@@ -648,8 +611,7 @@ final class CrewJobWorld {
 		this.resolutionAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		world.put("resolutionStepUpCode", AdministratorTestSupport.code(enrol(this.resolutionAdmin, "phan-chia"),
 				MutableClock.DEFAULT_INSTANT));
-		grant(this.resolutionAdmin, job, AdminReadItem.forSplitResolution(split[0], List.of(this.mentor, this.activeParty, this.formerParty)),
-				resolution, grant -> this.jdbc
+		grant(this.resolutionAdmin, job, AdminReadItem.forSplitResolution(split[0]), resolution, grant -> this.jdbc
 					.sql("UPDATE dispute.split_resolution SET assigned_admin_id = :admin, assigned_at = :at, grant_id = :grant WHERE id = :id")
 					.param("admin", this.resolutionAdmin)
 					.param("at", Timestamp.from(WRITTEN))
@@ -661,11 +623,6 @@ final class CrewJobWorld {
 		world.put("resolutionMentorPartyId", split[1]);
 		world.put("resolutionActivePartyId", split[2]);
 		world.put("resolutionFormerPartyId", split[3]);
-		UUID item = JobContent.workItem(this.jdbc, job, 3, "Làm phần thanh toán", milestone, null, MutableClock.DEFAULT_INSTANT);
-		this.jdbc.sql("UPDATE work.work_item SET assignee_account_id = :member WHERE id = :id")
-			.param("member", this.activeParty)
-			.param("id", item)
-			.update();
 		UUID handover = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
@@ -722,7 +679,7 @@ final class CrewJobWorld {
 				""".formatted(RESOLVED_PRICE, split[1], RESOLVED_PRICE * 30 / 100, split[2], RESOLVED_PRICE * 40 / 100, split[3],
 				RESOLVED_PRICE * 30 / 100);
 		String snapshot = """
-				{"takenAt":"%s","versions":[{"versionNo":1,"kind":"DRAFT","confirmations":0,"createdAt":"%s"}],"workItems":[],"commits":[],
+				{"takenAt":"%s","versions":[{"versionNo":1,"kind":"DRAFT","confirmations":0,"createdAt":"%s"}],"commits":[],
 				 "crewChat":{"messageCount":0,"lastMessageId":null,"lastSentAt":null},"personLinks":0}
 				""".formatted(WRITTEN, ACCEPTED);
 		this.jdbc.sql("""
@@ -920,7 +877,7 @@ final class CrewJobWorld {
 			.update();
 		this.jdbc.sql("""
 				INSERT INTO reputation.portfolio_entry (id, job_id, product_id, account_id, role, job_title, product_name,
-				    job_types, skill_ids, milestones_accepted, work_items_approved, closed_at, published_at, created_at)
+				    job_types, skill_ids, milestones_accepted, commits_authored, closed_at, published_at, created_at)
 				VALUES (:id, :job, :product, :account, 'CREW', 'Việc trước của người hướng dẫn', 'Sản phẩm ma trận',
 				    ARRAY['BUG_FIX'], CAST(:skills AS UUID[]), 1, 2, :ended, :ended, :ended)
 				""").param("id", UUID.randomUUID()).param("job", earlier).param("product", product).param("account", hiding)
@@ -993,7 +950,6 @@ final class CrewJobWorld {
 		long price = 600_000;
 		JobContent.confirmedAgreement(this.jdbc, job, owner, this.mentor, true, milestone, "Báo cáo đánh giá", price,
 				SIGNED);
-		JobContent.board(this.jdbc, job, product, "DGA");
 		UUID handover = UUID.randomUUID();
 		JobContent.milestone(this.jdbc, job, milestone, 0, "Báo cáo đánh giá", price, "ACCEPTED", FUNDED, ACCEPTED, handover,
 				SIGNED);
@@ -1049,9 +1005,6 @@ final class CrewJobWorld {
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		JobContent.message(this.jdbc, chat, this.mentor, value("CROSS_CREW_CHAT"), WRITTEN);
 		JobContent.chat(this.jdbc, job, product, "JOB");
-		JobContent.board(this.jdbc, job, product, "VHT");
-		UUID item = JobContent.workItem(this.jdbc, job, null, null, MutableClock.DEFAULT_INSTANT);
-		JobContent.note(this.jdbc, item, job, this.mentor, value("CROSS_WORK_ITEM_NOTE"), WRITTEN);
 	}
 
 }

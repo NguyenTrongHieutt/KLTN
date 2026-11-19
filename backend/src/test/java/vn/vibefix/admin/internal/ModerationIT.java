@@ -243,9 +243,6 @@ class ModerationIT extends IntegrationTest {
 				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :now, :now, :mentor, :application, :now, 6, :now, :now)
 				""").param("id", job).param("product", this.product).param("owner", this.lan).param("mentor", this.hung)
 			.param("application", UUID.randomUUID()).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'SDB', 1, :now)
-				""").param("job", job).param("product", this.product).param("now", now).update();
 		return job;
 	}
 

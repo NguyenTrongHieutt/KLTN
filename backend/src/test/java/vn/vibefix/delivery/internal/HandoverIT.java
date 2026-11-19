@@ -68,10 +68,6 @@ class HandoverIT extends IntegrationTest {
 
 	private UUID criterion;
 
-	private UUID story;
-
-	private UUID task;
-
 	/** The preview link a Bug fixing handover carries (Story 8.3); none for an Assessment. */
 	private String previewUrl;
 
@@ -88,29 +84,25 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.problems").isEmpty())
 			.andExpect(jsonPath("$.version").value(5))
 			.andExpect(jsonPath("$.criteria[0].statement").value("Báo cáo nêu đủ chín mục"))
-			.andExpect(jsonPath("$.workItems[?(@.key == 'BCD-1')].approved").value(true))
-			.andExpect(jsonPath("$.workItems[?(@.key == 'BCD-2')].approved").value(false))
+			.andExpect(jsonPath("$.workItems").doesNotExist())
 			.andExpect(jsonPath("$.report").doesNotExist());
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.waiting.number").value(1))
 			.andExpect(jsonPath("$.handovers").isEmpty());
 
-		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null, null).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("WORK_ITEMS_NOT_DONE"))
-			.andExpect(jsonPath("$.n").value(1));
-		handOver(this.hung, Role.MENTOR, 5, " ", "Phần phụ lục làm ở giai đoạn sau.", null).andExpect(status().isBadRequest())
+		// Story 24.2: the Work Item gate is gone, so an unmarked criterion is the whole of FR-32's enforcement (R42).
+		handOver(this.hung, Role.MENTOR, 5, " ", null).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("CRITERION_MARK_MISSING"));
-		handOver(this.hung, Role.MENTOR, 4, "Đạt, đã kiểm tra.", "Phần phụ lục làm ở giai đoạn sau.", null)
+		handOver(this.hung, Role.MENTOR, 4, "Đạt, đã kiểm tra.", null)
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("STALE"));
-		handOver(this.vy, Role.STUDENT, 5, "Đạt.", "Sau.", null).andExpect(status().isForbidden())
+		handOver(this.vy, Role.STUDENT, 5, "Đạt.", null).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
-		handOver(this.lan, Role.CUSTOMER, 5, "Đạt.", "Sau.", null).andExpect(status().isForbidden());
+		handOver(this.lan, Role.CUSTOMER, 5, "Đạt.", null).andExpect(status().isForbidden());
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 
 		// Story 23.8a: "Gửi bàn giao" answers 202 with the submission; an Assessment Job's is done at once.
-		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", "Phần phụ lục làm ở giai đoạn sau.",
-				null)
+		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null)
 			.andExpect(status().isAccepted())
 			.andExpect(jsonPath("$.state").value("DONE"))
 			.andExpect(jsonPath("$.number").value(1))
@@ -121,7 +113,7 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.criteria[0].met").value(true))
 			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
-			.andExpect(jsonPath("$.itemNotes[0].key").value("BCD-2"))
+			.andExpect(jsonPath("$.itemNotes").doesNotExist())
 			.andExpect(jsonPath("$.code").doesNotExist())
 			.andExpect(jsonPath("$.report").doesNotExist());
 		// FR-25, R28 (Story 23.8b): an Assessment Job hands over no code, so N-33 is neither asked for nor recorded.
@@ -144,28 +136,28 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.report").doesNotExist())
 			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
-			.andExpect(jsonPath("$.itemNotes").isEmpty())
-			.andExpect(jsonPath("$.mentorName").value("Đỗ Mạnh Hùng"))
-			.andExpect(content -> assertThat(content.getResponse().getContentAsString()).doesNotContain("Phần phụ lục", "BCD-2"));
+			.andExpect(jsonPath("$.itemNotes").doesNotExist())
+			.andExpect(jsonPath("$.mentorName").value("Đỗ Mạnh Hùng"));
+		// Every audience reads the same Report now: the criteria with the Mentor's marks and notes (Story 24.2).
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.vy, Role.STUDENT)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.itemNotes[0].note").value("Phần phụ lục làm ở giai đoạn sau."));
+			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."));
 		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(stranger, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.waiting").doesNotExist())
 			.andExpect(jsonPath("$.handovers[0].id").value(handover));
-		handOver(this.hung, Role.MENTOR, 7, "Đạt.", "Sau.", null).andExpect(status().isUnprocessableEntity())
+		handOver(this.hung, Role.MENTOR, 7, "Đạt.", null).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("MILESTONE_NOT_HELD"));
 	}
 
 	@Test
 	void notesPassTheSensitiveCheck() throws Exception {
 		world("ASSESSMENT");
-		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "Sau.", null).andExpect(status().isUnprocessableEntity())
+		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), null).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("SENSITIVE_CONTENT"))
 			.andExpect(jsonPath("$.matches[0].kind").value("CREDENTIAL"));
-		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "Sau.", "MASK").andExpect(status().isAccepted());
+		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "MASK").andExpect(status().isAccepted());
 		assertThat(this.jdbc.sql("SELECT note FROM delivery.handover_criterion").query(String.class).single())
 			.startsWith("Khóa thử ").doesNotContain(fakeToken());
 	}
@@ -177,7 +169,7 @@ class HandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/preflight").param("milestoneId", this.milestone.toString())
 			.with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.problems").value(Matchers.hasItem("HANDOVER_COMMIT_MISSING")));
-		handOver(this.hung, Role.MENTOR, 5, "Đạt.", "Sau.", null).andExpect(status().isUnprocessableEntity())
+		handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("HANDOVER_COMMIT_MISSING"));
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 	}
@@ -249,34 +241,12 @@ class HandoverIT extends IntegrationTest {
 				VALUES (:id, :job, :student, 'ACTIVE', :signed, :signed, now())
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("student", this.vy)
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
-		this.jdbc.sql("""
-				INSERT INTO work.board (job_id, product_id, code, next_number, created_at) VALUES (:job, :product, 'BCD', 3, :now)
-				""").param("job", this.job).param("product", product).param("now", now).update();
-		this.story = item(1, "STORY", "Báo cáo nêu đủ chín mục", "DONE", this.criterion);
-		this.task = item(2, "TASK", "Phụ lục thuật ngữ", "IN_PROGRESS", null);
-		this.jdbc.sql("""
-				INSERT INTO work.work_item_history (id, work_item_id, job_id, actor_account_id, action, changes, comment, at)
-				VALUES (:id, :item, :job, :mentor, 'APPROVED', '{}'::jsonb, 'Đạt yêu cầu', :now)
-				""").param("id", UUID.randomUUID()).param("item", this.story).param("job", this.job).param("mentor", this.hung)
-			.param("now", now).update();
 	}
 
-	private UUID item(int number, String type, String title, String status, UUID criterionId) {
-		UUID id = UUID.randomUUID();
-		this.jdbc.sql("""
-				INSERT INTO work.work_item (id, job_id, number, type, title, description, criterion_id, milestone_id, status,
-				    created_at, updated_at)
-				VALUES (:id, :job, :number, :type, :title, '', :criterion, :milestone, :status, now(), now())
-				""").param("id", id).param("job", this.job).param("number", number).param("type", type).param("title", title)
-			.param("criterion", criterionId).param("milestone", this.milestone).param("status", status).update();
-		return id;
-	}
-
-	private ResultActions handOver(UUID account, Role role, long version, String criterionNote, String taskNote,
-			String sensitive) throws Exception {
+	private ResultActions handOver(UUID account, Role role, long version, String criterionNote, String sensitive)
+			throws Exception {
 		String json = "{\"milestoneId\":\"" + this.milestone + "\",\"version\":" + version + ",\"criteria\":[{\"criterionId\":\""
 				+ this.criterion + "\",\"met\":true,\"note\":\"" + criterionNote + "\"}]"
-				+ (taskNote == null ? "" : ",\"itemNotes\":[{\"workItemId\":\"" + this.task + "\",\"note\":\"" + taskNote + "\"}]")
 				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"")
 				// N-33 (FR-25, R28, Story 23.8b): a Code Job's handover names the version in force; an Assessment's none.
 				+ (this.assessment ? "" : ",\"teamCodeNoticeVersion\":\"1.0\"")

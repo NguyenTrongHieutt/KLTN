@@ -34,12 +34,11 @@ class AdminReadGrantTest {
 
 	private final AdminReadGrant dispute = AdminReadGrant.open(GRANT, ADMIN, JOB, AdminReadItem.forDispute(), DISPUTE);
 
+	/** Story 24.2: the Board is retired, so a Dispute's grant is the Job Chat and nothing else. */
 	@Test
-	void anOpenDisputeGrantReadsItsScopesOnly() {
-		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.WORK_ITEMS,
-				AdminReadScope.WORK_ITEM_NOTES, AdminReadScope.ATTACHMENTS)) {
-			assertThat(this.dispute.permits(ADMIN, JOB, scope, ITEM, Set.of(), NOW)).as(scope.name()).isTrue();
-		}
+	void anOpenDisputeGrantReadsTheJobChatOnly() {
+		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(), NOW)).isTrue();
+		assertThat(this.dispute.items()).extracting(AdminReadItem::scope).containsExactly(AdminReadScope.JOB_CHAT);
 		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, ITEM, Set.of(), NOW)).isFalse();
 		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW)).isFalse();
 	}
@@ -54,63 +53,63 @@ class AdminReadGrantTest {
 	void aGrantStopsAtItsEndAndAnEndNeverExtendsIt() {
 		AdminReadGrant ended = this.dispute.endingAt(NOW.plus(Duration.ofDays(30)));
 
-		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.ATTACHMENTS, ITEM, Set.of(), NOW.plus(Duration.ofDays(29))))
+		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(), NOW.plus(Duration.ofDays(29))))
 			.isTrue();
-		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.ATTACHMENTS, ITEM, Set.of(), NOW.plus(Duration.ofDays(30))))
+		assertThat(ended.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(), NOW.plus(Duration.ofDays(30))))
 			.isFalse();
 		assertThat(ended.endingAt(NOW.plus(Duration.ofDays(60))).endsAt()).isEqualTo(NOW.plus(Duration.ofDays(30)));
 		assertThat(ended.endingAt(NOW).endsAt()).isEqualTo(NOW);
 	}
 
+	/** Story 24.2: with the Board gone the escalated issue's grant is the Crew Chat; the Rating is read through reputation. */
 	@Test
-	void anEscalatedTeamIssueGrantReadsTheRaisersWorkItemsOnly() {
-		AdminReadGrant teamIssue = AdminReadGrant.open(GRANT, ADMIN, JOB, AdminReadItem.forEscalatedTeamIssue(RAISER),
-				DISPUTE);
+	void anEscalatedTeamIssueGrantReadsTheCrewChatOnly() {
+		AdminReadGrant teamIssue = AdminReadGrant.open(GRANT, ADMIN, JOB, AdminReadItem.forEscalatedTeamIssue(), DISPUTE);
 
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, ITEM, Set.of(), NOW)).isTrue();
-		assertThat(teamIssue.items()).as("Story 22.4: no Crew Terms scope; the Rating is read through reputation")
+		assertThat(teamIssue.items()).as("Story 22.4: no Crew Terms scope; Story 24.2: no Work Item scope")
 			.extracting(AdminReadItem::scope)
-			.containsExactlyInAnyOrder(AdminReadScope.CREW_CHAT, AdminReadScope.WORK_ITEMS);
+			.containsExactly(AdminReadScope.CREW_CHAT);
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW)).isFalse();
-		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, ITEM, Set.of(RAISER, OTHER_ADMIN), NOW))
-			.isTrue();
-		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, ITEM, Set.of(OTHER_ADMIN), NOW)).isFalse();
-		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.WORK_ITEM_NOTES, ITEM, Set.of(RAISER), NOW)).isFalse();
 		assertThat(teamIssue.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(RAISER), NOW)).isFalse();
 	}
 
-	/** Story 22.3 (AD-20, A-20): one split's versions, the Crew Chat, and each party's Work Items, never the Job Chat. */
+	/** Story 22.3 (AD-20, A-20), narrowed by Story 24.2: one split's versions and the Crew Chat, never the Job Chat. */
 	@Test
-	void aSplitResolutionGrantReadsItsSplitTheCrewChatAndThePartiesWorkItemsOnly() {
-		AdminReadGrant resolution = AdminReadGrant.open(GRANT, ADMIN, JOB, AdminReadItem.forSplitResolution(ITEM, Set.of(RAISER)),
-				DISPUTE);
+	void aSplitResolutionGrantReadsItsSplitAndTheCrewChatOnly() {
+		AdminReadGrant resolution = AdminReadGrant.open(GRANT, ADMIN, JOB, AdminReadItem.forSplitResolution(ITEM), DISPUTE);
 
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW)).isTrue();
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, RAISER, Set.of(), NOW)).as("another split").isFalse();
 		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, DISPUTE, Set.of(), NOW)).isTrue();
-		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(RAISER), NOW)).isTrue();
-		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.WORK_ITEMS, DISPUTE, Set.of(OTHER_ADMIN), NOW)).isFalse();
-		for (AdminReadScope scope : List.of(AdminReadScope.JOB_CHAT, AdminReadScope.WORK_ITEM_NOTES,
-				AdminReadScope.ATTACHMENTS)) {
-			assertThat(resolution.permits(ADMIN, JOB, scope, ITEM, Set.of(RAISER), NOW)).as(scope.name()).isFalse();
-		}
+		assertThat(resolution.items()).extracting(AdminReadItem::scope)
+			.containsExactlyInAnyOrder(AdminReadScope.SPLIT_VERSIONS, AdminReadScope.CREW_CHAT);
+		assertThat(resolution.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(RAISER), NOW)).isFalse();
 		assertThat(this.dispute.permits(ADMIN, JOB, AdminReadScope.SPLIT_VERSIONS, ITEM, Set.of(), NOW))
-			.as("a Dispute's grant covers no split version").isFalse();
+			.as("a Dispute's grant covers no split version")
+			.isFalse();
 	}
 
 	@Test
 	void anAbuseReportGrantReadsTheOneItemItNames() {
 		AdminReadGrant report = AdminReadGrant.open(GRANT, ADMIN, JOB,
-				AdminReadItem.forAbuseReport(AdminReadScope.JOB_CHAT, ITEM), DISPUTE);
+				AdminReadItem.forAbuseReport(AdminReadScope.CREW_CHAT, ITEM), DISPUTE);
 
-		assertThat(report.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(), NOW)).isTrue();
-		assertThat(report.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, RAISER, Set.of(), NOW)).isFalse();
-		assertThat(report.permits(ADMIN, JOB, AdminReadScope.ATTACHMENTS, ITEM, Set.of(), NOW)).isFalse();
+		assertThat(report.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, ITEM, Set.of(), NOW)).isTrue();
+		assertThat(report.permits(ADMIN, JOB, AdminReadScope.CREW_CHAT, RAISER, Set.of(), NOW)).isFalse();
+		assertThat(report.permits(ADMIN, JOB, AdminReadScope.JOB_CHAT, ITEM, Set.of(), NOW)).isFalse();
+	}
+
+	/** Story 24.2: the enum holds the two Chats and a Milestone Split's versions, and nothing of the Board. */
+	@Test
+	void theScopesAreTheTwoChatsAndASplitsVersions() {
+		assertThat(List.of(AdminReadScope.values())).containsExactly(AdminReadScope.JOB_CHAT, AdminReadScope.CREW_CHAT,
+				AdminReadScope.SPLIT_VERSIONS);
 	}
 
 	@Test
 	void anItemCoversOneObjectOrOneAccountNotBoth() {
-		assertThatThrownBy(() -> new AdminReadItem(AdminReadScope.ATTACHMENTS, ITEM, RAISER))
+		assertThatThrownBy(() -> new AdminReadItem(AdminReadScope.CREW_CHAT, ITEM, RAISER))
 			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> AdminReadGrant.open(GRANT, ADMIN, JOB, Set.of(), DISPUTE))
 			.isInstanceOf(IllegalArgumentException.class);
