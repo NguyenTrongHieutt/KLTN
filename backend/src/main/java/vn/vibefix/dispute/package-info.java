@@ -4,7 +4,10 @@
  * executes the decision (Story 9.5). The other side gets a statement period (Story 15.1), and the assignee
  * reads the Evidence Package, assembled on demand from the owning modules' queries and the grant pushed down
  * to {@code chat} and {@code job}, each view audited (Story 15.2). A decision keeps an evidence snapshot of IDs,
- * versions, counts, and totals that outlives the NFR-10 retirement of the Job's data (Story 15.3).
+ * versions, counts, and totals that outlives the NFR-10 retirement of the Job's data (Story 15.3). Its "criteria" tab
+ * shows each handover's images and links, and the module answers {@code delivery}'s port
+ * {@link vn.vibefix.delivery.HandoverEvidenceReaders} so the assignee opens those images: a check of the case, audited,
+ * never a grant (Story 24.3b).
  * <p>
  * Team Issues (FR-79, AD-40, Tier 3), kept apart from Disputes: a Crew member raises one with the Job's
  * Mentor about their share of a Held Milestone, which holds the two parties' parts through {@code payment},
@@ -12,7 +15,8 @@
  * <p>
  * Split Resolutions (FR-84, AD-40): a party other than the Mentor asks an Administrator to decide a Milestone Split, which holds
  * the whole Milestone's money in {@code job} and {@code payment} until it is withdrawn or decided, from the Split Evidence
- * Package assembled from {@code job}, {@code delivery}, {@code chat} and {@code identity}. They never freeze the
+ * Package assembled from {@code job}, {@code delivery}, {@code chat} and {@code identity}, its "Bàn giao" tab the Milestone's
+ * handovers (Story 24.3b). They never freeze the
  * Job or read its state, carry on after it ends, and the Customer never sees them.
  * <p>
  * Public API: {@link vn.vibefix.dispute.DisputeQueue}, the Disputes awaiting a decision for ADM-1. The
