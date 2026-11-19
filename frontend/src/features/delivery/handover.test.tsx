@@ -117,6 +117,7 @@ const report = (overrides: object = {}) => ({
   checks: [],
   preview: {},
   screenshots: [],
+  links: [],
   ...overrides,
 })
 
@@ -135,7 +136,7 @@ const preflight = (overrides: object = {}) => ({
 })
 
 describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
-  it('lets the Mentor hand over only once every criterion is marked with a note', { timeout: 20_000 }, async () => {
+  it('lets the Mentor hand over only once every criterion is marked and the report is linked', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     fakeBackend(signedInUser, {
@@ -169,6 +170,21 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await user.click(screen.getByRole('radio', { name: 'Đạt' }))
     expect(send).toBeDisabled()
     await user.type(screen.getByRole('textbox', { name: 'Ghi chú cho tiêu chí 1' }), 'Đã rà đủ chín mục.')
+    // Story 24.3 (FR-10): an Assessment Job changes no running Product, so it has no preview part, and its report
+    // goes in as a "Tài liệu" link: the form starts with that row, and waits for it.
+    expect(screen.queryByRole('textbox', { name: 'Đường dẫn bản xem thử (https)' })).toBeNull()
+    expect(screen.getByText(/Gửi báo cáo đánh giá dưới dạng một liên kết loại "Tài liệu"/)).toBeInTheDocument()
+    const row = screen.getByRole('group', { name: 'Liên kết 1' })
+    expect(within(row).getByRole('combobox', { name: 'Loại' })).toHaveValue('DOCUMENT')
+    expect(send).toBeDisabled()
+    await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), 'Báo cáo đánh giá')
+    await user.type(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'https://docs.google.com/document/d/bao-cao')
+    expect(within(row).getByText('Tên miền: docs.google.com')).toBeInTheDocument()
+    expect(send).toBeEnabled()
+    // A recording is not the report: with no "Tài liệu" link the handover cannot go.
+    await user.selectOptions(within(row).getByRole('combobox', { name: 'Loại' }), 'VIDEO')
+    expect(send).toBeDisabled()
+    await user.selectOptions(within(row).getByRole('combobox', { name: 'Loại' }), 'DOCUMENT')
     expect(send).toBeEnabled()
     await user.click(send)
 
@@ -179,6 +195,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
           version: 12,
           criteria: [{ criterionId: 'c1', met: true, note: 'Đã rà đủ chín mục.' }],
           sensitive: 'CHECK',
+          links: [{ kind: 'DOCUMENT', label: 'Báo cáo đánh giá', url: 'https://docs.google.com/document/d/bao-cao' }],
           screenshotIds: [],
         },
       ]),
@@ -352,7 +369,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(document.querySelector('img[src="x"], script, svg[onload]')).toBeNull()
   })
 
-  it('shows the preview with its domain and N-11, and the screenshots (AD-35, UX-DR30)', { timeout: 20_000 }, async () => {
+  it('shows the preview and every link with its kind, domain and N-11, and the screenshots (AD-35, UX-DR30)', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('MENTOR'),
       'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
@@ -365,12 +382,38 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
               preview: { url: 'https://so-dat-ban-gd1.vercel.app', domain: 'so-dat-ban-gd1.vercel.app', checkedAt: '2026-10-20T01:29:00Z' },
             },
             screenshots: [{ fileId: 'f1', fileName: 'dat-ban.png', size: 1200 }],
+            links: [
+              { kind: 'VIDEO', label: 'Video thao tác đặt bàn', url: 'https://youtu.be/dat-ban', domain: 'youtu.be' },
+              {
+                kind: 'DOCUMENT',
+                label: 'Ghi chú phát hành',
+                url: 'https://docs.google.com/document/d/ghi-chu',
+                domain: 'docs.google.com',
+              },
+            ],
           }),
         ),
     })
     renderAt('/cong-viec/j1/ban-giao/h1')
 
-    const link = await screen.findByRole('link', { name: /Mở bản xem thử/ })
+    // Story 24.3: every link in the Mentor's order, with its kind, its label as the link's text, its domain and N-11.
+    const video = await screen.findByRole('link', { name: /Video thao tác đặt bàn/ })
+    expect(video).toHaveAttribute('href', 'https://youtu.be/dat-ban')
+    expect(video).toHaveAttribute('target', '_blank')
+    expect(video).toHaveAttribute('rel', 'noopener noreferrer')
+    const notes = screen.getByRole('link', { name: /Ghi chú phát hành/ })
+    expect(notes).toHaveAttribute('href', 'https://docs.google.com/document/d/ghi-chu')
+    expect(notes).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(video.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('Bản ghi / video')).toBeInTheDocument()
+    expect(screen.getByText('Tài liệu')).toBeInTheDocument()
+    expect(screen.getByText('(youtu.be)')).toBeInTheDocument()
+    expect(screen.getByText('(docs.google.com)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Trang này nằm ngoài vibefix (docs.google.com). Đừng nhập mật khẩu GitHub hoặc vibefix ở đó.'),
+    ).toBeInTheDocument()
+
+    const link = screen.getByRole('link', { name: /Mở bản xem thử/ })
     expect(link).toHaveAttribute('href', 'https://so-dat-ban-gd1.vercel.app')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
@@ -382,7 +425,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(screen.getByRole('img', { name: 'dat-ban.png' })).toHaveAttribute('src', '/api/v1/files/f1')
   })
 
-  it('needs a preview for a Bug fix, or a reason with a recording, and checks the link first (FR-32)', { timeout: 20_000 }, async () => {
+  it('needs a preview for a Bug fix, or a reason with a video link, and checks the preview first (FR-32)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let sent: Record<string, unknown> | undefined
     fakeBackend(signedInUser, {
@@ -418,13 +461,120 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Không thể làm bản xem thử' }))
     expect(send).toBeDisabled()
     await user.type(screen.getByRole('textbox', { name: 'Vì sao không làm được bản xem thử' }), 'Chỉ chạy trên máy của quán')
-    await user.type(screen.getByRole('textbox', { name: 'Đường dẫn video quay màn hình (https)' }), 'https://www.loom.com/share/abc')
+    expect(screen.getByText(/Thêm video quay màn hình vào phần Liên kết kèm bàn giao bên dưới/)).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Đường dẫn video quay màn hình (https)' })).toBeNull()
     await user.click(teamCode())
+    expect(send).toBeDisabled()
+    // Story 24.3: the recording is one of the links, of kind "Bản ghi / video"; a document is not a recording.
+    await user.click(screen.getByRole('button', { name: 'Thêm liên kết' }))
+    const row = screen.getByRole('group', { name: 'Liên kết 1' })
+    await user.selectOptions(within(row).getByRole('combobox', { name: 'Loại' }), 'DOCUMENT')
+    await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), 'Quay lại thao tác')
+    await user.type(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'https://www.loom.com/share/abc')
+    expect(send).toBeDisabled()
+    await user.selectOptions(within(row).getByRole('combobox', { name: 'Loại' }), 'VIDEO')
+    expect(send).toBeEnabled()
     await user.click(send)
 
     await waitFor(() => expect(sent).toBeDefined())
-    expect(sent).toMatchObject({ recordingUrl: 'https://www.loom.com/share/abc', noPreviewReason: 'Chỉ chạy trên máy của quán' })
-    expect(sent).not.toHaveProperty('previewUrl')
+    expect(sent).toMatchObject({
+      noPreviewReason: 'Chỉ chạy trên máy của quán',
+      links: [{ kind: 'VIDEO', label: 'Quay lại thao tác', url: 'https://www.loom.com/share/abc' }],
+    })
+    // No preview, and no field of the recording's own: the request carries exactly these.
+    expect(Object.keys(sent ?? {}).sort()).toEqual([
+      'criteria',
+      'links',
+      'milestoneId',
+      'noPreviewReason',
+      'screenshotIds',
+      'sensitive',
+      'teamCodeNoticeVersion',
+      'version',
+    ])
+  })
+
+  it('shows each link row’s domain once it is https, stops at ten links, and waits for every row (Story 24.3)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight({ assessment: false })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    await user.click(teamCode())
+    const send = screen.getByRole('button', { name: 'Gửi bàn giao' })
+    expect(send).toBeEnabled()
+    expect(screen.getByText('Chưa có liên kết nào.')).toBeInTheDocument()
+
+    const add = screen.getByRole('button', { name: 'Thêm liên kết' })
+    await user.click(add)
+    const row = screen.getByRole('group', { name: 'Liên kết 1' })
+    expect(within(row).getByRole('combobox', { name: 'Loại' })).toHaveValue('VIDEO')
+    expect(send).toBeDisabled()
+    await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), 'Video thao tác')
+    await user.type(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'http://youtu.be/dat-ban')
+    expect(within(row).queryByText(/^Tên miền:/)).toBeNull()
+    expect(send).toBeDisabled()
+    const url = within(row).getByRole('textbox', { name: 'Đường dẫn (https)' })
+    await user.clear(url)
+    await user.type(url, 'https://YouTu.be:443/dat-ban?t=3')
+    expect(within(row).getByText('Tên miền: youtu.be')).toBeInTheDocument()
+    expect(send).toBeEnabled()
+
+    for (let n = 2; n <= 10; n++) {
+      await user.click(add)
+    }
+    expect(screen.getAllByRole('group', { name: /^Liên kết \d+$/ })).toHaveLength(10)
+    expect(add).toBeDisabled()
+    expect(screen.getByText('Đã đủ 10 liên kết.')).toBeInTheDocument()
+    expect(send).toBeDisabled()
+    for (let n = 10; n >= 2; n--) {
+      await user.click(screen.getByRole('button', { name: `Xóa liên kết ${n}` }))
+    }
+    expect(add).toBeEnabled()
+    expect(screen.queryByText('Đã đủ 10 liên kết.')).toBeNull()
+    expect(send).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Xóa liên kết 1' }))
+    expect(screen.getByText('Chưa có liên kết nào.')).toBeInTheDocument()
+  })
+
+  it('gives the Customer the reason, the recording link and the report link of a handover with no preview (Story 24.3)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json({ ...customerJob, title: 'Sửa lỗi đặt bàn', jobTypes: ['BUG_FIX'] }),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER', assessment: false })),
+      'GET /api/v1/handovers/h1': () =>
+        json(
+          report({
+            assessment: false,
+            preview: { noPreviewReason: 'Ứng dụng chỉ chạy trên máy của quán' },
+            links: [
+              { kind: 'VIDEO', label: PAYLOADS[0], url: 'https://www.loom.com/share/abc', domain: 'www.loom.com' },
+              { kind: 'DOCUMENT', label: 'Hướng dẫn thử', url: 'javascript:alert(1)', domain: 'javascript:alert(1)' },
+            ],
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    expect(await screen.findByText('Ứng dụng chỉ chạy trên máy của quán')).toBeInTheDocument()
+    expect(screen.getByText('Lý do không có bản xem thử')).toBeInTheDocument()
+    // SG-30: the label is the Mentor's text, shown as text; the link is found by where it goes.
+    const recording = document.querySelector('a[href="https://www.loom.com/share/abc"]')
+    expect(recording).toHaveAttribute('href', 'https://www.loom.com/share/abc')
+    expect(recording).toHaveAttribute('target', '_blank')
+    expect(recording).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getAllByText(PAYLOADS[0], { exact: false }).length).toBeGreaterThan(0)
+    expect(screen.getByText('(www.loom.com)')).toBeInTheDocument()
+    // AD-35: a URL that is not https is never a link, whatever the server sent.
+    expect(screen.queryByRole('link', { name: /Hướng dẫn thử/ })).toBeNull()
+    for (const anchor of Array.from(document.querySelectorAll('a'))) {
+      expect(anchor.getAttribute('href') ?? '').not.toMatch(/^javascript:/i)
+    }
+    expect(document.querySelector('img[src="x"], script, svg[onload]')).toBeNull()
   })
 
   it('waits on the form while the runner copies a Code Job handover, then opens its report (Story 23.8a)', { timeout: 20_000 }, async () => {

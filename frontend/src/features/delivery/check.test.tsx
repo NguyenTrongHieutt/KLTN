@@ -71,6 +71,7 @@ const report = (overrides: object = {}) => ({
   checks: [],
   preview: {},
   screenshots: [],
+  links: [],
   ...overrides,
 })
 
@@ -206,17 +207,40 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     expect(screen.queryByRole('link', { name: 'Kiểm tra từng tiêu chí' })).toBeNull()
   })
 
-  it('links the preview with N-11 next to each step and its check steps (UX-DR33)', { timeout: 25_000 }, async () => {
+  it('links the preview and every link with N-11 next to each step and its check steps (UX-DR33)', { timeout: 25_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/handovers/h1': () =>
-        json(report({ preview: { preview: { url: 'https://vht-preview.vercel.app', domain: 'vht-preview.vercel.app' } } })),
+        json(
+          report({
+            preview: { preview: { url: 'https://vht-preview.vercel.app', domain: 'vht-preview.vercel.app' } },
+            links: [
+              {
+                kind: 'DOCUMENT',
+                label: 'Báo cáo đánh giá',
+                url: 'https://docs.google.com/document/d/bao-cao',
+                domain: 'docs.google.com',
+              },
+              { kind: 'VIDEO', label: 'Video trình bày', url: 'https://www.loom.com/share/trinh-bay', domain: 'www.loom.com' },
+            ],
+          }),
+        ),
     })
     renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
 
     expect(await screen.findByRole('link', { name: /Mở bản xem thử/ })).toHaveAttribute('href', 'https://vht-preview.vercel.app')
     expect(screen.getByText('(vht-preview.vercel.app)')).toBeInTheDocument()
     expect(screen.getByText(/Trang này nằm ngoài vibefix \(vht-preview\.vercel\.app\)/)).toBeInTheDocument()
+    // Story 24.3: beside "Cách kiểm tra", every link with its kind, label and domain -- the report among them.
+    const reportLink = screen.getByRole('link', { name: /Báo cáo đánh giá/ })
+    expect(reportLink).toHaveAttribute('href', 'https://docs.google.com/document/d/bao-cao')
+    expect(reportLink).toHaveAttribute('target', '_blank')
+    expect(reportLink).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByText('Tài liệu')).toBeInTheDocument()
+    expect(screen.getByText('(docs.google.com)')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Video trình bày/ })).toHaveAttribute('href', 'https://www.loom.com/share/trinh-bay')
+    expect(screen.getByText('Bản ghi / video')).toBeInTheDocument()
+    expect(screen.getByText('(www.loom.com)')).toBeInTheDocument()
   })
 
   it('explains a Stale answer when an acceptance merge voided the handover meanwhile (UX-DR26)', { timeout: 25_000 }, async () => {

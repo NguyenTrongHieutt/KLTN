@@ -11401,6 +11401,12 @@
           "jobTitle" : {
             "type" : "string"
           },
+          "links" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverEvidenceLinkView"
+            }
+          },
           "mentorName" : {
             "type" : "string"
           },
@@ -11436,7 +11442,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "jobId", "jobTitle", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
+        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "jobId", "jobTitle", "links", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
       },
       "DisputeDecisionRequest" : {
         "type" : "object",
@@ -12826,6 +12832,46 @@
         },
         "required" : [ "releaseVnd", "revisionAllowed" ]
       },
+      "HandoverEvidenceLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "VIDEO", "DOCUMENT" ]
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "domain", "kind", "label", "url" ]
+      },
+      "HandoverLinkRequest" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "VIDEO", "DOCUMENT" ]
+          },
+          "label" : {
+            "type" : "string",
+            "maxLength" : 80,
+            "minLength" : 0
+          },
+          "url" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^https://\\S+$"
+          }
+        },
+        "required" : [ "kind", "label", "url" ]
+      },
       "HandoverLinkView" : {
         "type" : "object",
         "properties" : {
@@ -12945,9 +12991,6 @@
           },
           "preview" : {
             "$ref" : "#/components/schemas/HandoverLinkView"
-          },
-          "recording" : {
-            "$ref" : "#/components/schemas/HandoverLinkView"
           }
         }
       },
@@ -12958,6 +13001,14 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/HandoverCriterionMarkRequest"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "links" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandoverLinkRequest"
             },
             "maxItems" : 100,
             "minItems" : 0
@@ -12977,19 +13028,13 @@
             "minLength" : 0,
             "pattern" : "^https://\\S+$"
           },
-          "recordingUrl" : {
-            "type" : "string",
-            "maxLength" : 500,
-            "minLength" : 0,
-            "pattern" : "^https://\\S+$"
-          },
           "screenshotIds" : {
             "type" : "array",
             "items" : {
               "type" : "string",
               "format" : "uuid"
             },
-            "maxItems" : 5,
+            "maxItems" : 10,
             "minItems" : 0
           },
           "sensitive" : {

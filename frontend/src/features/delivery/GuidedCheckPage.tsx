@@ -16,6 +16,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatVnd } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { useDecideHandover, useHandover, type DeliveryReport } from './deliveryApi'
+import { HandoverLinkList } from './HandoverLinkList'
 import { OutsideLink } from './OutsideLink'
 
 interface Mark {
@@ -197,7 +198,10 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               </li>
             ))}
           </ol>
-          {/* UX-DR33: the preview next to each step's "Cách kiểm tra", with N-11. */}
+          {/*
+            UX-DR33: the preview next to each step's "Cách kiểm tra", with N-11, and every link of the handover with its
+            kind, label and domain -- an Assessment Job's report among them (Story 24.3).
+          */}
           {report.preview.preview && (
             <OutsideLink
               url={report.preview.preview.url}
@@ -205,13 +209,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               label={t('screen.handover.preview.open')}
             />
           )}
-          {report.preview.recording && (
-            <OutsideLink
-              url={report.preview.recording.url}
-              domain={report.preview.recording.domain}
-              label={t('screen.handover.preview.openRecording')}
-            />
-          )}
+          <HandoverLinkList links={report.links} />
         </div>
         <figure className="flex flex-col gap-1 border-l-4 border-border pl-3 text-body-sm">
           <figcaption className="text-caption text-muted-foreground">{t('screen.handover.check.mentorNote')}</figcaption>

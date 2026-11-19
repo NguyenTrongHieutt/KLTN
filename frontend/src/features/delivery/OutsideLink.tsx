@@ -2,7 +2,8 @@ import { ExternalLink } from 'lucide-react'
 import { t } from '@/i18n/t'
 
 /**
- * A preview or recording link (AD-35, UX-DR30): `https` only, any other scheme stays plain text; it opens
+ * A preview link or a link the Mentor put on a handover (AD-35, UX-DR30, Story 24.3): `https` only, any other
+ * scheme stays plain text; it opens
  * in a new tab without the opener, shows its domain beside it, and N-11 under it.
  * @param warning whether N-11's line follows, which it does for every link a team wrote. The handover's own
  * GitHub links (FR-32, Story 23.8b) leave it out: vibefix built them, and GitHub is where the reader signs in

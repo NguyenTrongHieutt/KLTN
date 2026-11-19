@@ -5,15 +5,16 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import type { DeliveryReport } from './deliveryApi'
+import { HandoverLinkList } from './HandoverLinkList'
 import { OutsideLink } from './OutsideLink'
 import { SensitiveChangeList } from './SensitiveChangeList'
 
 /**
  * The Delivery Report (FR-10, FR-32, AD-33, UX-DR53): per criterion the Mentor's own statement
  * "Người hướng dẫn tự nhận xét: Đạt / Chưa đạt", never counted as a criterion done, their note, and
- * "Cách kiểm tra". An
- * Assessment Job's criteria are the Assessment Report's sections, which is its whole deliverable until
- * Story 24.3 adds the Mentor's own document link (Story 24.1). A Code Job's report adds the
+ * "Cách kiểm tra". Beside them, what the handover carries: the preview or why there is none, the Mentor's links
+ * with their kind, label and domain, and the images (Story 24.3). An Assessment Job's criteria are the Assessment
+ * Report's sections, and the report itself is its "Tài liệu" link (Stories 24.1, 24.3). A Code Job's report adds the
  * Sensitive change list and the collapsed "Chi tiết kỹ thuật"
  * with the commits, all rendered as text (NFR-3). While it waits for the Customer, they get "Kiểm tra
  * từng tiêu chí" and the Revision Rounds left; once decided, everyone sees the Customer's marks. A Code
@@ -86,7 +87,7 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           </Link>
         </section>
       )}
-      <PreviewSection report={report} />
+      <EvidenceSection report={report} />
       <section aria-labelledby="delivery-criteria" className="flex flex-col gap-3">
         <h3 id="delivery-criteria" className="text-h3">
           {t('screen.handover.report.criteria')}
@@ -131,36 +132,45 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
 
 type Code = NonNullable<DeliveryReport['code']>
 
-/** The preview or the recording with N-11, and the screenshots (FR-32, AD-35, UX-DR30). */
-function PreviewSection({ report }: { report: DeliveryReport }) {
-  const { preview, recording, noPreviewReason } = report.preview
-  if (!preview && !recording && report.screenshots.length === 0) {
+/**
+ * What the handover carries beside its criteria (FR-10, FR-32, AD-35, UX-DR30, Story 24.3): the preview with N-11,
+ * or why a preview is impossible; every link the Mentor added, with its kind, label and domain; and the images.
+ */
+function EvidenceSection({ report }: { report: DeliveryReport }) {
+  const { preview, noPreviewReason } = report.preview
+  if (!preview && !noPreviewReason && report.links.length === 0 && report.screenshots.length === 0) {
     return null
   }
   return (
-    <section aria-labelledby="delivery-preview" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-body-sm">
-      <h3 id="delivery-preview" className="text-h3">
-        {t('term.previewLink.label')}
+    <section aria-labelledby="delivery-evidence" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-body-sm">
+      <h3 id="delivery-evidence" className="text-h3">
+        {t('screen.handover.links.title')}
       </h3>
-      {preview && (
-        <div className="flex flex-col gap-0.5">
-          <OutsideLink url={preview.url} domain={preview.domain} label={t('screen.handover.preview.open')} />
-          {preview.checkedAt && (
-            <span className="text-caption text-muted-foreground">
-              {t('screen.handover.preview.checkedAt', { time: formatDayMonthTime(preview.checkedAt) })}
-            </span>
-          )}
-        </div>
-      )}
-      {recording && (
+      {(preview ?? noPreviewReason) && (
         <div className="flex flex-col gap-1">
-          <OutsideLink url={recording.url} domain={recording.domain} label={t('screen.handover.preview.openRecording')} />
+          <h4 className="text-label">{t('term.previewLink.label')}</h4>
+          {preview && (
+            <div className="flex flex-col gap-0.5">
+              <OutsideLink url={preview.url} domain={preview.domain} label={t('screen.handover.preview.open')} />
+              {preview.checkedAt && (
+                <span className="text-caption text-muted-foreground">
+                  {t('screen.handover.preview.checkedAt', { time: formatDayMonthTime(preview.checkedAt) })}
+                </span>
+              )}
+            </div>
+          )}
           {noPreviewReason && (
             <p className="flex flex-col gap-0.5">
               <span className="text-label">{t('screen.handover.preview.reasonLabel')}</span>
               <span className="break-words whitespace-pre-wrap">{noPreviewReason}</span>
             </p>
           )}
+        </div>
+      )}
+      {report.links.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h4 className="text-label">{t('term.handoverLink.label')}</h4>
+          <HandoverLinkList links={report.links} />
         </div>
       )}
       {report.screenshots.length > 0 && (
