@@ -80,19 +80,37 @@ enum DeliveryReason {
 	/** The Code Job has no Working Repository yet: J7's Setup is not done (FR-18, FR-32). */
 	HANDOVER_COMMIT_MISSING,
 
-	/** A Job Type changes the running Product: the handover needs a preview, or a reason and a recording (FR-32). */
+	/**
+	 * A Job Type changes the running Product: the handover needs a preview, or "Không thể làm bản xem thử" with its
+	 * reason and a "Bản ghi / video" link (FR-32).
+	 */
 	PREVIEW_REQUIRED,
 
-	/** A handover carries a preview or a recording with its reason, never both (FR-32, AD-35). */
+	/**
+	 * A handover carries a preview or the reason a preview is impossible, never both (FR-32, AD-35). Links of either
+	 * kind may sit beside a preview; the name is kept from when the recording had a field of its own (Story 24.3).
+	 */
 	PREVIEW_OR_RECORDING,
 
-	/** "Không thể làm bản xem thử" needs both its reason and the recording link (FR-32). */
+	/**
+	 * "Không thể làm bản xem thử" needs its reason and at least one "Bản ghi / video" link, which shows the change
+	 * instead (FR-32, Story 24.3).
+	 */
 	RECORDING_REASON_MISSING,
+
+	/** A handover carries at most 10 links (D3, FR-32, Story 24.3). */
+	TOO_MANY_LINKS,
+
+	/**
+	 * An Assessment Job's handover carries at least one "Tài liệu" link: the platform stores no documents, so that link
+	 * is how its report reaches the Customer (FR-10, Story 24.3).
+	 */
+	REPORT_LINK_MISSING,
 
 	/** The preview link did not respond to the outbound check (FR-32, AD-32, UX-DR27). */
 	PREVIEW_UNREACHABLE,
 
-	/** More screenshots than a handover takes, or than may wait for one (FR-32). */
+	/** More images than a handover takes (5), or than may wait for one (FR-32). */
 	TOO_MANY_SCREENSHOTS,
 
 	/** A screenshot that is not the Mentor's upload waiting on this Job. */

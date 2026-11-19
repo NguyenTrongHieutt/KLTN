@@ -233,6 +233,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT author_github_id FROM delivery.handover_commit")).isEqualTo(4242);
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
 		assertFilesWhileDeferred(evidence);
+		assertLinksGone();
 
 		// The split becomes final: the pool is paid out, and what waited goes, the bare row last.
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
@@ -248,6 +249,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT amount_vnd FROM payment.ledger_entry WHERE entry_type = 'RELEASE' ORDER BY amount_vnd")
 			.query(Long.class).list()).containsExactly(HeldCrewJob.PRICE * 20 / 100, HeldCrewJob.PRICE * 80 / 100);
 		assertFilesFinished(evidence);
+		assertLinksGone();
 		this.mvc.perform(get("/api/v1/balance").with(as(world.vy(), Role.STUDENT)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.balanceVnd").value(HeldCrewJob.PRICE * 80 / 100))
@@ -335,6 +337,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
+		assertLinksGone();
 		assertThat(count("SELECT count(*) FROM job.milestone_split")).isOne();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry")).isEqualTo(ledger);
 	}
@@ -353,6 +356,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
 		assertFilesFinished(evidence);
+		assertLinksGone();
 	}
 
 	@Test
@@ -369,10 +373,12 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
 		assertFilesWhileDeferred(evidence);
+		assertLinksGone();
 
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
 
 		assertFilesFinished(evidence);
+		assertLinksGone();
 		assertNoDeferrals();
 		assertThat(count("SELECT count(*) FROM chat.chat")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isZero();
@@ -625,6 +631,35 @@ class PersonalDataCoverageIT extends IntegrationTest {
 				""")).as("the person goes, the confirmation stays").isEqualTo("true 1.0 true");
 	}
 
+	/** Story 24.3 (AD-24): the Mentor's export lists the links of the handovers they made, as they wrote them. */
+	@Test
+	void theMentorsExportListsTheLinksOfTheirHandovers() {
+		HeldCrewJob world = closedJob();
+		evidence(world);
+
+		String section = this.transactions.execute(status -> this.personalData.export(world.hung()))
+			.stream()
+			.filter(found -> "delivery".equals(found.module()))
+			.findFirst()
+			.orElseThrow()
+			.toString();
+		assertThat(section).contains("links=[{kind=DOCUMENT, label=Báo cáo đánh giá, url=" + LINK + "}]");
+		assertThat(this.transactions.execute(status -> this.personalData.export(world.lan()))
+			.stream()
+			.filter(found -> "delivery".equals(found.module()))
+			.map(PersonalDataSection::toString)
+			.findFirst()
+			.orElse("")).as("the Customer's export names no handover they did not make").doesNotContain(LINK);
+	}
+
+	/** The link {@link #evidence} puts on its handover (Story 24.3). */
+	private static final String LINK = "https://docs.google.com/document/d/bao-cao-giai-doan-1";
+
+	/** A handover's links are what it said (NFR-10): retirement and deletion remove them at once. */
+	private void assertLinksGone() {
+		assertThat(count("SELECT count(*) FROM delivery.handover_link")).as("the handover's links go at once").isZero();
+	}
+
 	/** One Code handover of the Job, carrying the Mentor's N-33 confirmation. */
 	private void teamCodeHandover(HeldCrewJob world) {
 		this.jdbc.sql("""
@@ -751,6 +786,11 @@ class PersonalDataCoverageIT extends IntegrationTest {
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Tiêu chí 1', 'Cách kiểm tra 1', true, 'Đã kiểm tra')
 				""").param("id", handover).param("criterion", UUID.randomUUID()).update();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_link (handover_id, position, kind, url, label)
+				VALUES (:id, 0, 'DOCUMENT', :url, 'Báo cáo đánh giá')
+				""").param("id", handover).param("url", LINK).update();
+		assertThat(count("SELECT count(*) FROM delivery.handover_link")).isOne();
 		UUID screenshotFile = storedFile(world.hung(), "man-hinh.png");
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover_screenshot (file_id, job_id, product_id, account_id, file_name, size_bytes, handover_id,

@@ -57,7 +57,11 @@ class HandoverSubmissions {
 
 	private static final Logger log = LoggerFactory.getLogger(HandoverSubmissions.class);
 
-	private static final JsonMapper JSON = JsonMapper.builder().build();
+	/**
+	 * How a draft is stored and read back. Package-private so a migration test reads a rewritten draft through this
+	 * same mapper (Story 24.3): what must read the row is what proves the rewrite.
+	 */
+	static final JsonMapper JSON = JsonMapper.builder().build();
 
 	/** The module whose reason enum names a copy's own refusal (AD-23). */
 	private static final String DELIVERY = "delivery";
@@ -95,7 +99,7 @@ class HandoverSubmissions {
 
 	private final Clock clock;
 
-	/** The recording and the refusal each commit or roll back on their own, inside the listener's transaction. */
+	/** Recording the handover and refusing it each commit or roll back on their own, inside the listener's transaction. */
 	private final TransactionTemplate ownTransaction;
 
 	/**
@@ -213,7 +217,7 @@ class HandoverSubmissions {
 	/**
 	 * The copy ended: the handover is recorded from the submission, or the submission ends with the reason and the
 	 * pull request is closed again. GitHub is read and written with the listener's transaction suspended, and only
-	 * the recording and the refusal run in a transaction of their own; a redelivery of the event closes a pull
+	 * recording the handover and refusing it run in a transaction of their own; a redelivery of the event closes a pull
 	 * request that is still open, and changes nothing else.
 	 */
 	void finish(UUID submissionId) {

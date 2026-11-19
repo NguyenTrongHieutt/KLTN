@@ -403,6 +403,11 @@ final class CrewJobWorld {
 			.param("at", written)
 			.update();
 		world.put("handoverScreenshotFileId", screenshotFile);
+		// The handover's link, whose URL is the HANDOVER_LINK canary (Story 24.3): what the report shows its readers.
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_link (handover_id, position, kind, url, label)
+				VALUES (:handover, 0, 'DOCUMENT', :url, 'Ghi chú phát hành')
+				""").param("handover", handover).param("url", value("HANDOVER_LINK")).update();
 		// The Mentor's screenshot upload for the next handover (Story 8.3): a row's file=upload makes {fileId} it.
 		UUID upload = storedFile("delivery.handover_screenshot", this.mentor, "man-hinh-ban-giao.pdf");
 		this.jdbc.sql("""

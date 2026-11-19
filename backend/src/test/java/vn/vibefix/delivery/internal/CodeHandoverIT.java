@@ -64,9 +64,10 @@ import vn.vibefix.timers.internal.DeadlinePoller;
  * of changed files stops at 300; vibefix scans no code (Story 23.1), so nothing waits for a scan. "Gửi bàn
  * giao" pins the head on {@code handover/{id}} in the Intermediary Repository with the System's pull request,
  * applies M2, and
- * records each commit with its author's GitHub ID and the Work Items it mentions, and the Sensitive
+ * records each commit with its author's GitHub ID, and the Sensitive
  * Changes. When M2 refuses, the pull request is closed again. A Bug fixing handover carries a
- * preview that responds, or a reason with a recording, and up to five screenshots (Story 8.3). Heads are
+ * preview that responds, or a reason with a "Bản ghi / video" link, up to five images (Story 8.3), and up to ten
+ * links that are never requested (Story 24.3). Heads are
  * compared only at acceptance (Story 23.2, D9): a push to the Working Repository voids nothing, and only the
  * acceptance merge's 409, when {@code handover/{id}} no longer holds the Handover Commit, applies M3 with an
  * Administrator alert. M3 and M4 close the older pull request with a reason comment and "(lần {n})" in its
@@ -829,20 +830,30 @@ class CodeHandoverIT extends IntegrationTest {
 			.query(String.class).single();
 	}
 
+	/**
+	 * Story 24.3 (D3, FR-32): with no preview, the reason comes with at least one "Bản ghi / video" link, which takes
+	 * the place of the recording's own field; a document link is not a recording, and a recording without a reason
+	 * is no reason. Only the preview is ever checked.
+	 */
 	@Test
-	void aBugFixNeedsAPreviewThatRespondsOrAReasonWithARecording() throws Exception {
+	void aBugFixNeedsAPreviewThatRespondsOrAReasonWithAVideoLink() throws Exception {
 		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n", "Sửa lỗi",
 				"hung@example.test");
 		preflight().andExpect(jsonPath("$.previewRequired").value(true));
+		String video = link("VIDEO", "https://www.loom.com/share/abc", "Quay lại thao tác đặt bàn");
+		String document = link("DOCUMENT", "https://docs.google.com/document/d/huong-dan", "Hướng dẫn thử");
 
 		handOverWith("").andExpect(status().isBadRequest()).andExpect(jsonPath("$.reason").value("PREVIEW_REQUIRED"));
 		handOverWith(",\"previewUrl\":\"http://so-dat-ban.vercel.app\"").andExpect(status().isBadRequest());
-		handOverWith(",\"previewUrl\":\"https://a.vercel.app\",\"recordingUrl\":\"https://www.loom.com/share/x\","
-				+ "\"noPreviewReason\":\"Không có máy chủ thử\"")
+		handOverWith(",\"previewUrl\":\"https://a.vercel.app\",\"noPreviewReason\":\"Không có máy chủ thử\",\"links\":["
+				+ video + "]")
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("PREVIEW_OR_RECORDING"));
-		handOverWith(",\"recordingUrl\":\"https://www.loom.com/share/x\"").andExpect(status().isBadRequest())
+		handOverWith(",\"noPreviewReason\":\"Không có máy chủ thử\",\"links\":[" + document + "," + document + "]")
+			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("RECORDING_REASON_MISSING"));
+		handOverWith(",\"links\":[" + video + "]").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("PREVIEW_REQUIRED"));
 		String dead = "https://dead-" + UUID.randomUUID() + ".vercel.app";
 		this.previews.unreachable(dead);
 		this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers/preview-check").with(as(this.hung, Role.MENTOR))
@@ -854,12 +865,20 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("PREVIEW_UNREACHABLE"));
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).as("nothing pinned").isEmpty();
 
-		String first = upload();
-		String second = upload();
-		preflight().andExpect(jsonPath("$.screenshots.length()").value(2));
+		List<String> uploads = new java.util.ArrayList<>();
+		for (int image = 0; image < 6; image++) {
+			uploads.add(upload());
+		}
+		preflight().andExpect(jsonPath("$.screenshots.length()").value(6));
+		String reason = ",\"noPreviewReason\":\"Ứng dụng chỉ chạy trên máy của quán\",\"links\":[" + video + "]";
+		// Decision 5: the sixth image reaches the rule that names why, not the request's own size limit.
+		handOverWith(reason + ",\"screenshotIds\":[\"" + String.join("\",\"", uploads) + "\"]")
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("TOO_MANY_SCREENSHOTS"));
+		String first = uploads.get(0);
+		String second = uploads.get(1);
 		UUID submission = UUID.fromString(JsonPath.read(
-				handOverWith(",\"recordingUrl\":\"https://www.loom.com/share/abc\",\"noPreviewReason\":\"Ứng dụng chỉ chạy"
-						+ " trên máy của quán\",\"screenshotIds\":[\"" + second + "\",\"" + first + "\"]")
+				handOverWith(reason + ",\"screenshotIds\":[\"" + second + "\",\"" + first + "\"]")
 					.andExpect(status().isAccepted())
 					.andReturn().getResponse().getContentAsString(), "$.id"));
 		dispatchCopy();
@@ -867,13 +886,68 @@ class CodeHandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/files/" + first).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk());
 		UUID outsider = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/files/" + first).with(as(outsider, Role.CUSTOMER))).andExpect(status().isNotFound());
-		preflight().andExpect(jsonPath("$.screenshots.length()").value(0));
+		preflight().andExpect(jsonPath("$.screenshots.length()").value(4));
 		this.mvc.perform(get("/api/v1/handovers/" + submission).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.preview.preview").doesNotExist())
-			.andExpect(jsonPath("$.preview.recording.domain").value("www.loom.com"))
+			.andExpect(jsonPath("$.preview.recording").doesNotExist())
 			.andExpect(jsonPath("$.preview.noPreviewReason").value("Ứng dụng chỉ chạy trên máy của quán"))
+			.andExpect(jsonPath("$.links.length()").value(1))
+			.andExpect(jsonPath("$.links[0].kind").value("VIDEO"))
+			.andExpect(jsonPath("$.links[0].label").value("Quay lại thao tác đặt bàn"))
+			.andExpect(jsonPath("$.links[0].url").value("https://www.loom.com/share/abc"))
+			.andExpect(jsonPath("$.links[0].domain").value("www.loom.com"))
 			.andExpect(jsonPath("$.screenshots[0].fileId").value(second))
 			.andExpect(jsonPath("$.screenshots.length()").value(2));
+		assertThat(this.previews.checked).as("no link is ever requested, the recording's no more than any")
+			.doesNotContain("https://www.loom.com/share/abc", "https://docs.google.com/document/d/huong-dan");
+	}
+
+	/**
+	 * Story 24.3 (D3, FR-32, AD-32): a Code Job's handover carries its preview, its images and its links side by side.
+	 * The links reach the report in the Mentor's order, each with its kind, label, URL and the domain read from its
+	 * text, and the preview is the only URL the handover ever checks.
+	 */
+	@Test
+	void aHandoverCarriesItsLinksInOrderAndChecksOnlyThePreview() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		List<String> images = List.of(upload(), upload(), upload());
+		String preview = "https://so-dat-ban-" + UUID.randomUUID() + ".vercel.app";
+		this.previews.checked.clear();
+
+		UUID submission = UUID.fromString(JsonPath.read(handOverWith(",\"previewUrl\":\"" + preview + "\",\"links\":["
+				+ link("DOCUMENT", "https://docs.google.com/document/d/ghi-chu", "Ghi chú phát hành") + ","
+				+ link("VIDEO", "https://youtu.be/dat-ban-nhanh", "Video thao tác") + ","
+				+ link("DOCUMENT", "https://www.notion.so/huong-dan-thu", "Hướng dẫn thử") + "],\"screenshotIds\":[\""
+				+ String.join("\",\"", images) + "\"]")
+			.andExpect(status().isAccepted())
+			.andReturn()
+			.getResponse()
+			.getContentAsString(), "$.id"));
+		dispatchCopy();
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		// FR-33: the Customer, the Mentor and the active Crew each read every link.
+		for (Map.Entry<UUID, Role> reader : Map.of(this.lan, Role.CUSTOMER, this.hung, Role.MENTOR, this.vy, Role.STUDENT)
+			.entrySet()) {
+			this.mvc.perform(get("/api/v1/handovers/" + submission).with(as(reader.getKey(), reader.getValue())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.preview.preview.url").value(preview))
+				.andExpect(jsonPath("$.links[*].kind").value(Matchers.contains("DOCUMENT", "VIDEO", "DOCUMENT")))
+				.andExpect(jsonPath("$.links[*].label")
+					.value(Matchers.contains("Ghi chú phát hành", "Video thao tác", "Hướng dẫn thử")))
+				.andExpect(jsonPath("$.links[*].url").value(Matchers.contains("https://docs.google.com/document/d/ghi-chu",
+						"https://youtu.be/dat-ban-nhanh", "https://www.notion.so/huong-dan-thu")))
+				.andExpect(jsonPath("$.links[*].domain")
+					.value(Matchers.contains("docs.google.com", "youtu.be", "www.notion.so")))
+				.andExpect(jsonPath("$.screenshots.length()").value(3));
+		}
+		assertThat(this.previews.checked).as("the preview is the one URL a handover ever requests").containsOnly(preview);
+	}
+
+	/** One link of "Gửi bàn giao", as the form sends it. */
+	private static String link(String kind, String url, String label) {
+		return "{\"kind\":\"" + kind + "\",\"url\":\"" + url + "\",\"label\":\"" + label + "\"}";
 	}
 
 	@Test

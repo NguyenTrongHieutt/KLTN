@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -33,6 +34,7 @@ import vn.vibefix.delivery.internal.Handovers.CriterionMark;
 import vn.vibefix.delivery.internal.Handovers.Draft;
 import vn.vibefix.delivery.internal.Handovers.Evidence;
 import vn.vibefix.delivery.internal.Handovers.Handover;
+import vn.vibefix.delivery.internal.Handovers.Link;
 import vn.vibefix.delivery.internal.Handovers.Pending;
 import vn.vibefix.delivery.internal.Handovers.Preflight;
 import vn.vibefix.delivery.internal.Handovers.Preview;
@@ -94,7 +96,8 @@ class HandoverController {
 	 * @param problems what would refuse the handover now, as reason codes
 	 * @param sensitiveChanges a Code Job's Sensitive Changes in the commits it would hand over (UX-DR54)
 	 * @param commitCount how many commits a Code Job would hand over
-	 * @param previewRequired the Job Types change the running Product: a preview, or a reason and a recording
+	 * @param previewRequired the Job Types change the running Product: a preview, or a reason and a "Bản ghi / video"
+	 * link
 	 * @param screenshots the Mentor's uploads waiting for this handover
 	 */
 	record HandoverPreflightView(HandoverMilestoneView milestone, String state, long version, boolean assessment,
@@ -114,9 +117,25 @@ class HandoverController {
 	record HandoverLinkView(String url, String domain, @Nullable Instant checkedAt) {
 	}
 
-	/** The preview, or the recording with why a preview is impossible (FR-32). */
-	record HandoverPreviewView(@Nullable HandoverLinkView preview, @Nullable HandoverLinkView recording,
-			@Nullable String noPreviewReason) {
+	/** The preview, or why a preview is impossible (FR-32); the recording that shows the change then is a link. */
+	record HandoverPreviewView(@Nullable HandoverLinkView preview, @Nullable String noPreviewReason) {
+	}
+
+	/**
+	 * One link the Mentor put on the handover (D3, FR-10, FR-32, Story 24.3), with its domain for N-11 (AD-35). The
+	 * domain is read from the URL's text: vibefix never requests the link (AD-32).
+	 * @param kind {@code VIDEO} ("Bản ghi / video") or {@code DOCUMENT} ("Tài liệu")
+	 */
+	record HandoverEvidenceLinkView(Handovers.Link.Kind kind, String label, String url, String domain) {
+	}
+
+	/**
+	 * One link of "Gửi bàn giao" (D3, Story 24.3): {@code https} only, as the preview link, with a short label.
+	 * @param label the Mentor's own words, stored as written
+	 */
+	record HandoverLinkRequest(@NotNull Handovers.Link.Kind kind,
+			@NotNull @Size(max = Handovers.MAX_LINK_URL) @Pattern(regexp = Handovers.LINK_URL_PATTERN) String url,
+			@NotBlank @Size(max = Handovers.MAX_LINK_LABEL) String label) {
 	}
 
 	/** "Kiểm tra đường dẫn" on the form. */
@@ -177,15 +196,19 @@ class HandoverController {
 	 * "Gửi bàn giao".
 	 * @param version the Job's version the form loaded
 	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning
+	 * @param links the Mentor's links in their order, at most {@value Handovers#MAX_LINKS}; the size bound here is only
+	 * the request's outer limit, so the eleventh is refused {@code TOO_MANY_LINKS} by the rule that names it
+	 * @param screenshotIds the uploads the handover carries, at most {@value HandoverScreenshots#MAX}; bounded here by
+	 * how many may wait, so the sixth is refused {@code TOO_MANY_SCREENSHOTS}
 	 * @param teamCodeNoticeVersion the version of N-33's Mentor checkbox the form showed, which a Code Job's
 	 * handover must name and records (FR-25, R28); an Assessment Job hands over no code and sends none
 	 */
 	record HandoverRequest(@NotNull UUID milestoneId, @NotNull Long version,
 			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria, @Nullable Resolution sensitive,
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String previewUrl,
-			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String recordingUrl,
 			@Nullable @Size(max = 500) String noPreviewReason,
-			@Nullable @Size(max = HandoverScreenshots.MAX) List<@NotNull UUID> screenshotIds,
+			@Nullable @Size(max = 100) List<@Valid @NotNull HandoverLinkRequest> links,
+			@Nullable @Size(max = HandoverScreenshots.MAX_PENDING) List<@NotNull UUID> screenshotIds,
 			@Nullable @Pattern(regexp = Handovers.NOTICE_VERSION_PATTERN) String teamCodeNoticeVersion) {
 	}
 
@@ -227,6 +250,7 @@ class HandoverController {
 	 * @param checks the Customer's marks once decided
 	 * @param auto accepted by Auto-acceptance (FR-35)
 	 * @param code a Code Job's Handover Commit, its range, and Sensitive Changes
+	 * @param links the Mentor's links in their order, which every reader of the report sees whole (FR-33)
 	 * @param acceptance a Code Job's acceptance while the handover waits: {@code MERGING} under the busy
 	 * marker, {@code FAILED} when its merge did not go through (FR-33), or {@code VOIDED} when its merge
 	 * answered 409 and M3 applied, until the handover itself shows {@code VOIDED}
@@ -236,7 +260,7 @@ class HandoverController {
 			List<HandoverCriterionView> criteria, long version, int roundsLeft,
 			@Nullable HandoverDecisionView decision, @Nullable Instant decidedAt, List<HandoverCheckView> checks,
 			boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
-			List<HandoverScreenshotView> screenshots, @Nullable String acceptance) {
+			List<HandoverScreenshotView> screenshots, List<HandoverEvidenceLinkView> links, @Nullable String acceptance) {
 	}
 
 	private final DeliveryAccess access;
@@ -396,7 +420,9 @@ class HandoverController {
 		Draft draft = this.handovers.draft(mentor, body.milestoneId(),
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
 				body.sensitive() == null ? Resolution.CHECK : body.sensitive(),
-				new Evidence(body.previewUrl(), body.recordingUrl(), body.noPreviewReason(),
+				new Evidence(body.previewUrl(), body.noPreviewReason(),
+						body.links() == null ? List.of()
+								: body.links().stream().map(link -> new Link(link.kind(), link.url(), link.label())).toList(),
 						body.screenshotIds() == null ? List.of() : body.screenshotIds()));
 		// AD-32: the preview responds now, or nothing is written and nothing is copied.
 		if (draft.previewUrl() != null) {
@@ -502,8 +528,9 @@ class HandoverController {
 				this.handovers.code(handover.id())
 					.map(found -> codeView(handover.id(), found, this.branches.intermediaryUrl(handover.jobId()).orElse(null)))
 					.orElse(null),
-				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null, null))),
-				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(), acceptance);
+				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null))),
+				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(),
+				this.handovers.links(handover.id()).stream().map(HandoverController::linkView).toList(), acceptance);
 	}
 
 	/** N-11 needs the domain beside each link; the check's time is for the Mentor and the Crew. */
@@ -513,9 +540,12 @@ class HandoverController {
 				preview.previewUrl() == null ? null
 						: new HandoverLinkView(preview.previewUrl(), PreviewChecks.domain(preview.previewUrl()),
 								team ? preview.previewCheckedAt() : null),
-				preview.recordingUrl() == null ? null
-						: new HandoverLinkView(preview.recordingUrl(), PreviewChecks.domain(preview.recordingUrl()), null),
 				preview.noPreviewReason());
+	}
+
+	/** A Mentor's link with the domain from its own text: nothing is requested to name it (AD-32, AD-35). */
+	private static HandoverEvidenceLinkView linkView(Link link) {
+		return new HandoverEvidenceLinkView(link.kind(), link.label(), link.url(), PreviewChecks.domain(link.url()));
 	}
 
 	/**
