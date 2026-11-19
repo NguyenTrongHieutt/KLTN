@@ -23,7 +23,8 @@ import vn.vibefix.shared.PersonalDataSection;
 
 /**
  * {@code delivery}'s part in exports, erasure, and Product deletion (AD-24): a Mentor exports the
- * handovers they made with their marks and notes, and a Customer the checks they decided with; erasing
+ * handovers they made with their marks, notes, links, and preview link or no-preview reason, and a Customer the checks
+ * they decided with; erasing
  * an account clears it as the handover's Mentor or decider (the handover stays, without a person);
  * deleting a Product deletes its handovers. A Mentor's screenshot uploads are theirs (Story 8.3): erasure
  * deletes those no handover carries and clears them as uploader of the others; deleting a Product deletes
@@ -57,14 +58,14 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	public Set<String> tables() {
 		return Set.of("delivery.handover", "delivery.handover_criterion",
 				"delivery.handover_check", "delivery.follow_up", "delivery.handover_commit", "delivery.handover_sensitive_change",
-				"delivery.handover_screenshot", "delivery.handover_acceptance",
+				"delivery.handover_screenshot", "delivery.handover_link", "delivery.handover_acceptance",
 				"delivery.handover_submission");
 	}
 
 	@Override
 	public Optional<PersonalDataSection> export(UUID accountId) {
 		List<Map<String, Object>> handovers = this.jdbc.sql("""
-				SELECT id, job_id, milestone_number, round, created_at FROM delivery.handover
+				SELECT id, job_id, milestone_number, round, created_at, preview_url, no_preview_reason FROM delivery.handover
 				WHERE mentor_account_id = :id ORDER BY seq
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> handover = new LinkedHashMap<>();
@@ -73,6 +74,13 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			handover.put("milestone", rs.getInt("milestone_number"));
 			handover.put("round", rs.getInt("round"));
 			handover.put("at", rs.getTimestamp("created_at").toInstant().toString());
+			// What the Mentor wrote to let the Customer try the change: the preview link, or why there is none.
+			if (rs.getString("preview_url") != null) {
+				handover.put("previewUrl", rs.getString("preview_url"));
+			}
+			if (rs.getString("no_preview_reason") != null) {
+				handover.put("noPreviewReason", rs.getString("no_preview_reason"));
+			}
 			handover.put("criteria", this.jdbc.sql("""
 					SELECT number, met, note FROM delivery.handover_criterion WHERE handover_id = :id ORDER BY number
 					""").param("id", id).query((row, m) -> {
@@ -81,6 +89,16 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 				criterion.put("met", row.getBoolean("met"));
 				criterion.put("note", row.getString("note"));
 				return criterion;
+			}).list());
+			// Story 24.3: the links the Mentor put on the handover, as they wrote them.
+			handover.put("links", this.jdbc.sql("""
+					SELECT kind, label, url FROM delivery.handover_link WHERE handover_id = :id ORDER BY position
+					""").param("id", id).query((row, m) -> {
+				Map<String, Object> link = new LinkedHashMap<>();
+				link.put("kind", row.getString("kind"));
+				link.put("label", row.getString("label"));
+				link.put("url", row.getString("url"));
+				return link;
 			}).list());
 			return handover;
 		}).list();
@@ -164,7 +182,8 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 
 	/**
 	 * NFR-10: what each handover said goes (criteria and notes, the Customer's marks and comments,
-	 * screenshots, recorded commits, Sensitive Changes, pending acceptances, follow-ups); each
+	 * screenshots, links, the preview link and the no-preview reason, recorded commits, Sensitive Changes, pending
+	 * acceptances, follow-ups); each
 	 * handover row and its status stay for the Milestone history.
 	 */
 	@Override
@@ -188,10 +207,15 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.forEach(this.files::delete);
 		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
 		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
-		for (String table : List.of("delivery.handover_criterion", "delivery.handover_check",
+		for (String table : List.of("delivery.handover_criterion", "delivery.handover_check", "delivery.handover_link",
 				"delivery.handover_sensitive_change", "delivery.handover_acceptance")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
 		}
+		// The preview link and the no-preview reason are what the handover said too (Story 24.3), like its links.
+		this.jdbc.sql("""
+				UPDATE delivery.handover SET preview_url = NULL, preview_checked_at = NULL, no_preview_reason = NULL
+				WHERE product_id = :id AND (preview_url IS NOT NULL OR no_preview_reason IS NOT NULL)
+				""").param("id", productId).update();
 		this.jdbc.sql("SELECT DISTINCT job_id FROM delivery.handover WHERE product_id = :id")
 			.param("id", productId)
 			.query(UUID.class)

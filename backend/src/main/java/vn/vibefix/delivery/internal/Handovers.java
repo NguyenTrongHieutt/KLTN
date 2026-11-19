@@ -1,5 +1,7 @@
 package vn.vibefix.delivery.internal;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -10,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,11 +51,14 @@ import vn.vibefix.timers.Deadlines;
  * Milestone Handovers (FR-10, FR-32, AD-4, AD-23, AD-33, SG-25): the preflight, the handover itself, and
  * its Delivery Report. A handover needs each Acceptance Criterion of the Milestone marked "Đạt" or
  * "Chưa đạt" with a note, which since Story 24.2 retired the Board is the whole of FR-32's enforcement;
- * the notes pass FR-47. {@code job} applies M2 first, on the version the form loaded, so nothing is
- * written when it refuses; then the handover and its criteria are stored, a Code Job's with its Handover
- * Commit and range (Story 8.2), and the to-dos move from the Mentor to the Customer. An Assessment Job
- * hands over the Milestone itself: its criteria are the Assessment Report's sections, and Story 24.3 adds
- * the Mentor's own document link.
+ * the notes pass FR-47. Beside the criteria it carries up to {@value #MAX_LINKS} {@code https} links of the
+ * Mentor's own tools, each a "Bản ghi / video" or a "Tài liệu" with a short label, which vibefix never fetches
+ * (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of them. {@code job} applies M2
+ * first, on the version the form loaded, so nothing is written when it refuses; then the handover, its criteria
+ * and its links are stored, a Code Job's with its Handover Commit and range (Story 8.2), and the to-dos move
+ * from the Mentor to the Customer. An Assessment Job hands over the Milestone itself: its criteria are the
+ * Assessment Report's sections, and the report reaches the Customer as the handover's "Tài liệu" link, since
+ * the platform stores no documents (FR-10).
  */
 @Component
 class Handovers {
@@ -62,6 +68,18 @@ class Handovers {
 	static final String REVIEW_HANDOVER = "delivery.review_handover";
 
 	static final int MAX_NOTE = 2000;
+
+	/** How many links one handover carries (D3, FR-32): the eleventh is refused {@code TOO_MANY_LINKS}. */
+	static final int MAX_LINKS = 10;
+
+	/** A link's URL: {@code https} only and at most 500 characters, the preview link's own rule (AD-35). */
+	static final String LINK_URL_PATTERN = "^https://\\S+$";
+
+	static final int MAX_LINK_URL = 500;
+
+	static final int MAX_LINK_LABEL = 80;
+
+	private static final java.util.regex.Pattern LINK_URL = java.util.regex.Pattern.compile(LINK_URL_PATTERN);
 
 	/** N-33's version, as the property and a Mentor's confirmation name it: major.minor, such as {@code 1.0}. */
 	static final String NOTICE_VERSION_PATTERN = "[0-9]{1,3}\\.[0-9]{1,3}";
@@ -88,6 +106,20 @@ class Handovers {
 
 	/** The Mentor's mark on one criterion. */
 	record CriterionMark(UUID criterionId, boolean met, String note) {
+	}
+
+	/**
+	 * One link a handover carries (D3, FR-10, FR-32): a recording or a document the Mentor's own tools host, which
+	 * vibefix never requests (AD-32); the screens show the domain from its text, with N-11 (AD-35).
+	 * @param label the Mentor's short label, stored as written
+	 */
+	record Link(Kind kind, String url, String label) {
+
+		/** "Bản ghi / video" or "Tài liệu". */
+		enum Kind {
+			VIDEO, DOCUMENT
+		}
+
 	}
 
 	/**
@@ -122,11 +154,12 @@ class Handovers {
 	/**
 	 * A handover checked and masked, not yet written (FR-32, FR-47).
 	 * @param previewUrl the preview link, which the caller checks before {@link #record}
-	 * @param noPreviewReason why a preview is impossible, masked; with {@code recordingUrl}
+	 * @param noPreviewReason why a preview is impossible, masked; with at least one VIDEO link
+	 * @param links the Mentor's links in their order, never fetched
 	 */
 	record Draft(MilestoneInForce milestone, List<CriterionInForce> criteria, Map<UUID, Boolean> met,
-			Map<UUID, String> criterionNotes, @Nullable String previewUrl, @Nullable String recordingUrl,
-			@Nullable String noPreviewReason, List<UUID> screenshotIds) {
+			Map<UUID, String> criterionNotes, @Nullable String previewUrl, @Nullable String noPreviewReason,
+			List<Link> links, List<UUID> screenshotIds) {
 	}
 
 	/** One Acceptance Criterion as the Mentor marked it, ready to store. */
@@ -139,15 +172,18 @@ class Handovers {
 	 * sent is recorded as they sent it, whatever moves meanwhile.
 	 * @param id the handover's ID, which for a Code Job is also its submission's and its branch's
 	 * @param version the Job's version M2 is applied on (AD-23)
+	 * @param links the Mentor's links in their order (Story 24.3); a draft stored before that story was rewritten
+	 * by its migration, and one that names none reads back with none
 	 * @param teamCode the Mentor's N-33 confirmation for a Code Job; none for an Assessment Job (Story 23.8b)
 	 */
 	record Pending(UUID id, UUID jobId, UUID productId, UUID customerId, UUID mentorId, long version, UUID milestoneId,
 			int milestoneNumber, String milestoneTitle, List<PendingCriterion> criteria, @Nullable String previewUrl,
-			@Nullable String recordingUrl, @Nullable String noPreviewReason, List<UUID> screenshotIds,
+			@Nullable String noPreviewReason, List<Link> links, List<UUID> screenshotIds,
 			@Nullable TeamCodeConfirmation teamCode) {
 
 		Pending {
 			criteria = List.copyOf(criteria);
+			links = links == null ? List.of() : List.copyOf(links);
 			screenshotIds = List.copyOf(screenshotIds);
 		}
 
@@ -162,22 +198,29 @@ class Handovers {
 								criterion.statement(), criterion.checkSteps(), draft.met().get(criterion.criterionId()),
 								draft.criterionNotes().get(criterion.criterionId())))
 						.toList(),
-					draft.previewUrl(), draft.recordingUrl(), draft.noPreviewReason(), draft.screenshotIds(), teamCode);
+					draft.previewUrl(), draft.noPreviewReason(), draft.links(), draft.screenshotIds(), teamCode);
 		}
 
 	}
 
-	/** The preview link, or a recording with its reason, for "Gửi bàn giao" (FR-32, AD-35). */
-	record Evidence(@Nullable String previewUrl, @Nullable String recordingUrl, @Nullable String noPreviewReason,
+	/**
+	 * The preview link, or why a preview is impossible, and the links and images for "Gửi bàn giao" (FR-32, AD-35,
+	 * Story 24.3).
+	 */
+	record Evidence(@Nullable String previewUrl, @Nullable String noPreviewReason, List<Link> links,
 			List<UUID> screenshotIds) {
 
-		static final Evidence NONE = new Evidence(null, null, null, List.of());
+		static final Evidence NONE = new Evidence(null, null, List.of(), List.of());
+
+		Evidence {
+			links = List.copyOf(links);
+			screenshotIds = List.copyOf(screenshotIds);
+		}
 
 	}
 
-	/** What a handover carries to try the change (FR-32, AD-35). */
-	record Preview(@Nullable String previewUrl, @Nullable Instant previewCheckedAt, @Nullable String recordingUrl,
-			@Nullable String noPreviewReason) {
+	/** What a handover carries to try the change (FR-32, AD-35); its recording, if any, is one of its links. */
+	record Preview(@Nullable String previewUrl, @Nullable Instant previewCheckedAt, @Nullable String noPreviewReason) {
 	}
 
 	/**
@@ -297,9 +340,10 @@ class Handovers {
 	 * is written or copied. A Code Job's commit is copied on the runner between this and {@link #record}.
 	 * @throws ApiException {@code NOT_FOUND} for a Milestone not in force; {@code GUARD_FAILED
 	 * MILESTONE_NOT_HELD} or {@code SENSITIVE_CONTENT} (with the matches, under
-	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}, {@code PREVIEW_REQUIRED},
-	 * {@code PREVIEW_OR_RECORDING}, {@code RECORDING_REASON_MISSING}, {@code TOO_MANY_SCREENSHOTS}, or
-	 * {@code SCREENSHOT_UNKNOWN}
+	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}, {@code TOO_MANY_LINKS}, {@code PREVIEW_OR_RECORDING},
+	 * {@code RECORDING_REASON_MISSING}, {@code PREVIEW_REQUIRED}, {@code REPORT_LINK_MISSING},
+	 * {@code TOO_MANY_SCREENSHOTS}, or {@code SCREENSHOT_UNKNOWN}; plain {@code VALIDATION} for a link that is not
+	 * {@code https} or whose label is blank or too long
 	 */
 	@Transactional(readOnly = true)
 	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, Resolution resolution, Evidence evidence) {
@@ -322,17 +366,26 @@ class Handovers {
 		for (CriterionInForce criterion : criteria) {
 			criterionNotes.put(criterion.criterionId(), masked(byCriterion.get(criterion.criterionId()).note(), matches));
 		}
+		List<Link> links = evidence.links();
+		if (links.size() > MAX_LINKS) {
+			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.TOO_MANY_LINKS);
+		}
+		links.forEach(Handovers::requireWellFormed);
 		String preview = blankToNull(evidence.previewUrl());
-		String recording = blankToNull(evidence.recordingUrl());
 		String reason = blankToNull(evidence.noPreviewReason());
-		if (preview != null && (recording != null || reason != null)) {
+		if (preview != null && reason != null) {
 			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.PREVIEW_OR_RECORDING);
 		}
-		if ((recording == null) != (reason == null)) {
+		// FR-32: "Không thể làm bản xem thử" shows the change another way, as a recording among the links.
+		if (reason != null && links.stream().noneMatch(link -> link.kind() == Link.Kind.VIDEO)) {
 			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.RECORDING_REASON_MISSING);
 		}
-		if (mentor.job().previewRequired() && preview == null && recording == null) {
+		if (mentor.job().previewRequired() && preview == null && reason == null) {
 			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.PREVIEW_REQUIRED);
+		}
+		// FR-10: the platform stores no documents, so an Assessment Report reaches the Customer as a document link.
+		if (mentor.job().assessment() && links.stream().noneMatch(link -> link.kind() == Link.Kind.DOCUMENT)) {
+			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.REPORT_LINK_MISSING);
 		}
 		String maskedReason = reason == null ? null : masked(reason, matches);
 		this.screenshots.requireAttachable(jobId, mentor.accountId(), evidence.screenshotIds());
@@ -341,8 +394,40 @@ class Handovers {
 		}
 		Map<UUID, Boolean> met = new HashMap<>();
 		criteria.forEach(criterion -> met.put(criterion.criterionId(), byCriterion.get(criterion.criterionId()).met()));
-		return new Draft(milestone, criteria, met, criterionNotes, preview, recording, maskedReason,
-				evidence.screenshotIds());
+		return new Draft(milestone, criteria, met, criterionNotes, preview, maskedReason, links, evidence.screenshotIds());
+	}
+
+	/**
+	 * A link as {@code delivery.handover_link} takes it and as its reader can trust it: the request's pattern, then
+	 * the URL parsed as {@link URI} with scheme {@code https}, a host, and no user info. The pattern's {@code \S}
+	 * lets through what the URI refuses -- a backslash, an ideographic space, a control character -- and a URL whose
+	 * host is not the one a reader would see, so this refuses those before anything is copied or written. Its text is
+	 * never fetched and never passes FR-47 (D5).
+	 */
+	private static void requireWellFormed(Link link) {
+		if (link.kind() == null || link.url() == null || link.label() == null || link.url().length() > MAX_LINK_URL
+				|| !LINK_URL.matcher(link.url()).matches() || link.label().isBlank()
+				|| link.label().length() > MAX_LINK_LABEL || linkHost(link.url()).isEmpty()) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+	}
+
+	/**
+	 * A link's host as it is typed, lowercased ASCII, which the report shows as its domain (AD-35): read from the
+	 * URL's text alone, and never turned into Unicode, so a look-alike name shows as the {@code xn--} name it is.
+	 * @return empty for a URL that is not {@code https}, has no host, carries user info, or does not parse
+	 */
+	static Optional<String> linkHost(String url) {
+		try {
+			URI uri = new URI(url);
+			if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getRawUserInfo() != null) {
+				return Optional.empty();
+			}
+			return Optional.of(uri.getHost().toLowerCase(Locale.ROOT));
+		}
+		catch (URISyntaxException refused) {
+			return Optional.empty();
+		}
 	}
 
 	/**
@@ -367,11 +452,11 @@ class Handovers {
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, check_by, created_at,
 				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated,
-				    sensitive_change_count, preview_url, preview_checked_at, recording_url, no_preview_reason,
+				    sensitive_change_count, preview_url, preview_checked_at, no_preview_reason,
 				    team_code_account_id, team_code_notice_version, team_code_confirmed_at)
 				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :mentor, 'SUBMITTED', :version, :transition,
 				    :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated, :sensitiveCount,
-				    :preview, :previewChecked, :recording, :reason, :teamCodeAccount, :teamCodeVersion, :teamCodeAt)
+				    :preview, :previewChecked, :reason, :teamCodeAccount, :teamCodeVersion, :teamCodeAt)
 				""")
 			.param("id", id)
 			.param("job", jobId)
@@ -394,7 +479,6 @@ class Handovers {
 			// The caller checked the preview link just before (AD-32): that check is the one stored.
 			.param("preview", pending.previewUrl())
 			.param("previewChecked", pending.previewUrl() == null ? null : Timestamp.from(now))
-			.param("recording", pending.recordingUrl())
 			.param("reason", pending.noPreviewReason())
 			// N-33 (FR-25, R28): the Mentor's duty confirmation as "Gửi bàn giao" carried it; none for an Assessment Job.
 			.param("teamCodeAccount", teamCode == null ? null : teamCode.accountId())
@@ -402,6 +486,20 @@ class Handovers {
 			.param("teamCodeAt", teamCode == null ? null : Timestamp.from(teamCode.confirmedAt()))
 			.update();
 		this.screenshots.attach(id, jobId, pending.mentorId(), pending.screenshotIds());
+		// D3 (AD-32): stored as the Mentor wrote them, in their order, and never requested.
+		for (int position = 0; position < pending.links().size(); position++) {
+			Link link = pending.links().get(position);
+			this.jdbc.sql("""
+					INSERT INTO delivery.handover_link (handover_id, position, kind, url, label)
+					VALUES (:id, :position, :kind, :url, :label)
+					""")
+				.param("id", id)
+				.param("position", position)
+				.param("kind", link.kind().name())
+				.param("url", link.url())
+				.param("label", link.label())
+				.update();
+		}
 		for (PendingCriterion criterion : pending.criteria()) {
 			this.jdbc.sql("""
 					INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
@@ -465,13 +563,22 @@ class Handovers {
 	@Transactional(readOnly = true)
 	Optional<Preview> preview(UUID handoverId) {
 		return this.jdbc.sql("""
-				SELECT preview_url, preview_checked_at, recording_url, no_preview_reason FROM delivery.handover WHERE id = :id
+				SELECT preview_url, preview_checked_at, no_preview_reason FROM delivery.handover WHERE id = :id
 				""").param("id", handoverId).query((rs, n) -> {
 					Timestamp checked = rs.getTimestamp("preview_checked_at");
 					return new Preview(rs.getString("preview_url"), checked == null ? null : checked.toInstant(),
-							rs.getString("recording_url"), rs.getString("no_preview_reason"));
+							rs.getString("no_preview_reason"));
 				})
 			.optional();
+	}
+
+	/** The handover's links in the Mentor's order (Story 24.3); none for one that carries none. */
+	@Transactional(readOnly = true)
+	List<Link> links(UUID handoverId) {
+		return this.jdbc.sql("SELECT kind, url, label FROM delivery.handover_link WHERE handover_id = :id ORDER BY position")
+			.param("id", handoverId)
+			.query((rs, n) -> new Link(Link.Kind.valueOf(rs.getString("kind")), rs.getString("url"), rs.getString("label")))
+			.list();
 	}
 
 	private static @Nullable String blankToNull(@Nullable String text) {

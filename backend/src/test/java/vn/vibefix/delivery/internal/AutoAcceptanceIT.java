@@ -358,7 +358,9 @@ class AutoAcceptanceIT extends IntegrationTest {
 
 	private String handOver() throws Exception {
 		String json = "{\"milestoneId\":\"" + this.milestone + "\",\"version\":5,\"criteria\":[{\"criterionId\":\""
-				+ this.criterion + "\",\"met\":true,\"note\":\"Đã rà đủ chín mục.\"}]}";
+				+ this.criterion + "\",\"met\":true,\"note\":\"Đã rà đủ chín mục.\"}]"
+				// Story 24.3 (FR-10): an Assessment Job's report reaches the Customer as a document link.
+				+ ",\"links\":[{\"kind\":\"DOCUMENT\",\"url\":\"https://docs.google.com/document/d/bao-cao\",\"label\":\"Báo cáo đánh giá\"}]}";
 		return JsonPath.read(this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR))
 			.with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)

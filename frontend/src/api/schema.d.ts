@@ -4985,6 +4985,7 @@ export interface components {
             /** Format: uuid */
             jobId: string;
             jobTitle: string;
+            links: components["schemas"]["HandoverEvidenceLinkView"][];
             mentorName: string;
             milestoneTitle: string;
             /** Format: int32 */
@@ -5480,6 +5481,19 @@ export interface components {
             releaseVnd: number;
             revisionAllowed: boolean;
         };
+        HandoverEvidenceLinkRequest: {
+            /** @enum {string} */
+            kind: "VIDEO" | "DOCUMENT";
+            label: string;
+            url: string;
+        };
+        HandoverEvidenceLinkView: {
+            domain: string;
+            /** @enum {string} */
+            kind: "VIDEO" | "DOCUMENT";
+            label: string;
+            url: string;
+        };
         HandoverLinkView: {
             /** Format: date-time */
             checkedAt?: string;
@@ -5519,15 +5533,14 @@ export interface components {
         HandoverPreviewView: {
             noPreviewReason?: string;
             preview?: components["schemas"]["HandoverLinkView"];
-            recording?: components["schemas"]["HandoverLinkView"];
         };
         HandoverRequest: {
             criteria: components["schemas"]["HandoverCriterionMarkRequest"][];
+            links?: components["schemas"]["HandoverEvidenceLinkRequest"][];
             /** Format: uuid */
             milestoneId: string;
             noPreviewReason?: string;
             previewUrl?: string;
-            recordingUrl?: string;
             screenshotIds?: string[];
             /** @enum {string} */
             sensitive?: "CHECK" | "MASK";

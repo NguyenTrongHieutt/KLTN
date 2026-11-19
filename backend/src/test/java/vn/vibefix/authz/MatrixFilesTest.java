@@ -754,7 +754,7 @@ class MatrixFilesTest {
 					"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE",
 					"CREW_APPLICATION_PROOF_CAPTION", "CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL",
 					"SPLIT_OPEN", "SPLIT_PART", "CREW_LEFT_NOTE", "SPLIT_RESOLUTION_ID", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT",
-					"SPLIT_DECISION_REASONING");
+					"SPLIT_DECISION_REASONING", "HANDOVER_LINK");
 		// The canaries of Job content are written after the former members' windows ended, so a Crew state other than
 		// ACTIVE, which reads at most up to its window_end (AD-41), reads none of them; a bid grants nothing on the Job.
 		// The bid's proof is the Bidder's own, which they and the Job's Customer read (Story 21.2).
@@ -798,6 +798,10 @@ class MatrixFilesTest {
 				MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT);
 		assertThat(canaries.get("SPLIT_POOL_ENTRY").visibleTo()).isEmpty();
 		assertThat(canaries.get("SPLIT_POOL_REVERSAL").visibleTo()).isEmpty();
+		// A handover's links go to exactly the callers its report and list answer 200 (Story 24.3); no Evidence Package
+		// shows them yet.
+		assertThat(canaries.get("HANDOVER_LINK").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.CUSTOMER,
+				MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE, MatrixCaller.CROSS_ROLE);
 	}
 
 	@Test
@@ -806,8 +810,8 @@ class MatrixFilesTest {
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CUSTOMER))).containsAll(CREW_CANARIES);
 		assertThat(names(canaries.all()).stream().filter(name -> !canaries.get(name).hiddenFrom(MatrixCaller.CUSTOMER)))
-			.as("the Job Chat, their own contact, and the proof of a bid on their Job")
-			.containsExactlyInAnyOrder("JOB_CHAT", "CONTACT_EMAIL", "BID_PROOF_CAPTION", "BID_PROOF_LINK");
+			.as("the Job Chat, their own contact, the proof of a bid on their Job, and the links of a handover to them")
+			.containsExactlyInAnyOrder("JOB_CHAT", "CONTACT_EMAIL", "BID_PROOF_CAPTION", "BID_PROOF_LINK", "HANDOVER_LINK");
 	}
 
 	@Test
@@ -848,7 +852,7 @@ class MatrixFilesTest {
 				"TEAM_ISSUE_ID", "NOTIFICATION_PARAM", "TODO_PARAM", "SCHOOL_EMAIL", "PERSON_SIGNAL", "CROSS_CREW_CHAT",
 				"BID_PROOF_CAPTION", "BID_PROOF_LINK", "CREW_APPLICATION_NOTE", "CREW_APPLICATION_PROOF_CAPTION",
 				"CREW_APPLICATION_PROOF_LINK", "SPLIT_POOL_ENTRY", "SPLIT_POOL_REVERSAL", "SPLIT_OPEN", "SPLIT_PART",
-				"CREW_LEFT_NOTE", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
+				"CREW_LEFT_NOTE", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT", "HANDOVER_LINK");
 		// No Administrator reads a bid's proof (Story 21.2) or a Crew Application (Story 21.4): no read grant covers them.
 		for (MatrixCaller grant : GRANT_SCOPES.keySet()) {
 			assertThat(names(canaries.hiddenFrom(grant))).as(grant.name()).contains("BID_PROOF_CAPTION", "BID_PROOF_LINK")

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,6 +13,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,15 +35,17 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
+import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
 
 /**
- * FR-10, FR-32, AD-4, AD-23, AD-33, AD-39: the Mentor hands a Funded Assessment Milestone over
- * once every Work Item is approved or explained and each criterion is marked with a note; M2 makes it
- * Submitted on the loaded version, tells the Customer, and moves the to-dos; an Assessment Job's
- * deliverable is the Milestone itself, whose criteria are the Assessment Report's sections (Story 24.1);
- * the Customer reads no Work Item note; only the Mentor hands over.
+ * FR-10, FR-32, AD-4, AD-23, AD-33: the Mentor hands a Funded Assessment Milestone over once each criterion is
+ * marked with a note and the report is linked; M2 makes it Submitted on the loaded version, tells the Customer, and
+ * moves the to-dos. An Assessment Job's deliverable is the Milestone itself, whose criteria are the Assessment
+ * Report's sections (Story 24.1), and the report reaches the Customer as a "Tài liệu" link of the handover, since the
+ * platform stores no documents (Story 24.3). A handover carries at most ten links, each {@code https} with a short
+ * label, read whole by the Customer, the Mentor and the Crew; only the Mentor hands over.
  */
 class HandoverIT extends IntegrationTest {
 
@@ -55,6 +60,10 @@ class HandoverIT extends IntegrationTest {
 
 	@Autowired
 	private DeliveryListeners listeners;
+
+	/** FR-47's check, which still runs on criterion notes and must never run on a link (D5). */
+	@Autowired
+	private SensitiveText sensitive;
 
 	private UUID lan;
 
@@ -73,6 +82,16 @@ class HandoverIT extends IntegrationTest {
 
 	/** Whether the Job is an Assessment, which hands over no code and so names no N-33 version (Story 23.8b). */
 	private boolean assessment;
+
+	/** The links "Gửi bàn giao" sends, as JSON; an Assessment's report by default (Story 24.3), none when null. */
+	private String links;
+
+	/** The uploads "Gửi bàn giao" attaches, as a JSON array; none when null. */
+	private String screenshotIds;
+
+	/** An Assessment Job's report, which the Mentor keeps in a tool of their own (FR-10, Story 24.3). */
+	private static final String REPORT = link("DOCUMENT", "https://docs.google.com/document/d/bao-cao-danh-gia",
+			"Báo cáo đánh giá sổ đặt bàn");
 
 	@Test
 	void theMentorHandsOverAnAssessmentMilestoneWithItsCriteriaMarked() throws Exception {
@@ -99,9 +118,23 @@ class HandoverIT extends IntegrationTest {
 		handOver(this.vy, Role.STUDENT, 5, "Đạt.", null).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
 		handOver(this.lan, Role.CUSTOMER, 5, "Đạt.", null).andExpect(status().isForbidden());
+		// Story 24.3 (FR-10): the report reaches the Customer as a "Tài liệu" link, so a handover without one is refused,
+		// and a recording is not a report.
+		this.links = null;
+		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"))
+			.andExpect(jsonPath("$.reason").value("REPORT_LINK_MISSING"));
+		this.links = "[" + link("VIDEO", "https://www.loom.com/share/bao-cao", "Video trình bày") + "]";
+		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("REPORT_LINK_MISSING"));
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
+		assertThat(count("SELECT count(*) FROM delivery.handover_link")).isZero();
 
 		// Story 23.8a: "Gửi bàn giao" answers 202 with the submission; an Assessment Job's is done at once.
+		String first = upload();
+		String second = upload();
+		this.links = "[" + REPORT + "]";
+		this.screenshotIds = "[\"" + first + "\",\"" + second + "\"]";
 		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null)
 			.andExpect(status().isAccepted())
 			.andExpect(jsonPath("$.state").value("DONE"))
@@ -115,7 +148,9 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
 			.andExpect(jsonPath("$.itemNotes").doesNotExist())
 			.andExpect(jsonPath("$.code").doesNotExist())
-			.andExpect(jsonPath("$.report").doesNotExist());
+			.andExpect(jsonPath("$.report").doesNotExist())
+			.andExpect(jsonPath("$.links.length()").value(1))
+			.andExpect(jsonPath("$.screenshots.length()").value(2));
 		// FR-25, R28 (Story 23.8b): an Assessment Job hands over no code, so N-33 is neither asked for nor recorded.
 		assertThat(count("""
 				SELECT count(*) FROM delivery.handover WHERE team_code_notice_version IS NULL
@@ -131,17 +166,25 @@ class HandoverIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT deadline_at FROM notification.todo WHERE todo_key = 'delivery.review_handover'")
 			.query(Timestamp.class).single().toInstant()).isEqualTo(this.clock.instant().plus(Duration.ofDays(7)));
 
+		// The Customer's report: the criteria, the report's link and the images, and no commit (FR-10, FR-32).
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.report").doesNotExist())
 			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
 			.andExpect(jsonPath("$.criteria[0].checkSteps").value("Mở báo cáo, đếm mục"))
 			.andExpect(jsonPath("$.itemNotes").doesNotExist())
-			.andExpect(jsonPath("$.mentorName").value("Đỗ Mạnh Hùng"));
-		// Every audience reads the same Report now: the criteria with the Mentor's marks and notes (Story 24.2).
+			.andExpect(jsonPath("$.mentorName").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.code").doesNotExist())
+			.andExpect(jsonPath("$.links[0].kind").value("DOCUMENT"))
+			.andExpect(jsonPath("$.links[0].label").value("Báo cáo đánh giá sổ đặt bàn"))
+			.andExpect(jsonPath("$.links[0].url").value("https://docs.google.com/document/d/bao-cao-danh-gia"))
+			.andExpect(jsonPath("$.links[0].domain").value("docs.google.com"))
+			.andExpect(jsonPath("$.screenshots[*].fileId").value(Matchers.contains(first, second)));
+		// Every audience reads the same Report: the criteria with the Mentor's marks and notes (Story 24.2) and its links.
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.vy, Role.STUDENT)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."));
+			.andExpect(jsonPath("$.criteria[0].note").value("Đạt, đã kiểm tra."))
+			.andExpect(jsonPath("$.links[0].url").value("https://docs.google.com/document/d/bao-cao-danh-gia"));
 		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(stranger, Role.CUSTOMER))).andExpect(status().isNotFound());
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)))
@@ -149,6 +192,76 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.handovers[0].id").value(handover));
 		handOver(this.hung, Role.MENTOR, 7, "Đạt.", null).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("MILESTONE_NOT_HELD"));
+	}
+
+	/**
+	 * Story 24.3 (D3, FR-32): at most ten links, each {@code https}, of a known kind, with a label of 1 to 80
+	 * characters stored as written. The eleventh is refused by the rule that names it, and a malformed link by the
+	 * request's own validation or by the URL's parse -- one whose host is not the one a reader would see, or which
+	 * the table's own check would refuse after a Code Job's copy started; nothing is written either way. Ten links
+	 * reach the report in the Mentor's order, and the label is never passed through FR-47's check (D5).
+	 */
+	@Test
+	void aHandoverTakesTenWellFormedLinksInTheMentorsOrder() throws Exception {
+		world("ASSESSMENT");
+		List<String> eleven = new ArrayList<>();
+		for (int number = 1; number <= 11; number++) {
+			eleven.add(link(number == 1 ? "DOCUMENT" : "VIDEO", "https://docs.example.test/lien-ket-" + number,
+					"Liên kết " + number));
+		}
+		this.links = "[" + String.join(",", eleven) + "]";
+		handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"))
+			.andExpect(jsonPath("$.reason").value("TOO_MANY_LINKS"));
+		for (String bad : List.of(link("DOCUMENT", "http://docs.example.test/bao-cao", "Báo cáo"),
+				link("DOCUMENT", "https://docs.example.test/bao-cao", " "),
+				link("DOCUMENT", "https://docs.example.test/bao-cao", "a".repeat(81)),
+				link("AUDIO", "https://docs.example.test/bao-cao", "Báo cáo"),
+				"{\"kind\":\"DOCUMENT\",\"label\":\"Báo cáo\"}",
+				// A browser opens evil.example; a hand-split authority would show docs.google.com.
+				link("DOCUMENT", "https://evil.example\\\\@docs.google.com/bao-cao", "Báo cáo"),
+				// User info hides the real host from a reader; built at run time, so no credential shape sits here.
+				link("DOCUMENT", "https://mentor" + ":" + "khoa@docs.example.test/bao-cao", "Báo cáo"),
+				// Java's \S takes an ideographic space and NEL; the table's CHECK and the URI parse do not.
+				link("DOCUMENT", "https://docs.example.test/bao\u3000cao", "Báo cáo"),
+				link("DOCUMENT", "https://docs.example.test/bao\u0085cao", "Báo cáo"),
+				// No host a reader can be shown: a name with an underscore parses as no host at all.
+				link("DOCUMENT", "https://my_host.example/bao-cao", "Báo cáo"))) {
+			this.links = "[" + REPORT + "," + bad + "]";
+			handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION"))
+				.andExpect(jsonPath("$.reason").doesNotExist());
+		}
+		assertThat(count("SELECT count(*) FROM delivery.handover")).as("nothing was written").isZero();
+
+		// D5: the label and the URL are stored as written, though FR-47's check would flag both today; the label is the
+		// limit's own 80 characters. The text is built at run time, so no credential shape sits in this source.
+		String token = fakeToken();
+		String label = "Biên bản " + "a".repeat(80 - 9 - 1 - token.length()) + " " + token;
+		String url = "https://docs.example.test/bien-ban/" + token;
+		assertThat(label).hasSize(80);
+		assertThat(this.sensitive.check(label).found()).as("FR-47's check matches the label").isTrue();
+		assertThat(this.sensitive.check(url).found()).as("and the URL").isTrue();
+		List<String> ten = new ArrayList<>(eleven.subList(0, 8));
+		ten.add(link("VIDEO", "https://xn--bcher-kva.example/video", "Video thao tác"));
+		ten.add(link("DOCUMENT", url, label));
+		this.links = "[" + String.join(",", ten) + "]";
+		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.handoverId");
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.links.length()").value(10))
+			.andExpect(jsonPath("$.links[0].label").value("Liên kết 1"))
+			.andExpect(jsonPath("$.links[1].kind").value("VIDEO"))
+			.andExpect(jsonPath("$.links[7].url").value("https://docs.example.test/lien-ket-8"))
+			// AD-35: the host as typed, in ASCII, never the Unicode look-alike it encodes.
+			.andExpect(jsonPath("$.links[8].domain").value("xn--bcher-kva.example"))
+			.andExpect(jsonPath("$.links[9].label").value(label))
+			.andExpect(jsonPath("$.links[9].url").value(url))
+			.andExpect(jsonPath("$.links[9].domain").value("docs.example.test"));
+		assertThat(this.jdbc.sql("SELECT label || ' ' || url FROM delivery.handover_link WHERE position = 9")
+			.query(String.class).single()).as("stored unmasked").isEqualTo(label + " " + url);
+		assertThat(this.jdbc.sql("SELECT string_agg(position::text, ',' ORDER BY position) FROM delivery.handover_link")
+			.query(String.class).single()).isEqualTo("0,1,2,3,4,5,6,7,8,9");
 	}
 
 	@Test
@@ -190,6 +303,7 @@ class HandoverIT extends IntegrationTest {
 	 */
 	private void world(String type) {
 		this.assessment = "ASSESSMENT".equals(type);
+		this.links = this.assessment ? "[" + REPORT + "]" : null;
 		this.lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		this.hung = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng",
 				List.of(TestPeople.REACT), "React");
@@ -250,10 +364,29 @@ class HandoverIT extends IntegrationTest {
 				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"")
 				// N-33 (FR-25, R28, Story 23.8b): a Code Job's handover names the version in force; an Assessment's none.
 				+ (this.assessment ? "" : ",\"teamCodeNoticeVersion\":\"1.0\"")
-				+ (this.previewUrl == null ? "" : ",\"previewUrl\":\"" + this.previewUrl + "\"") + "}";
+				+ (this.previewUrl == null ? "" : ",\"previewUrl\":\"" + this.previewUrl + "\"")
+				+ (this.links == null ? "" : ",\"links\":" + this.links)
+				+ (this.screenshotIds == null ? "" : ",\"screenshotIds\":" + this.screenshotIds) + "}";
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(json));
+	}
+
+	/** One link of "Gửi bàn giao", as the form sends it. */
+	private static String link(String kind, String url, String label) {
+		return "{\"kind\":\"" + kind + "\",\"url\":\"" + url + "\",\"label\":\"" + label + "\"}";
+	}
+
+	/** An image the Mentor uploads for the next handover (Story 8.3). */
+	private String upload() throws Exception {
+		byte[] png;
+		try (var in = getClass().getResourceAsStream("/authz/bodies/upload.png")) {
+			png = java.util.Objects.requireNonNull(in).readAllBytes();
+		}
+		return JsonPath.read(this.mvc.perform(multipart("/api/v1/boards/" + this.job + "/handovers/screenshots")
+			.file(new MockMultipartFile("file", "bao-cao.png", "image/png", png)).with(as(this.hung, Role.MENTOR)).with(csrf()))
+			.andExpect(status().isCreated())
+			.andReturn().getResponse().getContentAsString(), "$.fileId");
 	}
 
 	private long count(String sql) {

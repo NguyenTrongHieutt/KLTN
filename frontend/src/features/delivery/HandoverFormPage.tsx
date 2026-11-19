@@ -22,7 +22,7 @@ import {
   type HandoverSubmission,
 } from './deliveryApi'
 import { EvidenceFields } from './HandoverEvidence'
-import { NO_EVIDENCE, evidenceBody, evidenceReady, type Evidence } from './evidenceRules'
+import { MAX_SCREENSHOTS, NO_EVIDENCE, evidenceBody, evidenceReady, newLink, type Evidence } from './evidenceRules'
 import { SensitiveChangeList } from './SensitiveChangeList'
 
 interface Mark {
@@ -44,8 +44,10 @@ function refusal(submission: HandoverSubmission): string {
 /**
  * "Tạo bàn giao" (FR-10, FR-32, AD-23, UX-DR54), a focused route for the Mentor: the preflight of the
  * Milestone waiting for its handover: every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra" -- on an Assessment
- * Job those criteria are the Assessment Report's own sections (Story 24.1); for a Code Job, its new commits and the Sensitive change
- * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). A Code Job also needs
+ * Job those criteria are the Assessment Report's own sections (Story 24.1) and the report itself a "Tài liệu" link
+ * (Story 24.3); for a Code Job, its new commits and the Sensitive change preview, and the preview link, or a reason
+ * with a "Bản ghi / video" link (Story 8.3). Then the Handover evidence list: up to ten links, each with its kind,
+ * label and domain and never opened by vibefix, and up to five images (Story 24.3). A Code Job also needs
  * N-33's Mentor checkbox, the duty to keep credentials and real data out of the handover's commits, since vibefix
  * scans no team code (FR-25, R28, Story 23.8b); the request names the version of that text, and a reworded one
  * answers `NOTICE_REQUIRED` and offers a reload. "Gửi bàn giao" enables only when all of it passes, and sends the
@@ -83,9 +85,11 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const submission = useHandoverSubmission(jobId, copying !== undefined)
   // Only this send's own submission decides: an earlier one the cache still holds is not it.
   const copied = copying !== undefined && submission.data?.id === copying ? submission.data : undefined
+  // An Assessment Job's report goes in as a "Tài liệu" link, so its form starts with that row (FR-10, Story 24.3).
   const [evidence, setEvidence] = useState<Evidence>(() => ({
     ...NO_EVIDENCE,
-    screenshotIds: preflight.screenshots.slice(0, 5).map((upload) => upload.fileId),
+    links: preflight.assessment ? [newLink('DOCUMENT')] : [],
+    screenshotIds: preflight.screenshots.slice(0, MAX_SCREENSHOTS).map((upload) => upload.fileId),
   }))
   // Story 24.2: every criterion marked with a note is the whole of FR-32's enforcement.
   const criteriaReady = preflight.criteria.every((criterion) => {
@@ -95,7 +99,10 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   // An Assessment Job hands over no code, so N-33 is neither shown nor needed there.
   const teamCodeReady = preflight.assessment || teamCode
   const ready =
-    preflight.problems.length === 0 && criteriaReady && teamCodeReady && evidenceReady(evidence, preflight.previewRequired)
+    preflight.problems.length === 0 &&
+    criteriaReady &&
+    teamCodeReady &&
+    evidenceReady(evidence, preflight.previewRequired, preflight.assessment)
 
   // The copy is over when this send's submission is no longer pending; a refusal names its reason inline.
   const waiting = copying !== undefined && !submission.isError && (copied === undefined || copied.state === 'PENDING')
@@ -128,7 +135,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
         })),
         sensitive,
         teamCodeNoticeVersion: preflight.assessment ? undefined : TEAM_CODE_NOTICE_VERSION,
-        ...evidenceBody(evidence),
+        ...evidenceBody(evidence, preflight.assessment),
       },
       {
         onSuccess: (sent) => {
@@ -250,6 +257,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
       <EvidenceFields
         jobId={jobId}
         required={preflight.previewRequired}
+        assessment={preflight.assessment}
         uploads={preflight.screenshots}
         value={evidence}
         onChange={setEvidence}
