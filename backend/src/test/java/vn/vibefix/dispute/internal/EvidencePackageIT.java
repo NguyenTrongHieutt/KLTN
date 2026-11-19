@@ -210,9 +210,10 @@ class EvidencePackageIT extends IntegrationTest {
 	/**
 	 * Story 24.3b (FR-53, FR-63, AD-8, AD-31): the "criteria" tab shows every handover of the Job with what it carried
 	 * beside its criteria -- the preview and its domain, or the Mentor's reason there is none, the links in the Mentor's
-	 * order with their kind, label, URL and domain, and the images. Only the assignee opens an image, each read audited
-	 * as the case's view of it; an unassigned Administrator, a former assignee and an upload no handover took are
-	 * refused as the file endpoint refuses anything: 404.
+	 * order with their kind, label, URL and domain, and the images, a handover of another Milestone than the disputed one
+	 * included. Only the assignee opens an image, of whichever Milestone, each read audited as the case's view of that
+	 * image; an unassigned Administrator, a former assignee and an upload no handover took are refused as the file
+	 * endpoint refuses anything: 404.
 	 */
 	@Test
 	void theCriteriaTabShowsWhatEachHandoverCarriedAndOnlyTheAssigneeOpensItsImages() throws Exception {
@@ -226,12 +227,24 @@ class EvidencePackageIT extends IntegrationTest {
 			.param("milestone", this.world.milestone()).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
 			.param("at", Timestamp.from(this.clock.instant().minus(Duration.ofDays(1)))).update();
 		link(second, 0, "VIDEO", "https://youtu.be/quay-man-hinh", "Video quay màn hình");
+		// A handover of a second Milestone of the Job: the Dispute's package shows every handover, not only its own Milestone's.
+		UUID otherMilestone = UUID.randomUUID();
+		UUID other = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, no_preview_reason)
+				VALUES (:id, :job, :product, :milestone, 2, 'Giai đoạn 2', 1, :mentor, 'SUBMITTED', 7, :transition, :at, :at,
+				    'Chỉ chạy trên máy in của quán')
+				""").param("id", other).param("job", this.world.job()).param("product", this.world.product())
+			.param("milestone", otherMilestone).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
+			.param("at", Timestamp.from(this.clock.instant().minus(Duration.ofHours(12)))).update();
+		UUID otherImage = image(other, 0, "may-in-hoa-don.pdf");
 		UUID dispute = open();
 		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isNotFound());
 
 		take(this.ha.accountId(), dispute);
 		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(2))
+			.andExpect(jsonPath("$.length()").value(3))
 			.andExpect(jsonPath("$[0].handoverId").value(this.handover.toString()))
 			.andExpect(jsonPath("$[0].criteria[0].reportNote").value("Đã kiểm tra trên điện thoại"))
 			.andExpect(jsonPath("$[0].preview.url").value(PREVIEW))
@@ -253,16 +266,30 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$[1].links[0].kind").value("VIDEO"))
 			.andExpect(jsonPath("$[1].links[0].domain").value("youtu.be"))
 			.andExpect(jsonPath("$[1].images").isEmpty())
+			.andExpect(jsonPath("$[2].handoverId").value(other.toString()))
+			.andExpect(jsonPath("$[2].milestoneNumber").value(2))
+			.andExpect(jsonPath("$[2].images[0].fileId").value(otherImage.toString()))
 			.andExpect(content().string(not(containsString(this.upload.toString()))));
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.evidence_viewed.criteria'")).isOne();
 
 		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isOk());
 		file(this.images.get(1), admin(this.ha.accountId())).andExpect(status().isOk());
+		file(otherImage, admin(this.ha.accountId())).andExpect(status().isOk());
 		assertThat(count("""
 				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
 				WHERE e.action = 'dispute.evidence_viewed.handover_image' AND o.object_type = 'dispute.dispute'
 				    AND o.object_id = '%s' AND e.actor_account_id = '%s' AND e.job_id = '%s'
-				""".formatted(dispute, this.ha.accountId(), this.world.job()))).isEqualTo(2);
+				""".formatted(dispute, this.ha.accountId(), this.world.job()))).isEqualTo(3);
+		// Each read names its image beside the case, so three images are three different entries.
+		for (UUID image : List.of(this.images.get(0), this.images.get(1), otherImage)) {
+			assertThat(count("""
+					SELECT count(*) FROM audit.audit_entry e
+					JOIN audit.audit_entry_object c ON c.entry_id = e.id AND c.position = 0
+					JOIN audit.audit_entry_object f ON f.entry_id = e.id AND f.position = 1
+					WHERE e.action = 'dispute.evidence_viewed.handover_image' AND c.object_type = 'dispute.dispute'
+					    AND c.object_id = '%s' AND f.object_type = 'files.stored_file' AND f.object_id = '%s'
+					""".formatted(dispute, image))).as(image.toString()).isOne();
+		}
 		file(this.images.get(0), admin(this.quan)).andExpect(status().isNotFound());
 		file(this.upload, admin(this.ha.accountId())).andExpect(status().isNotFound());
 		// The Job's own readers are untouched: the Customer reads the image, and the Mentor their own upload.
@@ -274,7 +301,7 @@ class EvidencePackageIT extends IntegrationTest {
 		file(this.images.get(0), admin(this.ha.accountId())).andExpect(status().isNotFound());
 		file(this.images.get(0), admin(this.quan)).andExpect(status().isOk());
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.evidence_viewed.handover_image'"))
-			.isEqualTo(3);
+			.isEqualTo(4);
 	}
 
 	/**

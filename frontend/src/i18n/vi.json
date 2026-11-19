@@ -599,6 +599,8 @@
           "met": "Đạt",
           "notMet": "Chưa đạt",
           "unchecked": "Chưa kiểm tra",
+          "autoAccepted": "Tự động chấp nhận khi hết hạn kiểm tra",
+          "decidedAt": "quyết định lúc {time}",
           "carried": "Kèm theo bàn giao",
           "preview": "Bản xem thử",
           "openPreview": "Mở bản xem thử",

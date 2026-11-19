@@ -62,12 +62,12 @@ class HandoverScreenshotFiles implements FileReadPolicy {
 			return true;
 		}
 		catch (ApiException refused) {
-			return caller.isAdministrator() && caseReader(screenshot.jobId(), handoverId, caller);
+			return caller.isAdministrator() && caseReader(screenshot.jobId(), handoverId, fileId, caller);
 		}
 	}
 
 	/** Whether an Administrator's case shows the handover now, asked with the handover's Job and Milestone. */
-	private boolean caseReader(UUID jobId, UUID handoverId, Caller caller) {
+	private boolean caseReader(UUID jobId, UUID handoverId, UUID fileId, Caller caller) {
 		HandoverEvidenceReaders readers = this.caseReaders.getIfAvailable();
 		if (readers == null) {
 			return false;
@@ -78,7 +78,7 @@ class HandoverScreenshotFiles implements FileReadPolicy {
 			.query(UUID.class)
 			.optional()
 			.orElse(null);
-		return milestone != null && readers.mayRead(jobId, milestone, caller);
+		return milestone != null && readers.mayRead(jobId, milestone, fileId, caller);
 	}
 
 }

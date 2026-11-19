@@ -32,9 +32,12 @@ import vn.vibefix.shared.PersonalDataSection;
  * draft names the Mentor and the Customer, so an erasure and a Product deletion both delete the row whole, and a
  * retirement does too. A running Job blocks erasure through {@code job}.
  * <p>
- * While a Milestone Split of a Job is not final, its Handover Commit authors stay as evidence a Split Resolution reads,
- * with the handover rows they hang from (AD-24, A-01): the rest goes, a row in {@code delivery.split_deferral} says what
- * waits, and the listener on {@link MilestoneSplitFinalized} finishes it once the Job has no open split.
+ * While a Milestone Split of a Job is not final, its handovers stay whole as the evidence a Split Resolution reads
+ * (AD-24, A-01, Story 24.3b): what each said (criteria, checks, links, images, Sensitive Changes, acceptances, the
+ * preview link and the no-preview reason) and the Handover Commit authors, with the handover rows they hang from. The
+ * Mentor's uploads no handover took, the follow-ups and the submissions go at once; a row in
+ * {@code delivery.split_deferral} says what waits, and the listener on {@link MilestoneSplitFinalized} finishes it once
+ * the Job has no open split.
  */
 @Component
 class DeliveryPersonalData implements PersonalDataParticipant {
@@ -184,7 +187,8 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	 * NFR-10: what each handover said goes (criteria and notes, the Customer's marks and comments,
 	 * screenshots, links, the preview link and the no-preview reason, recorded commits, Sensitive Changes, pending
 	 * acceptances, follow-ups); each
-	 * handover row and its status stay for the Milestone history.
+	 * handover row and its status stay for the Milestone history. A Job with an open split keeps its handovers whole
+	 * until the split is final.
 	 */
 	@Override
 	public void retireJobData(UUID productId) {
@@ -192,30 +196,23 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	}
 
 	/**
-	 * What each handover said goes for every Job of the Product. The recorded commits, and on a deletion the handover rows,
-	 * go too, unless an open split makes them wait.
+	 * The follow-ups, the submissions and the Mentor's uploads no handover took go for every Job of the Product. What each
+	 * handover said, its recorded commits and, on a deletion, the handover rows go too, unless an open split makes them
+	 * wait.
 	 */
 	private void deleteOrDefer(UUID productId, String waiting) {
 		Set<UUID> open = this.splits.openSplitJobs(productId);
 		open.forEach(job -> defer(job, productId, waiting));
 		this.jdbc.sql("DELETE FROM delivery.follow_up WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM delivery.handover_submission WHERE product_id = :id").param("id", productId).update();
-		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id")
+		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE product_id = :id AND handover_id IS NULL")
 			.param("id", productId)
 			.query(UUID.class)
 			.list()
 			.forEach(this.files::delete);
-		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id").param("id", productId).update();
-		String handovers = "SELECT id FROM delivery.handover WHERE product_id = :id";
-		for (String table : List.of("delivery.handover_criterion", "delivery.handover_check", "delivery.handover_link",
-				"delivery.handover_sensitive_change", "delivery.handover_acceptance")) {
-			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("id", productId).update();
-		}
-		// The preview link and the no-preview reason are what the handover said too (Story 24.3), like its links.
-		this.jdbc.sql("""
-				UPDATE delivery.handover SET preview_url = NULL, preview_checked_at = NULL, no_preview_reason = NULL
-				WHERE product_id = :id AND (preview_url IS NOT NULL OR no_preview_reason IS NOT NULL)
-				""").param("id", productId).update();
+		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE product_id = :id AND handover_id IS NULL")
+			.param("id", productId)
+			.update();
 		this.jdbc.sql("SELECT DISTINCT job_id FROM delivery.handover WHERE product_id = :id")
 			.param("id", productId)
 			.query(UUID.class)
@@ -240,11 +237,28 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 		this.jdbc.sql("DELETE FROM delivery.split_deferral WHERE job_id = :job").param("job", event.jobId()).update();
 	}
 
-	/** The Job's recorded commits and, on a deletion, its handover rows. */
+	/**
+	 * NFR-10 for one Job: what its handovers said (criteria and notes, the Customer's marks and comments, images and their
+	 * files, links, the preview link and the no-preview reason, Sensitive Changes, pending acceptances), their recorded
+	 * commits and, on a deletion, the handover rows; a retirement leaves each row and its status for the Milestone history.
+	 */
 	private void finish(UUID jobId, String waiting) {
-		this.jdbc.sql("DELETE FROM delivery.handover_commit WHERE handover_id IN (SELECT id FROM delivery.handover WHERE job_id = :job)")
+		this.jdbc.sql("SELECT file_id FROM delivery.handover_screenshot WHERE job_id = :job")
 			.param("job", jobId)
-			.update();
+			.query(UUID.class)
+			.list()
+			.forEach(this.files::delete);
+		this.jdbc.sql("DELETE FROM delivery.handover_screenshot WHERE job_id = :job").param("job", jobId).update();
+		String handovers = "SELECT id FROM delivery.handover WHERE job_id = :job";
+		for (String table : List.of("delivery.handover_criterion", "delivery.handover_check", "delivery.handover_link",
+				"delivery.handover_sensitive_change", "delivery.handover_acceptance", "delivery.handover_commit")) {
+			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("job", jobId).update();
+		}
+		// The preview link and the no-preview reason are what the handover said too (Story 24.3), like its links.
+		this.jdbc.sql("""
+				UPDATE delivery.handover SET preview_url = NULL, preview_checked_at = NULL, no_preview_reason = NULL
+				WHERE job_id = :job AND (preview_url IS NOT NULL OR no_preview_reason IS NOT NULL)
+				""").param("job", jobId).update();
 		if ("DELETE".equals(waiting)) {
 			this.jdbc.sql("DELETE FROM delivery.handover WHERE job_id = :job").param("job", jobId).update();
 		}

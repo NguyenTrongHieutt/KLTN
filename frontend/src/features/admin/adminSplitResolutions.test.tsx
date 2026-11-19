@@ -384,6 +384,8 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
       expect(within(voided).getByText(/Còn lỗi khi đặt hai bàn/)).toBeInTheDocument()
       expect(within(voided).getByText('Chưa kiểm tra')).toBeInTheDocument()
       expect(within(voided).queryByText('Kèm theo bàn giao')).toBeNull()
+      expect(within(accepted).getByText(/^Đã chấp nhận · .* · quyết định lúc /)).toBeInTheDocument()
+      expect(within(voided).queryByText(/quyết định lúc/)).toBeNull()
       expect(within(accepted).getByText(/Đã sửa và thử lại/)).toBeInTheDocument()
       expect(within(accepted).getByText('Đạt')).toBeInTheDocument()
       const link = within(accepted).getByRole('link', { name: 'Ghi chú phát hành' })

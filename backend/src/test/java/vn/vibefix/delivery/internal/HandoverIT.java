@@ -297,8 +297,10 @@ class HandoverIT extends IntegrationTest {
 			.param("grant", UUID.randomUUID()).update();
 
 		file(attached, assignee, Role.ADMINISTRATOR).andExpect(status().isOk());
-		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'dispute.evidence_viewed.handover_image'"
-				+ " AND actor_account_id = '" + assignee + "' AND job_id = '" + this.job + "'")).isOne();
+		assertThat(count("SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object f ON f.entry_id = e.id"
+				+ " WHERE e.action = 'dispute.evidence_viewed.handover_image' AND e.actor_account_id = '" + assignee
+				+ "' AND e.job_id = '" + this.job + "' AND f.object_type = 'files.stored_file' AND f.object_id = '" + attached
+				+ "'")).isOne();
 		file(pending, assignee, Role.ADMINISTRATOR).andExpect(status().isNotFound());
 		file(attached, other, Role.ADMINISTRATOR).andExpect(status().isNotFound());
 		file(attached, this.lan, Role.CUSTOMER).andExpect(status().isOk());

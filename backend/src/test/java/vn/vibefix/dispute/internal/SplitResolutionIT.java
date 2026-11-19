@@ -532,10 +532,13 @@ class SplitResolutionIT extends IntegrationTest {
 
 		file(image, admin(this.ha.accountId())).andExpect(status().isOk());
 		assertThat(number("""
-				SELECT count(*) FROM audit.audit_entry e JOIN audit.audit_entry_object o ON o.entry_id = e.id
+				SELECT count(*) FROM audit.audit_entry e
+				JOIN audit.audit_entry_object o ON o.entry_id = e.id AND o.position = 0
+				JOIN audit.audit_entry_object f ON f.entry_id = e.id AND f.position = 1
 				WHERE e.action = 'dispute.split_evidence_viewed.handover_image' AND o.object_type = 'dispute.split_resolution'
-				    AND o.object_id = '%s' AND e.actor_account_id = '%s' AND e.job_id = '%s'
-				""".formatted(id, this.ha.accountId(), this.world.job()))).isOne();
+				    AND o.object_id = '%s' AND f.object_type = 'files.stored_file' AND f.object_id = '%s'
+				    AND e.actor_account_id = '%s' AND e.job_id = '%s'
+				""".formatted(id, image, this.ha.accountId(), this.world.job()))).isOne();
 		file(otherImage, admin(this.ha.accountId())).andExpect(status().isNotFound());
 		file(image, admin(this.quan)).andExpect(status().isNotFound());
 		file(upload, admin(this.ha.accountId())).andExpect(status().isNotFound());
@@ -1466,6 +1469,52 @@ class SplitResolutionIT extends IntegrationTest {
 
 		assertThat(number("SELECT count(*) FROM job.job")).as("the Job's row stands").isOne();
 		readsTheRecordAndNoEvidence(id);
+	}
+
+	/**
+	 * Story 24.3b (AD-24, A-01): a retention run while the case is open leaves the Milestone's handovers whole, so its
+	 * "Bàn giao" tab still shows the criteria, the link and the image, and the image still reads. The decision makes the
+	 * split final, and what the handovers said goes then, the handover rows staying as a retirement leaves them.
+	 */
+	@Test
+	void aRetentionRunWhileTheCaseIsOpenKeepsItsHandoversUntilTheSplitIsFinal() throws Exception {
+		UUID handover = handover();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
+				VALUES (:id, :criterion, 1, 'Tiêu chí 1', 'Cách kiểm tra 1', true, 'Đã kiểm tra trên điện thoại')
+				""").param("id", handover).param("criterion", UUID.randomUUID()).update();
+		handoverLink(handover, 0, "DOCUMENT", "https://docs.google.com/document/d/ghi-chu", "Ghi chú phát hành");
+		UUID image = image(handover, 0, "man-hinh-dat-ban.pdf");
+		accepted();
+		raise(this.world.vy(), 1, "Phần của tôi quá ít").andExpect(status().isCreated());
+		String id = onlyCase();
+		take(this.ha.accountId(), id).andExpect(status().isOk());
+		closeJob();
+
+		this.transactions.executeWithoutResult(status -> this.personalData.retireJobData(this.world.product()));
+
+		assertThat(text("SELECT waiting FROM delivery.split_deferral")).isEqualTo("RETIRE");
+		evidence(this.ha.accountId(), id, "handovers").andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(1)))
+			.andExpect(jsonPath("$[0].criteria[0].statement").value("Tiêu chí 1"))
+			.andExpect(jsonPath("$[0].criteria[0].reportNote").value("Đã kiểm tra trên điện thoại"))
+			.andExpect(jsonPath("$[0].links[0].url").value("https://docs.google.com/document/d/ghi-chu"))
+			.andExpect(jsonPath("$[0].images[0].fileId").value(image.toString()));
+		file(image, admin(this.ha.accountId())).andExpect(status().isOk());
+
+		decide(this.ha, id, 30, 40, 30, "Đã quyết").andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(number("SELECT count(*) FROM delivery.split_deferral")).isZero();
+		assertThat(number("SELECT count(*) FROM delivery.handover")).as("a retirement leaves the handover row").isOne();
+		assertThat(number("SELECT count(*) FROM delivery.handover_criterion")).isZero();
+		assertThat(number("SELECT count(*) FROM delivery.handover_link")).isZero();
+		assertThat(number("SELECT count(*) FROM delivery.handover_screenshot")).isZero();
+		assertThat(this.jdbc.sql("SELECT deleted_at IS NOT NULL FROM files.stored_file WHERE id = :id")
+			.param("id", image)
+			.query(Boolean.class)
+			.single()).as("the image's file goes with it").isTrue();
+		file(image, admin(this.ha.accountId())).andExpect(status().isNotFound());
 	}
 
 	// ---- Where each notice leads --------------------------------------------------------------------

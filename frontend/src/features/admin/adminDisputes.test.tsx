@@ -253,6 +253,19 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
             images: [],
             links: [{ kind: 'VIDEO', label: 'Video quay màn hình', url: 'https://youtu.be/quay', domain: 'youtu.be' }],
           },
+          {
+            handoverId: 'h3',
+            milestoneNumber: 2,
+            milestoneTitle: 'Bản sửa',
+            round: 1,
+            status: 'ACCEPTED',
+            submittedAt: '2026-10-21T03:00:00Z',
+            decidedAt: '2026-10-28T03:00:00Z',
+            auto: true,
+            criteria: [{ ...criterion, customerMet: undefined, customerComment: undefined }],
+            images: [],
+            links: [],
+          },
         ]),
     })
     renderAt('/quan-tri/tranh-chap/d1')
@@ -291,6 +304,14 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(within(second).queryByRole('link', { name: 'Mở bản xem thử' })).toBeNull()
     expect(within(second).getByRole('link', { name: 'Video quay màn hình' })).toHaveAttribute('href', 'https://youtu.be/quay')
     expect(within(second).queryByRole('img')).toBeNull()
+    expect(within(second).queryByText(/quyết định lúc/)).toBeNull()
+    expect(within(first).getByText(/Yêu cầu sửa · .* · quyết định lúc /)).toBeInTheDocument()
+
+    // A round the System accepted when the check period ran out says so beside its unchecked criteria.
+    const auto = screen.getByText('Giai đoạn 2: Bản sửa · lần 1').closest('li') as HTMLElement
+    expect(within(auto).getByText(/^Tự động chấp nhận khi hết hạn kiểm tra · .* · quyết định lúc /)).toBeInTheDocument()
+    expect(within(auto).queryByText(/Đã chấp nhận/)).toBeNull()
+    expect(within(auto).getByText('Chưa kiểm tra')).toBeInTheDocument()
     expect(seen.some((request) => request.url.includes('/evidence/criteria'))).toBe(true)
   })
 

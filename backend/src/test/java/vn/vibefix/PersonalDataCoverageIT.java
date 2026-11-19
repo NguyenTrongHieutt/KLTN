@@ -231,9 +231,8 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertThat(count("SELECT count(*) FROM chat.message")).isOne();
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isOne();
 		assertThat(count("SELECT author_github_id FROM delivery.handover_commit")).isEqualTo(4242);
-		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
 		assertFilesWhileDeferred(evidence);
-		assertWhatTheHandoversSaidIsGone();
+		assertWhatTheHandoversSaidWaits();
 
 		// The split becomes final: the pool is paid out, and what waited goes, the bare row last.
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
@@ -371,9 +370,8 @@ class PersonalDataCoverageIT extends IntegrationTest {
 		assertDeferred(world, "RETIRE");
 		assertThat(this.jdbc.sql("SELECT kind FROM chat.chat").query(String.class).list()).containsExactly("CREW");
 		assertThat(count("SELECT count(*) FROM delivery.handover_commit")).isOne();
-		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).isZero();
 		assertFilesWhileDeferred(evidence);
-		assertWhatTheHandoversSaidIsGone();
+		assertWhatTheHandoversSaidWaits();
 
 		finish(world, split, Map.of(world.hung(), 20, world.vy(), 80));
 
@@ -681,15 +679,28 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	private static final String PREVIEW = "https://so-dat-ban-gd1.vercel.app";
 
 	/**
-	 * A handover's links, its preview link and its no-preview reason are what it said (NFR-10, Story 24.3): retirement
-	 * and deletion remove them at once, whatever waits for a split.
+	 * A handover's criteria, links, images, preview link and no-preview reason are what it said (NFR-10, Story 24.3):
+	 * retirement and deletion remove them, at once for a Job with no open split.
 	 */
 	private void assertWhatTheHandoversSaidIsGone() {
-		assertThat(count("SELECT count(*) FROM delivery.handover_link")).as("the handover's links go at once").isZero();
+		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).as("the handover's criteria go").isZero();
+		assertThat(count("SELECT count(*) FROM delivery.handover_link")).as("its links go").isZero();
+		assertThat(count("SELECT count(*) FROM delivery.handover_screenshot")).as("its images go").isZero();
 		assertThat(count("""
 				SELECT count(*) FROM delivery.handover
 				WHERE preview_url IS NOT NULL OR preview_checked_at IS NOT NULL OR no_preview_reason IS NOT NULL
 				""")).as("and its preview link and its reason with them").isZero();
+	}
+
+	/**
+	 * While a split of the Job is open, its handovers stay whole as the evidence its Split Resolution's "Bàn giao" tab
+	 * reads (AD-24, Story 24.3b): the criteria, the link, the image and the no-preview reason wait with the commits.
+	 */
+	private void assertWhatTheHandoversSaidWaits() {
+		assertThat(count("SELECT count(*) FROM delivery.handover_criterion")).as("the criteria wait").isOne();
+		assertThat(count("SELECT count(*) FROM delivery.handover_link")).as("the link waits").isOne();
+		assertThat(count("SELECT count(*) FROM delivery.handover_screenshot")).as("the image waits").isOne();
+		assertThat(text("SELECT no_preview_reason FROM delivery.handover")).as("and the reason").isEqualTo(REASON);
 	}
 
 	/** One Code handover of the Job, carrying the Mentor's N-33 confirmation. */
@@ -752,7 +763,7 @@ class PersonalDataCoverageIT extends IntegrationTest {
 	private void assertFilesWhileDeferred(Evidence evidence) {
 		assertThat(fileDeleted(evidence.crewChatFile())).as("the Crew Chat's file waits").isFalse();
 		assertThat(fileDeleted(evidence.jobChatFile())).as("the Job Chat's file goes at once").isTrue();
-		assertThat(fileDeleted(evidence.screenshotFile())).as("the screenshot goes at once").isTrue();
+		assertThat(fileDeleted(evidence.screenshotFile())).as("the handover's image waits too (Story 24.3b)").isFalse();
 	}
 
 	private void assertFilesFinished(Evidence evidence) {

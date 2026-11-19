@@ -8,7 +8,6 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.chat.ChatEvidence;
 import vn.vibefix.chat.ChatEvidence.ChatExtent;
@@ -57,19 +56,14 @@ class SplitEvidenceSnapshots {
 			List<SplitSnapshotHandover> handovers, List<SplitSnapshotCommit> commits, SplitSnapshotChat crewChat,
 			int personLinks) {
 
+		/** A snapshot stored before Story 24.3b has no {@code handovers}: it reads back with none. */
 		SplitEvidenceSnapshot {
 			handovers = handovers == null ? List.of() : List.copyOf(handovers);
 		}
 
 	}
 
-	/**
-	 * Reads a snapshot stored before a field was added as one with that field empty: a decision is never rewritten,
-	 * and ADM-4 must still explain it (Story 24.3b).
-	 */
-	private static final JsonMapper JSON = JsonMapper.builder()
-		.disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
-		.build();
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private final MilestoneSplits splits;
 

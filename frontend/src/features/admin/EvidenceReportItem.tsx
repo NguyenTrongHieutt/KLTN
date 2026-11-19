@@ -13,8 +13,9 @@ function mark(met: boolean | null | undefined) {
 
 /**
  * One handover as both Evidence Packages show it (FR-53, FR-84, AD-31, AD-40, Story 24.3b): the Dispute's "criteria"
- * tab and the Split Resolution's "Bàn giao" tab read the same view from the server and draw it here alike. Its
- * criteria come first, the Mentor's mark and note beside the Customer's; then what the handover carried, as the
+ * tab and the Split Resolution's "Bàn giao" tab read the same view from the server and draw it here alike. Its caption
+ * says when it was sent and, once decided, when; a round the System accepted when the check period ran out says so, as
+ * its criteria then carry no mark of the Customer's. Its criteria come first, the Mentor's mark and note beside the Customer's; then what the handover carried, as the
  * Customer's Delivery Report shows it: the preview with its domain and N-11, or the Mentor's reason there is none; every
  * link with its kind, label and domain, opening in a new tab without the opener (AD-35); and the images as thumbnails
  * opening `/api/v1/files/{fileId}`, each read audited by the server. Nothing a link names is ever fetched (AD-32).
@@ -31,8 +32,17 @@ export function EvidenceReportItem({ report }: { report: EvidenceReport }) {
           })}
         </p>
         <p className="text-caption text-muted-foreground">
-          {t(`screen.admin.disputes.evidence.reportStatus.${report.status}` as MessageKey)} ·{' '}
-          {formatDayMonthTime(report.submittedAt)}
+          {[
+            report.auto
+              ? t('screen.admin.disputes.evidence.autoAccepted')
+              : t(`screen.admin.disputes.evidence.reportStatus.${report.status}` as MessageKey),
+            formatDayMonthTime(report.submittedAt),
+            report.decidedAt
+              ? t('screen.admin.disputes.evidence.decidedAt', { time: formatDayMonthTime(report.decidedAt) })
+              : '',
+          ]
+            .filter((part) => part !== '')
+            .join(' · ')}
         </p>
       </div>
       <table className="w-full text-left text-caption">
