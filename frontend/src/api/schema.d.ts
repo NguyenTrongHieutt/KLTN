@@ -5481,14 +5481,14 @@ export interface components {
             releaseVnd: number;
             revisionAllowed: boolean;
         };
-        HandoverEvidenceLinkView: {
-            domain: string;
+        HandoverEvidenceLinkRequest: {
             /** @enum {string} */
             kind: "VIDEO" | "DOCUMENT";
             label: string;
             url: string;
         };
-        HandoverLinkRequest: {
+        HandoverEvidenceLinkView: {
+            domain: string;
             /** @enum {string} */
             kind: "VIDEO" | "DOCUMENT";
             label: string;
@@ -5536,7 +5536,7 @@ export interface components {
         };
         HandoverRequest: {
             criteria: components["schemas"]["HandoverCriterionMarkRequest"][];
-            links?: components["schemas"]["HandoverLinkRequest"][];
+            links?: components["schemas"]["HandoverEvidenceLinkRequest"][];
             /** Format: uuid */
             milestoneId: string;
             noPreviewReason?: string;

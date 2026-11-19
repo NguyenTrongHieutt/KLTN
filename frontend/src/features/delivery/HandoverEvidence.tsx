@@ -1,5 +1,5 @@
 import { ImagePlus, Plus, X } from 'lucide-react'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
 import { TermHint } from '@/components/TermHint'
@@ -24,6 +24,7 @@ import {
   newLink,
   type Evidence,
   type EvidenceLink,
+  type EvidenceUpdate,
   type LinkKind,
 } from './evidenceRules'
 
@@ -33,7 +34,8 @@ import {
  * in as a "Bản ghi / video" link (never an upload). An Assessment Job changes no running Product, so it has no
  * preview part; its report goes in as a "Tài liệu" link. Then the Handover evidence list: up to ten links, each
  * with its kind, a short label and the domain read from its URL -- vibefix never opens them -- and up to five
- * images from the Mentor's uploads.
+ * images from the Mentor's uploads. Every change is an update of the evidence as it is when it lands, so an upload
+ * that answers after the Mentor typed elsewhere keeps what they typed.
  */
 export function EvidenceFields({
   jobId,
@@ -48,12 +50,30 @@ export function EvidenceFields({
   assessment: boolean
   uploads: HandoverScreenshot[]
   value: Evidence
-  onChange: (next: Evidence) => void
+  onChange: (update: EvidenceUpdate) => void
 }) {
   const ids = useId()
-  const set = (next: Partial<Evidence>) => onChange({ ...value, ...next })
-  const setLink = (index: number, next: Partial<EvidenceLink>) =>
-    set({ links: value.links.map((link, other) => (other === index ? { ...link, ...next } : link)) })
+  const add = useRef<HTMLButtonElement>(null)
+  // Where focus goes once the rows change: the new row's first field, or "Thêm liên kết" after a removal.
+  const [focusRow, setFocusRow] = useState<string>()
+  const focusAdd = useRef(false)
+  useEffect(() => {
+    if (focusAdd.current) {
+      focusAdd.current = false
+      add.current?.focus()
+    }
+  }, [value.links.length])
+  const setLink = (id: string, next: Partial<EvidenceLink>) =>
+    onChange((prev) => ({ ...prev, links: prev.links.map((link) => (link.id === id ? { ...link, ...next } : link)) }))
+  const removeLink = (id: string) => {
+    focusAdd.current = true
+    onChange((prev) => ({ ...prev, links: prev.links.filter((link) => link.id !== id) }))
+  }
+  const addLink = () => {
+    const link = newLink(assessment ? 'DOCUMENT' : 'VIDEO')
+    setFocusRow(link.id)
+    onChange((prev) => ({ ...prev, links: [...prev.links, link] }))
+  }
   const full = value.links.length >= MAX_LINKS
 
   return (
@@ -78,20 +98,15 @@ export function EvidenceFields({
                   key={link.id}
                   n={index + 1}
                   link={link}
-                  onChange={(next) => setLink(index, next)}
-                  onRemove={() => set({ links: value.links.filter((_, other) => other !== index) })}
+                  focus={link.id === focusRow}
+                  onChange={(next) => setLink(link.id, next)}
+                  onRemove={() => removeLink(link.id)}
                 />
               ))}
             </ol>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-fit"
-              disabled={full}
-              onClick={() => set({ links: [...value.links, newLink(assessment ? 'DOCUMENT' : 'VIDEO')] })}
-            >
+            <Button ref={add} type="button" variant="secondary" className="w-fit" disabled={full} onClick={addLink}>
               <Plus aria-hidden="true" className="size-4" />
               {t('screen.handover.links.add')}
             </Button>
@@ -104,27 +119,41 @@ export function EvidenceFields({
   )
 }
 
-/** One link row: its kind, its label, its URL with the domain once it is `https`, and "Xóa". */
+/**
+ * One link row: its kind, its label, its URL with the domain once the URL is one the server takes, or why it is not,
+ * and "Xóa".
+ * @param focus whether the row was just added, so its first field takes focus
+ */
 function LinkRow({
   n,
   link,
+  focus,
   onChange,
   onRemove,
 }: {
   n: number
   link: EvidenceLink
+  focus: boolean
   onChange: (next: Partial<EvidenceLink>) => void
   onRemove: () => void
 }) {
   const ids = useId()
+  const kind = useRef<HTMLSelectElement>(null)
+  useEffect(() => {
+    if (focus) {
+      kind.current?.focus()
+    }
+  }, [focus])
   const domain = domainOf(link.url)
   const domainLine = domain ? t('screen.handover.links.domain', { domain }) : undefined
+  const urlError = link.url.trim() !== '' && !domain ? t('screen.handover.links.urlInvalid') : undefined
   return (
     <li>
       <fieldset className="grid gap-2 rounded-md border border-border bg-background p-3 md:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1.4fr)_auto] md:items-start">
         <legend className="text-label">{t('screen.handover.links.row', { n })}</legend>
         <FormField id={`${ids}-kind`} label={t('screen.handover.links.kind')}>
           <select
+            ref={kind}
             {...fieldProps(`${ids}-kind`)}
             value={link.kind}
             onChange={(event) => onChange({ kind: event.target.value as LinkKind })}
@@ -143,9 +172,9 @@ function LinkRow({
             className={inputClass}
           />
         </FormField>
-        <FormField id={`${ids}-url`} label={t('screen.handover.links.url')} helper={domainLine}>
+        <FormField id={`${ids}-url`} label={t('screen.handover.links.url')} helper={domainLine} error={urlError}>
           <input
-            {...fieldProps(`${ids}-url`, undefined, domainLine)}
+            {...fieldProps(`${ids}-url`, urlError, domainLine)}
             type="url"
             inputMode="url"
             maxLength={MAX_LINK_URL}
@@ -179,13 +208,13 @@ function PreviewFields({
   jobId: string
   required: boolean
   value: Evidence
-  onChange: (next: Evidence) => void
+  onChange: (update: EvidenceUpdate) => void
 }) {
   const ids = useId()
   const toasts = useToasts()
   const check = useCheckPreview(jobId)
   const [checked, setChecked] = useState<PreviewCheck & { url: string }>()
-  const set = (next: Partial<Evidence>) => onChange({ ...value, ...next })
+  const set = (next: Partial<Evidence>) => onChange((prev) => ({ ...prev, ...next }))
   const result = checked && checked.url === value.preview.trim() ? checked : undefined
   const unreachable = result && !result.reachable ? t('reason.delivery.PREVIEW_UNREACHABLE') : undefined
 
@@ -268,13 +297,12 @@ function ScreenshotFields({
   jobId: string
   uploads: HandoverScreenshot[]
   value: Evidence
-  onChange: (next: Evidence) => void
+  onChange: (update: EvidenceUpdate) => void
 }) {
   const toasts = useToasts()
   const add = useAddHandoverScreenshot(jobId)
   const remove = useRemoveHandoverScreenshot(jobId)
   const input = useRef<HTMLInputElement>(null)
-  const set = (next: Partial<Evidence>) => onChange({ ...value, ...next })
 
   return (
     <div className="flex flex-col gap-2">
@@ -291,13 +319,15 @@ function ScreenshotFields({
                   aria-label={t('screen.handover.preview.includeScreenshot', { name: upload.fileName })}
                   checked={included}
                   disabled={!included && value.screenshotIds.length >= MAX_SCREENSHOTS}
-                  onChange={(event) =>
-                    set({
-                      screenshotIds: event.target.checked
-                        ? [...value.screenshotIds, upload.fileId]
-                        : value.screenshotIds.filter((id) => id !== upload.fileId),
-                    })
-                  }
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    onChange((prev) => ({
+                      ...prev,
+                      screenshotIds: checked
+                        ? [...prev.screenshotIds, upload.fileId]
+                        : prev.screenshotIds.filter((id) => id !== upload.fileId),
+                    }))
+                  }}
                 />
                 <img src={`/api/v1/files/${upload.fileId}`} alt="" className="size-10 rounded border border-border object-cover" />
                 <span className="min-w-0 flex-1 break-all">{upload.fileName}</span>
@@ -309,7 +339,11 @@ function ScreenshotFields({
                   disabled={remove.isPending}
                   onClick={() =>
                     remove.mutate(upload.fileId, {
-                      onSuccess: () => set({ screenshotIds: value.screenshotIds.filter((id) => id !== upload.fileId) }),
+                      onSuccess: () =>
+                        onChange((prev) => ({
+                          ...prev,
+                          screenshotIds: prev.screenshotIds.filter((id) => id !== upload.fileId),
+                        })),
                       onError: (error) => toasts.error(problemMessage(error, { module: 'delivery' }).text),
                     })
                   }
@@ -335,11 +369,12 @@ function ScreenshotFields({
             return
           }
           add.mutate(file, {
-            onSuccess: (upload) => {
-              if (value.screenshotIds.length < MAX_SCREENSHOTS) {
-                set({ screenshotIds: [...value.screenshotIds, upload.fileId] })
-              }
-            },
+            onSuccess: (upload) =>
+              onChange((prev) =>
+                prev.screenshotIds.length < MAX_SCREENSHOTS
+                  ? { ...prev, screenshotIds: [...prev.screenshotIds, upload.fileId] }
+                  : prev,
+              ),
             onError: (error) => toasts.error(problemMessage(error, { module: 'delivery' }).text),
           })
         }}

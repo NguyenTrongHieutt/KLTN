@@ -17,8 +17,9 @@
 -- Handovers.Pending serialised it: every stored draft loses recordingUrl and gains links, the recording as that same
 -- VIDEO link, so a draft written before this story reads back with the links it meant.
 -- Personal data: none new. A link is what the Mentor wrote on the handover, like its notes; it names no account.
--- Retirement and Product deletion delete the links with what each handover said, and the Mentor's export lists the
--- links of the handovers they made (DeliveryPersonalData).
+-- Retirement and Product deletion delete the links with what each handover said, and now also clear the preview
+-- link, its check time and the no-preview reason the Mentor wrote, which the runtime role may therefore update; the
+-- Mentor's export lists the links, the preview link and the reason of the handovers they made (DeliveryPersonalData).
 
 CREATE TABLE delivery.handover_link
 (
@@ -51,3 +52,5 @@ SET draft = (draft - 'recordingUrl') || jsonb_build_object('links',
 WHERE jsonb_typeof(draft) = 'object';
 
 GRANT SELECT, INSERT, DELETE ON delivery.handover_link TO ${runtime_role};
+
+GRANT UPDATE (preview_url, preview_checked_at, no_preview_reason) ON delivery.handover TO ${runtime_role};

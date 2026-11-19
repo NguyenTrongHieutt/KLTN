@@ -133,7 +133,7 @@ class HandoverController {
 	 * One link of "Gửi bàn giao" (D3, Story 24.3): {@code https} only, as the preview link, with a short label.
 	 * @param label the Mentor's own words, stored as written
 	 */
-	record HandoverLinkRequest(@NotNull Handovers.Link.Kind kind,
+	record HandoverEvidenceLinkRequest(@NotNull Handovers.Link.Kind kind,
 			@NotNull @Size(max = Handovers.MAX_LINK_URL) @Pattern(regexp = Handovers.LINK_URL_PATTERN) String url,
 			@NotBlank @Size(max = Handovers.MAX_LINK_LABEL) String label) {
 	}
@@ -207,7 +207,7 @@ class HandoverController {
 			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria, @Nullable Resolution sensitive,
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String previewUrl,
 			@Nullable @Size(max = 500) String noPreviewReason,
-			@Nullable @Size(max = 100) List<@Valid @NotNull HandoverLinkRequest> links,
+			@Nullable @Size(max = 100) List<@Valid @NotNull HandoverEvidenceLinkRequest> links,
 			@Nullable @Size(max = HandoverScreenshots.MAX_PENDING) List<@NotNull UUID> screenshotIds,
 			@Nullable @Pattern(regexp = Handovers.NOTICE_VERSION_PATTERN) String teamCodeNoticeVersion) {
 	}
@@ -543,9 +543,14 @@ class HandoverController {
 				preview.noPreviewReason());
 	}
 
-	/** A Mentor's link with the domain from its own text: nothing is requested to name it (AD-32, AD-35). */
+	/**
+	 * A Mentor's link with its host as typed, in ASCII, as its domain: nothing is requested to name it (AD-32, AD-35),
+	 * and no look-alike Unicode name stands in for an {@code xn--} one. A stored link always has a host; the URL
+	 * stands in only for a row no rule wrote.
+	 */
 	private static HandoverEvidenceLinkView linkView(Link link) {
-		return new HandoverEvidenceLinkView(link.kind(), link.label(), link.url(), PreviewChecks.domain(link.url()));
+		return new HandoverEvidenceLinkView(link.kind(), link.label(), link.url(),
+				Handovers.linkHost(link.url()).orElse(link.url()));
 	}
 
 	/**

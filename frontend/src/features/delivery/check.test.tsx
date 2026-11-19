@@ -243,6 +243,30 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     expect(screen.getByText('(www.loom.com)')).toBeInTheDocument()
   })
 
+  it('says why there is no preview beside the recording that shows the change instead (Story 24.3)', { timeout: 25_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/handovers/h1': () =>
+        json(
+          report({
+            assessment: false,
+            preview: { noPreviewReason: 'Ứng dụng chỉ chạy trên máy của quán' },
+            links: [
+              { kind: 'VIDEO', label: 'Quay lại thao tác', url: 'https://www.loom.com/share/abc', domain: 'www.loom.com' },
+            ],
+          }),
+        ),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    const recording = await screen.findByRole('link', { name: /Quay lại thao tác/ })
+    const howTo = recording.closest('div')!
+    expect(within(howTo).getByText('Cách kiểm tra')).toBeInTheDocument()
+    expect(within(howTo).getByText('Lý do không có bản xem thử')).toBeInTheDocument()
+    expect(within(howTo).getByText('Ứng dụng chỉ chạy trên máy của quán')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Mở bản xem thử/ })).toBeNull()
+  })
+
   it('explains a Stale answer when an acceptance merge voided the handover meanwhile (UX-DR26)', { timeout: 25_000 }, async () => {
     const user = userEvent.setup()
     window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))

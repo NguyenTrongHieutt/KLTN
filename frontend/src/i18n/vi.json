@@ -2699,6 +2699,7 @@
         "kindDOCUMENT": "Tài liệu",
         "label": "Tên liên kết",
         "url": "Đường dẫn (https)",
+        "urlInvalid": "Hãy dán đường dẫn đầy đủ bắt đầu bằng https://.",
         "domain": "Tên miền: {domain}",
         "remove": "Xóa",
         "removeRow": "Xóa liên kết {n}",

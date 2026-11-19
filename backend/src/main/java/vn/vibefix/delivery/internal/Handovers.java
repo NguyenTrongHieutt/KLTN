@@ -1,5 +1,7 @@
 package vn.vibefix.delivery.internal;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -10,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -395,14 +398,35 @@ class Handovers {
 	}
 
 	/**
-	 * A link as {@code delivery.handover_link} takes it; the request's own validation refuses the same, so this
-	 * guards only a caller that skipped it. Its text is never fetched and never passes FR-47 (D5).
+	 * A link as {@code delivery.handover_link} takes it and as its reader can trust it: the request's pattern, then
+	 * the URL parsed as {@link URI} with scheme {@code https}, a host, and no user info. The pattern's {@code \S}
+	 * lets through what the URI refuses -- a backslash, an ideographic space, a control character -- and a URL whose
+	 * host is not the one a reader would see, so this refuses those before anything is copied or written. Its text is
+	 * never fetched and never passes FR-47 (D5).
 	 */
 	private static void requireWellFormed(Link link) {
 		if (link.kind() == null || link.url() == null || link.label() == null || link.url().length() > MAX_LINK_URL
 				|| !LINK_URL.matcher(link.url()).matches() || link.label().isBlank()
-				|| link.label().length() > MAX_LINK_LABEL) {
+				|| link.label().length() > MAX_LINK_LABEL || linkHost(link.url()).isEmpty()) {
 			throw new ApiException(ErrorCode.VALIDATION);
+		}
+	}
+
+	/**
+	 * A link's host as it is typed, lowercased ASCII, which the report shows as its domain (AD-35): read from the
+	 * URL's text alone, and never turned into Unicode, so a look-alike name shows as the {@code xn--} name it is.
+	 * @return empty for a URL that is not {@code https}, has no host, carries user info, or does not parse
+	 */
+	static Optional<String> linkHost(String url) {
+		try {
+			URI uri = new URI(url);
+			if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getRawUserInfo() != null) {
+				return Optional.empty();
+			}
+			return Optional.of(uri.getHost().toLowerCase(Locale.ROOT));
+		}
+		catch (URISyntaxException refused) {
+			return Optional.empty();
 		}
 	}
 

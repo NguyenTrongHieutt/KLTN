@@ -35,6 +35,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
+import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
 
@@ -59,6 +60,10 @@ class HandoverIT extends IntegrationTest {
 
 	@Autowired
 	private DeliveryListeners listeners;
+
+	/** FR-47's check, which still runs on criterion notes and must never run on a link (D5). */
+	@Autowired
+	private SensitiveText sensitive;
 
 	private UUID lan;
 
@@ -192,7 +197,9 @@ class HandoverIT extends IntegrationTest {
 	/**
 	 * Story 24.3 (D3, FR-32): at most ten links, each {@code https}, of a known kind, with a label of 1 to 80
 	 * characters stored as written. The eleventh is refused by the rule that names it, and a malformed link by the
-	 * request's own validation; nothing is written either way. Ten links reach the report in the Mentor's order.
+	 * request's own validation or by the URL's parse -- one whose host is not the one a reader would see, or which
+	 * the table's own check would refuse after a Code Job's copy started; nothing is written either way. Ten links
+	 * reach the report in the Mentor's order, and the label is never passed through FR-47's check (D5).
 	 */
 	@Test
 	void aHandoverTakesTenWellFormedLinksInTheMentorsOrder() throws Exception {
@@ -210,7 +217,16 @@ class HandoverIT extends IntegrationTest {
 				link("DOCUMENT", "https://docs.example.test/bao-cao", " "),
 				link("DOCUMENT", "https://docs.example.test/bao-cao", "a".repeat(81)),
 				link("AUDIO", "https://docs.example.test/bao-cao", "Báo cáo"),
-				"{\"kind\":\"DOCUMENT\",\"label\":\"Báo cáo\"}")) {
+				"{\"kind\":\"DOCUMENT\",\"label\":\"Báo cáo\"}",
+				// A browser opens evil.example; a hand-split authority would show docs.google.com.
+				link("DOCUMENT", "https://evil.example\\\\@docs.google.com/bao-cao", "Báo cáo"),
+				// User info hides the real host from a reader; built at run time, so no credential shape sits here.
+				link("DOCUMENT", "https://mentor" + ":" + "khoa@docs.example.test/bao-cao", "Báo cáo"),
+				// Java's \S takes an ideographic space and NEL; the table's CHECK and the URI parse do not.
+				link("DOCUMENT", "https://docs.example.test/bao\u3000cao", "Báo cáo"),
+				link("DOCUMENT", "https://docs.example.test/bao\u0085cao", "Báo cáo"),
+				// No host a reader can be shown: a name with an underscore parses as no host at all.
+				link("DOCUMENT", "https://my_host.example/bao-cao", "Báo cáo"))) {
 			this.links = "[" + REPORT + "," + bad + "]";
 			handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION"))
@@ -218,10 +234,17 @@ class HandoverIT extends IntegrationTest {
 		}
 		assertThat(count("SELECT count(*) FROM delivery.handover")).as("nothing was written").isZero();
 
-		// The label is stored as written: no text check runs on it (D5), and its length is the limit's own.
-		String label = "Biên bản " + "a".repeat(71);
-		List<String> ten = new ArrayList<>(eleven.subList(0, 9));
-		ten.add(link("DOCUMENT", "https://docs.example.test/bien-ban", label));
+		// D5: the label and the URL are stored as written, though FR-47's check would flag both today; the label is the
+		// limit's own 80 characters. The text is built at run time, so no credential shape sits in this source.
+		String token = fakeToken();
+		String label = "Biên bản " + "a".repeat(80 - 9 - 1 - token.length()) + " " + token;
+		String url = "https://docs.example.test/bien-ban/" + token;
+		assertThat(label).hasSize(80);
+		assertThat(this.sensitive.check(label).found()).as("FR-47's check matches the label").isTrue();
+		assertThat(this.sensitive.check(url).found()).as("and the URL").isTrue();
+		List<String> ten = new ArrayList<>(eleven.subList(0, 8));
+		ten.add(link("VIDEO", "https://xn--bcher-kva.example/video", "Video thao tác"));
+		ten.add(link("DOCUMENT", url, label));
 		this.links = "[" + String.join(",", ten) + "]";
 		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isAccepted())
 			.andReturn().getResponse().getContentAsString(), "$.handoverId");
@@ -229,9 +252,14 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.links.length()").value(10))
 			.andExpect(jsonPath("$.links[0].label").value("Liên kết 1"))
 			.andExpect(jsonPath("$.links[1].kind").value("VIDEO"))
-			.andExpect(jsonPath("$.links[8].url").value("https://docs.example.test/lien-ket-9"))
+			.andExpect(jsonPath("$.links[7].url").value("https://docs.example.test/lien-ket-8"))
+			// AD-35: the host as typed, in ASCII, never the Unicode look-alike it encodes.
+			.andExpect(jsonPath("$.links[8].domain").value("xn--bcher-kva.example"))
 			.andExpect(jsonPath("$.links[9].label").value(label))
+			.andExpect(jsonPath("$.links[9].url").value(url))
 			.andExpect(jsonPath("$.links[9].domain").value("docs.example.test"));
+		assertThat(this.jdbc.sql("SELECT label || ' ' || url FROM delivery.handover_link WHERE position = 9")
+			.query(String.class).single()).as("stored unmasked").isEqualTo(label + " " + url);
 		assertThat(this.jdbc.sql("SELECT string_agg(position::text, ',' ORDER BY position) FROM delivery.handover_link")
 			.query(String.class).single()).isEqualTo("0,1,2,3,4,5,6,7,8,9");
 	}

@@ -12832,26 +12832,7 @@
         },
         "required" : [ "releaseVnd", "revisionAllowed" ]
       },
-      "HandoverEvidenceLinkView" : {
-        "type" : "object",
-        "properties" : {
-          "domain" : {
-            "type" : "string"
-          },
-          "kind" : {
-            "type" : "string",
-            "enum" : [ "VIDEO", "DOCUMENT" ]
-          },
-          "label" : {
-            "type" : "string"
-          },
-          "url" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "domain", "kind", "label", "url" ]
-      },
-      "HandoverLinkRequest" : {
+      "HandoverEvidenceLinkRequest" : {
         "type" : "object",
         "properties" : {
           "kind" : {
@@ -12871,6 +12852,25 @@
           }
         },
         "required" : [ "kind", "label", "url" ]
+      },
+      "HandoverEvidenceLinkView" : {
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "VIDEO", "DOCUMENT" ]
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "domain", "kind", "label", "url" ]
       },
       "HandoverLinkView" : {
         "type" : "object",
@@ -13008,7 +13008,7 @@
           "links" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/HandoverLinkRequest"
+              "$ref" : "#/components/schemas/HandoverEvidenceLinkRequest"
             },
             "maxItems" : 100,
             "minItems" : 0

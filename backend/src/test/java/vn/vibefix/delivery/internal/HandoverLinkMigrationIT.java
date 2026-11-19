@@ -101,12 +101,17 @@ class HandoverLinkMigrationIT {
 		assertThat(rows(db, SHAPE.formatted("handover_screenshot"))).isEqualTo(screenshotShape);
 
 		// The checks, each on its own: a link the handover's rules would refuse is refused by the table too.
-		for (String bad : List.of("10, 'VIDEO', 'https://a.example', 'Video'", "1, 'AUDIO', 'https://a.example', 'Video'",
-				"1, 'VIDEO', 'http://a.example', 'Video'", "1, 'VIDEO', 'https://a.example/có khoảng trắng', 'Video'",
-				"1, 'VIDEO', 'https://a.example/" + "a".repeat(483) + "', 'Video'","1, 'DOCUMENT', 'https://a.example', ''",
-				"1, 'DOCUMENT', 'https://a.example', '" + "a".repeat(81) + "'")) {
+		Map<String, String> checks = Map.of("10, 'VIDEO', 'https://a.example', 'Video'", "handover_link_position_check",
+				"1, 'AUDIO', 'https://a.example', 'Video'", "handover_link_kind_check",
+				"1, 'VIDEO', 'http://a.example', 'Video'", "handover_link_url_check",
+				"1, 'VIDEO', 'https://a.example/có khoảng trắng', 'Video'", "handover_link_url_check",
+				"1, 'VIDEO', 'https://a.example/" + "a".repeat(483) + "', 'Video'", "handover_link_url_check",
+				"1, 'DOCUMENT', 'https://a.example', ''", "handover_link_label_check",
+				"1, 'DOCUMENT', 'https://a.example', '" + "a".repeat(81) + "'", "handover_link_label_check");
+		for (Map.Entry<String, String> bad : checks.entrySet()) {
 			assertThat(refused(db, "INSERT INTO delivery.handover_link (handover_id, position, kind, url, label) VALUES ('"
-					+ RECORDED + "', " + bad + ")")).as(bad).contains("handover_link");
+					+ RECORDED + "', " + bad.getKey() + ")")).as(bad.getKey())
+				.contains("violates check constraint \"" + bad.getValue() + "\"");
 		}
 		assertThat(refused(db, "INSERT INTO delivery.handover_link (handover_id, position, kind, url, label) VALUES ('"
 				+ UUID.randomUUID() + "', 0, 'DOCUMENT', 'https://docs.example/bao-cao', 'Báo cáo')"))
@@ -125,6 +130,13 @@ class HandoverLinkMigrationIT {
 				    AS privilege WHERE has_table_privilege('%s', 'delivery.handover_link', privilege)
 				""".formatted(PostgresTestDatabase.APP))).as("a link is written once and deleted, never edited")
 			.containsExactly("DELETE,INSERT,SELECT");
+		assertThat(rows(db, """
+				SELECT string_agg(name, ',' ORDER BY name) FROM unnest(ARRAY['preview_url', 'preview_checked_at',
+				    'no_preview_reason', 'milestone_title']) AS name
+				WHERE has_column_privilege('%s', 'delivery.handover', name, 'UPDATE')
+				""".formatted(PostgresTestDatabase.APP)))
+			.as("retirement and deletion clear the preview and the reason, and nothing else of what the row names")
+			.containsExactly("no_preview_reason,preview_checked_at,preview_url");
 
 		assertThat(rows(db, "SELECT id || ':' || (draft ? 'recordingUrl') || ':' || (draft -> 'links')::text"
 				+ " FROM delivery.handover_submission ORDER BY id"))

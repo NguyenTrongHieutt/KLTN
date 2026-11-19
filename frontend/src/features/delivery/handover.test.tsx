@@ -512,33 +512,126 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     const add = screen.getByRole('button', { name: 'Thêm liên kết' })
     await user.click(add)
     const row = screen.getByRole('group', { name: 'Liên kết 1' })
+    // The new row's first field takes focus, so a keyboard user carries on in it.
+    expect(within(row).getByRole('combobox', { name: 'Loại' })).toHaveFocus()
     expect(within(row).getByRole('combobox', { name: 'Loại' })).toHaveValue('VIDEO')
     expect(send).toBeDisabled()
     await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), 'Video thao tác')
     await user.type(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'http://youtu.be/dat-ban')
     expect(within(row).queryByText(/^Tên miền:/)).toBeNull()
+    // A URL the server would refuse says why, in place of the domain.
+    expect(within(row).getByText('Hãy dán đường dẫn đầy đủ bắt đầu bằng https://.')).toBeInTheDocument()
+    expect(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' })).toHaveAttribute('aria-invalid', 'true')
     expect(send).toBeDisabled()
     const url = within(row).getByRole('textbox', { name: 'Đường dẫn (https)' })
     await user.clear(url)
     await user.type(url, 'https://YouTu.be:443/dat-ban?t=3')
     expect(within(row).getByText('Tên miền: youtu.be')).toBeInTheDocument()
+    expect(within(row).queryByText('Hãy dán đường dẫn đầy đủ bắt đầu bằng https://.')).toBeNull()
     expect(send).toBeEnabled()
 
     for (let n = 2; n <= 10; n++) {
       await user.click(add)
     }
     expect(screen.getAllByRole('group', { name: /^Liên kết \d+$/ })).toHaveLength(10)
+    expect(within(screen.getByRole('group', { name: 'Liên kết 10' })).getByRole('combobox', { name: 'Loại' })).toHaveFocus()
     expect(add).toBeDisabled()
     expect(screen.getByText('Đã đủ 10 liên kết.')).toBeInTheDocument()
     expect(send).toBeDisabled()
     for (let n = 10; n >= 2; n--) {
       await user.click(screen.getByRole('button', { name: `Xóa liên kết ${n}` }))
+      // The removed row's button is gone, so focus goes to "Thêm liên kết", never to the page itself.
+      expect(add).toHaveFocus()
     }
     expect(add).toBeEnabled()
     expect(screen.queryByText('Đã đủ 10 liên kết.')).toBeNull()
     expect(send).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Xóa liên kết 1' }))
     expect(screen.getByText('Chưa có liên kết nào.')).toBeInTheDocument()
+    expect(add).toHaveFocus()
+  })
+
+  it('keeps a link typed while an image uploads when the upload answers (Story 24.3)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let uploaded = false
+    let answer: (response: Response) => void = () => undefined
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () =>
+        json(
+          preflight({
+            assessment: false,
+            screenshots: uploaded ? [{ fileId: 'f9', fileName: 'dat-ban.png', size: 1200 }] : [],
+          }),
+        ),
+      // The upload's answer is held back until the Mentor has typed.
+      'POST /api/v1/boards/j1/handovers/screenshots': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('button', { name: 'Thêm liên kết' }))
+    const row = screen.getByRole('group', { name: 'Liên kết 1' })
+    await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), 'Video')
+    const file = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(file, new File(['png'], 'dat-ban.png', { type: 'image/png' }))
+    await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), ' thao tác')
+    await user.type(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'https://youtu.be/dat-ban')
+
+    uploaded = true
+    answer(json({ fileId: 'f9', fileName: 'dat-ban.png', size: 1200 }, 201))
+
+    expect(await screen.findByRole('checkbox', { name: 'Gửi kèm ảnh dat-ban.png' })).toBeChecked()
+    expect(within(row).getByRole('textbox', { name: 'Tên liên kết' })).toHaveValue('Video thao tác')
+    expect(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' })).toHaveValue('https://youtu.be/dat-ban')
+  })
+
+  it('sends a Code Job’s preview with its links in the order added (Story 24.3)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let sent: Record<string, unknown> | undefined
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight({ assessment: false, previewRequired: true })),
+      'POST /api/v1/boards/j1/handovers/preview-check': () =>
+        json({ reachable: true, domain: 'so-dat-ban.vercel.app', reason: null }),
+      'POST /api/v1/boards/j1/handovers': async (request) => {
+        sent = (await request.json()) as Record<string, unknown>
+        return json(submission(), 202)
+      },
+      'GET /api/v1/boards/j1/handovers/submission': () => json(submission()),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
+    await user.type(screen.getByRole('textbox', { name: 'Đường dẫn bản xem thử (https)' }), 'https://so-dat-ban.vercel.app')
+    await user.click(screen.getByRole('button', { name: 'Kiểm tra đường dẫn' }))
+    expect(await screen.findByText('Bản xem thử phản hồi (so-dat-ban.vercel.app).')).toBeInTheDocument()
+
+    const add = screen.getByRole('button', { name: 'Thêm liên kết' })
+    await user.click(add)
+    const video = screen.getByRole('group', { name: 'Liên kết 1' })
+    await user.type(within(video).getByRole('textbox', { name: 'Tên liên kết' }), 'Video thao tác')
+    await user.type(within(video).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'https://youtu.be/dat-ban')
+    await user.click(add)
+    const notes = screen.getByRole('group', { name: 'Liên kết 2' })
+    await user.selectOptions(within(notes).getByRole('combobox', { name: 'Loại' }), 'DOCUMENT')
+    await user.type(within(notes).getByRole('textbox', { name: 'Tên liên kết' }), 'Ghi chú phát hành')
+    await user.type(within(notes).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'https://docs.google.com/document/d/ghi-chu')
+    await user.click(teamCode())
+    await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
+
+    await waitFor(() => expect(sent).toBeDefined())
+    expect(sent).toMatchObject({
+      previewUrl: 'https://so-dat-ban.vercel.app',
+      links: [
+        { kind: 'VIDEO', label: 'Video thao tác', url: 'https://youtu.be/dat-ban' },
+        { kind: 'DOCUMENT', label: 'Ghi chú phát hành', url: 'https://docs.google.com/document/d/ghi-chu' },
+      ],
+    })
+    expect(sent).not.toHaveProperty('noPreviewReason')
   })
 
   it('gives the Customer the reason, the recording link and the report link of a handover with no preview (Story 24.3)', { timeout: 20_000 }, async () => {

@@ -199,8 +199,9 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
             ))}
           </ol>
           {/*
-            UX-DR33: the preview next to each step's "Cách kiểm tra", with N-11, and every link of the handover with its
-            kind, label and domain -- an Assessment Job's report among them (Story 24.3).
+            UX-DR33: the preview next to each step's "Cách kiểm tra", with N-11, or why there is none -- the recording
+            among the links then shows the change instead -- and every link of the handover with its kind, label and
+            domain, an Assessment Job's report among them (Story 24.3).
           */}
           {report.preview.preview && (
             <OutsideLink
@@ -208,6 +209,12 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               domain={report.preview.preview.domain}
               label={t('screen.handover.preview.open')}
             />
+          )}
+          {report.preview.noPreviewReason && (
+            <p className="flex flex-col gap-0.5">
+              <span className="text-label">{t('screen.handover.preview.reasonLabel')}</span>
+              <span className="break-words whitespace-pre-wrap">{report.preview.noPreviewReason}</span>
+            </p>
           )}
           <HandoverLinkList links={report.links} />
         </div>
