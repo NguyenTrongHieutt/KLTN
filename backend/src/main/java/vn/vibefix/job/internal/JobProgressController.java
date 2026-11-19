@@ -38,7 +38,7 @@ import vn.vibefix.shared.Gate;
 
 /**
  * JOB-1's progress (FR-28, AD-33, UX-DR68), under {@code /api/v1/boards/{boardId}} like the Job's other
- * Active-phase calls (a Board's ID is its Job's): per Milestone of the Agreement in force its live state,
+ * Active-phase calls (the path carries the Job's ID): per Milestone of the Agreement in force its live state,
  * price and due date, and {@code assessment} (FR-10), which tells the page to show N-12 and the team's link
  * to the Job's private read-only copy -- a link {@code repo}'s setup endpoint serves, never this one (R6,
  * Story 23.11b).

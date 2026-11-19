@@ -24,7 +24,7 @@ import { ProgressOverview } from '@/features/job/progress/ProgressOverview'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { SetupTracker } from '@/features/job/SetupTracker'
-import { hasBoard } from '@/features/job/jobState'
+import { hasStarted } from '@/features/job/jobState'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text
@@ -91,7 +91,7 @@ function Overview({ job }: { job: MentorJob }) {
             </section>
           </aside>
         </div>
-      ) : hasBoard(job.state) || job.state === 'CANCELLED' ? (
+      ) : hasStarted(job.state) || job.state === 'CANCELLED' ? (
         <>
           {/* R6: an Assessment Job's read invitations are still out after J7, so the tracker stays (Story 23.11b). */}
           <SetupTracker jobId={job.id} />

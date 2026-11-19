@@ -37,7 +37,7 @@ import vn.vibefix.shared.Gate;
  * ({@code matching}, {@link JobRecruitmentController}), and nothing here removes a member who signed (FR-75). The Customer
  * and everyone else find nothing; the Customer reads the active members' GitHub usernames on its own Agreement view.
  * <p>
- * For a Crew member (FR-77, FR-82, Story 21.6): JOB-1's header and duties before the Board exists ({@code crew/me}), and
+ * For a Crew member (FR-77, FR-82, Story 21.6): JOB-1's header and duties from their signature on ({@code crew/me}), and
  * "Rời công việc" ({@code crew/leave}), which only the member can do and which nobody undoes.
  */
 @RestController
@@ -65,7 +65,7 @@ class CrewController {
 	}
 
 	/**
-	 * JOB-1 as an {@code ACTIVE} or a former member reads it, before the Board too (FR-77).
+	 * JOB-1 as an {@code ACTIVE} or a former member reads it, from their signature on (FR-77).
 	 * @param former the member's row was released; only their window stays theirs (AD-41)
 	 * @param canLeave an {@code ACTIVE} member of a Job in Agreement, Starting or Active
 	 * @param codeJob a Code Job: leaving ends write access to its Working Repository

@@ -25,9 +25,8 @@ type Tab = (typeof TABS)[number]
 /**
  * ADM-4's Evidence Package (FR-53, FR-63, AD-20, AD-31, UX-DR58): one tab per FR-53 source, read only when
  * it opens. The Agreement versions, the criteria in each Delivery Report, the approvals and revision
- * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat and the Work
- * Items from `chat` and `work` under the assignee's grant. Every view is audited, and the
- * note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
+ * requests, the payments, the Drift Warnings, and the Audit Log come from `dispute`; the Job Chat from `chat` under the assignee's
+ * grant. Every view is audited, and the note says so. Never the Crew Chat, the split versions, or private feedback. A decided Dispute also shows
  * `DecisionEvidence`, its evidence snapshot.
  */
 export function DisputeEvidence({ data }: { data: AdminDispute }) {

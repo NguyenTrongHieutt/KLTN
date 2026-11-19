@@ -8,9 +8,9 @@
 -- work.work_item_returned leave every Mentor's and Crew member's list, and the to-dos work.review_work_item,
 -- work.fix_returned_item and work.reassign_work_items leave every list of things to do. Nothing replaces them,
 -- because no Work Item can be assigned, submitted, reviewed, returned or reassigned from now on: the Mentor plans
--- and reviews in tools of their own, and what the Customer sees is the Milestone Handover. There is no email
--- template to delete -- the three in-app notices were in-app only and work.work_item_returned's email text goes
--- with the type in the catalog.
+-- and reviews in tools of their own, and what the Customer sees is the Milestone Handover. Three of the notices
+-- were in-app only; work.work_item_returned had an email body, so its template file goes with the type in the
+-- catalog.
 --
 -- What stays: the audit entries of every Work Item action (AD-8), and every notification and to-do of another type.
 -- Personal data: rows deleted; nothing new is kept.

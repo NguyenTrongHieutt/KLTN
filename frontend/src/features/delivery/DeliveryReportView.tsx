@@ -11,7 +11,7 @@ import { SensitiveChangeList } from './SensitiveChangeList'
 /**
  * The Delivery Report (FR-10, FR-32, AD-33, UX-DR53): per criterion the Mentor's own statement
  * "Người hướng dẫn tự nhận xét: Đạt / Chưa đạt", never counted as a criterion done, their note, and
- * "Cách kiểm tra"; the notes on Work Items that were not done for the Mentor and the Crew only. An
+ * "Cách kiểm tra". An
  * Assessment Job's criteria are the Assessment Report's sections, which is its whole deliverable until
  * Story 24.3 adds the Mentor's own document link (Story 24.1). A Code Job's report adds the
  * Sensitive change list and the collapsed "Chi tiết kỹ thuật"

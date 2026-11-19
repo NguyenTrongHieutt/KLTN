@@ -15,7 +15,7 @@ export interface SensitiveMatch {
 
 /**
  * FR-47 (AD-18): the masked matches, then "Che và lưu" stores the masked text and "Sửa lại" goes back. It
- * serves the handover form, the guided check, and the Board's fields, notes, link labels and text files alike.
+ * serves the handover form and the Customer's guided check alike.
  */
 export function SensitiveDialog({
   matches,

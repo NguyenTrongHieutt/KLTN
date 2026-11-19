@@ -31,11 +31,12 @@ import vn.vibefix.shared.Gate;
 
 /**
  * ADM-6's "Báo cáo vi phạm" tab (FR-69, FR-60, AD-20, UX-DR16): the queue, "Nhận xử lý", which for a chat
- * message or a Work Item note opens a grant on that one item (read through {@code chat}'s and {@code work}'s
- * endpoints, audited there), and the assignee's decision: hide through FR-60, an action taken elsewhere, or
- * dismissal, each with the outcome the reporter reads. The queue shows titles and names, never a message's or
- * a note's text. A report's detail holds a recruitment note as it read at filing, since its Mentor can rewrite it:
- * it was public text, so it takes no grant and no audited read.
+ * message opens a grant on that one message (read through {@code chat}'s endpoint, audited there), and the
+ * assignee's decision: hide through FR-60, an action taken elsewhere, or dismissal, each with the outcome the
+ * reporter reads. The queue shows titles and names, never a message's text. A report's detail holds a recruitment
+ * note as it read at filing, since its Mentor can rewrite it: it was public text, so it takes no grant and no
+ * audited read. Reports filed on a Work Item note before Story 24.2 retired the Board stay in the queue, labelled
+ * by their kind; nothing hides or reads such an item any more.
  */
 @RestController
 @RequestMapping("/api/v1/admin/abuse-reports")
@@ -50,7 +51,7 @@ class AdminAbuseReportController {
 	/**
 	 * @param authorId who wrote the item, or the reported user, for ADM-2; {@code null} once erased
 	 * @param hideable FR-60 hides this kind, so "Ẩn nội dung" is offered
-	 * @param itemReadable the viewer is the assignee and reads the reported message or Work Item note now
+	 * @param itemReadable the viewer is the assignee and reads the reported message now
 	 * @param reportedText a recruitment note as it read at filing, for any Administrator; {@code null} for every other
 	 * kind, and once its Mentor is erased
 	 */

@@ -149,7 +149,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
   /**
    * R6 (Story 23.11b): an Assessment Job's team reads its private read-only copy, never the Customer's Source
    * Repository, so the page links each viewer to their own row of the Setup -- the pending invitation here -- under
-   * N-12. The copy's name never comes from `work`, which cannot ask `repo` for it.
+   * N-12.
    */
   it('links the Mentor of an Assessment Job to their own invitation with N-12 (FR-10)', { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {

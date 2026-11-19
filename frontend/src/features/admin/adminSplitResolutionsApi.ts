@@ -102,7 +102,6 @@ export function useSplitEvidenceVersions(resolutionId: string) {
   })
 }
 
-/** "Hạng mục": each party's Work Items of the Milestone with their histories. */
 /** "Commit": the Handover Commits' authors by GitHub numeric ID, matched to the parties. */
 export function useSplitEvidenceCommits(resolutionId: string) {
   return useQuery({

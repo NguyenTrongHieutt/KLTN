@@ -33,7 +33,7 @@ import {
   type ConfirmedAgreement,
 } from './agreementApi'
 import { draftDays, inOrder, moved } from './reviewTargets'
-import { hasBoard } from '@/features/job/jobState'
+import { hasStarted } from '@/features/job/jobState'
 
 /**
  * The Customer's JOB-6 (FR-16, FR-17, UX-DR34): the shared versions with "Góp ý", "Lên"/"Xuống", the
@@ -465,7 +465,7 @@ function CustomerHeader({ job }: { job: Job }) {
         chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
         agreement
         payment={job.agreementConfirmed}
-        handover={hasBoard(job.state)}
+        handover={hasStarted(job.state)}
       />
     </JobHeader>
   )

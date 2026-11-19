@@ -2,12 +2,14 @@ package vn.vibefix;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +25,10 @@ import tools.jackson.databind.json.JsonMapper;
  * carried, the retired read scopes ({@code WORK_ITEMS}, {@code WORK_ITEM_NOTES}, {@code ATTACHMENTS}), the refusal
  * {@code WORK_ITEMS_NOT_DONE}, ADM-9's {@code workItemReviews} group, the Board's own routes ({@code /bang},
  * {@code /work-items}) or the Portfolio facts it fed ({@code workItemsApproved}, {@code reviewsWritten}) -- in
- * {@code backend/src/main} outside its Flyway history, or in {@code frontend/src} outside its tests.
+ * {@code backend/src/main} outside its Flyway history, or in {@code frontend/src} outside its tests. Prose counts:
+ * a javadoc, a comment or an email that still names the module, the Board ("bảng công việc") or a Work Item
+ * ("hạng mục") describes something that is not there, and the words are how the next reader learns what the code
+ * does.
  * <p>
  * One name keeps its place on purpose: the URL prefix {@code /api/v1/boards/{boardId}}, which every Job-scoped
  * endpoint of several modules still uses and which names the Job, never a Board. Story 24.2a re-homed JOB-1's
@@ -63,7 +68,12 @@ class RetiredBoardTest {
 			Map.entry("the Board's notices and to-dos", Pattern.compile("\\bwork\\.(?:work_item_assigned|review_requested"
 					+ "|work_item_approved|work_item_returned|review_work_item|reassign_work_items|fix_returned_item)\\b")),
 			Map.entry("the module's refusals", Pattern.compile("reason\\.work\\b")),
-			Map.entry("the Board's screens", Pattern.compile("screen\\.(?:board|workItem|attachment|workload)\\b")));
+			Map.entry("the Board's screens", Pattern.compile("screen\\.(?:board|workItem|attachment|workload)\\b")),
+			Map.entry("the module, in prose", Pattern.compile("\\{@code work}|`work`")),
+			Map.entry("the Board, in the Vietnamese a person reads", Pattern.compile("[Bb]ảng công việc")),
+			Map.entry("a Work Item, in the Vietnamese a person reads", Pattern.compile("[Hh]ạng mục")),
+			Map.entry("the Board's state helper", Pattern.compile("\\b(?:hasBoard|BOARD_STATES)\\b")),
+			Map.entry("the Attachment pre-check", Pattern.compile("\\bprecheckAttachment\\b")));
 
 	@Test
 	void nothingLiveNamesTheBoardAWorkItemOrARetiredReadScope() {
@@ -99,6 +109,20 @@ class RetiredBoardTest {
 		assertThat(vi.at("/screen/progress/externalLink").asString()).isNotEmpty();
 	}
 
+	/**
+	 * The module's email templates go with its notification types. A template is addressed by its type's name, so an
+	 * orphan is never served, never compiled and never noticed -- only its name says it is gone.
+	 */
+	@Test
+	void theEmailTemplatesHoldNothingOfTheBoard() throws Exception {
+		try (Stream<Path> templates = Files.list(BACKEND_MAIN.resolve(Path.of("resources", "templates", "email")))) {
+			assertThat(templates.map(file -> file.getFileName().toString()))
+				.as("a template of the retired module")
+				.noneMatch(name -> name.startsWith("work."))
+				.contains("job.job_started.txt");
+		}
+	}
+
 	/** Nothing may file a new Abuse Report on a Work Item note, and nothing may hide one. */
 	@Test
 	void noAbuseReportKindNamesAWorkItemNote() {
@@ -132,7 +156,13 @@ class RetiredBoardTest {
 				"grouped(counts, \"workItemReviews\", \"\"\"", "integer(rs, \"work_items_approved\")",
 				"entry.reviewsWritten ?? 0", "GET /api/v1/work-items/{workItemId}",
 				"`/cong-viec/${jobId}/bang`", "class BoardController {", "t('reason.work.NOTE_EMPTY')",
-				"t('screen.board.tab')", "'work.fix_returned_item'", "new NotificationType(\"work.review_requested\"")) {
+				"t('screen.board.tab')", "'work.fix_returned_item'", "new NotificationType(\"work.review_requested\"",
+				" * The tabs {@code chat} and {@code work} serve under the grant are audited by those modules.",
+				"The copy's name never comes from `work`",
+				"Hãy sửa theo nhận xét rồi gửi duyệt lại trên Bảng công việc.",
+				"Ai xem được bảng công việc đều đọc được nội dung này.",
+				"queryByRole('tab', { name: 'Hạng mục' })", "const BOARD_STATES = ['ACTIVE', 'CLOSING', 'CLOSED']",
+				"...(hasBoard(state)", "precheckAttachment(file)")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
 		for (String text : List.of("/api/v1/boards/{boardId}/handovers", "`/cong-viec/${jobId}/ban-giao`",
@@ -142,7 +172,9 @@ class RetiredBoardTest {
 				"AdminReadScope.CREW_CHAT", "AdminReadScope.SPLIT_VERSIONS", "DeliveryReason.CRITERION_MARK_MISSING",
 				"integer(rs, \"commits_authored\")", "entry.commitsAuthored ?? 0",
 				"screen.admin.statistics.group.acceptedMilestones", "handoverBranches.workingRepository()",
-				"the Crew work on the Product")) {
+				"the Crew work on the Product", "entry.commitsAuthored != null", "const STARTED_STATES = ['ACTIVE']",
+				"...(hasStarted(state)", "{@code workflow_dispatch}", "Phần trao đổi trên vibefix đã mở.",
+				"Ai xem được bàn giao này đều đọc được nội dung này.")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
 	}

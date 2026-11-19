@@ -16,14 +16,14 @@ import { SetupTracker } from '@/features/job/SetupTracker'
 import { useJobSplits } from '@/features/split/splitApi'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
-import { hasBoard } from '@/features/job/jobState'
+import { hasStarted } from '@/features/job/jobState'
 import { ProgressOverview } from './ProgressOverview'
 
 /**
- * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before the
- * Board too: the Job's title and Product, "Bạn là: Thành viên nhóm", the ways to its Board and
+ * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before
+ * the Job starts too: the Job's title and Product, "Bạn là: Thành viên nhóm", the ways to its handovers and its
  * Crew Chat, "Rời công việc" until Closing, the step tracker while it has anything to show (UX-DR23), and the progress
- * overview with their own Work Items and N-12. A former member, one whose lock counted as leaving included, reads
+ * overview with N-12. A former member, one whose lock counted as leaving included, reads
  * JOB-H's banner and gets their post-Job duties instead, with no way to the handovers (AD-41). "Phân chia tiền"
  * (JOB-10) shows for a party of a split, active or former: only the party's own splits answer (Story 22.2); beside
  * it, "Thanh toán" (JOB-7) leads to their own parts of this Job (Story 22.5). Anyone else, a pick not yet signed
@@ -46,9 +46,9 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
 
 function Content({ me }: { me: CrewMe }) {
   const jobId = me.jobId
-  const board = hasBoard(me.state)
-  // `job` keeps no record of J7: a Job cancelled before it has no Board, and these links then answer not-found.
-  const boardLinks = board || me.state === 'CANCELLED'
+  const started = hasStarted(me.state)
+  // `job` keeps no record of J7: a Job cancelled before it never started, and these links then answer not-found.
+  const jobLinks = started || me.state === 'CANCELLED'
   const tab = buttonVariants({ variant: 'secondary', size: 'compact' })
   const splits = useJobSplits(jobId)
   return (
@@ -62,7 +62,7 @@ function Content({ me }: { me: CrewMe }) {
         <JobRoleLine jobId={jobId} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav aria-label={t('screen.job.detail.tabs')} className="flex flex-wrap gap-2">
-            {boardLinks && !me.former && (
+            {jobLinks && !me.former && (
               <Link to={`/cong-viec/${jobId}/ban-giao`} className={tab}>
                 {t('screen.handover.tab')}
               </Link>
@@ -90,7 +90,7 @@ function Content({ me }: { me: CrewMe }) {
         <>
           {/* While Starting, and on an Assessment Job while its read invitations are out (R6, Story 23.11b). */}
           <SetupTracker jobId={jobId} />
-          {board ? (
+          {started ? (
             <ProgressOverview jobId={jobId} audience="crew" />
           ) : (
             <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>

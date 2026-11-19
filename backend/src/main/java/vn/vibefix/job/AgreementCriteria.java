@@ -8,8 +8,8 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The Acceptance Criteria of the Agreement version in force, as {@code work} seeds its backlog from them
- * (FR-22, AD-29, AD-33): the latest confirmed version, each criterion with its stable ID.
+ * The Acceptance Criteria of the Agreement version in force, as a handover marks them one by one (FR-32, AD-29,
+ * AD-33): the latest confirmed version, each criterion with its stable ID.
  */
 public interface AgreementCriteria {
 

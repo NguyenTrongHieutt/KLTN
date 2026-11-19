@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 public interface MilestoneHandovers {
 
 	/**
-	 * A Job with a Board.
+	 * A started Job: Active, Closing or Closed.
 	 * @param state the Job's state name
 	 * @param assessment an Assessment Job, whose handover is its Assessment Report (FR-10)
 	 * @param previewRequired a Job Type changes the running Product, so the handover needs a preview (FR-32)

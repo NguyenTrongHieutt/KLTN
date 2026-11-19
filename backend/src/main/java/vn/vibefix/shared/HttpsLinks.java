@@ -8,8 +8,8 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The one rule for a link a person attaches (AD-21): a Work Item's link and a bid's proof (Story 21.2) are
- * {@code https}, with a host, without user info, spaces or control characters, and at most {@value #MAX_LENGTH}
+ * The one rule for a link a person attaches (AD-21): a bid's proof (Story 21.2) is {@code https}, with a host,
+ * without user info, spaces or control characters, and at most {@value #MAX_LENGTH}
  * characters; every screen shows a link with its domain. The owning module refuses a link this rule does not keep
  * with its own reason, {@code LINK_INVALID}.
  */

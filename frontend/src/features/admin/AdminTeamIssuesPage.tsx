@@ -23,8 +23,8 @@ import { StepUpDialog } from './StepUpDialog'
 
 /**
  * ADM-4's "Khiếu nại nội bộ" tab (FR-63, FR-79, AD-20, AD-40, UX-DR84): the escalated Team Issues about a Rating, the
- * undecided first; one with "Nhận xử lý", the Team Evidence Package (the Crew Chat, the raiser's Work Items, the
- * Rating), each read under the assignee's grant and audited by its module, and the decision: keeping or removing the
+ * undecided first; one with "Nhận xử lý", the Team Evidence Package (the Crew Chat and the Rating),
+ * each read under the assignee's grant and audited by its module, and the decision: keeping or removing the
  * Rating, with written reasoning and the step-up. Decisions are final.
  */
 export function AdminTeamIssuesPage() {

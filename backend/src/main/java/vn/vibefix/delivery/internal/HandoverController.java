@@ -57,8 +57,8 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * JOB-5 "Bàn giao" (FR-10, FR-32, AD-20, AD-23, UX-DR53, UX-DR54): the Job's handovers, the Mentor's
  * preflight and "Gửi bàn giao", and the Delivery Report, under {@code /api/v1/boards/{boardId}} like the
- * Job's other Active-phase reads (a Board's ID is its Job's). The Customer, the Mentor, and the active
- * Crew read; only the Mentor hands over; the Customer's report names no Work Item (AD-39).
+ * Job's other Active-phase reads (the path carries the Job's ID). The Customer, the Mentor, and the active
+ * Crew read; only the Mentor hands over.
  */
 @RestController
 @Access(Gate.SIGNED_IN)

@@ -35,7 +35,7 @@ import vn.vibefix.shared.Gate;
 
 /**
  * JOB-1's closure section (FR-37, FR-67, AD-20, AD-23, UX-DR55), under {@code /api/v1/boards/{boardId}}
- * like the Job's other Active-phase calls (a Board's ID is its Job's): the proposal and whose turn it is,
+ * like the Job's other Active-phase calls (the path carries the Job's ID): the proposal and whose turn it is,
  * and each party's steps from the proposal through Closed. The Customer and the Mentor propose, confirm,
  * and decline on the version they loaded; a Crew member who was ever active reads it and may not answer
  * ({@code FORBIDDEN MENTOR_ONLY}), a released one included, whose post-Job duties stay (AD-41);
@@ -147,7 +147,7 @@ class ClosureController {
 		return viewer;
 	}
 
-	/** The Customer, the Mentor, or a Crew member who was ever active (party empty) of a Job with a Board. */
+	/** The Customer, the Mentor, or a Crew member who was ever active (party empty) of a started Job. */
 	private Viewer viewer(UUID jobId, Caller caller) {
 		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
@@ -155,8 +155,9 @@ class ClosureController {
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		UUID account = caller.accountId();
-		boolean board = job.state() == JobState.ACTIVE || job.state() == JobState.CLOSING || job.state() == JobState.CLOSED;
-		if (account == null || job.mentorId() == null || !board) {
+		boolean started = job.state() == JobState.ACTIVE || job.state() == JobState.CLOSING
+				|| job.state() == JobState.CLOSED;
+		if (account == null || job.mentorId() == null || !started) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		JobRole role = this.roles.roleOf(job, caller);

@@ -35,8 +35,8 @@ import vn.vibefix.shared.IdGenerator;
 
 /**
  * An Administrator decides an escalated Team Issue (FR-63, FR-79, AD-20, AD-40). "Nhận xử lý" records the
- * assigned Administrator and pushes their read grant (the Crew Chat and the raiser's Work Item histories; the Rating
- * itself is read through {@code reputation}) to every module holding that content; taking it over ends the previous
+ * assigned Administrator and pushes their read grant (the Crew Chat; the Rating itself is read
+ * through {@code reputation}) to every module holding that content; taking it over ends the previous
  * grant at once. The assignee's decision, keeping or removing the Rating with written reasoning and after the step-up,
  * is recorded and final, and ends the issue (ending 3) through {@link TeamIssueEndings}, which executes it exactly and
  * ends the grant 30 days after the decision.

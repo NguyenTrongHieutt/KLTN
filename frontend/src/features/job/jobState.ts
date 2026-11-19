@@ -1,6 +1,6 @@
-/** The Job states with a Board: from Active on (J7 seeds it, FR-22). */
-const BOARD_STATES = ['ACTIVE', 'CLOSING', 'CLOSED']
+/** The Job states a started Job is in: from Active on (J7, FR-22), where its handovers live. */
+const STARTED_STATES = ['ACTIVE', 'CLOSING', 'CLOSED']
 
-export function hasBoard(state: string): boolean {
-  return BOARD_STATES.includes(state)
+export function hasStarted(state: string): boolean {
+  return STARTED_STATES.includes(state)
 }

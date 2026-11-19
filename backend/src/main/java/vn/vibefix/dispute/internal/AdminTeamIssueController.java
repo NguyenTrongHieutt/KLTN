@@ -35,8 +35,7 @@ import vn.vibefix.shared.Gate;
 /**
  * ADM-4's "Khiếu nại nội bộ" tab (FR-63, FR-79, AD-20, AD-40, UX-DR84): the escalated Team Issues, the
  * undecided ones first; one with "Nhận xử lý", the Rating its assignee decides from, and the decision form under the
- * step-up. The Crew Chat and the raiser's Work Item histories are read from their own modules under the assignee's
- * grant.
+ * step-up. The Crew Chat is read from its own module under the assignee's grant.
  */
 @RestController
 @RequestMapping("/api/v1/admin/team-issues")

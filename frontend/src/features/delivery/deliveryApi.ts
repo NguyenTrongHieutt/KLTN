@@ -22,7 +22,7 @@ const SUBMISSION_POLL_MS = 3_000
  */
 export const TEAM_CODE_NOTICE_VERSION = (vi as { notice: { teamCode: { version: string } } }).notice.teamCode.version
 
-/** JOB-5's list of the Job's handovers (FR-32); a Board's ID is its Job's. */
+/** JOB-5's list of the Job's handovers (FR-32); the path carries the Job's ID. */
 export function useHandovers(jobId: string | undefined) {
   return useQuery({
     queryKey: ['handovers', jobId ?? ''],

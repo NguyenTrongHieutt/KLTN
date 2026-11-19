@@ -17,7 +17,7 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * Who opens a Dispute's Evidence Package (FR-53, FR-63, AD-8, AD-20, AD-31): only the assignee, under the
  * grant their take opened, until 30 days after the decision. Every view of a tab is written to the Audit
- * Log. The tabs {@code chat} and {@code work} serve under the grant are audited by those modules.
+ * Log. The tab {@code chat} serves under the grant is audited by that module.
  */
 @Component
 class EvidencePackage {

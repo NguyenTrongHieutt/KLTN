@@ -1,15 +1,14 @@
 import { hasChat, useCrewChat, useJobChat } from '@/features/chat/chatApi'
 import { JobTabRow } from '@/features/job/JobTabs'
 import { useJobSplits } from '@/features/split/splitApi'
-import { hasBoard } from '@/features/job/jobState'
+import { hasStarted } from '@/features/job/jobState'
 import { t } from '@/i18n/t'
 
 /** The states the Mentor recruits the Crew in: from J4 until J8 (AD-41). */
 const RECRUITS = ['AGREEMENT', 'STARTING', 'ACTIVE']
 
 /**
- * The Mentor's Job tabs (UX-DR17): "Tổng quan"; from Active on, "Bảng công việc" (JOB-2) and
- * "Bàn giao" (JOB-5); from
+ * The Mentor's Job tabs (UX-DR17): "Tổng quan"; from Active on, "Bàn giao" (JOB-5); from
  * Agreement on, "Trò chuyện" and "Trao đổi nhóm" (JOB-8), each with its unread dot, and "Thỏa thuận";
  * "Tuyển thành viên" (JOB-9) from Agreement until Closing (Story 21.4); "Thanh toán" once the Agreement is confirmed
  * (JOB-7); "Phân chia tiền" (JOB-10) from the first split on, by asking for the splits itself (Story 22.2).
@@ -24,7 +23,6 @@ export function MentorJobTabs({
   state: string
   current:
     | 'overview'
-    | 'board'
     | 'handover'
     | 'chat'
     | 'crewChat'
@@ -43,7 +41,7 @@ export function MentorJobTabs({
       current={current}
       tabs={[
         { key: 'overview', to: `/cong-viec/${jobId}`, label: t('screen.job.detail.overview') },
-        ...(hasBoard(state)
+        ...(hasStarted(state)
           ? [{ key: 'handover', to: `/cong-viec/${jobId}/ban-giao`, label: t('screen.handover.tab') }]
           : []),
         ...(hasChat(state)

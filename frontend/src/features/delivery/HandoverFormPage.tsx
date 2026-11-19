@@ -43,8 +43,7 @@ function refusal(submission: HandoverSubmission): string {
 
 /**
  * "Tạo bàn giao" (FR-10, FR-32, AD-23, UX-DR54), a focused route for the Mentor: the preflight of the
- * Milestone waiting for its handover. Every Work Item in "Xong" through an approval or a note for it;
- * every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra" -- on an Assessment
+ * Milestone waiting for its handover: every Acceptance Criterion "Đạt" or "Chưa đạt" with a note, next to "Cách kiểm tra" -- on an Assessment
  * Job those criteria are the Assessment Report's own sections (Story 24.1); for a Code Job, its new commits and the Sensitive change
  * preview; the preview link, or a reason with a recording, and screenshots (Story 8.3). A Code Job also needs
  * N-33's Mentor checkbox, the duty to keep credentials and real data out of the handover's commits, since vibefix

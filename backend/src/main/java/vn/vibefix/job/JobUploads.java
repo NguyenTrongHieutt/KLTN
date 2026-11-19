@@ -3,8 +3,8 @@ package vn.vibefix.job;
 import java.util.UUID;
 
 /**
- * The Job's upload quota (AD-34): its screenshots and the files other modules attach to it, such as
- * Work Item Attachments (FR-76), share {@value #QUOTA_BYTES} bytes.
+ * The Job's upload quota (AD-34): its own screenshots and the files other modules attach to it, the Mentor's
+ * handover screenshots among them (FR-32), share {@value #QUOTA_BYTES} bytes.
  */
 public interface JobUploads {
 

@@ -4,8 +4,9 @@
  * J7 that their history is clean, and the Mentor keeps the team's secrets out.
  * <ul>
  * <li>{@link vn.vibefix.scanning.SensitiveText} checks text about to be sent (FR-47): the Job Chat, the
- * Crew Chat, Pages, Work Items, notes, and text Attachments warn before sending what it finds, and a
- * closed Job's chats are redacted with it. The rules match GitHub's stateless {@code ghs_} tokens.</li>
+ * Crew Chat and the notes a handover and its acceptance carry warn before sending what it finds, an External
+ * Access value holding a credential is refused outright, and a closed Job's chats are redacted with it. The
+ * rules match GitHub's stateless {@code ghs_} tokens.</li>
  * <li>{@link vn.vibefix.scanning.SensitiveChanges} classifies the paths a handover or the Final Merge
  * changes (AD-33), and names the {@code .github/workflows/} folder a handover may not change.</li>
  * </ul>

@@ -201,7 +201,7 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(/quyền của bạn đã được thu hồi/)
   })
 
-  it('keeps a former member\'s data-deletion duty before the Board, with no way to the handovers', { timeout: 20_000 }, async () => {
+  it('keeps a former member\'s data-deletion duty before the Job starts, with no way to the handovers', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const confirmed: string[] = []
     fakeBackend(signedInUser, {
