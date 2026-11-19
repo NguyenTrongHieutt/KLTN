@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -34,6 +37,7 @@ import vn.vibefix.repo.DataDeletionConfirmed;
 import vn.vibefix.reputation.PortfolioEntry;
 import vn.vibefix.reputation.Reputation;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.PostgresTestDatabase;
 import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 
@@ -179,7 +183,8 @@ class PortfolioIT extends IntegrationTest {
 	void aTruncatedCommitListFreezesNoCountAtAll() throws Exception {
 		people();
 		UUID job = job(true);
-		this.jdbc.sql("UPDATE delivery.handover SET commits_truncated = TRUE WHERE job_id = :job").param("job", job).update();
+		// delivery writes the flag when the copy run reports it; the runtime role may not write the column at all.
+		asMigrator("UPDATE delivery.handover SET commits_truncated = TRUE WHERE job_id = '" + job + "'");
 
 		closes(job);
 		await().atMost(Duration.ofSeconds(10))
@@ -282,6 +287,14 @@ class PortfolioIT extends IntegrationTest {
 		assertThat(this.reputation.portfolio(this.vy)).singleElement()
 			.satisfies(entry -> assertThat(entry.role()).isEqualTo("CREW"));
 		assertThat(this.reputation.portfolio(this.hung)).isEmpty();
+	}
+
+	/** One statement as the migration role, for a column the application may never write. */
+	private static void asMigrator(String sql) throws SQLException {
+		try (Connection connection = database.migratorConnection(PostgresTestDatabase.DATABASE);
+				Statement statement = connection.createStatement()) {
+			statement.executeUpdate(sql);
+		}
 	}
 
 	/** The facts the person's entry froze on the Job, as {@code role:commits:milestonesHandedOver}, {@code -} for none. */

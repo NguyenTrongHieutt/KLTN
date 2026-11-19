@@ -10,6 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,6 +38,7 @@ import vn.vibefix.identity.internal.Role;
 import vn.vibefix.shared.PersonalData;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
+import vn.vibefix.support.PostgresTestDatabase;
 
 /**
  * Story 15.2 (FR-53, FR-63, AD-8, AD-20, AD-31): taking a Dispute pushes its read grant down to {@code chat}
@@ -273,15 +277,13 @@ class EvidencePackageIT extends IntegrationTest {
 		// Story 24.2: a decision recorded before this story stored the Work Items it was based on. The record no
 		// longer has that field, so the stored row would be unreadable if the read were strict -- and ADM-4 would
 		// answer 500 for the one decision that has to stay explainable.
-		this.jdbc.sql("""
-				UPDATE dispute.decision
-				SET evidence_snapshot = jsonb_set(evidence_snapshot, '{workItems}', CAST(:items AS JSONB), true)
-				WHERE dispute_id = :id
-				""")
-			.param("items", "[{\"workItemId\": \"" + UUID.randomUUID()
-					+ "\", \"number\": 7, \"version\": 3, \"status\": \"DONE\"}]")
-			.param("id", dispute)
-			.update();
+		// A decision is never rewritten by the application, so the runtime role has no such write: only a row
+		// recorded before this story carries the field, and this is how one is put there.
+		asMigrator("""
+				UPDATE dispute.decision SET evidence_snapshot = jsonb_set(evidence_snapshot, '{workItems}',
+				    '[{"workItemId": "0190f0c3-0000-7000-8000-0000000024a1", "number": 7, "version": 3,
+				       "status": "DONE"}]'::jsonb, true)
+				""");
 		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(this.ha.accountId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.evidenceSnapshot.reports[0].status").value("REVISION_REQUESTED"))
@@ -308,6 +310,14 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$.evidenceSnapshot.workItems").doesNotExist())
 			.andExpect(jsonPath("$.evidenceSnapshot.jobChat.messageCount").value(1))
 			.andExpect(jsonPath("$.statements[0].text").value("Khách đổi yêu cầu giữa chừng."));
+	}
+
+	/** One statement as the migration role, for a column the application may never write. */
+	private static void asMigrator(String sql) throws SQLException {
+		try (Connection connection = database.migratorConnection(PostgresTestDatabase.DATABASE);
+				Statement statement = connection.createStatement()) {
+			statement.executeUpdate(sql);
+		}
 	}
 
 	private UUID open() throws Exception {
