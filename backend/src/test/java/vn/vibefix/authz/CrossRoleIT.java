@@ -282,7 +282,8 @@ class CrossRoleIT extends IntegrationTest {
 			}
 		}
 		assertThat(wrong).isEmpty();
-		assertThat(CREW_ONLY).as("the Crew's reads of a Job").hasSizeGreaterThanOrEqualTo(5)
+		// Story 24.2 retired the Board, so JOB-2's Work Item list is no longer one of these reads.
+		assertThat(CREW_ONLY).as("the Crew's reads of a Job").hasSizeGreaterThanOrEqualTo(4)
 			.contains("/api/v1/jobs/{jobId}/crew-chat");
 		assertThat(checked).as("X through A, Z through F").isEqualTo(2 * CREW_ONLY.size());
 		for (String endpoint : CREW_ONLY) {

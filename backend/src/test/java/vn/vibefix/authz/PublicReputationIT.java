@@ -297,10 +297,10 @@ class PublicReputationIT extends IntegrationTest {
 		boolean mentor = "MENTOR".equals(role);
 		this.jdbc.sql("""
 				INSERT INTO reputation.portfolio_entry (id, job_id, product_id, account_id, role, job_title, product_name,
-				    job_types, skill_ids, milestones_accepted, work_items_approved, milestones_handed_over, reviews_written,
+				    job_types, skill_ids, milestones_accepted, commits_authored, milestones_handed_over,
 				    closed_at, published_at, created_at)
 				VALUES (:id, :job, :product, :account, :role, 'Sửa lỗi đặt bàn', :productName, ARRAY['BUG_FIX'],
-				    CAST(:skills AS UUID[]), 1, :approved, :handedOver, :reviews, :at, :at, :at)
+				    CAST(:skills AS UUID[]), 1, :commits, :handedOver, :at, :at, :at)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("job", job)
@@ -309,9 +309,8 @@ class PublicReputationIT extends IntegrationTest {
 			.param("role", role)
 			.param("productName", productName)
 			.param("skills", "{" + TestPeople.REACT + "}")
-			.param("approved", mentor ? null : 3)
+			.param("commits", mentor ? null : 3)
 			.param("handedOver", mentor ? 1 : null)
-			.param("reviews", mentor ? 4 : null)
 			.param("at", at)
 			.update();
 	}

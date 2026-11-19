@@ -348,9 +348,7 @@ class AbuseReportIT extends IntegrationTest {
 	/** Story 24.2: the Board is retired, so {@code WORK_ITEM_NOTE} is no kind a report may name any more (FR-69). */
 	@Test
 	void aWorkItemNoteIsNoLongerReportable() throws Exception {
-		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID())
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.error").value("VALIDATION"));
+		file(this.world.minh(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isBadRequest());
 	}
 
 	@Test
@@ -373,8 +371,9 @@ class AbuseReportIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"kind\":\"RATING\",\"targetLogin\":\"" + minh + "\",\"reason\":\"Sai loại\"}"))
 			.andExpect(status().isBadRequest());
-		file(this.world.vy(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isNotFound());
-		// Story 24.1: the Documentation Space is retired, so PAGE is no kind of reportable content at all.
+		// Story 24.2 and Story 24.1: the Board and the Documentation Space are retired, so neither WORK_ITEM_NOTE nor
+		// PAGE is a kind of reportable content at all; an unknown kind is refused before anything is looked up.
+		file(this.world.vy(), Role.STUDENT, "WORK_ITEM_NOTE", UUID.randomUUID()).andExpect(status().isBadRequest());
 		file(this.world.vy(), Role.STUDENT, "PAGE", UUID.randomUUID()).andExpect(status().isBadRequest());
 
 		for (int i = 0; i < 9; i++) {

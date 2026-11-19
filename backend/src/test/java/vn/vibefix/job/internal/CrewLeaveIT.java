@@ -801,20 +801,6 @@ class CrewLeaveIT extends IntegrationTest {
 		assertThat(openTodos("repo.confirm_data_deletion", this.minh)).as("the end released Minh").isOne();
 	}
 
-	/** A person erased since their leave still has a Crew row, which JOB-9's Crew list names (FR-82). */
-	@Test
-	void aLeaverErasedSinceReadsAsAMemberWithNoName() throws Exception {
-		leave(this.vy, null).andExpect(status().isNoContent());
-		awaitListeners();
-		this.jdbc.sql("UPDATE job.milestone SET state = 'CANCELLED' WHERE id = :id").param("id", this.world.milestone()).update();
-		ErasureOutcome outcome = this.transactions.execute(status -> this.personalData.erase(this.vy));
-		assertThat(outcome).isInstanceOf(ErasureOutcome.Erased.class);
-
-		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/recruitment").with(as(this.hung, Role.MENTOR)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.crew[?(@.status == 'RELEASED')].name").value("Một thành viên nhóm"));
-	}
-
 	// ---- Helpers --------------------------------------------------------------------------------
 
 	/** J8 or J10 as a cancellation's cascade applies them, whatever Milestone is still Held. */

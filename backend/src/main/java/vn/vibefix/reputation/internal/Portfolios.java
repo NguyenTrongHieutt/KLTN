@@ -345,9 +345,10 @@ class Portfolios {
 	}
 
 	/**
-	 * How many commits of the Job's accepted Milestone Handovers each of these people authored (FR-50, AD-33,
-	 * Story 24.2): the facts a Crew member's entry freezes, read from the records {@code delivery} kept, never
-	 * typed by anyone. A commit GitHub resolved to no account, or to nobody in {@code people}, counts for nobody.
+	 * How many commits each of these people authored in the Handovers of the Job's accepted Milestones (FR-50,
+	 * AD-33, Story 24.2): the facts a Crew member's entry freezes, read from the records {@code delivery} kept,
+	 * never typed by anyone. Every round of an accepted Milestone counts, the revised ones included. A commit
+	 * GitHub resolved to no account, or to nobody in {@code people}, counts for nobody.
 	 */
 	private Map<UUID, Integer> commitsAuthored(List<UUID> acceptedMilestones, List<UUID> people) {
 		Map<UUID, Integer> authored = new HashMap<>();
