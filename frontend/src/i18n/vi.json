@@ -2059,10 +2059,6 @@
       "fileTooLarge": "Tệp lớn hơn 10 MB nên không gửi được.",
       "fileType": "Chỉ gửi được ảnh, tệp PDF hoặc tệp văn bản.",
       "removeFile": "Bỏ tệp {name}",
-      "warning": {
-        "found": "vibefix tìm thấy:",
-        "edit": "Sửa lại"
-      },
       "readOnly": "Công việc đã kết thúc. Cuộc trò chuyện chỉ còn để xem."
     },
     "agreement": {
@@ -2710,11 +2706,6 @@
         "removeRow": "Xóa liên kết {n}",
         "add": "Thêm liên kết",
         "full": "Đã đủ 10 liên kết."
-      },
-      "sensitive": {
-        "title": "Nội dung có thể chứa khóa bí mật hoặc dữ liệu khách hàng",
-        "body": "Ai xem được bàn giao này đều đọc được nội dung này. Hãy che trước khi lưu.",
-        "mask": "Che và lưu"
       }
     },
     "closure": {
@@ -4657,7 +4648,6 @@
       "NOTICE_REQUIRED": "Lưu ý về mã của nhóm vừa được cập nhật. Hãy tải lại trang để đọc bản mới rồi gửi lại.",
       "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán hoặc đã bàn giao.",
       "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",
-      "SENSITIVE_CONTENT": "Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
       "HANDOVER_COMMIT_MISSING": "Kho làm việc của công việc chưa sẵn sàng nên chưa thể bàn giao mã.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",

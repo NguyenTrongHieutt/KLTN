@@ -1,16 +1,15 @@
 /**
- * Layer 4 (AD-3, AD-18 "Rules for text checks and Sensitive Changes"): the deterministic rules of
- * {@code scanning/rules.yaml}, with no AI. vibefix scans no code (Story 23.1): the Customer confirms at
- * J7 that their history is clean, and the Mentor keeps the team's secrets out.
+ * Layer 4 (AD-3, AD-18): deterministic rules, with no AI. vibefix scans no code (Story 23.1): the Customer confirms at
+ * J7 that their history is clean, and the Mentor keeps the team's secrets out. Nothing checks, masks or refuses the
+ * text people send (D5, Story 24.4).
  * <ul>
- * <li>{@link vn.vibefix.scanning.SensitiveText} checks text about to be sent (FR-47): the Job Chat, the
- * Crew Chat and the notes a handover and its acceptance carry warn before sending what it finds, an External
- * Access value holding a credential is refused outright, and a closed Job's chats are redacted with it. The
- * rules match GitHub's stateless {@code ghs_} tokens.</li>
- * <li>{@link vn.vibefix.scanning.SensitiveChanges} classifies the paths a handover or the Final Merge
- * changes (AD-33), and names the {@code .github/workflows/} folder a handover may not change.</li>
+ * <li>{@link vn.vibefix.scanning.SensitiveChanges} classifies the paths a handover or the Final Merge changes (AD-33),
+ * and names the {@code .github/workflows/} folder a handover may not change.</li>
+ * <li>{@link vn.vibefix.scanning.CredentialCheck} applies the credential rules of {@code scanning/rules.yaml} to one
+ * short value, so {@code job} refuses an External Access identifier that looks like a credential (FR-66). The rules
+ * match GitHub's stateless {@code ghs_} tokens.</li>
  * </ul>
- * Public API: those two interfaces. The rules and their matchers are wiring in {@code scanning.internal}.
+ * Public API: those two interfaces. The rules and their matcher are wiring in {@code scanning.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared" })
 package vn.vibefix.scanning;

@@ -10,7 +10,6 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { SensitiveDialog, type SensitiveMatch } from './SensitiveDialog'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatVnd } from '@/lib/money'
@@ -110,7 +109,6 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
   const [hint, setHint] = useState<string>()
   const [confirming, setConfirming] = useState<'accept' | 'revision'>()
   const [error, setError] = useState<string>()
-  const [matches, setMatches] = useState<SensitiveMatch[]>()
   const total = report.criteria.length
   const step = Math.min(draft.step, total)
   const decision = report.decision!
@@ -130,7 +128,8 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
     })
   const notMet = report.criteria.filter((criterion) => draft.marks[criterion.criterionId]?.met === false)
 
-  const send = (action: 'accept' | 'revision', sensitive: 'CHECK' | 'MASK') => {
+  // D5 (Story 24.4b): the comments go as typed, and nothing checks or masks them.
+  const send = (action: 'accept' | 'revision') => {
     setError(undefined)
     decide.mutate(
       {
@@ -142,13 +141,11 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
             met: draft.marks[criterion.criterionId]?.met ?? true,
             comment: draft.marks[criterion.criterionId]?.comment.trim() || undefined,
           })),
-          sensitive,
         },
       },
       {
         onSuccess: (decided) => {
           writeDraft(report.id, undefined)
-          setMatches(undefined)
           toasts.success(
             t(
               decided.acceptance === 'MERGING'
@@ -163,11 +160,6 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         },
         onError: (failure) => {
           setConfirming(undefined)
-          if (failure instanceof ApiError && failure.problem.reason === 'SENSITIVE_CONTENT') {
-            setMatches((failure.problem as { matches?: SensitiveMatch[] }).matches ?? [])
-            return
-          }
-          setMatches(undefined)
           setError(
             failure instanceof ApiError && failure.problem.reason === 'HANDOVER_VOIDED'
               ? t('reason.delivery.HANDOVER_VOIDED')
@@ -387,21 +379,13 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               <Button type="button" variant="secondary" onClick={() => setConfirming(undefined)}>
                 {t('screen.handover.check.cancel')}
               </Button>
-              <Button type="button" disabled={decide.isPending} onClick={() => confirming && send(confirming, 'CHECK')}>
+              <Button type="button" disabled={decide.isPending} onClick={() => confirming && send(confirming)}>
                 {t('screen.handover.check.confirm')}
               </Button>
             </div>
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
-      {matches && (
-        <SensitiveDialog
-          matches={matches}
-          pending={decide.isPending}
-          onMask={() => send('revision', 'MASK')}
-          onEdit={() => setMatches(undefined)}
-        />
-      )}
     </section>
   )
 }

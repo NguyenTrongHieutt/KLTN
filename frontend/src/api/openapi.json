@@ -12888,10 +12888,6 @@
             "maxItems" : 100,
             "minItems" : 0
           },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
-          },
           "version" : {
             "type" : "integer",
             "format" : "int64"
@@ -13116,10 +13112,6 @@
             },
             "maxItems" : 10,
             "minItems" : 0
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK" ]
           },
           "teamCodeNoticeVersion" : {
             "type" : "string",

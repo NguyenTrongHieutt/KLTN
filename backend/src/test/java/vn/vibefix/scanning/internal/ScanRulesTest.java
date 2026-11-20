@@ -13,7 +13,10 @@ import vn.vibefix.scanning.internal.PlantedSecrets.Planted;
 import vn.vibefix.scanning.internal.ScanRules.Rule;
 import vn.vibefix.scanning.internal.SecretMatcher.Match;
 
-/** AD-18, SG-13, FR-47: the rules compile with RE2/J, each finds its §B6 type, and nothing raw escapes. */
+/**
+ * AD-18, SG-13: the rules compile with RE2/J, each finds its §B6 type, and nothing raw escapes. Since Story 24.4b the
+ * file holds the credential rules alone, with no personal-data section to read or to need.
+ */
 class ScanRulesTest {
 
 	private static final ScanRules RULES = ScanRules.load();
@@ -25,6 +28,21 @@ class ScanRulesTest {
 		assertThat(RULES.version()).isEqualTo(4);
 		assertThat(RULES.rules()).hasSizeGreaterThanOrEqualTo(30)
 			.allSatisfy(rule -> assertThat(rule.pattern().groupCount()).as(rule.id()).isPositive());
+	}
+
+	@Test
+	void theFileHoldsTheCredentialRulesAndNoPersonalDataSection() throws Exception {
+		Map<?, ?> document;
+		try (var in = ScanRules.class.getClassLoader().getResourceAsStream(ScanRules.RESOURCE)) {
+			document = new org.yaml.snakeyaml.Yaml(
+					new org.yaml.snakeyaml.constructor.SafeConstructor(new org.yaml.snakeyaml.LoaderOptions()))
+				.load(in);
+		}
+		assertThat(document.keySet()).containsExactly("version", "source", "placeholders", "rules");
+
+		ScanRules minimal = ScanRules.parse(Map.of("version", 1, "placeholders", "x", "rules",
+				List.of(Map.of("id", "a", "type", "T", "pattern", "(a)"))));
+		assertThat(minimal.rules()).extracting(Rule::id).containsExactly("a");
 	}
 
 	@Test

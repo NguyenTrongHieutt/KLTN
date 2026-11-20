@@ -24,7 +24,7 @@ import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
-import vn.vibefix.scanning.SensitiveText;
+import vn.vibefix.scanning.CredentialCheck;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
@@ -34,8 +34,8 @@ import vn.vibefix.shared.ErrorCode;
  * Crew member enter the account to invite on each item's system; a pick not yet signed reads none of it (AD-41). The Customer
  * reads those identifiers only next to the item, beside each person's GitHub username, and only while
  * the Job is neither Closed nor Cancelled; each person reads their own. "Đã cấp quyền" closes the to-do,
- * the only record of the tick. An identifier is no credential: one the {@code scanning} rules read as a
- * secret is refused. A member who signs after the confirmation opens one {@value #MEMBER_TODO} per item (R15, Story
+ * the only record of the tick. An identifier is no credential: one that {@code scanning}'s credential rules read
+ * as a credential is refused, and nothing looks for personal data in it. A member who signs after the confirmation opens one {@value #MEMBER_TODO} per item (R15, Story
  * 21.6): the same tick closes the item's to-do and its member to-dos, a member who leaves closes their own, and J8 and
  * J10 close them all.
  */
@@ -79,18 +79,18 @@ class ExternalAccessGrants {
 
 	private final Todos todos;
 
-	private final SensitiveText check;
+	private final CredentialCheck credentials;
 
 	private final Clock clock;
 
 	ExternalAccessGrants(JdbcClient jdbc, AgreementReviews reviews, CrewService crews, MentorDirectory mentors, Todos todos,
-			SensitiveText check, Clock clock) {
+			CredentialCheck credentials, Clock clock) {
 		this.jdbc = jdbc;
 		this.reviews = reviews;
 		this.crews = crews;
 		this.mentors = mentors;
 		this.todos = todos;
-		this.check = check;
+		this.credentials = credentials;
 		this.clock = clock;
 	}
 
@@ -150,7 +150,8 @@ class ExternalAccessGrants {
 	 * The Mentor or a Crew member enters, changes, or clears ({@code ""}) their identifier for one item.
 	 * @throws ApiException {@code NOT_FOUND} for an item the confirmed Agreement does not list;
 	 * {@code CONFLICT EXTERNAL_ACCESS_CLOSED} once the Job is Closed or Cancelled; {@code VALIDATION} for
-	 * more than one line or {@value #MAX_IDENTIFIER} characters; {@code GUARD_FAILED IDENTIFIER_LOOKS_LIKE_SECRET}
+	 * more than one line or {@value #MAX_IDENTIFIER} characters; {@code GUARD_FAILED IDENTIFIER_LOOKS_LIKE_SECRET} for
+	 * one that {@link CredentialCheck} reads as a credential
 	 */
 	@Transactional
 	void enter(Job job, UUID accountId, UUID accessId, String identifier) {
@@ -169,7 +170,7 @@ class ExternalAccessGrants {
 				.update();
 			return;
 		}
-		if (this.check.check(value).count(SensitiveText.Kind.CREDENTIAL) > 0) {
+		if (this.credentials.looksLikeCredential(value)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.IDENTIFIER_LOOKS_LIKE_SECRET);
 		}
 		this.jdbc.sql("""

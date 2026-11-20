@@ -5509,8 +5509,6 @@ export interface components {
         };
         HandoverDecisionRequest: {
             checks?: components["schemas"]["HandoverCheckRequest"][];
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
             /** Format: int64 */
             version: number;
         };
@@ -5580,8 +5578,6 @@ export interface components {
             noPreviewReason?: string;
             previewUrl?: string;
             screenshotIds?: string[];
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK";
             teamCodeNoticeVersion?: string;
             /** Format: int64 */
             version: number;

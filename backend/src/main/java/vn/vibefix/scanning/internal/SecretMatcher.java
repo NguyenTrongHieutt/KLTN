@@ -38,7 +38,7 @@ final class SecretMatcher {
 		this.rules = rules;
 	}
 
-	/** A credential and where its value sits in the text, so a chat message can mask it there (FR-47). */
+	/** A credential and where its value sits in the text. */
 	record Located(Match match, int start, int end) {
 	}
 
@@ -108,8 +108,8 @@ final class SecretMatcher {
 	}
 
 	/**
-	 * At most a quarter of the value and never more than its first and last 4 characters (FR-47,
-	 * AD-18): {@code k = min(4, length / 8)} characters at each end around {@link #BULLETS}.
+	 * At most a quarter of the value and never more than its first and last 4 characters (AD-18):
+	 * {@code k = min(4, length / 8)} characters at each end around {@link #BULLETS}.
 	 */
 	static String mask(String value) {
 		int shown = Math.min(4, value.length() / 8);

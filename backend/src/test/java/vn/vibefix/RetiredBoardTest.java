@@ -104,8 +104,6 @@ class RetiredBoardTest {
 			.isEqualTo("Ghi chú công việc");
 		assertThat(vi.at("/screen/admin/statistics/group").has("acceptedMilestones"))
 			.as("FR-62's section over accepted Milestones takes its place").isTrue();
-		assertThat(vi.at("/screen/handover/sensitive/title").asString())
-			.as("the FR-47 dialog's strings moved out of screen.board with the dialog (Story 24.2a)").isNotEmpty();
 		assertThat(vi.at("/screen/progress/externalLink").asString()).isNotEmpty();
 	}
 

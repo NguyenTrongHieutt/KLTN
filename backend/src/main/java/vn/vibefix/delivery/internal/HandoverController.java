@@ -39,7 +39,6 @@ import vn.vibefix.delivery.internal.Handovers.Pending;
 import vn.vibefix.delivery.internal.Handovers.Preflight;
 import vn.vibefix.delivery.internal.Handovers.Preview;
 import vn.vibefix.delivery.internal.HandoverScreenshots.Screenshot;
-import vn.vibefix.delivery.internal.Handovers.Resolution;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.job.MilestoneHandovers;
@@ -193,9 +192,9 @@ class HandoverController {
 	}
 
 	/**
-	 * "Gửi bàn giao".
+	 * "Gửi bàn giao". The notes and the no-preview reason are stored as written (D5); a {@code sensitive} field an
+	 * older client still sends is ignored.
 	 * @param version the Job's version the form loaded
-	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning
 	 * @param links the Mentor's links in their order, at most {@value Handovers#MAX_LINKS}; the size bound here is only
 	 * the request's outer limit, so the eleventh is refused {@code TOO_MANY_LINKS} by the rule that names it
 	 * @param screenshotIds the uploads the handover carries, at most {@value HandoverScreenshots#MAX}; bounded here by
@@ -204,7 +203,7 @@ class HandoverController {
 	 * handover must name and records (FR-25, R28); an Assessment Job hands over no code and sends none
 	 */
 	record HandoverRequest(@NotNull UUID milestoneId, @NotNull Long version,
-			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria, @Nullable Resolution sensitive,
+			@NotNull @Size(max = 100) List<@Valid HandoverCriterionMarkRequest> criteria,
 			@Nullable @Size(max = 500) @Pattern(regexp = "^https://\\S+$") String previewUrl,
 			@Nullable @Size(max = 500) String noPreviewReason,
 			@Nullable @Size(max = 100) List<@Valid @NotNull HandoverEvidenceLinkRequest> links,
@@ -233,13 +232,12 @@ class HandoverController {
 	}
 
 	/**
-	 * "Nghiệm thu giai đoạn" or "Yêu cầu sửa".
+	 * "Nghiệm thu giai đoạn" or "Yêu cầu sửa". The comments are stored as written (D5); a {@code sensitive} field an
+	 * older client still sends is ignored.
 	 * @param version the Job's version the check loaded (AD-23)
 	 * @param checks the Customer's marks; a revision names those "Chưa đạt"
-	 * @param sensitive {@code CHECK} first; {@code MASK} after the FR-47 warning on a comment
 	 */
-	record HandoverDecisionRequest(@NotNull Long version, @Nullable @Size(max = 100) List<@Valid HandoverCheckRequest> checks,
-			@Nullable Resolution sensitive) {
+	record HandoverDecisionRequest(@NotNull Long version, @Nullable @Size(max = 100) List<@Valid HandoverCheckRequest> checks) {
 	}
 
 	/**
@@ -419,7 +417,6 @@ class HandoverController {
 		}
 		Draft draft = this.handovers.draft(mentor, body.milestoneId(),
 				body.criteria().stream().map(c -> new CriterionMark(c.criterionId(), c.met(), c.note())).toList(),
-				body.sensitive() == null ? Resolution.CHECK : body.sensitive(),
 				new Evidence(body.previewUrl(), body.noPreviewReason(),
 						body.links() == null ? List.of()
 								: body.links().stream().map(link -> new Link(link.kind(), link.url(), link.label())).toList(),
@@ -488,8 +485,7 @@ class HandoverController {
 	DeliveryReportView requestRevision(@PathVariable UUID handoverId, @Valid @RequestBody HandoverDecisionRequest body) {
 		Handover handover = this.handovers.find(handoverId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Viewer viewer = this.access.reader(handover.jobId(), this.callers.get());
-		Handover decided = this.decisions.requestRevision(viewer, handoverId, body.version(), checks(body),
-				body.sensitive() == null ? Resolution.CHECK : body.sensitive());
+		Handover decided = this.decisions.requestRevision(viewer, handoverId, body.version(), checks(body));
 		return report(this.access.reader(handover.jobId(), this.callers.get()), decided);
 	}
 
