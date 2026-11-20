@@ -94,12 +94,17 @@ class RetiredScanningTest {
 			+ "|redacted_at|maskedCredentials|maskedPersonal|masked_credentials|masked_personal)\\b");
 
 	/**
-	 * The chat files: the {@code chat} module, the SPA's chat feature and its message renderer, and the generated
-	 * contract and the copy that carry the chat's fields and texts.
+	 * The chat files: the {@code chat} module, the SPA's chat feature and its message renderer, the four admin views
+	 * that show a chat body (the Dispute evidence chat, the Split Resolution Crew Chat, the Team Issue chat and the
+	 * reported message), and the generated contract and the copy that carry the chat's fields and texts.
 	 */
 	static final List<Path> CHAT_FILES = List.of(MODULES.resolve("chat"), FRONTEND_SRC.resolve(Path.of("features", "chat")),
-			FRONTEND_SRC.resolve(Path.of("components", "MessageText.tsx")), FRONTEND_SRC.resolve(Path.of("api", "openapi.json")),
-			FRONTEND_SRC.resolve(Path.of("api", "schema.d.ts")), VI);
+			FRONTEND_SRC.resolve(Path.of("components", "MessageText.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "DisputeEvidence.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "AdminSplitResolutionsPage.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "AdminTeamIssuesPage.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "AbuseReportsPanel.tsx")),
+			FRONTEND_SRC.resolve(Path.of("api", "openapi.json")), FRONTEND_SRC.resolve(Path.of("api", "schema.d.ts")), VI);
 
 	@Test
 	void nothingLiveNamesTheScanPipelineAFindingTheScanLaneOrARetiredReason() {
@@ -115,6 +120,10 @@ class RetiredScanningTest {
 			.anyMatch(file -> file.endsWith(Path.of("chat", "internal", "ChatConversation.java")))
 			.anyMatch(file -> file.endsWith(Path.of("features", "chat", "ChatPanel.tsx")))
 			.anyMatch(file -> file.endsWith(Path.of("components", "MessageText.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "DisputeEvidence.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "AdminSplitResolutionsPage.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "AdminTeamIssuesPage.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "AbuseReportsPanel.tsx")))
 			.anyMatch(file -> file.endsWith(Path.of("i18n", "vi.json")));
 		assertThat(files.stream().flatMap(file -> violations(file, read(file)).stream()).toList()).isEmpty();
 	}

@@ -31,7 +31,7 @@ describe('MessageText (FR-46, FR-77, Story 24.4a)', () => {
   })
 
   it('keeps every trailing mark of a sentence outside the link', () => {
-    for (const mark of ['.', ',', ';', ':', '!', '?', ')', ']', '}', "'", '"']) {
+    for (const mark of ['.', ',', ';', ':', '!', '?', ')', ']', '}', "'", '"', '”', '’', '…', '`']) {
       const { unmount } = render(<MessageText text={`Mở https://so-dat-ban.vercel.app/dat${mark}`} />)
       expect(screen.getByRole('link')).toHaveAttribute('href', 'https://so-dat-ban.vercel.app/dat')
       unmount()
@@ -70,11 +70,47 @@ describe('MessageText (FR-46, FR-77, Story 24.4a)', () => {
     expect(screen.getByText('(xn--ggle-55da.com)')).toBeInTheDocument()
   })
 
-  it('leaves an https part inside another URL or glued to a word as text, and keeps markup as text', () => {
-    const body = show('http://x.vn/?u=https://evil.example và abchttps://evil.example <img src=x onerror=alert(1)>')
+  it('links an https part inside another URL or glued to a word with its own host, and keeps markup as text', () => {
+    const body = show(
+      'http://x.vn/?u=https://evil.example, http://x.vn/a:https://b.example -https://a.vn tại.https://c.vn abchttps://d.vn <img src=x onerror=alert(1)>',
+    )
 
-    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      'https://evil.example',
+      'https://b.example',
+      'https://a.vn',
+      'https://c.vn',
+      'https://d.vn',
+    ])
+    for (const host of ['evil.example', 'b.example', 'a.vn', 'c.vn', 'd.vn']) {
+      expect(screen.getByText(`(${host})`)).toBeInTheDocument()
+    }
     expect(body.querySelector('img')).toBeNull()
-    expect(body.textContent).toBe('http://x.vn/?u=https://evil.example và abchttps://evil.example <img src=x onerror=alert(1)>')
+    expect(body.textContent).toBe(
+      'http://x.vn/?u=https://evil.example (evil.example), http://x.vn/a:https://b.example (b.example) ' +
+        '-https://a.vn (a.vn) tại.https://c.vn (c.vn) abchttps://d.vn (d.vn) <img src=x onerror=alert(1)>',
+    )
+  })
+
+  it('ends a URL at a bidi control and keeps the domain left to right', () => {
+    show('Xem ‮https://evil.example/a và https://docs.example/‮moc.elgoog')
+
+    const links = screen.getAllByRole('link')
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['https://evil.example/a', 'https://docs.example/'])
+    for (const link of links) {
+      expect(link.getAttribute('href')).not.toMatch(/[‪-‮⁦-⁩]/)
+    }
+    for (const host of ['evil.example', 'docs.example']) {
+      const label = screen.getByText(`(${host})`)
+      expect(label.tagName).toBe('BDI')
+      expect(label).toHaveAttribute('dir', 'ltr')
+    }
+  })
+
+  it('marks a link as opening outside with an icon that keeps the URL as its name', () => {
+    show('Xem https://docs.google.com/d/y')
+
+    const link = screen.getByRole('link', { name: 'https://docs.google.com/d/y' })
+    expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 })

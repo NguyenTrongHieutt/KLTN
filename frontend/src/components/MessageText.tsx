@@ -1,13 +1,15 @@
+import { ExternalLink } from 'lucide-react'
 import { Fragment } from 'react'
 
-/** What a sentence puts right after a link: it stays outside the link, as text. */
-const TRAILING = '.,;:!?)]}\'"'
+/** What a sentence puts right after a link, phone keyboards' smart quotes included: it stays outside, as text. */
+const TRAILING = '.,;:!?)]}\'"”’…`'
 
 /**
- * An `https://` URL that starts a word, so the `https` part inside an `http:` URL or glued to a word stays text; it
- * runs to the next space or angle bracket.
+ * Every `https://` URL, wherever it starts: inside an `http:` URL or glued to a word, it is still a link whose label
+ * names the host it opens. It runs to the next space, angle bracket or format character, so no bidi control (or any
+ * other invisible one) reaches the link.
  */
-const HTTPS_URL = /(?<![\p{L}\p{N}_/=?&%.@+~#-])https:\/\/[^\s<>]+/giu
+const HTTPS_URL = /https:\/\/[^\s<>\p{Cf}]+/giu
 
 type Part = { text: string } | { url: string; host: string }
 
@@ -47,10 +49,11 @@ function partsOf(text: string): Part[] {
 
 /**
  * A chat message's body wherever one is shown (FR-46, FR-77, Story 24.4a): text as text, never as markup, and each
- * `https://` URL a link with the URL as its text, opening in a new tab without the opener, followed by its domain,
- * the ASCII host the browser would open, so a look-alike name cannot hide where it goes. Punctuation that ends a
- * sentence stays outside the link, and `http:` or any other scheme stays text. Nothing is fetched. The caller's
- * element keeps the line breaks (`whitespace-pre-line` or `whitespace-pre-wrap`).
+ * `https://` URL a link with the URL as its text and an outside-link icon, opening in a new tab without the opener,
+ * followed by its domain, the ASCII host the browser would open, so a look-alike name cannot hide where it goes. The
+ * domain sits in a left-to-right `<bdi>`, so a bidi control in the text around it cannot redraw it reversed.
+ * Punctuation that ends a sentence stays outside the link, and `http:` or any other scheme stays text. Nothing is
+ * fetched. The caller's element keeps the line breaks (`whitespace-pre-line` or `whitespace-pre-wrap`).
  */
 export function MessageText({ text }: { text: string }) {
   return (
@@ -65,8 +68,9 @@ export function MessageText({ text }: { text: string }) {
               className="break-all text-primary underline underline-offset-4"
             >
               {part.url}
+              <ExternalLink aria-hidden="true" className="ml-0.5 inline size-3.5" />
             </a>{' '}
-            <span className="text-muted-foreground">{`(${part.host})`}</span>
+            <bdi dir="ltr" className="text-muted-foreground">{`(${part.host})`}</bdi>
           </Fragment>
         ) : (
           <Fragment key={index}>{part.text}</Fragment>

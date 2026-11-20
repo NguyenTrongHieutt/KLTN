@@ -18,6 +18,8 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -182,15 +184,25 @@ class JobChatIT extends IntegrationTest {
 			.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"" + text + "\",\"sensitive\":\"SEND\"}"))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.body").value(text));
+		this.clock.advance(Duration.ofSeconds(1));
+		this.mvc.perform(multipart("/api/v1/crew-chats/" + crewChat + "/attachments")
+			.file(new MockMultipartFile("file", "cau-hinh.pdf", "application/pdf", TestFiles.pdf()))
+			.param("body", text)
+			.param("sensitive", "CHECK")
+			.with(as(this.hung, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.body").value(text))
+			.andExpect(jsonPath("$.attachment.name").value("cau-hinh.pdf"));
 		this.mvc.perform(get("/api/v1/crew-chats/" + crewChat + "/messages").with(as(vy, Role.STUDENT)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.items.length()").value(1))
+			.andExpect(jsonPath("$.items.length()").value(2))
 			.andExpect(jsonPath("$.items[0].author").value("Đỗ Mạnh Hùng"))
-			.andExpect(jsonPath("$.items[0].body").value(text));
+			.andExpect(jsonPath("$.items[0].body").value(text))
+			.andExpect(jsonPath("$.items[1].body").value(text))
+			.andExpect(jsonPath("$.items[1].attachment.name").value("cau-hinh.pdf"));
 
-		assertThat(this.jdbc.sql("SELECT body FROM chat.message").query(String.class).list())
-			.as("every message is stored as written")
-			.containsExactly(text, text, text);
+		assertThat(bodies()).as("every message of the Job is stored as written").containsExactly(text, text, text, text);
 	}
 
 	@Test
@@ -206,13 +218,28 @@ class JobChatIT extends IntegrationTest {
 			.with(csrf()))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION"));
+		UUID crewChat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")
+			.param("job", this.job)
+			.query(UUID.class)
+			.single();
+		this.mvc.perform(multipart("/api/v1/crew-chats/" + crewChat + "/attachments")
+			.file(new MockMultipartFile("file", "ke-hoach.pdf", "application/pdf", TestFiles.pdf()))
+			.param("body", tooLong)
+			.with(as(this.hung, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"));
 		send(this.lan, Role.CUSTOMER, "a".repeat(Chats.MAX_BODY), null).andExpect(status().isCreated());
-		assertThat(this.jdbc.sql("SELECT count(*) FROM chat.message").query(Long.class).single()).isOne();
+		assertThat(messages()).as("only the message of 4,000 characters is stored").hasSize(1);
 	}
 
-	/** Story 24.4a: J9 makes both Chats read-only and rewrites no message; the Chats stay until the retention run. */
-	@Test
-	void theJobsEndLeavesEveryBodyAsWritten() throws Exception {
+	/**
+	 * Story 24.4a: J9 (Closed) or J10 (Cancelled) makes both Chats read-only and rewrites no message; the Chats stay
+	 * until the retention run.
+	 */
+	@ParameterizedTest
+	@CsvSource({ "J9, SYSTEM, CLOSING, CLOSED", "J10, USER, ACTIVE, CANCELLED" })
+	void theJobsEndLeavesEveryBodyAsWritten(String transition, String trigger, String from, String to) throws Exception {
 		String text = "Khóa thử của tôi là " + fakeToken();
 		UUID crewChat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")
 			.param("job", this.job)
@@ -226,8 +253,8 @@ class JobChatIT extends IntegrationTest {
 			.andExpect(status().isCreated());
 		List<String> before = messages();
 
-		this.listeners.onJobTransitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, "J9", "SYSTEM",
-				"CLOSING", "CLOSED", 9, 1, Map.of()));
+		this.listeners.onJobTransitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, transition,
+				trigger, from, to, 9, 1, Map.of()));
 		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
 				SELECT count(*) FROM chat.chat WHERE job_id = :job AND closed_at IS NOT NULL
 				""").param("job", this.job).query(Long.class).single() == 2);
@@ -312,6 +339,14 @@ class JobChatIT extends IntegrationTest {
 	private List<String> messages() {
 		return this.jdbc.sql("""
 				SELECT m.id || ':' || m.body FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id
+				WHERE c.job_id = :job ORDER BY m.sent_at, m.id
+				""").param("job", this.job).query(String.class).list();
+	}
+
+	/** The body of every message of the Job's two Chats, oldest first. */
+	private List<String> bodies() {
+		return this.jdbc.sql("""
+				SELECT m.body FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id
 				WHERE c.job_id = :job ORDER BY m.sent_at, m.id
 				""").param("job", this.job).query(String.class).list();
 	}
