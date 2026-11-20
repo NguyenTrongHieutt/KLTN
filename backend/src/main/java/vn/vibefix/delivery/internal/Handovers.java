@@ -48,11 +48,11 @@ import vn.vibefix.timers.Deadlines;
  * Milestone Handovers (FR-10, FR-32, AD-4, AD-23, AD-33, SG-25): the preflight, the handover itself, and
  * its Delivery Report. A handover needs each Acceptance Criterion of the Milestone marked "Đạt" or
  * "Chưa đạt" with a note, which since Story 24.2 retired the Board is the whole of FR-32's enforcement;
- * the notes are stored as written (D5, Story 24.4b). Beside the criteria it carries up to {@value #MAX_LINKS} {@code https} links of the
- * Mentor's own tools, each a "Bản ghi / video" or a "Tài liệu" with a short label, which vibefix never fetches
- * (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of them. {@code job} applies M2
- * first, on the version the form loaded, so nothing is written when it refuses; then the handover, its criteria
- * and its links are stored, a Code Job's with its Handover Commit and range (Story 8.2), and the to-dos move
+ * the notes are stored as written (D5, Story 24.4b). Beside the criteria it carries up to {@value #MAX_LINKS}
+ * {@code https} links of the Mentor's own tools, each a "Bản ghi / video" or a "Tài liệu" with a short label,
+ * which vibefix never fetches (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of
+ * them. {@code job} applies M2 first, on the version the form loaded, so nothing is written when it refuses;
+ * then the handover, its criteria and its links are stored, a Code Job's with its Handover Commit and range (Story 8.2), and the to-dos move
  * from the Mentor to the Customer. An Assessment Job hands over the Milestone itself: its criteria are the
  * Assessment Report's sections, and the report reaches the Customer as the handover's "Tài liệu" link, since
  * the platform stores no documents (FR-10).
