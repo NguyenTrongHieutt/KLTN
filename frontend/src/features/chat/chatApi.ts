@@ -5,14 +5,6 @@ import { apiClient, formBody, unwrap } from '@/lib/apiClient'
 export type ChatMessage = components['schemas']['MessageView']
 export type ChatPage = components['schemas']['MessagePageView']
 export type CrewChat = components['schemas']['CrewChatView']
-export type Resolution = 'CHECK' | 'MASK' | 'SEND'
-
-/** A masked match the Sensitive-content dialog lists (FR-47). */
-export interface SensitiveMatch {
-  kind: 'CREDENTIAL' | 'PERSONAL_DATA'
-  type: string
-  masked: string
-}
 
 /**
  * Which conversation a panel shows: the Job Chat by its Job (JOB-4), or the Crew Chat by its own ID
@@ -76,37 +68,36 @@ export function useChatMessages(target: ChatTarget) {
   })
 }
 
-/** Plain text, after the FR-47 check unless the sender already chose "Che và gửi" or "Vẫn gửi". */
+/** Plain text, stored as written (Story 24.4a). */
 export function useSendMessage(target: ChatTarget) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ body, sensitive }: { body: string; sensitive: Resolution }) =>
+    mutationFn: ({ body }: { body: string }) =>
       target.kind === 'job'
         ? unwrap(
             apiClient.POST('/api/v1/jobs/{jobId}/chat/messages', {
               params: { path: { jobId: target.jobId } },
-              body: { body, sensitive },
+              body: { body },
             }),
           )
         : unwrap(
             apiClient.POST('/api/v1/crew-chats/{crewChatId}/messages', {
               params: { path: { crewChatId: target.chatId } },
-              body: { body, sensitive },
+              body: { body },
             }),
           ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: targetKey(target) }),
   })
 }
 
-/** One attachment with an optional caption; the caption and the choice travel as form fields, never in the URL. */
+/** One attachment with an optional caption; the caption travels as a form field, never in the URL. */
 export function useSendAttachment(target: ChatTarget) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ file, body, sensitive }: { file: File; body: string; sensitive: Resolution }) => {
+    mutationFn: ({ file, body }: { file: File; body: string }) => {
       const form = new FormData()
       form.append('file', file)
       form.append('body', body)
-      form.append('sensitive', sensitive)
       return target.kind === 'job'
         ? unwrap(
             apiClient.POST('/api/v1/jobs/{jobId}/chat/attachments', {

@@ -85,7 +85,7 @@ describe('ADM-4 "Khiếu nại nội bộ" (FR-79, AD-40, UX-DR84)', () => {
         return json(detail({ ...evidence, assigned: true, assignedToMe: true }))
       },
       'GET /api/v1/boards/j1/crew-chat/messages': () =>
-        json({ items: [{ id: 'msg1', author: 'Trần Thảo Vy', mine: false, body: 'Mình làm tiếp phần đặt bàn nhé', maskedCredentials: 0, maskedPersonal: 0, sentAt: '2026-10-10T03:00:00Z' }], hasOlder: false }),
+        json({ items: [{ id: 'msg1', author: 'Trần Thảo Vy', mine: false, body: 'Mình làm tiếp phần đặt bàn nhé', sentAt: '2026-10-10T03:00:00Z' }], hasOlder: false }),
       'POST /api/v1/admin/team-issues/ti1/decision': async (request) => {
         decided.push(await request.json())
         return json(done)

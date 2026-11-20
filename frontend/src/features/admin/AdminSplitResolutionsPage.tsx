@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
+import { MessageText } from '@/components/MessageText'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
@@ -696,7 +697,9 @@ function CrewChatTab({ resolutionId }: { resolutionId: string }) {
                     {message.author ?? t('screen.admin.splitResolutions.unnamed')} ·{' '}
                     {formatDayMonthTime(message.sentAt)}
                   </p>
-                  <p className="break-words whitespace-pre-line">{message.body}</p>
+                  <p className="break-words whitespace-pre-line">
+                    <MessageText text={message.body} />
+                  </p>
                   {message.attachmentName && <p className="text-caption break-words">{message.attachmentName}</p>}
                 </li>
               ))}

@@ -175,8 +175,6 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
               author: 'Đỗ Mạnh Hùng',
               mine: false,
               body: 'Bản sửa đã gửi hôm qua',
-              maskedCredentials: 0,
-              maskedPersonal: 0,
               sentAt: '2026-10-19T03:00:00Z',
             },
           ],

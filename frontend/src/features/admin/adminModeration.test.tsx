@@ -122,7 +122,7 @@ describe('ADM-6 moderation (FR-60)', () => {
         return json(current)
       },
       'GET /api/v1/chat-messages/m1': () =>
-        json({ id: 'm1', author: 'Đỗ Mạnh Hùng', mine: false, body: 'Nội dung tin nhắn bị báo cáo', maskedCredentials: 0, maskedPersonal: 0, sentAt: '2026-10-19T03:00:00Z' }),
+        json({ id: 'm1', author: 'Đỗ Mạnh Hùng', mine: false, body: 'Nội dung tin nhắn bị báo cáo', sentAt: '2026-10-19T03:00:00Z' }),
       'POST /api/v1/admin/abuse-reports/r1/decision': async (request) => {
         sent.push(await request.json())
         current = { ...current, status: 'ACTION_TAKEN', outcome: 'Đã khóa tài khoản', decidedAt: '2026-10-21T03:00:00Z' }

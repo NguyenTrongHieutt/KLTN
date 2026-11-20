@@ -42,8 +42,6 @@ const message = (overrides: object = {}) => ({
   author: 'Đỗ Mạnh Hùng',
   mine: false,
   body: 'Chị cần tài khoản thử của Supabase không?',
-  maskedCredentials: 0,
-  maskedPersonal: 0,
   sentAt: now,
   ...overrides,
 })
@@ -62,15 +60,12 @@ afterEach(() => {
 })
 
 describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
-  it('shows the conversation with own and others\' bubbles, the masked note, and marks it read', { timeout: 20_000 }, async () => {
+  it('shows the conversation with own and others\' bubbles and marks it read', { timeout: 20_000 }, async () => {
     let read = false
     customerChat({
       'GET /api/v1/jobs/j1/chat/messages': () =>
         json({
-          items: [
-            message(),
-            message({ id: 'm2', author: 'Lan Nguyễn', mine: true, body: 'Khóa thử của tôi là sk_t••••••••3f9A', maskedCredentials: 1 }),
-          ],
+          items: [message(), message({ id: 'm2', author: 'Lan Nguyễn', mine: true, body: 'Chị gửi anh tài khoản thử nhé' })],
           hasOlder: false,
         }),
       'POST /api/v1/jobs/j1/chat/read': () => {
@@ -87,52 +82,57 @@ describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
     expect(screen.getByText('Hôm nay')).toBeInTheDocument()
     expect(screen.getByText(/^Bạn · /)).toBeInTheDocument()
     expect(screen.getByText(/^Đỗ Mạnh Hùng · /)).toBeInTheDocument()
-    expect(screen.getByText('Đã che 1 khóa bí mật trước khi gửi')).toBeInTheDocument()
+    expect(screen.getByText('Chị gửi anh tài khoản thử nhé')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gửi' })).toBeDisabled()
     await waitFor(() => expect(read).toBe(true))
   })
 
-  it('holds a likely credential back and sends the masked text on "Che và gửi"', { timeout: 20_000 }, async () => {
+  it('sends a credential-like text once, as typed, with no dialog (Story 24.4a)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
-    const sent: unknown[] = []
+    const typed = `Khóa thử là ${'sk' + '_test_' + 'a1B2c3D4'.repeat(3)}`
+    const sent: { body: string }[] = []
     customerChat({
-      'GET /api/v1/jobs/j1/chat/messages': () => json({ items: [], hasOlder: false }),
+      'GET /api/v1/jobs/j1/chat/messages': () =>
+        json({ items: sent.map((item, index) => message({ id: `s${index}`, mine: true, body: item.body })), hasOlder: false }),
       'POST /api/v1/jobs/j1/chat/messages': async (request) => {
-        const body = (await request.json()) as { sensitive: string }
+        const body = (await request.json()) as { body: string }
         sent.push(body)
-        if (body.sensitive === 'CHECK') {
-          return json(
-            {
-              status: 422,
-              code: 'GUARD_FAILED',
-              reason: 'SENSITIVE_CONTENT',
-              matches: [{ kind: 'CREDENTIAL', type: 'Khóa Stripe', masked: 'sk_t••••••••3f9A' }],
-            },
-            422,
-          )
-        }
-        return json(message({ id: 'm9', mine: true, body: 'Khóa thử là sk_t••••••••3f9A', maskedCredentials: 1 }), 201)
+        return json(message({ id: 'm9', mine: true, body: body.body }), 201)
       },
     })
     renderAt('/cong-viec/j1/tro-chuyen')
 
     expect(await screen.findByText('Chưa có tin nhắn. Hãy chào hỏi và trao đổi về kế hoạch.')).toBeInTheDocument()
-    await user.type(screen.getByRole('textbox', { name: 'Tin nhắn' }), 'Khóa thử là sk_test_abc{Enter}')
+    await user.type(screen.getByRole('textbox', { name: 'Tin nhắn' }), `${typed}{Enter}`)
 
-    const dialog = await screen.findByRole('dialog', { name: 'Tin nhắn có thể chứa khóa bí mật' })
-    expect(within(dialog).getByText('sk_t••••••••3f9A')).toBeInTheDocument()
-    const mask = within(dialog).getByRole('button', { name: 'Che và gửi' })
-    await waitFor(() => expect(mask).toHaveFocus())
-    expect(within(dialog).getByRole('button', { name: 'Sửa lại' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Vẫn gửi' })).toBeInTheDocument()
-    await user.click(mask)
-
-    await waitFor(() => expect(sent).toEqual([
-      { body: 'Khóa thử là sk_test_abc', sensitive: 'CHECK' },
-      { body: 'Khóa thử là sk_test_abc', sensitive: 'MASK' },
-    ]))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Tin nhắn có thể chứa khóa bí mật' })).toBeNull())
+    await waitFor(() => expect(sent).toEqual([{ body: typed }]))
+    expect(await screen.findByText(typed)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toHaveValue('')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Che và gửi' })).toBeNull()
+    expect(screen.queryByText(/Đã che/)).toBeNull()
+  })
+
+  it('shows an https link with its domain, opening a new tab without the opener, and leaves http: as text', { timeout: 20_000 }, async () => {
+    customerChat({
+      'GET /api/v1/jobs/j1/chat/messages': () =>
+        json({
+          items: [
+            message({ body: 'Tài liệu ở https://docs.google.com/document/d/abc.' }),
+            message({ id: 'm2', body: 'Bản cũ: http://x.vn' }),
+          ],
+          hasOlder: false,
+        }),
+    })
+    renderAt('/cong-viec/j1/tro-chuyen')
+
+    const link = await screen.findByRole('link', { name: 'https://docs.google.com/document/d/abc' })
+    expect(link).toHaveAttribute('href', 'https://docs.google.com/document/d/abc')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByText('(docs.google.com)')).toBeInTheDocument()
+    expect(screen.getByText('Bản cũ: http://x.vn')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /x\.vn/ })).toBeNull()
   })
 
   it('pre-checks an attachment against the upload rules', { timeout: 15_000 }, async () => {

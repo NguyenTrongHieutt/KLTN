@@ -22,16 +22,14 @@ import vn.vibefix.chat.internal.ChatConversation.MessagePageView;
 import vn.vibefix.chat.internal.ChatConversation.MessageView;
 import vn.vibefix.chat.internal.ChatConversation.SendRequest;
 import vn.vibefix.chat.internal.Chats.Kind;
-import vn.vibefix.chat.internal.SensitiveContent.Resolution;
-import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-8 "Trao đổi nhóm" (FR-77, FR-47, UX-DR25, UX-DR40, UX-DR80): the Job's Mentor and its Crew. The
- * Mentor and {@code ACTIVE} members read every message and write while the Chat is open; a
- * {@code FORMER} member reads only the messages inside their windows (AD-41). The
+ * JOB-8 "Trao đổi nhóm" (FR-77, UX-DR25, UX-DR40, UX-DR80): the Job's Mentor and its Crew. The
+ * Mentor and {@code ACTIVE} members read every message and write, stored as written, while the Chat
+ * is open; a {@code FORMER} member reads only the messages inside their windows (AD-41). The
  * Customer and everyone else find nothing; an Administrator only reads, under a grant naming the
  * Crew Chat, audited. The tab finds the Chat by its Job, and the messages are addressed by the Chat.
  */
@@ -87,22 +85,21 @@ class CrewChatController {
 		return this.conversation.page(this.access.crewReader(crewChatId, this.callers.get()), before);
 	}
 
-	/** Sends plain text after the FR-47 check (AD-18). */
+	/** Sends plain text, stored as written. */
 	@PostMapping("/api/v1/crew-chats/{crewChatId}/messages")
 	@ResponseStatus(HttpStatus.CREATED)
 	MessageView sendCrewMessage(@PathVariable UUID crewChatId, @Valid @RequestBody SendRequest body) {
 		Viewer viewer = this.access.crewParticipant(crewChatId, this.callers.get());
-		return this.conversation.send(viewer, body.body(), body.sensitive());
+		return this.conversation.send(viewer, body.body());
 	}
 
-	/** Sends one attachment with an optional caption, both checked first (NFR-3, AD-21). */
+	/** Sends one attachment with an optional caption, the file checked first (NFR-3, AD-21). */
 	@PostMapping(path = "/api/v1/crew-chats/{crewChatId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	MessageView attachCrewFile(@PathVariable UUID crewChatId, @RequestPart("file") MultipartFile file,
-			@RequestParam(defaultValue = "") @Size(max = SensitiveText.MAX_LENGTH) String body,
-			@RequestParam(required = false) @Nullable Resolution sensitive) {
+			@RequestParam(defaultValue = "") @Size(max = Chats.MAX_BODY) String body) {
 		Viewer viewer = this.access.crewParticipant(crewChatId, this.callers.get());
-		return this.conversation.attach(viewer, file, body, sensitive);
+		return this.conversation.attach(viewer, file, body);
 	}
 
 	/** The viewer has read the Crew Chat up to now; the unread dot goes. */

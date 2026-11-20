@@ -37,8 +37,6 @@ const message = (overrides: object = {}) => ({
   author: 'Đỗ Mạnh Hùng',
   mine: false,
   body: 'Vy viết giúp anh ghi chú cài đặt cho chị Lan nhé',
-  maskedCredentials: 0,
-  maskedPersonal: 0,
   sentAt: now,
   ...overrides,
 })
@@ -84,7 +82,50 @@ describe('JOB-8 "Trao đổi nhóm" (FR-77, UX-DR80)', () => {
 
     await user.type(screen.getByRole('textbox', { name: 'Tin nhắn' }), 'Cảm ơn Vy')
     await user.click(screen.getByRole('button', { name: 'Gửi' }))
-    await waitFor(() => expect(sent).toEqual([{ body: 'Cảm ơn Vy', sensitive: 'CHECK' }]))
+    await waitFor(() => expect(sent).toEqual([{ body: 'Cảm ơn Vy' }]))
+  })
+
+  it('lets the Mentor send a credential-like value as typed, with no dialog (Story 24.4a)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const typed = `Khóa thử của Supabase: ${'sk' + '_test_' + 'a1B2c3D4'.repeat(3)}`
+    const sent: { body: string }[] = []
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
+      'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false, readOnly: false }),
+      'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat()),
+      'GET /api/v1/crew-chats/cc1/messages': () =>
+        json({ items: sent.map((item, index) => message({ id: `s${index}`, mine: true, body: item.body })), hasOlder: false }),
+      'POST /api/v1/crew-chats/cc1/read': () => new Response(null, { status: 204 }),
+      'POST /api/v1/crew-chats/cc1/messages': async (request) => {
+        const body = (await request.json()) as { body: string }
+        sent.push(body)
+        return json(message({ id: 'm2', mine: true, body: body.body }), 201)
+      },
+    })
+    renderAt('/cong-viec/j1/trao-doi-nhom')
+
+    await user.type(await screen.findByRole('textbox', { name: 'Tin nhắn' }), typed)
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    await waitFor(() => expect(sent).toEqual([{ body: typed }]))
+    expect(await screen.findByText(typed)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Che và gửi' })).toBeNull()
+  })
+
+  it('shows an active Crew member a credential-like value as the Mentor typed it', { timeout: 20_000 }, async () => {
+    const typed = `Khóa thử của Supabase: ${'sk' + '_test_' + 'a1B2c3D4'.repeat(3)}`
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/jobs/j1/crew-chat': () => json(crewChat()),
+      'GET /api/v1/crew-chats/cc1/messages': () => json({ items: [message({ body: typed })], hasOlder: false }),
+      'POST /api/v1/crew-chats/cc1/read': () => new Response(null, { status: 204 }),
+    })
+    renderAt('/cong-viec/j1/trao-doi-nhom')
+
+    expect(await screen.findByText(typed)).toBeInTheDocument()
+    expect(screen.queryByText(/Đã che/)).toBeNull()
   })
 
   it('lets an active Crew member reach it from "Việc tôi tham gia"', { timeout: 20_000 }, async () => {

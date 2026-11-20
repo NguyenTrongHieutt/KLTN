@@ -22,17 +22,15 @@ import vn.vibefix.chat.internal.ChatConversation.MessagePageView;
 import vn.vibefix.chat.internal.ChatConversation.MessageView;
 import vn.vibefix.chat.internal.ChatConversation.SendRequest;
 import vn.vibefix.chat.internal.Chats.Kind;
-import vn.vibefix.chat.internal.SensitiveContent.Resolution;
-import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.CurrentCaller;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-4 "Trò chuyện" (FR-46, FR-47, UX-DR25, UX-DR40): the Job's Customer and its Mentor read the
- * newest 50 messages and older pages, write plain text or one attachment after the FR-47 check while
- * the Chat is open, and mark what they have read. Everyone else finds nothing; a granted
- * Administrator only reads, audited.
+ * JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40): the Job's Customer and its Mentor read the newest 50
+ * messages and older pages, write plain text or one attachment, stored as written, while the Chat is
+ * open, and mark what they have read. Everyone else finds nothing; a granted Administrator only
+ * reads, audited.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -73,22 +71,21 @@ class JobChatController {
 		return this.conversation.page(this.access.reader(jobId, Kind.JOB, this.callers.get()), before);
 	}
 
-	/** Sends plain text after the FR-47 check (AD-18). */
+	/** Sends plain text, stored as written. */
 	@PostMapping("/api/v1/jobs/{jobId}/chat/messages")
 	@ResponseStatus(HttpStatus.CREATED)
 	MessageView send(@PathVariable UUID jobId, @Valid @RequestBody SendRequest body) {
 		Viewer viewer = this.access.participant(jobId, Kind.JOB, this.callers.get());
-		return this.conversation.send(viewer, body.body(), body.sensitive());
+		return this.conversation.send(viewer, body.body());
 	}
 
-	/** Sends one attachment with an optional caption, both checked first (FR-46, NFR-3, AD-21). */
+	/** Sends one attachment with an optional caption, the file checked first (FR-46, NFR-3, AD-21). */
 	@PostMapping(path = "/api/v1/jobs/{jobId}/chat/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	MessageView attach(@PathVariable UUID jobId, @RequestPart("file") MultipartFile file,
-			@RequestParam(defaultValue = "") @Size(max = SensitiveText.MAX_LENGTH) String body,
-			@RequestParam(required = false) @Nullable Resolution sensitive) {
+			@RequestParam(defaultValue = "") @Size(max = Chats.MAX_BODY) String body) {
 		Viewer viewer = this.access.participant(jobId, Kind.JOB, this.callers.get());
-		return this.conversation.attach(viewer, file, body, sensitive);
+		return this.conversation.attach(viewer, file, body);
 	}
 
 	/** The viewer has read the Chat up to now; the unread dot goes. */

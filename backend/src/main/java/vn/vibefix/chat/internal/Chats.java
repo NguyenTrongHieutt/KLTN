@@ -15,7 +15,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import vn.vibefix.chat.internal.SensitiveContent.Prepared;
 import vn.vibefix.files.PreparedFile;
 import vn.vibefix.files.StoredFile;
 import vn.vibefix.files.StoredFiles;
@@ -31,6 +30,9 @@ class Chats {
 
 	/** Messages per page (UX-DR25). */
 	static final int PAGE_SIZE = 50;
+
+	/** The longest message body, in characters; {@code chat.message} checks it too. */
+	static final int MAX_BODY = 4000;
 
 	/** The file purpose of an attachment, whose read policy is {@link ChatAttachmentFiles}. */
 	static final String ATTACHMENT_PURPOSE = "chat.attachment";
@@ -55,8 +57,8 @@ class Chats {
 	record Attachment(UUID fileId, String name, String mediaType, long size) {
 	}
 
-	record Message(UUID id, UUID chatId, UUID authorId, String body, int maskedCredentials, int maskedPersonal,
-			boolean sentDespiteWarning, @Nullable Attachment attachment, Instant sentAt) {
+	/** A message, its body as its author wrote it. */
+	record Message(UUID id, UUID chatId, UUID authorId, String body, @Nullable Attachment attachment, Instant sentAt) {
 	}
 
 	/** A page of messages, oldest first. */
@@ -66,8 +68,8 @@ class Chats {
 	private static final String CHAT_COLUMNS = "id, job_id, product_id, kind, opened_at, closed_at";
 
 	private static final String MESSAGE_COLUMNS = """
-			id, chat_id, author_account_id, body, masked_credentials, masked_personal, sent_despite_warning,
-			attachment_file_id, attachment_name, attachment_media_type, attachment_size, sent_at
+			id, chat_id, author_account_id, body, attachment_file_id, attachment_name, attachment_media_type,
+			attachment_size, sent_at
 			""";
 
 	private final JdbcClient jdbc;
@@ -168,24 +170,21 @@ class Chats {
 		return new Page(newestFirst.reversed(), older);
 	}
 
-	/** Stores a checked message, with its prepared attachment when there is one. */
+	/** Stores a message as written, with its prepared attachment when there is one. */
 	@Transactional
-	Message post(Chat chat, UUID authorId, Prepared prepared, @Nullable PreparedFile file) {
+	Message post(Chat chat, UUID authorId, String body, @Nullable PreparedFile file) {
 		UUID id = this.ids.newId();
 		Instant now = this.clock.instant();
 		StoredFile stored = file == null ? null : this.files.store(file);
 		this.jdbc.sql("""
-				INSERT INTO chat.message (id, chat_id, author_account_id, body, masked_credentials, masked_personal,
-				    sent_despite_warning, attachment_file_id, attachment_name, attachment_media_type, attachment_size, sent_at)
-				VALUES (:id, :chat, :author, :body, :credentials, :personal, :despite, :file, :name, :type, :size, :now)
+				INSERT INTO chat.message (id, chat_id, author_account_id, body, attachment_file_id, attachment_name,
+				    attachment_media_type, attachment_size, sent_at)
+				VALUES (:id, :chat, :author, :body, :file, :name, :type, :size, :now)
 				""")
 			.param("id", id)
 			.param("chat", chat.id())
 			.param("author", authorId)
-			.param("body", prepared.body())
-			.param("credentials", prepared.maskedCredentials())
-			.param("personal", prepared.maskedPersonal())
-			.param("despite", prepared.sentDespiteWarning())
+			.param("body", body)
 			.param("file", stored == null ? null : stored.id())
 			.param("name", stored == null ? null : stored.fileName())
 			.param("type", stored == null ? null : stored.mediaType())
@@ -193,8 +192,7 @@ class Chats {
 			.param("now", Timestamp.from(now))
 			.update();
 		markRead(chat.id(), authorId);
-		return new Message(id, chat.id(), authorId, prepared.body(), prepared.maskedCredentials(),
-				prepared.maskedPersonal(), prepared.sentDespiteWarning(),
+		return new Message(id, chat.id(), authorId, body,
 				stored == null ? null : new Attachment(stored.id(), stored.fileName(), stored.mediaType(), stored.size()),
 				now);
 	}
@@ -250,8 +248,7 @@ class Chats {
 	private static Message message(ResultSet rs, int n) throws SQLException {
 		UUID file = rs.getObject("attachment_file_id", UUID.class);
 		return new Message(rs.getObject("id", UUID.class), rs.getObject("chat_id", UUID.class),
-				rs.getObject("author_account_id", UUID.class), rs.getString("body"), rs.getInt("masked_credentials"),
-				rs.getInt("masked_personal"), rs.getBoolean("sent_despite_warning"),
+				rs.getObject("author_account_id", UUID.class), rs.getString("body"),
 				file == null ? null
 						: new Attachment(file, rs.getString("attachment_name"), rs.getString("attachment_media_type"),
 								rs.getLong("attachment_size")),
