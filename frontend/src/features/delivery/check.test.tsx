@@ -126,12 +126,51 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
             { criterionId: 'c1', met: true },
             { criterionId: 'c2', met: false, comment: 'Thiếu ba thuật ngữ.' },
           ],
-          sensitive: 'CHECK',
         },
       ]),
     )
     expect(await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).toBeInTheDocument()
     expect(window.sessionStorage.getItem('vibefix.check.h1')).toBeNull()
+  })
+
+  /** D5 (Story 24.4b): nothing checks or masks a comment, so one holding a key-like value goes once, as typed. */
+  it('sends a revision comment holding a key-like value once, as typed, with no warning', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    // Built at run time, so no credential shape sits in this source.
+    const comment = `Báo cáo còn để lộ khóa ${'sk' + '_test_' + 'ab'.repeat(12)}, hãy bỏ đi.`
+    window.sessionStorage.setItem('vibefix.check.h1', JSON.stringify({ step: 1, marks: { c1: { met: true, comment: '' } } }))
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/handovers': () => json(list),
+      'GET /api/v1/handovers/h1': () => json(report()),
+      'POST /api/v1/handovers/h1/revision': async (request) => {
+        sent.push(await request.json())
+        return json(report({ status: 'REVISION_REQUESTED', decision: null }))
+      },
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    expect(await screen.findByText('Tiêu chí 2/2')).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: 'Chưa đạt' }))
+    await user.type(screen.getByRole('textbox', { name: 'Nhận xét của bạn (không bắt buộc)' }), comment)
+    await user.click(screen.getByRole('button', { name: 'Tiếp' }))
+    await user.click(await screen.findByRole('button', { name: 'Yêu cầu sửa (1 tiêu chí)' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Yêu cầu sửa 1 tiêu chí?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).toBeInTheDocument()
+    expect(sent).toEqual([
+      {
+        version: 13,
+        checks: [
+          { criterionId: 'c1', met: true },
+          { criterionId: 'c2', met: false, comment },
+        ],
+      },
+    ])
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('resumes a draft after a reload and accepts with the amount and the test tag', { timeout: 25_000 }, async () => {

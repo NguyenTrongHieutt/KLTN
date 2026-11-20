@@ -25,9 +25,6 @@ enum DeliveryReason {
 	/** Every Acceptance Criterion of the Milestone needs "Đạt" or "Chưa đạt" and a note (FR-32). */
 	CRITERION_MARK_MISSING,
 
-	/** FR-47 found a likely credential or bulk personal data in a note or comment. */
-	SENSITIVE_CONTENT,
-
 	/** Only the Job's Customer accepts a Milestone or asks for a revision (FR-33). */
 	CUSTOMER_ONLY,
 

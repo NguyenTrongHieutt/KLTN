@@ -104,8 +104,6 @@ class RetiredBoardTest {
 			.isEqualTo("Ghi chú công việc");
 		assertThat(vi.at("/screen/admin/statistics/group").has("acceptedMilestones"))
 			.as("FR-62's section over accepted Milestones takes its place").isTrue();
-		assertThat(vi.at("/screen/handover/sensitive/title").asString())
-			.as("the FR-47 dialog's strings moved out of screen.board with the dialog (Story 24.2a)").isNotEmpty();
 		assertThat(vi.at("/screen/progress/externalLink").asString()).isNotEmpty();
 	}
 
@@ -168,13 +166,13 @@ class RetiredBoardTest {
 		for (String text : List.of("/api/v1/boards/{boardId}/handovers", "`/cong-viec/${jobId}/ban-giao`",
 				"GRANT SELECT ON chat.message TO ${runtime_role}",
 				"import vn.vibefix.repo.HandoverBranches;", "chat.attachment", "ChatAttachmentFiles",
-				"t('screen.handover.sensitive.title')", "t('screen.progress.externalLink')",
+				"t('screen.handover.form.send')", "t('screen.progress.externalLink')",
 				"AdminReadScope.CREW_CHAT", "AdminReadScope.SPLIT_VERSIONS", "DeliveryReason.CRITERION_MARK_MISSING",
 				"integer(rs, \"commits_authored\")", "entry.commitsAuthored ?? 0",
 				"screen.admin.statistics.group.acceptedMilestones", "handoverBranches.workingRepository()",
 				"the Crew work on the Product", "entry.commitsAuthored != null", "const STARTED_STATES = ['ACTIVE']",
 				"...(hasStarted(state)", "{@code workflow_dispatch}", "Phần trao đổi trên vibefix đã mở.",
-				"Ai xem được bàn giao này đều đọc được nội dung này.")) {
+				"Mỗi lần bàn giao có tối đa 5 hình ảnh.")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
 	}

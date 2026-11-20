@@ -30,6 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.MilestoneFunding;
+import vn.vibefix.scanning.CredentialCheck;
 import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.support.IntegrationTest;
@@ -62,6 +63,10 @@ class DecisionIT extends IntegrationTest {
 	@Autowired
 	private TransactionTemplate transactions;
 
+	/** The credential rules {@code job} still applies (FR-66), which show a stored-as-written comment is credential-like. */
+	@Autowired
+	private CredentialCheck credentials;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -76,14 +81,17 @@ class DecisionIT extends IntegrationTest {
 
 	private UUID criterion;
 
+	/** The {@code sensitive} field a client built before Story 24.4b sends; none when null. */
+	private String legacySensitive;
+
 	@Test
 	void acceptanceHoldsTheMilestoneInAPoolWhileItsSplitAwaitsTheDraft() throws Exception {
 		world(2);
 		String handover = handOver(5);
-		decide(this.hung, Role.MENTOR, handover, "accept", 6, true, null, null).andExpect(status().isForbidden())
+		decide(this.hung, Role.MENTOR, handover, "accept", 6, true, null).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("CUSTOMER_ONLY"));
-		decide(this.vy, Role.STUDENT, handover, "accept", 6, true, null, null).andExpect(status().isForbidden());
-		decide(this.lan, Role.CUSTOMER, handover, "accept", 5, true, null, null).andExpect(status().isConflict())
+		decide(this.vy, Role.STUDENT, handover, "accept", 6, true, null).andExpect(status().isForbidden());
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 5, true, null).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("STALE"));
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.decision.releaseVnd").value(PRICE))
@@ -91,7 +99,7 @@ class DecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.roundsLeft").value(2))
 			.andExpect(jsonPath("$.version").value(6));
 
-		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null, null).andExpect(status().isOk())
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null).andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("ACCEPTED"))
 			.andExpect(jsonPath("$.decision").doesNotExist())
 			.andExpect(jsonPath("$.checks[0].met").value(true))
@@ -113,7 +121,7 @@ class DecisionIT extends IntegrationTest {
 				    AND closed_at IS NULL
 				""").param("next", this.next).query(Long.class).single() == 1);
 
-		decide(this.lan, Role.CUSTOMER, handover, "accept", 7, true, null, null).andExpect(status().isConflict())
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 7, true, null).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("HANDOVER_DECIDED"));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].state").value("ACCEPTED"));
@@ -132,7 +140,7 @@ class DecisionIT extends IntegrationTest {
 				WHERE job_id = :job
 				""").param("end", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(2)))).param("job", this.job).update();
 
-		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null, null).andExpect(status().isOk());
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null).andExpect(status().isOk());
 
 		await().atMost(Duration.ofSeconds(10)).until(() -> notifications("payment.funds_released") == 1);
 		assertThat(this.jdbc.sql("""
@@ -149,7 +157,7 @@ class DecisionIT extends IntegrationTest {
 		world(2);
 		String handover = handOver(5);
 		assertThat(fundNext()).as("Milestone 1 is still Held (§4.0 M1)").isFalse();
-		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null, null).andExpect(status().isOk());
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, null).andExpect(status().isOk());
 
 		assertThat(this.jdbc.sql("""
 				SELECT (params ->> 'n') || ':' || (params ->> 'amount') FROM notification.notification
@@ -177,7 +185,7 @@ class DecisionIT extends IntegrationTest {
 	@Test
 	void aPaidNextMilestoneIsNotReminded() throws Exception {
 		world(2);
-		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null, null).andExpect(status().isOk());
+		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null).andExpect(status().isOk());
 		assertThat(fundNext()).isTrue();
 		this.clock.advance(Duration.ofDays(15));
 		this.poller.runDue();
@@ -188,7 +196,7 @@ class DecisionIT extends IntegrationTest {
 	@Test
 	void aFrozenJobPausesTheReminder() throws Exception {
 		world(2);
-		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null, null).andExpect(status().isOk());
+		decide(this.lan, Role.CUSTOMER, handOver(5), "accept", 6, true, null).andExpect(status().isOk());
 		this.jdbc.sql("UPDATE job.job SET frozen_at = :now WHERE id = :id")
 			.param("now", Timestamp.from(this.clock.instant())).param("id", this.job).update();
 		this.jdbc.sql("INSERT INTO timers.frozen_job (job_id, frozen_at) VALUES (:job, :now)")
@@ -209,9 +217,9 @@ class DecisionIT extends IntegrationTest {
 	void aRevisionUsesARoundReopensTheHandoverToDoAndStopsWhenNoneIsLeft() throws Exception {
 		world(1);
 		String first = handOver(5);
-		decide(this.lan, Role.CUSTOMER, first, "revision", 6, true, null, null).andExpect(status().isBadRequest())
+		decide(this.lan, Role.CUSTOMER, first, "revision", 6, true, null).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("REVISION_CRITERIA_MISSING"));
-		decide(this.lan, Role.CUSTOMER, first, "revision", 6, false, "Thiếu mục sao lưu.", null).andExpect(status().isOk())
+		decide(this.lan, Role.CUSTOMER, first, "revision", 6, false, "Thiếu mục sao lưu.").andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("REVISION_REQUESTED"))
 			.andExpect(jsonPath("$.checks[0].comment").value("Thiếu mục sao lưu."));
 		assertThat(text("SELECT state || ':' || revision_rounds_used || ':' || revision_criteria FROM job.milestone WHERE id = '"
@@ -233,21 +241,46 @@ class DecisionIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/handovers/" + second).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.round").value(2))
 			.andExpect(jsonPath("$.decision.revisionAllowed").value(false));
-		decide(this.lan, Role.CUSTOMER, second, "revision", 8, false, "Vẫn thiếu.", null).andExpect(status().isUnprocessableEntity())
+		decide(this.lan, Role.CUSTOMER, second, "revision", 8, false, "Vẫn thiếu.").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("REVISION_ROUNDS_USED"));
-		decide(this.lan, Role.CUSTOMER, first, "accept", 8, true, null, null).andExpect(status().isConflict())
+		decide(this.lan, Role.CUSTOMER, first, "accept", 8, true, null).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("HANDOVER_DECIDED"));
 	}
 
+	/**
+	 * Story 24.4b (D5): nothing checks, masks or refuses the Customer's comments. A revision comment holding a
+	 * credential-like value is stored and read back as written, with no warning, and the {@code sensitive} field an
+	 * older client still sends is ignored.
+	 */
 	@Test
-	void aRevisionCommentPassesTheSensitiveCheck() throws Exception {
+	void aRevisionCommentIsStoredAsWritten() throws Exception {
 		world(2);
 		String handover = handOver(5);
-		decide(this.lan, Role.CUSTOMER, handover, "revision", 6, false, "Khóa " + fakeToken(), null)
-			.andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("SENSITIVE_CONTENT"));
-		decide(this.lan, Role.CUSTOMER, handover, "revision", 6, false, "Khóa " + fakeToken(), "MASK").andExpect(status().isOk());
-		assertThat(text("SELECT comment FROM delivery.handover_check")).startsWith("Khóa ").doesNotContain(fakeToken());
+		String comment = "Báo cáo còn để lộ khóa " + stripeTestKey() + ", hãy bỏ đi.";
+		assertThat(this.credentials.looksLikeCredential(comment)).as("the comment looks like a credential").isTrue();
+		this.legacySensitive = "CHECK";
+
+		decide(this.lan, Role.CUSTOMER, handover, "revision", 6, false, comment).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("REVISION_REQUESTED"))
+			.andExpect(jsonPath("$.checks[0].comment").value(comment));
+		assertThat(text("SELECT comment FROM delivery.handover_check WHERE handover_id = '" + handover + "'"))
+			.isEqualTo(comment);
+	}
+
+	/** Story 24.4b (D5): an acceptance no longer masks a comment either, whatever an older client asks. */
+	@Test
+	void anAcceptanceCommentIsStoredAsWritten() throws Exception {
+		world(2);
+		String handover = handOver(5);
+		String comment = "Đạt. Khóa " + fakeToken() + " cần đổi sau khi bàn giao.";
+		assertThat(this.credentials.looksLikeCredential(comment)).as("the comment looks like a credential").isTrue();
+		this.legacySensitive = "MASK";
+
+		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, comment).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("ACCEPTED"))
+			.andExpect(jsonPath("$.checks[0].comment").value(comment));
+		assertThat(text("SELECT comment FROM delivery.handover_check WHERE handover_id = '" + handover + "'"))
+			.isEqualTo(comment);
 	}
 
 	/**
@@ -342,10 +375,11 @@ class DecisionIT extends IntegrationTest {
 	}
 
 	private ResultActions decide(UUID account, Role role, String handover, String action, long version, boolean met,
-			String comment, String sensitive) throws Exception {
+			String comment) throws Exception {
 		String json = "{\"version\":" + version + ",\"checks\":[{\"criterionId\":\"" + this.criterion + "\",\"met\":" + met
 				+ (comment == null ? "" : ",\"comment\":\"" + comment + "\"") + "}]"
-				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"") + "}";
+				// Story 24.4b: an older client's field, which the server ignores.
+				+ (this.legacySensitive == null ? "" : ",\"sensitive\":\"" + this.legacySensitive + "\"") + "}";
 		return this.mvc.perform(post("/api/v1/handovers/" + handover + "/" + action).with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(json));
@@ -377,6 +411,11 @@ class DecisionIT extends IntegrationTest {
 			token.append(alphabet.charAt((i * 7 + 3) % alphabet.length()));
 		}
 		return token.toString();
+	}
+
+	/** A Stripe test key shape built at run time, for the same reason. */
+	private static String stripeTestKey() {
+		return "sk" + "_test_" + "ab".repeat(12);
 	}
 
 	private RequestPostProcessor as(UUID account, Role role) {

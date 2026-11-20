@@ -1,7 +1,7 @@
 /**
  * Layer 8 (AD-3): Milestone Handovers and their Delivery Reports (FR-10, FR-32). The Mentor hands a
  * Funded or Revision Requested Milestone over once its preflight passes: each Acceptance Criterion of it
- * marked "Đạt" or "Chưa đạt" with a note, all FR-47 checked; {@code job} applies M2 with the handover as
+ * marked "Đạt" or "Chưa đạt" with a note, stored as written (D5); {@code job} applies M2 with the handover as
  * its evidence (AD-4). An Assessment Job hands over the Milestone itself, whose Acceptance Criteria the
  * Assessment Report template writes, and the report reaches the Customer as a document link of the handover
  * (Story 24.3). The

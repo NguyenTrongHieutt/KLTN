@@ -195,13 +195,50 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
           milestoneId: 'm1',
           version: 12,
           criteria: [{ criterionId: 'c1', met: true, note: 'Đã rà đủ chín mục.' }],
-          sensitive: 'CHECK',
           links: [{ kind: 'DOCUMENT', label: 'Báo cáo đánh giá', url: 'https://docs.google.com/document/d/bao-cao' }],
           screenshotIds: [],
         },
       ]),
     )
     expect(await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).toBeInTheDocument()
+  })
+
+  /** D5 (Story 24.4b): nothing checks or masks a note, so one holding a key-like value goes once, as typed. */
+  it('sends a note holding a key-like value once, as typed, with no warning', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: { criteria: { note: string }[] }[] = []
+    // Built at run time, so no credential shape sits in this source.
+    const note = `Khóa thử ${'sk' + '_test_' + 'ab'.repeat(12)} vẫn nằm trong ghi chú.`
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
+      'GET /api/v1/boards/j1/handovers': () => json(list()),
+      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight()),
+      'POST /api/v1/boards/j1/handovers': async (request) => {
+        sent.push(await request.json())
+        return json(
+          { id: 'h1', jobId: 'j1', milestoneId: 'm1', number: 1, state: 'DONE', reason: null, handoverId: 'h1' },
+          202,
+        )
+      },
+      'GET /api/v1/handovers/h1': () =>
+        json(report({ audience: 'MENTOR', criteria: [{ ...report().criteria[0], note }] })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
+    await user.type(screen.getByRole('textbox', { name: 'Ghi chú cho tiêu chí 1' }), note)
+    const row = screen.getByRole('group', { name: 'Liên kết 1' })
+    await user.type(within(row).getByRole('textbox', { name: 'Tên liên kết' }), 'Báo cáo đánh giá')
+    await user.type(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' }), 'https://docs.google.com/document/d/bao-cao')
+    await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).toBeInTheDocument()
+    expect(sent).toHaveLength(1)
+    expect(sent[0].criteria[0].note).toBe(note)
+    expect(sent[0]).not.toHaveProperty('sensitive')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText(note)).toBeInTheDocument()
   })
 
   it('shows a refusal the preflight finds and keeps "Gửi bàn giao" off', { timeout: 20_000 }, async () => {
@@ -489,7 +526,6 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       'milestoneId',
       'noPreviewReason',
       'screenshotIds',
-      'sensitive',
       'teamCodeNoticeVersion',
       'version',
     ])

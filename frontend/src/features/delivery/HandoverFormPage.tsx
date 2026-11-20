@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
-import { SensitiveDialog, type SensitiveMatch } from './SensitiveDialog'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { isNotFound, problemMessage, reasonMessage, sentence } from '@/lib/problemMessage'
@@ -76,7 +75,6 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
   const handOver = useHandOver(jobId)
   const [marks, setMarks] = useState<Record<string, Mark>>({})
   const [error, setError] = useState<string>()
-  const [matches, setMatches] = useState<SensitiveMatch[]>()
   // N-33 (FR-25, R28, Story 23.8b): the Mentor's duty, which a Code Job's handover cannot go without.
   const [teamCode, setTeamCode] = useState(false)
   const [noticeChanged, setNoticeChanged] = useState(false)
@@ -120,7 +118,8 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
     void navigate(`/cong-viec/${jobId}/ban-giao/${copied.handoverId}`)
   }, [copied, jobId, navigate, toasts])
 
-  const send = (sensitive: 'CHECK' | 'MASK') => {
+  // D5 (Story 24.4b): the notes and the reason go as typed, and nothing checks or masks them.
+  const send = () => {
     setError(undefined)
     setNoticeChanged(false)
     setCopying(undefined)
@@ -133,13 +132,11 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           met: marks[criterion.criterionId]?.met ?? false,
           note: marks[criterion.criterionId]?.note.trim() ?? '',
         })),
-        sensitive,
         teamCodeNoticeVersion: preflight.assessment ? undefined : TEAM_CODE_NOTICE_VERSION,
         ...evidenceBody(evidence, preflight.assessment),
       },
       {
         onSuccess: (sent) => {
-          setMatches(undefined)
           if (sent.state === 'DONE' && sent.handoverId) {
             toasts.success(t('screen.handover.form.sent', { n: sent.number }))
             void navigate(`/cong-viec/${jobId}/ban-giao/${sent.handoverId}`)
@@ -149,11 +146,6 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
           setCopying(sent.id)
         },
         onError: (failure) => {
-          if (failure instanceof ApiError && failure.problem.reason === 'SENSITIVE_CONTENT') {
-            setMatches((failure.problem as { matches?: SensitiveMatch[] }).matches ?? [])
-            return
-          }
-          setMatches(undefined)
           if (failure instanceof ApiError && failure.problem.code === 'STALE') {
             setError(t('screen.handover.form.stale'))
             onStale()
@@ -313,13 +305,10 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
             {t('screen.handover.form.copying', { n: preflight.milestone.number })}
           </p>
         )}
-        <Button type="button" disabled={!ready || waiting || handOver.isPending} onClick={() => send('CHECK')}>
+        <Button type="button" disabled={!ready || waiting || handOver.isPending} onClick={send}>
           {t('screen.handover.form.send')}
         </Button>
       </div>
-      {matches && (
-        <SensitiveDialog matches={matches} pending={handOver.isPending} onMask={() => send('MASK')} onEdit={() => setMatches(undefined)} />
-      )}
     </div>
   )
 }

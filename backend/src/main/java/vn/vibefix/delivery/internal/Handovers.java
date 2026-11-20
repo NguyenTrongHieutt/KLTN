@@ -38,9 +38,6 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.repo.HandoverBranches.Commit;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
-import vn.vibefix.scanning.SensitiveText;
-import vn.vibefix.scanning.SensitiveText.Match;
-import vn.vibefix.scanning.SensitiveText.Result;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
@@ -51,14 +48,14 @@ import vn.vibefix.timers.Deadlines;
  * Milestone Handovers (FR-10, FR-32, AD-4, AD-23, AD-33, SG-25): the preflight, the handover itself, and
  * its Delivery Report. A handover needs each Acceptance Criterion of the Milestone marked "Đạt" or
  * "Chưa đạt" with a note, which since Story 24.2 retired the Board is the whole of FR-32's enforcement;
- * the notes pass FR-47. Beside the criteria it carries up to {@value #MAX_LINKS} {@code https} links of the
- * Mentor's own tools, each a "Bản ghi / video" or a "Tài liệu" with a short label, which vibefix never fetches
- * (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of them. {@code job} applies M2
- * first, on the version the form loaded, so nothing is written when it refuses; then the handover, its criteria
- * and its links are stored, a Code Job's with its Handover Commit and range (Story 8.2), and the to-dos move
- * from the Mentor to the Customer. An Assessment Job hands over the Milestone itself: its criteria are the
- * Assessment Report's sections, and the report reaches the Customer as the handover's "Tài liệu" link, since
- * the platform stores no documents (FR-10).
+ * the notes are stored as written (D5, Story 24.4b). Beside the criteria it carries up to {@value #MAX_LINKS}
+ * {@code https} links of the Mentor's own tools, each a "Bản ghi / video" or a "Tài liệu" with a short label,
+ * which vibefix never fetches (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of
+ * them. {@code job} applies M2 first, on the version the form loaded, so nothing is written when it refuses;
+ * then the handover, its criteria and its links are stored, a Code Job's with its Handover Commit and range
+ * (Story 8.2), and the to-dos move from the Mentor to the Customer. An Assessment Job hands over the Milestone
+ * itself: its criteria are the Assessment Report's sections, and the report reaches the Customer as the
+ * handover's "Tài liệu" link, since the platform stores no documents (FR-10).
  */
 @Component
 class Handovers {
@@ -94,15 +91,6 @@ class Handovers {
 
 	/** The Milestone states a handover leaves (M2). */
 	static final Set<String> HANDABLE = Set.of("FUNDED", "REVISION_REQUESTED");
-
-	/** What the writer chose after the FR-47 warning: check first, or store the masked text. */
-	enum Resolution {
-		CHECK, MASK
-	}
-
-	/** One masked FR-47 match, as the warning lists it. */
-	record MatchView(SensitiveText.Kind kind, String type, String masked) {
-	}
 
 	/** The Mentor's mark on one criterion. */
 	record CriterionMark(UUID criterionId, boolean met, String note) {
@@ -152,9 +140,9 @@ class Handovers {
 	}
 
 	/**
-	 * A handover checked and masked, not yet written (FR-32, FR-47).
+	 * A handover checked, not yet written (FR-32); its texts are as the Mentor wrote them (D5).
 	 * @param previewUrl the preview link, which the caller checks before {@link #record}
-	 * @param noPreviewReason why a preview is impossible, masked; with at least one VIDEO link
+	 * @param noPreviewReason why a preview is impossible, as written; with at least one VIDEO link
 	 * @param links the Mentor's links in their order, never fetched
 	 */
 	record Draft(MilestoneInForce milestone, List<CriterionInForce> criteria, Map<UUID, Boolean> met,
@@ -167,7 +155,7 @@ class Handovers {
 	}
 
 	/**
-	 * Everything a handover stores, checked and masked, before M2 applies (FR-32, Story 23.8a). A Code Job keeps
+	 * Everything a handover stores, checked, before M2 applies (FR-32, Story 23.8a). A Code Job keeps
 	 * it in {@code delivery.handover_submission} while the runner copies the Handover Commit, so what the Mentor
 	 * sent is recorded as they sent it, whatever moves meanwhile.
 	 * @param id the handover's ID, which for a Code Job is also its submission's and its branch's
@@ -262,8 +250,6 @@ class Handovers {
 
 	private final MilestoneStates states;
 
-	private final SensitiveText check;
-
 	private final Todos todos;
 
 	private final Deadlines deadlines;
@@ -276,9 +262,8 @@ class Handovers {
 
 	private final String noticeVersion;
 
-	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states,
-			SensitiveText check, Todos todos, Deadlines deadlines, IdGenerator ids, Clock clock,
-			HandoverScreenshots screenshots,
+	Handovers(JdbcClient jdbc, MilestoneHandovers jobs, AgreementCriteria criteria, MilestoneStates states, Todos todos,
+			Deadlines deadlines, IdGenerator ids, Clock clock, HandoverScreenshots screenshots,
 			@Value("${vibefix.delivery.team-code-notice-version}") String noticeVersion) {
 		if (noticeVersion == null || !NOTICE_VERSION.matcher(noticeVersion).matches()) {
 			throw new IllegalStateException(
@@ -290,7 +275,6 @@ class Handovers {
 		this.jobs = jobs;
 		this.criteria = criteria;
 		this.states = states;
-		this.check = check;
 		this.todos = todos;
 		this.deadlines = deadlines;
 		this.ids = ids;
@@ -336,17 +320,18 @@ class Handovers {
 	}
 
 	/**
-	 * "Gửi bàn giao", first step: everything the handover will store, checked and masked, before anything
-	 * is written or copied. A Code Job's commit is copied on the runner between this and {@link #record}.
+	 * "Gửi bàn giao", first step: everything the handover will store, checked, before anything is written or
+	 * copied. The criterion notes and the no-preview reason are stored as the Mentor wrote them, stripped: nothing
+	 * checks, masks or refuses their text (D5). A Code Job's commit is copied on the runner between this and
+	 * {@link #record}.
 	 * @throws ApiException {@code NOT_FOUND} for a Milestone not in force; {@code GUARD_FAILED
-	 * MILESTONE_NOT_HELD} or {@code SENSITIVE_CONTENT} (with the matches, under
-	 * {@code CHECK}); {@code VALIDATION CRITERION_MARK_MISSING}, {@code TOO_MANY_LINKS}, {@code PREVIEW_OR_RECORDING},
+	 * MILESTONE_NOT_HELD}; {@code VALIDATION CRITERION_MARK_MISSING}, {@code TOO_MANY_LINKS}, {@code PREVIEW_OR_RECORDING},
 	 * {@code RECORDING_REASON_MISSING}, {@code PREVIEW_REQUIRED}, {@code REPORT_LINK_MISSING},
 	 * {@code TOO_MANY_SCREENSHOTS}, or {@code SCREENSHOT_UNKNOWN}; plain {@code VALIDATION} for a link that is not
-	 * {@code https} or whose label is blank or too long
+	 * {@code https} or whose label is blank or too long, or a note longer than {@value #MAX_NOTE} characters
 	 */
 	@Transactional(readOnly = true)
-	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, Resolution resolution, Evidence evidence) {
+	Draft draft(Viewer mentor, UUID milestoneId, List<CriterionMark> marks, Evidence evidence) {
 		UUID jobId = mentor.job().jobId();
 		MilestoneInForce milestone = milestone(jobId, milestoneId);
 		if (!HANDABLE.contains(this.states.statesOf(jobId).getOrDefault(milestoneId, "PLANNED"))) {
@@ -361,10 +346,9 @@ class Handovers {
 				throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.CRITERION_MARK_MISSING);
 			}
 		}
-		List<MatchView> matches = new ArrayList<>();
 		Map<UUID, String> criterionNotes = new HashMap<>();
 		for (CriterionInForce criterion : criteria) {
-			criterionNotes.put(criterion.criterionId(), masked(byCriterion.get(criterion.criterionId()).note(), matches));
+			criterionNotes.put(criterion.criterionId(), note(byCriterion.get(criterion.criterionId()).note()));
 		}
 		List<Link> links = evidence.links();
 		if (links.size() > MAX_LINKS) {
@@ -387,14 +371,10 @@ class Handovers {
 		if (mentor.job().assessment() && links.stream().noneMatch(link -> link.kind() == Link.Kind.DOCUMENT)) {
 			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.REPORT_LINK_MISSING);
 		}
-		String maskedReason = reason == null ? null : masked(reason, matches);
 		this.screenshots.requireAttachable(jobId, mentor.accountId(), evidence.screenshotIds());
-		if (!matches.isEmpty() && resolution == Resolution.CHECK) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.SENSITIVE_CONTENT, Map.of("matches", matches));
-		}
 		Map<UUID, Boolean> met = new HashMap<>();
 		criteria.forEach(criterion -> met.put(criterion.criterionId(), byCriterion.get(criterion.criterionId()).met()));
-		return new Draft(milestone, criteria, met, criterionNotes, preview, maskedReason, links, evidence.screenshotIds());
+		return new Draft(milestone, criteria, met, criterionNotes, preview, reason, links, evidence.screenshotIds());
 	}
 
 	/**
@@ -402,7 +382,7 @@ class Handovers {
 	 * the URL parsed as {@link URI} with scheme {@code https}, a host, and no user info. The pattern's {@code \S}
 	 * lets through what the URI refuses -- a backslash, an ideographic space, a control character -- and a URL whose
 	 * host is not the one a reader would see, so this refuses those before anything is copied or written. Its text is
-	 * never fetched and never passes FR-47 (D5).
+	 * never fetched, and stored as written (D5).
 	 */
 	private static void requireWellFormed(Link link) {
 		if (link.kind() == null || link.url() == null || link.label() == null || link.url().length() > MAX_LINK_URL
@@ -677,20 +657,16 @@ class Handovers {
 			.orElse(List.of());
 	}
 
-	/** The note stripped and, with its matches added, masked (FR-47). */
-	private String masked(String note, List<MatchView> matches) {
-		String text = note.strip();
-		if (text.length() > MAX_NOTE) {
+	/**
+	 * A note or comment stripped, and otherwise as written (D5): nothing checks, masks or refuses its text.
+	 * @throws ApiException {@code VALIDATION} past {@value #MAX_NOTE} characters
+	 */
+	static String note(String text) {
+		String stripped = text.strip();
+		if (stripped.length() > MAX_NOTE) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
-		Result result = this.check.check(text);
-		if (!result.found()) {
-			return text;
-		}
-		for (Match match : result.matches()) {
-			matches.add(new MatchView(match.kind(), match.type(), match.masked()));
-		}
-		return result.maskedText();
+		return stripped;
 	}
 
 	private static Handover handover(ResultSet rs, int n) throws SQLException {

@@ -5,7 +5,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,15 +17,10 @@ import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
 import vn.vibefix.delivery.internal.Handovers.CodeRecord;
 import vn.vibefix.delivery.internal.Handovers.Handover;
-import vn.vibefix.delivery.internal.Handovers.MatchView;
-import vn.vibefix.delivery.internal.Handovers.Resolution;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.MilestoneHandovers.Decided;
 import vn.vibefix.notification.Todos;
 import vn.vibefix.payment.Releases;
-import vn.vibefix.scanning.SensitiveText;
-import vn.vibefix.scanning.SensitiveText.Match;
-import vn.vibefix.scanning.SensitiveText.Result;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
@@ -35,7 +29,8 @@ import vn.vibefix.shared.ErrorCode;
  * and has {@code payment} write the split release in the same transaction. On a Code Job it first
  * merges the Handover Commit: the command only reserves the Job and requests the merge, and
  * {@link AcceptanceMerges} applies M5 once GitHub shows it merged. "Yêu cầu sửa" names the
- * criteria marked "Chưa đạt", with comments FR-47 checked, and applies M4, which uses one Revision Round.
+ * criteria marked "Chưa đạt", and applies M4, which uses one Revision Round. The Customer's comments are stored as
+ * written, on either decision (D5).
  * Either keeps the Customer's marks, decides the handover once, and closes the review to-do; the
  * handover to-do reopens through the M4 listener. The Job row, which M4 and M5 lock, serializes two
  * decisions (AD-4's lock order); the second meets a Milestone no longer Submitted.
@@ -55,21 +50,18 @@ class Decisions {
 
 	private final Releases releases;
 
-	private final SensitiveText check;
-
 	private final Todos todos;
 
 	private final AcceptanceMerges merges;
 
 	private final Clock clock;
 
-	Decisions(JdbcClient jdbc, Handovers handovers, MilestoneHandovers jobs, Releases releases, SensitiveText check,
-			Todos todos, AcceptanceMerges merges, Clock clock) {
+	Decisions(JdbcClient jdbc, Handovers handovers, MilestoneHandovers jobs, Releases releases, Todos todos,
+			AcceptanceMerges merges, Clock clock) {
 		this.jdbc = jdbc;
 		this.handovers = handovers;
 		this.jobs = jobs;
 		this.releases = releases;
-		this.check = check;
 		this.todos = todos;
 		this.merges = merges;
 		this.clock = clock;
@@ -83,7 +75,7 @@ class Decisions {
 	@Transactional
 	Handover accept(Viewer customer, UUID handoverId, long version, List<Check> checks) {
 		Handover handover = open(customer, handoverId);
-		List<Check> kept = known(handover, checks, Resolution.MASK);
+		List<Check> kept = known(handover, checks);
 		CodeRecord code = this.handovers.code(handoverId).orElse(null);
 		if (code != null) {
 			this.merges.request(handover, code, customer.accountId(), version, kept, false);
@@ -140,13 +132,12 @@ class Decisions {
 	/**
 	 * "Yêu cầu sửa ({n} tiêu chí)": M4 on {@code version}, naming the criteria marked "Chưa đạt".
 	 * @throws ApiException {@code FORBIDDEN CUSTOMER_ONLY}; {@code STALE HANDOVER_VOIDED}; {@code CONFLICT HANDOVER_DECIDED};
-	 * {@code VALIDATION REVISION_CRITERIA_MISSING}; {@code GUARD_FAILED SENSITIVE_CONTENT} under
-	 * {@code CHECK}; M4's refusals, {@code REVISION_ROUNDS_USED} among them
+	 * {@code VALIDATION REVISION_CRITERIA_MISSING}; M4's refusals, {@code REVISION_ROUNDS_USED} among them
 	 */
 	@Transactional
-	Handover requestRevision(Viewer customer, UUID handoverId, long version, List<Check> checks, Resolution resolution) {
+	Handover requestRevision(Viewer customer, UUID handoverId, long version, List<Check> checks) {
 		Handover handover = open(customer, handoverId);
-		List<Check> kept = known(handover, checks, resolution);
+		List<Check> kept = known(handover, checks);
 		int named = (int) kept.stream().filter(mark -> !mark.met()).count();
 		if (named == 0) {
 			throw new ApiException(ErrorCode.VALIDATION, DeliveryReason.REVISION_CRITERIA_MISSING);
@@ -182,39 +173,24 @@ class Decisions {
 		return handover;
 	}
 
-	/** The marks on the handover's own criteria, comments stripped and FR-47 checked. */
-	private List<Check> known(Handover handover, List<Check> checks, Resolution resolution) {
+	/**
+	 * The marks on the handover's own criteria, each once, with comments stripped and otherwise as written (D5).
+	 * @throws ApiException {@code VALIDATION} for a criterion the handover does not hold, one marked twice, or a comment
+	 * past {@value Handovers#MAX_NOTE} characters
+	 */
+	private List<Check> known(Handover handover, List<Check> checks) {
 		Set<UUID> criteria = new HashSet<>();
 		this.handovers.criteria(handover.id()).forEach(criterion -> criteria.add(criterion.criterionId()));
-		List<MatchView> matches = new ArrayList<>();
 		List<Check> kept = new ArrayList<>();
 		Set<UUID> seen = new HashSet<>();
 		for (Check mark : checks) {
 			if (!criteria.contains(mark.criterionId()) || !seen.add(mark.criterionId())) {
 				throw new ApiException(ErrorCode.VALIDATION);
 			}
-			String comment = mark.comment() == null || mark.comment().isBlank() ? null : masked(mark.comment(), matches);
+			String comment = mark.comment() == null || mark.comment().isBlank() ? null : Handovers.note(mark.comment());
 			kept.add(new Check(mark.criterionId(), mark.met(), comment));
 		}
-		if (!matches.isEmpty() && resolution == Resolution.CHECK) {
-			throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.SENSITIVE_CONTENT, Map.of("matches", matches));
-		}
 		return kept;
-	}
-
-	private String masked(String comment, List<MatchView> matches) {
-		String text = comment.strip();
-		if (text.length() > Handovers.MAX_NOTE) {
-			throw new ApiException(ErrorCode.VALIDATION);
-		}
-		Result result = this.check.check(text);
-		if (!result.found()) {
-			return text;
-		}
-		for (Match match : result.matches()) {
-			matches.add(new MatchView(match.kind(), match.type(), match.masked()));
-		}
-		return result.maskedText();
 	}
 
 	private void decide(Handover handover, @Nullable UUID decider, UUID customerId, String status, List<Check> checks,

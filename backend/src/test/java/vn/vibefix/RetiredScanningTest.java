@@ -25,9 +25,9 @@ import tools.jackson.databind.json.JsonMapper;
  * the scan lane, the {@code SECRET_SCAN} sandbox job, a retired reason, a {@code scanning.*} notification, to-do or
  * email template, or the {@code scanning-fingerprint-key} secret, in {@code backend/src/main} outside its Flyway
  * history, in {@code frontend/src} outside its tests, or in {@code deploy}. Tests may name them: a migration test seeds
- * them. What {@code scanning} keeps (the rules, {@code SensitiveText} and {@code SensitiveChanges}) stays, and only the
- * modules that use it depend on it. The SPA's Job phases {@code FINDING_MENTOR} and {@code FINDING_CREW} are about
- * finding people, and a word-bounded, capitalized {@code Finding} never matches them.
+ * them. What {@code scanning} keeps (the credential rules, {@code CredentialCheck} and {@code SensitiveChanges}) stays,
+ * and only the modules that use it depend on it. The SPA's Job phases {@code FINDING_MENTOR} and {@code FINDING_CREW}
+ * are about finding people, and a word-bounded, capitalized {@code Finding} never matches them.
  * <p>
  * Story 23.2 (D9, R25): heads are compared only at acceptance, so nothing live names the head tracking either: the
  * {@code WorkingHeadMoved} event, {@code PushScans}, {@code recordedHead}, the {@code branch_head} and
@@ -43,7 +43,15 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code scanning}, and no chat file names the chats' text check or its redaction ({@code SensitiveContent},
  * {@code ChatRedaction}, {@code sent_despite_warning}, {@code redacted_at}, and the masked counts
  * {@code maskedCredentials} and {@code maskedPersonal} in either spelling). That entry reads only the chat files
- * ({@link #chatFile}): {@code delivery}'s own text check lives on until Story 24.4b.
+ * ({@link #chatFile}).
+ * <p>
+ * Story 24.4b (D5): nothing checks, masks or refuses a handover's notes or the Customer's comments either, so no live
+ * file names the text check ({@code SensitiveText}, {@code SensitiveTextCheck}, {@code PersonalDataMatcher}), the
+ * handover form's dialog ({@code SensitiveDialog}), its masked matches ({@code MatchView}, {@code SensitiveMatch}), the
+ * writer's choice ({@code Resolution.CHECK}, {@code Resolution.MASK}) or its refusal ({@code SENSITIVE_CONTENT}), and
+ * the copy of the warning, the dialog and the refusal is gone from {@code vi.json}. {@code scanning} keeps
+ * {@code SensitiveChanges} and {@code CredentialCheck}, the credential rules that {@code job}'s External Access refusal
+ * applies (FR-66).
  */
 class RetiredScanningTest {
 
@@ -65,26 +73,34 @@ class RetiredScanningTest {
 	/** The two spike commands whose probes keep their own fork and ruleset code. */
 	static final java.util.Set<String> SPIKE_COMMANDS = java.util.Set.of("SpikeS4Command.java", "SpikeS6Command.java");
 
+	/** Story 24.4b's entry, which every live file is read for. */
+	static final String TEXT_CHECK = "the text check";
+
 	/** What no live file may say, each with what it names. */
-	static final Map<String, Pattern> RETIRED = Map.of("the scan pipeline",
+	static final Map<String, Pattern> RETIRED = Map.ofEntries(Map.entry("the scan pipeline",
 			Pattern.compile("\\b(?:Scans|ScanCompleted|ScanPurpose|ScanStatus|ScanSummary|ScanTarget|ShaRange|requestScan"
-					+ "|setResolvers|PushScanDelay|JobFindingController|CleanRepositories|Rescans)\\b"),
-			"a Finding", Pattern.compile("\\b(?:Findings?|FalsePositive|FindingCategory|FindingStatus|FindingResolution)\\b"),
-			"the scan lane", Pattern.compile("\\bLane\\.SCAN\\b"), "the scan sandbox job", Pattern.compile("\\bSECRET_SCAN\\b"),
-			"a retired reason",
-			Pattern.compile("\\b(?:INTAKE_FINDING_OPEN|FINDING_OPEN|COMMITS_NOT_SCANNED|OPEN_FINDINGS|SCAN_IN_PROGRESS"
-					+ "|SCAN_LIMIT|NO_PERSONAL_DATA_FINDING|NOT_A_FALSE_POSITIVE)\\b"),
-			"a scanning notification, to-do or template", Pattern.compile("\\bscanning\\.(?:resolve_|intake_scan|finding_|push_scan)"),
-			"a promise of a scan in the text people read",
-			// Story 23.5: "Tự kiểm tra khóa bí mật" is the Customer's own optional gitleaks run (N-2), no scan of vibefix's.
-			Pattern.compile("quét bảo mật|đã (?:được )?quét|(?<!tự )kiểm tra khóa bí mật",
-					Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE),
-			"the fingerprint key", Pattern.compile("scanning[-_.]fingerprint[-_.]key", Pattern.CASE_INSENSITIVE),
-			"head tracking",
-			Pattern.compile("\\b(?:WorkingHeadMoved|PushScans|recordedHead|branch_head|push_scan|push-sweep|void-sweep)\\b"),
-			FORK_AND_RULESETS, Pattern.compile("\\b(?:Unnarrowed\\.FORK|createRulesets|rulesetDifferences|RULESETS_DIFFER"
+					+ "|setResolvers|PushScanDelay|JobFindingController|CleanRepositories|Rescans)\\b")),
+			Map.entry("a Finding", Pattern.compile("\\b(?:Findings?|FalsePositive|FindingCategory|FindingStatus|FindingResolution)\\b")),
+			Map.entry("the scan lane", Pattern.compile("\\bLane\\.SCAN\\b")),
+			Map.entry("the scan sandbox job", Pattern.compile("\\bSECRET_SCAN\\b")),
+			Map.entry("a retired reason",
+					Pattern.compile("\\b(?:INTAKE_FINDING_OPEN|FINDING_OPEN|COMMITS_NOT_SCANNED|OPEN_FINDINGS|SCAN_IN_PROGRESS"
+							+ "|SCAN_LIMIT|NO_PERSONAL_DATA_FINDING|NOT_A_FALSE_POSITIVE)\\b")),
+			Map.entry("a scanning notification, to-do or template",
+					Pattern.compile("\\bscanning\\.(?:resolve_|intake_scan|finding_|push_scan)")),
+			Map.entry("a promise of a scan in the text people read",
+					// Story 23.5: "Tự kiểm tra khóa bí mật" is the Customer's own optional gitleaks run (N-2), no scan of vibefix's.
+					Pattern.compile("quét bảo mật|đã (?:được )?quét|(?<!tự )kiểm tra khóa bí mật",
+							Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)),
+			Map.entry("the fingerprint key", Pattern.compile("scanning[-_.]fingerprint[-_.]key", Pattern.CASE_INSENSITIVE)),
+			Map.entry("head tracking",
+					Pattern.compile("\\b(?:WorkingHeadMoved|PushScans|recordedHead|branch_head|push_scan|push-sweep|void-sweep)\\b")),
+			Map.entry(FORK_AND_RULESETS, Pattern.compile("\\b(?:Unnarrowed\\.FORK|createRulesets|rulesetDifferences|RULESETS_DIFFER"
 					+ "|fork-poll|fork-wait|turnFeaturesOff|featureDifferences|vibefix-default-branch|vibefix-handover"
-					+ "|outsider_pull_request_closed)\\b"));
+					+ "|outsider_pull_request_closed)\\b")),
+			// Story 24.4b: word-bounded, so SensitiveChanges, SensitiveChangeList and JobTypeMatchView stay live.
+			Map.entry(TEXT_CHECK, Pattern.compile("\\b(?:SensitiveText|SensitiveTextCheck|PersonalDataMatcher|SensitiveDialog"
+					+ "|SENSITIVE_CONTENT|MatchView|SensitiveMatch|Resolution\\.(?:CHECK|MASK))\\b")));
 
 	/** Story 24.4a's entry, which only the chat files are read for ({@link #chatFile}). */
 	static final String CHAT_TEXT_CHECK = "the chats' text check";
@@ -140,6 +156,19 @@ class RetiredScanningTest {
 			.doesNotContain("\"scanning.");
 	}
 
+	/** Story 24.4b: the chat warning's copy, the handover dialog's and the refusal's are gone from the catalog. */
+	@Test
+	void theCatalogKeepsNoCopyOfTheTextCheck() {
+		JsonNode vi = JsonMapper.builder().build().readTree(read(VI));
+
+		for (String pointer : List.of("/screen/chat/warning", "/screen/handover/sensitive", "/reason/delivery/SENSITIVE_CONTENT")) {
+			assertThat(vi.at(pointer).isMissingNode()).as(pointer).isTrue();
+		}
+		assertThat(vi.at("/screen/chat/readOnly").isMissingNode()).as("the chat's other copy stays").isFalse();
+		assertThat(vi.at("/reason/delivery/CRITERION_MARK_MISSING").isMissingNode()).as("and the module's other reasons")
+			.isFalse();
+	}
+
 	@Test
 	void scanningKeepsTheRulesAndOnlyTheModulesThatUseThemDependOnIt() {
 		assertThat(packageInfo("scanning")).contains("allowedDependencies = { \"shared\" }");
@@ -152,8 +181,16 @@ class RetiredScanningTest {
 		assertThat(BACKEND_MAIN.resolve(Path.of("resources", "scanning", "rules.yaml"))).isRegularFile();
 		try (Stream<Path> files = Files.walk(MODULES.resolve("scanning"))) {
 			assertThat(files.filter(Files::isRegularFile).map(file -> file.getFileName().toString()).sorted())
-				.containsExactly("PathSensitiveChanges.java", "PersonalDataMatcher.java", "ScanRules.java", "SecretMatcher.java",
-						"SensitiveChanges.java", "SensitiveText.java", "SensitiveTextCheck.java", "package-info.java");
+				.containsExactly("CredentialCheck.java", "PathSensitiveChanges.java", "RulesCredentialCheck.java",
+						"ScanRules.java", "SecretMatcher.java", "SensitiveChanges.java", "package-info.java");
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+		// Story 24.4b: the module publishes exactly these two interfaces.
+		try (Stream<Path> files = Files.list(MODULES.resolve("scanning"))) {
+			assertThat(files.filter(Files::isRegularFile).map(file -> file.getFileName().toString()).sorted())
+				.containsExactly("CredentialCheck.java", "SensitiveChanges.java", "package-info.java");
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);
@@ -177,10 +214,24 @@ class RetiredScanningTest {
 				"new Outcome.Transient(\"RULESETS_DIFFER\")", "@Value(\"${vibefix.github.fork-poll:2s}\")",
 				"registry.add(\"vibefix.github.fork-wait\", () -> \"5s\");", "repositories().turnFeaturesOff(working);",
 				"this.repositories.featureDifferences(repo.repository())", "static final String DEFAULT = \"vibefix-default-branch\";",
-				"\"vibefix-handover\"", "audit(\"repo.outsider_pull_request_closed\", jobId);")) {
+				"\"vibefix-handover\"", "audit(\"repo.outsider_pull_request_closed\", jobId);",
+				// Story 24.4b: the text check, its dialog and its refusal.
+				"import vn.vibefix.scanning.SensitiveText;", "class SensitiveTextCheck implements SensitiveText {",
+				"this.personalData = new PersonalDataMatcher(rules.personalData());",
+				"import { SensitiveDialog, type SensitiveMatch } from './SensitiveDialog'",
+				"throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.SENSITIVE_CONTENT, Map.of(\"matches\", matches));",
+				"if (failure instanceof ApiError && failure.problem.reason === 'SENSITIVE_CONTENT') {",
+				"\"SENSITIVE_CONTENT\": \"Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.\",",
+				"List<MatchView> matches = new ArrayList<>();", "const [matches, setMatches] = useState<SensitiveMatch[]>()",
+				"List<Check> kept = known(handover, checks, Resolution.MASK);",
+				"body.sensitive() == null ? Resolution.CHECK : body.sensitive()")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
-		for (String text : List.of("import vn.vibefix.scanning.SensitiveText;", "SensitiveChanges.WORKFLOWS", "FINDING_MENTOR",
+		for (String text : List.of("import vn.vibefix.scanning.CredentialCheck;", "this.credentials.looksLikeCredential(value)",
+				"import { SensitiveChangeList } from './SensitiveChangeList'", "SENSITIVE_CONTENT_TYPE",
+				"record JobTypeMatchView(String jobType, int count) {", "JobTypeMatchView.of(candidate.jobTypeMatches())",
+				"AdminReadItem.forSplitResolution(item.objectId())", "import { ResolutionPanel } from './ResolutionPanel'",
+				"SensitiveChanges.WORKFLOWS", "FINDING_MENTOR",
 				"case FINDING_CREW ->", "scanning/rules.yaml", "One finding.", "finding people for the Job",
 				"vibefix scans no code", "Lane.GITHUB_LONG", "Tôi hiểu vibefix không quét mã.", "HandoverVoids",
 				"Tự kiểm tra khóa bí mật trên GitHub", "\"scanLink\": \"Tự kiểm tra khóa bí mật (gitleaks, không bắt buộc)\"",
@@ -213,7 +264,7 @@ class RetiredScanningTest {
 
 	/**
 	 * Story 24.4a: the chats' text check entry finds each retired name in a chat file, leaves the chats' live code
-	 * alone, and reads no other file, so {@code delivery}'s text check, which Story 24.4b retires, is not flagged.
+	 * alone, and reads no other file.
 	 */
 	@Test
 	void theChatTextCheckEntryReadsOnlyTheChatFiles() {
@@ -235,12 +286,12 @@ class RetiredScanningTest {
 		}
 		for (String text : List.of("record SendRequest(@NotNull @Size(max = Chats.MAX_BODY) String body) {",
 				"this.chats.post(viewer.chat(), viewer.accountId(), text, null)", "<MessageText text={message.body} />",
-				"t('screen.chat.warning.found')", "SensitiveChanges.WORKFLOWS", "a closed Chat is read, never written")) {
+				"t('screen.chat.readOnly')", "SensitiveChanges.WORKFLOWS", "a closed Chat is read, never written")) {
 			assertThat(violations(conversation, text)).as(text).isEmpty();
 			assertThat(violations(panel, text)).as(text).isEmpty();
 		}
 		for (Path file : List.of(MODULES.resolve(Path.of("delivery", "internal", "HandoverSubmissions.java")),
-				FRONTEND_SRC.resolve(Path.of("features", "delivery", "SensitiveDialog.tsx")), Path.of("Example.java"))) {
+				FRONTEND_SRC.resolve(Path.of("features", "delivery", "HandoverFormPage.tsx")), Path.of("Example.java"))) {
 			for (String text : retired) {
 				assertThat(violations(file, text)).as(file + ": " + text).isEmpty();
 			}

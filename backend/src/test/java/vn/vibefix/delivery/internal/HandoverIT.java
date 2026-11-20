@@ -35,7 +35,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
-import vn.vibefix.scanning.SensitiveText;
+import vn.vibefix.scanning.CredentialCheck;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
 
@@ -61,9 +61,9 @@ class HandoverIT extends IntegrationTest {
 	@Autowired
 	private DeliveryListeners listeners;
 
-	/** FR-47's check, which still runs on criterion notes and must never run on a link (D5). */
+	/** The credential rules {@code job} still applies (FR-66), which show a stored-as-written text is credential-like. */
 	@Autowired
-	private SensitiveText sensitive;
+	private CredentialCheck credentials;
 
 	private UUID lan;
 
@@ -91,6 +91,12 @@ class HandoverIT extends IntegrationTest {
 	/** The uploads "Gửi bàn giao" attaches, as a JSON array; none when null. */
 	private String screenshotIds;
 
+	/** Why a preview is impossible, which "Gửi bàn giao" sends; none when null. */
+	private String noPreviewReason;
+
+	/** The {@code sensitive} field a client built before Story 24.4b sends; none when null. */
+	private String legacySensitive;
+
 	/** An Assessment Job's report, which the Mentor keeps in a tool of their own (FR-10, Story 24.3). */
 	private static final String REPORT = link("DOCUMENT", "https://docs.google.com/document/d/bao-cao-danh-gia",
 			"Báo cáo đánh giá sổ đặt bàn");
@@ -112,22 +118,22 @@ class HandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.handovers").isEmpty());
 
 		// Story 24.2: the Work Item gate is gone, so an unmarked criterion is the whole of FR-32's enforcement (R42).
-		handOver(this.hung, Role.MENTOR, 5, " ", null).andExpect(status().isBadRequest())
+		handOver(this.hung, Role.MENTOR, 5, " ").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("CRITERION_MARK_MISSING"));
-		handOver(this.hung, Role.MENTOR, 4, "Đạt, đã kiểm tra.", null)
+		handOver(this.hung, Role.MENTOR, 4, "Đạt, đã kiểm tra.")
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("STALE"));
-		handOver(this.vy, Role.STUDENT, 5, "Đạt.", null).andExpect(status().isForbidden())
+		handOver(this.vy, Role.STUDENT, 5, "Đạt.").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("MENTOR_ONLY"));
-		handOver(this.lan, Role.CUSTOMER, 5, "Đạt.", null).andExpect(status().isForbidden());
+		handOver(this.lan, Role.CUSTOMER, 5, "Đạt.").andExpect(status().isForbidden());
 		// Story 24.3 (FR-10): the report reaches the Customer as a "Tài liệu" link, so a handover without one is refused,
 		// and a recording is not a report.
 		this.links = null;
-		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null).andExpect(status().isBadRequest())
+		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION"))
 			.andExpect(jsonPath("$.reason").value("REPORT_LINK_MISSING"));
 		this.links = "[" + link("VIDEO", "https://www.loom.com/share/bao-cao", "Video trình bày") + "]";
-		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null).andExpect(status().isBadRequest())
+		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("REPORT_LINK_MISSING"));
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 		assertThat(count("SELECT count(*) FROM delivery.handover_link")).isZero();
@@ -137,7 +143,7 @@ class HandoverIT extends IntegrationTest {
 		String second = upload();
 		this.links = "[" + REPORT + "]";
 		this.screenshotIds = "[\"" + first + "\",\"" + second + "\"]";
-		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null)
+		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.")
 			.andExpect(status().isAccepted())
 			.andExpect(jsonPath("$.state").value("DONE"))
 			.andExpect(jsonPath("$.number").value(1))
@@ -192,7 +198,7 @@ class HandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.waiting").doesNotExist())
 			.andExpect(jsonPath("$.handovers[0].id").value(handover));
-		handOver(this.hung, Role.MENTOR, 7, "Đạt.", null).andExpect(status().isUnprocessableEntity())
+		handOver(this.hung, Role.MENTOR, 7, "Đạt.").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("MILESTONE_NOT_HELD"));
 	}
 
@@ -201,7 +207,7 @@ class HandoverIT extends IntegrationTest {
 	 * characters stored as written. The eleventh is refused by the rule that names it, and a malformed link by the
 	 * request's own validation or by the URL's parse -- one whose host is not the one a reader would see, or which
 	 * the table's own check would refuse after a Code Job's copy started; nothing is written either way. Ten links
-	 * reach the report in the Mentor's order, and the label is never passed through FR-47's check (D5).
+	 * reach the report in the Mentor's order, and the label and the URL are stored as written (D5).
 	 */
 	@Test
 	void aHandoverTakesTenWellFormedLinksInTheMentorsOrder() throws Exception {
@@ -212,7 +218,7 @@ class HandoverIT extends IntegrationTest {
 					"Liên kết " + number));
 		}
 		this.links = "[" + String.join(",", eleven) + "]";
-		handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isBadRequest())
+		handOver(this.hung, Role.MENTOR, 5, "Đạt.").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION"))
 			.andExpect(jsonPath("$.reason").value("TOO_MANY_LINKS"));
 		for (String bad : List.of(link("DOCUMENT", "http://docs.example.test/bao-cao", "Báo cáo"),
@@ -230,25 +236,25 @@ class HandoverIT extends IntegrationTest {
 				// No host a reader can be shown: a name with an underscore parses as no host at all.
 				link("DOCUMENT", "https://my_host.example/bao-cao", "Báo cáo"))) {
 			this.links = "[" + REPORT + "," + bad + "]";
-			handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isBadRequest())
+			handOver(this.hung, Role.MENTOR, 5, "Đạt.").andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION"))
 				.andExpect(jsonPath("$.reason").doesNotExist());
 		}
 		assertThat(count("SELECT count(*) FROM delivery.handover")).as("nothing was written").isZero();
 
-		// D5: the label and the URL are stored as written, though FR-47's check would flag both today; the label is the
-		// limit's own 80 characters. The text is built at run time, so no credential shape sits in this source.
+		// D5: the label and the URL are stored as written, a token-shaped text included; the label is the limit's own
+		// 80 characters. The text is built at run time, so no credential shape sits in this source.
 		String token = fakeToken();
 		String label = "Biên bản " + "a".repeat(80 - 9 - 1 - token.length()) + " " + token;
 		String url = "https://docs.example.test/bien-ban/" + token;
 		assertThat(label).hasSize(80);
-		assertThat(this.sensitive.check(label).found()).as("FR-47's check matches the label").isTrue();
-		assertThat(this.sensitive.check(url).found()).as("and the URL").isTrue();
+		assertThat(this.credentials.looksLikeCredential(label)).as("the label looks like a credential").isTrue();
+		assertThat(this.credentials.looksLikeCredential(url)).as("and so does the URL").isTrue();
 		List<String> ten = new ArrayList<>(eleven.subList(0, 8));
 		ten.add(link("VIDEO", "https://xn--bcher-kva.example/video", "Video thao tác"));
 		ten.add(link("DOCUMENT", url, label));
 		this.links = "[" + String.join(",", ten) + "]";
-		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isAccepted())
+		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, "Đạt.").andExpect(status().isAccepted())
 			.andReturn().getResponse().getContentAsString(), "$.handoverId");
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.links.length()").value(10))
@@ -278,7 +284,7 @@ class HandoverIT extends IntegrationTest {
 		world("ASSESSMENT");
 		String attached = upload();
 		this.screenshotIds = "[\"" + attached + "\"]";
-		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.", null).andExpect(status().isAccepted());
+		handOver(this.hung, Role.MENTOR, 5, "Đạt, đã kiểm tra.").andExpect(status().isAccepted());
 		String pending = upload();
 		UUID assignee = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		UUID other = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
@@ -317,15 +323,34 @@ class HandoverIT extends IntegrationTest {
 		file(attached, other, Role.ADMINISTRATOR).andExpect(status().isOk());
 	}
 
+	/**
+	 * Story 24.4b (D5): nothing checks, masks or refuses the Mentor's text. A criterion note and a no-preview reason
+	 * holding a credential-like value are stored, and read back through the Delivery Report, exactly as typed, with no
+	 * warning; the {@code sensitive} field an older client still sends is ignored.
+	 */
 	@Test
-	void notesPassTheSensitiveCheck() throws Exception {
+	void theNotesAndTheNoPreviewReasonAreStoredAsWritten() throws Exception {
 		world("ASSESSMENT");
-		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), null).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("SENSITIVE_CONTENT"))
-			.andExpect(jsonPath("$.matches[0].kind").value("CREDENTIAL"));
-		handOver(this.hung, Role.MENTOR, 5, "Khóa thử " + fakeToken(), "MASK").andExpect(status().isAccepted());
-		assertThat(this.jdbc.sql("SELECT note FROM delivery.handover_criterion").query(String.class).single())
-			.startsWith("Khóa thử ").doesNotContain(fakeToken());
+		String note = "Khóa thử " + fakeToken() + " vẫn nằm trong ghi chú.";
+		String reason = "Chỉ chạy trên máy của quán, với khóa " + stripeTestKey() + ".";
+		assertThat(this.credentials.looksLikeCredential(note)).as("the note looks like a credential").isTrue();
+		assertThat(this.credentials.looksLikeCredential(reason)).as("and so does the reason").isTrue();
+		this.links = "[" + REPORT + "," + link("VIDEO", "https://www.loom.com/share/bao-cao", "Video trình bày") + "]";
+		this.noPreviewReason = reason;
+		this.legacySensitive = "MASK";
+
+		String handover = JsonPath.read(handOver(this.hung, Role.MENTOR, 5, note).andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.state").value("DONE"))
+			.andReturn().getResponse().getContentAsString(), "$.handoverId");
+
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.criteria[0].note").value(note))
+			.andExpect(jsonPath("$.preview.noPreviewReason").value(reason));
+		assertThat(this.jdbc.sql("SELECT note FROM delivery.handover_criterion WHERE handover_id = :id")
+			.param("id", UUID.fromString(handover)).query(String.class).single()).isEqualTo(note);
+		assertThat(this.jdbc.sql("SELECT no_preview_reason FROM delivery.handover WHERE id = :id")
+			.param("id", UUID.fromString(handover)).query(String.class).single()).isEqualTo(reason);
 	}
 
 	@Test
@@ -335,7 +360,7 @@ class HandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/preflight").param("milestoneId", this.milestone.toString())
 			.with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.problems").value(Matchers.hasItem("HANDOVER_COMMIT_MISSING")));
-		handOver(this.hung, Role.MENTOR, 5, "Đạt.", null).andExpect(status().isUnprocessableEntity())
+		handOver(this.hung, Role.MENTOR, 5, "Đạt.").andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("HANDOVER_COMMIT_MISSING"));
 		assertThat(count("SELECT count(*) FROM delivery.handover")).isZero();
 	}
@@ -411,11 +436,12 @@ class HandoverIT extends IntegrationTest {
 			.param("signed", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
 	}
 
-	private ResultActions handOver(UUID account, Role role, long version, String criterionNote, String sensitive)
-			throws Exception {
+	private ResultActions handOver(UUID account, Role role, long version, String criterionNote) throws Exception {
 		String json = "{\"milestoneId\":\"" + this.milestone + "\",\"version\":" + version + ",\"criteria\":[{\"criterionId\":\""
 				+ this.criterion + "\",\"met\":true,\"note\":\"" + criterionNote + "\"}]"
-				+ (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"")
+				// Story 24.4b: an older client's field, which the server ignores.
+				+ (this.legacySensitive == null ? "" : ",\"sensitive\":\"" + this.legacySensitive + "\"")
+				+ (this.noPreviewReason == null ? "" : ",\"noPreviewReason\":\"" + this.noPreviewReason + "\"")
 				// N-33 (FR-25, R28, Story 23.8b): a Code Job's handover names the version in force; an Assessment's none.
 				+ (this.assessment ? "" : ",\"teamCodeNoticeVersion\":\"1.0\"")
 				+ (this.previewUrl == null ? "" : ",\"previewUrl\":\"" + this.previewUrl + "\"")
@@ -464,6 +490,11 @@ class HandoverIT extends IntegrationTest {
 			token.append(alphabet.charAt((i * 7 + 3) % alphabet.length()));
 		}
 		return token.toString();
+	}
+
+	/** A Stripe test key shape built at run time, for the same reason. */
+	private static String stripeTestKey() {
+		return "sk" + "_test_" + "ab".repeat(12);
 	}
 
 	private RequestPostProcessor as(UUID account, Role role) {

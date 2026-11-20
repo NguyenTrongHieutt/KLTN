@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The rules' planted credentials (FR-47): one realistic, fake instance of every §B6 type, each in the
+ * The rules' planted credentials (AD-18): one realistic, fake instance of every §B6 type, each in the
  * file and line it would leak from, keyed by the rule that must find it. Every value is built at run time
  * from a fixed alphabet, so no credential-shaped literal sits in this source (the pre-commit
  * gitleaks hook scans it). None of them is a real credential.
