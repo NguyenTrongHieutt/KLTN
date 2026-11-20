@@ -174,9 +174,7 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
               id: 'x1',
               author: 'Đỗ Mạnh Hùng',
               mine: false,
-              body: 'Bản sửa đã gửi hôm qua',
-              maskedCredentials: 0,
-              maskedPersonal: 0,
+              body: 'Bản sửa đã gửi hôm qua: https://so-dat-ban.vercel.app/ban-sua',
               sentAt: '2026-10-19T03:00:00Z',
             },
           ],
@@ -193,7 +191,12 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(await screen.findByText(/Đã giải ngân/)).toBeInTheDocument()
     expect(screen.getByText(/Nạp tiền Giai đoạn/)).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Trò chuyện' }))
-    expect(await screen.findByText('Bản sửa đã gửi hôm qua')).toBeInTheDocument()
+    const fix = await screen.findByRole('link', { name: 'https://so-dat-ban.vercel.app/ban-sua' })
+    expect(fix).toHaveAttribute('href', 'https://so-dat-ban.vercel.app/ban-sua')
+    expect(fix).toHaveAttribute('target', '_blank')
+    expect(fix).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByText('(so-dat-ban.vercel.app)')).toBeInTheDocument()
+    expect(screen.getByText(/^Bản sửa đã gửi hôm qua:/)).toBeInTheDocument()
     expect(seen.some((request) => request.url.includes('crew-chat'))).toBe(false)
   })
 

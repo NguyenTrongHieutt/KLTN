@@ -122,7 +122,7 @@ describe('ADM-6 moderation (FR-60)', () => {
         return json(current)
       },
       'GET /api/v1/chat-messages/m1': () =>
-        json({ id: 'm1', author: 'Đỗ Mạnh Hùng', mine: false, body: 'Nội dung tin nhắn bị báo cáo', maskedCredentials: 0, maskedPersonal: 0, sentAt: '2026-10-19T03:00:00Z' }),
+        json({ id: 'm1', author: 'Đỗ Mạnh Hùng', mine: false, body: 'Nội dung tin nhắn bị báo cáo https://bit.ly/dang-nhap', sentAt: '2026-10-19T03:00:00Z' }),
       'POST /api/v1/admin/abuse-reports/r1/decision': async (request) => {
         sent.push(await request.json())
         current = { ...current, status: 'ACTION_TAKEN', outcome: 'Đã khóa tài khoản', decidedAt: '2026-10-21T03:00:00Z' }
@@ -133,9 +133,14 @@ describe('ADM-6 moderation (FR-60)', () => {
 
     await user.click(await screen.findByRole('tab', { name: 'Báo cáo vi phạm' }))
     await user.click(await screen.findByRole('button', { name: /Lời lẽ xúc phạm/ }))
-    expect(screen.queryByText('Nội dung tin nhắn bị báo cáo')).toBeNull()
+    expect(screen.queryByText(/^Nội dung tin nhắn bị báo cáo/)).toBeNull()
     await user.click(await screen.findByRole('button', { name: 'Nhận xử lý' }))
-    expect(await screen.findByText('Nội dung tin nhắn bị báo cáo')).toBeInTheDocument()
+    expect(await screen.findByText(/^Nội dung tin nhắn bị báo cáo/)).toBeInTheDocument()
+    const reported = screen.getByRole('link', { name: 'https://bit.ly/dang-nhap' })
+    expect(reported).toHaveAttribute('href', 'https://bit.ly/dang-nhap')
+    expect(reported).toHaveAttribute('target', '_blank')
+    expect(reported).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByText('(bit.ly)')).toBeInTheDocument()
     expect(screen.getByText('Mỗi lần xem nội dung này được ghi vào nhật ký kiểm toán.')).toBeInTheDocument()
     expect(screen.queryByRole('radio', { name: 'Ẩn nội dung' })).toBeNull()
     await user.click(screen.getByRole('radio', { name: /Đã xử lý/ }))

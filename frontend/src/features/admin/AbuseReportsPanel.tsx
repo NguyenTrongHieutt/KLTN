@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { inputClass } from '@/components/formField-props'
+import { MessageText } from '@/components/MessageText'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
@@ -190,7 +191,9 @@ function ReportedItem({ data }: { data: AbuseReport }) {
             <p className="text-caption text-muted-foreground">
               {message.data.author} · {formatDayMonthTime(message.data.sentAt)}
             </p>
-            <p className="break-words whitespace-pre-line">{message.data.body}</p>
+            <p className="break-words whitespace-pre-line">
+              <MessageText text={message.data.body} />
+            </p>
           </>
         )}
       </RegionState>

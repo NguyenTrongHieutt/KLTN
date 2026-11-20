@@ -11,11 +11,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -30,10 +34,15 @@ import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestFiles;
+import vn.vibefix.support.TestPeople;
 
-/** FR-46, FR-47, FR-3, AD-20: the Job Chat from J4, its check, its history, and who reaches it. */
+/**
+ * FR-46, FR-3, AD-20: the Job Chat from J4, its history, and who reaches it. Since Story 24.4a nothing checks what a
+ * message says: both Chats store it as written, and the Job's end rewrites none.
+ */
 class JobChatIT extends IntegrationTest {
 
 	@Autowired
@@ -46,7 +55,7 @@ class JobChatIT extends IntegrationTest {
 	private SessionRepository<? extends Session> sessions;
 
 	@Autowired
-	private ChatRedaction redaction;
+	private ChatListeners listeners;
 
 	private UUID lan;
 
@@ -83,8 +92,8 @@ class JobChatIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/nda").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"ndaVersion\":\"2.0\",\"commitEmailNoticeAcknowledged\":true}")).andExpect(status().isNoContent());
-		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("SELECT count(*) FROM chat.chat WHERE job_id = :job AND kind = 'JOB'")
-			.param("job", this.job).query(Long.class).single() == 1);
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("SELECT count(*) FROM chat.chat WHERE job_id = :job")
+			.param("job", this.job).query(Long.class).single() == 2);
 	}
 
 	@Test
@@ -132,48 +141,134 @@ class JobChatIT extends IntegrationTest {
 		send(other, Role.CUSTOMER, "Xin chào", null).andExpect(status().isNotFound());
 	}
 
+	/**
+	 * Story 24.4a: a credential-like text is stored and shown exactly as typed in either Chat, with no warning and no
+	 * masked count, and the choice an older client still sends ({@code sensitive}, in the JSON or the form) is ignored.
+	 */
 	@Test
-	void aLikelyCredentialIsHeldBackUntilTheSenderMasksOrSendsIt() throws Exception {
-		String token = fakeToken();
-		String text = "Khóa thử của tôi là " + token;
+	void aCredentialLikeTextIsStoredAndShownAsTypedInBothChats() throws Exception {
+		String text = "Khóa thử của tôi là " + fakeToken();
+		UUID vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
+				LocalDate.parse("2026-09-30"));
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :vy, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("vy", vy)
+			.param("now", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(5)))).update();
 
-		send(this.lan, Role.CUSTOMER, text, null).andExpect(status().is(422))
-			.andExpect(jsonPath("$.reason").value("SENSITIVE_CONTENT"))
-			.andExpect(jsonPath("$.matches[0].kind").value("CREDENTIAL"))
-			.andExpect(jsonPath("$.matches[0].masked").value(org.hamcrest.Matchers.containsString("••••••••")));
-		assertThat(messages()).as("nothing is stored before the sender decides").isZero();
+		send(this.lan, Role.CUSTOMER, text, "CHECK").andExpect(status().isCreated())
+			.andExpect(jsonPath("$.body").value(text))
+			.andExpect(jsonPath("$.maskedCredentials").doesNotExist());
+		this.clock.advance(Duration.ofSeconds(1));
+		this.mvc.perform(multipart("/api/v1/jobs/" + this.job + "/chat/attachments")
+			.file(new MockMultipartFile("file", "ke-hoach.pdf", "application/pdf", TestFiles.pdf()))
+			.param("body", text)
+			.param("sensitive", "MASK")
+			.with(as(this.hung, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.body").value(text))
+			.andExpect(jsonPath("$.attachment.name").value("ke-hoach.pdf"));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/chat/messages").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.items.length()").value(2))
+			.andExpect(jsonPath("$.items[0].body").value(text))
+			.andExpect(jsonPath("$.items[1].body").value(text))
+			.andExpect(jsonPath("$.items[0].maskedCredentials").doesNotExist())
+			.andExpect(jsonPath("$.items[0].maskedPersonal").doesNotExist());
 
-		String masked = send(this.lan, Role.CUSTOMER, text, "MASK").andExpect(status().isCreated())
-			.andExpect(jsonPath("$.maskedCredentials").value(1))
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
-		assertThat(JsonPath.<String>read(masked, "$.body")).startsWith("Khóa thử của tôi là ").doesNotContain(token);
-		assertThat(this.jdbc.sql("SELECT count(*) FROM chat.message WHERE body LIKE :token").param("token", "%" + token + "%")
-			.query(Long.class).single()).as("no original is kept").isZero();
-
-		send(this.lan, Role.CUSTOMER, text, "SEND").andExpect(status().isCreated())
+		UUID crewChat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")
+			.param("job", this.job)
+			.query(UUID.class)
+			.single();
+		this.mvc.perform(post("/api/v1/crew-chats/" + crewChat + "/messages").with(as(this.hung, Role.MENTOR)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"" + text + "\",\"sensitive\":\"SEND\"}"))
+			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.body").value(text));
-		assertThat(this.jdbc.sql("SELECT count(*) FROM chat.message WHERE sent_despite_warning").query(Long.class).single())
-			.isOne();
+		this.clock.advance(Duration.ofSeconds(1));
+		this.mvc.perform(multipart("/api/v1/crew-chats/" + crewChat + "/attachments")
+			.file(new MockMultipartFile("file", "cau-hinh.pdf", "application/pdf", TestFiles.pdf()))
+			.param("body", text)
+			.param("sensitive", "CHECK")
+			.with(as(this.hung, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.body").value(text))
+			.andExpect(jsonPath("$.attachment.name").value("cau-hinh.pdf"));
+		this.mvc.perform(get("/api/v1/crew-chats/" + crewChat + "/messages").with(as(vy, Role.STUDENT)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items.length()").value(2))
+			.andExpect(jsonPath("$.items[0].author").value("Đỗ Mạnh Hùng"))
+			.andExpect(jsonPath("$.items[0].body").value(text))
+			.andExpect(jsonPath("$.items[1].body").value(text))
+			.andExpect(jsonPath("$.items[1].attachment.name").value("cau-hinh.pdf"));
+
+		assertThat(bodies()).as("every message of the Job is stored as written").containsExactly(text, text, text, text);
 	}
 
-	/** FR-66 (Story 8.1): J9 or J10 stores masked what was sent despite the warning, keeping no original. */
 	@Test
-	void aCredentialSentDespiteTheWarningIsStoredMaskedOnceTheJobEnds() throws Exception {
-		String token = fakeToken();
-		send(this.lan, Role.CUSTOMER, "Khóa thử của tôi là " + token, "SEND").andExpect(status().isCreated());
+	void aMessageLongerThanFourThousandCharactersIsRefusedAsBefore() throws Exception {
+		String tooLong = "a".repeat(Chats.MAX_BODY + 1);
+
+		send(this.lan, Role.CUSTOMER, tooLong, null).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"));
+		this.mvc.perform(multipart("/api/v1/jobs/" + this.job + "/chat/attachments")
+			.file(new MockMultipartFile("file", "ke-hoach.pdf", "application/pdf", TestFiles.pdf()))
+			.param("body", tooLong)
+			.with(as(this.hung, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"));
+		UUID crewChat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")
+			.param("job", this.job)
+			.query(UUID.class)
+			.single();
+		this.mvc.perform(multipart("/api/v1/crew-chats/" + crewChat + "/attachments")
+			.file(new MockMultipartFile("file", "ke-hoach.pdf", "application/pdf", TestFiles.pdf()))
+			.param("body", tooLong)
+			.with(as(this.hung, Role.MENTOR))
+			.with(csrf()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"));
+		send(this.lan, Role.CUSTOMER, "a".repeat(Chats.MAX_BODY), null).andExpect(status().isCreated());
+		assertThat(messages()).as("only the message of 4,000 characters is stored").hasSize(1);
+	}
+
+	/**
+	 * Story 24.4a: J9 (Closed) or J10 (Cancelled) makes both Chats read-only and rewrites no message; the Chats stay
+	 * until the retention run.
+	 */
+	@ParameterizedTest
+	@CsvSource({ "J9, SYSTEM, CLOSING, CLOSED", "J10, USER, ACTIVE, CANCELLED" })
+	void theJobsEndLeavesEveryBodyAsWritten(String transition, String trigger, String from, String to) throws Exception {
+		String text = "Khóa thử của tôi là " + fakeToken();
+		UUID crewChat = this.jdbc.sql("SELECT id FROM chat.chat WHERE job_id = :job AND kind = 'CREW'")
+			.param("job", this.job)
+			.query(UUID.class)
+			.single();
+		send(this.lan, Role.CUSTOMER, text, null).andExpect(status().isCreated());
+		this.clock.advance(Duration.ofSeconds(1));
 		send(this.hung, Role.MENTOR, "Cảm ơn, đã nhận.", null).andExpect(status().isCreated());
+		this.mvc.perform(post("/api/v1/crew-chats/" + crewChat + "/messages").with(as(this.hung, Role.MENTOR)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"" + text + "\"}"))
+			.andExpect(status().isCreated());
+		List<String> before = messages();
 
-		assertThat(this.redaction.redact(this.job)).isOne();
+		this.listeners.onJobTransitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), this.job, transition,
+				trigger, from, to, 9, 1, Map.of()));
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.jdbc.sql("""
+				SELECT count(*) FROM chat.chat WHERE job_id = :job AND closed_at IS NOT NULL
+				""").param("job", this.job).query(Long.class).single() == 2);
 
-		assertThat(this.jdbc.sql("SELECT count(*) FROM chat.message WHERE body LIKE :token").param("token", "%" + token + "%")
-			.query(Long.class).single()).as("no original is kept").isZero();
-		assertThat(this.jdbc.sql("""
-				SELECT count(*) FROM chat.message
-				WHERE sent_despite_warning AND masked_credentials = 1 AND redacted_at IS NOT NULL AND body LIKE 'Khóa thử của tôi là %'
-				""").query(Long.class).single()).isOne();
-		assertThat(this.redaction.redact(this.job)).as("each message is checked once").isZero();
+		assertThat(messages()).as("no message is rewritten or deleted").isEqualTo(before).hasSize(3);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/chat/messages").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].body").value(text))
+			.andExpect(jsonPath("$.items[1].body").value("Cảm ơn, đã nhận."));
+		this.mvc.perform(get("/api/v1/crew-chats/" + crewChat + "/messages").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].body").value(text));
+		send(this.lan, Role.CUSTOMER, "Còn một việc nữa", null).andExpect(status().isUnprocessableContent())
+			.andExpect(jsonPath("$.reason").value("CHAT_READ_ONLY"));
 	}
 
 	@Test
@@ -233,14 +328,27 @@ class JobChatIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("FILE_TYPE_NOT_ALLOWED"));
 	}
 
+	/** Sends {@code body} to the Job Chat, with the {@code sensitive} field an older client sent when it is not null. */
 	private ResultActions send(UUID account, Role role, String body, String sensitive) throws Exception {
 		String content = "{\"body\":\"" + body + "\"" + (sensitive == null ? "" : ",\"sensitive\":\"" + sensitive + "\"") + "}";
 		return this.mvc.perform(post("/api/v1/jobs/" + this.job + "/chat/messages").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content(content));
 	}
 
-	private long messages() {
-		return this.jdbc.sql("SELECT count(*) FROM chat.message").query(Long.class).single();
+	/** Every message of the Job's two Chats as {@code id:body}, oldest first. */
+	private List<String> messages() {
+		return this.jdbc.sql("""
+				SELECT m.id || ':' || m.body FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id
+				WHERE c.job_id = :job ORDER BY m.sent_at, m.id
+				""").param("job", this.job).query(String.class).list();
+	}
+
+	/** The body of every message of the Job's two Chats, oldest first. */
+	private List<String> bodies() {
+		return this.jdbc.sql("""
+				SELECT m.body FROM chat.message m JOIN chat.chat c ON c.id = m.chat_id
+				WHERE c.job_id = :job ORDER BY m.sent_at, m.id
+				""").param("job", this.job).query(String.class).list();
 	}
 
 	/** A GitHub token shape built at run time, so no credential-shaped literal sits in the source. */

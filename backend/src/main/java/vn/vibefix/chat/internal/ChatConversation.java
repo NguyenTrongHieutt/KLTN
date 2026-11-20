@@ -19,8 +19,6 @@ import vn.vibefix.chat.internal.ChatAccess.Viewer;
 import vn.vibefix.chat.internal.Chats.Attachment;
 import vn.vibefix.chat.internal.Chats.Message;
 import vn.vibefix.chat.internal.Chats.Page;
-import vn.vibefix.chat.internal.SensitiveContent.Prepared;
-import vn.vibefix.chat.internal.SensitiveContent.Resolution;
 import vn.vibefix.files.FileKind;
 import vn.vibefix.files.FileUpload;
 import vn.vibefix.files.PreparedFile;
@@ -30,15 +28,15 @@ import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
 import vn.vibefix.identity.PersonDirectory;
 import vn.vibefix.identity.PersonDirectory.PersonCard;
-import vn.vibefix.scanning.SensitiveText;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 
 /**
- * What both Chats do with messages (FR-46, FR-47, FR-77, UX-DR25, UX-DR40): page them newest first,
- * 50 at a time and only inside the viewer's windows, and store plain text or one attachment after the
- * FR-47 check. Authors are named as the viewer may see them: the Customer by their display name, the
- * Mentor by their directory name, a Crew member by their shown name or {@code @login} (FR-51).
+ * What both Chats do with messages (FR-46, FR-77, UX-DR25, UX-DR40): page them newest first, 50 at a
+ * time and only inside the viewer's windows, and store plain text or one attachment as written, with
+ * no check of what the text says (Story 24.4a). Authors are named as the viewer may see them: the
+ * Customer by their display name, the Mentor by their directory name, a Crew member by their shown
+ * name or {@code @login} (FR-51).
  */
 @Component
 class ChatConversation {
@@ -46,11 +44,8 @@ class ChatConversation {
 	/** What an attachment may be (AD-21): images, PDFs, and plain text, at most 10 MB each. */
 	static final Set<FileKind> ATTACHMENT_KINDS = Set.of(FileKind.IMAGE, FileKind.PDF, FileKind.TEXT);
 
-	/**
-	 * A message to send.
-	 * @param sensitive {@code CHECK} first; {@code MASK} or {@code SEND} after the warning
-	 */
-	record SendRequest(@NotNull @Size(max = SensitiveText.MAX_LENGTH) String body, @Nullable Resolution sensitive) {
+	/** A message to send; any other field an older client still sends is ignored. */
+	record SendRequest(@NotNull @Size(max = Chats.MAX_BODY) String body) {
 	}
 
 	record AttachmentView(UUID fileId, String name, String mediaType, long size) {
@@ -63,12 +58,11 @@ class ChatConversation {
 	}
 
 	/**
-	 * One message, plain text.
+	 * One message, plain text as its author wrote it.
 	 * @param mine written by the viewer
-	 * @param maskedCredentials how many likely credentials "Che và gửi" masked
 	 */
-	record MessageView(UUID id, String author, boolean mine, String body, int maskedCredentials, int maskedPersonal,
-			@Nullable AttachmentView attachment, Instant sentAt) {
+	record MessageView(UUID id, String author, boolean mine, String body, @Nullable AttachmentView attachment,
+			Instant sentAt) {
 	}
 
 	/** Messages, oldest first, and whether older ones remain for "Xem tin cũ hơn". */
@@ -76,8 +70,6 @@ class ChatConversation {
 	}
 
 	private final Chats chats;
-
-	private final SensitiveContent sensitive;
 
 	private final StoredFiles files;
 
@@ -87,10 +79,9 @@ class ChatConversation {
 
 	private final PersonDirectory people;
 
-	ChatConversation(Chats chats, SensitiveContent sensitive, StoredFiles files, CustomerNames customers,
-			MentorDirectory mentors, PersonDirectory people) {
+	ChatConversation(Chats chats, StoredFiles files, CustomerNames customers, MentorDirectory mentors,
+			PersonDirectory people) {
 		this.chats = chats;
-		this.sensitive = sensitive;
 		this.files = files;
 		this.customers = customers;
 		this.mentors = mentors;
@@ -110,21 +101,19 @@ class ChatConversation {
 		return view(message, viewer, names(viewer));
 	}
 
-	/** Sends plain text after the FR-47 check (AD-18). */
-	MessageView send(Viewer viewer, String body, @Nullable Resolution resolution) {
+	/** Sends plain text, stored as written. */
+	MessageView send(Viewer viewer, String body) {
 		ChatAccess.writing(viewer);
 		String text = body.strip();
 		if (text.isEmpty()) {
 			throw new ApiException(ErrorCode.VALIDATION, ChatReason.MESSAGE_EMPTY);
 		}
-		Prepared prepared = this.sensitive.prepare(text, resolution(resolution));
-		return view(this.chats.post(viewer.chat(), viewer.accountId(), prepared, null), viewer, names(viewer));
+		return view(this.chats.post(viewer.chat(), viewer.accountId(), text, null), viewer, names(viewer));
 	}
 
-	/** Sends one attachment with an optional caption, both checked first (FR-46, NFR-3, AD-21). */
-	MessageView attach(Viewer viewer, MultipartFile file, String body, @Nullable Resolution resolution) {
+	/** Sends one attachment with an optional caption, the file checked first (FR-46, NFR-3, AD-21). */
+	MessageView attach(Viewer viewer, MultipartFile file, String body) {
 		ChatAccess.writing(viewer);
-		Prepared prepared = this.sensitive.prepare(body.strip(), resolution(resolution));
 		byte[] content;
 		try {
 			content = file.getBytes();
@@ -135,7 +124,7 @@ class ChatConversation {
 		String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
 		PreparedFile checked = this.files.prepare(new FileUpload(Chats.ATTACHMENT_PURPOSE, viewer.accountId(), name,
 				content, ATTACHMENT_KINDS));
-		return view(this.chats.post(viewer.chat(), viewer.accountId(), prepared, checked), viewer, names(viewer));
+		return view(this.chats.post(viewer.chat(), viewer.accountId(), body.strip(), checked), viewer, names(viewer));
 	}
 
 	private Map<UUID, String> names(Viewer viewer) {
@@ -156,12 +145,7 @@ class ChatConversation {
 	private static MessageView view(Message message, Viewer viewer, Map<UUID, String> names) {
 		return new MessageView(message.id(), names.getOrDefault(message.authorId(), ""),
 				viewer.participant() && message.authorId().equals(viewer.accountId()), message.body(),
-				message.maskedCredentials(), message.maskedPersonal(), AttachmentView.of(message.attachment()),
-				message.sentAt());
-	}
-
-	private static Resolution resolution(@Nullable Resolution resolution) {
-		return resolution == null ? Resolution.CHECK : resolution;
+				AttachmentView.of(message.attachment()), message.sentAt());
 	}
 
 }

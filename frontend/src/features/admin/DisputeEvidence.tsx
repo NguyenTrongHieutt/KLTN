@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MessageText } from '@/components/MessageText'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
@@ -138,7 +139,9 @@ function ChatTab({ jobId }: { jobId: string }) {
             <p className="text-caption text-muted-foreground">
               {message.author} · {formatDayMonthTime(message.sentAt)}
             </p>
-            <p className="break-words whitespace-pre-line">{message.body}</p>
+            <p className="break-words whitespace-pre-line">
+              <MessageText text={message.body} />
+            </p>
           </li>
         ))}
       </ul>

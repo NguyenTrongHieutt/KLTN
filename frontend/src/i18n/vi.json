@@ -2048,8 +2048,6 @@
       "yesterday": "Hôm qua",
       "you": "Bạn",
       "meta": "{name} · {time}",
-      "maskedCredentials": "Đã che {n} khóa bí mật trước khi gửi",
-      "maskedPersonal": "Đã che {n} thông tin khách hàng trước khi gửi",
       "empty": "Chưa có tin nhắn. Hãy chào hỏi và trao đổi về kế hoạch.",
       "attach": "Đính kèm tệp",
       "message": "Tin nhắn",
@@ -2062,14 +2060,8 @@
       "fileType": "Chỉ gửi được ảnh, tệp PDF hoặc tệp văn bản.",
       "removeFile": "Bỏ tệp {name}",
       "warning": {
-        "titleCredential": "Tin nhắn có thể chứa khóa bí mật",
-        "titlePersonal": "Tin nhắn có thể chứa dữ liệu khách hàng",
         "found": "vibefix tìm thấy:",
-        "bodyCredential": "Ai đọc được tin nhắn này đều có thể dùng khóa. Hãy che trước khi gửi.",
-        "bodyPersonal": "Đây là thông tin của khách hàng của bạn. Hãy che trước khi gửi.",
-        "mask": "Che và gửi",
-        "edit": "Sửa lại",
-        "send": "Vẫn gửi"
+        "edit": "Sửa lại"
       },
       "readOnly": "Công việc đã kết thúc. Cuộc trò chuyện chỉ còn để xem."
     },
@@ -4653,7 +4645,6 @@
       "PICK_ENDED": "Lựa chọn này không còn hiệu lực."
     },
     "chat": {
-      "SENSITIVE_CONTENT": "Tin nhắn có thể chứa khóa bí mật hoặc dữ liệu khách hàng.",
       "MESSAGE_EMPTY": "Hãy nhập tin nhắn hoặc đính kèm một tệp.",
       "CHAT_READ_ONLY": "Cuộc trò chuyện này chỉ còn để xem."
     },

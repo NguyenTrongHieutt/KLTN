@@ -6068,10 +6068,6 @@ export interface components {
             body: string;
             /** Format: uuid */
             id: string;
-            /** Format: int32 */
-            maskedCredentials: number;
-            /** Format: int32 */
-            maskedPersonal: number;
             mine: boolean;
             /** Format: date-time */
             sentAt: string;
@@ -6864,8 +6860,6 @@ export interface components {
         };
         SendRequest: {
             body: string;
-            /** @enum {string} */
-            sensitive?: "CHECK" | "MASK" | "SEND";
         };
         SensitiveChangeView: {
             /** @enum {string} */
@@ -10283,7 +10277,6 @@ export interface operations {
         parameters: {
             query?: {
                 body?: string;
-                sensitive?: "CHECK" | "MASK" | "SEND";
             };
             header?: never;
             path: {
@@ -11052,7 +11045,6 @@ export interface operations {
         parameters: {
             query?: {
                 body?: string;
-                sensitive?: "CHECK" | "MASK" | "SEND";
             };
             header?: never;
             path: {

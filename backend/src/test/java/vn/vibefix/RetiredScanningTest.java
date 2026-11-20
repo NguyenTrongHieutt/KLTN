@@ -38,6 +38,12 @@ import tools.jackson.databind.json.JsonMapper;
  * the rulesets ({@code createRulesets}, {@code rulesetDifferences}, {@code RULESETS_DIFFER},
  * {@code vibefix-default-branch}, {@code vibefix-handover}), the old feature read ({@code featureDifferences}), or
  * the public-Working outsider audit ({@code outsider_pull_request_closed}).
+ * <p>
+ * Story 24.4a (D5): nothing checks, masks or refuses a chat message any more, so {@code chat} no longer depends on
+ * {@code scanning}, and no chat file names the chats' text check or its redaction ({@code SensitiveContent},
+ * {@code ChatRedaction}, {@code sent_despite_warning}, {@code redacted_at}, and the masked counts
+ * {@code maskedCredentials} and {@code maskedPersonal} in either spelling). That entry reads only the chat files
+ * ({@link #chatFile}): {@code delivery}'s own text check lives on until Story 24.4b.
  */
 class RetiredScanningTest {
 
@@ -80,6 +86,26 @@ class RetiredScanningTest {
 					+ "|fork-poll|fork-wait|turnFeaturesOff|featureDifferences|vibefix-default-branch|vibefix-handover"
 					+ "|outsider_pull_request_closed)\\b"));
 
+	/** Story 24.4a's entry, which only the chat files are read for ({@link #chatFile}). */
+	static final String CHAT_TEXT_CHECK = "the chats' text check";
+
+	/** What no chat file may say since Story 24.4a: the chats' text check, its masked counts and its redaction. */
+	static final Pattern CHAT_RETIRED = Pattern.compile("\\b(?:SensitiveContent|ChatRedaction|sent_despite_warning"
+			+ "|redacted_at|maskedCredentials|maskedPersonal|masked_credentials|masked_personal)\\b");
+
+	/**
+	 * The chat files: the {@code chat} module, the SPA's chat feature and its message renderer, the four admin views
+	 * that show a chat body (the Dispute evidence chat, the Split Resolution Crew Chat, the Team Issue chat and the
+	 * reported message), and the generated contract and the copy that carry the chat's fields and texts.
+	 */
+	static final List<Path> CHAT_FILES = List.of(MODULES.resolve("chat"), FRONTEND_SRC.resolve(Path.of("features", "chat")),
+			FRONTEND_SRC.resolve(Path.of("components", "MessageText.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "DisputeEvidence.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "AdminSplitResolutionsPage.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "AdminTeamIssuesPage.tsx")),
+			FRONTEND_SRC.resolve(Path.of("features", "admin", "AbuseReportsPanel.tsx")),
+			FRONTEND_SRC.resolve(Path.of("api", "openapi.json")), FRONTEND_SRC.resolve(Path.of("api", "schema.d.ts")), VI);
+
 	@Test
 	void nothingLiveNamesTheScanPipelineAFindingTheScanLaneOrARetiredReason() {
 		List<Path> files = new ArrayList<>(liveFiles(BACKEND_MAIN));
@@ -89,6 +115,16 @@ class RetiredScanningTest {
 		assertThat(files).as("the files read").hasSizeGreaterThan(500)
 			.anyMatch(file -> file.endsWith(Path.of("frontend", "src", "api", "openapi.json")))
 			.anyMatch(file -> file.endsWith(Path.of("deploy", "compose.yaml")));
+		assertThat(files.stream().filter(RetiredScanningTest::chatFile).toList()).as("the chat files read")
+			.hasSizeGreaterThan(15)
+			.anyMatch(file -> file.endsWith(Path.of("chat", "internal", "ChatConversation.java")))
+			.anyMatch(file -> file.endsWith(Path.of("features", "chat", "ChatPanel.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("components", "MessageText.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "DisputeEvidence.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "AdminSplitResolutionsPage.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "AdminTeamIssuesPage.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("admin", "AbuseReportsPanel.tsx")))
+			.anyMatch(file -> file.endsWith(Path.of("i18n", "vi.json")));
 		assertThat(files.stream().flatMap(file -> violations(file, read(file)).stream()).toList()).isEmpty();
 	}
 
@@ -107,10 +143,10 @@ class RetiredScanningTest {
 	@Test
 	void scanningKeepsTheRulesAndOnlyTheModulesThatUseThemDependOnIt() {
 		assertThat(packageInfo("scanning")).contains("allowedDependencies = { \"shared\" }");
-		for (String module : List.of("product", "admin")) {
+		for (String module : List.of("product", "admin", "chat")) {
 			assertThat(packageInfo(module)).as(module).doesNotContain("\"scanning\"");
 		}
-		for (String module : List.of("repo", "delivery", "job", "chat")) {
+		for (String module : List.of("repo", "delivery", "job")) {
 			assertThat(packageInfo(module)).as(module).contains("\"scanning\"");
 		}
 		assertThat(BACKEND_MAIN.resolve(Path.of("resources", "scanning", "rules.yaml"))).isRegularFile();
@@ -175,11 +211,48 @@ class RetiredScanningTest {
 			.isNotEmpty();
 	}
 
+	/**
+	 * Story 24.4a: the chats' text check entry finds each retired name in a chat file, leaves the chats' live code
+	 * alone, and reads no other file, so {@code delivery}'s text check, which Story 24.4b retires, is not flagged.
+	 */
+	@Test
+	void theChatTextCheckEntryReadsOnlyTheChatFiles() {
+		Path conversation = MODULES.resolve(Path.of("chat", "internal", "ChatConversation.java"));
+		Path panel = FRONTEND_SRC.resolve(Path.of("features", "chat", "ChatPanel.tsx"));
+		List<String> retired = List.of("import vn.vibefix.chat.internal.SensitiveContent.Resolution;",
+				"private final ChatRedaction redaction;", "WHERE m.sent_despite_warning AND m.redacted_at IS NULL",
+				"rs.getInt(\"masked_credentials\"), rs.getInt(\"masked_personal\")",
+				"record MessageView(UUID id, String body, int maskedCredentials, int maskedPersonal) {",
+				"{message.maskedCredentials > 0 && (", "maskedPersonal: number;");
+		for (String text : retired) {
+			assertThat(violations(conversation, text)).as(text).anyMatch(found -> found.contains(CHAT_TEXT_CHECK));
+			assertThat(violations(panel, text)).as(text).anyMatch(found -> found.contains(CHAT_TEXT_CHECK));
+		}
+		for (Path file : List.of(VI, FRONTEND_SRC.resolve(Path.of("api", "openapi.json")),
+				FRONTEND_SRC.resolve(Path.of("api", "schema.d.ts")), FRONTEND_SRC.resolve(Path.of("components", "MessageText.tsx")))) {
+			assertThat(violations(file, "\"maskedCredentials\": \"Đã che {n} khóa bí mật trước khi gửi\",")).as(file.toString())
+				.isNotEmpty();
+		}
+		for (String text : List.of("record SendRequest(@NotNull @Size(max = Chats.MAX_BODY) String body) {",
+				"this.chats.post(viewer.chat(), viewer.accountId(), text, null)", "<MessageText text={message.body} />",
+				"t('screen.chat.warning.found')", "SensitiveChanges.WORKFLOWS", "a closed Chat is read, never written")) {
+			assertThat(violations(conversation, text)).as(text).isEmpty();
+			assertThat(violations(panel, text)).as(text).isEmpty();
+		}
+		for (Path file : List.of(MODULES.resolve(Path.of("delivery", "internal", "HandoverSubmissions.java")),
+				FRONTEND_SRC.resolve(Path.of("features", "delivery", "SensitiveDialog.tsx")), Path.of("Example.java"))) {
+			for (String text : retired) {
+				assertThat(violations(file, text)).as(file + ": " + text).isEmpty();
+			}
+		}
+	}
+
 	/** Each line of {@code text} a retired name appears on, as {@code file:line: what}. */
 	static List<String> violations(Path file, String text) {
 		List<String> violations = new ArrayList<>();
 		String[] lines = text.split("\n", -1);
 		boolean spike = SPIKE_COMMANDS.contains(file.getFileName().toString());
+		boolean chat = chatFile(file);
 		for (int number = 0; number < lines.length; number++) {
 			for (Map.Entry<String, Pattern> retired : RETIRED.entrySet()) {
 				if (spike && retired.getKey().equals(FORK_AND_RULESETS)) {
@@ -190,8 +263,17 @@ class RetiredScanningTest {
 					violations.add(file + ":" + (number + 1) + ": names " + retired.getKey() + " (" + matcher.group() + ")");
 				}
 			}
+			Matcher matcher = CHAT_RETIRED.matcher(lines[number]);
+			if (chat && matcher.find()) {
+				violations.add(file + ":" + (number + 1) + ": names " + CHAT_TEXT_CHECK + " (" + matcher.group() + ")");
+			}
 		}
 		return violations;
+	}
+
+	/** Whether {@code file} is one of the {@link #CHAT_FILES}, or inside one of their folders. */
+	static boolean chatFile(Path file) {
+		return CHAT_FILES.stream().anyMatch(file::startsWith);
 	}
 
 	/** The files under {@code root} that are neither Flyway history nor tests. */

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
+import { MessageText } from '@/components/MessageText'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
@@ -299,7 +300,9 @@ function ChatEvidence({ jobId }: { jobId: string }) {
                 <p className="text-caption text-muted-foreground">
                   {message.author} · {formatDayMonthTime(message.sentAt)}
                 </p>
-                <p className="break-words whitespace-pre-line">{message.body}</p>
+                <p className="break-words whitespace-pre-line">
+                  <MessageText text={message.body} />
+                </p>
               </li>
             ))}
           </ul>
