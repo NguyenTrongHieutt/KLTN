@@ -3537,14 +3537,6 @@
             "maxLength" : 4000,
             "minLength" : 0
           }
-        }, {
-          "in" : "query",
-          "name" : "sensitive",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK", "SEND" ]
-          }
         } ],
         "requestBody" : {
           "content" : {
@@ -4525,14 +4517,6 @@
             "default" : "",
             "maxLength" : 4000,
             "minLength" : 0
-          }
-        }, {
-          "in" : "query",
-          "name" : "sensitive",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK", "SEND" ]
           }
         } ],
         "requestBody" : {
@@ -14470,14 +14454,6 @@
             "type" : "string",
             "format" : "uuid"
           },
-          "maskedCredentials" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "maskedPersonal" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "mine" : {
             "type" : "boolean"
           },
@@ -14486,7 +14462,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "author", "body", "id", "maskedCredentials", "maskedPersonal", "mine", "sentAt" ]
+        "required" : [ "author", "body", "id", "mine", "sentAt" ]
       },
       "Milestone" : {
         "type" : "object",
@@ -16717,10 +16693,6 @@
             "type" : "string",
             "maxLength" : 4000,
             "minLength" : 0
-          },
-          "sensitive" : {
-            "type" : "string",
-            "enum" : [ "CHECK", "MASK", "SEND" ]
           }
         },
         "required" : [ "body" ]
