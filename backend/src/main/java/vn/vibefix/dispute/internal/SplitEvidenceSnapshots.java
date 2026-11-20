@@ -19,8 +19,8 @@ import vn.vibefix.job.MilestoneSplits.SplitCase;
 /**
  * A Split Resolution decision's evidence snapshot (SG-27, AD-24, AD-40), written with the decision from the queries the Split
  * Evidence Package reads, as {@link EvidenceSnapshots} does for a Dispute: IDs, versions, counts, never copies of the content
- * and never an account ID. It stays with the decision after the Job's Crew Chat and handovers go, so the decision remains
- * explainable.
+ * and never an account ID. The Milestone's handovers are listed with their counts of criteria, images and links (Story
+ * 24.3b). It stays with the decision after the Job's Crew Chat and handovers go, so the decision remains explainable.
  */
 @Component
 class SplitEvidenceSnapshots {
@@ -32,16 +32,35 @@ class SplitEvidenceSnapshots {
 	record SplitSnapshotCommit(UUID handoverId, String sha) {
 	}
 
+	/**
+	 * One handover of the case's Milestone, as the decision saw it (Story 24.3b).
+	 * @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED}
+	 * @param criteria how many criteria its report listed
+	 * @param images how many images it carried
+	 * @param links how many links it carried
+	 */
+	record SplitSnapshotHandover(UUID handoverId, int round, String status, int criteria, int images, int links) {
+	}
+
 	/** @param lastMessageId the newest Crew Chat message of the Milestone's interval when the decision was made */
 	record SplitSnapshotChat(int messageCount, @Nullable UUID lastMessageId, @Nullable Instant lastSentAt) {
 	}
 
 	/**
 	 * Everything the decision was based on, as it stood at {@code takenAt}.
+	 * @param handovers the Milestone's handovers, oldest first; none in a snapshot taken before Story 24.3b, which
+	 * recorded none
 	 * @param personLinks how many matched pairs the package listed
 	 */
 	record SplitEvidenceSnapshot(Instant takenAt, List<SplitSnapshotVersion> versions,
-			List<SplitSnapshotCommit> commits, SplitSnapshotChat crewChat, int personLinks) {
+			List<SplitSnapshotHandover> handovers, List<SplitSnapshotCommit> commits, SplitSnapshotChat crewChat,
+			int personLinks) {
+
+		/** A snapshot stored before Story 24.3b has no {@code handovers}: it reads back with none. */
+		SplitEvidenceSnapshot {
+			handovers = handovers == null ? List.of() : List.copyOf(handovers);
+		}
+
 	}
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -70,6 +89,12 @@ class SplitEvidenceSnapshots {
 					.stream()
 					.map(version -> new SplitSnapshotVersion(version.versionNo(), version.kind().name(),
 							(int) version.lines().stream().filter(line -> line.confirmedAt() != null).count(), version.createdAt()))
+					.toList(),
+				this.deliveries.reports(split.jobId())
+					.stream()
+					.filter(report -> report.milestoneId().equals(split.milestoneId()))
+					.map(report -> new SplitSnapshotHandover(report.handoverId(), report.round(), report.status(),
+							report.criteria().size(), report.images().size(), report.links().size()))
 					.toList(),
 				this.deliveries.commitsOf(split.milestoneId())
 					.stream()

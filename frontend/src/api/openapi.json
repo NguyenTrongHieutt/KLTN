@@ -1547,6 +1547,36 @@
         "tags" : [ "admin-split-evidence-controller" ]
       }
     },
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers" : {
+      "get" : {
+        "operationId" : "handovers_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "resolutionId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EvidenceReport"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-split-evidence-controller" ]
+      }
+    },
     "/api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links" : {
       "get" : {
         "operationId" : "personLinks",
@@ -11834,6 +11864,42 @@
         },
         "required" : [ "commits", "detectedAt", "id", "kind" ]
       },
+      "EvidenceImage" : {
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "fileId", "fileName", "size" ]
+      },
+      "EvidenceLink" : {
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "VIDEO", "DOCUMENT" ]
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "domain", "kind", "label", "url" ]
+      },
       "EvidenceMilestone" : {
         "type" : "object",
         "properties" : {
@@ -11922,6 +11988,18 @@
         },
         "required" : [ "milestoneId", "moneyIn", "number", "refunds", "releasableVnd", "releasedTotalVnd", "title" ]
       },
+      "EvidencePreview" : {
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "domain", "url" ]
+      },
       "EvidenceRefund" : {
         "type" : "object",
         "properties" : {
@@ -11969,12 +12047,30 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "images" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceImage"
+            }
+          },
+          "links" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EvidenceLink"
+            }
+          },
           "milestoneNumber" : {
             "type" : "integer",
             "format" : "int32"
           },
           "milestoneTitle" : {
             "type" : "string"
+          },
+          "noPreviewReason" : {
+            "type" : "string"
+          },
+          "preview" : {
+            "$ref" : "#/components/schemas/EvidencePreview"
           },
           "round" : {
             "type" : "integer",
@@ -11988,7 +12084,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "auto", "criteria", "handoverId", "milestoneNumber", "milestoneTitle", "round", "status", "submittedAt" ]
+        "required" : [ "auto", "criteria", "handoverId", "images", "links", "milestoneNumber", "milestoneTitle", "round", "status", "submittedAt" ]
       },
       "EvidenceReportCriterion" : {
         "type" : "object",
@@ -17076,6 +17172,14 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "images" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "links" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "milestoneNumber" : {
             "type" : "integer",
             "format" : "int32"
@@ -17092,7 +17196,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "checkedMet", "criteria", "handoverId", "milestoneNumber", "reportedMet", "round", "status" ]
+        "required" : [ "checkedMet", "criteria", "handoverId", "images", "links", "milestoneNumber", "reportedMet", "round", "status" ]
       },
       "SnapshotStatement" : {
         "type" : "object",
@@ -17446,6 +17550,12 @@
           "crewChat" : {
             "$ref" : "#/components/schemas/SplitSnapshotChat"
           },
+          "handovers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SplitSnapshotHandover"
+            }
+          },
           "personLinks" : {
             "type" : "integer",
             "format" : "int32"
@@ -17461,7 +17571,7 @@
             }
           }
         },
-        "required" : [ "commits", "crewChat", "personLinks", "takenAt", "versions" ]
+        "required" : [ "commits", "crewChat", "handovers", "personLinks", "takenAt", "versions" ]
       },
       "SplitEvidenceVersionView" : {
         "type" : "object",
@@ -17813,6 +17923,35 @@
           }
         },
         "required" : [ "handoverId", "sha" ]
+      },
+      "SplitSnapshotHandover" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "handoverId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "images" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "links" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "round" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criteria", "handoverId", "images", "links", "round", "status" ]
       },
       "SplitSnapshotVersion" : {
         "type" : "object",

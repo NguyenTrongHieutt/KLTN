@@ -756,6 +756,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["handovers_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links": {
         parameters: {
             query?: never;
@@ -5138,6 +5154,20 @@ export interface components {
             /** Format: date-time */
             reconfirmedAt?: string;
         };
+        EvidenceImage: {
+            /** Format: uuid */
+            fileId: string;
+            fileName: string;
+            /** Format: int64 */
+            size: number;
+        };
+        EvidenceLink: {
+            domain: string;
+            /** @enum {string} */
+            kind: "VIDEO" | "DOCUMENT";
+            label: string;
+            url: string;
+        };
         EvidenceMilestone: {
             criteria: components["schemas"]["EvidenceCriterion"][];
             /** Format: date */
@@ -5171,6 +5201,10 @@ export interface components {
             releasedTotalVnd: number;
             title: string;
         };
+        EvidencePreview: {
+            domain: string;
+            url: string;
+        };
         EvidenceRefund: {
             /** Format: int64 */
             amountVnd: number;
@@ -5189,9 +5223,13 @@ export interface components {
             handoverCommit?: string;
             /** Format: uuid */
             handoverId: string;
+            images: components["schemas"]["EvidenceImage"][];
+            links: components["schemas"]["EvidenceLink"][];
             /** Format: int32 */
             milestoneNumber: number;
             milestoneTitle: string;
+            noPreviewReason?: string;
+            preview?: components["schemas"]["EvidencePreview"];
             /** Format: int32 */
             round: number;
             status: string;
@@ -6987,6 +7025,10 @@ export interface components {
             /** Format: uuid */
             handoverId: string;
             /** Format: int32 */
+            images: number;
+            /** Format: int32 */
+            links: number;
+            /** Format: int32 */
             milestoneNumber: number;
             /** Format: int32 */
             reportedMet: number;
@@ -7132,6 +7174,7 @@ export interface components {
         SplitEvidenceSnapshot: {
             commits: components["schemas"]["SplitSnapshotCommit"][];
             crewChat: components["schemas"]["SplitSnapshotChat"];
+            handovers: components["schemas"]["SplitSnapshotHandover"][];
             /** Format: int32 */
             personLinks: number;
             /** Format: date-time */
@@ -7267,6 +7310,19 @@ export interface components {
             /** Format: uuid */
             handoverId: string;
             sha: string;
+        };
+        SplitSnapshotHandover: {
+            /** Format: int32 */
+            criteria: number;
+            /** Format: uuid */
+            handoverId: string;
+            /** Format: int32 */
+            images: number;
+            /** Format: int32 */
+            links: number;
+            /** Format: int32 */
+            round: number;
+            status: string;
         };
         SplitSnapshotVersion: {
             /** Format: int32 */
@@ -8744,6 +8800,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SplitEvidenceChatView"];
+                };
+            };
+        };
+    };
+    handovers_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resolutionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceReport"][];
                 };
             };
         };

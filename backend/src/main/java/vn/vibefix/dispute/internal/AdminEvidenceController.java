@@ -22,6 +22,7 @@ import vn.vibefix.delivery.DeliveryEvidence;
 import vn.vibefix.delivery.DeliveryEvidence.Report;
 import vn.vibefix.dispute.internal.Disputes.Dispute;
 import vn.vibefix.dispute.internal.EvidencePackage.Tab;
+import vn.vibefix.dispute.internal.EvidenceReports.EvidenceReport;
 import vn.vibefix.identity.AccountAdministration;
 import vn.vibefix.job.AgreementHistory;
 import vn.vibefix.job.AgreementHistory.ConfirmedVersion;
@@ -37,7 +38,8 @@ import vn.vibefix.shared.Gate;
 /**
  * ADM-4's Evidence Package (FR-53, FR-63, AD-8, AD-20, AD-31, UX-DR58): the tabs {@code dispute} assembles on
  * demand from the owning modules' queries, each view audited, for the Dispute's assignee only. The Job Chat tab is
- * {@code chat}'s endpoint under the assignee's grant. Never the Crew Chat, the split versions, private
+ * {@code chat}'s endpoint under the assignee's grant. The handovers' images are read through the file endpoint,
+ * whose policy asks {@link HandoverEvidenceReading}. Never the Crew Chat, the split versions, private
  * feedback, or per-party release entries.
  */
 @RestController
@@ -54,17 +56,6 @@ class AdminEvidenceController {
 
 	record EvidenceAgreementVersion(int versionNo, Instant approvedAt, Instant confirmedAt, String scope,
 			@Nullable Long priceVnd, List<EvidenceMilestone> milestones) {
-	}
-
-	/** @param customerMet {@code null} until the Customer decided */
-	record EvidenceReportCriterion(UUID criterionId, int number, String statement, boolean reportedMet,
-			@Nullable String reportNote, @Nullable Boolean customerMet, @Nullable String customerComment) {
-	}
-
-	/** @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED} */
-	record EvidenceReport(UUID handoverId, int milestoneNumber, String milestoneTitle, int round, String status,
-			Instant submittedAt, @Nullable Instant decidedAt, boolean auto, @Nullable String handoverCommit,
-			List<EvidenceReportCriterion> criteria) {
 	}
 
 	/**
@@ -147,21 +138,14 @@ class AdminEvidenceController {
 			.toList();
 	}
 
-	/** "Tiêu chí trong báo cáo bàn giao": each Delivery Report's criteria, reported and checked. */
+	/**
+	 * "Tiêu chí trong báo cáo bàn giao": every handover of the Job, each with its criteria reported and checked, the
+	 * Mentor's notes, the preview or why there is none, its images and its links (Story 24.3b).
+	 */
 	@GetMapping("/criteria")
 	List<EvidenceReport> criteria(@PathVariable UUID disputeId) {
 		Dispute dispute = view(disputeId, Tab.CRITERIA);
-		return this.deliveries.reports(dispute.jobId())
-			.stream()
-			.map(report -> new EvidenceReport(report.handoverId(), report.milestoneNumber(), report.milestoneTitle(),
-					report.round(), report.status(), report.submittedAt(), report.decidedAt(), report.auto(),
-					report.handoverCommit(), report.criteria()
-						.stream()
-						.map(criterion -> new EvidenceReportCriterion(criterion.criterionId(), criterion.number(),
-								criterion.statement(), criterion.reportedMet(), criterion.reportNote(), criterion.customerMet(),
-								criterion.customerComment()))
-						.toList()))
-			.toList();
+		return this.deliveries.reports(dispute.jobId()).stream().map(EvidenceReports::of).toList();
 	}
 
 	/** "Duyệt và yêu cầu sửa": Agreement approvals and confirmations, and how each handover was decided. */

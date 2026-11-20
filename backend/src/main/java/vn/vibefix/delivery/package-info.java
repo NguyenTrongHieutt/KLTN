@@ -3,7 +3,8 @@
  * Funded or Revision Requested Milestone over once its preflight passes: each Acceptance Criterion of it
  * marked "Đạt" or "Chưa đạt" with a note, all FR-47 checked; {@code job} applies M2 with the handover as
  * its evidence (AD-4). An Assessment Job hands over the Milestone itself, whose Acceptance Criteria the
- * Assessment Report template writes; Story 24.3 adds the Mentor's own document link to the handover. The
+ * Assessment Report template writes, and the report reaches the Customer as a document link of the handover
+ * (Story 24.3). The
  * Customer, the Mentor, and the active Crew read the Delivery Report, all of them the same criteria with
  * the Mentor's own notes: an unmet criterion is declared "Chưa đạt" with the reason in the Mentor's words
  * (Story 24.2). The Mentor's marks are a statement, never a criterion done (AD-33). The Customer accepts a handover, with {@code payment} writing the split release in the same
@@ -26,8 +27,11 @@
  * recommendation it follows, which the Customer opens as Draft Job Posts or discards (FR-11).
  * <p>
  * Public API: {@link vn.vibefix.delivery.HandoverFacts}, the Milestones handed over, for Portfolio
- * Entries (FR-50). The HTTP endpoints, the listeners that open the handover and follow-up to-dos, and
- * the personal-data participant are wiring in {@code delivery.internal}.
+ * Entries (FR-50); {@link vn.vibefix.delivery.DeliveryEvidence}, each handover as the Evidence Packages show it,
+ * its images and links included (FR-53, FR-84); and the port {@link vn.vibefix.delivery.HandoverEvidenceReaders},
+ * which the module of the cases answers when an Administrator opens one of those images: a check, never a grant,
+ * since {@code delivery} keeps none (AD-20, Story 24.3b). The HTTP endpoints, the listeners that open the handover
+ * and follow-up to-dos, and the personal-data participant are wiring in {@code delivery.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared", "audit", "identity", "notification", "operations", "timers",
 		"scanning", "job", "payment", "repo", "files" })

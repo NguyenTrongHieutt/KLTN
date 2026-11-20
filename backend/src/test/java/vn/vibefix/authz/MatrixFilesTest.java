@@ -168,7 +168,9 @@ class MatrixFilesTest {
 	 * Mentor's {@code /chat} summary; the escalated Team Issue's reads the Crew Chat by its ID and by the Board, with
 	 * its files; the Abuse Report's reads the reported message only; and the Split Resolution's reads the Crew Chat by
 	 * its ID and by the Board, with its files, never the Job Chat (Story 22.3). A Milestone Split's versions are read
-	 * through the Split Evidence Package, which is no content read of the matrix.
+	 * through the Split Evidence Package, which is no content read of the matrix. Nor is a handover's image any grant's:
+	 * the file policy asks the case whose Evidence Package shows the handover, a check that leaves nothing behind, so the
+	 * Dispute's assignee reads {@code file=screenshot} outside these scopes (Story 24.3b).
 	 */
 	static final Map<MatrixCaller, GrantScope> GRANT_SCOPES = Map.of(MatrixCaller.ADMIN_DISPUTE_GRANT,
 			new GrantScope("/api/v1/admin/disputes/{disputeId}",
@@ -798,10 +800,11 @@ class MatrixFilesTest {
 				MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT);
 		assertThat(canaries.get("SPLIT_POOL_ENTRY").visibleTo()).isEmpty();
 		assertThat(canaries.get("SPLIT_POOL_REVERSAL").visibleTo()).isEmpty();
-		// A handover's links go to exactly the callers its report and list answer 200 (Story 24.3); no Evidence Package
-		// shows them yet.
+		// A handover's links go to exactly the callers its report and list answer 200 (Story 24.3), and to the assignee of
+		// the Dispute whose Evidence Package shows the handover (Story 24.3b). The open Split Resolution is on another
+		// Milestone, whose "Bàn giao" tab shows only its own.
 		assertThat(canaries.get("HANDOVER_LINK").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.CUSTOMER,
-				MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE, MatrixCaller.CROSS_ROLE);
+				MatrixCaller.MENTOR, MatrixCaller.CREW_ACTIVE, MatrixCaller.CROSS_ROLE, MatrixCaller.ADMIN_DISPUTE_GRANT);
 	}
 
 	@Test
@@ -871,6 +874,13 @@ class MatrixFilesTest {
 			.doesNotContain("CREW_CHAT", "CREW_CHAT_UNREPORTED", "SPLIT_RESOLUTION_REASON", "SPLIT_STATEMENT");
 		// A Dispute's grant reads no Split Resolution's words either (A-20).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT))).containsAll(SPLIT_RESOLUTION_CANARIES);
+		// A handover's links reach an Administrator only through a case's Evidence Package that shows it (Story 24.3b):
+		// the Dispute's shows every handover of the Job, the Split Resolution's only its own Milestone's.
+		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_DISPUTE_GRANT))).doesNotContain("HANDOVER_LINK");
+		for (MatrixCaller other : List.of(MatrixCaller.ADMIN_TEAM_ISSUE_GRANT, MatrixCaller.ADMIN_ABUSE_REPORT_GRANT,
+				MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT)) {
+			assertThat(names(canaries.hiddenFrom(other))).as(other.name()).contains("HANDOVER_LINK");
+		}
 		// An Abuse Report's grant reads the reported message only, never another of the Crew Chat (review iteration 3).
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMIN_ABUSE_REPORT_GRANT)))
 			.contains("JOB_CHAT", "CREW_SHARE", "CREW_CHAT_UNREPORTED")

@@ -22,10 +22,13 @@ import vn.vibefix.shared.ErrorCode;
 @Component
 class SplitEvidencePackage {
 
-	/** The tabs of the Package (EXPERIENCE.md's Split Resolution decision). */
+	/**
+	 * The tabs of the Package (EXPERIENCE.md's Split Resolution decision), in their order on ADM-4. {@code HANDOVERS} is
+	 * "Bàn giao", the Milestone's handovers with their criteria, images and links (Story 24.3b).
+	 */
 	enum Tab {
 
-		VERSIONS, COMMITS, CREW_CHAT, PERSON_LINKS
+		VERSIONS, HANDOVERS, COMMITS, CREW_CHAT, PERSON_LINKS
 
 	}
 

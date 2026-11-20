@@ -287,9 +287,17 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     expect(versions).toBeInTheDocument()
     expect(screen.getByText(/Trần Thảo Vy · 70%/)).toHaveTextContent('xác nhận')
     expect(screen.getByText(/Không còn thông tin về thời gian tham gia/)).toBeInTheDocument()
-    // Story 24.2 retired the Work Items tab: the Package is the versions, the commits, the Crew Chat and the links.
+    // Story 24.2 retired the Work Items tab; Story 24.3b adds the handovers as "Bàn giao", second.
     expect(screen.queryByRole('tab', { name: 'Hạng mục' })).toBeNull()
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Các bản phân chia',
+      'Bàn giao',
+      'Commit',
+      'Trao đổi nhóm',
+      'Tài khoản có thể cùng một người',
+    ])
     expect(seen.some((request) => request.url.includes('/evidence/commits'))).toBe(false)
+    expect(seen.some((request) => request.url.includes('/evidence/handovers'))).toBe(false)
 
     fireEvent.click(screen.getByRole('tab', { name: 'Commit' }))
     expect(await screen.findByText(/Trần Thảo Vy · GitHub 42/)).toBeInTheDocument()
@@ -303,6 +311,111 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Tài khoản có thể cùng một người' }))
     expect(await screen.findByText('Trần Thảo Vy và Nguyễn Lan (khách hàng)')).toBeInTheDocument()
     expect(screen.getByText('cùng một địa chỉ email đã xác minh')).toBeInTheDocument()
+  })
+
+  it(
+    'shows the Milestone\'s handovers on "Bàn giao": criteria, marks, preview, links and images (Story 24.3b)',
+    { timeout: 20_000 },
+    async () => {
+      const seen = fakeBackend(administrator, {
+        'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+        'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+        ...emptyEvidence,
+        'GET /api/v1/admin/split-resolutions/r1/evidence/handovers': () =>
+          json([
+            {
+              handoverId: 'h1',
+              milestoneNumber: 2,
+              milestoneTitle: 'Sửa lỗi trùng giờ',
+              round: 1,
+              status: 'VOIDED',
+              submittedAt: '2026-10-10T03:00:00Z',
+              auto: false,
+              criteria: [
+                {
+                  criterionId: 'c1',
+                  number: 1,
+                  statement: 'Hai khách không đặt trùng bàn',
+                  reportedMet: false,
+                  reportNote: 'Còn lỗi khi đặt hai bàn',
+                },
+              ],
+              images: [],
+              links: [],
+            },
+            {
+              handoverId: 'h2',
+              milestoneNumber: 2,
+              milestoneTitle: 'Sửa lỗi trùng giờ',
+              round: 2,
+              status: 'ACCEPTED',
+              submittedAt: '2026-10-15T03:00:00Z',
+              decidedAt: '2026-10-16T03:00:00Z',
+              auto: false,
+              criteria: [
+                {
+                  criterionId: 'c1',
+                  number: 1,
+                  statement: 'Hai khách không đặt trùng bàn',
+                  reportedMet: true,
+                  reportNote: 'Đã sửa và thử lại',
+                  customerMet: true,
+                },
+              ],
+              preview: { url: 'https://so-dat-ban.vercel.app', domain: 'so-dat-ban.vercel.app' },
+              images: [{ fileId: 'f1', fileName: 'man-hinh-dat-ban.png', size: 2048 }],
+              links: [
+                {
+                  kind: 'DOCUMENT',
+                  label: 'Ghi chú phát hành',
+                  url: 'https://docs.google.com/document/d/ghi-chu',
+                  domain: 'docs.google.com',
+                },
+              ],
+            },
+          ]),
+      })
+      renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Bàn giao' }))
+      const voided = (await screen.findByText('Giai đoạn 2: Sửa lỗi trùng giờ · lần 1')).closest('li') as HTMLElement
+      const accepted = screen.getByText('Giai đoạn 2: Sửa lỗi trùng giờ · lần 2').closest('li') as HTMLElement
+      expect(within(voided).getByText(/Bàn giao đã bị hủy/)).toBeInTheDocument()
+      expect(within(voided).getByText(/Còn lỗi khi đặt hai bàn/)).toBeInTheDocument()
+      expect(within(voided).getByText('Chưa kiểm tra')).toBeInTheDocument()
+      expect(within(voided).queryByText('Kèm theo bàn giao')).toBeNull()
+      expect(within(accepted).getByText(/^Đã chấp nhận · .* · quyết định lúc /)).toBeInTheDocument()
+      expect(within(voided).queryByText(/quyết định lúc/)).toBeNull()
+      expect(within(accepted).getByText(/Đã sửa và thử lại/)).toBeInTheDocument()
+      expect(within(accepted).getByText('Đạt')).toBeInTheDocument()
+      const link = within(accepted).getByRole('link', { name: 'Ghi chú phát hành' })
+      expect(link).toHaveAttribute('href', 'https://docs.google.com/document/d/ghi-chu')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(within(accepted).getByText('(docs.google.com)')).toBeInTheDocument()
+      expect(within(accepted).getByRole('link', { name: 'Mở bản xem thử' })).toHaveAttribute(
+        'href',
+        'https://so-dat-ban.vercel.app',
+      )
+      expect(within(accepted).getByRole('img', { name: 'man-hinh-dat-ban.png' })).toHaveAttribute(
+        'src',
+        '/api/v1/files/f1',
+      )
+      expect(seen.filter((request) => request.url.includes('/evidence/handovers'))).toHaveLength(1)
+    },
+  )
+
+  it('says when the Milestone has no handover yet', { timeout: 20_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(mine()),
+      ...emptyEvidence,
+      'GET /api/v1/admin/split-resolutions/r1/evidence/handovers': () => json([]),
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Bàn giao' }))
+    expect(await screen.findByText('Giai đoạn này chưa có lần bàn giao nào.')).toBeInTheDocument()
   })
 
   it(
