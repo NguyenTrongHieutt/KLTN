@@ -3,27 +3,33 @@ package vn.vibefix.scanning.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import vn.vibefix.scanning.CredentialCheck;
 import vn.vibefix.scanning.internal.PlantedSecrets.Planted;
+import vn.vibefix.scanning.internal.ScanRules.Rule;
 
 /**
  * FR-66, AD-18 (Story 24.4b): {@code job} refuses an External Access identifier that looks like a credential, by the
- * credential rules alone. Personal data is never looked for, and a rule scoped to {@code .env} files by its
- * {@code paths} never applies to a value, as before the text check went.
+ * credential rules alone. Personal data is never looked for, and a rule scoped to some files by its {@code paths}
+ * never applies to a value, whatever files it names.
  */
 class CredentialCheckTest {
+
+	private static final ScanRules RULES = ScanRules.load();
 
 	private final CredentialCheck check = new RulesCredentialCheck();
 
 	@Test
-	void aPlantedCredentialLooksLikeOne() {
-		for (String rule : List.of("github-pat", "github-app-token-stateless", "stripe-secret-key", "aws-access-key-id",
-				"anthropic-api-key", "vnpay-hash-secret")) {
-			Planted planted = PlantedSecrets.all().get(rule);
-			assertThat(this.check.looksLikeCredential(planted.text())).as(rule).isTrue();
+	void everyRuleWithNoPathsFindsItsPlantedSample() {
+		List<Rule> anywhere = RULES.rules().stream().filter(rule -> rule.paths() == null).toList();
+
+		assertThat(anywhere).as("the rules a value is checked with").hasSizeGreaterThanOrEqualTo(30);
+		for (Rule rule : anywhere) {
+			Planted planted = PlantedSecrets.all().get(rule.id());
+			assertThat(this.check.looksLikeCredential(planted.text())).as(rule.id()).isTrue();
 		}
 		// The identifier field holds one bare value: a key pasted alone is refused, as AgreementReviewIT's Stripe key is.
 		assertThat(this.check.looksLikeCredential(PlantedSecrets.all().get("stripe-secret-key").value())).isTrue();
@@ -41,13 +47,22 @@ class CredentialCheckTest {
 	}
 
 	@Test
-	void aRuleScopedToEnvFilesNeverAppliesToAValue() {
-		Planted dotenv = PlantedSecrets.all().get("dotenv-secret");
+	void noRuleWithPathsEverAppliesToAValue() {
+		List<Rule> scoped = RULES.rules().stream().filter(rule -> rule.paths() != null).toList();
 
-		assertThat(dotenv.path()).as("the rule reads .env files only").endsWith(".env.local");
-		assertThat(this.check.looksLikeCredential(dotenv.text())).as("SMTP_PASSWORD=… as a value").isFalse();
-		assertThat(new SecretMatcher(ScanRules.load()).find(dotenv.path(), dotenv.text()))
-			.as("the same line in a .env file").hasSize(1);
+		assertThat(scoped).as("the rules scoped to some files").isNotEmpty();
+		for (Rule rule : scoped) {
+			Planted planted = PlantedSecrets.all().get(rule.id());
+			assertThat(new SecretMatcher(RULES).find(planted.path(), planted.text())).as(rule.id() + " in its own file")
+				.isNotEmpty();
+			assertThat(this.check.looksLikeCredential(planted.text())).as(rule.id() + " as a value").isFalse();
+		}
+		// Whatever files a rule names, a .txt file included, its paths keep it off every value.
+		CredentialCheck text = new RulesCredentialCheck(ScanRules.parse(Map.of("version", 1, "placeholders", "none",
+				"rules", List.of(Map.of("id", "txt-only", "type", "T", "pattern", "(abc)", "paths", "\\.txt$"),
+						Map.of("id", "anywhere", "type", "T", "pattern", "(xyz)")))));
+		assertThat(text.looksLikeCredential("abc")).isFalse();
+		assertThat(text.looksLikeCredential("xyz")).isTrue();
 	}
 
 }

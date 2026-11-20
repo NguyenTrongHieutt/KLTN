@@ -1,13 +1,10 @@
 package vn.vibefix.scanning.internal;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 
 import com.google.re2j.Matcher;
 
@@ -16,19 +13,15 @@ import tools.jackson.databind.json.JsonMapper;
 import vn.vibefix.scanning.internal.ScanRules.Rule;
 
 /**
- * Applies {@link ScanRules} to one file's text (AD-18). A value is reported once per file: a later
- * rule never reports a span an earlier rule claimed, and placeholders, excluded matches, and values
- * failing their rule's check are dropped. The raw value stays inside the check: callers receive only
- * {@link Match#masked()} and {@link Match#hash()}.
+ * Finds which credential rules of {@link ScanRules} match a text (AD-18). A value is reported once: a later rule
+ * never reports a span an earlier rule claimed, and placeholders, excluded matches, and values failing their rule's
+ * check are dropped. Only the ID of the rule that matched leaves the matcher, never the value.
  */
 final class SecretMatcher {
 
-	/** One credential found in a file. */
-	record Match(String ruleId, String type, String masked, String hash) {
+	/** One credential found, named by the rule that found it. */
+	record Match(String ruleId) {
 	}
-
-	/** The fixed run of bullets between the shown ends of a masked value (UX-DR31). */
-	static final String BULLETS = "••••••••";
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -38,20 +31,22 @@ final class SecretMatcher {
 		this.rules = rules;
 	}
 
-	/** A credential and where its value sits in the text. */
-	record Located(Match match, int start, int end) {
-	}
-
+	/** The credentials in {@code text} read as the file at {@code path}: a rule with {@code paths} needs a match. */
 	List<Match> find(String path, String text) {
-		return locate(path, text).stream().map(Located::match).toList();
+		return find(text, rule -> rule.appliesTo(path));
 	}
 
-	List<Located> locate(String path, String text) {
+	/** The credentials in {@code text} read as no file at all: a rule with {@code paths} never applies. */
+	List<Match> find(String text) {
+		return find(text, rule -> rule.paths() == null);
+	}
+
+	private List<Match> find(String text, Predicate<Rule> applies) {
 		String lowerCase = text.toLowerCase(Locale.ROOT);
 		List<int[]> claimed = new ArrayList<>();
-		List<Located> matches = new ArrayList<>();
+		List<Match> matches = new ArrayList<>();
 		for (Rule rule : this.rules.rules()) {
-			if (!rule.appliesTo(path) || !rule.mayMatch(lowerCase)) {
+			if (!applies.test(rule) || !rule.mayMatch(lowerCase)) {
 				continue;
 			}
 			Matcher matcher = rule.pattern().matcher(text);
@@ -61,12 +56,11 @@ final class SecretMatcher {
 				if (start < 0 || overlaps(claimed, start, end)) {
 					continue;
 				}
-				String value = matcher.group(1);
-				if (!isCredential(rule, matcher.group(), value)) {
+				if (!isCredential(rule, matcher.group(), matcher.group(1))) {
 					continue;
 				}
 				claimed.add(new int[] { start, end });
-				matches.add(new Located(new Match(rule.id(), rule.type(), mask(value), hash(rule.id(), value)), start, end));
+				matches.add(new Match(rule.id()));
 			}
 		}
 		return matches;
@@ -104,26 +98,6 @@ final class SecretMatcher {
 		}
 		catch (RuntimeException ex) {
 			return null;
-		}
-	}
-
-	/**
-	 * At most a quarter of the value and never more than its first and last 4 characters (AD-18):
-	 * {@code k = min(4, length / 8)} characters at each end around {@link #BULLETS}.
-	 */
-	static String mask(String value) {
-		int shown = Math.min(4, value.length() / 8);
-		return value.substring(0, shown) + BULLETS + value.substring(value.length() - shown);
-	}
-
-	/** {@code sha256(ruleId:value)} in hexadecimal; the platform keys it into the fingerprint. */
-	static String hash(String ruleId, String value) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			return HexFormat.of().formatHex(digest.digest((ruleId + ":" + value).getBytes(StandardCharsets.UTF_8)));
-		}
-		catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException("Every Java platform has SHA-256", ex);
 		}
 	}
 

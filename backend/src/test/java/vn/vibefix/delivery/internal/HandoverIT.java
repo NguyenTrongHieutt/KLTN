@@ -35,6 +35,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobTransitioned;
+import vn.vibefix.scanning.CredentialCheck;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
 
@@ -59,6 +60,10 @@ class HandoverIT extends IntegrationTest {
 
 	@Autowired
 	private DeliveryListeners listeners;
+
+	/** The credential rules {@code job} still applies (FR-66), which show a stored-as-written text is credential-like. */
+	@Autowired
+	private CredentialCheck credentials;
 
 	private UUID lan;
 
@@ -243,6 +248,8 @@ class HandoverIT extends IntegrationTest {
 		String label = "Biên bản " + "a".repeat(80 - 9 - 1 - token.length()) + " " + token;
 		String url = "https://docs.example.test/bien-ban/" + token;
 		assertThat(label).hasSize(80);
+		assertThat(this.credentials.looksLikeCredential(label)).as("the label looks like a credential").isTrue();
+		assertThat(this.credentials.looksLikeCredential(url)).as("and so does the URL").isTrue();
 		List<String> ten = new ArrayList<>(eleven.subList(0, 8));
 		ten.add(link("VIDEO", "https://xn--bcher-kva.example/video", "Video thao tác"));
 		ten.add(link("DOCUMENT", url, label));
@@ -326,6 +333,8 @@ class HandoverIT extends IntegrationTest {
 		world("ASSESSMENT");
 		String note = "Khóa thử " + fakeToken() + " vẫn nằm trong ghi chú.";
 		String reason = "Chỉ chạy trên máy của quán, với khóa " + stripeTestKey() + ".";
+		assertThat(this.credentials.looksLikeCredential(note)).as("the note looks like a credential").isTrue();
+		assertThat(this.credentials.looksLikeCredential(reason)).as("and so does the reason").isTrue();
 		this.links = "[" + REPORT + "," + link("VIDEO", "https://www.loom.com/share/bao-cao", "Video trình bày") + "]";
 		this.noPreviewReason = reason;
 		this.legacySensitive = "MASK";

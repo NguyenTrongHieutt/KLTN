@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -14,8 +13,8 @@ import vn.vibefix.scanning.internal.ScanRules.Rule;
 import vn.vibefix.scanning.internal.SecretMatcher.Match;
 
 /**
- * AD-18, SG-13: the rules compile with RE2/J, each finds its §B6 type, and nothing raw escapes. Since Story 24.4b the
- * file holds the credential rules alone, with no personal-data section to read or to need.
+ * AD-18, SG-13: the rules compile with RE2/J and each finds its §B6 type alone. Since Story 24.4b the file holds the
+ * credential rules alone, with no personal-data section to read or to need.
  */
 class ScanRulesTest {
 
@@ -51,12 +50,9 @@ class ScanRulesTest {
 		assertThat(planted.keySet()).as("a sample for every rule")
 			.containsExactlyElementsOf(RULES.rules().stream().map(Rule::id).toList());
 		for (Planted sample : planted.values()) {
-			List<Match> matches = MATCHER.find(sample.path(), sample.text());
-			assertThat(matches).as(sample.ruleId()).hasSize(1);
-			Match match = matches.getFirst();
-			assertThat(match.ruleId()).as(sample.ruleId()).isEqualTo(sample.ruleId());
-			assertThat(match.hash()).isEqualTo(SecretMatcher.hash(sample.ruleId(), sample.value()));
-			assertThat(match.masked()).isEqualTo(SecretMatcher.mask(sample.value())).doesNotContain(sample.value());
+			assertThat(MATCHER.find(sample.path(), sample.text())).as(sample.ruleId())
+				.extracting(Match::ruleId)
+				.containsExactly(sample.ruleId());
 		}
 	}
 
@@ -96,20 +92,6 @@ class ScanRulesTest {
 		List<Match> matches = MATCHER.find(".env", text);
 
 		assertThat(matches).extracting(Match::ruleId).containsExactly("stripe-secret-key", "stripe-secret-key");
-		assertThat(matches.stream().map(Match::hash).collect(Collectors.toSet())).hasSize(1);
-	}
-
-	@Test
-	void theMaskShowsAtMostAQuarterAndNeverMoreThanFourCharactersAtEachEnd() {
-		String key = "sk" + "_live_" + PlantedSecrets.alnum(24, 50);
-		assertThat(SecretMatcher.mask(key)).isEqualTo(key.substring(0, 4) + SecretMatcher.BULLETS + key.substring(28));
-		assertThat(SecretMatcher.mask("abcdefgh")).isEqualTo("a" + SecretMatcher.BULLETS + "h");
-		assertThat(SecretMatcher.mask("short")).isEqualTo(SecretMatcher.BULLETS);
-		for (int length = 1; length <= 300; length++) {
-			String value = PlantedSecrets.alnum(length, length);
-			int shown = SecretMatcher.mask(value).length() - SecretMatcher.BULLETS.length();
-			assertThat(shown).as("length %d", length).isLessThanOrEqualTo(Math.min(8, length / 4));
-		}
 	}
 
 	@Test

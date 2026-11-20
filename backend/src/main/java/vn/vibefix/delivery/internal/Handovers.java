@@ -52,10 +52,10 @@ import vn.vibefix.timers.Deadlines;
  * {@code https} links of the Mentor's own tools, each a "Bản ghi / video" or a "Tài liệu" with a short label,
  * which vibefix never fetches (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of
  * them. {@code job} applies M2 first, on the version the form loaded, so nothing is written when it refuses;
- * then the handover, its criteria and its links are stored, a Code Job's with its Handover Commit and range (Story 8.2), and the to-dos move
- * from the Mentor to the Customer. An Assessment Job hands over the Milestone itself: its criteria are the
- * Assessment Report's sections, and the report reaches the Customer as the handover's "Tài liệu" link, since
- * the platform stores no documents (FR-10).
+ * then the handover, its criteria and its links are stored, a Code Job's with its Handover Commit and range
+ * (Story 8.2), and the to-dos move from the Mentor to the Customer. An Assessment Job hands over the Milestone
+ * itself: its criteria are the Assessment Report's sections, and the report reaches the Customer as the
+ * handover's "Tài liệu" link, since the platform stores no documents (FR-10).
  */
 @Component
 class Handovers {

@@ -166,13 +166,13 @@ class RetiredBoardTest {
 		for (String text : List.of("/api/v1/boards/{boardId}/handovers", "`/cong-viec/${jobId}/ban-giao`",
 				"GRANT SELECT ON chat.message TO ${runtime_role}",
 				"import vn.vibefix.repo.HandoverBranches;", "chat.attachment", "ChatAttachmentFiles",
-				"t('screen.handover.sensitive.title')", "t('screen.progress.externalLink')",
+				"t('screen.handover.form.send')", "t('screen.progress.externalLink')",
 				"AdminReadScope.CREW_CHAT", "AdminReadScope.SPLIT_VERSIONS", "DeliveryReason.CRITERION_MARK_MISSING",
 				"integer(rs, \"commits_authored\")", "entry.commitsAuthored ?? 0",
 				"screen.admin.statistics.group.acceptedMilestones", "handoverBranches.workingRepository()",
 				"the Crew work on the Product", "entry.commitsAuthored != null", "const STARTED_STATES = ['ACTIVE']",
 				"...(hasStarted(state)", "{@code workflow_dispatch}", "Phần trao đổi trên vibefix đã mở.",
-				"Ai xem được bàn giao này đều đọc được nội dung này.")) {
+				"Mỗi lần bàn giao có tối đa 5 hình ảnh.")) {
 			assertThat(violations(file, text)).as(text).isEmpty();
 		}
 	}

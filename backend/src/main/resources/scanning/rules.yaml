@@ -1,7 +1,8 @@
-# AD-18, SG-13: the credential rules, owned and versioned by scanning. vibefix scans no code (Story 23.1)
-# and checks no text people send (D5, Story 24.4). The rules are kept for two things only:
-# - job's External Access refusal (FR-66): an identifier that any rule matches is refused as a credential.
-#   It is checked as plain text, so a rule scoped by `paths` never applies to it.
+# AD-18, SG-13: the credential rules, owned and versioned by scanning. vibefix scans no code (Story 23.1),
+# and chat messages, handover notes, the no-preview reason and the Customer's check comments are never
+# checked (D5, Story 24.4). The rules are kept for two things only:
+# - job's External Access refusal (FR-66): an identifier that any rule with no `paths` matches is refused
+#   as a credential. A value is no file, so a rule scoped by `paths` never applies to it.
 # - the four rules that the Customer's published workflow (deploy/customer/vibefix.yml) mirrors in its
 #   inline gitleaks configuration: vnpay-hash-secret, momo-secret-key, zalopay-key and
 #   github-app-token-stateless. RunnerWorkflowsTest keeps those four, and `placeholders`, equal to this file.

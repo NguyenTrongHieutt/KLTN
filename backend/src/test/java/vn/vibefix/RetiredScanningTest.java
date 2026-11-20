@@ -26,8 +26,8 @@ import tools.jackson.databind.json.JsonMapper;
  * email template, or the {@code scanning-fingerprint-key} secret, in {@code backend/src/main} outside its Flyway
  * history, in {@code frontend/src} outside its tests, or in {@code deploy}. Tests may name them: a migration test seeds
  * them. What {@code scanning} keeps (the credential rules, {@code CredentialCheck} and {@code SensitiveChanges}) stays,
- * and only the modules that use it depend on it. The SPA's Job phases {@code FINDING_MENTOR} and {@code FINDING_CREW} are about
- * finding people, and a word-bounded, capitalized {@code Finding} never matches them.
+ * and only the modules that use it depend on it. The SPA's Job phases {@code FINDING_MENTOR} and {@code FINDING_CREW}
+ * are about finding people, and a word-bounded, capitalized {@code Finding} never matches them.
  * <p>
  * Story 23.2 (D9, R25): heads are compared only at acceptance, so nothing live names the head tracking either: the
  * {@code WorkingHeadMoved} event, {@code PushScans}, {@code recordedHead}, the {@code branch_head} and
@@ -47,9 +47,11 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>
  * Story 24.4b (D5): nothing checks, masks or refuses a handover's notes or the Customer's comments either, so no live
  * file names the text check ({@code SensitiveText}, {@code SensitiveTextCheck}, {@code PersonalDataMatcher}), the
- * handover form's dialog ({@code SensitiveDialog}) or its refusal ({@code SENSITIVE_CONTENT}), and the copy of the
- * warning, the dialog and the refusal is gone from {@code vi.json}. {@code scanning} keeps {@code SensitiveChanges} and
- * {@code CredentialCheck}, the credential rules that {@code job}'s External Access refusal applies (FR-66).
+ * handover form's dialog ({@code SensitiveDialog}), its masked matches ({@code MatchView}, {@code SensitiveMatch}), the
+ * writer's choice ({@code Resolution.CHECK}, {@code Resolution.MASK}) or its refusal ({@code SENSITIVE_CONTENT}), and
+ * the copy of the warning, the dialog and the refusal is gone from {@code vi.json}. {@code scanning} keeps
+ * {@code SensitiveChanges} and {@code CredentialCheck}, the credential rules that {@code job}'s External Access refusal
+ * applies (FR-66).
  */
 class RetiredScanningTest {
 
@@ -96,9 +98,9 @@ class RetiredScanningTest {
 			Map.entry(FORK_AND_RULESETS, Pattern.compile("\\b(?:Unnarrowed\\.FORK|createRulesets|rulesetDifferences|RULESETS_DIFFER"
 					+ "|fork-poll|fork-wait|turnFeaturesOff|featureDifferences|vibefix-default-branch|vibefix-handover"
 					+ "|outsider_pull_request_closed)\\b")),
-			// Story 24.4b: word-bounded, so SensitiveChanges and SensitiveChangeList stay live.
-			Map.entry(TEXT_CHECK, Pattern.compile(
-					"\\b(?:SensitiveText|SensitiveTextCheck|PersonalDataMatcher|SensitiveDialog|SENSITIVE_CONTENT)\\b")));
+			// Story 24.4b: word-bounded, so SensitiveChanges, SensitiveChangeList and JobTypeMatchView stay live.
+			Map.entry(TEXT_CHECK, Pattern.compile("\\b(?:SensitiveText|SensitiveTextCheck|PersonalDataMatcher|SensitiveDialog"
+					+ "|SENSITIVE_CONTENT|MatchView|SensitiveMatch|Resolution\\.(?:CHECK|MASK))\\b")));
 
 	/** Story 24.4a's entry, which only the chat files are read for ({@link #chatFile}). */
 	static final String CHAT_TEXT_CHECK = "the chats' text check";
@@ -219,11 +221,16 @@ class RetiredScanningTest {
 				"import { SensitiveDialog, type SensitiveMatch } from './SensitiveDialog'",
 				"throw new ApiException(ErrorCode.GUARD_FAILED, DeliveryReason.SENSITIVE_CONTENT, Map.of(\"matches\", matches));",
 				"if (failure instanceof ApiError && failure.problem.reason === 'SENSITIVE_CONTENT') {",
-				"\"SENSITIVE_CONTENT\": \"Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.\",")) {
+				"\"SENSITIVE_CONTENT\": \"Ghi chú có thể chứa khóa bí mật hoặc dữ liệu khách hàng.\",",
+				"List<MatchView> matches = new ArrayList<>();", "const [matches, setMatches] = useState<SensitiveMatch[]>()",
+				"List<Check> kept = known(handover, checks, Resolution.MASK);",
+				"body.sensitive() == null ? Resolution.CHECK : body.sensitive()")) {
 			assertThat(violations(file, text)).as(text).isNotEmpty();
 		}
 		for (String text : List.of("import vn.vibefix.scanning.CredentialCheck;", "this.credentials.looksLikeCredential(value)",
 				"import { SensitiveChangeList } from './SensitiveChangeList'", "SENSITIVE_CONTENT_TYPE",
+				"record JobTypeMatchView(String jobType, int count) {", "JobTypeMatchView.of(candidate.jobTypeMatches())",
+				"AdminReadItem.forSplitResolution(item.objectId())", "import { ResolutionPanel } from './ResolutionPanel'",
 				"SensitiveChanges.WORKFLOWS", "FINDING_MENTOR",
 				"case FINDING_CREW ->", "scanning/rules.yaml", "One finding.", "finding people for the Job",
 				"vibefix scans no code", "Lane.GITHUB_LONG", "Tôi hiểu vibefix không quét mã.", "HandoverVoids",
@@ -279,7 +286,7 @@ class RetiredScanningTest {
 		}
 		for (String text : List.of("record SendRequest(@NotNull @Size(max = Chats.MAX_BODY) String body) {",
 				"this.chats.post(viewer.chat(), viewer.accountId(), text, null)", "<MessageText text={message.body} />",
-				"t('screen.chat.warning.found')", "SensitiveChanges.WORKFLOWS", "a closed Chat is read, never written")) {
+				"t('screen.chat.readOnly')", "SensitiveChanges.WORKFLOWS", "a closed Chat is read, never written")) {
 			assertThat(violations(conversation, text)).as(text).isEmpty();
 			assertThat(violations(panel, text)).as(text).isEmpty();
 		}

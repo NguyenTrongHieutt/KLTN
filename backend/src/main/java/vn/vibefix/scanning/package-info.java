@@ -1,7 +1,7 @@
 /**
  * Layer 4 (AD-3, AD-18): deterministic rules, with no AI. vibefix scans no code (Story 23.1): the Customer confirms at
- * J7 that their history is clean, and the Mentor keeps the team's secrets out. Nothing checks, masks or refuses the
- * text people send (D5, Story 24.4).
+ * J7 that their history is clean, and the Mentor keeps the team's secrets out. Nothing checks, masks or refuses chat
+ * messages, handover notes, the no-preview reason or the Customer's check comments (D5, Story 24.4).
  * <ul>
  * <li>{@link vn.vibefix.scanning.SensitiveChanges} classifies the paths a handover or the Final Merge changes (AD-33),
  * and names the {@code .github/workflows/} folder a handover may not change.</li>

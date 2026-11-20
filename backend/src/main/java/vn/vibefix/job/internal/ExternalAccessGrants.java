@@ -31,13 +31,13 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * External Access after confirmation (FR-66, AD-20, UX-DR83). The Mentor's confirmation opens one
  * {@value #TODO} per item for the Customer ({@link AgreementReviews#confirm}). The Mentor and each {@code ACTIVE}
- * Crew member enter the account to invite on each item's system; a pick not yet signed reads none of it (AD-41). The Customer
- * reads those identifiers only next to the item, beside each person's GitHub username, and only while
+ * Crew member enter the account to invite on each item's system; a pick not yet signed reads none of it (AD-41).
+ * The Customer reads those identifiers only next to the item, beside each person's GitHub username, and only while
  * the Job is neither Closed nor Cancelled; each person reads their own. "Đã cấp quyền" closes the to-do,
  * the only record of the tick. An identifier is no credential: one that {@code scanning}'s credential rules read
- * as a credential is refused, and nothing looks for personal data in it. A member who signs after the confirmation opens one {@value #MEMBER_TODO} per item (R15, Story
- * 21.6): the same tick closes the item's to-do and its member to-dos, a member who leaves closes their own, and J8 and
- * J10 close them all.
+ * as a credential is refused, and nothing looks for personal data in it. A member who signs after the confirmation
+ * opens one {@value #MEMBER_TODO} per item (R15, Story 21.6): the same tick closes the item's to-do and its member
+ * to-dos, a member who leaves closes their own, and J8 and J10 close them all.
  */
 @Component
 class ExternalAccessGrants {

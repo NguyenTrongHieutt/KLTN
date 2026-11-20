@@ -30,6 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.MilestoneFunding;
+import vn.vibefix.scanning.CredentialCheck;
 import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
 import vn.vibefix.support.IntegrationTest;
@@ -61,6 +62,10 @@ class DecisionIT extends IntegrationTest {
 
 	@Autowired
 	private TransactionTemplate transactions;
+
+	/** The credential rules {@code job} still applies (FR-66), which show a stored-as-written comment is credential-like. */
+	@Autowired
+	private CredentialCheck credentials;
 
 	private UUID lan;
 
@@ -252,6 +257,7 @@ class DecisionIT extends IntegrationTest {
 		world(2);
 		String handover = handOver(5);
 		String comment = "Báo cáo còn để lộ khóa " + stripeTestKey() + ", hãy bỏ đi.";
+		assertThat(this.credentials.looksLikeCredential(comment)).as("the comment looks like a credential").isTrue();
 		this.legacySensitive = "CHECK";
 
 		decide(this.lan, Role.CUSTOMER, handover, "revision", 6, false, comment).andExpect(status().isOk())
@@ -267,6 +273,7 @@ class DecisionIT extends IntegrationTest {
 		world(2);
 		String handover = handOver(5);
 		String comment = "Đạt. Khóa " + fakeToken() + " cần đổi sau khi bàn giao.";
+		assertThat(this.credentials.looksLikeCredential(comment)).as("the comment looks like a credential").isTrue();
 		this.legacySensitive = "MASK";
 
 		decide(this.lan, Role.CUSTOMER, handover, "accept", 6, true, comment).andExpect(status().isOk())
