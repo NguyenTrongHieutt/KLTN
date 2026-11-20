@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { components } from '@/api/schema'
+import type { components, paths } from '@/api/schema'
 import { busyKey } from '@/features/job/jobBusy'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import vi from '@/i18n/vi.json'
-import { apiClient, formBody, unwrap } from '@/lib/apiClient'
+import { apiClient, unwrap, uploadWithProgress, type UploadOptions } from '@/lib/apiClient'
 
 export type HandoverList = components['schemas']['HandoverListView']
 export type HandoverPreflight = components['schemas']['HandoverPreflightView']
@@ -142,21 +142,36 @@ export function useCheckPreview(jobId: string) {
   })
 }
 
-/** A screenshot for the next handover; the preflight lists the ones waiting. */
+/** One image to upload for the next handover, with what reports its progress and what cancels it (UX-DR45). */
+export interface HandoverScreenshotUpload {
+  file: File
+  onProgress?: UploadOptions['onProgress']
+  signal?: AbortSignal
+}
+
+/** The upload's route, checked against the generated client, so a renamed route fails `tsc -b`. */
+const SCREENSHOTS_PATH = '/api/v1/boards/{boardId}/handovers/screenshots' satisfies keyof paths
+
+/** What the route answers with its 201, as the generated client types it. */
+type AddedScreenshot = paths[typeof SCREENSHOTS_PATH]['post']['responses'][201]['content']['application/json']
+
+/**
+ * An image for the next handover, sent with its progress (UX-DR45, Story 24.3c); the preflight lists the ones
+ * waiting. A cancelled upload rejects with an `AbortError`. The list is read again however the upload ends, since a
+ * refused or cancelled one may still have reached the server.
+ */
 export function useAddHandoverScreenshot(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: ({ file, onProgress, signal }: HandoverScreenshotUpload) => {
       const form = new FormData()
       form.append('file', file)
-      return unwrap(
-        apiClient.POST('/api/v1/boards/{boardId}/handovers/screenshots', {
-          params: { path: { boardId: jobId } },
-          body: formBody(form),
-        }),
-      )
+      return uploadWithProgress<AddedScreenshot>(SCREENSHOTS_PATH.replace('{boardId}', encodeURIComponent(jobId)), form, {
+        onProgress,
+        signal,
+      })
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['handovers', jobId, 'preflight'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['handovers', jobId, 'preflight'] }),
   })
 }
 

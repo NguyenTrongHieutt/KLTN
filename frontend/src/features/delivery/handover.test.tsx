@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
+import { MAX_UPLOAD_BYTES } from '@/features/files/uploadRules'
 import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
@@ -588,6 +589,162 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(within(row).getByRole('textbox', { name: 'Đường dẫn (https)' })).toHaveValue('https://youtu.be/dat-ban')
   })
 
+  it('shows an uploading image with its name, size and progress, then lists it with its size (Story 24.3c, UX-DR45)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const size = 2 * 1024 * 1024
+    const listed = json(preflight({ screenshots: [{ fileId: 'f9', fileName: 'dat-ban.png', size }] }))
+    let list: () => Response | Promise<Response> = () => json(preflight())
+    let release: () => void = () => undefined
+    let answer: (response: Response) => void = () => undefined
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () => list(),
+      // The upload's answer is held back, so the bar can be read mid-upload.
+      'POST /api/v1/boards/j1/handovers/screenshots': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+
+    const add = await screen.findByRole('button', { name: 'Thêm hình ảnh' })
+    expect(screen.getByRole('heading', { name: 'Hình ảnh' })).toBeInTheDocument()
+    expect(screen.getByText('Tối đa 5 hình ảnh, mỗi hình tối đa 10 MB.')).toBeInTheDocument()
+    // N-4, word for word, under the image heading.
+    expect(
+      screen.getByText('Hãy che tên, số điện thoại và thông tin cá nhân của khách hàng bạn trước khi tải ảnh lên.'),
+    ).toBeInTheDocument()
+    const file = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(file, new File([new Uint8Array(size)], 'dat-ban.png', { type: 'image/png' }))
+
+    const bar = await screen.findByRole('progressbar', { name: 'Đang tải dat-ban.png' })
+    await waitFor(() => expect(bar).toHaveAttribute('aria-valuenow', '50'))
+    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('dat-ban.png')).toBeInTheDocument()
+    expect(screen.getByText('2 MB')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hủy tải dat-ban.png' })).toBeInTheDocument()
+    expect(add).toBeDisabled()
+    expect(seen.filter((request) => request.method === 'POST' && request.url.endsWith('/handovers/screenshots'))).toHaveLength(1)
+
+    // The list read after the upload is held too, so the full bar shows before the upload is listed.
+    list = () =>
+      new Promise<Response>((resolve) => {
+        release = () => resolve(listed)
+      })
+    answer(json({ fileId: 'f9', fileName: 'dat-ban.png', size }, 201))
+    await waitFor(() => expect(bar).toHaveAttribute('aria-valuenow', '100'))
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    // The whole image is sent, so the server keeps it: there is nothing left to cancel.
+    expect(screen.queryByRole('button', { name: 'Hủy tải dat-ban.png' })).toBeNull()
+    expect(add).toBeDisabled()
+
+    release()
+    expect(await screen.findByRole('checkbox', { name: 'Gửi kèm ảnh dat-ban.png' })).toBeChecked()
+    expect(screen.queryByRole('progressbar', { name: 'Đang tải dat-ban.png' })).toBeNull()
+    expect(screen.getByText('2 MB')).toBeInTheDocument()
+    expect(add).toBeEnabled()
+  })
+
+  it('refuses an image over 10 MB or an SVG before sending anything (Story 24.3c)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight()),
+      'POST /api/v1/boards/j1/handovers/screenshots': () => json({ fileId: 'f9', fileName: 'x.png', size: 1 }, 201),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+    await screen.findByRole('button', { name: 'Thêm hình ảnh' })
+    const file = document.querySelector<HTMLInputElement>('input[type="file"]')!
+
+    const big = new File(['png'], 'lon.png', { type: 'image/png' })
+    Object.defineProperty(big, 'size', { value: 11 * 1024 * 1024 })
+    await user.upload(file, big)
+    expect((await screen.findAllByText('Tệp lớn hơn 10 MB.')).length).toBeGreaterThan(0)
+
+    const refused = 'Chỉ nhận ảnh, PDF, tệp văn bản và tệp nén. Không nhận SVG hoặc HTML.'
+    await user.upload(file, new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }))
+    expect((await screen.findAllByText(refused)).length).toBeGreaterThan(0)
+    // An SVG the browser gives no type is still told by its name.
+    await user.upload(file, new File(['<svg/>'], 'LOGO.SVG', { type: '' }))
+    await waitFor(() => expect(screen.getAllByText(refused).length).toBeGreaterThan(1))
+    // And one typed as SVG is told by its type, whatever its name.
+    const shown = screen.getAllByText(refused).length
+    await user.upload(file, new File(['<svg/>'], 'logo.svgz', { type: 'image/svg+xml' }))
+    await waitFor(() => expect(screen.getAllByText(refused).length).toBeGreaterThan(shown))
+
+    const posts = () => seen.filter((request) => request.method === 'POST')
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(posts()).toHaveLength(0)
+
+    // Exactly 10 MB is still allowed.
+    await user.upload(file, new File([new Uint8Array(MAX_UPLOAD_BYTES)], 'vua-du.png', { type: 'image/png' }))
+    await waitFor(() => expect(posts()).toHaveLength(1))
+  })
+
+  it('cancels an upload with "Hủy tải", saying nothing and adding nothing (Story 24.3c)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight()),
+      // Never answered: only the cancel ends it.
+      'POST /api/v1/boards/j1/handovers/screenshots': () => new Promise<Response>(() => undefined),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+    const add = await screen.findByRole('button', { name: 'Thêm hình ảnh' })
+    const file = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(file, new File(['png'], 'dat-ban.png', { type: 'image/png' }))
+    await screen.findByRole('progressbar', { name: 'Đang tải dat-ban.png' })
+    expect(add).toBeDisabled()
+    const reads = () => seen.filter((request) => request.method === 'GET' && request.url.endsWith('/handovers/preflight')).length
+    const before = reads()
+
+    await user.click(screen.getByRole('button', { name: 'Hủy tải dat-ban.png' }))
+
+    await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Đang tải dat-ban.png' })).toBeNull())
+    // A cancel may come after the server took the image, so the list is read again.
+    expect(reads()).toBeGreaterThan(before)
+    expect(add).toBeEnabled()
+    expect(screen.queryByText('dat-ban.png')).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: 'Gửi kèm ảnh dat-ban.png' })).toBeNull()
+    expect(screen.queryByText('Đã có lỗi. Hãy thử lại sau ít phút.')).toBeNull()
+    expect(seen.filter((request) => request.method === 'POST')).toHaveLength(1)
+  })
+
+  it('says why an upload was refused, files reason first, then the handover’s, or that it got no answer (Story 24.3c)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const answers: (() => Response)[] = [
+      () => json({ status: 400, code: 'VALIDATION', reason: 'TOO_MANY_SCREENSHOTS' }, 400),
+      () => json({ status: 400, code: 'VALIDATION', reason: 'JOB_FILE_QUOTA' }, 400),
+      () => json({ status: 400, code: 'VALIDATION', reason: 'IMAGE_TOO_LARGE' }, 400),
+      () => json({ status: 403, code: 'FORBIDDEN', reason: 'MENTOR_ONLY' }, 403),
+      () => {
+        throw new TypeError('Failed to fetch')
+      },
+    ]
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/boards/j1/handovers/preflight': () => json(preflight()),
+      'POST /api/v1/boards/j1/handovers/screenshots': () => answers.shift()!(),
+    })
+    renderAt('/cong-viec/j1/ban-giao/tao')
+    const add = await screen.findByRole('button', { name: 'Thêm hình ảnh' })
+    const file = document.querySelector<HTMLInputElement>('input[type="file"]')!
+
+    for (const text of [
+      'Mỗi lần bàn giao có tối đa 5 hình ảnh.',
+      'Tệp của công việc này đã đạt giới hạn 200 MB.',
+      'Ảnh quá lớn: hơn 40 triệu điểm ảnh (40 megapixel). Hãy chụp hoặc lưu ảnh nhỏ hơn.',
+      'Bạn không thể làm việc này. Chỉ người hướng dẫn bàn giao được.',
+      'Đã có lỗi. Hãy thử lại sau ít phút.',
+    ]) {
+      await user.upload(file, new File(['png'], 'dat-ban.png', { type: 'image/png' }))
+      expect((await screen.findAllByText(text)).length).toBeGreaterThan(0)
+      await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull())
+      expect(add).toBeEnabled()
+    }
+    expect(screen.queryByRole('checkbox', { name: 'Gửi kèm ảnh dat-ban.png' })).toBeNull()
+  })
+
   it('sends a Code Job’s preview with its links in the order added (Story 24.3)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     let sent: Record<string, unknown> | undefined
@@ -668,6 +825,20 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       expect(anchor.getAttribute('href') ?? '').not.toMatch(/^javascript:/i)
     }
     expect(document.querySelector('img[src="x"], script, svg[onload]')).toBeNull()
+  })
+
+  it('gives the Customer the handover’s images under "Hình ảnh" (Story 24.3c)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CUSTOMER' })),
+      'GET /api/v1/handovers/h1': () => json(report({ screenshots: [{ fileId: 'f1', fileName: 'dat-ban.png', size: 1200 }] })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    expect(await screen.findByRole('heading', { name: 'Hình ảnh' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'dat-ban.png' })).toHaveAttribute('src', '/api/v1/files/f1')
+    expect(screen.queryByText('Ảnh chụp màn hình')).toBeNull()
   })
 
   it('waits on the form while the runner copies a Code Job handover, then opens its report (Story 23.8a)', { timeout: 20_000 }, async () => {

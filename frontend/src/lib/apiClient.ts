@@ -2,8 +2,9 @@ import createClient from 'openapi-fetch'
 import type { paths } from '../api/schema'
 
 /**
- * The only way the SPA talks to the backend (AD-23): the client generated from the backend's
- * OpenAPI document. ESLint bans `fetch` and `openapi-fetch` everywhere else.
+ * One of the SPA's two ways to the backend (AD-23), both in this file: the client generated from the backend's
+ * OpenAPI document, and {@link uploadWithProgress} on `XMLHttpRequest` for an upload that reports its progress.
+ * ESLint bans `fetch`, `openapi-fetch` and `XMLHttpRequest` outside `src/lib`.
  */
 export const apiClient = createClient<paths>({
   // The page's own origin (AD-26), spelled out: a `Request` outside a browser needs an absolute URL.
@@ -91,14 +92,91 @@ export async function unwrap<T>(
 ): Promise<T> {
   const { data, error, response } = await request
   if (!response.ok) {
-    const retryAfter = Number(response.headers.get('Retry-After'))
-    throw new ApiError(
-      response.status,
-      isProblem(error) ? error : {},
-      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
-    )
+    throw new ApiError(response.status, isProblem(error) ? error : {}, retryAfterOf(response.headers.get('Retry-After')))
   }
   return withoutNulls(data) as T
+}
+
+/** What {@link uploadWithProgress} reports while it sends, and how the caller stops it. */
+export interface UploadOptions {
+  /** The bytes sent so far and the whole body, each time the browser reports them with a known length. */
+  onProgress?: (loaded: number, total: number) => void
+  /** Aborts the upload: the promise then rejects with a `DOMException` named `AbortError`. */
+  signal?: AbortSignal
+}
+
+/**
+ * A multipart upload that reports its progress (AD-23, UX-DR45). `fetch` reports nothing about a request body, so
+ * this POST goes through `XMLHttpRequest`, the one other way to the backend, kept here beside the client. It sends
+ * what the client's middleware sends on a command, the CSRF cookie in `X-XSRF-TOKEN` (AD-19), and settles as
+ * {@link unwrap} does: the parsed body without its `null` fields, or `undefined` for an empty one. A non-2xx answer
+ * rejects with an {@link ApiError} carrying the Problem Details when the body parses as JSON, `{}` otherwise, and the
+ * `Retry-After`. A failure without an answer rejects with a plain `Error`, which reads as unexpected, and an abort
+ * through `signal` with a `DOMException` named `AbortError`.
+ */
+export function uploadWithProgress<T>(path: string, form: FormData, { onProgress, signal }: UploadOptions = {}): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(aborted())
+      return
+    }
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', new URL(path, window.location.origin).href)
+    xhr.setRequestHeader('Accept', 'application/json')
+    const token = readCookie('XSRF-TOKEN')
+    if (token) {
+      xhr.setRequestHeader('X-XSRF-TOKEN', token)
+    }
+    // Listened to before `send`, or the browser reports nothing about the body.
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(event.loaded, event.total)
+      }
+    })
+    const abort = () => xhr.abort()
+    signal?.addEventListener('abort', abort, { once: true })
+    const settle = (outcome: () => void) => {
+      signal?.removeEventListener('abort', abort)
+      outcome()
+    }
+    xhr.addEventListener('load', () =>
+      settle(() => {
+        const text = xhr.responseText
+        if (xhr.status < 200 || xhr.status > 299) {
+          const problem = jsonOrUndefined(text)
+          reject(new ApiError(xhr.status, isProblem(problem) ? problem : {}, retryAfterOf(xhr.getResponseHeader('Retry-After'))))
+          return
+        }
+        try {
+          resolve(withoutNulls(text ? JSON.parse(text) : undefined) as T)
+        } catch (error) {
+          reject(error)
+        }
+      }),
+    )
+    xhr.addEventListener('error', () => settle(() => reject(new Error('The upload got no answer'))))
+    xhr.addEventListener('abort', () => settle(() => reject(aborted())))
+    xhr.send(form)
+  })
+}
+
+/** `Retry-After` in seconds (AD-34), when the answer gives a positive number of them. */
+function retryAfterOf(header: string | null): number | undefined {
+  const seconds = Number(header)
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined
+}
+
+/** An error answer's body as JSON, or `undefined` when it is not JSON (an HTML page from a proxy, say). */
+function jsonOrUndefined(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+function aborted(): DOMException {
+  return new DOMException('The upload was cancelled', 'AbortError')
 }
 
 /**

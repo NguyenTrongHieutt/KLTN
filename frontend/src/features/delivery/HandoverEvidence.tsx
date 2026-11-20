@@ -5,7 +5,9 @@ import { fieldProps, inputClass } from '@/components/formField-props'
 import { TermHint } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { MAX_UPLOAD_BYTES, uploadMessage } from '@/features/files/uploadRules'
 import { t } from '@/i18n/t'
+import { formatSize } from '@/lib/fileSize'
 import { problemMessage } from '@/lib/problemMessage'
 import {
   useAddHandoverScreenshot,
@@ -287,7 +289,23 @@ function PreviewFields({
   )
 }
 
-/** Up to five images from the Mentor's uploads, each removable while the handover is a draft (Story 8.3). */
+/** The image being uploaded: what its row shows, and what cancels it. */
+interface Uploading {
+  name: string
+  size: number
+  percent: number
+  controller: AbortController
+}
+
+/** Whether a picked file is an SVG, which the server refuses (AD-21): by its type, or by its name when it has none. */
+const isSvg = (file: File) => file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')
+
+/**
+ * Up to five images from the Mentor's uploads, each removable while the handover is a draft (Story 8.3), with N-4
+ * above them. One upload runs at a time, in a row of its own with its name, size, progress and, until the whole
+ * image is sent, "Hủy tải" (UX-DR45, Story 24.3c). A file over 10 MB or an SVG is refused before anything is sent; a
+ * cancelled upload says nothing and adds nothing.
+ */
 function ScreenshotFields({
   jobId,
   uploads,
@@ -303,12 +321,50 @@ function ScreenshotFields({
   const add = useAddHandoverScreenshot(jobId)
   const remove = useRemoveHandoverScreenshot(jobId)
   const input = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState<Uploading>()
+
+  const start = (file: File) => {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toasts.error(t('reason.files.FILE_TOO_LARGE'))
+      return
+    }
+    if (isSvg(file)) {
+      toasts.error(t('reason.files.FILE_TYPE_NOT_ALLOWED'))
+      return
+    }
+    const controller = new AbortController()
+    // Each update names its own upload, so a late event of an ended one changes nothing.
+    const update = (next: (current: Uploading) => Uploading | undefined) =>
+      setUploading((current) => (current?.controller === controller ? next(current) : current))
+    setUploading({ name: file.name, size: file.size, percent: 0, controller })
+    add.mutate(
+      {
+        file,
+        signal: controller.signal,
+        onProgress: (loaded, total) =>
+          update((current) => ({ ...current, percent: Math.min(100, Math.round((loaded * 100) / total)) })),
+      },
+      {
+        onSuccess: (added) =>
+          onChange((prev) =>
+            prev.screenshotIds.length < MAX_SCREENSHOTS ? { ...prev, screenshotIds: [...prev.screenshotIds, added.fileId] } : prev,
+          ),
+        onError: (error) => {
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            toasts.error(uploadMessage(error, { module: 'delivery' }))
+          }
+        },
+        onSettled: () => update(() => undefined),
+      },
+    )
+  }
 
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-h3">{t('screen.handover.preview.screenshots')}</h3>
       <p className="text-caption text-muted-foreground">{t('screen.handover.preview.screenshotsHelper')}</p>
-      {uploads.length > 0 && (
+      <p className="text-caption text-warning">{t('screen.handover.preview.personalData')}</p>
+      {(uploads.length > 0 || uploading) && (
         <ul className="flex flex-col gap-1.5">
           {uploads.map((upload) => {
             const included = value.screenshotIds.includes(upload.fileId)
@@ -331,6 +387,7 @@ function ScreenshotFields({
                 />
                 <img src={`/api/v1/files/${upload.fileId}`} alt="" className="size-10 rounded border border-border object-cover" />
                 <span className="min-w-0 flex-1 break-all">{upload.fileName}</span>
+                <span className="shrink-0 text-caption text-muted-foreground">{formatSize(upload.size)}</span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -353,6 +410,35 @@ function ScreenshotFields({
               </li>
             )
           })}
+          {uploading && (
+            <li className="flex items-center gap-2 text-body-sm">
+              <span className="min-w-0 flex-1 break-all">{uploading.name}</span>
+              <span className="shrink-0 text-caption text-muted-foreground">{formatSize(uploading.size)}</span>
+              <div
+                role="progressbar"
+                aria-label={t('screen.handover.preview.uploading', { name: uploading.name })}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={uploading.percent}
+                className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted"
+              >
+                <div className="h-full rounded-full bg-primary" style={{ width: `${uploading.percent}%` }} />
+              </div>
+              <span className="w-10 shrink-0 text-right text-caption tabular-nums">{uploading.percent}%</span>
+              {/* Once the whole image is sent the server keeps it, so a cancel could no longer keep it out. */}
+              {uploading.percent < 100 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="compact"
+                  aria-label={t('screen.handover.preview.cancelUpload', { name: uploading.name })}
+                  onClick={() => uploading.controller.abort()}
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </Button>
+              )}
+            </li>
+          )}
         </ul>
       )}
       <input
@@ -365,21 +451,18 @@ function ScreenshotFields({
         onChange={(event) => {
           const file = event.target.files?.[0]
           event.target.value = ''
-          if (!file) {
-            return
+          if (file) {
+            start(file)
           }
-          add.mutate(file, {
-            onSuccess: (upload) =>
-              onChange((prev) =>
-                prev.screenshotIds.length < MAX_SCREENSHOTS
-                  ? { ...prev, screenshotIds: [...prev.screenshotIds, upload.fileId] }
-                  : prev,
-              ),
-            onError: (error) => toasts.error(problemMessage(error, { module: 'delivery' }).text),
-          })
         }}
       />
-      <Button type="button" variant="secondary" className="w-fit" disabled={add.isPending} onClick={() => input.current?.click()}>
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-fit"
+        disabled={uploading !== undefined || add.isPending}
+        onClick={() => input.current?.click()}
+      >
         <ImagePlus aria-hidden="true" className="size-4" />
         {t('screen.handover.preview.addScreenshot')}
       </Button>
