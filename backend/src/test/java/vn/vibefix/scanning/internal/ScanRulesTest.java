@@ -32,7 +32,7 @@ class ScanRulesTest {
 
 	@Test
 	void theFileHoldsTheCredentialRulesAndNoPersonalDataSection() throws Exception {
-		Map<?, ?> document;
+		Map<String, Object> document;
 		try (var in = ScanRules.class.getClassLoader().getResourceAsStream(ScanRules.RESOURCE)) {
 			document = new org.yaml.snakeyaml.Yaml(
 					new org.yaml.snakeyaml.constructor.SafeConstructor(new org.yaml.snakeyaml.LoaderOptions()))
