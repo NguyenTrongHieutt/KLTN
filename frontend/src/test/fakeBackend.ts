@@ -130,8 +130,10 @@ export const workflowFile = {
  * empty, GitHub is as {@link gitHubLink} says, the profile is {@link profileView}'s, the published workflow is
  * {@link workflowFile}, and the verification is `UNVERIFIED` unless a handler answers them, and an unknown request
  * answers 404. Both answer from the same handlers and record their requests in the one list it returns. An XHR
- * reports, once sent, half its files' bytes as uploaded, all of them once its handler answers, and then loads. A
- * handler that rejects is a network failure (`error`), and an XHR aborted before its answer drops it (`abort`).
+ * reports, once sent, half its files' bytes as uploaded, all of them once its handler answers, and then loads; the
+ * upload reports only when a progress listener was there at `send`, and headers are taken only between `open` and
+ * `send` (`InvalidStateError` otherwise). A handler that rejects is a network failure (`error`), and an XHR aborted
+ * before its answer drops it (`abort`).
  */
 export function fakeBackend(session: Session, handlers: Record<string, Handler> = {}): Request[] {
   const seen: Request[] = []
@@ -220,6 +222,11 @@ class FakeEvents {
     this.listeners = this.listeners.filter((entry) => entry.type !== type || entry.listener !== listener)
   }
 
+  /** Whether anything listens for `type` now, as a listener or as `on{type}`. */
+  listens(type: EventName): boolean {
+    return this[`on${type}`] !== null || this.listeners.some((entry) => entry.type === type)
+  }
+
   fire(type: EventName, loaded = 0, total = 0) {
     const event: FakeEvent = { type, lengthComputable: total > 0, loaded, total }
     this[`on${type}`]?.(event)
@@ -245,6 +252,8 @@ function fakeXhr(answer: (request: Request) => Promise<Response>, seen: Request[
     private answered: Headers | undefined
     private sent = false
     private aborted = false
+    // As a browser does, the upload reports only to a progress listener that was there at `send`.
+    private reports = false
 
     open(method: string, url: string | URL) {
       this.method = method
@@ -253,6 +262,9 @@ function fakeXhr(answer: (request: Request) => Promise<Response>, seen: Request[
     }
 
     setRequestHeader(name: string, value: string) {
+      if (this.readyState !== 1 || this.sent) {
+        throw new DOMException('setRequestHeader needs an opened request that is not sent', 'InvalidStateError')
+      }
       this.headers.set(name, value)
     }
 
@@ -262,8 +274,13 @@ function fakeXhr(answer: (request: Request) => Promise<Response>, seen: Request[
 
     send(body: BodyInit | null = null) {
       const request = new Request(this.url, { method: this.method, headers: this.headers, body })
+      // Node's `Request` cannot read jsdom's files back, so a handler reads the form as it was sent.
+      if (body instanceof FormData) {
+        Object.defineProperty(request, 'formData', { value: async () => body })
+      }
       seen.push(request)
       this.sent = true
+      this.reports = this.upload.listens('progress')
       void this.respond(request, fileBytes(body))
     }
 
@@ -273,7 +290,9 @@ function fakeXhr(answer: (request: Request) => Promise<Response>, seen: Request[
       }
       this.aborted = true
       this.readyState = 4
-      this.upload.fire('abort')
+      if (this.reports) {
+        this.upload.fire('abort')
+      }
       this.fire('abort')
       this.fire('loadend')
     }
@@ -284,7 +303,9 @@ function fakeXhr(answer: (request: Request) => Promise<Response>, seen: Request[
       if (this.aborted) {
         return
       }
-      this.upload.fire('progress', Math.floor(total / 2), total)
+      if (this.reports) {
+        this.upload.fire('progress', Math.floor(total / 2), total)
+      }
       let response: Response
       try {
         response = await answer(request)
@@ -299,7 +320,9 @@ function fakeXhr(answer: (request: Request) => Promise<Response>, seen: Request[
       if (this.aborted) {
         return
       }
-      this.upload.fire('progress', total, total)
+      if (this.reports) {
+        this.upload.fire('progress', total, total)
+      }
       const text = await response.text()
       if (this.aborted) {
         return

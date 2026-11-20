@@ -2,8 +2,9 @@ import createClient from 'openapi-fetch'
 import type { paths } from '../api/schema'
 
 /**
- * The only way the SPA talks to the backend (AD-23): the client generated from the backend's
- * OpenAPI document. ESLint bans `fetch` and `openapi-fetch` everywhere else.
+ * One of the SPA's two ways to the backend (AD-23), both in this file: the client generated from the backend's
+ * OpenAPI document, and {@link uploadWithProgress} on `XMLHttpRequest` for an upload that reports its progress.
+ * ESLint bans `fetch`, `openapi-fetch` and `XMLHttpRequest` outside `src/lib`.
  */
 export const apiClient = createClient<paths>({
   // The page's own origin (AD-26), spelled out: a `Request` outside a browser needs an absolute URL.

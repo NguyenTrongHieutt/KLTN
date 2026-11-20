@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
+import { MAX_UPLOAD_BYTES } from '@/features/files/uploadRules'
 import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 
@@ -633,6 +634,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     answer(json({ fileId: 'f9', fileName: 'dat-ban.png', size }, 201))
     await waitFor(() => expect(bar).toHaveAttribute('aria-valuenow', '100'))
     expect(screen.getByText('100%')).toBeInTheDocument()
+    // The whole image is sent, so the server keeps it: there is nothing left to cancel.
+    expect(screen.queryByRole('button', { name: 'Hủy tải dat-ban.png' })).toBeNull()
     expect(add).toBeDisabled()
 
     release()
@@ -664,9 +667,18 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     // An SVG the browser gives no type is still told by its name.
     await user.upload(file, new File(['<svg/>'], 'LOGO.SVG', { type: '' }))
     await waitFor(() => expect(screen.getAllByText(refused).length).toBeGreaterThan(1))
+    // And one typed as SVG is told by its type, whatever its name.
+    const shown = screen.getAllByText(refused).length
+    await user.upload(file, new File(['<svg/>'], 'logo.svgz', { type: 'image/svg+xml' }))
+    await waitFor(() => expect(screen.getAllByText(refused).length).toBeGreaterThan(shown))
 
+    const posts = () => seen.filter((request) => request.method === 'POST')
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(seen.filter((request) => request.method === 'POST')).toHaveLength(0)
+    expect(posts()).toHaveLength(0)
+
+    // Exactly 10 MB is still allowed.
+    await user.upload(file, new File([new Uint8Array(MAX_UPLOAD_BYTES)], 'vua-du.png', { type: 'image/png' }))
+    await waitFor(() => expect(posts()).toHaveLength(1))
   })
 
   it('cancels an upload with "Hủy tải", saying nothing and adding nothing (Story 24.3c)', { timeout: 20_000 }, async () => {
@@ -683,10 +695,14 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await user.upload(file, new File(['png'], 'dat-ban.png', { type: 'image/png' }))
     await screen.findByRole('progressbar', { name: 'Đang tải dat-ban.png' })
     expect(add).toBeDisabled()
+    const reads = () => seen.filter((request) => request.method === 'GET' && request.url.endsWith('/handovers/preflight')).length
+    const before = reads()
 
     await user.click(screen.getByRole('button', { name: 'Hủy tải dat-ban.png' }))
 
     await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Đang tải dat-ban.png' })).toBeNull())
+    // A cancel may come after the server took the image, so the list is read again.
+    expect(reads()).toBeGreaterThan(before)
     expect(add).toBeEnabled()
     expect(screen.queryByText('dat-ban.png')).toBeNull()
     expect(screen.queryByRole('checkbox', { name: 'Gửi kèm ảnh dat-ban.png' })).toBeNull()
@@ -700,6 +716,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       () => json({ status: 400, code: 'VALIDATION', reason: 'TOO_MANY_SCREENSHOTS' }, 400),
       () => json({ status: 400, code: 'VALIDATION', reason: 'JOB_FILE_QUOTA' }, 400),
       () => json({ status: 400, code: 'VALIDATION', reason: 'IMAGE_TOO_LARGE' }, 400),
+      () => json({ status: 403, code: 'FORBIDDEN', reason: 'MENTOR_ONLY' }, 403),
       () => {
         throw new TypeError('Failed to fetch')
       },
@@ -717,6 +734,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       'Mỗi lần bàn giao có tối đa 5 hình ảnh.',
       'Tệp của công việc này đã đạt giới hạn 200 MB.',
       'Ảnh quá lớn: hơn 40 triệu điểm ảnh (40 megapixel). Hãy chụp hoặc lưu ảnh nhỏ hơn.',
+      'Bạn không thể làm việc này. Chỉ người hướng dẫn bàn giao được.',
       'Đã có lỗi. Hãy thử lại sau ít phút.',
     ]) {
       await user.upload(file, new File(['png'], 'dat-ban.png', { type: 'image/png' }))

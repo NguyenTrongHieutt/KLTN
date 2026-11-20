@@ -9,9 +9,8 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 const FILES_REASONS = (vi as { reason: { files: Record<string, string> } }).reason.files
 
 /**
- * What a refused upload says: a `files` reason in its own words, then, when the screen names its module in
- * `context`, that module's reason for a `VALIDATION` answer, which the shared text would only count (the handover
- * reads `delivery`'s, Story 24.3c), else the Problem Details text in that context.
+ * What a refused upload says: the `files` reason's text; else, for a `VALIDATION` answer when `context` names a
+ * module, that module's reason (the handover names `delivery`, Story 24.3c); else `problemMessage(error, context)`.
  */
 export function uploadMessage(error: unknown, context?: ProblemContext): string {
   const reason = error instanceof ApiError ? error.problem.reason : undefined

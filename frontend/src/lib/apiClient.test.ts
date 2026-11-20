@@ -82,6 +82,32 @@ describe('uploadWithProgress (AD-19, AD-23, UX-DR45)', () => {
     expect(seen[0].headers.get('Accept')).toBe('application/json')
   })
 
+  it('sends the file part as multipart, with a Content-Type nobody set by hand', async () => {
+    let received: FormDataEntryValue | null = null
+    const seen = fakeBackend(anonymous, {
+      [`POST ${PATH}`]: async (request) => {
+        received = (await request.formData()).get('file')
+        return json({ fileId: 'f1' }, 201)
+      },
+    })
+
+    await uploadWithProgress(PATH, form(1000))
+
+    expect(received).toBeInstanceOf(File)
+    expect(received).toHaveProperty('name', 'dat-ban.png')
+    expect(received).toHaveProperty('size', 1000)
+    expect(seen[0].headers.get('Content-Type')).toMatch(/^multipart\/form-data; boundary=/)
+  })
+
+  it('reports no progress when the length is not known', async () => {
+    fakeBackend(anonymous, { [`POST ${PATH}`]: () => json({ fileId: 'f1' }, 201) })
+    const onProgress = vi.fn()
+
+    await uploadWithProgress(PATH, form(0), { onProgress })
+
+    expect(onProgress).not.toHaveBeenCalled()
+  })
+
   it('leaves out the null fields of the answer, as unwrap does', async () => {
     fakeBackend(anonymous, {
       [`POST ${PATH}`]: () => json({ fileId: 'f1', note: null, nested: { kept: 0, gone: null, list: [{ a: null }, null] } }, 201),

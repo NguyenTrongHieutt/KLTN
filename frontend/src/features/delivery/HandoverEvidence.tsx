@@ -302,9 +302,9 @@ const isSvg = (file: File) => file.type === 'image/svg+xml' || file.name.toLower
 
 /**
  * Up to five images from the Mentor's uploads, each removable while the handover is a draft (Story 8.3), with N-4
- * above them. One upload runs at a time, in a row of its own with its name, size, progress and "Hủy tải" (UX-DR45,
- * Story 24.3c). A file over 10 MB or an SVG is refused before anything is sent; a cancelled upload says nothing and
- * adds nothing.
+ * above them. One upload runs at a time, in a row of its own with its name, size, progress and, until the whole
+ * image is sent, "Hủy tải" (UX-DR45, Story 24.3c). A file over 10 MB or an SVG is refused before anything is sent; a
+ * cancelled upload says nothing and adds nothing.
  */
 function ScreenshotFields({
   jobId,
@@ -363,7 +363,7 @@ function ScreenshotFields({
     <div className="flex flex-col gap-2">
       <h3 className="text-h3">{t('screen.handover.preview.screenshots')}</h3>
       <p className="text-caption text-muted-foreground">{t('screen.handover.preview.screenshotsHelper')}</p>
-      <p className="text-caption text-muted-foreground">{t('screen.handover.preview.personalData')}</p>
+      <p className="text-caption text-warning">{t('screen.handover.preview.personalData')}</p>
       {(uploads.length > 0 || uploading) && (
         <ul className="flex flex-col gap-1.5">
           {uploads.map((upload) => {
@@ -425,15 +425,18 @@ function ScreenshotFields({
                 <div className="h-full rounded-full bg-primary" style={{ width: `${uploading.percent}%` }} />
               </div>
               <span className="w-10 shrink-0 text-right text-caption tabular-nums">{uploading.percent}%</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="compact"
-                aria-label={t('screen.handover.preview.cancelUpload', { name: uploading.name })}
-                onClick={() => uploading.controller.abort()}
-              >
-                <X aria-hidden="true" className="size-4" />
-              </Button>
+              {/* Once the whole image is sent the server keeps it, so a cancel could no longer keep it out. */}
+              {uploading.percent < 100 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="compact"
+                  aria-label={t('screen.handover.preview.cancelUpload', { name: uploading.name })}
+                  onClick={() => uploading.controller.abort()}
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </Button>
+              )}
             </li>
           )}
         </ul>
