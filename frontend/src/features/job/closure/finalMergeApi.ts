@@ -7,6 +7,9 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 
 export type FinalMerge = components['schemas']['FinalMergeView']
 
+/** What a check of the accepted code waits for, and when it looks again (Story 24.5b). */
+export type FinalMergeWait = components['schemas']['MergeWaitView']
+
 /** Where "Đăng công việc ghép mã" opens CUS-6, pre-filled to merge a Job's code (FR-38). */
 export const MERGE_CODE_PARAM = 'ghep-ma'
 

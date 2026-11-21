@@ -103,10 +103,22 @@ class FinalMergeController {
 	 * @param branch {@code vibefix/final-{jobId}}, the branch the run pushes
 	 * @param branchUrl "Xem nhánh ↗", once the branch read back
 	 * @param compareUrl "Mở trang hợp nhất trên GitHub ↗", GitHub's compare page, once the branch read back
+	 * @param wait what a {@code CHECKING} Final Merge waits for and when it looks again (Story 24.5b); none while it
+	 * checks
 	 */
 	record MergeView(String status, List<MergeSensitiveChangeView> sensitive, List<String> workflows,
 			@Nullable String refusal, @Nullable RunView run, @Nullable String branch, @Nullable String branchUrl,
-			@Nullable String compareUrl) {
+			@Nullable String compareUrl, @Nullable MergeWaitView wait) {
+	}
+
+	/**
+	 * What the check waits for (Story 24.5b), which the closing card words for the Customer.
+	 * @param reason {@code REVOCATION} (the team's access on GitHub), {@code CUSTOMER} (a Source block they fix on
+	 * CUS-4) or {@code FROZEN} (a dispute)
+	 * @param nextCheckAt when the check looks again; none for a revocation not yet read back, whose read-back starts
+	 * the check itself
+	 */
+	record MergeWaitView(FinalMerges.Wait reason, @Nullable Instant nextCheckAt) {
 	}
 
 	/**
@@ -278,11 +290,13 @@ class FinalMergeController {
 		String branch = found.branch();
 		String repository = this.links.repository(authorization.repositoryName());
 		String base = found.sourceBranch();
+		FinalMerges.Wait waiting = "CHECKING".equals(found.status()) ? found.waitingFor() : null;
 		return new MergeView(found.status(),
 				found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList(),
 				found.workflows(), found.refusal(), run(found), branch,
 				done && branch != null ? repository + "/tree/" + branch : null,
-				done && branch != null && base != null ? repository + "/compare/" + base + "..." + branch + "?expand=1" : null);
+				done && branch != null && base != null ? repository + "/compare/" + base + "..." + branch + "?expand=1" : null,
+				waiting == null ? null : new MergeWaitView(waiting, found.nextCheckAt()));
 	}
 
 	/** The run dispatched last, as the Final Merge last read it; its page, in the Customer's own repository. */

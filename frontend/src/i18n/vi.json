@@ -2797,6 +2797,14 @@
         "deadline": "Hạn chọn cách nhận mã: {date}.",
         "beforeEnd": "khi công việc kết thúc",
         "checking": "Đang kiểm tra mã đã nghiệm thu…",
+        "wait": {
+          "REVOCATION": "Đang chờ thu hồi quyền truy cập của nhóm trên GitHub.",
+          "CUSTOMER": "Đang chờ bạn sửa dự án gốc: vibefix chưa đọc được dự án gốc trên GitHub.",
+          "FROZEN": "Công việc đang tạm dừng vì có tranh chấp.",
+          "afterRevocation": "vibefix kiểm tra mã ngay khi thu hồi xong.",
+          "recheckAt": "vibefix kiểm tra lại lúc {time}.",
+          "openProduct": "Mở trang sản phẩm"
+        },
         "reviewLead": "Các tệp dưới đây có thể chạy chương trình khi dự án của bạn được xây dựng. Sau khi bạn hợp nhất nhánh vibefix/final-… trên GitHub, công cụ tự động và dịch vụ lưu trữ của bạn sẽ chạy mã mới.",
         "workflowsTitle": "Mã đã nghiệm thu có thay đổi trong thư mục .github/workflows",
         "workflowsLead": "GitHub không cho bước hợp nhất cuối ghi các tệp này, nên vibefix không chạy được bước này. Hãy tự tải mã từ kho trung gian trên GitHub.",

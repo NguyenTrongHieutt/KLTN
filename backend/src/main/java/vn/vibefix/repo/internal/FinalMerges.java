@@ -44,7 +44,9 @@ import vn.vibefix.timers.Deadlines;
 /**
  * The Final Merge (FR-37, AD-5, AD-11, AD-44, AD-46, R1, Story 23.9a), one per Job. Once the Job is Closing and its
  * row {@code REQUESTED}, {@value #CHECK} reads the preconditions, the Job's Sensitive Changes and the two
- * {@code .github/workflows/} trees; a clean one is {@code READY} for the Customer's confirmation (N-18). The
+ * {@code .github/workflows/} trees; a clean one is {@code READY} for the Customer's confirmation (N-18). Since Story
+ * 24.5b the check is queued only once every Mentor and Crew grant reads back revoked, and a check that defers records
+ * what it waits for and when it looks again, which the Customer's closing card names. The
  * confirmation reserves the {@code FINAL_MERGE} busy marker and requests {@value #MERGE}, which dispatches the
  * published {@code vibefix.yml} on the Customer's own GitHub Actions ({@code RUNNING}), waits for the run (its
  * completion or its timeout wakes it, Story 24.5a) and reads
@@ -73,8 +75,18 @@ class FinalMerges {
 	private static final String COLUMNS = """
 			authorization_id, job_id, product_id, status, intermediary_sha, source_branch, sensitive::text AS sensitive,
 			workflows::text AS workflows, refusal, confirmed_at, operation_key, branch, correlation_id, dispatched_at,
-			run_status, run_conclusion, merged_at
+			run_status, run_conclusion, merged_at, waiting_for, next_check_at
 			""";
+
+	/**
+	 * What a {@code CHECKING} row waits for (Story 24.5b), which the Customer's closing card names: the team's
+	 * revocation to read back, the Customer's fix of a Source block on CUS-4, or a dispute to end.
+	 */
+	enum Wait {
+
+		REVOCATION, CUSTOMER, FROZEN
+
+	}
 
 	/**
 	 * One Final Merge, as its row holds it.
@@ -83,12 +95,16 @@ class FinalMerges {
 	 * because a run's {@code GITHUB_TOKEN} can never push those files (deferred-work 626)
 	 * @param branch {@code vibefix/final-{jobId}}, once the run was dispatched for it
 	 * @param mergedAt when vibefix read the branch back
+	 * @param waitingFor what the check waits for, while it is {@code CHECKING} and not checking now
+	 * @param nextCheckAt when the check looks again; none for a revocation not yet read back, which requests the
+	 * check itself
 	 */
 	record FinalMerge(UUID authorizationId, UUID jobId, UUID productId, String status, @Nullable String intermediarySha,
 			@Nullable String sourceBranch, List<SensitiveChange> sensitive, List<String> workflows, @Nullable String refusal,
 			@Nullable Instant confirmedAt, @Nullable String operationKey, @Nullable String branch,
 			@Nullable UUID correlationId, @Nullable Instant dispatchedAt, @Nullable String runStatus,
-			@Nullable String runConclusion, @Nullable Instant mergedAt) {
+			@Nullable String runConclusion, @Nullable Instant mergedAt, @Nullable Wait waitingFor,
+			@Nullable Instant nextCheckAt) {
 
 		/** Whether the run dispatched last is over without a branch: a failure, or vibefix stopped waiting for it. */
 		boolean runSpent() {
@@ -141,37 +157,100 @@ class FinalMerges {
 		this.clock = clock;
 	}
 
-	/** Starts the check once the Job is Closing; one already checked or checking changes nothing. */
+	/**
+	 * Starts the check once the Job is Closing (J8, and each Customer read of JOB-1): the row is {@code CHECKING},
+	 * waiting on {@code REVOCATION}, and the check is requested at once when every team grant already reads back
+	 * revoked; otherwise the read-back of the last one requests it ({@link #teamRevoked}). An existing row is queued
+	 * again only from {@code REVOCATION}, so this read every few seconds never wakes or re-requests a check that
+	 * waits for the Customer or for a dispute (Story 24.5b).
+	 */
 	@Transactional
 	void prepare(UUID jobId) {
-		Authorization authorization = this.authorizations.openOf(jobId).orElse(null);
+		Authorization authorization = this.authorizations.lockOpen(jobId).orElse(null);
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		if (authorization == null || job == null || !"CLOSING".equals(job.state())) {
 			return;
 		}
-		int created = this.jdbc.sql("""
-				INSERT INTO repo.final_merge (authorization_id, job_id, product_id, status, created_at)
-				VALUES (:id, :job, :product, 'CHECKING', :now)
+		this.jdbc.sql("""
+				INSERT INTO repo.final_merge (authorization_id, job_id, product_id, status, waiting_for, created_at)
+				VALUES (:id, :job, :product, 'CHECKING', 'REVOCATION', :now)
 				ON CONFLICT DO NOTHING
 				""").param("id", authorization.id()).param("job", jobId).param("product", authorization.productId())
 			.param("now", now()).update();
-		if (created == 1) {
-			this.operations.request(new OperationRequest(CHECK, authorization.id(),
-					Map.of("jobId", jobId.toString(), "authorizationId", authorization.id().toString()), null, null, 0));
-			this.authorizations.audit("repo.final_merge_check_requested", authorization.id(), jobId);
+		queue(authorization);
+	}
+
+	/**
+	 * A Mentor's or Crew member's grant read back as revoked (FR-21, R17), in that read-back's transaction: on a
+	 * Closing Job whose check waits on {@code REVOCATION}, the last one queues the check. J10, a member who left
+	 * mid-Job, and every read-back but the last change nothing (Story 24.5b).
+	 */
+	@Transactional
+	void teamRevoked(UUID jobId) {
+		Authorization authorization = this.authorizations.lockOpen(jobId).orElse(null);
+		BusyJob job = authorization == null ? null : this.busy.job(jobId).orElse(null);
+		if (job == null || !"CLOSING".equals(job.state())) {
+			return;
+		}
+		queue(authorization);
+	}
+
+	/**
+	 * The check deferred until {@code nextCheckAt}, waiting for {@code wait}, which the Customer's closing card names.
+	 * A revocation that read back while the check looked is queued at once: the check's own read came before the
+	 * last read-back committed, and that read-back found no wait to clear, so the wake lands on this attempt.
+	 */
+	@Transactional
+	void waiting(UUID authorizationId, Wait wait, Instant nextCheckAt) {
+		FinalMerge merge = find(authorizationId).orElse(null);
+		Authorization authorization = merge == null ? null
+				: this.authorizations.lockOpen(merge.jobId()).filter(found -> found.id().equals(authorizationId)).orElse(null);
+		this.jdbc.sql("""
+				UPDATE repo.final_merge SET waiting_for = :wait, next_check_at = :at
+				WHERE authorization_id = :id AND status = 'CHECKING'
+				""").param("wait", wait.name()).param("at", Timestamp.from(nextCheckAt)).param("id", authorizationId)
+			.update();
+		if (authorization != null) {
+			queue(authorization);
 		}
 	}
 
 	/**
+	 * Requests the check of a {@code CHECKING} row that waits on {@code REVOCATION} once every team grant reads back
+	 * revoked, and wakes it: the request joins a check already deferred, which is then due at once. The wait is
+	 * cleared. The caller holds {@link FinalMergeAuthorizations#lockOpen}.
+	 */
+	private void queue(Authorization authorization) {
+		UUID jobId = authorization.jobId();
+		FinalMerge merge = find(authorization.id()).orElse(null);
+		if (merge == null || !"CHECKING".equals(merge.status()) || merge.waitingFor() != Wait.REVOCATION
+				|| !revoked(jobId)) {
+			return;
+		}
+		int cleared = this.jdbc.sql("""
+				UPDATE repo.final_merge SET waiting_for = NULL, next_check_at = NULL
+				WHERE authorization_id = :id AND status = 'CHECKING' AND waiting_for = 'REVOCATION'
+				""").param("id", authorization.id()).update();
+		if (cleared == 0) {
+			return;
+		}
+		OperationTicket ticket = this.operations.request(new OperationRequest(CHECK, authorization.id(),
+				Map.of("jobId", jobId.toString(), "authorizationId", authorization.id().toString()), null, null, 0));
+		this.operations.wake(ticket.id());
+		this.authorizations.audit("repo.final_merge_check_requested", authorization.id(), jobId);
+	}
+
+	/**
 	 * The check passed: the Customer may confirm, unless {@code workflows} names a file the run can never push, which
-	 * is N-18's workflow-file state.
+	 * is N-18's workflow-file state. It waits for nothing any more.
 	 */
 	@Transactional
 	void ready(UUID authorizationId, String intermediarySha, String sourceBranch, List<SensitiveChange> sensitive,
 			List<String> workflows) {
 		this.jdbc.sql("""
 				UPDATE repo.final_merge SET status = 'READY', intermediary_sha = :sha, source_branch = :branch,
-				    sensitive = CAST(:sensitive AS JSONB), workflows = CAST(:workflows AS JSONB), checked_at = :now
+				    sensitive = CAST(:sensitive AS JSONB), workflows = CAST(:workflows AS JSONB), checked_at = :now,
+				    waiting_for = NULL, next_check_at = NULL
 				WHERE authorization_id = :id AND status = 'CHECKING'
 				""").param("sha", intermediarySha).param("branch", sourceBranch)
 			.param("sensitive", JSON.writeValueAsString(sensitive)).param("workflows", JSON.writeValueAsString(workflows))
@@ -197,8 +276,10 @@ class FinalMerges {
 		if (merge == null || "DONE".equals(merge.status())) {
 			return;
 		}
-		this.jdbc.sql("UPDATE repo.final_merge SET status = 'REFUSED', refusal = :refusal WHERE authorization_id = :id")
-			.param("refusal", refusal).param("id", authorizationId).update();
+		this.jdbc.sql("""
+				UPDATE repo.final_merge SET status = 'REFUSED', refusal = :refusal, waiting_for = NULL, next_check_at = NULL
+				WHERE authorization_id = :id
+				""").param("refusal", refusal).param("id", authorizationId).update();
 		if (merge.operationKey() != null) {
 			this.busy.release(merge.jobId(), merge.operationKey());
 		}
@@ -428,6 +509,8 @@ class FinalMerges {
 		Timestamp confirmed = rs.getTimestamp("confirmed_at");
 		Timestamp dispatched = rs.getTimestamp("dispatched_at");
 		Timestamp merged = rs.getTimestamp("merged_at");
+		String waitingFor = rs.getString("waiting_for");
+		Timestamp nextCheck = rs.getTimestamp("next_check_at");
 		return new FinalMerge(rs.getObject("authorization_id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getString("status"), rs.getString("intermediary_sha"),
 				rs.getString("source_branch"),
@@ -436,7 +519,8 @@ class FinalMerges {
 				}), rs.getString("refusal"), confirmed == null ? null : confirmed.toInstant(), rs.getString("operation_key"),
 				rs.getString("branch"), rs.getObject("correlation_id", UUID.class),
 				dispatched == null ? null : dispatched.toInstant(), rs.getString("run_status"), rs.getString("run_conclusion"),
-				merged == null ? null : merged.toInstant());
+				merged == null ? null : merged.toInstant(), waitingFor == null ? null : Wait.valueOf(waitingFor),
+				nextCheck == null ? null : nextCheck.toInstant());
 	}
 
 	/** Who confirmed, for the erasure. */

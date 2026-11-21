@@ -6,13 +6,19 @@ import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
 import { cn } from '@/lib/utils'
-import { formatDayMonth } from '@/lib/dates'
+import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { ActionsRunRow, type RunState } from '@/features/job/ActionsRunRow'
 import { OutLink } from '@/features/product/WorkflowSetup'
 import { SensitiveChangeList } from '@/features/delivery/SensitiveChangeList'
 import { FINAL_MERGE_ANCHOR } from './ClosingChoice'
-import { MERGE_CODE_PARAM, useConfirmFinalMerge, useFinalMerge, type FinalMerge } from './finalMergeApi'
+import {
+  MERGE_CODE_PARAM,
+  useConfirmFinalMerge,
+  useFinalMerge,
+  type FinalMerge,
+  type FinalMergeWait,
+} from './finalMergeApi'
 
 /** The reasons the closure section words itself; any other reads as the generic failure. */
 const REASONS = ['WORKFLOW_FILES_CHANGED', 'ACTIONS_QUOTA', 'EXCHANGE_REFUSED', 'RUN_FAILED', 'BRANCH_EXISTS',
@@ -23,7 +29,8 @@ const REASONS = ['WORKFLOW_FILES_CHANGED', 'ACTIONS_QUOTA', 'EXCHANGE_REFUSED', 
  * the FR-37 deadline; then the whole Job's Sensitive change list with N-18 and "Chép mã vào dự án của tôi". That
  * dispatches one run of the published workflow on the Customer's own GitHub Actions, shown in the shared Actions run
  * status row; once vibefix has read the branch back, the section names it and links GitHub's compare page, where the
- * Customer opens and merges the pull request themselves. vibefix writes nothing in their project.
+ * Customer opens and merges the pull request themselves. vibefix writes nothing in their project. While the accepted
+ * code is checked, the card says what the check waits for and when it looks again (Story 24.5b).
  * <p>
  * When the accepted code changes a file under `.github/workflows/`, N-18's checkbox gives way to its workflow-file
  * state, because a run's own token can never push those files. A run that cannot finish names its reason here, with
@@ -159,11 +166,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
       >
         {heading}
         {merge.deadlineAt && <p className="text-body-sm">{t('screen.closure.finalMerge.deadline', { date })}</p>}
-        {step && (
-          <p role="status" className="text-body-sm text-muted-foreground">
-            {t('screen.closure.finalMerge.checking')}
-          </p>
-        )}
+        {step && <Checking wait={step.wait} productId={merge.productId} />}
       </section>
     )
   }
@@ -255,6 +258,39 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * What the check of the accepted code waits for, and when it looks again (Story 24.5b): the team's access to be
+ * revoked on GitHub, the Customer's fix of their project, which "Mở trang sản phẩm" opens on CUS-4, or a dispute.
+ * CUS-4 shows the block itself, so none is named here. With no wait, the code is being checked now.
+ */
+function Checking({ wait, productId }: { wait?: FinalMergeWait | null; productId: string }) {
+  if (!wait) {
+    return (
+      <p role="status" className="text-body-sm text-muted-foreground">
+        {t('screen.closure.finalMerge.checking')}
+      </p>
+    )
+  }
+  const next = wait.nextCheckAt
+    ? t('screen.closure.finalMerge.wait.recheckAt', { time: formatDayMonthTime(wait.nextCheckAt) })
+    : wait.reason === 'REVOCATION'
+      ? t('screen.closure.finalMerge.wait.afterRevocation')
+      : undefined
+  return (
+    <div className="flex flex-col gap-1">
+      <p role="status" className="text-body-sm text-muted-foreground">
+        {t(`screen.closure.finalMerge.wait.${wait.reason}`)}
+        {next && ` ${next}`}
+      </p>
+      {wait.reason === 'CUSTOMER' && (
+        <Link to={`/san-pham/${productId}`} className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
+          {t('screen.closure.finalMerge.wait.openProduct')}
+        </Link>
+      )}
+    </div>
   )
 }
 
