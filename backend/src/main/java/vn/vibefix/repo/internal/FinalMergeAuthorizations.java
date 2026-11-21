@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import vn.vibefix.audit.AuditActor;
@@ -236,6 +237,20 @@ class FinalMergeAuthorizations {
 	Optional<Authorization> openOf(UUID jobId) {
 		return this.jdbc
 			.sql("SELECT " + COLUMNS + " FROM repo.final_merge_authorization WHERE job_id = :job AND status = 'REQUESTED'")
+			.param("job", jobId)
+			.query(FinalMergeAuthorizations::authorization)
+			.optional();
+	}
+
+	/**
+	 * The Job's open row, locked until the caller's transaction ends (Story 24.5b). J8's {@link FinalMerges#prepare}
+	 * and the read-back of the team's last grant both take this lock before they read, so whichever commits second
+	 * sees what the other committed and queues the Final Merge check: neither can miss the other.
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	Optional<Authorization> lockOpen(UUID jobId) {
+		return this.jdbc.sql("SELECT " + COLUMNS
+				+ " FROM repo.final_merge_authorization WHERE job_id = :job AND status = 'REQUESTED' FOR UPDATE")
 			.param("job", jobId)
 			.query(FinalMergeAuthorizations::authorization)
 			.optional();

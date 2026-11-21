@@ -11,9 +11,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jspecify.annotations.Nullable;
@@ -39,8 +44,11 @@ import vn.vibefix.github.internal.TestKeys;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
 import vn.vibefix.job.JobCompletion;
+import vn.vibefix.operations.ExternalOperations;
 import vn.vibefix.operations.Lane;
+import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.operations.internal.OperationWorker;
+import vn.vibefix.repo.internal.JobGrants.Grant;
 import vn.vibefix.support.IntegrationTest;
 
 /**
@@ -61,6 +69,10 @@ import vn.vibefix.support.IntegrationTest;
  * Story 23.10c retired the ZIP Fallback: a refusal records its reason, releases the marker and leaves the row
  * {@code REQUESTED}, so the Job stays in Closing under the FR-37 deadline and the self-download stays offered --
  * the Final Merge, though, is never offered again. Nothing builds, stores or announces a ZIP anywhere.
+ * <p>
+ * Story 24.5b: J8's row waits on the team's revocation with no check requested, and the read-back of the last team
+ * grant requests it, both under the closing choice's row lock, so neither order loses it. A check that defers records
+ * what it waits for and when it looks again, which only the Customer's view shows, and their reads never wake it.
  */
 class FinalMergeIT extends IntegrationTest {
 
@@ -116,6 +128,18 @@ class FinalMergeIT extends IntegrationTest {
 	@Autowired
 	private vn.vibefix.timers.internal.DeadlinePoller deadlines;
 
+	@Autowired
+	private FinalMerges merges;
+
+	@Autowired
+	private Revocations revocations;
+
+	@Autowired
+	private JobGrants grants;
+
+	@Autowired
+	private ExternalOperations operations;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -135,6 +159,10 @@ class FinalMergeIT extends IntegrationTest {
 	private long intermediaryId;
 
 	private String handed;
+
+	private long workingId;
+
+	private String working;
 
 	@DynamicPropertySource
 	static void github(DynamicPropertyRegistry registry) {
@@ -185,7 +213,8 @@ class FinalMergeIT extends IntegrationTest {
 		String approved = GITHUB.head(this.owner, this.name, "main");
 		this.intermediary = "job-" + id + "-intermediary";
 		this.intermediaryId = GITHUB.platformRepository(this.intermediary, this.owner, this.name);
-		long workingId = GITHUB.platformRepository("job-" + id + "-working", GitHubStub.ORGANIZATION, this.intermediary);
+		this.workingId = GITHUB.platformRepository("job-" + id + "-working", GitHubStub.ORGANIZATION, this.intermediary);
+		this.working = GitHubStub.ORGANIZATION + "/job-" + id + "-working";
 		// One accepted handover, merged into the Intermediary default branch by repo.
 		this.handed = GITHUB.push(GitHubStub.ORGANIZATION, this.intermediary, "main", "package.json",
 				"{\"name\":\"quan-may\"}\n", "Bàn giao Giai đoạn 1", "hung@example.test");
@@ -218,8 +247,8 @@ class FinalMergeIT extends IntegrationTest {
 				""").param("id", UUID.randomUUID()).param("job", this.job).param("product", product)
 			.param("source", this.owner + "/" + this.name).param("sha", approved)
 			.param("intermediaryId", this.intermediaryId)
-			.param("intermediary", GitHubStub.ORGANIZATION + "/" + this.intermediary).param("workingId", workingId)
-			.param("working", GitHubStub.ORGANIZATION + "/job-" + id + "-working").param("now", now).update();
+			.param("intermediary", GitHubStub.ORGANIZATION + "/" + this.intermediary).param("workingId", this.workingId)
+			.param("working", this.working).param("now", now).update();
 		this.jdbc.sql("""
 				INSERT INTO repo.handover_merge (job_id, pull_number, handover_sha, head_after, merged_at)
 				VALUES (:job, 1, :sha, :sha, :now)
@@ -724,19 +753,331 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(refusal()).isEqualTo("J9_GUARD");
 	}
 
+	/** Story 24.5b: an access not yet revoked makes the row wait on the revocation, and no check is requested. */
 	@Test
 	void anAccessNotYetRevokedMakesTheCheckWait() throws Exception {
-		this.jdbc.sql("""
-				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, repository_github_id,
-				    repository_name, crew_change, status, created_at)
-				SELECT :id, :job, product_id, :mentor, 'MENTOR', 'hung', 1, 'x/y', false, 'INVITING', now()
-				FROM job.job WHERE id = :job
-				""").param("id", UUID.randomUUID()).param("job", this.job).param("mentor", this.hung).update();
+		teamGrant(this.hung, "MENTOR", "INVITING");
 		check();
 
 		assertThat(mergeStatus()).isEqualTo("CHECKING");
-		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
-			.query(String.class).single()).isEqualTo("PENDING");
+		assertThat(waitingFor()).isEqualTo("REVOCATION");
+		assertThat(checkOperations()).as("nothing looks before the revocation reads back").isZero();
+	}
+
+	/**
+	 * Story 24.5b, the usual J8: the team's revocation starts in the same moment, so prepare finds both grants still
+	 * revoking. The row waits on the revocation with no check requested and no time, the Customer's card says so, and
+	 * their read every few seconds requests nothing. The Mentor's view carries no wait.
+	 */
+	@Test
+	void j8WithTheTeamStillRevokingWaitsOnTheRevocationWithNoCheck() throws Exception {
+		teamGrant(this.hung, "MENTOR", "REVOKING");
+		teamGrant(crewMember(), "CREW", "REVOKING");
+
+		this.merges.prepare(this.job);
+
+		assertThat(mergeStatus()).isEqualTo("CHECKING");
+		assertThat(waitingFor()).isEqualTo("REVOCATION");
+		assertThat(nextCheckAt()).isNull();
+		assertThat(checkOperations()).isZero();
+		assertThat(checkRequests()).isZero();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.merge.status").value("CHECKING"))
+			.andExpect(jsonPath("$.merge.wait.reason").value("REVOCATION"))
+			.andExpect(jsonPath("$.merge.wait.nextCheckAt").doesNotExist());
+		assertThat(checkOperations()).as("the Customer's read requests nothing either").isZero();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.merge").doesNotExist());
+	}
+
+	/**
+	 * Story 24.5b: the first of two read-backs requests nothing; the last one -- here through the revocation's own
+	 * operation on GitHub -- requests the check in its own transaction and clears the wait, and the check reaches
+	 * {@code READY} at once, with no ten-minute wait.
+	 */
+	@Test
+	void theLastTeamReadBackRequestsTheCheckWhichIsReadyAtOnce() throws Exception {
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+		UUID crew = teamGrant(crewMember(), "CREW", "REVOKING");
+		this.merges.prepare(this.job);
+
+		this.revocations.revoked(grant(mentor));
+
+		assertThat(checkOperations()).as("not the last read-back").isZero();
+		assertThat(waitingFor()).isEqualTo("REVOCATION");
+
+		this.transactions.executeWithoutResult(status -> this.operations
+			.request(new OperationRequest(Revocations.REVOKE, crew, Map.of("grantId", crew.toString()), null, null, 0)));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(grantStatus(crew)).isEqualTo("REVOKED");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
+		assertThat(checkStatus()).isEqualTo("PENDING");
+		assertThat(checkRequests()).isOne();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("READY"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
+		awaitListeners();
+	}
+
+	/** Story 24.5b: a J8 whose team grants all read back already requests the check at once, as before. */
+	@Test
+	void j8WithEveryTeamGrantAlreadyRevokedRequestsTheCheckAtOnce() throws Exception {
+		teamGrant(this.hung, "MENTOR", "REVOKED");
+
+		this.merges.prepare(this.job);
+
+		assertThat(waitingFor()).isNull();
+		assertThat(checkStatus()).isEqualTo("PENDING");
+		assertThat(checkRequests()).isOne();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+	}
+
+	/**
+	 * Story 24.5b: J8's prepare locks first and finds the grant still revoking; the read-back of that last grant,
+	 * which waited on the lock, then reads the waiting row and requests the check. Exactly one request.
+	 */
+	@Test
+	void aReadBackThatWaitedOnJ8sLockRequestsTheCheckOnce() throws Exception {
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+		Grant grant = grant(mentor);
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger holder = new AtomicInteger();
+		CompletableFuture<Void> j8 = CompletableFuture.runAsync(() -> this.transactions.executeWithoutResult(status -> {
+			this.merges.prepare(this.job);
+			holder.set(backend());
+			locked.countDown();
+			await(release);
+		}));
+		assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+		CompletableFuture<Void> readBack = CompletableFuture.runAsync(() -> this.revocations.revoked(grant));
+		awaitBlockedBy(holder.get());
+		release.countDown();
+		j8.get(15, TimeUnit.SECONDS);
+		readBack.get(15, TimeUnit.SECONDS);
+
+		assertThat(checkOperations()).isOne();
+		assertThat(checkRequests()).as("from the read-back, which locked second").isOne();
+		assertThat(waitingFor()).isNull();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: the last read-back locks first and finds no Final Merge yet; J8's prepare, which waited on the lock,
+	 * then reads the grant revoked and requests the check itself. Exactly one request.
+	 */
+	@Test
+	void j8ThatWaitedOnTheReadBacksLockRequestsTheCheckOnce() throws Exception {
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+		Grant grant = grant(mentor);
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger holder = new AtomicInteger();
+		CompletableFuture<Void> readBack = CompletableFuture
+			.runAsync(() -> this.transactions.executeWithoutResult(status -> {
+				this.revocations.revoked(grant);
+				holder.set(backend());
+				locked.countDown();
+				await(release);
+			}));
+		assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+		CompletableFuture<Void> j8 = CompletableFuture.runAsync(() -> this.merges.prepare(this.job));
+		awaitBlockedBy(holder.get());
+		release.countDown();
+		readBack.get(15, TimeUnit.SECONDS);
+		j8.get(15, TimeUnit.SECONDS);
+
+		assertThat(checkOperations()).isOne();
+		assertThat(checkRequests()).as("from J8's prepare, which locked second").isOne();
+		assertThat(waitingFor()).isNull();
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: a re-check that still finds an access not yet revoked defers ten minutes, as before, and records the
+	 * wait with its time; the Customer's reads leave it alone, and the read-back of that grant wakes it at once.
+	 */
+	@Test
+	void aRecheckThatFindsAnAccessNotYetRevokedWaitsUntilTheReadBackWakesIt() throws Exception {
+		this.merges.prepare(this.job);
+		assertThat(checkStatus()).as("nothing to wait for yet").isEqualTo("PENDING");
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		Instant at = this.clock.instant().plus(FinalMergeCheckOperation.SHORT_WAIT);
+		assertThat(mergeStatus()).isEqualTo("CHECKING");
+		assertThat(waitingFor()).isEqualTo("REVOCATION");
+		assertThat(nextCheckAt()).isEqualTo(at);
+		assertThat(checkNextAttempt()).isEqualTo(at);
+		this.clock.advance(Duration.ofSeconds(5));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.wait.reason").value("REVOCATION"))
+			.andExpect(jsonPath("$.merge.wait.nextCheckAt").value(at.toString()));
+		assertThat(checkNextAttempt()).as("still revoking: the read wakes nothing").isEqualTo(at);
+
+		this.revocations.revoked(grant(mentor));
+
+		assertThat(waitingFor()).isNull();
+		assertThat(checkNextAttempt()).as("woken").isEqualTo(this.clock.instant());
+		assertThat(checkRequests()).isEqualTo(2);
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: a frozen Job defers the check ten minutes, and the row says it waits for the dispute. Once the dispute
+	 * ends, the re-check at that time is {@code READY} and waits for nothing.
+	 */
+	@Test
+	void aFrozenJobMakesTheCheckWaitForTheDispute() throws Exception {
+		Instant at = freezeAndCheck();
+
+		this.jdbc.sql("UPDATE job.job SET frozen_at = NULL WHERE id = :id").param("id", this.job).update();
+		this.clock.advance(FinalMergeCheckOperation.SHORT_WAIT);
+		assertThat(this.clock.instant()).isAfter(at);
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(mergeStatus()).isEqualTo("READY");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("READY"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
+	}
+
+	/** Story 24.5b: a re-check after a wait that fails J9's guard is refused, and the refusal waits for nothing. */
+	@Test
+	void aRecheckAfterAWaitThatFailsTheGuardIsRefusedWithNoWait() throws Exception {
+		freezeAndCheck();
+
+		this.jdbc.sql("UPDATE job.job SET frozen_at = NULL WHERE id = :id").param("id", this.job).update();
+		GITHUB.push(GitHubStub.ORGANIZATION, this.intermediary, "main", "extra.txt", "x\n");
+		this.clock.advance(FinalMergeCheckOperation.SHORT_WAIT);
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(mergeStatus()).isEqualTo("REFUSED");
+		assertThat(refusal()).isEqualTo("J9_GUARD");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: the last read-back commits while the check runs. The check read the grant before that commit, and the
+	 * read-back found no wait to clear; the check's own wait, recorded under the lock after the commit, queues it at once.
+	 */
+	@Test
+	void aReadBackThatCommitsWhileTheCheckRunsWakesItAtOnce() throws Exception {
+		this.merges.prepare(this.job);
+		assertThat(waitingFor()).as("no team grant: queued at once").isNull();
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+		Grant grant = grant(mentor);
+		long requested = checkRequests();
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger holder = new AtomicInteger();
+		CompletableFuture<Void> readBack = CompletableFuture
+			.runAsync(() -> this.transactions.executeWithoutResult(status -> {
+				this.revocations.revoked(grant);
+				holder.set(backend());
+				locked.countDown();
+				await(release);
+			}));
+		assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+		CompletableFuture<Integer> checking = CompletableFuture.supplyAsync(() -> this.worker.runDue(Lane.GITHUB_LONG));
+		awaitBlockedBy(holder.get());
+		release.countDown();
+		readBack.get(15, TimeUnit.SECONDS);
+		checking.get(15, TimeUnit.SECONDS);
+
+		assertThat(waitingFor()).isNull();
+		assertThat(checkNextAttempt()).as("the deferral resumes at once").isEqualTo(this.clock.instant());
+		assertThat(checkRequests()).isGreaterThan(requested);
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: while the run is out, the Customer's read of JOB-1 has nothing to queue, so it takes no lock and
+	 * never waits on a transaction that holds the Final Merge's row, such as the branch read-back.
+	 */
+	@Test
+	void theCustomersReadDuringTheRunDoesNotWaitOnTheRow() throws Exception {
+		check();
+		confirm(true).andExpect(status().isAccepted());
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("RUNNING");
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		CompletableFuture<Void> writer = CompletableFuture.runAsync(() -> this.transactions.executeWithoutResult(status -> {
+			this.jdbc.sql("UPDATE repo.final_merge SET run_status = run_status WHERE job_id = :job")
+				.param("job", this.job)
+				.update();
+			locked.countDown();
+			await(release);
+		}));
+		try {
+			assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+			RequestPostProcessor customer = as(this.lan, Role.CUSTOMER);
+			CompletableFuture<Integer> read = CompletableFuture.supplyAsync(() -> {
+				try {
+					return this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(customer))
+						.andExpect(jsonPath("$.merge.status").value("RUNNING"))
+						.andReturn()
+						.getResponse()
+						.getStatus();
+				}
+				catch (Exception failed) {
+					throw new IllegalStateException(failed);
+				}
+			});
+			assertThat(read.get(10, TimeUnit.SECONDS)).as("answered while the row is held").isEqualTo(200);
+		}
+		finally {
+			release.countDown();
+			writer.get(15, TimeUnit.SECONDS);
+		}
+	}
+
+	/** Story 24.5b: after J10 the closing choice has ended, so a read-back requests nothing (and J10 requests none). */
+	@Test
+	void aReadBackAfterJ10RequestsNothing() {
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+		this.merges.prepare(this.job);
+		this.authorizations.endOf(this.job, "CANCELLED");
+
+		this.revocations.revoked(grant(mentor));
+
+		assertThat(grantStatus(mentor)).isEqualTo("REVOKED");
+		assertThat(checkOperations()).isZero();
+		assertThat(checkRequests()).isZero();
+	}
+
+	/** Story 24.5b: a member who leaves an Active Job reads back with no Final Merge to queue: nothing happens. */
+	@Test
+	void aMidJobRemovalRequestsNothing() {
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE', closing_at = NULL WHERE id = :id").param("id", this.job).update();
+		UUID crew = teamGrant(crewMember(), "CREW", "REVOKING");
+
+		this.revocations.revoked(grant(crew));
+
+		assertThat(grantStatus(crew)).isEqualTo("REVOKED");
+		assertThat(mergeStatus()).isEqualTo("NONE");
+		assertThat(checkOperations()).isZero();
 	}
 
 	/** Story 23.7 (R5): the Customer's read of the Intermediary lasts until the deletion, so "all revoked" ignores it. */
@@ -765,6 +1106,7 @@ class FinalMergeIT extends IntegrationTest {
 		waitsForTheCustomer();
 	}
 
+	/** Story 24.5b: once the Customer puts the published file back, the re-check is {@code READY} with no wait. */
 	@Test
 	void aChangedWorkflowMakesTheCheckWaitForTheCustomerWithNoFallback() throws Exception {
 		GITHUB.sourceFiles.put(this.owner + "/" + this.name + ":.github/workflows/vibefix.yml",
@@ -772,6 +1114,17 @@ class FinalMergeIT extends IntegrationTest {
 		check();
 
 		waitsForTheCustomer();
+
+		GITHUB.sourceFiles.put(this.owner + "/" + this.name + ":.github/workflows/vibefix.yml",
+				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(mergeStatus()).isEqualTo("READY");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("READY"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
 	}
 
 	@Test
@@ -788,13 +1141,58 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(jobState()).isEqualTo("CANCELLED");
 	}
 
-	/** A Source block the Customer can fix: the check waits, the row stays, and nothing is refused. */
-	private void waitsForTheCustomer() {
+	/**
+	 * A Source block the Customer can fix: the check waits, the row stays, and nothing is refused. Story 24.5b: the row
+	 * says it waits for the Customer and when the check looks again, the card shows both, and the Customer's read every
+	 * few seconds leaves the check's next attempt where it was. Once that time has passed, before the worker looks
+	 * again, the view shows no wait. The clock is then past the wait.
+	 */
+	private void waitsForTheCustomer() throws Exception {
 		assertThat(mergeStatus()).isEqualTo("CHECKING");
 		assertThat(authorizationStatus()).isEqualTo("REQUESTED");
 		assertThat(refusal()).isNull();
-		assertThat(this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
-			.query(String.class).single()).isEqualTo("PENDING");
+		assertThat(checkStatus()).isEqualTo("PENDING");
+		Instant at = this.clock.instant().plus(FinalMergeCheckOperation.CUSTOMER_WAIT);
+		assertThat(waitingFor()).isEqualTo("CUSTOMER");
+		assertThat(nextCheckAt()).isEqualTo(at);
+		assertThat(checkNextAttempt()).isEqualTo(at);
+
+		this.clock.advance(Duration.ofSeconds(5));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.merge.status").value("CHECKING"))
+			.andExpect(jsonPath("$.merge.wait.reason").value("CUSTOMER"))
+			.andExpect(jsonPath("$.merge.wait.nextCheckAt").value(at.toString()));
+
+		assertThat(checkNextAttempt()).as("the Customer's read never wakes their own wait").isEqualTo(at);
+		assertThat(checkRequests()).isOne();
+		assertThat(this.worker.runDue(Lane.GITHUB_LONG)).isZero();
+
+		this.clock.advance(FinalMergeCheckOperation.CUSTOMER_WAIT);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("CHECKING"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
+		assertThat(waitingFor()).as("the row keeps it until the next attempt").isEqualTo("CUSTOMER");
+	}
+
+	/** A frozen Job's check, deferred ten minutes for the dispute, which the Customer's reads leave alone. */
+	private Instant freezeAndCheck() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :now WHERE id = :id").param("now", Timestamp.from(this.clock.instant()))
+			.param("id", this.job).update();
+
+		check();
+
+		Instant at = this.clock.instant().plus(FinalMergeCheckOperation.SHORT_WAIT);
+		assertThat(mergeStatus()).isEqualTo("CHECKING");
+		assertThat(waitingFor()).isEqualTo("FROZEN");
+		assertThat(nextCheckAt()).isEqualTo(at);
+		assertThat(checkNextAttempt()).isEqualTo(at);
+		this.clock.advance(Duration.ofSeconds(5));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.wait.reason").value("FROZEN"))
+			.andExpect(jsonPath("$.merge.wait.nextCheckAt").value(at.toString()));
+		assertThat(checkNextAttempt()).as("the Customer's read never wakes a dispute's wait").isEqualTo(at);
+		return at;
 	}
 
 	/** The Customer opens JOB-1, which starts the check, and the check runs. */
@@ -963,6 +1361,105 @@ class FinalMergeIT extends IntegrationTest {
 
 	private RequestPostProcessor as(UUID account, Role role) {
 		return IdentityTestSupport.signedIn(this.sessions, account, role, this.clock.instant());
+	}
+
+	/** A Mentor's or Crew member's grant on the Working Repository, in {@code status} (Story 24.5b). */
+	private UUID teamGrant(UUID account, String role, String status) {
+		UUID id = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, repository_github_id,
+				    repository_name, crew_change, status, revoked_at, created_at)
+				SELECT :id, :job, product_id, :account, :role, :login, :repository, :name, false, :status,
+				    CASE WHEN :status = 'REVOKED' THEN now() END, now()
+				FROM job.job WHERE id = :job
+				""")
+			.param("id", id)
+			.param("job", this.job)
+			.param("account", account)
+			.param("role", role)
+			.param("login", "thanh-vien-" + IDS.incrementAndGet())
+			.param("repository", this.workingId)
+			.param("name", this.working)
+			.param("status", status)
+			.update();
+		return id;
+	}
+
+	/** A Crew member of the Job, whose row was activated, so the revocation's notice reaches them (AD-41). */
+	private UUID crewMember() {
+		UUID member = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :member, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("member", member).param("now", now).update();
+		return member;
+	}
+
+	private Grant grant(UUID id) {
+		return this.grants.find(id).orElseThrow();
+	}
+
+	private String grantStatus(UUID id) {
+		return this.jdbc.sql("SELECT status FROM repo.job_grant WHERE id = :id").param("id", id).query(String.class).single();
+	}
+
+	private @Nullable String waitingFor() {
+		return this.jdbc.sql("SELECT waiting_for FROM repo.final_merge WHERE job_id = :job").param("job", this.job)
+			.query(String.class).optional().orElse(null);
+	}
+
+	private @Nullable Instant nextCheckAt() {
+		return this.jdbc.sql("SELECT next_check_at FROM repo.final_merge WHERE job_id = :job").param("job", this.job)
+			.query(Timestamp.class).optional().map(Timestamp::toInstant).orElse(null);
+	}
+
+	/** The check's operations: one at most, since its key is the closing choice's row. */
+	private long checkOperations() {
+		return this.jdbc.sql("SELECT count(*) FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
+			.query(Long.class).single();
+	}
+
+	private String checkStatus() {
+		return this.jdbc.sql("SELECT status FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
+			.query(String.class).single();
+	}
+
+	private Instant checkNextAttempt() {
+		return this.jdbc.sql("SELECT next_attempt_at FROM operations.external_operation WHERE type = 'repo.final_merge_check'")
+			.query(Timestamp.class).single().toInstant();
+	}
+
+	/** How many times the check was requested, as the audit records each request. */
+	private long checkRequests() {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.final_merge_check_requested' AND job_id = :job
+				""").param("job", this.job).query(Long.class).single();
+	}
+
+	/** The database session of the caller's transaction. */
+	private int backend() {
+		return this.jdbc.sql("SELECT pg_backend_pid()").query(Integer.class).single();
+	}
+
+	/** Some other session waits for a lock that {@code holder}'s transaction holds. */
+	private void awaitBlockedBy(int holder) {
+		org.awaitility.Awaitility.await()
+			.atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM pg_locks WHERE NOT granted AND :holder = ANY(pg_blocking_pids(pid))")
+				.param("holder", holder)
+				.query(Long.class)
+				.single() > 0);
+	}
+
+	private static void await(CountDownLatch latch) {
+		try {
+			assertThat(latch.await(15, TimeUnit.SECONDS)).isTrue();
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException(ex);
+		}
 	}
 
 }

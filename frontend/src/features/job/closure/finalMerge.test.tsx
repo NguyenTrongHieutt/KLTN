@@ -229,6 +229,85 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     expect(screen.queryByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeNull()
   })
 
+  /** Story 24.5b: J8 waits for the team's revocation, and the check starts as soon as it reads back. */
+  it('says the check waits for the team’s access to be revoked, with no time yet', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({ ...ready, merge: { ...ready.merge, status: 'CHECKING', wait: { reason: 'REVOCATION' } } }),
+    })
+    renderStep()
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Đang chờ thu hồi quyền truy cập của nhóm trên GitHub. vibefix kiểm tra mã ngay khi thu hồi xong.',
+    )
+    expect(screen.queryByText('Đang kiểm tra mã đã nghiệm thu…')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Mở trang sản phẩm' })).toBeNull()
+  })
+
+  /** Story 24.5b: a re-check that still found an access left names when it looks again. */
+  it('names the time of the next look while the revocation is still read back', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...ready,
+          merge: {
+            ...ready.merge,
+            status: 'CHECKING',
+            wait: { reason: 'REVOCATION', nextCheckAt: '2026-10-28T03:10:00Z' },
+          },
+        }),
+    })
+    renderStep()
+
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent(
+      'Đang chờ thu hồi quyền truy cập của nhóm trên GitHub. vibefix kiểm tra lại lúc 10:10 28/10.',
+    )
+    expect(status).not.toHaveTextContent('ngay khi thu hồi xong')
+  })
+
+  /** Story 24.5b: a Source block is the Customer's to fix on CUS-4, which shows the block itself. */
+  it('asks the Customer to fix their project on the Product page, with the time of the next look', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...ready,
+          merge: {
+            ...ready.merge,
+            status: 'CHECKING',
+            wait: { reason: 'CUSTOMER', nextCheckAt: '2026-10-28T03:30:00Z' },
+          },
+        }),
+    })
+    renderStep()
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Đang chờ bạn sửa dự án gốc: vibefix chưa đọc được dự án gốc trên GitHub. vibefix kiểm tra lại lúc 10:30 28/10.',
+    )
+    expect(screen.getByRole('link', { name: 'Mở trang sản phẩm' })).toHaveAttribute('href', '/san-pham/pr1')
+  })
+
+  /** Story 24.5b: a dispute pauses the Job, and the check looks again later. */
+  it('says the Job is paused by a dispute, with the time of the next look', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/final-merge': () =>
+        json({
+          ...ready,
+          merge: { ...ready.merge, status: 'CHECKING', wait: { reason: 'FROZEN', nextCheckAt: '2026-10-28T03:10:00Z' } },
+        }),
+    })
+    renderStep()
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Công việc đang tạm dừng vì có tranh chấp. vibefix kiểm tra lại lúc 10:10 28/10.',
+    )
+    expect(screen.queryByRole('link', { name: 'Mở trang sản phẩm' })).toBeNull()
+  })
+
   /** Story 23.10a: the Closing choice cards show that outcome alone, so this step steps aside. */
   it('shows nothing once the Customer took the code themselves', async () => {
     fakeBackend(signedInUser, {

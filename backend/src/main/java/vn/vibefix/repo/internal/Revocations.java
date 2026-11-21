@@ -101,6 +101,9 @@ class Revocations {
 	/** Looked up on use: what is still only in the Intermediary Repository decides the Customer's fetching duty. */
 	private final ObjectProvider<CodeReceipts> receipts;
 
+	/** Looked up on use: the team's last read-back on a Closing Job queues its Final Merge check (Story 24.5b). */
+	private final ObjectProvider<FinalMerges> merges;
+
 	private final JobBusy busy;
 
 	private final ExternalOperations operations;
@@ -120,12 +123,14 @@ class Revocations {
 	private final Clock clock;
 
 	Revocations(JdbcClient jdbc, JobGrants grants, RepositoryDeletions deletions, ObjectProvider<CodeReceipts> receipts,
-			JobBusy busy, ExternalOperations operations, Deadlines deadlines, Notifications notifications, Todos todos,
-			Administrators administrators, AuditLog auditLog, ProcessedEvents processedEvents, Clock clock) {
+			ObjectProvider<FinalMerges> merges, JobBusy busy, ExternalOperations operations, Deadlines deadlines,
+			Notifications notifications, Todos todos, Administrators administrators, AuditLog auditLog,
+			ProcessedEvents processedEvents, Clock clock) {
 		this.jdbc = jdbc;
 		this.grants = grants;
 		this.deletions = deletions;
 		this.receipts = receipts;
+		this.merges = merges;
 		this.busy = busy;
 		this.operations = operations;
 		this.deadlines = deadlines;
@@ -321,6 +326,8 @@ class Revocations {
 	/**
 	 * Read back as gone: {@code REVOKED}, audited per person and repository, and the person hears; the Customer, whose
 	 * read only a lock revokes this way, is not told (no {@value #REVOKED}: that text is about the Working Repository).
+	 * A team grant's read-back may be the last one a Closing Job's Final Merge check waits on, which it then queues in
+	 * this same transaction (Story 24.5b).
 	 */
 	@Transactional
 	void revoked(Grant grant) {
@@ -334,6 +341,7 @@ class Revocations {
 		if (grant.customer()) {
 			return;
 		}
+		this.merges.getObject().teamRevoked(grant.jobId());
 		Audience audience = "MENTOR".equals(grant.role()) ? Audience.MENTOR : Audience.CREW_EVER_ACTIVE;
 		this.notifications.send(new NotificationRequest(REVOKED, key(grant.id() + ":revoked"),
 				List.of(new Recipient(grant.accountId(), audience)), Map.of("job", title(grant.jobId())),

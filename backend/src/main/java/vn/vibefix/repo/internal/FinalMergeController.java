@@ -1,9 +1,11 @@
 package vn.vibefix.repo.internal;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -103,10 +105,23 @@ class FinalMergeController {
 	 * @param branch {@code vibefix/final-{jobId}}, the branch the run pushes
 	 * @param branchUrl "Xem nhánh ↗", once the branch read back
 	 * @param compareUrl "Mở trang hợp nhất trên GitHub ↗", GitHub's compare page, once the branch read back
+	 * @param waiting {@code wait} in the API (a record cannot name a component after {@code Object.wait}): what a
+	 * {@code CHECKING} Final Merge waits for and when it looks again (Story 24.5b); none while it checks, and none
+	 * once that time has passed, when the check is due or retrying after a GitHub error
 	 */
 	record MergeView(String status, List<MergeSensitiveChangeView> sensitive, List<String> workflows,
 			@Nullable String refusal, @Nullable RunView run, @Nullable String branch, @Nullable String branchUrl,
-			@Nullable String compareUrl) {
+			@Nullable String compareUrl, @JsonProperty("wait") @Nullable MergeWaitView waiting) {
+	}
+
+	/**
+	 * What the check waits for (Story 24.5b), which the closing card words for the Customer.
+	 * @param reason {@code REVOCATION} (the team's access on GitHub), {@code CUSTOMER} (a Source block they fix on
+	 * CUS-4) or {@code FROZEN} (a dispute)
+	 * @param nextCheckAt when the check looks again; none for a revocation not yet read back, whose read-back starts
+	 * the check itself
+	 */
+	record MergeWaitView(FinalMerges.Wait reason, @Nullable Instant nextCheckAt) {
 	}
 
 	/**
@@ -154,9 +169,13 @@ class FinalMergeController {
 
 	private final JobRoles roles;
 
+	/** A wait is shown only until its time (Story 24.5b). */
+	private final Clock clock;
+
 	FinalMergeController(FinalMergeAuthorizations authorizations, FinalMerges merges, CodeReceipts receipts,
-			ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers, JobRoles roles) {
+			ActionsRuns runs, GitHubLinks links, JobBusy busy, CurrentCaller callers, JobRoles roles, Clock clock) {
 		this.roles = roles;
+		this.clock = clock;
 		this.authorizations = authorizations;
 		this.merges = merges;
 		this.receipts = receipts;
@@ -278,11 +297,16 @@ class FinalMergeController {
 		String branch = found.branch();
 		String repository = this.links.repository(authorization.repositoryName());
 		String base = found.sourceBranch();
+		// A wait whose time has passed is over: the check is due, or retrying after a GitHub error.
+		Instant next = found.nextCheckAt();
+		FinalMerges.Wait waiting = "CHECKING".equals(found.status())
+				&& (next == null || next.isAfter(this.clock.instant())) ? found.waitingFor() : null;
 		return new MergeView(found.status(),
 				found.sensitive().stream().map(change -> new MergeSensitiveChangeView(change.path(), change.kind())).toList(),
 				found.workflows(), found.refusal(), run(found), branch,
 				done && branch != null ? repository + "/tree/" + branch : null,
-				done && branch != null && base != null ? repository + "/compare/" + base + "..." + branch + "?expand=1" : null);
+				done && branch != null && base != null ? repository + "/compare/" + base + "..." + branch + "?expand=1" : null,
+				waiting == null ? null : new MergeWaitView(waiting, next));
 	}
 
 	/** The run dispatched last, as the Final Merge last read it; its page, in the Customer's own repository. */

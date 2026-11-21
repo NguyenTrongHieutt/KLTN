@@ -2,6 +2,7 @@ package vn.vibefix.repo.internal;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,6 +26,7 @@ import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.ProductSources.SourceWorkflows;
 import vn.vibefix.repo.internal.FinalMergePreconditions.Read;
 import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
+import vn.vibefix.repo.internal.FinalMerges.Wait;
 import vn.vibefix.scanning.SensitiveChanges;
 import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
 
@@ -36,7 +38,8 @@ import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
  * Merge's blocking workflow list, which the closure section shows as N-18's workflow-file state, because a run's
  * {@code GITHUB_TOKEN} can never push those files (deferred-work 626). Story 23.9a deleted the trial merge: vibefix
  * never merges into a Customer repository. A failed guard refuses the Final Merge with nothing pushed; a
- * Customer to wait for, an open grant, or a frozen Job defers. Collaborators are looked up on use.
+ * Customer to wait for, an open grant, or a frozen Job defers, and the row records which and until when (Story
+ * 24.5b). Collaborators are looked up on use.
  */
 @Component
 class FinalMergeCheckOperation implements OperationHandler {
@@ -91,16 +94,17 @@ class FinalMergeCheckOperation implements OperationHandler {
 			return new Outcome.Obsolete("NOT_CHECKING");
 		}
 		if (job.frozen()) {
-			return new Outcome.Deferred(this.clock.instant().plus(SHORT_WAIT));
+			return defer(merges, authorizationId, Wait.FROZEN, SHORT_WAIT);
 		}
 		try {
 			Read read = this.preconditions.getObject().read(merge.jobId(), merge.productId());
 			switch (read.verdict()) {
 				case WAIT_FOR_CUSTOMER -> {
-					return new Outcome.Deferred(this.clock.instant().plus(CUSTOMER_WAIT));
+					return defer(merges, authorizationId, Wait.CUSTOMER, CUSTOMER_WAIT);
 				}
 				case WAIT_FOR_REVOCATION -> {
-					return new Outcome.Deferred(this.clock.instant().plus(SHORT_WAIT));
+					// The team's last read-back wakes it before then (Story 24.5b).
+					return defer(merges, authorizationId, Wait.REVOCATION, SHORT_WAIT);
 				}
 				case GUARD_FAILED -> {
 					merges.refuse(authorizationId, "J9_GUARD");
@@ -121,7 +125,7 @@ class FinalMergeCheckOperation implements OperationHandler {
 					merge.productId(), intermediary, head).orElse(null);
 			if (workflows == null) {
 				// The Source App stopped reaching the Source Repository between the preconditions and this read.
-				return new Outcome.Deferred(this.clock.instant().plus(CUSTOMER_WAIT));
+				return defer(merges, authorizationId, Wait.CUSTOMER, CUSTOMER_WAIT);
 			}
 			merges.ready(authorizationId, head, source.defaultBranch(), changes, workflows);
 			return Outcome.succeeded();
@@ -129,6 +133,16 @@ class FinalMergeCheckOperation implements OperationHandler {
 		catch (GitHubException failed) {
 			return new Outcome.Transient(failed.status() == 0 ? "GITHUB_UNAVAILABLE" : "GITHUB_HTTP_" + failed.status());
 		}
+	}
+
+	/**
+	 * Not checked now: the row records what it waits for and when the check looks again, which the Customer's
+	 * closing card names (Story 24.5b), and the attempt is deferred to that instant.
+	 */
+	private Outcome defer(FinalMerges merges, UUID authorizationId, Wait wait, Duration after) {
+		Instant at = this.clock.instant().plus(after);
+		merges.waiting(authorizationId, wait, at);
+		return new Outcome.Deferred(at);
 	}
 
 	/**
