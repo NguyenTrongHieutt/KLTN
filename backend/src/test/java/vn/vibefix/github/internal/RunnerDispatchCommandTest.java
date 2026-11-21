@@ -148,6 +148,11 @@ class RunnerDispatchCommandTest {
 			}
 
 			@Override
+			public boolean updated(UUID correlation) {
+				return false;
+			}
+
+			@Override
 			public Optional<Run> run(UUID correlation) {
 				return Optional.empty();
 			}

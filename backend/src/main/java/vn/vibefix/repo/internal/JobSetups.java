@@ -45,6 +45,7 @@ import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
 import vn.vibefix.shared.ProcessedEvents;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * J7's Setup stage (FR-18, AD-5, AD-11, AD-28, R4, R6, Story 23.6b, Story 23.11a): one {@code repo.job_setup} row per
@@ -254,12 +255,16 @@ class JobSetups {
 	/** Looked up on use: the grants need the Crew and the directories, which need {@code operations}. */
 	private final ObjectProvider<JobGrants> grants;
 
+	/** Story 24.5a: each copy run's {@value ActionsRunWakes#KEY}, scheduled with its dispatch. */
+	private final Deadlines deadlines;
+
 	JobSetups(JdbcClient jdbc, JobBusy busy, JobActivation activation, ExternalOperations operations,
 			Notifications notifications, Todos todos,
 			AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids, Clock clock, JobRules rules,
 			@Value("${vibefix.repo.self-confirmation-notice-version}") String noticeVersion,
-			ObjectProvider<JobGrants> grants) {
+			ObjectProvider<JobGrants> grants, Deadlines deadlines) {
 		this.grants = grants;
+		this.deadlines = deadlines;
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.activation = activation;
@@ -586,21 +591,39 @@ class JobSetups {
 	}
 
 	/**
-	 * The copy run dispatched on the Customer's GitHub Actions under {@code correlation} (AD-44, AD-46).
-	 * @return whether the attempt was still copying, so the correlation is now its run's
+	 * The copy run dispatched on the Customer's GitHub Actions under {@code correlation} (AD-44, AD-46), with its one
+	 * {@value ActionsRunWakes#KEY} Deadline (Story 24.5a).
+	 * @return when it was recorded dispatched, or none when the attempt was no longer copying, so the correlation is
+	 * not its run's
 	 */
 	@Transactional
-	boolean dispatched(Setup setup, UUID correlation) {
+	@Nullable Instant dispatched(Setup setup, UUID correlation) {
+		Instant now = this.clock.instant();
 		int updated = this.jdbc.sql("""
 				UPDATE repo.job_setup
 				SET correlation_id = :correlation, dispatched_at = :now, run_status = NULL, run_conclusion = NULL
 				WHERE id = :id AND status = 'RUNNING'
-				""").param("correlation", correlation).param("now", Timestamp.from(this.clock.instant())).param("id", setup.id())
+				""").param("correlation", correlation).param("now", Timestamp.from(now)).param("id", setup.id())
 			.update();
-		if (updated == 1) {
-			audit("repo.setup_copy_dispatched", setup.id(), setup.jobId());
+		if (updated == 0) {
+			return null;
 		}
-		return updated == 1;
+		audit("repo.setup_copy_dispatched", setup.id(), setup.jobId());
+		this.deadlines.schedule(ActionsRunWakes.timeout(OPERATION, correlation, setup.jobId(), now));
+		return now;
+	}
+
+	/**
+	 * The copy stage's operation key of the attempt that runs under {@code correlation} and has read no conclusion of
+	 * its run yet, so it waits for that run (Story 24.5a).
+	 */
+	@Transactional(readOnly = true)
+	Optional<String> waitingOn(UUID correlation) {
+		return this.jdbc.sql("""
+				SELECT confirmation_id FROM repo.job_setup
+				WHERE correlation_id = :correlation AND status = 'RUNNING' AND run_conclusion IS NULL
+				  AND confirmation_id IS NOT NULL
+				""").param("correlation", correlation).query(UUID.class).optional().map(id -> OPERATION + ":" + id);
 	}
 
 	/** The run as last read: its status, and its conclusion once it completed or vibefix stopped waiting for it. */

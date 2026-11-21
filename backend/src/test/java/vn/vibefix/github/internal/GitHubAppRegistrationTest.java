@@ -23,7 +23,9 @@ import vn.vibefix.github.internal.GitHubProperties.AppProperties;
  * 23.9b retired the third App. GitHub leaves the global events out of {@code GET /app} even when the App
  * subscribes to them, so they are accepted when they appear and the {@code meta} subscription is checked
  * on the App's settings page. Since the runner is required (Story 23.3), the Platform App always holds
- * Actions write, and subscribes to neither {@code push} nor {@code repository_ruleset}.
+ * Actions write, and subscribes to neither {@code push} nor {@code repository_ruleset}. Since Story 24.5a both
+ * Apps send {@code workflow_run} to a webhook of their own, so this suite fails until the author's setup in
+ * deploy/README.md ("Webhooks in dev") is done.
  */
 @Tag("vibefix-dev")
 class GitHubAppRegistrationTest {
@@ -35,13 +37,14 @@ class GitHubAppRegistrationTest {
 		assertThat(AppExpectations.differences(App.PLATFORM, registration)).as("the Platform App against AD-10").isEmpty();
 	}
 
-	/** Story 23.5: Contents and Metadata read, Actions write, no event, and no webhook to compare. */
+	/** Story 23.5: Contents and Metadata read, Actions write. Story 24.5a: a webhook, and workflow_run alone. */
 	@Test
-	void theSourceAppHasExactlyAd10sPermissionsAndNoEvents() {
+	void theSourceAppHasExactlyAd10sPermissionsAndEvents() {
 		Registration registration = client("SOURCE").registration(App.SOURCE);
 
 		assertThat(AppExpectations.differences(App.SOURCE, registration)).as("the Source App against AD-10").isEmpty();
-		assertThat(AppExpectations.webhook(App.SOURCE)).isFalse();
+		assertThat(registration.events()).contains("workflow_run");
+		assertThat(AppExpectations.webhook(App.SOURCE)).isTrue();
 		assertThat(registration.slug()).isNotBlank();
 	}
 

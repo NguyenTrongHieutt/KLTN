@@ -10,9 +10,10 @@
 #
 #   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml up -d --build --wait
 #
-# No webhook reaches localhost, so the sweeps read GitHub back instead (invitations, pushes, drift:
-# every 10 minutes), and VNPay's IPN is relayed by hand (deploy/README.md, "Checkpoint 1"). The Source App
-# has no webhook at all.
+# Without compose.webhooks.yaml no webhook reaches the stack: the sweeps read GitHub back instead (invitations,
+# pushes, drift: every 10 minutes), every Actions run resolves only at its 15-minute timeout, and VNPay's IPN is relayed
+# by hand (deploy/README.md, "Checkpoint 1"). With it, and the Apps' webhooks pointed at the tunnel, both Apps
+# deliver workflow_run to POST /webhooks on port 8098 (deploy/README.md, "Webhooks in dev").
 services:
   backend:
     environment:

@@ -23,8 +23,11 @@ import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 
 /**
  * GitHub's webhook signatures (AD-12, SG-18): {@code X-Hub-Signature-256} is {@code sha256=} and the
- * HMAC-SHA256 of the exact body, keyed with the sending App's webhook secret. Each secret is read once
- * from its file, and the comparison takes the same time whatever it finds.
+ * HMAC-SHA256 of the exact body, keyed with the sending App's webhook secret. Each App has its own secret
+ * ({@code vibefix.github.platform-app.webhook-secret-file}, and since Story 24.5a
+ * {@code vibefix.github.source-app.webhook-secret-file}), so a delivery is verified only with the secret of the App
+ * it names and the other App's never checks out. Each secret is read once from its file, and the comparison takes
+ * the same time whatever it finds.
  */
 @Component
 class WebhookSignatures {
@@ -109,11 +112,11 @@ class WebhookSignatures {
 		return secret;
 	}
 
-	/** The App's properties; the Source App has no webhook, so it never names a secret and verifies nothing. */
+	/** The App's properties, which name its ID and its own secret file; an App without them verifies nothing. */
 	private @Nullable AppProperties configured(App app) {
 		return switch (app) {
 			case PLATFORM -> this.properties.platformApp();
-			case SOURCE -> null;
+			case SOURCE -> this.properties.sourceApp();
 		};
 	}
 

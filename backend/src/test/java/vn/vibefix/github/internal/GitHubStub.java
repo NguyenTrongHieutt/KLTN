@@ -95,9 +95,9 @@ public final class GitHubStub implements AutoCloseable {
 	/** The slug of the Source App's own registration. */
 	public static final String SOURCE_SLUG = "vibefix-dev-source";
 
-	/** {@code GET /app}'s body for the Source App's JWT: AD-10's Source App, with no events. */
+	/** {@code GET /app}'s body for the Source App's JWT: AD-10's Source App, which sends {@code workflow_run} (Story 24.5a). */
 	public volatile String sourceApp = "{\"slug\":\"" + SOURCE_SLUG + "\",\"permissions\":{\"contents\":\"read\","
-			+ "\"metadata\":\"read\",\"actions\":\"write\"},\"events\":[]}";
+			+ "\"metadata\":\"read\",\"actions\":\"write\"},\"events\":[\"workflow_run\"]}";
 
 	/** The App ID a JWT in {@code authorization} ({@code Bearer …}) names as its {@code iss}; none for an installation token. */
 	public static @org.jspecify.annotations.Nullable Long issuerOf(@org.jspecify.annotations.Nullable String authorization) {
@@ -121,11 +121,20 @@ public final class GitHubStub implements AutoCloseable {
 	/** {@code GET /app/hook/config}'s body, or none for an App whose webhook is not active (404). */
 	volatile String hookConfig = "{\"url\":\"https://vibefix.test/webhooks\",\"content_type\":\"json\",\"insecure_ssl\":\"0\"}";
 
+	/** The same for the Source App's JWT (Story 24.5a): each App has a webhook of its own. */
+	volatile String sourceHookConfig = "{\"url\":\"https://vibefix.test/webhooks\",\"content_type\":\"json\",\"insecure_ssl\":\"0\"}";
+
 	/** The App's webhook deliveries, newest first, as {@code GET /app/hook/deliveries} lists them. */
 	final List<Map<String, Object>> deliveries = Collections.synchronizedList(new ArrayList<>());
 
+	/** The Source App's own deliveries, which only its JWT lists (Story 24.5a). */
+	final List<Map<String, Object>> sourceDeliveries = Collections.synchronizedList(new ArrayList<>());
+
 	/** The delivery IDs asked for again through {@code POST /app/hook/deliveries/{id}/attempts}. */
 	final List<Long> redelivered = Collections.synchronizedList(new ArrayList<>());
+
+	/** The same, asked for with the Source App's JWT. */
+	final List<Long> sourceRedelivered = Collections.synchronizedList(new ArrayList<>());
 
 	final Path gitRoot;
 
@@ -937,24 +946,27 @@ public final class GitHubStub implements AutoCloseable {
 			send(exchange, 200, issuer != null && issuer == SOURCE_APP ? this.sourceApp : this.app);
 		}
 		else if (method.equals("GET") && path.equals("/app/hook/config")) {
-			String config = this.hookConfig;
+			// Each App reads its own webhook (Story 24.5a).
+			String config = sourceJwt(exchange) ? this.sourceHookConfig : this.hookConfig;
 			send(exchange, config == null ? 404 : 200, config == null ? "{\"message\":\"Not Found\"}" : config);
 		}
 		else if (method.equals("GET") && path.equals("/app/hook/deliveries")) {
 			int size = Integer.parseInt(parameter(query, "per_page", "30"));
 			int from = Integer.parseInt(parameter(query, "cursor", "0"));
+			List<Map<String, Object>> listed = sourceJwt(exchange) ? this.sourceDeliveries : this.deliveries;
 			List<Map<String, Object>> page;
-			synchronized (this.deliveries) {
-				page = List.copyOf(this.deliveries.subList(Math.min(from, this.deliveries.size()),
-						Math.min(from + size, this.deliveries.size())));
+			int total;
+			synchronized (listed) {
+				total = listed.size();
+				page = List.copyOf(listed.subList(Math.min(from, total), Math.min(from + size, total)));
 			}
-			String next = from + size < this.deliveries.size()
+			String next = from + size < total
 					? "<" + apiUrl() + "/app/hook/deliveries?per_page=" + size + "&cursor=" + (from + size) + ">; rel=\"next\""
 					: null;
 			send(exchange, 200, GitHubHttp.JSON.writeValueAsString(page), next);
 		}
 		else if (method.equals("POST") && (matcher = Pattern.compile("/app/hook/deliveries/(\\d+)/attempts").matcher(path)).matches()) {
-			this.redelivered.add(Long.parseLong(matcher.group(1)));
+			(sourceJwt(exchange) ? this.sourceRedelivered : this.redelivered).add(Long.parseLong(matcher.group(1)));
 			send(exchange, 202, "{}");
 		}
 		else if (method.equals("GET") && path.equals("/app/installations/" + INSTALLATION)) {
@@ -1418,6 +1430,43 @@ public final class GitHubStub implements AutoCloseable {
 			job.put("conclusion", conclusion);
 			onARunner(job);
 		});
+	}
+
+	/**
+	 * The {@code workflow_run} delivery GitHub sends for the run as it stands (Story 24.5a): {@code completed} once it
+	 * completed, else {@code requested} or {@code in_progress}, with its ID, title, status and conclusion, the
+	 * installation the App sends it for, and the repository it ran in.
+	 */
+	public byte[] workflowRun(long id, long installation) {
+		Map<String, Object> run = this.runs.get(id);
+		String status;
+		Map<String, Object> shown = new LinkedHashMap<>();
+		synchronized (run) {
+			status = String.valueOf(run.get("status"));
+			for (String field : List.of("id", "name", "path", "event", "head_branch", "head_sha", "status", "conclusion",
+					"display_title", "triggering_actor", "html_url", "run_attempt")) {
+				shown.put(field, run.get(field));
+			}
+		}
+		String action = switch (status) {
+			case "completed" -> "completed";
+			case "in_progress" -> "in_progress";
+			default -> "requested";
+		};
+		String repository = String.valueOf(run.get("repository_full_name"));
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("action", action);
+		payload.put("workflow_run", shown);
+		payload.put("repository", Map.of("full_name", repository, "name", repository.substring(repository.indexOf('/') + 1)));
+		payload.put("installation", Map.of("id", installation));
+		payload.put("sender", run.get("triggering_actor"));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/** Whether the request carries a JWT the Source App issued (Story 23.5). */
+	private static boolean sourceJwt(HttpExchange exchange) {
+		Long issuer = issuerOf(exchange.getRequestHeaders().getFirst("Authorization"));
+		return issuer != null && issuer == SOURCE_APP;
 	}
 
 	/**

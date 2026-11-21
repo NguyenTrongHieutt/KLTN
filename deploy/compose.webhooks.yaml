@@ -1,0 +1,31 @@
+# vibefix, local development stack: both GitHub Apps' webhooks (Story 24.5a, AD-12). Layered over compose.yaml and
+# compose.integrations.yaml, it gives the backend each App's own webhook secret file, so POST /webhooks verifies the
+# Platform App's deliveries with one and the Source App's with the other, and refuses a delivery signed with the
+# wrong one. A completed workflow_run then wakes the J7 copy, the handover copy or the Final Merge that dispatched
+# it, instead of the run's 15-minute timeout.
+#
+# It is an overlay of its own so that the stack still starts before the secrets exist: compose refuses to start
+# when a secret file named here is missing. Create both first (deploy/README.md, "Webhooks in dev"):
+#   deploy/secrets/github-platform-app-webhook-secret
+#   deploy/secrets/github-source-app-webhook-secret
+# and paste each one into its App's webhook settings on GitHub.
+#
+#   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml -f deploy/compose.webhooks.yaml up -d --build --wait backend
+#
+# GitHub reaches the dev stack through the same cloudflared quick tunnel as the Actions exchange, on port 8098,
+# where the backend serves POST /webhooks too. VIBEFIX_GITHUB_WEBHOOKURL stays unset: the tunnel's URL changes on
+# every start, so the daily configuration check compares everything about both webhooks but their URL.
+services:
+  backend:
+    environment:
+      VIBEFIX_GITHUB_PLATFORMAPP_WEBHOOKSECRETFILE: /run/secrets/github-platform-app-webhook-secret
+      VIBEFIX_GITHUB_SOURCEAPP_WEBHOOKSECRETFILE: /run/secrets/github-source-app-webhook-secret
+    secrets:
+      - github-platform-app-webhook-secret
+      - github-source-app-webhook-secret
+
+secrets:
+  github-platform-app-webhook-secret:
+    file: ./secrets/github-platform-app-webhook-secret
+  github-source-app-webhook-secret:
+    file: ./secrets/github-source-app-webhook-secret

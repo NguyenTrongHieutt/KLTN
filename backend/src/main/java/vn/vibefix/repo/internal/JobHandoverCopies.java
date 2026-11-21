@@ -38,12 +38,14 @@ import vn.vibefix.operations.OperationTicket;
 import vn.vibefix.repo.HandoverCopies;
 import vn.vibefix.repo.HandoverCopyFinished;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * {@link HandoverCopies} on {@code repo.handover_copy} (FR-32, AD-11, AD-44, AD-46, Story 23.8a): "Gửi bàn giao"
  * requests {@value #TYPE} in the transaction that keeps the pending submission; no handover exists yet, and no busy
  * marker is held, so the team keeps working while the runner copies. {@link HandoverCopyOperation} dispatches the
- * runner's copy, polls it, reads its path report and the branch back, and opens the System's pull request; its
+ * runner's copy, waits for it ({@link ActionsRunWakes}, Story 24.5a), reads its path report and the branch back,
+ * and opens the System's pull request; its
  * resolving transaction publishes {@link HandoverCopyFinished}, which {@code delivery} turns into M2 or into the
  * submission's refusal. A copy whose operation ends without resolving (the attempts ran out, or the Job moved on)
  * is finished {@link HandoverCopies.Refusal#RUN_FAILED} here, so no submission waits for ever.
@@ -115,9 +117,13 @@ class JobHandoverCopies implements HandoverCopies {
 
 	private final Clock clock;
 
+	/** Story 24.5a: each copy run's {@value ActionsRunWakes#KEY}, scheduled with its dispatch. */
+	private final Deadlines deadlines;
+
 	JobHandoverCopies(JdbcClient jdbc, ExternalOperations operations, ActionsRuns runs, AuditLog auditLog,
 			ApplicationEventPublisher events, JobBusy busy, Administrators administrators, Notifications notifications,
-			IdGenerator ids, Clock clock) {
+			IdGenerator ids, Clock clock, Deadlines deadlines) {
+		this.deadlines = deadlines;
 		this.jdbc = jdbc;
 		this.operations = operations;
 		this.runs = runs;
@@ -190,25 +196,44 @@ class JobHandoverCopies implements HandoverCopies {
 			.optional();
 	}
 
-	/** The run dispatched on the runner under {@code correlation} (AD-44, AD-46). */
+	/**
+	 * The run dispatched on the runner under {@code correlation} (AD-44, AD-46), with its one
+	 * {@value ActionsRunWakes#KEY} Deadline (Story 24.5a).
+	 * @return when it was recorded dispatched, or none when the copy ended meanwhile
+	 */
 	@Transactional
-	boolean dispatched(Copy copy, UUID correlation) {
+	@Nullable Instant dispatched(Copy copy, UUID correlation) {
+		Instant now = this.clock.instant();
 		int updated = this.jdbc.sql("""
 				UPDATE repo.handover_copy SET correlation_id = :correlation, dispatched_at = :now, run_status = NULL,
 				    run_conclusion = NULL
 				WHERE operation_key = :key AND status = 'RUNNING'
 				""")
 			.param("correlation", correlation)
-			.param("now", Timestamp.from(this.clock.instant()))
+			.param("now", Timestamp.from(now))
 			.param("key", copy.operationKey())
 			.update();
-		if (updated == 1) {
-			this.auditLog.record(AuditEntry
-				.of(AuditActor.system(), "repo.handover_copy_dispatched",
-						AuditObject.of("repo.handover_copy", copy.submissionId()))
-				.forJob(copy.jobId()));
+		if (updated == 0) {
+			return null;
 		}
-		return updated == 1;
+		this.auditLog.record(AuditEntry
+			.of(AuditActor.system(), "repo.handover_copy_dispatched",
+					AuditObject.of("repo.handover_copy", copy.submissionId()))
+			.forJob(copy.jobId()));
+		this.deadlines.schedule(ActionsRunWakes.timeout(TYPE, correlation, copy.jobId(), now));
+		return now;
+	}
+
+	/**
+	 * The operation key of the copy that runs under {@code correlation} and has read no conclusion of its run yet, so
+	 * it waits for that run (Story 24.5a).
+	 */
+	@Transactional(readOnly = true)
+	Optional<String> waitingOn(UUID correlation) {
+		return this.jdbc.sql("""
+				SELECT operation_key FROM repo.handover_copy
+				WHERE correlation_id = :correlation AND status = 'RUNNING' AND run_conclusion IS NULL
+				""").param("correlation", correlation).query(String.class).optional();
 	}
 
 	/** The run as last read: its status, and its conclusion once it completed or vibefix stopped waiting for it. */

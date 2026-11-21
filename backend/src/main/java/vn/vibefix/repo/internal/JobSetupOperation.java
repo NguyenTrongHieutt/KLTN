@@ -68,9 +68,12 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
  * <li>{@code copy} of {@code vibefix.yml} dispatched in the Customer's Source Repository through their Source App,
  * with the confirmed head and a grant of exactly the new repositories, the Intermediary alone for an Assessment Job
  * (AD-44), whose {@code working} input is dispatched empty; the exchange correlation is recorded;</li>
- * <li>the run polled every {@link #RUN_POLL} for its first {@link #RUN_POLL_FAST}, then every {@link #RUN_POLL_LATER},
- * while it is queued or in progress, up to {@link ActionsRuns#RUN_TIMEOUT}, when its correlation is closed and it is
- * cancelled;</li>
+ * <li>the run waited for, never read on an interval (Story 24.5a): the attempt defers to its backstop, the
+ * correlation's end of life ({@link ActionsRuns#CORRELATION_LIFETIME} past the dispatch), and is woken by
+ * {@link ActionsRunWakes} when the Source App delivers the run's completion, the exchange refuses it, or its
+ * {@value ActionsRunWakes#KEY} Deadline comes {@link ActionsRuns#RUN_TIMEOUT} after the dispatch. Woken, it reads the
+ * run once: a completed run resolves, and one still unfinished or never found past the timeout has its correlation
+ * closed and is cancelled;</li>
  * <li>once it succeeded, every repository's default branch read back through the Platform App at exactly the
  * confirmed head; then the Invitations stage starts (Story 7.3), or, for an Assessment Job, J7 applies at once, with
  * no invitations and no Verify (R6, Story 23.11a).</li>
@@ -93,15 +96,6 @@ class JobSetupOperation implements OperationHandler {
 
 	/** How long a frozen Job's Setup waits before it looks again (AD-28). */
 	static final Duration FROZEN_WAIT = Duration.ofMinutes(15);
-
-	/** How often a dispatched copy run is read while it is queued or in progress, at first (AD-46). */
-	static final Duration RUN_POLL = Duration.ofSeconds(10);
-
-	/** How long after its dispatch a copy run is read every {@link #RUN_POLL}. */
-	static final Duration RUN_POLL_FAST = Duration.ofMinutes(2);
-
-	/** How often it is read after that, until {@link ActionsRuns#RUN_TIMEOUT}. */
-	static final Duration RUN_POLL_LATER = Duration.ofSeconds(30);
 
 	/** The published workflow the copy runs, in the Customer's {@code .github/workflows/} (AD-45). */
 	static final String WORKFLOW = "vibefix.yml";
@@ -366,15 +360,22 @@ class JobSetupOperation implements OperationHandler {
 		Set<Long> grant = working == null ? Set.of(intermediary.id()) : Set.of(intermediary.id(), working.id());
 		Dispatched dispatched = runs().dispatch(new Dispatch(App.SOURCE, target.installationId(), Operation.COPY,
 				target.repositoryId(), WORKFLOW, inputs, grant, approved));
-		if (!setups().dispatched(setup, dispatched.correlation())) {
+		Instant dispatchedAt = setups().dispatched(setup, dispatched.correlation());
+		if (dispatchedAt == null) {
 			// The attempt moved on meanwhile: its run is given up, so it never exchanges.
 			runs().close(dispatched.correlation());
 			return new Outcome.Obsolete("SETUP_NOT_RUNNING");
 		}
-		return new Outcome.Deferred(this.clock.instant().plus(RUN_POLL));
+		// Story 24.5a: nothing reads the run on an interval; its completion, a refusal or its Deadline wakes this. A hint
+		// that came while the dispatch still looked for its run found no row to wake, so the run is read at once.
+		return new Outcome.Deferred(runs().updated(dispatched.correlation()) ? this.clock.instant()
+				: ActionsRunWakes.backstop(dispatchedAt));
 	}
 
-	/** Steps 6 and 7: the run read, and once it succeeded, both repositories read back at the confirmed head. */
+	/**
+	 * Steps 6 and 7, once woken: the run read, and once it succeeded, both repositories read back at the confirmed
+	 * head. A run not complete before its timeout waits for its backstop again.
+	 */
 	private Outcome poll(Setup setup) {
 		UUID correlationId = Objects.requireNonNull(setup.correlationId());
 		Outcome refused = refused(setup, correlationId);
@@ -384,9 +385,8 @@ class JobSetupOperation implements OperationHandler {
 		Run run = runs().run(correlationId).orElse(null);
 		Instant now = this.clock.instant();
 		Instant dispatchedAt = Objects.requireNonNull(setup.dispatchedAt());
-		Instant timeout = dispatchedAt.plus(ActionsRuns.RUN_TIMEOUT);
 		if (run == null || run.status() != RunStatus.COMPLETED) {
-			boolean late = !now.isBefore(timeout);
+			boolean late = !now.isBefore(dispatchedAt.plus(ActionsRuns.RUN_TIMEOUT));
 			setups().runRead(setup, run == null ? null : run.status().name(), late ? TIMED_OUT : null);
 			if (late) {
 				log.warn("Setup {}: the copy run under correlation {} did not complete within {}; it is given up",
@@ -395,8 +395,7 @@ class JobSetupOperation implements OperationHandler {
 				runs().close(correlationId);
 				return new Outcome.Transient(Block.RUN_FAILED.name());
 			}
-			Instant next = now.plus(now.isBefore(dispatchedAt.plus(RUN_POLL_FAST)) ? RUN_POLL : RUN_POLL_LATER);
-			return new Outcome.Deferred(next.isAfter(timeout) ? timeout : next);
+			return new Outcome.Deferred(ActionsRunWakes.backstop(dispatchedAt));
 		}
 		String conclusion = run.conclusion() == null ? "unknown" : run.conclusion();
 		setups().runRead(setup, RunStatus.COMPLETED.name(), conclusion);

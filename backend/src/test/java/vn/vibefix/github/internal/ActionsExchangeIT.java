@@ -69,10 +69,12 @@ import vn.vibefix.support.IntegrationTest;
  * without a session or a CSRF token, once, for a token narrowed to the grant; and that token is revoked when the
  * stubbed run completes, or 15 minutes after issue. Every refusal the spec names is tried once: those before
  * verification are only counted, those after it are recorded, audited and alerted. The limits, the 16 KB body,
- * the dev port, a restart's unknown revocation, and the hygiene of logs and refusals are proved too. Tokens and
- * ID tokens are fake, built at run time.
+ * the dev port, a restart's unknown revocation, and the hygiene of logs and refusals are proved too. A refusal that
+ * makes a correlation {@code REFUSED}, and a stored path report, each tell the waiting operation once
+ * ({@link vn.vibefix.github.ActionsRunUpdated}, Story 24.5a). Tokens and ID tokens are fake, built at run time.
  */
 @ExtendWith(OutputCaptureExtension.class)
+@org.springframework.test.context.event.RecordApplicationEvents
 class ActionsExchangeIT extends IntegrationTest {
 
 	private static final Path DIRECTORY;
@@ -155,6 +157,9 @@ class ActionsExchangeIT extends IntegrationTest {
 
 	@Autowired
 	private MockMvc mvc;
+
+	@Autowired
+	private org.springframework.test.context.event.ApplicationEvents events;
 
 	@Autowired
 	private ActionsRuns runs;
@@ -368,6 +373,8 @@ class ActionsExchangeIT extends IntegrationTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("SHA"));
 		assertThat(this.runs.correlation(dispatched.correlation()).orElseThrow().refusal()).isEqualTo(ExchangeReason.SHA);
+		assertThat(updated()).as("Story 24.5a: the refusal tells the waiting copy at once").containsExactly(
+				dispatched.correlation());
 
 		String head = GITHUB.head(ORGANIZATION, "copy-target", "main");
 		Dispatched confirmedHead = this.runs.dispatch(new Dispatch(App.PLATFORM, null, Operation.COPY, COPY_TARGET_ID,
@@ -808,6 +815,7 @@ class ActionsExchangeIT extends IntegrationTest {
 
 		assertThat(this.runs.correlation(dispatched.correlation()).orElseThrow().status()).isEqualTo(Status.EXCHANGED);
 		assertThat(GITHUB.tokens).as("no second token: a replay is refused before anything is read").hasSize(minted);
+		assertThat(updated()).as("a replay changes nothing the copy waits on").isEmpty();
 		awaitListeners();
 		assertThat(audited(dispatched.correlation())).containsExactlyInAnyOrder("github.exchange_issued",
 				"github.exchange_refused_replay");
@@ -1035,15 +1043,28 @@ class ActionsExchangeIT extends IntegrationTest {
 			.andExpect(status().is(413));
 	}
 
+	/**
+	 * The dev port serves the run's two posts and, since Story 24.5a, GitHub's webhooks, which the tunnel brings there
+	 * too; anything else there is 404.
+	 */
 	@Test
 	void theDevPortServesTheExchangeAlone() throws Exception {
 		this.mvc.perform(get("/api/v1/environment").with(port(GitHubProperties.Exchange.DEFAULT_DEV_PORT)))
 			.andExpect(status().isNotFound());
 		this.mvc.perform(get(ActionsExchangeController.PATH).with(port(GitHubProperties.Exchange.DEFAULT_DEV_PORT)))
 			.andExpect(status().isNotFound());
+		this.mvc.perform(get(WebhookController.PATH).with(port(GitHubProperties.Exchange.DEFAULT_DEV_PORT)))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(post("/webhooks/other").with(port(GitHubProperties.Exchange.DEFAULT_DEV_PORT)))
+			.andExpect(status().isNotFound());
 		this.mvc.perform(exchange("not-a-jwt", UUID.randomUUID()).with(port(GitHubProperties.Exchange.DEFAULT_DEV_PORT)))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("SIGNATURE"));
+		// Served: a delivery no App's secret signed is the webhook endpoint's own 401, not the port's 404.
+		this.mvc.perform(ActionsExchangeSupport
+			.webhook(123456, "ping", "{\"zen\":\"x\"}".getBytes(StandardCharsets.UTF_8),
+					("unknown-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8))
+			.with(port(GitHubProperties.Exchange.DEFAULT_DEV_PORT))).andExpect(status().isUnauthorized());
 		this.mvc.perform(get("/api/v1/environment")).andExpect(status().isOk());
 	}
 
@@ -1118,6 +1139,15 @@ class ActionsExchangeIT extends IntegrationTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("REPLAY"));
 		assertThat(this.runs.report(dispatched.correlation()).orElseThrow().paths()).isEqualTo(paths);
+		assertThat(updated()).as("Story 24.5a: the stored report tells the waiting copy, once").containsExactly(
+				dispatched.correlation());
+	}
+
+	/** The correlations {@link vn.vibefix.github.ActionsRunUpdated} named, in order. */
+	private List<UUID> updated() {
+		return this.events.stream(vn.vibefix.github.ActionsRunUpdated.class)
+			.map(vn.vibefix.github.ActionsRunUpdated::correlationId)
+			.toList();
 	}
 
 	@Test

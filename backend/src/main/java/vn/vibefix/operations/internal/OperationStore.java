@@ -28,7 +28,8 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * The worker's short transactions (AD-6): claiming, completing, and rescheduling. Every change after
  * the claim is fenced by the attempt number, so a worker whose lease expired and whose operation was
- * claimed again changes nothing.
+ * claimed again changes nothing. A claim forgets any earlier wake ({@code woken_at}), since the attempt it
+ * starts looks after it; a wake while that attempt runs makes its deferral resume at once (Story 24.5a).
  */
 @Component
 class OperationStore {
@@ -90,7 +91,7 @@ class OperationStore {
 				    FOR UPDATE SKIP LOCKED)
 				UPDATE operations.external_operation operation
 				SET status = 'RUNNING', attempt_count = operation.attempt_count + 1, lease_until = :leaseUntil,
-				    read_back_first = operation.read_back_first OR operation.status = 'RUNNING'
+				    read_back_first = operation.read_back_first OR operation.status = 'RUNNING', woken_at = NULL
 				FROM due WHERE operation.id = due.id
 				RETURNING operation.id, operation.operation_key, operation.type, operation.attempt_count,
 				          operation.priority, operation.payload::text AS payload,
@@ -124,7 +125,7 @@ class OperationStore {
 			int updated = this.jdbc.sql("""
 					UPDATE operations.external_operation
 					SET status = :status, result = CAST(:result AS jsonb), error_code = :errorCode, personal_data = NULL,
-					    lease_until = NULL, read_back_first = FALSE, completed_at = :now
+					    lease_until = NULL, read_back_first = FALSE, completed_at = :now, woken_at = NULL
 					WHERE id = :id AND status = 'RUNNING' AND attempt_count = :attempt
 					""")
 				.param("status", status.name())
@@ -146,25 +147,35 @@ class OperationStore {
 		return Boolean.TRUE.equals(completed);
 	}
 
-	/** Puts a failed attempt back in the queue until {@code nextAttemptAt}. */
+	/**
+	 * Puts a failed attempt back in the queue until {@code nextAttemptAt}. A wake that arrived during the attempt does
+	 * not cut that backoff; a wake while the row waits for its retry makes it due now (Story 24.5a).
+	 */
 	boolean retryLater(Claimed claimed, Instant nextAttemptAt, String errorCode, boolean readBackFirst) {
-		return reschedule(claimed, nextAttemptAt, errorCode, readBackFirst, 0);
+		return reschedule(claimed, nextAttemptAt, errorCode, readBackFirst, 0, false);
 	}
 
-	/** Puts the attempt back without counting it: it was not tried. */
+	/**
+	 * Puts the attempt back without counting it: it was not tried. A wake that arrived while it ran makes it due at
+	 * once instead of at {@code until} (Story 24.5a).
+	 */
 	boolean defer(Claimed claimed, Instant until) {
-		return reschedule(claimed, until, claimed.lastErrorCode(), claimed.readBackFirst(), 1);
+		return reschedule(claimed, until, claimed.lastErrorCode(), claimed.readBackFirst(), 1, true);
 	}
 
 	private boolean reschedule(Claimed claimed, Instant nextAttemptAt, @Nullable String errorCode,
-			boolean readBackFirst, int uncount) {
+			boolean readBackFirst, int uncount, boolean woken) {
 		Integer updated = this.transactions.execute(status -> this.jdbc.sql("""
 				UPDATE operations.external_operation
-				SET status = 'PENDING', lease_until = NULL, next_attempt_at = :next, error_code = :errorCode,
-				    read_back_first = :readBackFirst, attempt_count = attempt_count - :uncount
+				SET status = 'PENDING', lease_until = NULL, error_code = :errorCode,
+				    next_attempt_at = CASE WHEN :woken AND woken_at IS NOT NULL
+				                           THEN LEAST(CAST(:next AS TIMESTAMPTZ), woken_at)
+				                           ELSE CAST(:next AS TIMESTAMPTZ) END,
+				    woken_at = NULL, read_back_first = :readBackFirst, attempt_count = attempt_count - :uncount
 				WHERE id = :id AND status = 'RUNNING' AND attempt_count = :attempt
 				""")
 			.param("next", Timestamp.from(nextAttemptAt))
+			.param("woken", woken)
 			.param("errorCode", errorCode)
 			.param("readBackFirst", readBackFirst)
 			.param("uncount", uncount)

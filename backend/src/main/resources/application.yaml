@@ -126,13 +126,17 @@ vibefix:
     api-url: https://api.github.com
     # Where repositories are cloned from and pushed to (AD-11). The two Apps' IDs and key files
     # (vibefix.github.platform-app.*, source-app.*) are set where a story needs them; see
-    # deploy/README.md "Spike S4" and "The Source App". The Source App (Story 23.5) takes its ID and key file
-    # only: each Customer installs it, so it has no installation of the platform's own, and it has no webhook.
+    # deploy/README.md "Spike S4" and "The Source App". The Source App (Story 23.5) takes its ID, key file and
+    # webhook secret file: each Customer installs it, so it has no installation of the platform's own.
     # Unset, registration and the Source checks answer GITHUB_UNAVAILABLE.
     git-url: https://github.com
-    # AD-12: the Platform App's webhooks reach POST /webhooks, signed with its secret file
-    # (platform-app.webhook-secret-file); since Story 23.9b it is the only App with one. Set webhook-url to
-    # https://<host>/webhooks where it is known, and the daily configuration check compares it.
+    # AD-12 (Story 24.5a): both Apps' webhooks reach POST /webhooks, each signed with its own secret file
+    # (platform-app.webhook-secret-file, source-app.webhook-secret-file; deploy/compose.webhooks.yaml passes both
+    # on the dev stack). A delivery signed with the other App's secret is refused. A completed workflow_run wakes
+    # the J7 copy, the handover copy or the Final Merge that dispatched it; until the Apps send it, each run
+    # resolves at its 15-minute timeout. Set webhook-url to https://<host>/webhooks where it is known, and the
+    # daily configuration check compares both Apps' hooks with it; the dev stack leaves it unset, since the
+    # tunnel's URL changes on every start.
     # AD-46 (Story 23.3): runner-repository names the one repository of the organization that may run
     # GitHub Actions (deploy/compose.yaml passes VIBEFIX_GITHUB_RUNNER_REPOSITORY). It is required: unset,
     # it is an organization difference, so the 10-minute sweep alerts github.platform_drift and every new

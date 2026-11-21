@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
  * "Gửi bàn giao" keeps a pending submission and asks here; {@code repo} then runs one External Operation on the
  * GitHub-long lane, with no busy marker (AD-46: only the J7 copy and the Final Merge hold one, and the team keeps
  * working while the runner copies): it records an exchange correlation, dispatches the published copy
- * workflow on the runner through the Platform App, polls the run, reads the run's path report, reads
+ * workflow on the runner through the Platform App, waits for the run (its report, its completion or its timeout
+ * wakes the copy, Story 24.5a), reads the run's path report, reads
  * {@code handover/{submissionId}} back at the Handover Commit, and opens the System's pull request into the
  * Intermediary's default branch. When it ends, {@link HandoverCopyFinished} tells {@code delivery}, which records
  * the handover or ends the submission with the reason; nothing is copied in vibefix's sandbox, and no code or path

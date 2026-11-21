@@ -22,9 +22,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * reach the exchange through a cloudflared quick tunnel, which points at
  * {@code vibefix.github.exchange.dev-port} (8098) rather than the whole backend. The port opens only on the
  * {@code dev} profile and while {@code vibefix.github.exchange.public-url} names the tunnel, and on it a filter
- * answers 404 to everything but {@code POST} {@value ActionsExchangeController#PATH} and {@code POST}
- * {@value ActionsReportController#PATH}, the handover copy's path report (Story 23.8a). Compose publishes it on
- * 127.0.0.1 only.
+ * answers 404 to everything but {@code POST} {@value ActionsExchangeController#PATH}, {@code POST}
+ * {@value ActionsReportController#PATH}, the handover copy's path report (Story 23.8a), and {@code POST}
+ * {@value WebhookController#PATH}, where both Apps' webhooks reach the dev stack through the same tunnel (Story
+ * 24.5a). Compose publishes it on 127.0.0.1 only.
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("dev")
@@ -48,7 +49,7 @@ class ExchangeDevPort {
 		return new ExchangeOnlyFilter(properties.exchange().devPort());
 	}
 
-	/** On the dev port, only the two {@code POST}s a run makes pass; everything else is 404. */
+	/** On the dev port, only the two {@code POST}s a run makes and GitHub's webhooks pass; everything else is 404. */
 	@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 	static class ExchangeOnlyFilter extends OncePerRequestFilter {
 
@@ -67,7 +68,8 @@ class ExchangeDevPort {
 		protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 				throws ServletException, IOException {
 			if ("POST".equals(request.getMethod()) && (ActionsExchangeController.PATH.equals(request.getRequestURI())
-					|| ActionsReportController.PATH.equals(request.getRequestURI()))) {
+					|| ActionsReportController.PATH.equals(request.getRequestURI())
+					|| WebhookController.PATH.equals(request.getRequestURI()))) {
 				chain.doFilter(request, response);
 				return;
 			}

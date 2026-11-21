@@ -38,6 +38,13 @@ public interface ActionsRuns {
 	/** AD-46: a run's own timeout; its token is revoked this long after issue at the latest. */
 	Duration RUN_TIMEOUT = Duration.ofMinutes(15);
 
+	/**
+	 * How long a correlation stays open, its end of life: the find window, the run's timeout, and the queue before it.
+	 * After it nothing about the run can be exchanged, so an operation that waits for its run waits no longer than
+	 * this past the dispatch, its backstop (Story 24.5a).
+	 */
+	Duration CORRELATION_LIFETIME = FIND_WINDOW.plus(RUN_TIMEOUT).plusMinutes(3);
+
 	/** What a run does with its token, and exactly the permissions that token gets (AD-44). */
 	enum Operation {
 
@@ -283,6 +290,13 @@ public interface ActionsRuns {
 
 	/** The correlation, if it exists: a waiting operation reads a refusal here as {@code EXCHANGE_REFUSED}. */
 	Optional<Correlation> correlation(UUID id);
+
+	/**
+	 * Whether {@link ActionsRunUpdated} was ever published for the correlation (Story 24.5a). An operation asks right after
+	 * it recorded the dispatch: a hint published before its row named the correlation woke nobody, so it reads the run
+	 * at once instead of waiting.
+	 */
+	boolean updated(UUID correlation);
 
 	/**
 	 * The correlation's run, its first attempt, as its dispatching App reads it now with a token narrowed to the target

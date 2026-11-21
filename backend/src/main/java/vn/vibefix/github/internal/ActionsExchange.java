@@ -58,7 +58,10 @@ import vn.vibefix.shared.IdGenerator;
  * A refusal before verification (the first four, and an unknown or closed correlation) names nothing
  * reliably: it is only counted and logged by kind. After it, the correlation becomes {@code REFUSED}, except a
  * replay, which leaves it {@code EXCHANGED}, and {@link GitHubExchangeRefused} is published for {@code admin}
- * to audit and alert. GitHub's outage refuses nothing: no answer or a server error to the read-back token, the
+ * to audit and alert. A correlation that becomes {@code REFUSED} also publishes
+ * {@link vn.vibefix.github.ActionsRunUpdated} ({@link ActionsRunUpdates#updated}), since the refusal decides what the
+ * operation waiting for the run does (Story 24.5a). GitHub's outage refuses nothing: no
+ * answer or a server error to the read-back token, the
  * run or the workflow file, like a mint GitHub refuses, answers 502 and leaves the correlation open. A verified
  * token counts once against its correlation's attempts ({@link ExchangeRateLimiter}). The token issued lives only
  * in {@link IssuedTokens}; nothing here logs the ID token or the token, and no exception message holds either.
@@ -100,9 +103,14 @@ class ActionsExchange {
 
 	private final Map<ExchangeReason, AtomicLong> unverified = new EnumMap<>(ExchangeReason.class);
 
+	/** Story 24.5a: a refusal wakes the operation that waits for the run. */
+	private final ActionsRunUpdates runUpdates;
+
 	ActionsExchange(ActionsIdTokens idTokens, ExchangeCorrelations correlations, IssuedTokens issued,
 			ExchangeRateLimiter limiter, GitHubAppsClient apps, DispatchingApps dispatching,
-			ApplicationEventPublisher events, PlatformTransactionManager transactionManager, IdGenerator ids, Clock clock) {
+			ApplicationEventPublisher events, PlatformTransactionManager transactionManager, IdGenerator ids, Clock clock,
+			ActionsRunUpdates runUpdates) {
+		this.runUpdates = runUpdates;
 		this.idTokens = idTokens;
 		this.correlations = correlations;
 		this.issued = issued;
@@ -365,8 +373,9 @@ class ActionsExchange {
 	private ApiException refuse(ExchangeCorrelations.Row row, ExchangeReason reason) {
 		log.warn("The Actions exchange refused correlation {}: {}", row.id(), reason.code());
 		this.transactions.executeWithoutResult(status -> {
-			if (reason != ExchangeReason.REPLAY) {
-				this.correlations.refuse(row.id(), reason);
+			if (reason != ExchangeReason.REPLAY && this.correlations.refuse(row.id(), reason)) {
+				// Story 24.5a: the operation waiting for this run reads the refusal now, not at the run's timeout.
+				this.runUpdates.updated(row.id());
 			}
 			this.events.publishEvent(new GitHubExchangeRefused(this.ids.newId(), row.id(), row.operation(), reason));
 		});

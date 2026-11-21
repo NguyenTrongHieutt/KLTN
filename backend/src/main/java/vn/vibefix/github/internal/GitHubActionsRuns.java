@@ -52,9 +52,6 @@ class GitHubActionsRuns implements ActionsRuns {
 
 	private static final Logger log = LoggerFactory.getLogger(GitHubActionsRuns.class);
 
-	/** How long a correlation stays open: the find window, the run's timeout, and the queue before it. */
-	static final Duration CORRELATION_LIFETIME = FIND_WINDOW.plus(RUN_TIMEOUT).plusMinutes(3);
-
 	/** How much earlier than the correlation a run is looked for, for the clocks of vibefix and GitHub to differ. */
 	static final Duration CLOCK_SKEW = Duration.ofMinutes(1);
 
@@ -162,6 +159,11 @@ class GitHubActionsRuns implements ActionsRuns {
 	@Override
 	public Optional<Correlation> correlation(UUID id) {
 		return this.correlations.find(id).map(ExchangeCorrelations.Row::correlation);
+	}
+
+	@Override
+	public boolean updated(UUID correlation) {
+		return this.correlations.wasUpdated(correlation);
 	}
 
 	@Override

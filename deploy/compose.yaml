@@ -61,8 +61,9 @@ services:
       # (deploy/.env). Empty by default, so Actions stay disabled for every repository, as before.
       VIBEFIX_GITHUB_RUNNER_REPOSITORY: ${VIBEFIX_GITHUB_RUNNER_REPOSITORY:-}
       # Story 23.4: the cloudflared quick tunnel to the Actions exchange (deploy/.env), an https origin. While
-      # it is set, the backend also serves POST /github/actions/exchange alone on port 8098, published below,
-      # where the tunnel points. Empty by default: nothing can be dispatched, and 8098 stays closed.
+      # it is set, the backend also serves POST /github/actions/exchange, the run report and, since Story 24.5a,
+      # POST /webhooks on port 8098, published below, where the tunnel points, and nothing else there. Empty by
+      # default: nothing can be dispatched, and 8098 stays closed.
       VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL: ${VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL:-}
     secrets:
       - db-app-password
@@ -85,8 +86,8 @@ services:
       - files:/var/lib/vibefix/files
     ports:
       - "127.0.0.1:8080:8080"
-      # The Actions exchange alone, for the cloudflared quick tunnel (deploy/README.md, "Actions exchange on
-      # the dev stack"); the backend answers 404 to anything else on this port.
+      # The Actions exchange, the run report and the webhooks, for the cloudflared quick tunnel (deploy/README.md,
+      # "Actions exchange on the dev stack" and "Webhooks in dev"); the backend answers 404 to anything else here.
       - "127.0.0.1:8098:8098"
     depends_on:
       postgres:
