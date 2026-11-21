@@ -23,8 +23,8 @@ public interface GitHubApps {
 
 		/**
 		 * Installed by each Customer on exactly their Source Repository (AD-10, AD-13, Story 23.5): Contents and
-		 * Metadata read and Actions write, and no webhook. Each installation is a Customer's own, so none is
-		 * configured; {@link SourceApp} names it for every token.
+		 * Metadata read and Actions write, and since Story 24.5a a webhook of its own for {@code workflow_run}. Each
+		 * installation is a Customer's own, so none is configured; {@link SourceApp} names it for every token.
 		 */
 		SOURCE
 

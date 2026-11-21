@@ -97,16 +97,17 @@ class CodeHandoverIT extends IntegrationTest {
 	/** The dev stack's exchange host, which every dispatch names (AD-44). */
 	private static final String TUNNEL = "https://exchange.example.test";
 
-	/** How long the copy operation waits before it reads its run again (Story 23.8a). */
-	private static final Duration RUN_POLL = Duration.ofSeconds(11);
-
 	/** N-33's version in force, which "Gửi bàn giao" names and the handover records (FR-25, R28, Story 23.8b). */
 	private static final String TEAM_CODE_NOTICE = "1.0";
+
+	/** The Platform App's webhook secret (Story 24.5a), fake and built at run time. */
+	private static final byte[] PLATFORM_SECRET;
 
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("code-handover-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
+			PLATFORM_SECRET = ActionsExchangeSupport.webhookSecret(DIRECTORY.resolve("platform-webhook-secret"));
 			// AD-46: the runner the organization read-back requires (Story 23.3), which runs the handover copy.
 			GITHUB.runner(RUNNER);
 			RUNNER_ID = GITHUB.organizationRepositoryId(RUNNER);
@@ -177,6 +178,9 @@ class CodeHandoverIT extends IntegrationTest {
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 		registry.add("vibefix.github.runner-repository", () -> RUNNER);
+		// Story 24.5a: the Platform App's webhook, which tells the copy that the runner's run completed.
+		registry.add("vibefix.github.platform-app.webhook-secret-file",
+				() -> DIRECTORY.resolve("platform-webhook-secret").toString());
 		// Story 23.8a: the handover copy runs on the runner's Actions, which reach the exchange through the dev tunnel.
 		registry.add("vibefix.github.exchange.public-url", () -> TUNNEL);
 		registry.add("vibefix.github.exchange.issuer", () -> GITHUB.apiUrl().toString());
@@ -358,11 +362,14 @@ class CodeHandoverIT extends IntegrationTest {
 		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
 			.andReturn().getResponse().getContentAsString(), "$.id"));
 		dispatchCopy();
+		// Story 24.5a: the report wakes the copy, which ends at once, before the run itself completes.
 		copyRunReports(submission, true, List.of(".github/workflows/ci.yml"));
-		GITHUB.completeRun(runId(correlation(submission)), "failure");
-		pollCopy();
+		woken();
+		awaitSubmission(submission);
 
 		assertThat(submissionState(submission)).isEqualTo("REFUSED:WORKFLOW_FILES_CHANGED");
+		assertThat(GITHUB.runs.get(runId(correlation(submission))).get("status")).as("the run had not completed")
+			.isNotEqualTo("completed");
 		assertThat(this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE job_id = :job").param("job", this.job)
 			.query(Long.class).single()).isZero();
 		assertThat(GITHUB.pullHeads.getOrDefault(this.intermediary, Map.of())).isEmpty();
@@ -439,7 +446,9 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.state").value("PENDING"))
 			.andExpect(jsonPath("$.number").value(1))
 			.andExpect(jsonPath("$.runStatus").doesNotExist());
-		pollCopy();
+		// Story 24.5a: a clean report wakes the copy, which reads its run, still queued, and waits for it again.
+		copyRunReports(submission, false, List.of("src/booking.js"));
+		woken();
 
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.hung, Role.MENTOR)))
 			.andExpect(jsonPath("$.state").value("PENDING"))
@@ -450,8 +459,14 @@ class CodeHandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("TEAM_ONLY"));
+		UUID correlation = correlation(submission);
+		assertThat(nextAttempt(submission)).as("it waits for the run, its backstop the correlation's end of life")
+			.isEqualTo(dispatchedAt(submission).plus(vn.vibefix.github.ActionsRuns.CORRELATION_LIFETIME));
 
-		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+		GITHUB.completeRun(runId(correlation), "success");
+		runCompleted(correlation);
+		awaitSubmission(submission);
 
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/submission").with(as(this.vy, Role.STUDENT)))
 			.andExpect(jsonPath("$.state").value("DONE"))
@@ -491,7 +506,7 @@ class CodeHandoverIT extends IntegrationTest {
 		for (int attempt = 1; attempt <= 8 && "PENDING".equals(submissionState(submission)); attempt++) {
 			dispatchCopy();
 			GITHUB.completeRun(runId(correlation(submission)), "failure");
-			pollCopy();
+			runCompleted(correlation(submission));
 			this.clock.advance(Duration.ofHours(1));
 		}
 		awaitPublications();
@@ -569,7 +584,7 @@ class CodeHandoverIT extends IntegrationTest {
 
 		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
 		GITHUB.completeRun(runId(correlation), "success");
-		pollCopy();
+		runCompleted(correlation);
 		awaitHandover(submission);
 		assertThat(this.jdbc.sql("""
 				SELECT path FROM delivery.handover_sensitive_change WHERE handover_id = :id
@@ -669,7 +684,7 @@ class CodeHandoverIT extends IntegrationTest {
 		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
 		// The run pushed, then its own read-back step failed, so GitHub shows it failed.
 		GITHUB.completeRun(runId(first), "failure");
-		pollCopy();
+		runCompleted(first);
 		assertThat(submissionState(submission)).as("the attempt is spent, not refused").isEqualTo("PENDING");
 
 		this.clock.advance(Duration.ofMinutes(5));
@@ -696,7 +711,7 @@ class CodeHandoverIT extends IntegrationTest {
 		// The run pushed another commit than the Handover Commit, so the read-back differs.
 		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
 		GITHUB.completeRun(runId(correlation(submission)), "success");
-		pollCopy();
+		runCompleted(correlation(submission));
 
 		assertThat(other).isNotEqualTo(head);
 		assertThat(handoverCommitOf(submission)).as("the Mentor sent the later head").isEqualTo(other);
@@ -724,8 +739,9 @@ class CodeHandoverIT extends IntegrationTest {
 					correlation, address()))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("REPOSITORY"));
+		// Story 24.5a: the refusal wakes the copy; the refused run's completion names no correlation.
 		GITHUB.completeRun(runId(correlation), "failure");
-		pollCopy();
+		runCompleted(correlation);
 		awaitSubmission(submission);
 
 		assertThat(submissionState(submission)).isEqualTo("REFUSED:EXCHANGE_REFUSED");
@@ -764,7 +780,7 @@ class CodeHandoverIT extends IntegrationTest {
 			}
 			GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
 			GITHUB.completeRun(runId(correlation), "success");
-			pollCopy();
+			runCompleted(correlation);
 			awaitSubmission(submission);
 
 			assertThat(submissionState(submission)).as("corrupt: %s", corrupt).isEqualTo("REFUSED:PATH_LIST_UNREADABLE");
@@ -1427,11 +1443,34 @@ class CodeHandoverIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_LONG);
 	}
 
-	/** The copy operation's next attempt, once its run is over. */
-	private void pollCopy() {
-		this.clock.advance(RUN_POLL);
+	/**
+	 * Story 24.5a: the Platform App delivers the run's {@code workflow_run} as the stub shows it now, signed with its
+	 * secret, for its installation; the copy it wakes then runs its next attempt.
+	 */
+	private void runCompleted(UUID correlation) throws Exception {
+		this.mvc.perform(ActionsExchangeSupport.workflowRun(GITHUB, runId(correlation), 123456, GitHubStub.INSTALLATION,
+				PLATFORM_SECRET)).andExpect(status().isAccepted());
+		woken();
+	}
+
+	/** The copy's next attempt, once what woke it (a report, a refusal, the run's completion) reached it. */
+	private void woken() {
+		awaitPublications();
 		this.worker.runDue(Lane.GITHUB_LONG);
 		awaitPublications();
+	}
+
+	/** When the submission's copy runs next. */
+	private java.time.Instant nextAttempt(UUID submission) {
+		return this.jdbc.sql("""
+				SELECT next_attempt_at FROM operations.external_operation
+				WHERE operation_key = (SELECT operation_key FROM repo.handover_copy WHERE submission_id = :id)
+				""").param("id", submission).query(Timestamp.class).single().toInstant();
+	}
+
+	private java.time.Instant dispatchedAt(UUID submission) {
+		return this.jdbc.sql("SELECT dispatched_at FROM repo.handover_copy WHERE submission_id = :id")
+			.param("id", submission).query(Timestamp.class).single().toInstant();
 	}
 
 	/**
@@ -1443,7 +1482,7 @@ class CodeHandoverIT extends IntegrationTest {
 		copyRunReports(submission, false, paths);
 		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
 		GITHUB.completeRun(runId(correlation(submission)), "success");
-		pollCopy();
+		runCompleted(correlation(submission));
 		awaitSubmission(submission);
 	}
 

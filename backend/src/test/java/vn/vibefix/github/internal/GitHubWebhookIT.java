@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,10 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import vn.vibefix.github.ActionsRunUpdated;
+import vn.vibefix.github.ActionsRuns.Operation;
+import vn.vibefix.github.ActionsRuns.Status;
+import vn.vibefix.github.ExchangeReason;
 import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubConfigurationDrift;
 import vn.vibefix.github.GitHubWebhookReceived;
@@ -43,19 +48,30 @@ import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.support.IntegrationTest;
 
 /**
- * Story 7.1 (AD-12, SG-18): the Platform App's webhooks at {@code POST /webhooks}, with no session and no
- * CSRF token; since Story 23.9b it is the only App with one. A delivery signed by its App is kept once and
- * published; any other is refused unread. Failed deliveries of the last 3 days are redelivered once from
- * their latest attempt, kept delivery IDs are forgotten after 30 days, and an App unlike AD-10 alerts
- * every Administrator. GitHub is {@link GitHubStub}; the webhook secrets are fake, built at run time.
+ * Story 7.1 (AD-12, SG-18): the webhooks at {@code POST /webhooks}, with no session and no CSRF token; since Story
+ * 24.5a both Apps have one, each with its own secret. A delivery signed by its App is kept once and published; any
+ * other, the other App's secret included, is refused unread. A completed {@code workflow_run} of a correlation of the
+ * App that sent it, on its installation and for its run, also publishes {@link ActionsRunUpdated}; nothing else does.
+ * Failed deliveries of the last 3 days are redelivered once from their latest attempt, each App's with its own JWT,
+ * kept delivery IDs are forgotten after 30 days, and an App unlike AD-10 alerts every Administrator. GitHub is
+ * {@link GitHubStub}; the webhook secrets are fake, built at run time.
  */
 @RecordApplicationEvents
 class GitHubWebhookIT extends IntegrationTest {
 
 	private static final byte[] PLATFORM_SECRET = ("platform-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
 
+	private static final byte[] SOURCE_SECRET = ("source-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+
 	/** A secret no App of this environment has, as another sender's would be. */
 	private static final byte[] OTHER_SECRET = ("other-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+
+	private static final String PLATFORM_ID = "123456";
+
+	private static final String SOURCE_ID = String.valueOf(GitHubStub.SOURCE_APP);
+
+	/** A Customer's Source App installation, as a correlation of a run it dispatched records it. */
+	private static final long CUSTOMER_INSTALLATION = 4401;
 
 	private static final Path DIRECTORY;
 
@@ -69,6 +85,7 @@ class GitHubWebhookIT extends IntegrationTest {
 			GITHUB.runner("vibefix-runner");
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 			Files.write(DIRECTORY.resolve("platform-webhook-secret"), PLATFORM_SECRET);
+			Files.write(DIRECTORY.resolve("source-webhook-secret"), SOURCE_SECRET);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);
@@ -98,19 +115,24 @@ class GitHubWebhookIT extends IntegrationTest {
 	@Autowired
 	private AppConfigurationCheck check;
 
+	@Autowired
+	private ExchangeCorrelations correlations;
+
 	@DynamicPropertySource
 	static void github(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> GITHUB.apiUrl().toString());
 		registry.add("vibefix.github.webhook-url", () -> "https://vibefix.test/webhooks");
-		registry.add("vibefix.github.platform-app.id", () -> "123456");
+		registry.add("vibefix.github.platform-app.id", () -> PLATFORM_ID);
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 		registry.add("vibefix.github.runner-repository", () -> "vibefix-runner");
 		registry.add("vibefix.github.platform-app.webhook-secret-file",
 				() -> DIRECTORY.resolve("platform-webhook-secret").toString());
-		// Story 23.5: the Source App, which has no webhook.
-		registry.add("vibefix.github.source-app.id", () -> String.valueOf(GitHubStub.SOURCE_APP));
+		// Story 23.5: the Source App; Story 24.5a gave it a webhook with its own secret.
+		registry.add("vibefix.github.source-app.id", () -> SOURCE_ID);
 		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		registry.add("vibefix.github.source-app.webhook-secret-file",
+				() -> DIRECTORY.resolve("source-webhook-secret").toString());
 	}
 
 	@AfterAll
@@ -122,9 +144,13 @@ class GitHubWebhookIT extends IntegrationTest {
 	void aFreshGitHub() {
 		GITHUB.seen.clear();
 		GITHUB.deliveries.clear();
+		GITHUB.sourceDeliveries.clear();
 		GITHUB.redelivered.clear();
+		GITHUB.sourceRedelivered.clear();
 		GITHUB.app = registration(AppExpectations.PLATFORM_PERMISSIONS, AppExpectations.PLATFORM_EVENTS);
+		GITHUB.sourceApp = registration(AppExpectations.SOURCE_PERMISSIONS, AppExpectations.SOURCE_EVENTS);
 		GITHUB.hookConfig = AD10_HOOK;
+		GITHUB.sourceHookConfig = AD10_HOOK;
 	}
 
 	@Test
@@ -134,8 +160,8 @@ class GitHubWebhookIT extends IntegrationTest {
 				{"ref":"refs/heads/main","installation":{"id":7},"repository":{"id":1001,"name":"quan-may"},
 				"sender":{"id":42,"login":"lan-dev"}}""".getBytes(StandardCharsets.UTF_8);
 
-		this.mvc.perform(webhook("123456", delivery, "push", push, PLATFORM_SECRET)).andExpect(status().isAccepted());
-		this.mvc.perform(webhook("123456", delivery, "push", push, PLATFORM_SECRET)).andExpect(status().isOk());
+		this.mvc.perform(webhook(PLATFORM_ID, delivery, "push", push, PLATFORM_SECRET)).andExpect(status().isAccepted());
+		this.mvc.perform(webhook(PLATFORM_ID, delivery, "push", push, PLATFORM_SECRET)).andExpect(status().isOk());
 
 		assertThat(this.events.stream(GitHubWebhookReceived.class)).singleElement().satisfies(received -> {
 			assertThat(received.deliveryId()).isEqualTo(delivery);
@@ -149,23 +175,57 @@ class GitHubWebhookIT extends IntegrationTest {
 		assertThat(kept()).containsExactly(delivery + " PLATFORM push");
 	}
 
+	/** Story 24.5a: the Source App's deliveries are verified with its own secret, kept and published like the Platform App's. */
+	@Test
+	void aSourceAppDeliverySignedWithItsOwnSecretIsKeptOnceAndPublished() throws Exception {
+		String delivery = UUID.randomUUID().toString();
+		byte[] run = workflowRun("requested", 9001, "vibefix copy " + UUID.randomUUID(), CUSTOMER_INSTALLATION);
+
+		this.mvc.perform(webhook(SOURCE_ID, delivery, "workflow_run", run, SOURCE_SECRET)).andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, delivery, "workflow_run", run, SOURCE_SECRET)).andExpect(status().isOk());
+
+		assertThat(this.events.stream(GitHubWebhookReceived.class)).singleElement().satisfies(received -> {
+			assertThat(received.app()).isEqualTo(App.SOURCE);
+			assertThat(received.event()).isEqualTo("workflow_run");
+			assertThat(received.action()).isEqualTo("requested");
+			assertThat(received.installationId()).isEqualTo(CUSTOMER_INSTALLATION);
+		});
+		assertThat(kept()).containsExactly(delivery + " SOURCE workflow_run");
+	}
+
 	@Test
 	void aDeliveryNotSignedByItsOwnAppIsRefusedUnread() throws Exception {
 		byte[] body = "{\"zen\":\"Keep it logically awesome.\"}".getBytes(StandardCharsets.UTF_8);
 
-		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", body, null))
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "ping", body, null))
 			.andExpect(status().isUnauthorized());
-		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", body, OTHER_SECRET))
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "ping", body, OTHER_SECRET))
 			.andExpect(status().isUnauthorized());
 		this.mvc.perform(webhook("999999", UUID.randomUUID().toString(), "ping", body, PLATFORM_SECRET))
 			.andExpect(status().isUnauthorized());
 		this.mvc.perform(webhook(null, UUID.randomUUID().toString(), "ping", body, PLATFORM_SECRET))
 			.andExpect(status().isUnauthorized());
 		byte[] other = "{\"zen\":\"Something else.\"}".getBytes(StandardCharsets.UTF_8);
-		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", other, PLATFORM_SECRET)
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "ping", other, PLATFORM_SECRET)
 			.content(body)).andExpect(status().isUnauthorized());
 
 		assertThat(this.events.stream(GitHubWebhookReceived.class)).isEmpty();
+		assertThat(kept()).isEmpty();
+	}
+
+	/** Story 24.5a: each App's deliveries check out under its own secret only, so the other App's is refused. */
+	@Test
+	void aDeliverySignedWithTheOtherAppsSecretIsRefusedUnread() throws Exception {
+		UUID correlation = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9101L, Status.EXCHANGED);
+		byte[] run = workflowRun("completed", 9101, "vibefix copy " + correlation, CUSTOMER_INSTALLATION);
+
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "workflow_run", run, PLATFORM_SECRET))
+			.andExpect(status().isUnauthorized());
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "workflow_run", run, SOURCE_SECRET))
+			.andExpect(status().isUnauthorized());
+
+		assertThat(this.events.stream(GitHubWebhookReceived.class)).isEmpty();
+		assertThat(this.events.stream(ActionsRunUpdated.class)).isEmpty();
 		assertThat(kept()).isEmpty();
 	}
 
@@ -174,14 +234,82 @@ class GitHubWebhookIT extends IntegrationTest {
 		byte[] body = "{\"zen\":\"Half measures are as bad as nothing at all.\"}".getBytes(StandardCharsets.UTF_8);
 		byte[] notJson = "zen=half".getBytes(StandardCharsets.UTF_8);
 
-		this.mvc.perform(webhook("123456", null, "ping", body, PLATFORM_SECRET)).andExpect(status().isBadRequest());
-		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), null, body, PLATFORM_SECRET))
+		this.mvc.perform(webhook(PLATFORM_ID, null, "ping", body, PLATFORM_SECRET)).andExpect(status().isBadRequest());
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), null, body, PLATFORM_SECRET))
 			.andExpect(status().isBadRequest());
-		this.mvc.perform(webhook("123456", "x".repeat(101), "ping", body, PLATFORM_SECRET)).andExpect(status().isBadRequest());
-		this.mvc.perform(webhook("123456", UUID.randomUUID().toString(), "ping", notJson, PLATFORM_SECRET))
+		this.mvc.perform(webhook(PLATFORM_ID, "x".repeat(101), "ping", body, PLATFORM_SECRET)).andExpect(status().isBadRequest());
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "ping", notJson, PLATFORM_SECRET))
 			.andExpect(status().isBadRequest());
 
 		assertThat(kept()).isEmpty();
+	}
+
+	/**
+	 * Story 24.5a: a completed run of an open or exchanged correlation, from the App that dispatched it on its
+	 * installation, names that correlation, by the run it recorded or, while none is recorded, by the correlation in
+	 * its title. The same delivery again publishes nothing more.
+	 */
+	@Test
+	void aCompletedRunOfAnOpenOrExchangedCorrelationPublishesThatItWasUpdated() throws Exception {
+		UUID copy = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9201L, Status.EXCHANGED);
+		UUID merge = correlation(App.SOURCE, CUSTOMER_INSTALLATION, null, Status.OPEN);
+		UUID handover = correlation(App.PLATFORM, null, 9203L, Status.EXCHANGED);
+		String delivery = UUID.randomUUID().toString();
+		// A title that names no correlation: the run the correlation recorded names it all the same.
+		byte[] copyRun = workflowRun("completed", 9201, "Customer's own title", CUSTOMER_INSTALLATION);
+
+		this.mvc.perform(webhook(SOURCE_ID, delivery, "workflow_run", copyRun, SOURCE_SECRET)).andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, delivery, "workflow_run", copyRun, SOURCE_SECRET)).andExpect(status().isOk());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "workflow_run",
+				workflowRun("completed", 9202, "vibefix final-merge " + merge, CUSTOMER_INSTALLATION), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "workflow_run",
+				workflowRun("completed", 9203, "s6-copy " + handover, GitHubStub.INSTALLATION), PLATFORM_SECRET))
+			.andExpect(status().isAccepted());
+
+		assertThat(this.events.stream(ActionsRunUpdated.class).map(ActionsRunUpdated::correlationId))
+			.containsExactly(copy, merge, handover);
+		assertThat(this.events.stream(GitHubWebhookReceived.class)).as("each delivery once").hasSize(3);
+	}
+
+	/**
+	 * Story 24.5a: anything but a completed run of an open or exchanged correlation of the App that sent it, on its
+	 * installation and for its run, is answered 2xx and names no correlation.
+	 */
+	@Test
+	void aRunThatIsNotOursOrNotCompletedNamesNoCorrelation() throws Exception {
+		UUID copy = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9301L, Status.EXCHANGED);
+		UUID handover = correlation(App.PLATFORM, null, 9302L, Status.EXCHANGED);
+		UUID revoked = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9303L, Status.REVOKED);
+		UUID refused = correlation(App.SOURCE, CUSTOMER_INSTALLATION, null, Status.REFUSED);
+		String copied = "vibefix copy " + copy;
+		List<Delivery> notOurs = List.of(
+				// Not completed yet.
+				source(workflowRun("requested", 9301, copied, CUSTOMER_INSTALLATION)),
+				source(workflowRun("in_progress", 9301, copied, CUSTOMER_INSTALLATION)),
+				// Another installation of the Source App.
+				source(workflowRun("completed", 9301, copied, 4402)),
+				// The other App: the Platform App did not dispatch the copy, nor the Source App the handover copy.
+				new Delivery(PLATFORM_ID, PLATFORM_SECRET, workflowRun("completed", 9301, copied, GitHubStub.INSTALLATION)),
+				source(workflowRun("completed", 9302, "s6-copy " + handover, CUSTOMER_INSTALLATION)),
+				// Another run whose title names a correlation that recorded its own run.
+				source(workflowRun("completed", 9399, copied, CUSTOMER_INSTALLATION)),
+				// No correlation at all, and correlations no longer open or exchanged.
+				source(workflowRun("completed", 9398, "vibefix copy " + UUID.randomUUID(), CUSTOMER_INSTALLATION)),
+				source(workflowRun("completed", 9303, "vibefix copy " + revoked, CUSTOMER_INSTALLATION)),
+				source(workflowRun("completed", 9304, "vibefix copy " + refused, CUSTOMER_INSTALLATION)));
+
+		for (Delivery delivery : notOurs) {
+			this.mvc.perform(webhook(delivery.app(), UUID.randomUUID().toString(), "workflow_run", delivery.body(),
+					delivery.secret())).andExpect(status().isAccepted());
+		}
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "check_run",
+				workflowRun("completed", 9301, copied, CUSTOMER_INSTALLATION), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+
+		assertThat(this.events.stream(ActionsRunUpdated.class)).isEmpty();
+		assertThat(this.events.stream(GitHubWebhookReceived.class)).as("each still kept and published")
+			.hasSize(notOurs.size() + 1);
 	}
 
 	@Test
@@ -204,6 +332,26 @@ class GitHubWebhookIT extends IntegrationTest {
 		assertThat(GITHUB.seen).filteredOn(request -> request.path().equals("/app/hook/deliveries"))
 			.hasSize(2)
 			.allSatisfy(request -> assertThat(request.authorization()).startsWith("Bearer ey"));
+	}
+
+	/** Story 24.5a: the Source App's failed deliveries are redelivered too, read and asked for with its own JWT. */
+	@Test
+	void theSourceAppsFailedDeliveriesAreRedeliveredWithItsOwnJwt() {
+		Instant now = Instant.parse("2026-11-21T03:00:00Z");
+		this.clock.setInstant(now);
+		GITHUB.sourceDeliveries.add(GitHubStub.delivery(611, "source-failed", at(now, Duration.ofHours(1)), "timed out"));
+		GITHUB.sourceDeliveries.add(GitHubStub.delivery(610, "source-ok", at(now, Duration.ofHours(2)), "OK"));
+		GITHUB.sourceDeliveries.add(GitHubStub.delivery(609, "source-old", at(now, Duration.ofDays(4)), "timed out"));
+		GITHUB.deliveries.add(GitHubStub.delivery(511, "platform-failed", at(now, Duration.ofHours(1)), "timed out"));
+
+		this.redeliveries.daily();
+
+		assertThat(GITHUB.sourceRedelivered).as("the Source App's, with its JWT").containsExactly(611L);
+		assertThat(GITHUB.redelivered).as("the Platform App's, with its own").containsExactly(511L);
+		assertThat(GITHUB.seen).filteredOn(request -> request.path().startsWith("/app/hook/deliveries"))
+			.as("each App's deliveries read and asked for with its own JWT")
+			.anyMatch(request -> Long.valueOf(GitHubStub.SOURCE_APP).equals(GitHubStub.issuerOf(request.authorization())))
+			.anyMatch(request -> Long.valueOf(123456).equals(GitHubStub.issuerOf(request.authorization())));
 	}
 
 	@Test
@@ -266,25 +414,28 @@ class GitHubWebhookIT extends IntegrationTest {
 		awaitListeners();
 	}
 
-	/** Story 23.5: the Source App has no webhook, so only its registration is compared and nothing is redelivered. */
+	/**
+	 * Story 24.5a: the Source App is compared as the Platform App is, its registration and its own webhook, each read
+	 * with its JWT; one that sends no workflow_run, or has no active webhook, is a difference.
+	 */
 	@Test
-	void theSourceAppIsComparedWithoutAWebhookAndNothingIsRedeliveredForIt() {
+	void theSourceAppIsComparedWithItsWebhookAsThePlatformAppIs() {
 		assertThat(this.check.check(App.SOURCE)).isEmpty();
 
-		assertThat(GITHUB.seen).filteredOn(request -> request.path().equals("/app"))
-			.as("its registration, read with its own JWT")
-			.isNotEmpty()
+		assertThat(GITHUB.seen).filteredOn(request -> request.path().equals("/app") || request.path().equals("/app/hook/config"))
+			.as("its registration and its webhook, read with its own JWT")
+			.hasSize(2)
 			.allSatisfy(request -> assertThat(GitHubStub.issuerOf(request.authorization())).isEqualTo(GitHubStub.SOURCE_APP));
-		assertThat(GITHUB.seen).noneMatch(request -> request.path().startsWith("/app/hook/config"));
 		assertThat(this.events.stream(GitHubConfigurationDrift.class)).isEmpty();
 
-		GITHUB.seen.clear();
-		this.redeliveries.daily();
+		GITHUB.sourceApp = registration(AppExpectations.SOURCE_PERMISSIONS, Set.of());
+		GITHUB.sourceHookConfig = null;
 
-		assertThat(GITHUB.seen).filteredOn(request -> request.path().startsWith("/app/hook/deliveries"))
-			.as("the Platform App's deliveries only")
-			.isNotEmpty()
-			.noneMatch(request -> Long.valueOf(GitHubStub.SOURCE_APP).equals(GitHubStub.issuerOf(request.authorization())));
+		assertThat(this.check.check(App.SOURCE)).containsExactly("events: [] instead of [workflow_run]",
+				"GET /app/hook/config: HTTP 404 (no active webhook)");
+		assertThat(this.events.stream(GitHubConfigurationDrift.class)).singleElement()
+			.satisfies(drift -> assertThat(drift.app()).isEqualTo(App.SOURCE));
+		awaitListeners();
 	}
 
 	private void awaitListeners() {
@@ -292,6 +443,50 @@ class GitHubWebhookIT extends IntegrationTest {
 			.until(() -> this.jdbc.sql("SELECT count(*) FROM platform.event_publication WHERE completion_date IS NULL")
 				.query(Long.class)
 				.single() == 0);
+	}
+
+	/** One delivery: the App it names, the secret it is signed with, and its body. */
+	private record Delivery(String app, byte[] secret, byte[] body) {
+	}
+
+	private static Delivery source(byte[] body) {
+		return new Delivery(SOURCE_ID, SOURCE_SECRET, body);
+	}
+
+	/**
+	 * A correlation of a run {@code app} dispatched, in {@code status}, with its run recorded or none: what
+	 * {@link vn.vibefix.github.ActionsRuns#dispatch} leaves, and the exchange after it.
+	 */
+	private UUID correlation(App app, @Nullable Long installation, @Nullable Long runId, Status status) {
+		UUID id = UUID.randomUUID();
+		Instant now = this.clock.instant();
+		Operation operation = app == App.SOURCE ? Operation.FINAL_MERGE : Operation.HANDOVER_COPY;
+		this.correlations.insert(new ExchangeCorrelations.Row(id, operation, "lan-dev/quan-may", 1001, "main",
+				".github/workflows/vibefix.yml", app.name(), installation, Set.of(2002L), operation.permissions(), null,
+				Status.OPEN, null, null, null, null, null, now, now.plus(Duration.ofMinutes(20)), null, null));
+		if (runId != null) {
+			this.correlations.runFound(id, runId, null);
+		}
+		switch (status) {
+			case OPEN -> {
+			}
+			case EXCHANGED -> assertThat(this.correlations.exchanged(id, runId, now)).isTrue();
+			case REVOKED -> {
+				assertThat(this.correlations.exchanged(id, runId, now)).isTrue();
+				assertThat(this.correlations.revoked(id, now)).isTrue();
+			}
+			case REFUSED -> assertThat(this.correlations.refuse(id, ExchangeReason.RUN)).isTrue();
+			default -> throw new IllegalArgumentException(status.name());
+		}
+		return id;
+	}
+
+	/** A {@code workflow_run} delivery's body, as GitHub sends it for an App's installation. */
+	private static byte[] workflowRun(String action, long runId, String title, long installation) {
+		return GitHubHttp.JSON.writeValueAsBytes(Map.of("action", action, "workflow_run",
+				Map.of("id", runId, "display_title", title, "status", action), "installation", Map.of("id", installation),
+				"repository", Map.of("id", 1001, "full_name", "lan-dev/quan-may"), "sender",
+				Map.of("id", 42, "login", "lan-dev")));
 	}
 
 	private static MockHttpServletRequestBuilder webhook(String target, String delivery, String event, byte[] body,

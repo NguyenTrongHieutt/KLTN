@@ -123,6 +123,14 @@ class ExchangeCorrelations {
 			.optional();
 	}
 
+	/** The rows that recorded {@code runId} as their run, which a {@code workflow_run} delivery names (Story 24.5a). */
+	List<Row> byRun(long runId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM github.exchange_correlation WHERE run_id = :runId")
+			.param("runId", runId)
+			.query(ExchangeCorrelations::row)
+			.list();
+	}
+
 	/** The row, locked until the caller's transaction ends: one exchange per correlation. */
 	Optional<Row> lock(UUID id) {
 		return this.jdbc.sql("SELECT " + COLUMNS + " FROM github.exchange_correlation WHERE id = :id FOR UPDATE")

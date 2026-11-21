@@ -24,8 +24,8 @@ import vn.vibefix.github.GitHubApps.App;
  * with a webhook has its deliveries of the last 3 days read with its JWT ({@code GET /app/hook/deliveries},
  * page by page) and every delivery GUID with no {@code OK} attempt is redelivered once, from its latest
  * attempt ({@code POST /app/hook/deliveries/{id}/attempts}). The signature and the delivery ID still
- * decide on arrival. Since Story 23.9b the loop reads two Apps and only the Platform App has a webhook.
- * It also purges kept delivery IDs older than 30 days.
+ * decide on arrival. Since Story 24.5a both Apps have a webhook, so the loop reads the Platform App's and the
+ * Source App's deliveries, each with that App's own JWT. It also purges kept delivery IDs older than 30 days.
  */
 @Component
 class WebhookRedeliveries {
@@ -50,7 +50,7 @@ class WebhookRedeliveries {
 
 	void daily() {
 		for (App app : App.values()) {
-			// The Source App has no webhook (Story 23.5): it has no deliveries to redeliver.
+			// Each App with a webhook, read with its own JWT: both since Story 24.5a.
 			if (AppExpectations.webhook(app) && this.apps.isConfigured(app)) {
 				redeliver(app);
 			}

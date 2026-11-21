@@ -70,10 +70,14 @@ class FinalMergeIT extends IntegrationTest {
 
 	private static final AtomicLong IDS = new AtomicLong(770000);
 
+	/** The Source App's webhook secret (Story 24.5a), fake and built at run time. */
+	private static final byte[] SOURCE_SECRET;
+
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("final-merge-it-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
+			SOURCE_SECRET = ActionsExchangeSupport.webhookSecret(DIRECTORY.resolve("source-webhook-secret"));
 			// AD-46: the runner the organization read-back requires (Story 23.3).
 			GITHUB.runner("vibefix-runner");
 			// Story 23.4: the stub stands in for GitHub Actions' OIDC issuer, whose ID tokens a run exchanges.
@@ -109,6 +113,9 @@ class FinalMergeIT extends IntegrationTest {
 	@Autowired
 	private JobCompletion completion;
 
+	@Autowired
+	private vn.vibefix.timers.internal.DeadlinePoller deadlines;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -140,6 +147,9 @@ class FinalMergeIT extends IntegrationTest {
 		// Story 23.5: the Source checks, the dispatch and the branch read-back go through the Customer's Source App.
 		registry.add("vibefix.github.source-app.id", () -> "2222");
 		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		// Story 24.5a: the Source App's webhook, which tells the Final Merge that its run completed.
+		registry.add("vibefix.github.source-app.webhook-secret-file",
+				() -> DIRECTORY.resolve("source-webhook-secret").toString());
 		// Story 23.4: the run reaches the exchange through the dev stack's tunnel.
 		registry.add("vibefix.github.exchange.public-url", () -> "https://exchange.example.test");
 		registry.add("vibefix.github.exchange.issuer", () -> GITHUB.apiUrl().toString());
@@ -365,9 +375,8 @@ class FinalMergeIT extends IntegrationTest {
 		confirm(true).andExpect(status().isAccepted());
 		this.worker.runDue(Lane.GITHUB_LONG);
 		GITHUB.failBeforeAnyJob(runId());
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
 
-		this.worker.runDue(Lane.GITHUB_LONG);
+		runCompleted();
 
 		assertThat(mergeStatus()).isEqualTo("REFUSED");
 		assertThat(refusal()).isEqualTo("ACTIONS_QUOTA");
@@ -390,7 +399,8 @@ class FinalMergeIT extends IntegrationTest {
 		// A run someone else started: its ID token is refused, so no token ever reaches it (Story 23.4).
 		GITHUB.runs.get(runId()).put("triggering_actor", Map.of("login", "mallory", "type", "User"));
 		exchange().andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("RUN"));
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
+		// Story 24.5a: the refusal itself wakes the Final Merge.
+		awaitListeners();
 
 		this.worker.runDue(Lane.GITHUB_LONG);
 
@@ -406,7 +416,8 @@ class FinalMergeIT extends IntegrationTest {
 
 	/**
 	 * AD-46: a run still out after {@link ActionsRuns#RUN_TIMEOUT} is given up -- its correlation closed, so it can
-	 * never exchange, and its run cancelled -- and another is dispatched under a new correlation.
+	 * never exchange, and its run cancelled -- and another is dispatched under a new correlation. Story 24.5a: nothing
+	 * reads it before; its {@code repo.actions_run_timeout} Deadline wakes the Final Merge, which reads it once.
 	 */
 	@Test
 	void aRunThatDoesNotCompleteWithinItsTimeoutIsClosedCancelledAndDispatchedAgain() throws Exception {
@@ -416,13 +427,18 @@ class FinalMergeIT extends IntegrationTest {
 		UUID first = correlation();
 		long firstRun = runId();
 		GITHUB.startRun(firstRun);
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
-		this.worker.runDue(Lane.GITHUB_LONG);
-		assertThat(runStatus()).isEqualTo("IN_PROGRESS");
+		assertThat(nextAttempt()).as("no interval re-read: it waits for its backstop")
+			.isEqualTo(dispatchedAt().plus(ActionsRuns.CORRELATION_LIFETIME));
+		this.mvc.perform(delivery()).andExpect(status().isAccepted());
+		awaitListeners();
+		assertThat(this.worker.runDue(Lane.GITHUB_LONG)).as("a run in progress wakes nothing").isZero();
 
 		this.clock.advance(ActionsRuns.RUN_TIMEOUT);
+		this.deadlines.runDue();
+		assertThat(timeout(first)).isEqualTo("FIRED");
 		this.worker.runDue(Lane.GITHUB_LONG);
 
+		assertThat(runStatus()).as("read once, still in progress").isEqualTo("IN_PROGRESS");
 		assertThat(runConclusion()).isEqualTo(FinalMergeOperation.TIMED_OUT);
 		assertThat(this.jdbc.sql("""
 				SELECT status || ':' || error_code FROM operations.external_operation WHERE type = 'repo.final_merge'
@@ -451,9 +467,8 @@ class FinalMergeIT extends IntegrationTest {
 		UUID first = correlation();
 		// The run concluded success and pushed nothing: the branch is not there.
 		GITHUB.completeRun(runId(), "success");
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
 
-		this.worker.runDue(Lane.GITHUB_LONG);
+		runCompleted();
 
 		assertThat(runConclusion()).isEqualTo(FinalMergeOperation.NOT_READ_BACK);
 		assertThat(mergeStatus()).as("not done: nothing was read back").isEqualTo("RUNNING");
@@ -486,6 +501,10 @@ class FinalMergeIT extends IntegrationTest {
 		// GitHub stops answering the Source read, so every later attempt fails before it looks at the run.
 		GITHUB.unavailable.add("GET /repos/" + this.owner + "/" + this.name);
 		try {
+			// Story 24.5a: nothing reads the queued run on an interval; its Deadline wakes the Final Merge.
+			this.clock.advance(ActionsRuns.RUN_TIMEOUT);
+			this.deadlines.runDue();
+			assertThat(timeout(correlation)).isEqualTo("FIRED");
 			for (int attempt = 1; attempt <= FinalMergeOperation.POLICY.maxAttempts(); attempt++) {
 				this.clock.advance(FinalMergeOperation.POLICY.delayAfter(attempt).plusSeconds(1));
 				this.worker.runDue(Lane.GITHUB_LONG);
@@ -519,8 +538,7 @@ class FinalMergeIT extends IntegrationTest {
 		this.worker.runDue(Lane.GITHUB_LONG);
 		UUID first = correlation();
 		GITHUB.completeRun(runId(), "failure");
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
-		this.worker.runDue(Lane.GITHUB_LONG);
+		runCompleted();
 
 		assertThat(mergeStatus()).as("still running: the lane tries again").isEqualTo("RUNNING");
 		this.clock.advance(FinalMergeOperation.POLICY.delayAfter(1).plusSeconds(1));
@@ -611,7 +629,8 @@ class FinalMergeIT extends IntegrationTest {
 
 		assertThat(jobState()).isEqualTo("CLOSED");
 		assertThat(released()).as("the Final Merge's marker went with the receipt").isTrue();
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
+		// Story 24.5a: nothing reads the run meanwhile; at its backstop at the latest the attempt finds the marker gone.
+		this.clock.advance(ActionsRuns.CORRELATION_LIFETIME);
 		this.worker.runDue(Lane.GITHUB_LONG);
 		assertThat(this.jdbc.sql("""
 				SELECT status || ':' || error_code FROM operations.external_operation WHERE type = 'repo.final_merge'
@@ -625,8 +644,7 @@ class FinalMergeIT extends IntegrationTest {
 		confirm(true).andExpect(status().isAccepted());
 		this.worker.runDue(Lane.GITHUB_LONG);
 		GITHUB.failBeforeAnyJob(runId());
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
-		this.worker.runDue(Lane.GITHUB_LONG);
+		runCompleted();
 		awaitListeners();
 		assertThat(refusal()).isEqualTo("ACTIONS_QUOTA");
 
@@ -792,8 +810,45 @@ class FinalMergeIT extends IntegrationTest {
 		GITHUB.pushCommit(GitHubStub.ORGANIZATION, this.intermediary, this.handed, this.owner, this.name,
 				"vibefix/final-" + this.job);
 		GITHUB.completeRun(runId(), "success");
-		this.clock.advance(FinalMergeOperation.RUN_POLL.plusSeconds(1));
+		runCompleted();
+	}
+
+	/**
+	 * Story 24.5a: the Source App delivers the run's {@code workflow_run} as the stub shows it now, signed with its
+	 * secret, for the installation the correlation records, at {@code POST /webhooks}.
+	 */
+	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder delivery() {
+		long installation = this.jdbc.sql("SELECT source_installation_id FROM github.exchange_correlation WHERE id = :id")
+			.param("id", correlation())
+			.query(Long.class)
+			.single();
+		return ActionsExchangeSupport.workflowRun(GITHUB, runId(), GitHubStub.SOURCE_APP, installation, SOURCE_SECRET);
+	}
+
+	/** The run's completion delivered, which wakes the Final Merge, and its next attempt. */
+	private void runCompleted() throws Exception {
+		this.mvc.perform(delivery()).andExpect(status().isAccepted());
+		awaitListeners();
 		this.worker.runDue(Lane.GITHUB_LONG);
+	}
+
+	private java.time.Instant dispatchedAt() {
+		return this.jdbc.sql("SELECT dispatched_at FROM repo.final_merge WHERE job_id = :job").param("job", this.job)
+			.query(Timestamp.class).single().toInstant();
+	}
+
+	private java.time.Instant nextAttempt() {
+		return this.jdbc.sql("SELECT next_attempt_at FROM operations.external_operation WHERE type = 'repo.final_merge'")
+			.query(Timestamp.class).single().toInstant();
+	}
+
+	/** The status of the {@value ActionsRunWakes#KEY} Deadline of {@code correlation}, its only one. */
+	private String timeout(UUID correlation) {
+		return this.jdbc.sql("SELECT status FROM timers.deadline WHERE kind = :kind AND subject_id = :id")
+			.param("kind", ActionsRunWakes.KEY)
+			.param("id", correlation)
+			.query(String.class)
+			.single();
 	}
 
 	/** Every listener of what the worker published has run, so anything one would start is already started. */

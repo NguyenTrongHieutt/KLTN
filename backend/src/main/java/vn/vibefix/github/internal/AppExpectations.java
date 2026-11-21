@@ -32,17 +32,24 @@ final class AppExpectations {
 	/**
 	 * AD-10's Platform App events, as {@code GET /app} lists them. {@code push} and {@code repository_ruleset}
 	 * were dropped on 2026-11-12: heads are compared only at acceptance, and private repositories on GitHub
-	 * Free take no ruleset (AD-12, R9).
+	 * Free take no ruleset (AD-12, R9). {@code workflow_run} joined in Story 24.5a: the runner's handover copy
+	 * resolves on its completion instead of being read on an interval.
 	 */
 	static final Set<String> PLATFORM_EVENTS = Set.of("pull_request", "repository", "member", "membership",
-			"organization");
+			"organization", "workflow_run");
 
 	/**
 	 * AD-10's Source App (Story 23.5): it reads the Source Repository's code and metadata and dispatches
-	 * {@code vibefix.yml}, and it subscribes to no event and has no webhook.
+	 * {@code vibefix.yml}. Its permissions stay as they are.
 	 */
 	static final Map<String, String> SOURCE_PERMISSIONS = Map.of("contents", "read", "metadata", "read", "actions",
 			"write");
+
+	/**
+	 * AD-10's Source App events since Story 24.5a: {@code workflow_run} alone, so the J7 copy and the Final Merge resolve
+	 * on their run's completion. Story 24.6 adds the events of Source drift.
+	 */
+	static final Set<String> SOURCE_EVENTS = Set.of("workflow_run");
 
 	/** Global events {@code GET /app} may list or leave out. */
 	static final Set<String> GLOBAL_EVENTS = Set.of("meta", "installation_target", "security_advisory");
@@ -58,21 +65,22 @@ final class AppExpectations {
 		};
 	}
 
+	/** AD-10's events. */
 	static Set<String> events(App app) {
 		return switch (app) {
 			case PLATFORM -> PLATFORM_EVENTS;
-			case SOURCE -> Set.of();
+			case SOURCE -> SOURCE_EVENTS;
 		};
 	}
 
 	/**
-	 * Whether AD-10 gives the App a webhook: the Platform App's reaches {@code POST /webhooks}, and it is the only
-	 * one (Story 23.9b); the Source App has none, so the daily check and the redelivery leave its webhook alone.
+	 * Whether AD-10 gives the App a webhook: both Apps' reach {@code POST /webhooks} since Story 24.5a, each signed with
+	 * its own secret, so the daily check compares each one's hook and the redelivery reads each one's deliveries.
 	 */
 	static boolean webhook(App app) {
 		return switch (app) {
 			case PLATFORM -> true;
-			case SOURCE -> false;
+			case SOURCE -> true;
 		};
 	}
 

@@ -38,6 +38,13 @@ public interface ActionsRuns {
 	/** AD-46: a run's own timeout; its token is revoked this long after issue at the latest. */
 	Duration RUN_TIMEOUT = Duration.ofMinutes(15);
 
+	/**
+	 * How long a correlation stays open, its end of life: the find window, the run's timeout, and the queue before it.
+	 * After it nothing about the run can be exchanged, so an operation that waits for its run waits no longer than
+	 * this past the dispatch, its backstop (Story 24.5a).
+	 */
+	Duration CORRELATION_LIFETIME = FIND_WINDOW.plus(RUN_TIMEOUT).plusMinutes(3);
+
 	/** What a run does with its token, and exactly the permissions that token gets (AD-44). */
 	enum Operation {
 

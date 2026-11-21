@@ -53,6 +53,42 @@ public final class ActionsExchangeSupport {
 	}
 
 	/**
+	 * A webhook secret, fake and built at run time, written to {@code file} for {@code vibefix.github.*.webhook-secret-file}
+	 * (Story 24.5a).
+	 */
+	public static byte[] webhookSecret(java.nio.file.Path file) {
+		byte[] secret = ("webhook-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+		try {
+			java.nio.file.Files.write(file, secret);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
+		return secret;
+	}
+
+	/**
+	 * GitHub's delivery of the stubbed run's {@code workflow_run} as it stands, {@code completed} once the stub completed
+	 * it, from the App {@code appId} for {@code installation}, signed with that App's {@code secret}, at
+	 * {@code POST /webhooks} with a delivery ID of its own (Story 24.5a).
+	 */
+	public static MockHttpServletRequestBuilder workflowRun(GitHubStub github, long runId, long appId, long installation,
+			byte[] secret) {
+		return webhook(appId, "workflow_run", github.workflowRun(runId, installation), secret);
+	}
+
+	/** A delivery of {@code event} from the App {@code appId}, signed with {@code secret}, with no session or CSRF token. */
+	public static MockHttpServletRequestBuilder webhook(long appId, String event, byte[] body, byte[] secret) {
+		return post(WebhookController.PATH).contentType(MediaType.APPLICATION_JSON)
+			.content(body)
+			.header("X-GitHub-Hook-Installation-Target-ID", String.valueOf(appId))
+			.header("X-GitHub-Hook-Installation-Target-Type", "integration")
+			.header("X-GitHub-Delivery", UUID.randomUUID().toString())
+			.header("X-GitHub-Event", event)
+			.header("X-Hub-Signature-256", WebhookSignaturesTest.header(secret, body));
+	}
+
+	/**
 	 * The ID token GitHub Actions signs for the stubbed run {@code runId}: its repository, numeric ID, branch, head,
 	 * event and runner as the stub shows the run, valid around {@code now}.
 	 */

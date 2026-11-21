@@ -26,20 +26,27 @@ import vn.vibefix.shared.Gate;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * {@code POST /webhooks} (AD-12, SG-18): the Platform App's webhooks, the only ones left (Story 23.9b).
- * Anyone may call it, since the signature proves who sent it: a delivery is accepted only with a valid
- * {@code X-Hub-Signature-256} for the App {@code X-GitHub-Hook-Installation-Target-ID} names, and
- * otherwise answers 401 without reading it. A delivery seen before answers 200 and publishes nothing; a
- * new one is kept and published as {@link GitHubWebhookReceived} in one transaction and answers 202 at
- * once, while the listeners run after commit. The body is never logged: it may name people.
+ * {@code POST /webhooks} (AD-12, SG-18): the webhooks of both Apps, the Platform App's and, since Story 24.5a, the
+ * Source App's. Anyone may call it, since the signature proves who sent it: a delivery is accepted only with a valid
+ * {@code X-Hub-Signature-256} under the secret of the App {@code X-GitHub-Hook-Installation-Target-ID} names, so one
+ * signed with the other App's secret is refused too, and otherwise answers 401 without reading it. A delivery seen
+ * before answers 200 and publishes nothing; a new one is kept and published as {@link GitHubWebhookReceived} in one
+ * transaction and answers 202 at once, while the listeners run after commit. In that transaction a completed
+ * {@code workflow_run} of a correlation of that App also publishes {@link vn.vibefix.github.ActionsRunUpdated}
+ * ({@link ActionsRunUpdates}). The body is never logged: it may name people.
  */
 @RestController
 @Access(Gate.PUBLIC)
 class WebhookController {
 
+	/** Where GitHub delivers both Apps' webhooks, which the dev port serves too ({@link ExchangeDevPort}). */
+	static final String PATH = "/webhooks";
+
 	private static final Logger log = LoggerFactory.getLogger(WebhookController.class);
 
 	private final WebhookSignatures signatures;
+
+	private final ActionsRunUpdates runUpdates;
 
 	private final JdbcClient jdbc;
 
@@ -51,9 +58,10 @@ class WebhookController {
 
 	private final Clock clock;
 
-	WebhookController(WebhookSignatures signatures, JdbcClient jdbc, PlatformTransactionManager transactionManager,
-			ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
+	WebhookController(WebhookSignatures signatures, ActionsRunUpdates runUpdates, JdbcClient jdbc,
+			PlatformTransactionManager transactionManager, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.signatures = signatures;
+		this.runUpdates = runUpdates;
 		this.jdbc = jdbc;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.events = events;
@@ -61,7 +69,7 @@ class WebhookController {
 		this.clock = clock;
 	}
 
-	@PostMapping("/webhooks")
+	@PostMapping(PATH)
 	ResponseEntity<Void> webhook(@RequestHeader(value = "X-GitHub-Hook-Installation-Target-ID", required = false) @Nullable String target,
 			@RequestHeader(value = "X-Hub-Signature-256", required = false) @Nullable String signature,
 			@RequestHeader(value = "X-GitHub-Delivery", required = false) @Nullable String deliveryId,
@@ -98,6 +106,7 @@ class WebhookController {
 				this.events.publishEvent(new GitHubWebhookReceived(this.ids.newId(), deliveryId, app, event,
 						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(json),
 						number(json.path("sender").path("id")), text(json.path("sender").path("login"))));
+				this.runUpdates.delivered(app, event, json);
 			}
 			return kept == 1;
 		});
@@ -105,10 +114,9 @@ class WebhookController {
 	}
 
 	/**
-	 * The repository the payload names, if any. Every event the Platform App subscribes to
-	 * ({@link AppExpectations#PLATFORM_EVENTS}) names one repository at most, in {@code repository}; the
-	 * {@code installation} and {@code installation_repositories} deliveries that carried a list were the retired
-	 * Merge App's (Story 23.9b).
+	 * The repository the payload names, if any. Every event either App subscribes to ({@link AppExpectations#events})
+	 * names one repository at most, in {@code repository}; the {@code installation} and
+	 * {@code installation_repositories} deliveries that carried a list were the retired Merge App's (Story 23.9b).
 	 */
 	static List<Long> repositoryIds(JsonNode json) {
 		Long id = number(json.path("repository").path("id"));

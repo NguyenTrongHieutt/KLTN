@@ -203,10 +203,13 @@ author action): `docker compose -f deploy/compose.yaml -f deploy/compose.integra
    http://localhost:8080/webhooks/vnpay/ipn?vnp_Amount=…   (everything after the "?" of the return address)
    ```
 
-3. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost either. Accepted
+3. **Wait for the sweeps instead of webhooks.** No GitHub webhook reaches localhost unless "Webhooks in dev"
+   below is set up. Accepted
    invitations and organization drift are read back every 10 minutes (`vibefix.repo.grant-sweep`,
    `vibefix.repo.platform-sweep`). Pushes to the Working Repository need no webhook: vibefix reads the
-   Working head live when the Mentor hands over, and compares heads only at acceptance (Story 23.2).
+   Working head live when the Mentor hands over, and compares heads only at acceptance (Story 23.2). Without the
+   webhooks, every GitHub Actions run (the J7 copy, a handover copy, the Final Merge) resolves only at its 15-minute
+   Deadline (Story 24.5a).
 4. **Use four accounts, one browser profile each.** A browser holds one vibefix session, and one
    signed-in GitHub account, at a time:
    - three users, each with their own Google account (a test user of the dev Google client) and their
@@ -294,7 +297,8 @@ author can run it, on GitHub, as an owner of `vibefix-dev`.
    `vibefix-dev`), with AD-10's permissions and nothing more (as of 2026-11-12, Story 23.3):
    - repository: Actions, Administration, Contents, Pull requests, and Workflows **write**; Metadata **read**;
    - organization: Administration and Members **read**;
-   - events: `pull_request`, `repository`, `member`, `membership`, `organization`, `meta`. S4 ran with
+   - events: `pull_request`, `repository`, `member`, `membership`, `organization`, `meta`, and since Story 24.5a
+     `workflow_run` ("Webhooks in dev" below). S4 ran with
      `push` and `repository_ruleset` too; the private copies dropped both (AD-12), and the daily
      configuration check now reports either one as a difference.
 
@@ -426,7 +430,8 @@ the hour.
 
 GitHub's runners reach the dev stack through a cloudflared quick tunnel, which ends TLS at Cloudflare, so
 the short-lived tokens pass through it. The tunnel points at port 8098, where the backend serves the
-exchange and answers 404 to anything else, never at 8080.
+exchange, the run report and, since Story 24.5a, `POST /webhooks` ("Webhooks in dev" below), and answers 404 to
+anything else, never at 8080.
 
 1. **First, replace the runner's workflow.** Story 23.4 changed both published workflows (they post to
    `/github/actions/exchange`), so their blobs changed. On `vibefix-dev/vibefix-runner`, replace
@@ -486,9 +491,10 @@ repository, and revokes it after use.
 
 1. **Settings of the dev Source App** (the App Spike S6 left, "Spike S6" below, step 4). On its settings page:
    - Repository permissions **Contents: Read**, **Metadata: Read**, **Actions: Read and write**, and nothing
-     else; no organization or account permission; no event.
-   - **Webhook: off** (untick "Active"). The daily configuration check compares only the registration for
-     this App, and the redelivery job skips it.
+     else; no organization or account permission. Since Story 24.5a its one event is **Workflow run**.
+   - **Webhook: on**, with its own secret, at `<tunnel>/webhooks` (Story 24.5a): "Webhooks in dev" below gives the
+     steps. The daily configuration check compares its webhook as it compares the Platform App's, and the
+     redelivery job reads its failed deliveries with its own JWT.
    - **Setup URL** `http://localhost:5173/api/v1/github/source-app/setup`, with **"Redirect on update"**
      ticked, so GitHub sends the Customer back to CUS-3 after an install, a change of the selection, or an
      organization's request.
@@ -522,6 +528,59 @@ repository, and revokes it after use.
    from CUS-4's "Kiểm tra lại" card, then start the Setup again with "Thử lại".
 5. **Deleting a Product** ends its binding. vibefix never uninstalls the Customer's App: CUS-4 and CUS-2 tell
    them to deselect the repository on GitHub, or to uninstall the App when no other Product uses it.
+
+## Webhooks in dev (Story 24.5a)
+
+The J7 copy, the handover copy and the Final Merge no longer read their GitHub Actions run every few seconds. Each
+waits for the run's `workflow_run` `completed` delivery from the App that dispatched it: the Source App for the J7
+copy and the Final Merge, the Platform App for the runner's handover copy. The handover copy's path report and the
+exchange's refusal of a run wake the copy too. Each run also has one `repo.actions_run_timeout` Deadline, 15 minutes
+after its dispatch: the copy then reads the run once, so a completed run whose delivery never came still resolves,
+and an unfinished one takes the timeout path (closed, cancelled, `RUN_FAILED`).
+
+**Until these steps are done, every run resolves only at that Deadline, about 15 minutes after its dispatch**
+(except a handover copy whose report names a workflow change, which ends at once). The code came first, with the
+author's approval of 2026-11-21. Both Apps deliver to the same tunnel as the Actions exchange ("Actions exchange on
+the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and answers 404 to anything else there.
+
+1. **Create both secret files**, one random value each and no trailing newline, in Git Bash from the repository
+   root:
+   ```sh
+   for app in platform source; do
+     od -An -N32 -tx1 /dev/urandom | tr -d ' \n' > "deploy/secrets/github-$app-app-webhook-secret"
+   done
+   ```
+   `deploy/secrets/` is ignored by git; never commit them. Each App gets its own: a delivery signed with the other
+   App's secret is refused 401.
+2. **Start the tunnel** in its own window, and keep it running:
+   ```
+   cloudflared tunnel --no-autoupdate --url http://localhost:8098
+   ```
+   Put the `https://<words>.trycloudflare.com` it prints in `deploy/.env` as `VIBEFIX_GITHUB_EXCHANGE_PUBLIC_URL`
+   (no path), as for the exchange. The URL changes on every start: repeat steps 3 and 4 each time.
+3. **On each App** (Developer settings › GitHub Apps › the dev Platform App, then the dev Source App):
+   - General › Webhook: tick **Active**, set the **Webhook URL** to `<tunnel>/webhooks`, and paste the App's own
+     secret file's content as the **Webhook secret** (`cat deploy/secrets/github-platform-app-webhook-secret` for
+     the Platform App, `...-source-app-...` for the Source App). Leave SSL verification on.
+   - Permissions & events › Subscribe to events: tick **Workflow run**. The Platform App keeps its other events
+     (Pull request, Repository, Member, Membership, Organization); the Source App has Workflow run alone (Story 24.6
+     adds the rest). Save. Its installations need not accept anything: no permission changes.
+4. **Recreate the backend with the overlay** (PowerShell, in `D:\KLTN\vibefix`):
+   ```
+   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml -f deploy/compose.webhooks.yaml up -d --build --wait backend
+   ```
+   `compose.webhooks.yaml` passes both secret files; without it the stack starts as before and every delivery is
+   refused 401. `vibefix.github.webhook-url` stays unset on the dev stack, since the tunnel's URL changes.
+5. **Read the configuration check.** It runs daily at 04:10 Vietnam time and alerts every Administrator with
+   `github.app_configuration_drift` for a difference. To read it at once, run the `vibefix-dev` suite, which compares
+   both registrations with AD-10 (`VIBEFIX_DEV_*_APP_ID` and `..._KEY_FILE` set as in "Spike S4" and "The Source
+   App"):
+   ```
+   cd backend; ./mvnw -B test -Pvibefix-dev
+   ```
+   It fails until both Apps send Workflow run. Then dispatch a copy (a Job's Setup, or `runner-dispatch` above):
+   the backend logs `Run … of correlation … completed, as the … App delivered it` within seconds of the run's end,
+   and each App's settings page › Advanced lists the delivery with a 202.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 
@@ -793,7 +852,8 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
    on its installation on `vibefix-dev` (Settings › GitHub Apps › Configure). Part b compares the
    registration with AD-10's permissions plus `actions=write`, and fails with "installation has not
    accepted actions write" until the installation accepted it.
-4. **The Source App.** A public App ("Any account") with the webhook off:
+4. **The Source App.** A public App ("Any account"), with the webhook off for this spike (Story 24.5a turned it on
+   for the stack: "Webhooks in dev" below):
    - repository permissions: Contents **read**, Metadata **read**, and Actions **read and write**,
      nothing else;
    - no organization permission, no event.

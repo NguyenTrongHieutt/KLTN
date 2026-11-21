@@ -31,6 +31,9 @@ public class ScriptedOperationHandler implements OperationHandler {
 
 	private final List<String> threads = new ArrayList<>();
 
+	/** What the next runs do while they run, before they answer, such as a wake arriving meanwhile. */
+	private final Deque<Runnable> during = new ArrayDeque<>();
+
 	@Override
 	public String type() {
 		return TYPE;
@@ -45,8 +48,18 @@ public class ScriptedOperationHandler implements OperationHandler {
 	public synchronized Outcome run(OperationRun run) {
 		this.runs.add(run);
 		this.threads.add(Thread.currentThread().getName());
+		Runnable meanwhile = this.during.poll();
+		if (meanwhile != null) {
+			meanwhile.run();
+		}
 		Outcome next = this.outcomes.poll();
 		return next == null ? Outcome.succeeded() : next;
+	}
+
+	/** The next run does {@code meanwhile} while it runs, before it answers its scripted outcome. */
+	public synchronized ScriptedOperationHandler whileRunning(Runnable meanwhile) {
+		this.during.add(meanwhile);
+		return this;
 	}
 
 	@Override
@@ -80,6 +93,7 @@ public class ScriptedOperationHandler implements OperationHandler {
 	}
 
 	public synchronized void reset() {
+		this.during.clear();
 		this.outcomes.clear();
 		this.readBacks.clear();
 		this.runs.clear();

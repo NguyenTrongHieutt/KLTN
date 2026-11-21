@@ -39,13 +39,15 @@ import vn.vibefix.scanning.SensitiveChanges.SensitiveChange;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.timers.Deadlines;
 
 /**
  * The Final Merge (FR-37, AD-5, AD-11, AD-44, AD-46, R1, Story 23.9a), one per Job. Once the Job is Closing and its
  * row {@code REQUESTED}, {@value #CHECK} reads the preconditions, the Job's Sensitive Changes and the two
  * {@code .github/workflows/} trees; a clean one is {@code READY} for the Customer's confirmation (N-18). The
  * confirmation reserves the {@code FINAL_MERGE} busy marker and requests {@value #MERGE}, which dispatches the
- * published {@code vibefix.yml} on the Customer's own GitHub Actions ({@code RUNNING}), polls the run and reads
+ * published {@code vibefix.yml} on the Customer's own GitHub Actions ({@code RUNNING}), waits for the run (its
+ * completion or its timeout wakes it, Story 24.5a) and reads
  * {@code vibefix/final-{jobId}} back; its resolving transaction is {@code DONE}: the row is spent, the marker
  * released, J9 applied, and both sides get {@value #BRANCH_READY}. vibefix opens no pull request and writes nothing
  * in a Customer repository: the Customer merges the branch themselves on GitHub.
@@ -120,9 +122,13 @@ class FinalMerges {
 
 	private final Clock clock;
 
+	/** Story 24.5a: each run's {@value ActionsRunWakes#KEY}, scheduled with its dispatch. */
+	private final Deadlines deadlines;
+
 	FinalMerges(JdbcClient jdbc, FinalMergeAuthorizations authorizations, JobBusy busy, JobCompletion completion,
 			ExternalOperations operations, ActionsRuns runs, Todos todos, Notifications notifications, IdGenerator ids,
-			Clock clock) {
+			Clock clock, Deadlines deadlines) {
+		this.deadlines = deadlines;
 		this.jdbc = jdbc;
 		this.authorizations = authorizations;
 		this.busy = busy;
@@ -269,9 +275,14 @@ class FinalMerges {
 		return errorCode != null && REASONS.contains(errorCode) ? errorCode : "RUN_FAILED";
 	}
 
-	/** The run dispatched on the Customer's own Actions under {@code correlation} (AD-44, AD-46). */
+	/**
+	 * The run dispatched on the Customer's own Actions under {@code correlation} (AD-44, AD-46), with its one
+	 * {@value ActionsRunWakes#KEY} Deadline (Story 24.5a).
+	 * @return when it was recorded dispatched, or none when the Final Merge ended meanwhile
+	 */
 	@Transactional
-	boolean dispatched(FinalMerge merge, UUID correlation, String branch) {
+	@Nullable Instant dispatched(FinalMerge merge, UUID correlation, String branch) {
+		Instant now = this.clock.instant();
 		int updated = this.jdbc.sql("""
 				UPDATE repo.final_merge SET status = 'RUNNING', branch = :branch, correlation_id = :correlation,
 				    dispatched_at = :now, run_status = NULL, run_conclusion = NULL
@@ -279,13 +290,28 @@ class FinalMerges {
 				""")
 			.param("branch", branch)
 			.param("correlation", correlation)
-			.param("now", now())
+			.param("now", Timestamp.from(now))
 			.param("id", merge.authorizationId())
 			.update();
-		if (updated == 1) {
-			this.authorizations.audit("repo.final_merge_dispatched", merge.authorizationId(), merge.jobId());
+		if (updated == 0) {
+			return null;
 		}
-		return updated == 1;
+		this.authorizations.audit("repo.final_merge_dispatched", merge.authorizationId(), merge.jobId());
+		this.deadlines.schedule(ActionsRunWakes.timeout(MERGE, correlation, merge.jobId(), now));
+		return now;
+	}
+
+	/**
+	 * The operation key of the Final Merge that runs under {@code correlation} and has read no conclusion of its run
+	 * yet, so it waits for that run (Story 24.5a).
+	 */
+	@Transactional(readOnly = true)
+	Optional<String> waitingOn(UUID correlation) {
+		return this.jdbc.sql("""
+				SELECT operation_key FROM repo.final_merge
+				WHERE correlation_id = :correlation AND status = 'RUNNING' AND run_conclusion IS NULL
+				  AND operation_key IS NOT NULL
+				""").param("correlation", correlation).query(String.class).optional();
 	}
 
 	/** The run as last read: its status, and its conclusion once it completed or vibefix stopped waiting for it. */

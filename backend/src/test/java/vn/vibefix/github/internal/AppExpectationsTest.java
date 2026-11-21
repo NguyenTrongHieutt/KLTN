@@ -24,16 +24,16 @@ class AppExpectationsTest {
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(AppExpectations.PLATFORM_EVENTS))).isEmpty();
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(withMeta))).isEmpty();
 		assertThat(AppExpectations.differences(App.SOURCE,
-				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of())))
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run"))))
 			.isEmpty();
-		assertThat(AppExpectations.differences(App.SOURCE,
-				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("installation_target"))))
+		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source",
+				AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "installation_target"))))
 			.isEmpty();
 	}
 
 	/**
-	 * The two kinds of difference, on the App that has both permissions and events; the Source App's own pair is in
-	 * {@link #theSourceAppReadsContentsAndMetadataDispatchesActionsAndHasNoWebhook}.
+	 * The two kinds of difference, on the Platform App; the Source App's own pair is in
+	 * {@link #theSourceAppReadsContentsAndMetadataDispatchesActionsAndHearsOfItsRuns}.
 	 */
 	@Test
 	void aMissingEventOrAnExtraPermissionIsADifference() {
@@ -54,19 +54,34 @@ class AppExpectationsTest {
 			.contains("issues=write");
 	}
 
-	/** 2026-11-12 (AD-10, AD-12, R9): the Platform App no longer subscribes to push or repository_ruleset. */
+	/**
+	 * 2026-11-12 (AD-10, AD-12, R9): the Platform App no longer subscribes to push or repository_ruleset. Story 24.5a:
+	 * it hears of its runner's runs through workflow_run.
+	 */
 	@Test
 	void thePlatformAppSubscribesToNeitherPushNorRepositoryRulesets() {
 		assertThat(AppExpectations.PLATFORM_EVENTS).containsExactlyInAnyOrder("pull_request", "repository", "member",
-				"membership", "organization");
+				"membership", "organization", "workflow_run");
 		Set<String> withPush = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
 		withPush.add("push");
 		withPush.add("repository_ruleset");
 
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(withPush))).singleElement()
 			.asString()
-			.isEqualTo("events: [member, membership, organization, pull_request, push, repository, repository_ruleset]"
-					+ " instead of [member, membership, organization, pull_request, repository]");
+			.isEqualTo("events: [member, membership, organization, pull_request, push, repository, repository_ruleset,"
+					+ " workflow_run] instead of [member, membership, organization, pull_request, repository, workflow_run]");
+	}
+
+	/** Story 24.5a: a Platform App that does not send workflow_run differs from AD-10. */
+	@Test
+	void thePlatformAppWithoutWorkflowRunDiffers() {
+		Set<String> without = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
+		without.remove("workflow_run");
+
+		assertThat(AppExpectations.differences(App.PLATFORM, platform(without))).singleElement()
+			.asString()
+			.isEqualTo("events: [member, membership, organization, pull_request, repository] instead of"
+					+ " [member, membership, organization, pull_request, repository, workflow_run]");
 	}
 
 	/** The runner is required, so the Platform App always holds Actions write to dispatch it (AD-46). */
@@ -85,23 +100,31 @@ class AppExpectationsTest {
 			.endsWith("instead of " + new TreeMap<>(AppExpectations.PLATFORM_PERMISSIONS));
 	}
 
-	/** Story 23.5: the Source App reads the code and metadata, dispatches vibefix.yml, and has no event or webhook. */
+	/**
+	 * Story 23.5: the Source App reads the code and metadata and dispatches vibefix.yml. Story 24.5a: it has a webhook,
+	 * as the Platform App has, and sends workflow_run alone; its permissions stay as they were.
+	 */
 	@Test
-	void theSourceAppReadsContentsAndMetadataDispatchesActionsAndHasNoWebhook() {
+	void theSourceAppReadsContentsAndMetadataDispatchesActionsAndHearsOfItsRuns() {
 		Map<String, String> withWrite = new HashMap<>(AppExpectations.SOURCE_PERMISSIONS);
 		withWrite.put("contents", "write");
 
 		assertThat(AppExpectations.permissions(App.SOURCE)).isEqualTo(Map.of("contents", "read", "metadata", "read",
 				"actions", "write"));
-		assertThat(AppExpectations.webhook(App.SOURCE)).isFalse();
-		assertThat(AppExpectations.webhook(App.PLATFORM)).as("the only App with a webhook (Story 23.9b)").isTrue();
+		assertThat(AppExpectations.events(App.SOURCE)).containsExactly("workflow_run");
+		assertThat(AppExpectations.webhook(App.SOURCE)).isTrue();
+		assertThat(AppExpectations.webhook(App.PLATFORM)).isTrue();
 		assertThat(AppExpectations.differences(App.SOURCE,
-				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("meta"))))
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "meta"))))
 			.isEmpty();
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of())))
+			.singleElement()
+			.isEqualTo("events: [] instead of [workflow_run]");
 		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source", withWrite, Set.of("push"))))
 			.hasSize(2)
 			.anySatisfy(difference -> assertThat(difference).startsWith("permissions: ").contains("contents=write"))
-			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of []"));
+			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of [workflow_run]"));
 	}
 
 	/** Story 23.9b (R1, R16, AD-10): the Merge App is retired, so an environment has exactly these two Apps. */

@@ -71,8 +71,10 @@ import vn.vibefix.support.IntegrationTest;
  * scans no code. The confirmation at the current head is recorded and starts the copy under the busy marker: once the
  * organization and the runner read back clean, the private Intermediary and Working Repositories are created and read
  * back (private, features and forking off, Actions disabled), {@code copy} of {@code vibefix.yml} is dispatched in the
- * Customer's Source Repository through their Source App with a grant of the two repositories, its run is polled, and
- * both repositories are read back at exactly the confirmed head; there is no fork, no ruleset, and no copy in vibefix's
+ * Customer's Source Repository through their Source App with a grant of the two repositories, its run is waited for,
+ * never read on an interval: the Source App's signed {@code workflow_run} delivery, the exchange's refusal or the
+ * run's {@code repo.actions_run_timeout} Deadline wakes the copy (Story 24.5a), and both repositories are read back at
+ * exactly the confirmed head; there is no fork, no ruleset, and no copy in vibefix's
  * sandbox. A head that moved after the confirmation (the exchange's {@code sha}) asks the Customer again; any other
  * exchange refusal, the run's Actions quota, or a run that keeps failing blocks the start, and so do the Source checks,
  * until the Customer taps "Thử lại". Then (Story 7.3) the Mentor and the active Crew are invited with read; once each
@@ -105,11 +107,15 @@ class JobSetupIT extends IntegrationTest {
 	 */
 	private static final String TWO_REPOSITORY_WORKFLOW;
 
+	/** The Source App's webhook secret (Story 24.5a), fake and built at run time. */
+	private static final byte[] SOURCE_SECRET;
+
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("job-setup-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
+			SOURCE_SECRET = ActionsExchangeSupport.webhookSecret(DIRECTORY.resolve("source-webhook-secret"));
 			// The stand-in for GitHub Actions' OIDC issuer, whose ID tokens a copy run exchanges (Story 23.4).
 			ActionsExchangeSupport.issue(GITHUB);
 			TWO_REPOSITORY_WORKFLOW = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW)
@@ -183,6 +189,10 @@ class JobSetupIT extends IntegrationTest {
 	@Autowired
 	private org.springframework.transaction.PlatformTransactionManager transactions;
 
+	/** timers' registry of Deadline kinds, one handler each (Story 24.5a). */
+	@Autowired
+	private List<vn.vibefix.timers.DeadlineHandler> deadlineHandlers;
+
 	private UUID product;
 
 	private UUID job;
@@ -210,6 +220,9 @@ class JobSetupIT extends IntegrationTest {
 		// Story 23.5: the Source checks read the Source Repository through the Customer's Source App installation.
 		registry.add("vibefix.github.source-app.id", () -> "2222");
 		registry.add("vibefix.github.source-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
+		// Story 24.5a: the Source App's webhook, which tells the copy that its run completed.
+		registry.add("vibefix.github.source-app.webhook-secret-file",
+				() -> DIRECTORY.resolve("source-webhook-secret").toString());
 		// Story 23.6b: the copy is dispatched on the Customer's Actions, which reach the exchange through the dev tunnel.
 		registry.add("vibefix.github.exchange.public-url", () -> TUNNEL);
 		registry.add("vibefix.github.exchange.issuer", () -> GITHUB.apiUrl().toString());
@@ -2505,13 +2518,26 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(grant.path("permissions").toString()).isIn("{\"contents\":\"write\",\"workflows\":\"write\"}",
 				"{\"workflows\":\"write\",\"contents\":\"write\"}");
 
+		// Story 24.5a: the copy waits for its run, its backstop the correlation's end of life, with one Deadline.
+		assertThat(nextAttempt(dispatched)).as("no interval re-read: it waits for its backstop")
+			.isEqualTo(dispatched.dispatchedAt().plus(ActionsRuns.CORRELATION_LIFETIME));
+		assertThat(timeouts(dispatched)).as("one not pausable Deadline of the Job, at the run's own timeout")
+			.containsExactly("PENDING " + this.job + " " + JobSetups.OPERATION + " false "
+					+ Timestamp.from(dispatched.dispatchedAt().plus(ActionsRuns.RUN_TIMEOUT)).toInstant());
+		assertThat(this.deadlineHandlers.stream().map(vn.vibefix.timers.DeadlineHandler::kind)
+			.filter(kind -> kind.key().equals(ActionsRunWakes.KEY))).as("timers' registry lists it")
+			.singleElement()
+			.satisfies(kind -> {
+				assertThat(kind.pausable()).isFalse();
+				assertThat(kind.jobScoped()).isTrue();
+			});
 		GITHUB.startRun(correlation.runId());
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-		run();
-		assertThat(this.setups.latest(this.job).orElseThrow().runStatus()).isEqualTo("IN_PROGRESS");
+		delivered(dispatched).andExpect(status().isAccepted());
+		awaitListeners();
+		assertThat(this.worker.runDue(Lane.GITHUB_LONG)).as("a run in progress wakes nothing").isZero();
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.status").value("RUNNING"))
-			.andExpect(jsonPath("$.run.state").value("IN_PROGRESS"));
+			.andExpect(jsonPath("$.run.state").value("DISPATCHED"));
 
 		copyRunSucceeds();
 
@@ -2560,6 +2586,11 @@ class JobSetupIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(stranger, Role.CUSTOMER)))
 			.andExpect(status().isNotFound());
 		awaitListeners();
+
+		// The copy no longer waits on that run, so its Deadline is obsolete when it comes.
+		this.clock.advance(ActionsRuns.RUN_TIMEOUT);
+		this.deadlines.runDue();
+		assertThat(timeouts(dispatched)).singleElement().asString().startsWith("OBSOLETE ");
 	}
 
 	/**
@@ -2624,9 +2655,10 @@ class JobSetupIT extends IntegrationTest {
 		String moved = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
 		GITHUB.runs.get(runId(dispatched)).put("head_sha", moved);
 
+		// Story 24.5a: the refusal itself wakes the copy, seconds later, with no delivery.
+		this.clock.advance(Duration.ofSeconds(5));
 		exchange(dispatched).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("SHA"));
-		GITHUB.completeRun(runId(dispatched), "failure");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		awaitListeners();
 		run();
 
 		Setup again = this.setups.latest(this.job).orElseThrow();
@@ -2690,7 +2722,9 @@ class JobSetupIT extends IntegrationTest {
 		exchange(dispatched).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value(reason.toUpperCase(java.util.Locale.ROOT)));
 		GITHUB.completeRun(runId(dispatched), "failure");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		// The refused correlation's completed run names no correlation; the refusal already woke the copy.
+		delivered(dispatched).andExpect(status().isAccepted());
+		awaitListeners();
 		run();
 
 		Setup blocked = this.setups.latest(this.job).orElseThrow();
@@ -2732,8 +2766,7 @@ class JobSetupIT extends IntegrationTest {
 		run();
 		Setup dispatched = this.setups.latest(this.job).orElseThrow();
 		GITHUB.failBeforeAnyJob(runId(dispatched));
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-		run();
+		runCompleted(dispatched);
 
 		Setup blocked = this.setups.latest(this.job).orElseThrow();
 		assertThat(blocked.status()).isEqualTo("BLOCKED");
@@ -2815,8 +2848,9 @@ class JobSetupIT extends IntegrationTest {
 
 	/**
 	 * Story 23.6b (AD-46): a run still not complete after its timeout is given up: its correlation is closed, so a late
-	 * exchange is refused, the run is cancelled, and another is dispatched. It is read every 10 s for 2 minutes, then
-	 * every 30 s.
+	 * exchange is refused, the run is cancelled, and another is dispatched. Since Story 24.5a nothing reads it before:
+	 * its {@code repo.actions_run_timeout} Deadline wakes the copy, which reads the run once and takes the timeout path,
+	 * and the next dispatch gets a Deadline of its own.
 	 */
 	@Test
 	void aRunThatDoesNotCompleteWithinItsTimeoutIsClosedCancelledAndDispatchedAgain() throws Exception {
@@ -2825,19 +2859,17 @@ class JobSetupIT extends IntegrationTest {
 		Setup first = this.setups.latest(this.job).orElseThrow();
 		long firstRun = runId(first);
 		GITHUB.startRun(firstRun);
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-		run();
-		assertThat(this.setups.latest(this.job).orElseThrow().runStatus()).isEqualTo("IN_PROGRESS");
-		assertThat(nextAttempt(first)).as("every 10 s at first").isEqualTo(this.clock.instant().plus(JobSetupOperation.RUN_POLL));
-		this.clock.advance(JobSetupOperation.RUN_POLL_FAST);
-		run();
-		assertThat(nextAttempt(first)).as("then every 30 s")
-			.isEqualTo(this.clock.instant().plus(JobSetupOperation.RUN_POLL_LATER));
+		this.clock.advance(ActionsRuns.RUN_TIMEOUT.minusSeconds(1));
+		assertThat(this.deadlines.runDue()).as("not yet").isZero();
+		assertThat(this.worker.runDue(Lane.GITHUB_LONG)).isZero();
 
-		this.clock.advance(ActionsRuns.RUN_TIMEOUT);
+		this.clock.advance(Duration.ofSeconds(1));
+		assertThat(this.deadlines.runDue()).isOne();
+		assertThat(timeouts(first)).singleElement().asString().startsWith("FIRED ");
 		run();
 
 		Setup late = this.setups.latest(this.job).orElseThrow();
+		assertThat(late.runStatus()).as("read once, still in progress").isEqualTo("IN_PROGRESS");
 		assertThat(late.runConclusion()).isEqualTo(JobSetupOperation.TIMED_OUT);
 		assertThat(this.jdbc.sql("SELECT status || ':' || error_code FROM operations.external_operation WHERE operation_key = :key")
 			.param("key", JobSetups.OPERATION + ":" + late.confirmationId()).query(String.class).single())
@@ -2851,10 +2883,61 @@ class JobSetupIT extends IntegrationTest {
 
 		this.clock.advance(JobSetupOperation.POLICY.delayAfter(1).plusSeconds(1));
 		run();
-		assertThat(this.setups.latest(this.job).orElseThrow().correlationId()).isNotEqualTo(first.correlationId());
+		Setup second = this.setups.latest(this.job).orElseThrow();
+		assertThat(second.correlationId()).isNotEqualTo(first.correlationId());
+		assertThat(timeouts(second)).as("the second run's own Deadline").singleElement().asString().startsWith("PENDING ");
 		copyRunSucceeds();
 
 		assertThat(this.setups.latest(this.job).orElseThrow().status()).isEqualTo("DONE");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5a: a run whose completion was never delivered (the webhooks not set up, or the delivery lost) is read once
+	 * when its Deadline comes, and a completed one resolves as if its event had come.
+	 */
+	@Test
+	void aCompletedRunWhoseEventNeverCameResolvesAtItsDeadline() throws Exception {
+		confirmTheHead();
+		run();
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		for (String name : List.of(JobSetups.intermediaryName(this.job), JobSetups.workingName(this.job))) {
+			GITHUB.copyCommit("lan-dev", this.sourceName, copying.approvedSha(), name, copying.defaultBranch());
+		}
+		GITHUB.completeRun(runId(copying), "success");
+		this.clock.advance(Duration.ofMinutes(5));
+		assertThat(this.worker.runDue(Lane.GITHUB_LONG)).as("nothing told the copy").isZero();
+
+		// The Deadline comes before the backstop, at the run's own timeout.
+		this.clock.advance(ActionsRuns.RUN_TIMEOUT.minusMinutes(5));
+		assertThat(this.deadlines.runDue()).isOne();
+		run();
+
+		Setup done = this.setups.latest(this.job).orElseThrow();
+		assertThat(done.status()).isEqualTo("DONE");
+		assertThat(done.runConclusion()).isEqualTo("success");
+		assertThat(timeouts(copying)).singleElement().asString().startsWith("FIRED ");
+		assertThat(sourceRuns()).as("dispatched once").hasSize(1);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5a: a run that is still out when its backstop comes, because its Deadline's handler never woke the copy,
+	 * takes the timeout path all the same.
+	 */
+	@Test
+	void aRunStillOutAtItsBackstopTakesTheTimeoutPath() throws Exception {
+		confirmTheHead();
+		run();
+		Setup first = this.setups.latest(this.job).orElseThrow();
+		GITHUB.startRun(runId(first));
+
+		this.clock.advance(ActionsRuns.CORRELATION_LIFETIME);
+		run();
+
+		Setup late = this.setups.latest(this.job).orElseThrow();
+		assertThat(late.runConclusion()).isEqualTo(JobSetupOperation.TIMED_OUT);
+		assertThat(this.runs.correlation(first.correlationId()).orElseThrow().status()).isEqualTo(ActionsRuns.Status.EXPIRED);
 		awaitListeners();
 	}
 
@@ -2872,8 +2955,7 @@ class JobSetupIT extends IntegrationTest {
 		GITHUB.copyCommit("lan-dev", this.sourceName, head, JobSetups.intermediaryName(this.job), "main");
 		GITHUB.copyCommit("lan-dev", this.sourceName, earlier, JobSetups.workingName(this.job), "main");
 		GITHUB.completeRun(runId(dispatched), "success");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-		run();
+		runCompleted(dispatched);
 
 		Setup spent = this.setups.latest(this.job).orElseThrow();
 		assertThat(spent.status()).isEqualTo("RUNNING");
@@ -3001,8 +3083,7 @@ class JobSetupIT extends IntegrationTest {
 		GITHUB.copyCommit("lan-dev", this.sourceName, copying.approvedSha(), JobSetups.intermediaryName(this.job),
 				copying.defaultBranch());
 		GITHUB.completeRun(runId(copying), "success");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-		run();
+		runCompleted(copying);
 		awaitListeners();
 
 		Setup done = this.setups.latest(this.job).orElseThrow();
@@ -3155,7 +3236,8 @@ class JobSetupIT extends IntegrationTest {
 
 		exchange(dispatched).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("SHA"));
 		GITHUB.completeRun(runId(dispatched), "failure");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		// Story 24.5a: the refusal wakes the copy.
+		awaitListeners();
 		run();
 		awaitListeners();
 
@@ -3951,8 +4033,7 @@ class JobSetupIT extends IntegrationTest {
 		GITHUB.copyCommit("lan-dev", this.sourceName, copying.approvedSha(), JobSetups.intermediaryName(this.job),
 				copying.defaultBranch());
 		GITHUB.completeRun(runId(copying), "success");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-		run();
+		runCompleted(copying);
 		assertThat(this.setups.latest(this.job).orElseThrow().status()).as("the Setup is done").isEqualTo("DONE");
 	}
 
@@ -4000,8 +4081,40 @@ class JobSetupIT extends IntegrationTest {
 			GITHUB.copyCommit("lan-dev", this.sourceName, copying.approvedSha(), name, copying.defaultBranch());
 		}
 		GITHUB.completeRun(runId(copying), "success");
-		this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
+		runCompleted(copying);
+	}
+
+	/**
+	 * Story 24.5a: the Source App delivers the run's {@code workflow_run} as the stub shows it now, signed with its
+	 * secret, for the Customer's installation, at {@code POST /webhooks}.
+	 */
+	private ResultActions delivered(Setup setup) throws Exception {
+		return this.mvc.perform(ActionsExchangeSupport.workflowRun(GITHUB, runId(setup), GitHubStub.SOURCE_APP,
+				this.installation, SOURCE_SECRET));
+	}
+
+	/** The run's completion delivered, which wakes the copy, and the copy's next attempt. */
+	private void runCompleted(Setup setup) throws Exception {
+		delivered(setup).andExpect(status().isAccepted());
+		awaitListeners();
 		run();
+	}
+
+	/**
+	 * The {@value ActionsRunWakes#KEY} Deadlines of the Setup's correlation, each as its status, Job, generation,
+	 * whether it is pausable, and its due time while pending.
+	 */
+	private List<String> timeouts(Setup setup) {
+		return this.jdbc.sql("""
+				SELECT status, job_id, generation, pausable, due_at FROM timers.deadline
+				WHERE kind = :kind AND subject_id = :correlation ORDER BY created_at
+				""")
+			.param("kind", ActionsRunWakes.KEY)
+			.param("correlation", setup.correlationId())
+			.query((rs, n) -> rs.getString("status") + " " + rs.getObject("job_id") + " " + rs.getString("generation") + " "
+					+ rs.getBoolean("pausable") + " "
+					+ (rs.getTimestamp("due_at") == null ? "-" : rs.getTimestamp("due_at").toInstant()))
+			.list();
 	}
 
 	/** J6, the Customer's self-confirmation, and the copy on their Actions: the Setup is done, and the Invitations start. */
@@ -4038,7 +4151,7 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/** Every attempt's run fails, until the attempts run out; returns each attempt's correlation. */
-	private Set<UUID> runsKeepFailing() {
+	private Set<UUID> runsKeepFailing() throws Exception {
 		Set<UUID> correlations = new LinkedHashSet<>();
 		for (int attempt = 1; attempt <= JobSetupOperation.POLICY.maxAttempts(); attempt++) {
 			run();
@@ -4046,8 +4159,7 @@ class JobSetupIT extends IntegrationTest {
 			assertThat(dispatched.status()).as("attempt " + attempt).isEqualTo("RUNNING");
 			correlations.add(dispatched.correlationId());
 			GITHUB.completeRun(runId(dispatched), attempt == 1 ? "cancelled" : "failure");
-			this.clock.advance(JobSetupOperation.RUN_POLL.plusSeconds(1));
-			run();
+			runCompleted(dispatched);
 			this.clock.advance(JobSetupOperation.POLICY.delayAfter(attempt).plusSeconds(1));
 		}
 		awaitListeners();

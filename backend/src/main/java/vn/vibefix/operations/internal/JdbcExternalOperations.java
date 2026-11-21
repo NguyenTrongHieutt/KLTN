@@ -111,6 +111,22 @@ class JdbcExternalOperations implements ExternalOperations, FailedOperations {
 			.list();
 	}
 
+	/**
+	 * A pending operation is due now; a running one keeps the wake in {@code woken_at}, which its attempt's deferral
+	 * reads ({@link OperationStore#defer}). A wake that waits for the claim's lock sees the row as the claim left it.
+	 */
+	@Override
+	@Transactional
+	public boolean wake(UUID operationId) {
+		return this.jdbc.sql("""
+				UPDATE operations.external_operation
+				SET next_attempt_at = CASE WHEN status = 'PENDING' THEN LEAST(next_attempt_at, CAST(:now AS TIMESTAMPTZ))
+				                           ELSE next_attempt_at END,
+				    woken_at = CASE WHEN status = 'RUNNING' THEN CAST(:now AS TIMESTAMPTZ) ELSE woken_at END
+				WHERE id = :id AND status IN ('PENDING', 'RUNNING')
+				""").param("id", operationId).param("now", Timestamp.from(this.clock.instant())).update() == 1;
+	}
+
 	@Override
 	@Transactional
 	public boolean retry(UUID operationId) {

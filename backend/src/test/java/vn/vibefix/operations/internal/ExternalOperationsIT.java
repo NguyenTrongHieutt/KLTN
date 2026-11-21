@@ -247,6 +247,59 @@ class ExternalOperationsIT extends IntegrationTest {
 		assertThat(nextAttemptAt(ticket.id())).isEqualTo(until);
 	}
 
+	/** Story 24.5a: a deferred operation that something outside wakes is due at once, its attempt still not counted. */
+	@Test
+	void aWakeMakesADeferredOperationDueAtOnce() {
+		OperationTicket ticket = request(UUID.randomUUID(), Map.of());
+		this.scriptedOperations.answer(new Outcome.Deferred(this.clock.instant().plus(Duration.ofMinutes(20))));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		this.clock.advance(Duration.ofMinutes(3));
+		assertThat(this.worker.runDue(Lane.GITHUB_SHORT)).as("it waits for its backstop").isZero();
+
+		assertThat(inTransaction(() -> this.operations.wake(ticket.id()))).isTrue();
+
+		assertThat(nextAttemptAt(ticket.id())).isEqualTo(this.clock.instant());
+		assertThat(this.worker.runDue(Lane.GITHUB_SHORT)).isOne();
+		assertThat(column(ticket.id(), "status")).isEqualTo("SUCCEEDED");
+		assertThat(column(ticket.id(), "attempt_count::text")).as("the deferral was not an attempt").isEqualTo("1");
+		assertThat(this.operations.wake(ticket.id())).as("a completed operation is left as it is").isFalse();
+		assertThat(this.operations.wake(UUID.randomUUID())).as("nor is one that does not exist").isFalse();
+	}
+
+	/**
+	 * Story 24.5a: a wake that arrives while an attempt runs is not lost. The attempt may have looked before what woke
+	 * it happened, so its deferral resumes at once instead of waiting until its time; the next claim forgets the wake.
+	 */
+	@Test
+	void aWakeWhileAnAttemptRunsMakesItsDeferralResumeAtOnce() {
+		OperationTicket ticket = request(UUID.randomUUID(), Map.of());
+		Instant backstop = this.clock.instant().plus(Duration.ofMinutes(20));
+		this.scriptedOperations.whileRunning(() -> assertThat(this.operations.wake(ticket.id())).isTrue())
+			.answer(new Outcome.Deferred(backstop), new Outcome.Deferred(backstop));
+
+		assertThat(this.worker.runDue(Lane.GITHUB_SHORT)).as("deferred, then woken at once and run again").isEqualTo(2);
+
+		assertThat(this.scriptedOperations.runs()).hasSize(2);
+		assertThat(column(ticket.id(), "status")).isEqualTo("PENDING");
+		assertThat(nextAttemptAt(ticket.id())).as("the second attempt saw no wake: it waits for its time")
+			.isEqualTo(backstop);
+		assertThat(column(ticket.id(), "woken_at::text")).isNull();
+		assertThat(column(ticket.id(), "attempt_count::text")).isEqualTo("0");
+	}
+
+	/** Story 24.5a: a retry's backoff is the lane policy's: a wake while its attempt failed does not shorten it. */
+	@Test
+	void aWakeWhileAnAttemptFailsLeavesItsRetryToThePolicy() {
+		OperationTicket ticket = request(UUID.randomUUID(), Map.of());
+		this.scriptedOperations.whileRunning(() -> this.operations.wake(ticket.id()))
+			.answer(new Outcome.Transient("REMOTE_DOWN"));
+
+		assertThat(this.worker.runDue(Lane.GITHUB_SHORT)).isOne();
+
+		assertThat(nextAttemptAt(ticket.id())).isEqualTo(this.clock.instant().plus(Duration.ofSeconds(30)));
+		assertThat(column(ticket.id(), "woken_at::text")).isNull();
+	}
+
 	@Test
 	void anExpiredLeaseIsClaimedAgainAndReadsBackFirst() {
 		OperationTicket ticket = request(UUID.randomUUID(), Map.of());

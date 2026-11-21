@@ -48,11 +48,14 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
  * default branch, the range's start, the Handover Commit, the Intermediary and the new
  * {@code handover/{submissionId}} branch, and a grant of the two Job repositories; the exchange correlation is
  * recorded;</li>
- * <li>the run polled every {@link #RUN_POLL} for its first {@link #RUN_POLL_FAST}, then every
- * {@link #RUN_POLL_LATER}, up to {@link ActionsRuns#RUN_TIMEOUT}, when its correlation is closed and its run
- * cancelled;</li>
- * <li>the run's path report read: a report that says {@code .github/workflows} changed refuses the handover
- * {@link Refusal#WORKFLOW_FILES_CHANGED}, whatever the run concluded, since the run pushes nothing then;</li>
+ * <li>the run waited for, never read on an interval (Story 24.5a): the attempt defers to its backstop, the
+ * correlation's end of life, and {@link ActionsRunWakes} wakes it when the run posts its path report, when the
+ * Platform App delivers the run's completion, when the exchange refuses it, or at its {@value ActionsRunWakes#KEY}
+ * Deadline {@link ActionsRuns#RUN_TIMEOUT} after the dispatch, past which a run read once and still unfinished has its
+ * correlation closed and is cancelled;</li>
+ * <li>the run's path report read first, as soon as it is there: a report that says {@code .github/workflows} changed
+ * refuses the handover {@link Refusal#WORKFLOW_FILES_CHANGED} at once, whatever the run does next, since the run pushes
+ * nothing then. A clean report while the run still pushes waits for the run;</li>
  * <li>{@code handover/{submissionId}} read back through the Platform App at exactly the Handover Commit, which a
  * later attempt reads before it dispatches again, since the workflow's new-branch guard refuses a second run once
  * the branch exists;</li>
@@ -72,15 +75,6 @@ class HandoverCopyOperation implements OperationHandler {
 
 	/** How long a frozen Job's copy waits before it looks again (AD-28). */
 	static final Duration FROZEN_WAIT = JobSetupOperation.FROZEN_WAIT;
-
-	/** How often a dispatched copy run is read while it is queued or in progress, at first (AD-46). */
-	static final Duration RUN_POLL = JobSetupOperation.RUN_POLL;
-
-	/** How long after its dispatch a copy run is read every {@link #RUN_POLL}. */
-	static final Duration RUN_POLL_FAST = JobSetupOperation.RUN_POLL_FAST;
-
-	/** How often it is read after that, until {@link ActionsRuns#RUN_TIMEOUT}. */
-	static final Duration RUN_POLL_LATER = JobSetupOperation.RUN_POLL_LATER;
 
 	/** What a run is called once vibefix stopped waiting for it after {@link ActionsRuns#RUN_TIMEOUT}. */
 	static final String TIMED_OUT = JobSetupOperation.TIMED_OUT;
@@ -198,27 +192,37 @@ class HandoverCopyOperation implements OperationHandler {
 		inputs.put("target_branch", copy.branch());
 		Dispatched dispatched = runs().dispatch(new Dispatch(App.PLATFORM, null, Operation.HANDOVER_COPY, runner.id(),
 				repositories.runnerWorkflow(), inputs, Set.of(working.id(), intermediary.id()), null));
-		if (!copies().dispatched(copy, dispatched.correlation())) {
+		Instant dispatchedAt = copies().dispatched(copy, dispatched.correlation());
+		if (dispatchedAt == null) {
 			// The copy ended meanwhile: its run is given up, so it never exchanges.
 			runs().close(dispatched.correlation());
 			return new Outcome.Obsolete("COPY_ENDED");
 		}
-		return new Outcome.Deferred(this.clock.instant().plus(RUN_POLL));
+		// Story 24.5a: nothing reads the run on an interval; its report, completion, a refusal or its Deadline wakes this.
+		return new Outcome.Deferred(ActionsRunWakes.backstop(dispatchedAt));
 	}
 
-	/** Steps 2 to 6: the run read, its report, the branch read back, and the pull request. */
+	/**
+	 * Steps 2 to 6, once woken: the report, the run read, the branch read back, and the pull request. A report naming a
+	 * workflow change ends the copy at once; otherwise a run not complete before its timeout waits for its backstop
+	 * again, a clean report included, since the run is still pushing.
+	 */
 	private Outcome poll(Copy copy, Setup setup) {
 		UUID correlationId = Objects.requireNonNull(copy.correlationId());
 		Outcome refused = exchangeRefused(copy, correlationId);
 		if (refused != null) {
 			return refused;
 		}
+		Report report = runs().report(correlationId).orElse(null);
+		if (report != null && report.workflowsChanged()) {
+			// N-16: the run reported the change and pushes nothing, whatever it then concludes.
+			return end(copy, Refusal.WORKFLOW_FILES_CHANGED);
+		}
 		Run run = runs().run(correlationId).orElse(null);
 		Instant now = this.clock.instant();
 		Instant dispatchedAt = Objects.requireNonNull(copy.dispatchedAt());
-		Instant timeout = dispatchedAt.plus(ActionsRuns.RUN_TIMEOUT);
 		if (run == null || run.status() != RunStatus.COMPLETED) {
-			boolean late = !now.isBefore(timeout);
+			boolean late = !now.isBefore(dispatchedAt.plus(ActionsRuns.RUN_TIMEOUT));
 			copies().runRead(copy, run == null ? null : run.status().name(), late ? TIMED_OUT : null);
 			if (late) {
 				log.warn("Handover copy {}: the run under correlation {} did not complete within {}; it is given up",
@@ -227,15 +231,16 @@ class HandoverCopyOperation implements OperationHandler {
 				runs().close(correlationId);
 				return new Outcome.Transient(Refusal.RUN_FAILED.name());
 			}
-			Instant next = now.plus(now.isBefore(dispatchedAt.plus(RUN_POLL_FAST)) ? RUN_POLL : RUN_POLL_LATER);
-			return new Outcome.Deferred(next.isAfter(timeout) ? timeout : next);
+			return new Outcome.Deferred(ActionsRunWakes.backstop(dispatchedAt));
 		}
 		String conclusion = run.conclusion() == null ? "unknown" : run.conclusion();
 		copies().runRead(copy, RunStatus.COMPLETED.name(), conclusion);
-		Report report = runs().report(correlationId).orElse(null);
-		if (report != null && report.workflowsChanged()) {
-			// N-16: the run reported the change and pushed nothing, whatever it then concluded.
-			return end(copy, Refusal.WORKFLOW_FILES_CHANGED);
+		if (report == null) {
+			// The run posts its report before it completes, so one that came after the first read is there now.
+			report = runs().report(correlationId).orElse(null);
+			if (report != null && report.workflowsChanged()) {
+				return end(copy, Refusal.WORKFLOW_FILES_CHANGED);
+			}
 		}
 		if (!"success".equals(conclusion)) {
 			// A refusal that landed after the first read failed the run: it decides, not the conclusion.

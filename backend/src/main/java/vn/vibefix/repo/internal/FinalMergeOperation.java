@@ -58,8 +58,10 @@ import vn.vibefix.repo.internal.FinalMerges.FinalMerge;
  * <li>{@code final-merge} dispatched in the Customer's Source Repository through their Source App installation, with
  * the merge commit, the new branch, the Intermediary and a grant of the Intermediary alone (Contents read, AD-44);
  * the exchange correlation is recorded;</li>
- * <li>the run polled every {@link #RUN_POLL} for its first {@link #RUN_POLL_FAST}, then every {@link #RUN_POLL_LATER},
- * up to {@link ActionsRuns#RUN_TIMEOUT}, when its correlation is closed and its run cancelled;</li>
+ * <li>the run waited for, never read on an interval (Story 24.5a): the attempt defers to its backstop, the
+ * correlation's end of life, and {@link ActionsRunWakes} wakes it on the run's completion as the Source App delivers
+ * it, on the exchange's refusal, or at its {@value ActionsRunWakes#KEY} Deadline {@link ActionsRuns#RUN_TIMEOUT} after
+ * the dispatch, past which a run read once and still unfinished has its correlation closed and is cancelled;</li>
  * <li>the branch read back through the Source App at exactly the merge commit; only then does J9 apply, with
  * {@code repo.final_branch_ready} for both sides.</li>
  * </ol>
@@ -78,15 +80,6 @@ class FinalMergeOperation implements OperationHandler {
 
 	/** How long a frozen Job's Final Merge waits before it looks again (AD-28, Story 9.4). */
 	static final Duration FROZEN_WAIT = JobSetupOperation.FROZEN_WAIT;
-
-	/** How often a dispatched run is read while it is queued or in progress, at first (AD-46). */
-	static final Duration RUN_POLL = JobSetupOperation.RUN_POLL;
-
-	/** How long after its dispatch the run is read every {@link #RUN_POLL}. */
-	static final Duration RUN_POLL_FAST = JobSetupOperation.RUN_POLL_FAST;
-
-	/** How often it is read after that, until {@link ActionsRuns#RUN_TIMEOUT}. */
-	static final Duration RUN_POLL_LATER = JobSetupOperation.RUN_POLL_LATER;
 
 	/** What a run is called once vibefix stopped waiting for it after {@link ActionsRuns#RUN_TIMEOUT}. */
 	static final String TIMED_OUT = JobSetupOperation.TIMED_OUT;
@@ -236,15 +229,20 @@ class FinalMergeOperation implements OperationHandler {
 		// working stays empty: the final-merge job refuses a Working Repository.
 		Dispatched dispatched = runs().dispatch(new Dispatch(App.SOURCE, target.installationId(), Operation.FINAL_MERGE,
 				target.repositoryId(), JobSetupOperation.WORKFLOW, inputs, Set.of(intermediary.id()), null));
-		if (!merges().dispatched(merge, dispatched.correlation(), branch)) {
+		Instant dispatchedAt = merges().dispatched(merge, dispatched.correlation(), branch);
+		if (dispatchedAt == null) {
 			// The Final Merge ended meanwhile: its run is given up, so it never exchanges.
 			runs().close(dispatched.correlation());
 			return new Outcome.Obsolete("NOT_CONFIRMED");
 		}
-		return new Outcome.Deferred(this.clock.instant().plus(RUN_POLL));
+		// Story 24.5a: nothing reads the run on an interval; its completion, a refusal or its Deadline wakes this.
+		return new Outcome.Deferred(ActionsRunWakes.backstop(dispatchedAt));
 	}
 
-	/** Steps 4 and 5: the run read, and once it succeeded, the branch read back at the merge commit. */
+	/**
+	 * Steps 4 and 5, once woken: the run read, and once it succeeded, the branch read back at the merge commit. A run
+	 * not complete before its timeout waits for its backstop again.
+	 */
 	private Outcome poll(FinalMerge merge, String head) {
 		UUID correlationId = Objects.requireNonNull(merge.correlationId());
 		Outcome refused = exchangeRefused(merge, correlationId);
@@ -254,9 +252,8 @@ class FinalMergeOperation implements OperationHandler {
 		Run run = runs().run(correlationId).orElse(null);
 		Instant now = this.clock.instant();
 		Instant dispatchedAt = Objects.requireNonNull(merge.dispatchedAt());
-		Instant timeout = dispatchedAt.plus(ActionsRuns.RUN_TIMEOUT);
 		if (run == null || run.status() != RunStatus.COMPLETED) {
-			boolean late = !now.isBefore(timeout);
+			boolean late = !now.isBefore(dispatchedAt.plus(ActionsRuns.RUN_TIMEOUT));
 			merges().runRead(merge, run == null ? null : run.status().name(), late ? TIMED_OUT : null);
 			if (late) {
 				log.warn("Final Merge {}: the run under correlation {} did not complete within {}; it is given up",
@@ -265,8 +262,7 @@ class FinalMergeOperation implements OperationHandler {
 				runs().close(correlationId);
 				return new Outcome.Transient("RUN_FAILED");
 			}
-			Instant next = now.plus(now.isBefore(dispatchedAt.plus(RUN_POLL_FAST)) ? RUN_POLL : RUN_POLL_LATER);
-			return new Outcome.Deferred(next.isAfter(timeout) ? timeout : next);
+			return new Outcome.Deferred(ActionsRunWakes.backstop(dispatchedAt));
 		}
 		String conclusion = run.conclusion() == null ? "unknown" : run.conclusion();
 		merges().runRead(merge, RunStatus.COMPLETED.name(), conclusion);

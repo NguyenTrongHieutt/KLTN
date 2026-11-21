@@ -18,16 +18,17 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  * @param apiUrl GitHub's REST API
  * @param gitUrl where repositories are cloned from and pushed to
  * @param organization the platform organization (AD-25)
- * @param webhookUrl where the Platform App's webhook must point ({@code https://…/webhooks}), the only one
- * left (Story 23.9b); the daily configuration check compares it when set
+ * @param webhookUrl where both Apps' webhooks must point ({@code https://…/webhooks}, Story 24.5a); the daily
+ * configuration check compares it when set. The dev stack leaves it unset, since its tunnel's URL changes on every
+ * start
  * @param runnerRepository the one repository of the organization that may run GitHub Actions, by name
  * (AD-46, D5): required since 2026-11-12. AD-11's read-back wants the organization's Actions on that
  * repository only, and the runner private, holding only the published copy workflow, with no
  * collaborator. Unset (or blank), it is an organization difference: the sweep alerts it, and new
  * setups wait until it is set
  * @param exchange the Actions token exchange (AD-44, Story 23.4)
- * @param sourceApp the Source App (AD-10, Story 23.5): its ID and key file only. Each Customer installs it on
- * their own Source Repository, so no installation is configured, and it has no webhook
+ * @param sourceApp the Source App (AD-10, Story 23.5): its ID, key file and, since Story 24.5a, its own webhook
+ * secret file. Each Customer installs it on their own Source Repository, so no installation is configured
  */
 @ConfigurationProperties("vibefix.github")
 record GitHubProperties(URI apiUrl, URI gitUrl, @Nullable String organization, @Nullable AppProperties platformApp,
