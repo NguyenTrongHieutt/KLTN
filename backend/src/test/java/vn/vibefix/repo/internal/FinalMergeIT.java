@@ -1250,8 +1250,15 @@ class FinalMergeIT extends IntegrationTest {
 		return id;
 	}
 
+	/** A Crew member of the Job, whose row was activated, so the revocation's notice reaches them (AD-41). */
 	private UUID crewMember() {
-		return IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		UUID member = IdentityTestSupport.insertAccount(this.jdbc, Role.STUDENT, null);
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :member, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", this.job).param("member", member).param("now", now).update();
+		return member;
 	}
 
 	private Grant grant(UUID id) {

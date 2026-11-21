@@ -14406,6 +14406,9 @@
           "status" : {
             "type" : "string"
           },
+          "wait" : {
+            "$ref" : "#/components/schemas/MergeWaitView"
+          },
           "workflows" : {
             "type" : "array",
             "items" : {
@@ -14414,6 +14417,20 @@
           }
         },
         "required" : [ "sensitive", "status", "workflows" ]
+      },
+      "MergeWaitView" : {
+        "type" : "object",
+        "properties" : {
+          "nextCheckAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : "string",
+            "enum" : [ "REVOCATION", "CUSTOMER", "FROZEN" ]
+          }
+        },
+        "required" : [ "reason" ]
       },
       "MessagePageView" : {
         "type" : "object",

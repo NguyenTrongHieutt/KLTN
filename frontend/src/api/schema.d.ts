@@ -6052,7 +6052,14 @@ export interface components {
             run?: components["schemas"]["RunView"];
             sensitive: components["schemas"]["MergeSensitiveChangeView"][];
             status: string;
+            wait?: components["schemas"]["MergeWaitView"];
             workflows: string[];
+        };
+        MergeWaitView: {
+            /** Format: date-time */
+            nextCheckAt?: string;
+            /** @enum {string} */
+            reason: "REVOCATION" | "CUSTOMER" | "FROZEN";
         };
         MessagePageView: {
             hasOlder: boolean;
