@@ -2784,6 +2784,51 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
+	 * Story 24.5a: a run Actions' quota stops ends within seconds, so its completion can be delivered while the dispatch
+	 * still looks for the run, before the Setup's row names the correlation: that hint woke nobody. The copy finds it
+	 * recorded on the correlation as soon as it records the dispatch, and reads the run at once, not at its Deadline.
+	 */
+	@Test
+	void aCompletionDeliveredWhileTheDispatchStillLooksForItsRunWakesTheCopyAtOnce() throws Exception {
+		confirmTheHead();
+		awaitListeners();
+		AtomicBoolean delivered = new AtomicBoolean();
+		// GitHub answers the dispatch 204, as it once did, so the dispatch looks for its run by title.
+		GITHUB.runDetails = false;
+		GITHUB.beforeAnswer = request -> {
+			if (request.method().equals("GET")
+					&& request.path().equals("/repos/" + this.source + "/actions/workflows/vibefix.yml/runs")
+					&& delivered.compareAndSet(false, true)) {
+				try {
+					long runId = ((Number) sourceRuns().getLast().get("id")).longValue();
+					GITHUB.failBeforeAnyJob(runId);
+					this.mvc.perform(ActionsExchangeSupport.workflowRun(GITHUB, runId, GitHubStub.SOURCE_APP, this.installation,
+							SOURCE_SECRET)).andExpect(status().isAccepted());
+					awaitListeners();
+				}
+				catch (Exception failed) {
+					throw new IllegalStateException(failed);
+				}
+			}
+		};
+		try {
+			run();
+		}
+		finally {
+			GITHUB.runDetails = true;
+			GITHUB.beforeAnswer = request -> {
+			};
+		}
+
+		assertThat(delivered).as("delivered before the Setup named the correlation").isTrue();
+		Setup blocked = this.setups.latest(this.job).orElseThrow();
+		assertThat(blocked.status()).as("read at once, with no time passing").isEqualTo("BLOCKED");
+		assertThat(blocked.block()).isEqualTo(JobSetups.Block.ACTIONS_QUOTA);
+		assertThat(timeouts(blocked)).as("its Deadline was not needed").singleElement().asString().startsWith("PENDING ");
+		awaitListeners();
+	}
+
+	/**
 	 * Story 23.6b (AD-46, FR-64): a run that concludes anything but {@code success} is dispatched again under a new
 	 * correlation by the lane policy; once the attempts run out, the start is blocked {@code RUN_FAILED} and the
 	 * operation waits in ADM-7's failed list, its Administrators told.

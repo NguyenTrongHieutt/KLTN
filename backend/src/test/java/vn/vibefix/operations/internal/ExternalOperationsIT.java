@@ -300,6 +300,31 @@ class ExternalOperationsIT extends IntegrationTest {
 		assertThat(column(ticket.id(), "woken_at::text")).isNull();
 	}
 
+	/**
+	 * Story 24.5a: a wake left on a row whose worker lost its lease is the old attempt's; the claim that starts the next
+	 * attempt forgets it, so that attempt's deferral waits for its time.
+	 */
+	@Test
+	void aClaimForgetsAWakeAnEarlierAttemptLeftBehind() {
+		OperationTicket ticket = request(UUID.randomUUID(), Map.of());
+		// A worker claimed it, was woken, and stopped before it rescheduled.
+		this.jdbc.sql("""
+				UPDATE operations.external_operation
+				SET status = 'RUNNING', attempt_count = 1, lease_until = :lease, woken_at = :woken WHERE id = :id
+				""").param("lease", Timestamp.from(this.clock.instant().plusSeconds(30)))
+			.param("woken", Timestamp.from(this.clock.instant()))
+			.param("id", ticket.id())
+			.update();
+		this.clock.advance(Duration.ofSeconds(31));
+		Instant backstop = this.clock.instant().plus(Duration.ofMinutes(20));
+		this.scriptedOperations.answer(new Outcome.Deferred(backstop));
+
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.scriptedOperations.runs()).hasSize(1);
+		assertThat(nextAttemptAt(ticket.id())).isEqualTo(backstop);
+	}
+
 	@Test
 	void anExpiredLeaseIsClaimedAgainAndReadsBackFirst() {
 		OperationTicket ticket = request(UUID.randomUUID(), Map.of());

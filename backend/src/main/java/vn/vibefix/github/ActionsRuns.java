@@ -292,6 +292,13 @@ public interface ActionsRuns {
 	Optional<Correlation> correlation(UUID id);
 
 	/**
+	 * Whether {@link ActionsRunUpdated} was ever published for the correlation (Story 24.5a). An operation asks right after
+	 * it recorded the dispatch: a hint published before its row named the correlation woke nobody, so it reads the run
+	 * at once instead of waiting.
+	 */
+	boolean updated(UUID correlation);
+
+	/**
 	 * The correlation's run, its first attempt, as its dispatching App reads it now with a token narrowed to the target
 	 * (Story 23.6a). A correlation whose run is not known yet looks once at the workflow's runs dispatched since the
 	 * correlation was recorded for the one whose title holds it and whose triggering actor is the App's bot, and records

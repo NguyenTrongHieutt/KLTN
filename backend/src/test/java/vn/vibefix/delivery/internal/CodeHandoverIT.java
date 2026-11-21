@@ -722,6 +722,66 @@ class CodeHandoverIT extends IntegrationTest {
 			.query(Long.class).single()).isZero();
 	}
 
+	/**
+	 * Story 24.5a: a copy whose run completed but whose delivery never came (the webhooks not set up, or the delivery
+	 * lost) is read once when its one {@code repo.actions_run_timeout} Deadline comes, and resolves as if it had.
+	 */
+	@Test
+	void aCompletedCopyWhoseEventNeverCameResolvesAtItsDeadline() throws Exception {
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		UUID correlation = correlation(submission);
+		java.time.Instant due = dispatchedAt(submission).plus(vn.vibefix.github.ActionsRuns.RUN_TIMEOUT);
+		assertThat(timeouts(correlation)).as("one, not pausable, of the Job, at the run's own timeout")
+			.containsExactly("PENDING " + this.job + " repo.handover_copy false " + due);
+		copyRunReports(submission, false, List.of("src/booking.js"));
+		woken();
+		GITHUB.copyCommit(GitHubStub.ORGANIZATION, this.working, head, this.intermediary, "handover/" + submission);
+		GITHUB.completeRun(runId(correlation), "success");
+
+		this.clock.setInstant(due);
+		this.poller.runDue();
+		assertThat(timeouts(correlation)).singleElement().asString().startsWith("FIRED ");
+		this.worker.runDue(Lane.GITHUB_LONG);
+		awaitSubmission(submission);
+
+		assertThat(submissionState(submission)).isEqualTo("DONE");
+		assertThat(runConclusion(submission)).isEqualTo("success");
+	}
+
+	/**
+	 * Story 24.5a: a copy whose run is still unfinished when its Deadline comes reads it once and gives it up: the
+	 * correlation closed, so it can never exchange, and the run cancelled.
+	 */
+	@Test
+	void aCopyWhoseRunIsStillOutAtItsDeadlineIsClosedAndCancelled() throws Exception {
+		GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js", "export const free = true;\n",
+				"Sửa lỗi", "hung@example.test");
+		UUID submission = UUID.fromString(JsonPath.read(handOver(5).andExpect(status().isAccepted())
+			.andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		UUID correlation = correlation(submission);
+		long run = runId(correlation);
+		GITHUB.startRun(run);
+
+		this.clock.setInstant(dispatchedAt(submission).plus(vn.vibefix.github.ActionsRuns.RUN_TIMEOUT));
+		this.poller.runDue();
+		assertThat(timeouts(correlation)).singleElement().asString().startsWith("FIRED ");
+		this.worker.runDue(Lane.GITHUB_LONG);
+		awaitPublications();
+
+		assertThat(runConclusion(submission)).isEqualTo("timed_out");
+		assertThat(this.runs.correlation(correlation).orElseThrow().status()).as("closed")
+			.isEqualTo(vn.vibefix.github.ActionsRuns.Status.EXPIRED);
+		assertThat(GITHUB.seen).as("and its run cancelled").anyMatch(request -> request.method().equals("POST")
+				&& request.path().equals("/repos/" + GitHubStub.ORGANIZATION + "/" + RUNNER + "/actions/runs/" + run + "/cancel"));
+		assertThat(GITHUB.runs.get(run).get("conclusion")).isEqualTo("cancelled");
+		assertThat(submissionState(submission)).as("the lane tries again").isEqualTo("PENDING");
+	}
+
 	/** A correlation the exchange refused ends the submission: a second run would be refused the same way. */
 	@Test
 	void aCorrelationTheExchangeRefusesEndsTheSubmission() throws Exception {
@@ -1471,6 +1531,22 @@ class CodeHandoverIT extends IntegrationTest {
 	private java.time.Instant dispatchedAt(UUID submission) {
 		return this.jdbc.sql("SELECT dispatched_at FROM repo.handover_copy WHERE submission_id = :id")
 			.param("id", submission).query(Timestamp.class).single().toInstant();
+	}
+
+	/**
+	 * The {@code repo.actions_run_timeout} Deadlines of the correlation (Story 24.5a), each as its status, Job,
+	 * generation, whether it is pausable, and its due time while pending.
+	 */
+	private List<String> timeouts(UUID correlation) {
+		return this.jdbc.sql("""
+				SELECT status, job_id, generation, pausable, due_at FROM timers.deadline
+				WHERE kind = 'repo.actions_run_timeout' AND subject_id = :correlation ORDER BY created_at
+				""")
+			.param("correlation", correlation)
+			.query((rs, n) -> rs.getString("status") + " " + rs.getObject("job_id") + " " + rs.getString("generation") + " "
+					+ rs.getBoolean("pausable") + " "
+					+ (rs.getTimestamp("due_at") == null ? "-" : rs.getTimestamp("due_at").toInstant()))
+			.list();
 	}
 
 	/**

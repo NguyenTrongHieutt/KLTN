@@ -1,8 +1,10 @@
 package vn.vibefix.github.internal;
 
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,9 +23,9 @@ import vn.vibefix.github.internal.GitHubProperties.AppProperties;
 import vn.vibefix.shared.IdGenerator;
 
 /**
- * {@link ActionsRunUpdated}, published in the caller's transaction (Story 24.5a). A webhook delivery becomes one only
- * for a {@code workflow_run} whose action is {@code completed} and which matches an open or exchanged correlation in
- * all of these:
+ * {@link ActionsRunUpdated}, published in the caller's transaction (Story 24.5a), and only here. A webhook delivery
+ * ({@link WebhookController}) becomes one only for a {@code workflow_run} whose action is {@code completed} and which
+ * matches a correlation whose run may have run, open or exchanged (its token since revoked included), in all of these:
  * <ul>
  * <li>the App that sent it is the one that dispatched the run;</li>
  * <li>its installation is the correlation's: the Customer's Source App installation the correlation records, or the
@@ -31,8 +33,11 @@ import vn.vibefix.shared.IdGenerator;
  * <li>its run is the correlation's: the run the correlation recorded, or, while none is recorded, the one whose title
  * holds the correlation, as every published workflow's {@code run-name} writes it.</li>
  * </ul>
- * Anything else publishes nothing. An accepted path report and the exchange's refusal of a run's ID token publish one
- * too, since either decides what the waiting operation does next.
+ * Anything else publishes nothing; a refused or expired correlation's run is never the one an operation waits on. An
+ * accepted path report ({@link ActionsReports}) and the exchange's refusal of a run's ID token ({@link ActionsExchange})
+ * publish one too, through {@link #updated}, since either decides what the waiting operation does next. Each one is
+ * also recorded on the correlation, so an operation that names the correlation only after the event was handled still
+ * sees it ({@link vn.vibefix.github.ActionsRuns#updated}).
  */
 @Component
 class ActionsRunUpdates {
@@ -43,6 +48,9 @@ class ActionsRunUpdates {
 	static final String EVENT = "workflow_run";
 
 	static final String COMPLETED = "completed";
+
+	/** The correlations whose run may have run: an exchanged one stays so once its token is revoked (or lost). */
+	private static final Set<Status> LIVE = Set.of(Status.OPEN, Status.EXCHANGED, Status.REVOKED, Status.REVOKE_UNKNOWN);
 
 	/** A correlation as a run's title holds it. */
 	private static final Pattern CORRELATION = Pattern
@@ -56,12 +64,15 @@ class ActionsRunUpdates {
 
 	private final IdGenerator ids;
 
+	private final Clock clock;
+
 	ActionsRunUpdates(ExchangeCorrelations correlations, GitHubProperties properties, ApplicationEventPublisher events,
-			IdGenerator ids) {
+			IdGenerator ids, Clock clock) {
 		this.correlations = correlations;
 		this.properties = properties;
 		this.events = events;
 		this.ids = ids;
+		this.clock = clock;
 	}
 
 	/**
@@ -101,13 +112,17 @@ class ActionsRunUpdates {
 		return published;
 	}
 
-	/** The correlation's run is to be read again: a report, or a refusal, arrived for it. */
+	/**
+	 * The correlation's run is to be read again: recorded on the correlation and published, in the caller's
+	 * transaction. {@link #delivered}, {@link ActionsReports} and {@link ActionsExchange} call it.
+	 */
 	void updated(UUID correlation) {
+		this.correlations.markUpdated(correlation, this.clock.instant());
 		this.events.publishEvent(new ActionsRunUpdated(this.ids.newId(), correlation));
 	}
 
 	private boolean matches(ExchangeCorrelations.Row row, App app, long installation, long runId, String title) {
-		if (row.status() != Status.OPEN && row.status() != Status.EXCHANGED) {
+		if (!LIVE.contains(row.status())) {
 			return false;
 		}
 		if (row.dispatchingApp() != app || !Objects.equals(installationOf(row), installation)) {

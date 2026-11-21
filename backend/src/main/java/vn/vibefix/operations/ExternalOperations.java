@@ -21,10 +21,10 @@ public interface ExternalOperations {
 
 	/**
 	 * Wakes one operation that waits for something outside to happen, such as a GitHub Actions run to complete (Story
-	 * 24.5a). A pending operation is due now, whatever it deferred to. A wake that arrives while an attempt is running
-	 * is not lost: when that attempt defers, its deferral resumes at once, since the attempt may have looked before
-	 * what woke it happened. A completed operation is left as it is. It joins the caller's transaction, or runs in one
-	 * of its own.
+	 * 24.5a). A pending operation is due now, whatever it waits for: a deferral or a retry's backoff alike. A wake that
+	 * arrives while an attempt is running is not lost: when that attempt defers, its deferral resumes at once, since
+	 * the attempt may have looked before what woke it happened; when it fails, its retry keeps the policy's backoff. A
+	 * completed operation is left as it is. It joins the caller's transaction, or runs in one of its own.
 	 * @return whether the operation was pending or running, so the wake took
 	 */
 	boolean wake(UUID operationId);

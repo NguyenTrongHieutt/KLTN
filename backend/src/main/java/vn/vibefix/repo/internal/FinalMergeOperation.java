@@ -235,8 +235,10 @@ class FinalMergeOperation implements OperationHandler {
 			runs().close(dispatched.correlation());
 			return new Outcome.Obsolete("NOT_CONFIRMED");
 		}
-		// Story 24.5a: nothing reads the run on an interval; its completion, a refusal or its Deadline wakes this.
-		return new Outcome.Deferred(ActionsRunWakes.backstop(dispatchedAt));
+		// Story 24.5a: nothing reads the run on an interval; its completion, a refusal or its Deadline wakes this. A hint
+		// that came while the dispatch still looked for its run found no row to wake, so the run is read at once.
+		return new Outcome.Deferred(runs().updated(dispatched.correlation()) ? this.clock.instant()
+				: ActionsRunWakes.backstop(dispatchedAt));
 	}
 
 	/**

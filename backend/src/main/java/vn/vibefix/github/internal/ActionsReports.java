@@ -27,7 +27,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.nimbusds.jwt.JWTClaimsSet;
 
 import tools.jackson.databind.JsonNode;
-import vn.vibefix.github.ActionsRunUpdated;
 import vn.vibefix.github.ActionsRuns.Operation;
 import vn.vibefix.github.ActionsRuns.Report;
 import vn.vibefix.github.ActionsRuns.Status;
@@ -59,8 +58,8 @@ import vn.vibefix.shared.IdGenerator;
  * logged, and no exception message holds any of it. From {@link ExchangeReason#REPLAY} on, the token is GitHub's
  * and names an exchanged correlation, so {@link GitHubExchangeRefused} is published too, for {@code admin} to
  * audit and alert. The abuse limits are the exchange's (AD-34) on counters of this endpoint's own. A stored report
- * publishes {@link ActionsRunUpdated} in its own transaction, so the copy that waits for the run reads it at once
- * (Story 24.5a).
+ * publishes {@link vn.vibefix.github.ActionsRunUpdated} in its own transaction ({@link ActionsRunUpdates#updated}), so
+ * the copy that waits for the run reads it at once (Story 24.5a).
  */
 @Component
 class ActionsReports {
@@ -100,9 +99,13 @@ class ActionsReports {
 
 	private final Map<ExchangeReason, AtomicLong> refusals = new EnumMap<>(ExchangeReason.class);
 
+	/** Story 24.5a: a stored report wakes the copy that waits for its run. */
+	private final ActionsRunUpdates runUpdates;
+
 	ActionsReports(ActionsIdTokens idTokens, ExchangeCorrelations correlations, ExchangeReports reports,
 			ApplicationEventPublisher events, PlatformTransactionManager transactionManager, IdGenerator ids,
-			Clock clock) {
+			Clock clock, ActionsRunUpdates runUpdates) {
+		this.runUpdates = runUpdates;
 		this.idTokens = idTokens;
 		this.correlations = correlations;
 		this.reports = reports;
@@ -156,7 +159,7 @@ class ActionsReports {
 					posted.count(), this.clock.instant()));
 			if (inserted) {
 				// Story 24.5a: the copy waiting for this run reads the report now; a workflow change ends it at once.
-				this.events.publishEvent(new ActionsRunUpdated(this.ids.newId(), row.id()));
+				this.runUpdates.updated(row.id());
 			}
 			return inserted;
 		}));

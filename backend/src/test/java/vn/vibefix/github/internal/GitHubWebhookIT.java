@@ -270,17 +270,40 @@ class GitHubWebhookIT extends IntegrationTest {
 		assertThat(this.events.stream(ActionsRunUpdated.class).map(ActionsRunUpdated::correlationId))
 			.containsExactly(copy, merge, handover);
 		assertThat(this.events.stream(GitHubWebhookReceived.class)).as("each delivery once").hasSize(3);
+		assertThat(List.of(copy, merge, handover)).as("each recorded on its correlation")
+			.allMatch(this.correlations::wasUpdated);
 	}
 
 	/**
-	 * Story 24.5a: anything but a completed run of an open or exchanged correlation of the App that sent it, on its
-	 * installation and for its run, is answered 2xx and names no correlation.
+	 * Story 24.5a: an exchanged correlation whose token the 30-second revocation read already revoked, or lost to a
+	 * restart, is still the one its operation waits on: its completed run names it.
+	 */
+	@Test
+	void aCompletedRunWhoseTokenWasAlreadyRevokedStillNamesItsCorrelation() throws Exception {
+		UUID revoked = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9211L, Status.REVOKED);
+		UUID unknown = correlation(App.PLATFORM, null, 9212L, Status.REVOKE_UNKNOWN);
+
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "workflow_run",
+				workflowRun("completed", 9211, "vibefix copy " + revoked, CUSTOMER_INSTALLATION), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "workflow_run",
+				workflowRun("completed", 9212, "s6-copy " + unknown, GitHubStub.INSTALLATION), PLATFORM_SECRET))
+			.andExpect(status().isAccepted());
+
+		assertThat(this.events.stream(ActionsRunUpdated.class).map(ActionsRunUpdated::correlationId))
+			.containsExactly(revoked, unknown);
+	}
+
+	/**
+	 * Story 24.5a: anything but a completed run of an open or exchanged correlation (its token since revoked included)
+	 * of the App that sent it, on its installation and for its run, is answered 2xx and names no correlation; a refused
+	 * or expired one's run is never the one an operation waits on.
 	 */
 	@Test
 	void aRunThatIsNotOursOrNotCompletedNamesNoCorrelation() throws Exception {
 		UUID copy = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9301L, Status.EXCHANGED);
 		UUID handover = correlation(App.PLATFORM, null, 9302L, Status.EXCHANGED);
-		UUID revoked = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9303L, Status.REVOKED);
+		UUID expired = correlation(App.SOURCE, CUSTOMER_INSTALLATION, 9303L, Status.EXPIRED);
 		UUID refused = correlation(App.SOURCE, CUSTOMER_INSTALLATION, null, Status.REFUSED);
 		String copied = "vibefix copy " + copy;
 		List<Delivery> notOurs = List.of(
@@ -294,9 +317,9 @@ class GitHubWebhookIT extends IntegrationTest {
 				source(workflowRun("completed", 9302, "s6-copy " + handover, CUSTOMER_INSTALLATION)),
 				// Another run whose title names a correlation that recorded its own run.
 				source(workflowRun("completed", 9399, copied, CUSTOMER_INSTALLATION)),
-				// No correlation at all, and correlations no longer open or exchanged.
+				// No correlation at all, and correlations given up or refused.
 				source(workflowRun("completed", 9398, "vibefix copy " + UUID.randomUUID(), CUSTOMER_INSTALLATION)),
-				source(workflowRun("completed", 9303, "vibefix copy " + revoked, CUSTOMER_INSTALLATION)),
+				source(workflowRun("completed", 9303, "vibefix copy " + expired, CUSTOMER_INSTALLATION)),
 				source(workflowRun("completed", 9304, "vibefix copy " + refused, CUSTOMER_INSTALLATION)));
 
 		for (Delivery delivery : notOurs) {
@@ -475,6 +498,11 @@ class GitHubWebhookIT extends IntegrationTest {
 				assertThat(this.correlations.exchanged(id, runId, now)).isTrue();
 				assertThat(this.correlations.revoked(id, now)).isTrue();
 			}
+			case REVOKE_UNKNOWN -> {
+				assertThat(this.correlations.exchanged(id, runId, now)).isTrue();
+				assertThat(this.correlations.revokeUnknown(id)).isTrue();
+			}
+			case EXPIRED -> assertThat(this.correlations.close(id)).isTrue();
 			case REFUSED -> assertThat(this.correlations.refuse(id, ExchangeReason.RUN)).isTrue();
 			default -> throw new IllegalArgumentException(status.name());
 		}

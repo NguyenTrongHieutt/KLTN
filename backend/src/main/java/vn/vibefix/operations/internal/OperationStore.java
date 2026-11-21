@@ -147,7 +147,10 @@ class OperationStore {
 		return Boolean.TRUE.equals(completed);
 	}
 
-	/** Puts a failed attempt back in the queue until {@code nextAttemptAt}: a wake meanwhile does not cut its backoff. */
+	/**
+	 * Puts a failed attempt back in the queue until {@code nextAttemptAt}. A wake that arrived during the attempt does
+	 * not cut that backoff; a wake while the row waits for its retry makes it due now (Story 24.5a).
+	 */
 	boolean retryLater(Claimed claimed, Instant nextAttemptAt, String errorCode, boolean readBackFirst) {
 		return reschedule(claimed, nextAttemptAt, errorCode, readBackFirst, 0, false);
 	}

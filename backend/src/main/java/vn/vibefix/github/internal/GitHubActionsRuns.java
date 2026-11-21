@@ -162,6 +162,11 @@ class GitHubActionsRuns implements ActionsRuns {
 	}
 
 	@Override
+	public boolean updated(UUID correlation) {
+		return this.correlations.wasUpdated(correlation);
+	}
+
+	@Override
 	public Optional<Run> run(UUID correlation) {
 		ExchangeCorrelations.Row row = this.correlations.find(correlation).orElse(null);
 		if (row == null) {

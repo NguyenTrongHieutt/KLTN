@@ -10,7 +10,7 @@
 #   deploy/secrets/github-source-app-webhook-secret
 # and paste each one into its App's webhook settings on GitHub.
 #
-#   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml -f deploy/compose.webhooks.yaml up -d --wait backend
+#   docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml -f deploy/compose.webhooks.yaml up -d --build --wait backend
 #
 # GitHub reaches the dev stack through the same cloudflared quick tunnel as the Actions exchange, on port 8098,
 # where the backend serves POST /webhooks too. VIBEFIX_GITHUB_WEBHOOKURL stays unset: the tunnel's URL changes on

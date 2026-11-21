@@ -539,7 +539,8 @@ after its dispatch: the copy then reads the run once, so a completed run whose d
 and an unfinished one takes the timeout path (closed, cancelled, `RUN_FAILED`).
 
 **Until these steps are done, every run resolves only at that Deadline, about 15 minutes after its dispatch**
-(except a handover copy whose report names a workflow change, which ends at once). The code came first, with the
+(except a run the exchange refuses, whose operation wakes at once, and a handover copy whose report names a
+workflow change, which ends at once). The code came first, with the
 author's approval of 2026-11-21. Both Apps deliver to the same tunnel as the Actions exchange ("Actions exchange on
 the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and answers 404 to anything else there.
 
@@ -853,7 +854,7 @@ The probe `spike-s6` runs in three parts. Only the author can run it, on GitHub,
    registration with AD-10's permissions plus `actions=write`, and fails with "installation has not
    accepted actions write" until the installation accepted it.
 4. **The Source App.** A public App ("Any account"), with the webhook off for this spike (Story 24.5a turned it on
-   for the stack: "Webhooks in dev" below):
+   for the stack: "Webhooks in dev" above):
    - repository permissions: Contents **read**, Metadata **read**, and Actions **read and write**,
      nothing else;
    - no organization permission, no event.
