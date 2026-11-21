@@ -937,24 +937,120 @@ class FinalMergeIT extends IntegrationTest {
 		awaitListeners();
 	}
 
-	/** Story 24.5b: a frozen Job defers the check ten minutes, and the row says it waits for the dispute. */
+	/**
+	 * Story 24.5b: a frozen Job defers the check ten minutes, and the row says it waits for the dispute. Once the dispute
+	 * ends, the re-check at that time is {@code READY} and waits for nothing.
+	 */
 	@Test
 	void aFrozenJobMakesTheCheckWaitForTheDispute() throws Exception {
-		this.jdbc.sql("UPDATE job.job SET frozen_at = :now WHERE id = :id").param("now", Timestamp.from(this.clock.instant()))
-			.param("id", this.job).update();
+		Instant at = freezeAndCheck();
 
-		check();
+		this.jdbc.sql("UPDATE job.job SET frozen_at = NULL WHERE id = :id").param("id", this.job).update();
+		this.clock.advance(FinalMergeCheckOperation.SHORT_WAIT);
+		assertThat(this.clock.instant()).isAfter(at);
+		this.worker.runDue(Lane.GITHUB_LONG);
 
-		Instant at = this.clock.instant().plus(FinalMergeCheckOperation.SHORT_WAIT);
-		assertThat(mergeStatus()).isEqualTo("CHECKING");
-		assertThat(waitingFor()).isEqualTo("FROZEN");
-		assertThat(nextCheckAt()).isEqualTo(at);
-		assertThat(checkNextAttempt()).isEqualTo(at);
-		this.clock.advance(Duration.ofSeconds(5));
+		assertThat(mergeStatus()).isEqualTo("READY");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.merge.wait.reason").value("FROZEN"))
-			.andExpect(jsonPath("$.merge.wait.nextCheckAt").value(at.toString()));
-		assertThat(checkNextAttempt()).as("the Customer's read never wakes a dispute's wait").isEqualTo(at);
+			.andExpect(jsonPath("$.merge.status").value("READY"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
+	}
+
+	/** Story 24.5b: a re-check after a wait that fails J9's guard is refused, and the refusal waits for nothing. */
+	@Test
+	void aRecheckAfterAWaitThatFailsTheGuardIsRefusedWithNoWait() throws Exception {
+		freezeAndCheck();
+
+		this.jdbc.sql("UPDATE job.job SET frozen_at = NULL WHERE id = :id").param("id", this.job).update();
+		GITHUB.push(GitHubStub.ORGANIZATION, this.intermediary, "main", "extra.txt", "x\n");
+		this.clock.advance(FinalMergeCheckOperation.SHORT_WAIT);
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(mergeStatus()).isEqualTo("REFUSED");
+		assertThat(refusal()).isEqualTo("J9_GUARD");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: the last read-back commits while the check runs. The check read the grant before that commit, and the
+	 * read-back found no wait to clear; the check's own wait, recorded under the lock after the commit, queues it at once.
+	 */
+	@Test
+	void aReadBackThatCommitsWhileTheCheckRunsWakesItAtOnce() throws Exception {
+		this.merges.prepare(this.job);
+		assertThat(waitingFor()).as("no team grant: queued at once").isNull();
+		UUID mentor = teamGrant(this.hung, "MENTOR", "REVOKING");
+		Grant grant = grant(mentor);
+		long requested = checkRequests();
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger holder = new AtomicInteger();
+		CompletableFuture<Void> readBack = CompletableFuture
+			.runAsync(() -> this.transactions.executeWithoutResult(status -> {
+				this.revocations.revoked(grant);
+				holder.set(backend());
+				locked.countDown();
+				await(release);
+			}));
+		assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+		CompletableFuture<Integer> checking = CompletableFuture.supplyAsync(() -> this.worker.runDue(Lane.GITHUB_LONG));
+		awaitBlockedBy(holder.get());
+		release.countDown();
+		readBack.get(15, TimeUnit.SECONDS);
+		checking.get(15, TimeUnit.SECONDS);
+
+		assertThat(waitingFor()).isNull();
+		assertThat(checkNextAttempt()).as("the deferral resumes at once").isEqualTo(this.clock.instant());
+		assertThat(checkRequests()).isGreaterThan(requested);
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("READY");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.5b: while the run is out, the Customer's read of JOB-1 has nothing to queue, so it takes no lock and
+	 * never waits on a transaction that holds the Final Merge's row, such as the branch read-back.
+	 */
+	@Test
+	void theCustomersReadDuringTheRunDoesNotWaitOnTheRow() throws Exception {
+		check();
+		confirm(true).andExpect(status().isAccepted());
+		this.worker.runDue(Lane.GITHUB_LONG);
+		assertThat(mergeStatus()).isEqualTo("RUNNING");
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		CompletableFuture<Void> writer = CompletableFuture.runAsync(() -> this.transactions.executeWithoutResult(status -> {
+			this.jdbc.sql("UPDATE repo.final_merge SET run_status = run_status WHERE job_id = :job")
+				.param("job", this.job)
+				.update();
+			locked.countDown();
+			await(release);
+		}));
+		try {
+			assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+			RequestPostProcessor customer = as(this.lan, Role.CUSTOMER);
+			CompletableFuture<Integer> read = CompletableFuture.supplyAsync(() -> {
+				try {
+					return this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(customer))
+						.andExpect(jsonPath("$.merge.status").value("RUNNING"))
+						.andReturn()
+						.getResponse()
+						.getStatus();
+				}
+				catch (Exception failed) {
+					throw new IllegalStateException(failed);
+				}
+			});
+			assertThat(read.get(10, TimeUnit.SECONDS)).as("answered while the row is held").isEqualTo(200);
+		}
+		finally {
+			release.countDown();
+			writer.get(15, TimeUnit.SECONDS);
+		}
 	}
 
 	/** Story 24.5b: after J10 the closing choice has ended, so a read-back requests nothing (and J10 requests none). */
@@ -1010,6 +1106,7 @@ class FinalMergeIT extends IntegrationTest {
 		waitsForTheCustomer();
 	}
 
+	/** Story 24.5b: once the Customer puts the published file back, the re-check is {@code READY} with no wait. */
 	@Test
 	void aChangedWorkflowMakesTheCheckWaitForTheCustomerWithNoFallback() throws Exception {
 		GITHUB.sourceFiles.put(this.owner + "/" + this.name + ":.github/workflows/vibefix.yml",
@@ -1017,6 +1114,17 @@ class FinalMergeIT extends IntegrationTest {
 		check();
 
 		waitsForTheCustomer();
+
+		GITHUB.sourceFiles.put(this.owner + "/" + this.name + ":.github/workflows/vibefix.yml",
+				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW));
+		this.worker.runDue(Lane.GITHUB_LONG);
+
+		assertThat(mergeStatus()).isEqualTo("READY");
+		assertThat(waitingFor()).isNull();
+		assertThat(nextCheckAt()).isNull();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("READY"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
 	}
 
 	@Test
@@ -1036,7 +1144,8 @@ class FinalMergeIT extends IntegrationTest {
 	/**
 	 * A Source block the Customer can fix: the check waits, the row stays, and nothing is refused. Story 24.5b: the row
 	 * says it waits for the Customer and when the check looks again, the card shows both, and the Customer's read every
-	 * few seconds leaves the check's next attempt where it was.
+	 * few seconds leaves the check's next attempt where it was. Once that time has passed, before the worker looks
+	 * again, the view shows no wait. The clock is then past the wait.
 	 */
 	private void waitsForTheCustomer() throws Exception {
 		assertThat(mergeStatus()).isEqualTo("CHECKING");
@@ -1058,6 +1167,32 @@ class FinalMergeIT extends IntegrationTest {
 		assertThat(checkNextAttempt()).as("the Customer's read never wakes their own wait").isEqualTo(at);
 		assertThat(checkRequests()).isOne();
 		assertThat(this.worker.runDue(Lane.GITHUB_LONG)).isZero();
+
+		this.clock.advance(FinalMergeCheckOperation.CUSTOMER_WAIT);
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.status").value("CHECKING"))
+			.andExpect(jsonPath("$.merge.wait").doesNotExist());
+		assertThat(waitingFor()).as("the row keeps it until the next attempt").isEqualTo("CUSTOMER");
+	}
+
+	/** A frozen Job's check, deferred ten minutes for the dispute, which the Customer's reads leave alone. */
+	private Instant freezeAndCheck() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :now WHERE id = :id").param("now", Timestamp.from(this.clock.instant()))
+			.param("id", this.job).update();
+
+		check();
+
+		Instant at = this.clock.instant().plus(FinalMergeCheckOperation.SHORT_WAIT);
+		assertThat(mergeStatus()).isEqualTo("CHECKING");
+		assertThat(waitingFor()).isEqualTo("FROZEN");
+		assertThat(nextCheckAt()).isEqualTo(at);
+		assertThat(checkNextAttempt()).isEqualTo(at);
+		this.clock.advance(Duration.ofSeconds(5));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/final-merge").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.merge.wait.reason").value("FROZEN"))
+			.andExpect(jsonPath("$.merge.wait.nextCheckAt").value(at.toString()));
+		assertThat(checkNextAttempt()).as("the Customer's read never wakes a dispute's wait").isEqualTo(at);
+		return at;
 	}
 
 	/** The Customer opens JOB-1, which starts the check, and the check runs. */

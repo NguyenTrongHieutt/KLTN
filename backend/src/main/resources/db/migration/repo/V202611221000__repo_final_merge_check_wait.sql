@@ -5,7 +5,9 @@
 -- block the Customer fixes on CUS-4, FROZEN for a dispute -- and when it looks again, which the Customer's closing
 -- card shows. next_check_at is null for a revocation not yet read back, since nothing is requested to look at all.
 -- Both columns are cleared when the check is queued or succeeds, and only a CHECKING row waits.
--- Old rows: none of them waits on anything these columns name, so null is right for all of them.
+-- Old rows get null. A CHECKING row whose check had already deferred reads as checking, with no wait on the card,
+-- until its next attempt records the wait; a revocation deferral from before this migration is not woken by a
+-- read-back and runs at its ten minutes, as it did before.
 -- Personal data: none; a reason code and a time.
 
 ALTER TABLE repo.final_merge

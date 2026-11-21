@@ -95,7 +95,9 @@ class FinalMerges {
 	 * because a run's {@code GITHUB_TOKEN} can never push those files (deferred-work 626)
 	 * @param branch {@code vibefix/final-{jobId}}, once the run was dispatched for it
 	 * @param mergedAt when vibefix read the branch back
-	 * @param waitingFor what the check waits for, while it is {@code CHECKING} and not checking now
+	 * @param waitingFor what a {@code CHECKING} row's check last deferred for; it stays until the next attempt records
+	 * another wait or clears it, through a retry after a GitHub error too, so a {@code nextCheckAt} already past means
+	 * the check is due or retrying, and the Customer's view then shows no wait
 	 * @param nextCheckAt when the check looks again; none for a revocation not yet read back, which requests the
 	 * check itself
 	 */
@@ -162,10 +164,17 @@ class FinalMerges {
 	 * waiting on {@code REVOCATION}, and the check is requested at once when every team grant already reads back
 	 * revoked; otherwise the read-back of the last one requests it ({@link #teamRevoked}). An existing row is queued
 	 * again only from {@code REVOCATION}, so this read every few seconds never wakes or re-requests a check that
-	 * waits for the Customer or for a dispute (Story 24.5b).
+	 * waits for the Customer or for a dispute (Story 24.5b). It reads first without a lock and takes the lock only
+	 * when the row is absent or waits on {@code REVOCATION}, so a read while the run is out never waits on a writer
+	 * of the row, such as the branch read-back.
 	 */
 	@Transactional
 	void prepare(UUID jobId) {
+		Authorization open = this.authorizations.openOf(jobId).orElse(null);
+		FinalMerge existing = open == null ? null : find(open.id()).orElse(null);
+		if (open == null || (existing != null && existing.waitingFor() != Wait.REVOCATION)) {
+			return;
+		}
 		Authorization authorization = this.authorizations.lockOpen(jobId).orElse(null);
 		BusyJob job = this.busy.job(jobId).orElse(null);
 		if (authorization == null || job == null || !"CLOSING".equals(job.state())) {
