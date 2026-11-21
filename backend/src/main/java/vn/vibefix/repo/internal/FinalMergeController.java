@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -103,12 +104,12 @@ class FinalMergeController {
 	 * @param branch {@code vibefix/final-{jobId}}, the branch the run pushes
 	 * @param branchUrl "Xem nhánh ↗", once the branch read back
 	 * @param compareUrl "Mở trang hợp nhất trên GitHub ↗", GitHub's compare page, once the branch read back
-	 * @param wait what a {@code CHECKING} Final Merge waits for and when it looks again (Story 24.5b); none while it
-	 * checks
+	 * @param waiting {@code wait} in the API (a record cannot name a component after {@code Object.wait}): what a
+	 * {@code CHECKING} Final Merge waits for and when it looks again (Story 24.5b); none while it checks
 	 */
 	record MergeView(String status, List<MergeSensitiveChangeView> sensitive, List<String> workflows,
 			@Nullable String refusal, @Nullable RunView run, @Nullable String branch, @Nullable String branchUrl,
-			@Nullable String compareUrl, @Nullable MergeWaitView wait) {
+			@Nullable String compareUrl, @JsonProperty("wait") @Nullable MergeWaitView waiting) {
 	}
 
 	/**
