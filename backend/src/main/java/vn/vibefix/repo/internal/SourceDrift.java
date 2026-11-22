@@ -1,5 +1,6 @@
 package vn.vibefix.repo.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,18 +9,17 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +29,10 @@ import vn.vibefix.audit.AuditActor;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubException;
+import vn.vibefix.github.GitHubWebhookReceived;
+import vn.vibefix.github.SourcePushed;
 import vn.vibefix.job.JobBusy;
 import vn.vibefix.job.JobBusy.BusyJob;
 import vn.vibefix.notification.Audience;
@@ -38,6 +41,8 @@ import vn.vibefix.notification.Notifications;
 import vn.vibefix.notification.Recipient;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
+import vn.vibefix.operations.ExternalOperations;
+import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.product.ProductSources;
 import vn.vibefix.product.ProductSources.Block;
 import vn.vibefix.product.ProductSources.Drift;
@@ -46,15 +51,27 @@ import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.shared.ProcessedEvents;
 
 /**
- * Drift Warnings (FR-20, FR-53, AD-12, R7): every day, each Active or Closing Code Job's Source Repository is
- * read through the Customer's Source App ({@link ProductSources#drift}, Story 23.5b); the Platform App reads no
- * Source. Commits past the copy; a repository gone (deleted, removed from the App's selection, or transferred to an
- * account without the App), archived, renamed, or transferred; the Source App uninstalled; or {@code vibefix.yml}
- * removed or changed each make one warning, stored with the commits that triggered it, and the Customer and the
- * Mentor hear of it once. "Made private" is no drift, and neither is the admin right. A renamed or transferred
- * repository becomes the Final Merge target only after the Customer re-confirms it and still administers it.
+ * Drift Warnings (FR-20, FR-53, AD-12, R7, Story 24.6): the Source App's own events tell vibefix within seconds that a
+ * running Code Job's Source Repository changed, and nothing reads it on an interval. Only the Source App's deliveries
+ * act, and only on a running Code Job (Active or Closing, with a {@code DONE} Setup) of a Product they name:
+ * <ul>
+ * <li>a {@code push} to the repository's default branch ({@link SourcePushed}) warns of new commits from the payload
+ * alone, one warning per batch, identified by its {@code after} commit; no head is read from GitHub, stored, or
+ * compared;</li>
+ * <li>that push, a {@code repository} deleted, archived, renamed or transferred (matched, like a push, by the
+ * repository's permanent ID), an {@code installation} deleted or suspended, and an {@code installation_repositories}
+ * removal (matched by the Products bound on that installation) each request one read of the Job through the
+ * Customer's Source App ({@value #READ}, {@link ProductSources#drift}), which a GitHub failure retries.</li>
+ * </ul>
+ * The read gives the Source App's block ({@code APP_UNINSTALLED} or {@code GONE}), else a {@code vibefix.yml} that
+ * differs, archived, renamed, and transferred, each its own warning; it also records the Product's status, which opens
+ * {@code product.install_source_app} or {@code product.add_workflow}. Each warning is stored with what triggered it,
+ * and the Customer and the Mentor hear of it once. "Made private" is no drift, and neither is the admin right. A renamed
+ * or transferred repository becomes the Final Merge target only after the Customer re-confirms it and still administers
+ * it. A delivery is a hint: every state but the push's own commits comes from the read.
  */
 @Component
 class SourceDrift {
@@ -63,14 +80,22 @@ class SourceDrift {
 
 	static final String RECONFIRM = "repo.reconfirm_source";
 
-	private static final Set<String> RUNNING = Set.of("ACTIVE", "CLOSING");
+	/** The drift read a matched delivery requests, once per Job and delivery (Story 24.6). */
+	static final String READ = "repo.source_drift_read";
 
-	private static final Logger log = LoggerFactory.getLogger(SourceDrift.class);
+	/**
+	 * The Source App's deliveries besides {@code push} that request a read, by event and action. Every other action,
+	 * {@code privatized} included, does nothing and reads nothing.
+	 */
+	static final Map<String, Set<String>> HINTS = Map.of("repository", Set.of("deleted", "archived", "renamed", "transferred"),
+			"installation", Set.of("deleted", "suspend"), "installation_repositories", Set.of("removed"));
+
+	private static final Set<String> RUNNING = Set.of("ACTIVE", "CLOSING");
 
 	/** What changed in the Source Repository. */
 	enum Kind {
 
-		/** Commits on the default branch past the copied one. */
+		/** Commits pushed to the default branch after J7, as the Source App's {@code push} delivery names them. */
 		COMMITS,
 
 		/**
@@ -106,6 +131,10 @@ class SourceDrift {
 
 	}
 
+	/** A running Code Job past Setup, with its Source Repository as the Product registered it. */
+	private record Running(BusyJob job, Registered registered) {
+	}
+
 	private final JdbcClient jdbc;
 
 	private final JobBusy busy;
@@ -114,11 +143,15 @@ class SourceDrift {
 
 	private final ProductSources sources;
 
+	private final ExternalOperations operations;
+
 	private final Notifications notifications;
 
 	private final Todos todos;
 
 	private final AuditLog auditLog;
+
+	private final ProcessedEvents processedEvents;
 
 	private final IdGenerator ids;
 
@@ -126,63 +159,157 @@ class SourceDrift {
 
 	private final TransactionTemplate transactions;
 
-	SourceDrift(JdbcClient jdbc, JobBusy busy, JobSetups setups, ProductSources sources, Notifications notifications,
-			Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock, PlatformTransactionManager transactionManager) {
+	SourceDrift(JdbcClient jdbc, JobBusy busy, JobSetups setups, ProductSources sources, ExternalOperations operations,
+			Notifications notifications, Todos todos, AuditLog auditLog, ProcessedEvents processedEvents, IdGenerator ids,
+			Clock clock, PlatformTransactionManager transactionManager) {
 		this.jdbc = jdbc;
 		this.busy = busy;
 		this.setups = setups;
 		this.sources = sources;
+		this.operations = operations;
 		this.notifications = notifications;
 		this.todos = todos;
 		this.auditLog = auditLog;
+		this.processedEvents = processedEvents;
 		this.ids = ids;
 		this.clock = clock;
 		this.transactions = new TransactionTemplate(transactionManager);
 	}
 
-	/** Every running Code Job past Setup. */
-	void poll() {
-		// In ID order, so one Job's failure is read the same way every day; it never stops the Jobs after it.
-		for (UUID jobId : this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE status = 'DONE' ORDER BY job_id")
-			.query(UUID.class)
-			.list()) {
-			try {
-				check(jobId);
-			}
-			catch (GitHubException failed) {
-				log.warn("The Source Repository of Job {} was not read: {}", jobId, failed.getMessage());
-			}
-			catch (RuntimeException failed) {
-				log.warn("The drift check of Job {} failed; the next Job is read anyway", jobId, failed);
-			}
+	/** A Source App push: new commits on the default branch warn at once, and the Job is read. */
+	@ApplicationModuleListener
+	void onPush(SourcePushed event) {
+		pushed(event);
+	}
+
+	/**
+	 * What the push listener does, on the caller's thread. Replay-safe. A push to another ref, or one that deleted the
+	 * default branch, does nothing; so does a push before the Job's Setup is {@code DONE}, since the J7 copy pins its own
+	 * commit.
+	 */
+	@Transactional
+	void pushed(SourcePushed event) {
+		if (!event.toDefaultBranch() || !this.processedEvents.markProcessed("repo.SourceDrift.onPush", event.eventId())) {
+			return;
+		}
+		for (Running running : running(this.sources.productsOfRepository(event.repositoryId()))) {
+			commits(running.job(), event.after(), event.commits());
+			requestRead(running.job().jobId(), event.deliveryId());
+		}
+	}
+
+	/** Another Source App delivery that may mean drift: the Job is read. */
+	@ApplicationModuleListener
+	void onWebhook(GitHubWebhookReceived event) {
+		hinted(event);
+	}
+
+	/** What the webhook listener does, on the caller's thread. Replay-safe. */
+	@Transactional
+	void hinted(GitHubWebhookReceived event) {
+		Set<String> actions = HINTS.get(event.event());
+		if (event.app() != App.SOURCE || actions == null || event.action() == null || !actions.contains(event.action())
+				|| !this.processedEvents.markProcessed("repo.SourceDrift.onWebhook", event.eventId())) {
+			return;
+		}
+		List<UUID> products = new ArrayList<>();
+		if ("repository".equals(event.event())) {
+			event.repositoryIds().forEach(id -> products.addAll(this.sources.productsOfRepository(id)));
+		}
+		else if (event.installationId() != null) {
+			products.addAll(this.sources.productsOfInstallation(event.installationId()));
+		}
+		for (Running running : running(products)) {
+			requestRead(running.job().jobId(), event.deliveryId());
 		}
 	}
 
 	/**
-	 * Reads one Job's Source Repository through the Source App and warns of any new change. When the Source App cannot
-	 * read it, that is its one kind ({@code APP_UNINSTALLED} or {@code GONE}); otherwise a {@code vibefix.yml} that
-	 * differs, archived, renamed or transferred (by its owner and name), and new commits each warn on their own.
-	 * <p>
-	 * An Assessment Job is skipped, although Story 23.11a gave it a {@code DONE} Setup row too: its one read-only copy
-	 * is pinned to the confirmed commit and it has no Final Merge target, so there is nothing for the Customer to
-	 * re-confirm -- and {@code SourceDriftController} serves neither its warnings nor its re-confirmation.
-	 * @throws GitHubException when GitHub cannot answer now: nothing is warned, and the next day's poll reads again
+	 * One push batch, one {@code COMMITS} warning (FR-53): its {@code after} commit is its identity, and it lists the
+	 * Job's previous {@code COMMITS} list and then the batch's commits, newest last, at most
+	 * {@link ProductSources#MAX_DRIFT_COMMITS} (the newest), so its count is every change since the Job started. A batch
+	 * that lists no commit (a push back to an earlier commit, say) counts its {@code after} commit as its one change.
+	 * Under the Job's lock, so two batches handled at once never read the same previous list.
 	 */
-	void check(UUID jobId) {
-		BusyJob job = this.busy.job(jobId).orElse(null);
-		Setup setup = this.setups.latest(jobId).orElse(null);
-		Registered registered = job == null ? null : this.sources.registered(job.productId()).orElse(null);
-		if (job == null || !job.code() || !RUNNING.contains(job.state()) || setup == null
-				|| !"DONE".equals(setup.status()) || registered == null || setup.approvedSha() == null) {
-			return;
+	private void commits(BusyJob job, String after, List<String> pushed) {
+		this.transactions.executeWithoutResult(status -> {
+			this.jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
+				.param("key", "repo.source_drift:" + job.jobId())
+				.query((rs, n) -> 1)
+				.list();
+			LinkedHashSet<String> commits = new LinkedHashSet<>(this.jdbc.sql("""
+					SELECT commits FROM repo.drift_warning WHERE job_id = :job AND kind = 'COMMITS'
+					ORDER BY detected_at DESC, cardinality(commits) DESC, id DESC LIMIT 1
+					""").param("job", job.jobId()).query((rs, n) -> list(rs.getArray("commits"))).optional().orElse(List.of()));
+			commits.addAll(pushed.isEmpty() ? List.of(after) : pushed);
+			List<String> all = List.copyOf(commits);
+			int max = ProductSources.MAX_DRIFT_COMMITS;
+			warn(job, Kind.COMMITS, after, null, all.size() > max ? all.subList(all.size() - max, all.size()) : all);
+		});
+	}
+
+	/** One read of the Job through the Source App, keyed by the Job and the delivery that hinted at it. */
+	private void requestRead(UUID jobId, String deliveryId) {
+		this.operations.request(new OperationRequest(READ,
+				UUID.nameUUIDFromBytes((jobId + ":" + deliveryId).getBytes(StandardCharsets.UTF_8)),
+				Map.of("jobId", jobId.toString(), "deliveryId", deliveryId), null, null, 0));
+	}
+
+	/** The running Code Jobs past Setup of these Products, in ID order. */
+	private List<Running> running(List<UUID> products) {
+		if (products.isEmpty()) {
+			return List.of();
 		}
-		Drift drift = this.sources.drift(job.productId(), setup.approvedSha());
+		return this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE product_id IN (:products) ORDER BY job_id")
+			.param("products", products)
+			.query(UUID.class)
+			.list()
+			.stream()
+			.map(this::running)
+			.flatMap(Optional::stream)
+			.toList();
+	}
+
+	/**
+	 * The Job, while it is a running Code Job past Setup whose Product is registered. An Assessment Job is none,
+	 * although Story 23.11a gave it a {@code DONE} Setup row too: its one read-only copy is pinned to the confirmed
+	 * commit and it has no Final Merge target, so there is nothing for the Customer to re-confirm -- and
+	 * {@code SourceDriftController} serves neither its warnings nor its re-confirmation.
+	 */
+	private Optional<Running> running(UUID jobId) {
+		BusyJob job = this.busy.job(jobId).orElse(null);
+		if (job == null || !job.code() || !RUNNING.contains(job.state())) {
+			return Optional.empty();
+		}
+		Setup setup = this.setups.latest(jobId).orElse(null);
+		if (setup == null || !"DONE".equals(setup.status())) {
+			return Optional.empty();
+		}
+		return this.sources.registered(job.productId()).map(registered -> new Running(job, registered));
+	}
+
+	/**
+	 * {@value #READ}: reads one Job's Source Repository through the Source App and warns of any new change. When the
+	 * Source App cannot read it, that is its one kind ({@code APP_UNINSTALLED} or {@code GONE}); otherwise a
+	 * {@code vibefix.yml} that differs, archived, and renamed or transferred (by its owner and name) each warn on their
+	 * own. No commit is read: the push names them.
+	 * @return whether the Job was read; false when it is no longer a running Code Job past Setup
+	 * @throws GitHubException when GitHub cannot answer now: nothing is warned, and the operation tries again
+	 */
+	boolean check(UUID jobId) {
+		Running running = running(jobId).orElse(null);
+		if (running == null) {
+			return false;
+		}
+		BusyJob job = running.job();
+		Registered registered = running.registered();
+		Drift drift = this.sources.drift(job.productId());
 		Block block = drift.block();
 		if (block != null) {
 			// The repository cannot be read through the Source App: nothing else is known.
 			warn(job, block == Block.SOURCE_APP_MISSING ? Kind.APP_UNINSTALLED : Kind.GONE, null, drift.fullName(),
 					List.of());
-			return;
+			return true;
 		}
 		if (drift.workflow() != null) {
 			warn(job, Kind.WORKFLOW_CHANGED, null, drift.fullName(), List.of());
@@ -196,14 +323,10 @@ class SourceDrift {
 			boolean moved = !before.substring(0, before.indexOf('/')).equals(after.substring(0, after.indexOf('/')));
 			warn(job, moved ? Kind.TRANSFERRED : Kind.RENAMED, null, drift.fullName(), List.of());
 		}
-		// At most ProductSources.MAX_DRIFT_COMMITS, the newest, as the drift read keeps them.
-		List<String> commits = drift.commits();
-		if (!commits.isEmpty()) {
-			warn(job, Kind.COMMITS, commits.get(commits.size() - 1), null, commits);
-		}
+		return true;
 	}
 
-	/** A new change makes one warning, in its own transaction; one already warned makes nothing. */
+	/** A new change makes one warning, in its own transaction or the caller's; one already warned makes nothing. */
 	private void warn(BusyJob job, Kind kind, @Nullable String head, @Nullable String fullName, List<String> commits) {
 		this.transactions.executeWithoutResult(status -> {
 			UUID id = this.ids.newId();
@@ -268,29 +391,14 @@ class SourceDrift {
 	}
 
 	private static Warning warning(ResultSet rs, int n) throws SQLException {
-		Array commits = rs.getArray("commits");
 		Timestamp reconfirmed = rs.getTimestamp("reconfirmed_at");
 		return new Warning(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class), Kind.valueOf(rs.getString("kind")),
-				rs.getString("head_sha"), rs.getString("full_name"),
-				commits == null ? List.of() : Arrays.asList((String[]) commits.getArray()), rs.getTimestamp("detected_at").toInstant(),
-				reconfirmed == null ? null : reconfirmed.toInstant());
+				rs.getString("head_sha"), rs.getString("full_name"), list(rs.getArray("commits")),
+				rs.getTimestamp("detected_at").toInstant(), reconfirmed == null ? null : reconfirmed.toInstant());
 	}
 
-	@Component
-	@ConditionalOnBooleanProperty(name = "vibefix.scheduling.enabled", matchIfMissing = true)
-	static class Poll {
-
-		private final SourceDrift drift;
-
-		Poll(SourceDrift drift) {
-			this.drift = drift;
-		}
-
-		@Scheduled(cron = "${vibefix.repo.drift-cron:0 0 5 * * *}", zone = "Asia/Ho_Chi_Minh")
-		void run() {
-			this.drift.poll();
-		}
-
+	private static List<String> list(@Nullable Array commits) throws SQLException {
+		return commits == null ? List.of() : Arrays.asList((String[]) commits.getArray());
 	}
 
 }

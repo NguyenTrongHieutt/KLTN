@@ -37,13 +37,16 @@ class GitHubAppRegistrationTest {
 		assertThat(AppExpectations.differences(App.PLATFORM, registration)).as("the Platform App against AD-10").isEmpty();
 	}
 
-	/** Story 23.5: Contents and Metadata read, Actions write. Story 24.5a: a webhook, and workflow_run alone. */
+	/**
+	 * Story 23.5: Contents and Metadata read, Actions write. Story 24.5a: a webhook, and workflow_run. Story 24.6: push
+	 * and repository too.
+	 */
 	@Test
 	void theSourceAppHasExactlyAd10sPermissionsAndEvents() {
 		Registration registration = client("SOURCE").registration(App.SOURCE);
 
 		assertThat(AppExpectations.differences(App.SOURCE, registration)).as("the Source App against AD-10").isEmpty();
-		assertThat(registration.events()).contains("workflow_run");
+		assertThat(registration.events()).contains("workflow_run", "push", "repository");
 		assertThat(AppExpectations.webhook(App.SOURCE)).isTrue();
 		assertThat(registration.slug()).isNotBlank();
 	}

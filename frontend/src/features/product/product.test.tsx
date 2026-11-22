@@ -221,9 +221,11 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
 
     expect(await screen.findByText('Bước 5/5')).toBeInTheDocument()
-    // N-1, N-1b and N-2 were rewritten for private copies under notice version 2.0 (Story 23.5).
-    expect(screen.getByText('Lưu ý khi đăng ký sản phẩm · phiên bản 2.0 · 12/11/2026')).toBeInTheDocument()
+    // N-1, N-1b and N-2 were rewritten for private copies under notice version 2.0 (Story 23.5); under 2.1 N-1b names
+    // what the Source App tells vibefix (Story 24.6).
+    expect(screen.getByText('Lưu ý khi đăng ký sản phẩm · phiên bản 2.1 · 22/11/2026')).toBeInTheDocument()
     expect(screen.getByText(/^Tôi hiểu vibefix giữ các bản sao riêng tư của dự án gốc trên GitHub\./)).toBeInTheDocument()
+    expect(screen.getByText(/Ứng dụng này báo cho vibefix khi một lần chạy trên GitHub Actions xong/)).toBeInTheDocument()
     expect(screen.getByText(/^Tôi hiểu vibefix không quét mã\. Trước khi mỗi công việc bắt đầu/)).toBeInTheDocument()
     expect(screen.queryByText(/công khai: ai cũng xem được mã/)).toBeNull()
     const start = screen.getByRole('button', { name: 'Đăng ký sản phẩm' })
@@ -240,9 +242,9 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
         tools: ['LOVABLE'],
         name: 'Shop Gốm Bát Tràng',
         demoUrl: 'https://shop-gom.lovable.app',
-        publicNoticeVersion: '2.0',
-        copyPermissionVersion: '2.0',
-        detectionNoticeVersion: '2.0',
+        publicNoticeVersion: '2.1',
+        copyPermissionVersion: '2.1',
+        detectionNoticeVersion: '2.1',
       }),
     )
     expect(await screen.findByRole('heading', { level: 1, name: 'Shop Gốm Bát Tràng' })).toBeInTheDocument()

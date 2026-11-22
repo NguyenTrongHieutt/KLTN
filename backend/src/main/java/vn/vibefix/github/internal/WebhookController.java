@@ -33,7 +33,8 @@ import vn.vibefix.shared.IdGenerator;
  * before answers 200 and publishes nothing; a new one is kept and published as {@link GitHubWebhookReceived} in one
  * transaction and answers 202 at once, while the listeners run after commit. In that transaction a completed
  * {@code workflow_run} of a correlation of that App also publishes {@link vn.vibefix.github.ActionsRunUpdated}
- * ({@link ActionsRunUpdates}). The body is never logged: it may name people.
+ * ({@link ActionsRunUpdates}), and a Source App {@code push} publishes {@link vn.vibefix.github.SourcePushed}
+ * ({@link SourcePushes}, Story 24.6). The body is never logged: it may name people.
  */
 @RestController
 @Access(Gate.PUBLIC)
@@ -48,6 +49,8 @@ class WebhookController {
 
 	private final ActionsRunUpdates runUpdates;
 
+	private final SourcePushes pushes;
+
 	private final JdbcClient jdbc;
 
 	private final TransactionTemplate transactions;
@@ -58,10 +61,11 @@ class WebhookController {
 
 	private final Clock clock;
 
-	WebhookController(WebhookSignatures signatures, ActionsRunUpdates runUpdates, JdbcClient jdbc,
+	WebhookController(WebhookSignatures signatures, ActionsRunUpdates runUpdates, SourcePushes pushes, JdbcClient jdbc,
 			PlatformTransactionManager transactionManager, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.signatures = signatures;
 		this.runUpdates = runUpdates;
+		this.pushes = pushes;
 		this.jdbc = jdbc;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.events = events;
@@ -107,6 +111,7 @@ class WebhookController {
 						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(json),
 						number(json.path("sender").path("id")), text(json.path("sender").path("login"))));
 				this.runUpdates.delivered(app, event, json);
+				this.pushes.delivered(app, deliveryId, event, json);
 			}
 			return kept == 1;
 		});
@@ -115,8 +120,9 @@ class WebhookController {
 
 	/**
 	 * The repository the payload names, if any. Every event either App subscribes to ({@link AppExpectations#events})
-	 * names one repository at most, in {@code repository}; the {@code installation} and
-	 * {@code installation_repositories} deliveries that carried a list were the retired Merge App's (Story 23.9b).
+	 * names one repository at most, in {@code repository}. The {@code installation} and
+	 * {@code installation_repositories} deliveries GitHub sends every App carry lists instead; since Story 24.6 the
+	 * Source App's are matched by their installation alone, so the lists are not read.
 	 */
 	static List<Long> repositoryIds(JsonNode json) {
 		Long id = number(json.path("repository").path("id"));

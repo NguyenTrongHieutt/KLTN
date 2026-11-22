@@ -116,8 +116,9 @@ vibefix:
   # 1.1 (Story 23.1): N-2 no longer speaks of a scan, since vibefix scans no code.
   # 2.0 (Story 23.5): private copies on the Customer's own GitHub Actions through the Source App (N-1, N-1b), and
   # the secret guidance with the optional gitleaks run (N-2).
+  # 2.1 (Story 24.6): N-1b names what the Source App tells vibefix (a run done, a change to the Source or vibefix.yml).
   product:
-    notice-version: "2.0"
+    notice-version: "2.1"
     per-day: 5
     # R12 (Vietnam time, Story 23.5c): the daily look at each Product's vibefix.yml version nearing its end date.
     workflow-ends-cron: "0 15 5 * * *"
@@ -235,8 +236,6 @@ vibefix:
     # FR-19, AD-12: how often the organization, the installation, and every running Job's repositories are
     # read back against what vibefix expects; foreign pull requests are closed on the way.
     platform-sweep: PT10M
-    # FR-20, AD-12 (Vietnam time): the daily Source Repository drift poll of every running Code Job.
-    drift-cron: "0 0 5 * * *"
     # R4 (Story 23.6b): N-32's current version, which the Customer's J7 self-confirmation names and records; the SPA
     # shows the same one (Story 23.6c).
     self-confirmation-notice-version: "1.0"

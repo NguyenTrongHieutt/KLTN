@@ -43,6 +43,7 @@ import vn.vibefix.github.ExchangeReason;
 import vn.vibefix.github.GitHubApps.App;
 import vn.vibefix.github.GitHubConfigurationDrift;
 import vn.vibefix.github.GitHubWebhookReceived;
+import vn.vibefix.github.SourcePushed;
 import vn.vibefix.identity.internal.AdministratorTestSupport;
 import vn.vibefix.identity.internal.AdministratorTestSupport.Administrator;
 import vn.vibefix.support.IntegrationTest;
@@ -335,6 +336,55 @@ class GitHubWebhookIT extends IntegrationTest {
 			.hasSize(notOurs.size() + 1);
 	}
 
+	/**
+	 * Story 24.6: a Source App push is published once more, as {@link SourcePushed}, with its installation, repository,
+	 * ref, default branch, after commit and commit IDs in the payload's order, whichever ref it moved; the delivery seen
+	 * again publishes nothing. A Platform App push, another Source App event, and a push whose payload names no
+	 * repository ID or no commit publish none.
+	 */
+	@Test
+	void aSourceAppPushIsPublishedWithItsCommits() throws Exception {
+		String delivery = UUID.randomUUID().toString();
+		String first = "1".repeat(40);
+		String second = "2".repeat(40);
+		byte[] push = push(1001, "refs/heads/main", "main", second, List.of(first, second));
+
+		this.mvc.perform(webhook(SOURCE_ID, delivery, "push", push, SOURCE_SECRET)).andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, delivery, "push", push, SOURCE_SECRET)).andExpect(status().isOk());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "push",
+				push(1001, "refs/heads/feature", "main", first, List.of(first)), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+
+		assertThat(this.events.stream(SourcePushed.class)).hasSize(2).first().satisfies(pushed -> {
+			assertThat(pushed.deliveryId()).isEqualTo(delivery);
+			assertThat(pushed.installationId()).isEqualTo(CUSTOMER_INSTALLATION);
+			assertThat(pushed.repositoryId()).isEqualTo(1001);
+			assertThat(pushed.ref()).isEqualTo("refs/heads/main");
+			assertThat(pushed.defaultBranch()).isEqualTo("main");
+			assertThat(pushed.after()).isEqualTo(second);
+			assertThat(pushed.commits()).containsExactly(first, second);
+			assertThat(pushed.toDefaultBranch()).isTrue();
+		});
+		assertThat(this.events.stream(SourcePushed.class).toList().get(1).toDefaultBranch()).as("another branch").isFalse();
+		assertThat(this.events.stream(GitHubWebhookReceived.class)).as("each kept and published as any delivery")
+			.hasSize(2);
+
+		this.mvc.perform(webhook(PLATFORM_ID, UUID.randomUUID().toString(), "push", push, PLATFORM_SECRET))
+			.andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "repository", push, SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "push",
+				push(0, "refs/heads/main", "main", second, List.of(second)), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "push",
+				push(1001, "refs/heads/main", "main", "not-a-commit", List.of()), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+
+		assertThat(this.events.stream(SourcePushed.class)).hasSize(2);
+		assertThat(this.events.stream(GitHubWebhookReceived.class)).hasSize(6);
+		awaitListeners();
+	}
+
 	@Test
 	void failedDeliveriesOfTheLastThreeDaysAreRedeliveredOnceFromTheirLatestAttempt() {
 		Instant now = Instant.parse("2026-10-21T03:00:00Z");
@@ -454,7 +504,7 @@ class GitHubWebhookIT extends IntegrationTest {
 		GITHUB.sourceApp = registration(AppExpectations.SOURCE_PERMISSIONS, Set.of());
 		GITHUB.sourceHookConfig = null;
 
-		assertThat(this.check.check(App.SOURCE)).containsExactly("events: [] instead of [workflow_run]",
+		assertThat(this.check.check(App.SOURCE)).containsExactly("events: [] instead of [push, repository, workflow_run]",
 				"GET /app/hook/config: HTTP 404 (no active webhook)");
 		assertThat(this.events.stream(GitHubConfigurationDrift.class)).singleElement()
 			.satisfies(drift -> assertThat(drift.app()).isEqualTo(App.SOURCE));
@@ -507,6 +557,15 @@ class GitHubWebhookIT extends IntegrationTest {
 			default -> throw new IllegalArgumentException(status.name());
 		}
 		return id;
+	}
+
+	/** A {@code push} delivery's body, as GitHub sends it for the Customer's Source App installation (Story 24.6). */
+	private static byte[] push(long repositoryId, String ref, String defaultBranch, String after, List<String> commits) {
+		return GitHubHttp.JSON.writeValueAsBytes(Map.of("ref", ref, "before", "0".repeat(40), "after", after, "commits",
+				commits.stream().map(id -> Map.of("id", id, "message", "Lovable sync")).toList(), "installation",
+				Map.of("id", CUSTOMER_INSTALLATION), "repository",
+				Map.of("id", repositoryId, "full_name", "lan-dev/quan-may", "default_branch", defaultBranch), "sender",
+				Map.of("id", 42, "login", "lan-dev")));
 	}
 
 	/** A {@code workflow_run} delivery's body, as GitHub sends it for an App's installation. */

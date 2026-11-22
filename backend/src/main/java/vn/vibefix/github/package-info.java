@@ -10,7 +10,8 @@
  * exchange at {@code POST /github/actions/exchange} (AD-44, Story 23.4): a GitHub Actions run it dispatched trades its
  * OIDC ID token for one token narrowed to its correlation's grant, which is revoked when the run ends. A completed
  * run of a correlation, its accepted path report, or the exchange's refusal of it publishes
- * {@link vn.vibefix.github.ActionsRunUpdated}, which wakes the operation waiting for that run.
+ * {@link vn.vibefix.github.ActionsRunUpdated}, which wakes the operation waiting for that run. A Source App
+ * {@code push} also publishes {@link vn.vibefix.github.SourcePushed} (Story 24.6).
  * <p>
  * A daily job sums the runner's own GitHub Actions minutes for the month in Vietnam time (AD-46, D1, R30, Story
  * 23.8b), handover copies being the only runs vibefix pays for: past the alert share of
@@ -29,8 +30,9 @@
  * {@link vn.vibefix.github.GitHubExchangeRevoked}, {@link vn.vibefix.github.GitHubExchangeRevokeUnknown} and
  * {@link vn.vibefix.github.GitHubRunnerMinutes} (the runner's monthly Actions minutes past their alert share,
  * Story 23.8b), which
- * {@code admin} audits and alerts on, and {@link vn.vibefix.github.ActionsRunUpdated}, which {@code repo} wakes on
- * (Story 24.5a). Story 2.1's {@code spike-s4} probe, Spike S6's {@code spike-s6}, Story 23.4's
+ * {@code admin} audits and alerts on, {@link vn.vibefix.github.ActionsRunUpdated}, which {@code repo} wakes on
+ * (Story 24.5a), and {@link vn.vibefix.github.SourcePushed}, which {@code repo} warns of Source drift on (Story
+ * 24.6). Story 2.1's {@code spike-s4} probe, Spike S6's {@code spike-s6}, Story 23.4's
  * {@code runner-dispatch}, the webhook endpoint and the exchange endpoint are wiring in {@code github.internal}.
  */
 @ApplicationModule(allowedDependencies = { "shared" })

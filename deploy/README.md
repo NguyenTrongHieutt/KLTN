@@ -491,7 +491,9 @@ repository, and revokes it after use.
 
 1. **Settings of the dev Source App** (the App Spike S6 left, "Spike S6" below, step 4). On its settings page:
    - Repository permissions **Contents: Read**, **Metadata: Read**, **Actions: Read and write**, and nothing
-     else; no organization or account permission. Since Story 24.5a its one event is **Workflow run**.
+     else; no organization or account permission. Its events are **Workflow run** (Story 24.5a), **Push** and
+     **Repository** (Story 24.6). GitHub sends Installation and Installation repositories events to every App
+     without a tick, so the configuration check accepts them listed or not.
    - **Webhook: on**, with its own secret, at `<tunnel>/webhooks` (Story 24.5a): "Webhooks in dev" below gives the
      steps. The daily configuration check compares its webhook as it compares the Platform App's, and the
      redelivery job reads its failed deliveries with its own JWT.
@@ -564,8 +566,9 @@ the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and
      secret file's content as the **Webhook secret** (`cat deploy/secrets/github-platform-app-webhook-secret` for
      the Platform App, `...-source-app-...` for the Source App). Leave SSL verification on.
    - Permissions & events › Subscribe to events: tick **Workflow run**. The Platform App keeps its other events
-     (Pull request, Repository, Member, Membership, Organization); the Source App has Workflow run alone (Story 24.6
-     adds the rest). Save. Its installations need not accept anything: no permission changes.
+     (Pull request, Repository, Member, Membership, Organization); the Source App also ticks **Push** and
+     **Repository** ("Source drift by webhook" below, Story 24.6). Save. Its installations need not accept anything:
+     no permission changes.
 4. **Recreate the backend with the overlay** (PowerShell, in `D:\KLTN\vibefix`):
    ```
    docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml -f deploy/compose.webhooks.yaml up -d --build --wait backend
@@ -579,9 +582,33 @@ the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and
    ```
    cd backend; ./mvnw -B test -Pvibefix-dev
    ```
-   It fails until both Apps send Workflow run. Then dispatch a copy (a Job's Setup, or `runner-dispatch` above):
-   the backend logs `Run … of correlation … completed, as the … App delivered it` within seconds of the run's end,
-   and each App's settings page › Advanced lists the delivery with a 202.
+   It fails until both Apps send Workflow run, and the Source App Push and Repository too. Then dispatch a copy (a
+   Job's Setup, or `runner-dispatch` above): the backend logs `Run … of correlation … completed, as the … App
+   delivered it` within seconds of the run's end, and each App's settings page › Advanced lists the delivery with a
+   202.
+
+## Source drift by webhook (Story 24.6)
+
+No daily poll reads the Source Repositories any more, and nothing reads them on an interval. A running Code Job's
+Source Repository (Active or Closing, its Setup done) is warned of from the Source App's own deliveries, within
+seconds, to the Customer and the Mentor, once per change:
+
+- a **Push** to the default branch warns of new commits from the delivery alone, one warning per push, its count
+  taking in the earlier ones; a push to another branch does nothing;
+- that push, a **Repository** deleted, archived, renamed or transferred, an **Installation** deleted or suspended,
+  and an **Installation repositories** removal each queue one `repo.source_drift_read` per Job (GitHub-short lane),
+  which reads the repository and `vibefix.yml` through the Source App: `GONE`, `APP_UNINSTALLED`,
+  `WORKFLOW_CHANGED`, `ARCHIVED`, `RENAMED` or `TRANSFERRED`, and the Product's status with its to-do. A GitHub
+  failure is retried. Made private is no drift, and does nothing.
+
+**The author's step, after this story is merged:** on the dev Source App, Permissions & events › Subscribe to
+events, tick **Push** and **Repository** beside Workflow run, and save. No permission changes, so no installation
+needs to accept anything. The code came first: ticked before it, the configuration check would alert on events
+AD-10 did not name yet. Until they are ticked, the check alerts `github.app_configuration_drift` daily
+(`events: [workflow_run] instead of [push, repository, workflow_run]`), and nothing warns of a Source drift except
+the Installation events GitHub sends anyway. To try it, push a commit to a running Job's Source Repository: the
+Job page shows "Dự án gốc vừa thay đổi" within seconds, and the Source App's settings page › Advanced lists the
+`push` delivery with a 202.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

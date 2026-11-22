@@ -19,8 +19,8 @@ import vn.vibefix.github.GitHubRepositories;
 /**
  * {@link GitHubRepositories} on GitHub's REST API: the repository, then two small files of its
  * default branch that reveal submodules and Git LFS (AD-13). Three requests, all reads; the admin check reads
- * an account's login and its collaborator permission, the contributor read pages through the contributors, the
- * drift poll compares the default branch with the copied commit, and J7 reads the default branch's head (Story 23.6a).
+ * an account's login and its collaborator permission, the contributor read pages through the contributors, and J7
+ * reads the default branch's head (Story 23.6a).
  */
 @Component
 class GitHubRepositoriesClient implements GitHubRepositories {
@@ -98,24 +98,6 @@ class GitHubRepositoriesClient implements GitHubRepositories {
 			}
 		}
 		return ids;
-	}
-
-	@Override
-	public List<String> commitsSince(String bearer, String fullName, String baseSha, String branch) {
-		GitHubHttp.Answer answer = this.http.send("GET", "/repos/" + fullName + "/compare/" + baseSha + "..." + branch,
-				bearer, null);
-		if (answer.status() == 404) {
-			// The base commit is gone from the branch's history: every commit counts as new.
-			return List.of("unknown");
-		}
-		if (answer.status() != 200) {
-			throw new GitHubException(answer.status(), "GitHub refused the compare of " + fullName + ": HTTP " + answer.status());
-		}
-		List<String> commits = new ArrayList<>();
-		for (JsonNode commit : answer.body().path("commits")) {
-			commits.add(commit.path("sha").asString(""));
-		}
-		return commits;
 	}
 
 	@Override

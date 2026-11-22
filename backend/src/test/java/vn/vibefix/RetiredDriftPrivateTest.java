@@ -4,28 +4,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.RecordComponent;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
+import vn.vibefix.product.ProductSources;
 
 /**
- * Story 23.5b (FR-13, FR-20, R7, R31): the Source Repository's contributors and the daily drift poll are read through
- * the Customer's Source App. "Made private" is no longer drift, so nothing live names the retired kind
+ * Story 23.5b (FR-13, FR-20, R7, R31): the Source Repository's contributors and its drift are read through the
+ * Customer's Source App. "Made private" is no longer drift, so nothing live names the retired kind
  * {@code DELETED_OR_PRIVATE}, alone or inside a key such as {@code kindDELETED_OR_PRIVATE}; and no path reads
  * contributors with the linking token, so nothing live names {@code hasContributor}. Both are searched in
  * {@code backend/src/main} outside its Flyway history (whose new migration maps old rows to {@code GONE}), in
  * {@code frontend/src} outside its tests, and in {@code deploy}. The one exemption is the admin evidence label
  * {@code screen.admin.disputes.evidence.drift.DELETED_OR_PRIVATE} in {@code vi.json}, which Evidence Packages
- * snapshotted earlier may still name.
+ * snapshotted earlier may still name. Since Story 24.6 the Source App's events report drift, so no daily poll is left:
+ * nothing live names {@code drift-cron}, nothing in {@code SourceDrift} is scheduled, and the drift read carries no
+ * commits.
  */
 class RetiredDriftPrivateTest {
 
@@ -47,6 +53,29 @@ class RetiredDriftPrivateTest {
 			.anyMatch(file -> file.endsWith(Path.of("frontend", "src", "features", "job", "DriftWarning.tsx")))
 			.anyMatch(file -> file.endsWith(Path.of("java", "vn", "vibefix", "repo", "internal", "SourceDrift.java")));
 		assertThat(files.stream().flatMap(file -> violations(file, live(file)).stream()).toList()).isEmpty();
+	}
+
+	/**
+	 * Story 24.6 (FR-20, AD-12): the daily drift poll is gone, and nothing replaces it on a schedule; the drift read
+	 * reads no commit, since the Source App's {@code push} names them.
+	 */
+	@Test
+	void theDailyDriftPollIsGone() throws Exception {
+		List<Path> files = new ArrayList<>(RetiredScanningTest.liveFiles(RetiredScanningTest.BACKEND_MAIN));
+		files.addAll(RetiredScanningTest.liveFiles(RetiredScanningTest.DEPLOY));
+		assertThat(files).as("the files read")
+			.anyMatch(file -> file.endsWith(Path.of("src", "main", "resources", "application.yaml")));
+		assertThat(files).filteredOn(file -> read(file).contains("drift-cron")).as("the poll's schedule").isEmpty();
+
+		Class<?> drift = Class.forName("vn.vibefix.repo.internal.SourceDrift");
+		List<Class<?>> classes = new ArrayList<>(List.of(drift));
+		classes.addAll(List.of(drift.getDeclaredClasses()));
+		assertThat(classes.stream().flatMap(type -> Arrays.stream(type.getDeclaredMethods())))
+			.as("nothing of the Source drift is scheduled")
+			.noneMatch(method -> method.isAnnotationPresent(Scheduled.class));
+		assertThat(Arrays.stream(ProductSources.Drift.class.getRecordComponents()).map(RecordComponent::getName))
+			.as("the drift read's findings, with no commits")
+			.containsExactly("block", "workflow", "fullName", "archived");
 	}
 
 	@Test

@@ -81,26 +81,16 @@ class GitHubRepositoriesClientTest {
 			.isInstanceOfSatisfying(GitHubException.class, refused -> assertThat(refused.status()).isEqualTo(502));
 	}
 
+	/** FR-20: the drift read takes the archive from the repository itself; since Story 24.6 nothing compares commits. */
 	@Test
-	void theRepositoryShowsWhetherItIsArchivedAndTheCommitsSinceTheCopy() throws Exception {
+	void theRepositoryShowsWhetherItIsArchived() throws Exception {
 		this.github.source("lan", "shop");
 		this.github.publish("lan", "shop", 4001, 77, false, true);
-		String copied = this.github.head("lan", "shop", "main");
 		assertThat(this.repositories.read(TOKEN, "lan", "shop").orElseThrow().archived()).isFalse();
-		assertThat(this.repositories.commitsSince(TOKEN, "lan/shop", copied, "main")).isEmpty();
 
-		String first = this.github.push("lan", "shop", "main", "app.js", "console.log(1)\n");
-		String second = this.github.push("lan", "shop", "main", "app.js", "console.log(2)\n");
 		this.github.archive(4001);
 
 		assertThat(this.repositories.read(TOKEN, "lan", "shop").orElseThrow().archived()).isTrue();
-		assertThat(this.repositories.commitsSince(TOKEN, "lan/shop", copied, "main")).as("oldest first")
-			.containsExactly(first, second);
-		assertThat(this.repositories.commitsSince(TOKEN, "lan/shop", "0".repeat(40), "main"))
-			.as("the copied commit gone from the branch's history").containsExactly("unknown");
-		this.github.unavailable.add("GET /repos/lan/shop/compare/");
-		assertThatThrownBy(() -> this.repositories.commitsSince(TOKEN, "lan/shop", copied, "main"))
-			.isInstanceOf(GitHubException.class);
 	}
 
 	/**
