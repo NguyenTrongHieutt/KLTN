@@ -14,8 +14,9 @@ import vn.vibefix.operations.Outcome;
 /**
  * {@value SourceDrift#READ} (FR-20, AD-12, Story 24.6): one read of a Job's Source Repository through the Customer's
  * Source App, which a Source App delivery requested, keyed by the Job and the delivery. It only reads, and every
- * warning it makes is made once, so trying it again is safe: a GitHub failure is retried, never lost. A Job no longer
- * running past Setup is obsolete. It never takes the busy marker.
+ * warning it makes is made once, so trying it again is safe: a GitHub failure is retried under the default policy, and
+ * a read that exhausts it lands in the Administrators' failed queue (FR-64), where it can be tried again. A Job drift
+ * is no longer told for (ended, say) is obsolete. It never takes the busy marker.
  */
 @Component
 class SourceDriftReadOperation implements OperationHandler {

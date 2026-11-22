@@ -2,6 +2,7 @@ package vn.vibefix.github.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -108,7 +109,7 @@ class WebhookController {
 				.update();
 			if (kept == 1) {
 				this.events.publishEvent(new GitHubWebhookReceived(this.ids.newId(), deliveryId, app, event,
-						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(json),
+						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(event, json),
 						number(json.path("sender").path("id")), text(json.path("sender").path("login"))));
 				this.runUpdates.delivered(app, event, json);
 				this.pushes.delivered(app, deliveryId, event, json);
@@ -119,14 +120,33 @@ class WebhookController {
 	}
 
 	/**
-	 * The repository the payload names, if any. Every event either App subscribes to ({@link AppExpectations#events})
-	 * names one repository at most, in {@code repository}. The {@code installation} and
-	 * {@code installation_repositories} deliveries GitHub sends every App carry lists instead; since Story 24.6 the
-	 * Source App's are matched by their installation alone, so the lists are not read.
+	 * The repositories the payload names, each once, in its order. Every event either App subscribes to
+	 * ({@link AppExpectations#events}) names one repository at most, in {@code repository}. The {@code installation}
+	 * and {@code installation_repositories} deliveries GitHub sends every App carry lists instead, which are read since
+	 * Story 24.6: {@code repositories}, and {@code repositories_added} with {@code repositories_removed}. The Source
+	 * drift matches a reinstalled App's Products by them, since its new installation ID is not the one they are bound
+	 * on.
 	 */
-	static List<Long> repositoryIds(JsonNode json) {
-		Long id = number(json.path("repository").path("id"));
-		return id == null ? List.of() : List.of(id);
+	static List<Long> repositoryIds(String event, JsonNode json) {
+		List<Long> ids = new ArrayList<>();
+		Long named = number(json.path("repository").path("id"));
+		if (named != null) {
+			ids.add(named);
+		}
+		List<String> lists = switch (event) {
+			case "installation" -> List.of("repositories");
+			case "installation_repositories" -> List.of("repositories_added", "repositories_removed");
+			default -> List.of();
+		};
+		for (String list : lists) {
+			for (JsonNode repository : json.path(list)) {
+				Long id = number(repository.path("id"));
+				if (id != null && !ids.contains(id)) {
+					ids.add(id);
+				}
+			}
+		}
+		return ids;
 	}
 
 	private static @Nullable Long number(JsonNode node) {

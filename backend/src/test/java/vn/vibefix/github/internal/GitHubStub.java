@@ -268,6 +268,12 @@ public final class GitHubStub implements AutoCloseable {
 				repository.ownerId(), repository.publicRepository(), repository.admin(), true));
 	}
 
+	/** The repository with {@code id} is unarchived (Story 24.6). */
+	public void unarchive(long id) {
+		this.published.computeIfPresent(id, (key, repository) -> new Published(repository.owner(), repository.name(), key,
+				repository.ownerId(), repository.publicRepository(), repository.admin(), false));
+	}
+
 	/** The repository with {@code id} is renamed or transferred, its git data copied to the new name. */
 	public void rename(long id, String owner, String name) throws IOException {
 		Published before = this.published.get(id);
@@ -1504,13 +1510,37 @@ public final class GitHubStub implements AutoCloseable {
 
 	/**
 	 * The {@code installation} delivery GitHub sends every App (Story 24.6): {@code action} ({@code deleted},
-	 * {@code suspend}, {@code unsuspend}, {@code created}, …) on {@code installation}.
+	 * {@code suspend}, {@code unsuspend}, {@code created}, …) on {@code installation}, listing no repository.
 	 */
 	public byte[] installationEvent(String action, long installation) {
+		return installationEvent(action, installation, List.of());
+	}
+
+	/**
+	 * The same delivery listing the repositories with {@code ids} in {@code repositories}, as the stub shows them now,
+	 * as GitHub lists an installation's selection (Story 24.6).
+	 */
+	public byte[] installationEvent(String action, long installation, List<Long> ids) {
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("action", action);
 		payload.put("installation", Map.of("id", installation, "repository_selection", "selected"));
+		payload.put("repositories", listed(ids));
 		payload.put("sender", Map.of("id", 1, "login", "lan-dev"));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/**
+	 * The {@code installation_target} delivery GitHub sends every App when the account an installation is on is
+	 * renamed (Story 24.6): {@code action} {@code renamed}, the account's new {@code login} and the one it had.
+	 */
+	public byte[] installationTargetEvent(String action, long installation, long accountId, String login, String from) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("action", action);
+		payload.put("account", Map.of("id", accountId, "login", login, "type", "User"));
+		payload.put("changes", Map.of("login", Map.of("from", from)));
+		payload.put("target_type", "User");
+		payload.put("installation", Map.of("id", installation));
+		payload.put("sender", Map.of("id", accountId, "login", login));
 		return GitHubHttp.JSON.writeValueAsBytes(payload);
 	}
 
@@ -1520,10 +1550,7 @@ public final class GitHubStub implements AutoCloseable {
 	 * as removed or added.
 	 */
 	public byte[] installationRepositoriesEvent(String action, long installation, List<Long> ids) {
-		List<Map<String, Object>> repositories = ids.stream()
-			.map(id -> Map.<String, Object>of("id", id, "full_name",
-					this.published.get(id).owner() + "/" + this.published.get(id).name(), "private", true))
-			.toList();
+		List<Map<String, Object>> repositories = listed(ids);
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("action", action);
 		payload.put("installation", Map.of("id", installation, "repository_selection", "selected"));
@@ -1532,6 +1559,14 @@ public final class GitHubStub implements AutoCloseable {
 		payload.put("repositories_removed", "removed".equals(action) ? repositories : List.of());
 		payload.put("sender", Map.of("id", 1, "login", "lan-dev"));
 		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/** Repositories outside the organization as an installation delivery lists them, by ID and full name. */
+	private List<Map<String, Object>> listed(List<Long> ids) {
+		return ids.stream()
+			.map(id -> Map.<String, Object>of("id", id, "full_name",
+					this.published.get(id).owner() + "/" + this.published.get(id).name(), "private", true))
+			.toList();
 	}
 
 	/** A repository outside the organization as a delivery names it: its ID, name, owner and default branch. */

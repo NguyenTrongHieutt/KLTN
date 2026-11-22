@@ -15,8 +15,10 @@ import vn.vibefix.shared.DomainEvent;
  * @param deliveryId {@code X-GitHub-Delivery}
  * @param event {@code X-GitHub-Event}, for example {@code push}
  * @param action the payload's {@code action}, when it has one
- * @param repositoryIds the repository the payload's {@code repository} names, if any; neither App subscribes to an
- * event that names more than one
+ * @param repositoryIds the repository the payload's {@code repository} names, if any; for {@code installation} and
+ * {@code installation_repositories}, which GitHub sends every App, also the repositories their lists name
+ * ({@code repositories}, {@code repositories_added}, {@code repositories_removed}), each once (Story 24.6). No event an
+ * App subscribes to names more than one
  * @param senderId the numeric ID of the account that caused it
  * @param senderLogin the login of the account that caused it, compared with grants and the operator account
  */

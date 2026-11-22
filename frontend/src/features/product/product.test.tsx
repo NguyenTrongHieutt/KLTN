@@ -225,7 +225,11 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     // what the Source App tells vibefix (Story 24.6).
     expect(screen.getByText('Lưu ý khi đăng ký sản phẩm · phiên bản 2.1 · 22/11/2026')).toBeInTheDocument()
     expect(screen.getByText(/^Tôi hiểu vibefix giữ các bản sao riêng tư của dự án gốc trên GitHub\./)).toBeInTheDocument()
-    expect(screen.getByText(/Ứng dụng này báo cho vibefix khi một lần chạy trên GitHub Actions xong/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Ứng dụng này báo cho vibefix khi một lần chạy trên GitHub Actions xong, .* bị bỏ khỏi danh sách dự án của ứng dụng, hoặc ứng dụng bị gỡ hay tạm ngưng\./,
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByText(/^Tôi hiểu vibefix không quét mã\. Trước khi mỗi công việc bắt đầu/)).toBeInTheDocument()
     expect(screen.queryByText(/công khai: ai cũng xem được mã/)).toBeNull()
     const start = screen.getByRole('button', { name: 'Đăng ký sản phẩm' })
@@ -627,7 +631,8 @@ describe('CUS-4, a Product (FR-7)', () => {
     await user.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }))
     expect(await screen.findByText(/kiểu xuống dòng của Windows \(CRLF\)/)).toBeInTheDocument()
 
-    // Another check (the drift poll, say) records the same status later: its CRLF state is unknown here.
+    // Another check (the drift read a Source App event requests, say) records the same status later: its CRLF state
+    // is unknown here.
     checkedAt = '2026-11-14T03:00:00Z'
     await queryClient.invalidateQueries({ queryKey: ['product', 'detail', 'p1'] })
     await waitFor(() => expect(screen.queryByText(/kiểu xuống dòng của Windows/)).toBeNull())

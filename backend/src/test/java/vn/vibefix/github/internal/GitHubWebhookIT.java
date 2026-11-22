@@ -339,8 +339,9 @@ class GitHubWebhookIT extends IntegrationTest {
 	/**
 	 * Story 24.6: a Source App push is published once more, as {@link SourcePushed}, with its installation, repository,
 	 * ref, default branch, after commit and commit IDs in the payload's order, whichever ref it moved; the delivery seen
-	 * again publishes nothing. A Platform App push, another Source App event, and a push whose payload names no
-	 * repository ID or no commit publish none.
+	 * again publishes nothing. A push that lists no commit is published too, with none, since its {@code after} is its
+	 * change. A Platform App push, another Source App event, and a push whose payload names no repository ID, or whose
+	 * {@code after} is no commit ID, publish none.
 	 */
 	@Test
 	void aSourceAppPushIsPublishedWithItsCommits() throws Exception {
@@ -382,6 +383,46 @@ class GitHubWebhookIT extends IntegrationTest {
 
 		assertThat(this.events.stream(SourcePushed.class)).hasSize(2);
 		assertThat(this.events.stream(GitHubWebhookReceived.class)).hasSize(6);
+
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "push",
+				push(1001, "refs/heads/main", "main", first, List.of()), SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+		assertThat(this.events.stream(SourcePushed.class)).as("a push that lists no commit").hasSize(3).last()
+			.satisfies(pushed -> {
+				assertThat(pushed.after()).isEqualTo(first);
+				assertThat(pushed.commits()).isEmpty();
+				assertThat(pushed.toDefaultBranch()).isTrue();
+			});
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: the {@code installation} and {@code installation_repositories} deliveries GitHub sends every App carry
+	 * the repositories they name, each once, so the Source drift finds a reinstalled App's Products by them; any other
+	 * event names its {@code repository} alone.
+	 */
+	@Test
+	void anInstallationDeliveryCarriesTheRepositoriesItLists() throws Exception {
+		byte[] created = GitHubHttp.JSON.writeValueAsBytes(Map.of("action", "created", "installation",
+				Map.of("id", CUSTOMER_INSTALLATION), "repositories", List.of(Map.of("id", 1001), Map.of("id", 1002)),
+				"sender", Map.of("id", 42, "login", "lan-dev")));
+		byte[] changed = GitHubHttp.JSON.writeValueAsBytes(Map.of("action", "added", "installation",
+				Map.of("id", CUSTOMER_INSTALLATION), "repositories_added", List.of(Map.of("id", 1003), Map.of("id", 1001)),
+				"repositories_removed", List.of(Map.of("id", 1004)), "sender", Map.of("id", 42, "login", "lan-dev")));
+		byte[] other = GitHubHttp.JSON.writeValueAsBytes(Map.of("action", "archived", "repository", Map.of("id", 1005),
+				"repositories", List.of(Map.of("id", 1006)), "installation", Map.of("id", CUSTOMER_INSTALLATION)));
+
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "installation", created, SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "installation_repositories", changed,
+				SOURCE_SECRET)).andExpect(status().isAccepted());
+		this.mvc.perform(webhook(SOURCE_ID, UUID.randomUUID().toString(), "repository", other, SOURCE_SECRET))
+			.andExpect(status().isAccepted());
+
+		assertThat(this.events.stream(GitHubWebhookReceived.class).map(GitHubWebhookReceived::repositoryIds))
+			.containsExactly(List.of(1001L, 1002L), List.of(1003L, 1001L, 1004L), List.of(1005L));
+		assertThat(this.events.stream(GitHubWebhookReceived.class).map(GitHubWebhookReceived::installationId))
+			.containsOnly(CUSTOMER_INSTALLATION);
 		awaitListeners();
 	}
 

@@ -589,24 +589,33 @@ the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and
 
 ## Source drift by webhook (Story 24.6)
 
-No daily poll reads the Source Repositories any more, and nothing reads them on an interval. A running Code Job's
-Source Repository (Active or Closing, its Setup done) is warned of from the Source App's own deliveries, within
-seconds, to the Customer and the Mentor, once per change:
+No daily poll reads the Source Repositories any more, and nothing reads them on an interval. A Code Job's Source
+Repository is warned of from the Source App's own deliveries, within seconds, to the Customer and the Mentor, from
+the Customer's confirmation of the head (the copy pins it) until the Job ends: Starting, Active or Closing, J7 or not.
+An Assessment Job is never warned.
 
-- a **Push** to the default branch warns of new commits from the delivery alone, one warning per push, its count
-  taking in the earlier ones; a push to another branch does nothing;
-- that push, a **Repository** deleted, archived, renamed or transferred, an **Installation** deleted or suspended,
-  and an **Installation repositories** removal each queue one `repo.source_drift_read` per Job (GitHub-short lane),
-  which reads the repository and `vibefix.yml` through the Source App: `GONE`, `APP_UNINSTALLED`,
-  `WORKFLOW_CHANGED`, `ARCHIVED`, `RENAMED` or `TRANSFERRED`, and the Product's status with its to-do. A GitHub
-  failure is retried. Made private is no drift, and does nothing.
+- A **Push** to the default branch adds its commits to the Job's one "new commits" warning, from the delivery alone:
+  the first push after the confirmation raises it and tells the Customer and the Mentor once; every later push adds
+  to the same warning's list (newest last, at most 250), with no new notice, and its date stays the first push's. A
+  push that lists no commit (a reset) counts its `after`. A push whose `after` is the confirmed commit, a push to
+  another branch, and one that deletes the branch do nothing.
+- That push, a **Repository** deleted, archived, renamed, transferred or unarchived, an **Installation** deleted,
+  suspended, created, unsuspended or with new permissions accepted, an **Installation repositories** removal or
+  addition, and an **Installation target** rename (the owner renamed) each queue one `repo.source_drift_read` per
+  Job (GitHub-short lane). A Repository delivery is matched by the repository's ID; the installation ones by the
+  installation, or by a repository they list, so a reinstalled App still finds its Products. The read goes through
+  the Source App: `GONE`, `APP_UNINSTALLED`, `WORKFLOW_CHANGED`, `ARCHIVED`, `RENAMED` or `TRANSFERRED`, each once,
+  and the Product's status, which opens or closes its to-do, so a fix on GitHub shows within seconds too. A GitHub
+  failure is retried under the default policy, then waits in the Administrators' failed queue. Made private and
+  edited are no drift, and do nothing.
 
 **The author's step, after this story is merged:** on the dev Source App, Permissions & events › Subscribe to
 events, tick **Push** and **Repository** beside Workflow run, and save. No permission changes, so no installation
 needs to accept anything. The code came first: ticked before it, the configuration check would alert on events
 AD-10 did not name yet. Until they are ticked, the check alerts `github.app_configuration_drift` daily
 (`events: [workflow_run] instead of [push, repository, workflow_run]`), and nothing warns of a Source drift except
-the Installation events GitHub sends anyway. To try it, push a commit to a running Job's Source Repository: the
+the Installation, Installation repositories and Installation target events GitHub sends every App anyway. To try it,
+push a commit to a running Job's Source Repository: the
 Job page shows "Dự án gốc vừa thay đổi" within seconds, and the Source App's settings page › Advanced lists the
 `push` delivery with a 202.
 

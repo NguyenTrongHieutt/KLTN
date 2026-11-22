@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -55,23 +56,26 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * Drift Warnings (FR-20, FR-53, AD-12, R7, Story 24.6): the Source App's own events tell vibefix within seconds that a
- * running Code Job's Source Repository changed, and nothing reads it on an interval. Only the Source App's deliveries
- * act, and only on a running Code Job (Active or Closing, with a {@code DONE} Setup) of a Product they name:
+ * Code Job's Source Repository changed, and nothing reads it on an interval. Only the Source App's deliveries act, and
+ * only on a Code Job of a Product they name that is Starting, Active or Closing and whose latest Setup records the
+ * Customer's confirmation (its approved commit), so a push between the confirmation and J7 counts too:
  * <ul>
- * <li>a {@code push} to the repository's default branch ({@link SourcePushed}) warns of new commits from the payload
- * alone, one warning per batch, identified by its {@code after} commit; no head is read from GitHub, stored, or
- * compared;</li>
- * <li>that push, a {@code repository} deleted, archived, renamed or transferred (matched, like a push, by the
- * repository's permanent ID), an {@code installation} deleted or suspended, and an {@code installation_repositories}
- * removal (matched by the Products bound on that installation) each request one read of the Job through the
- * Customer's Source App ({@value #READ}, {@link ProductSources#drift}), which a GitHub failure retries.</li>
+ * <li>a {@code push} to the repository's default branch ({@link SourcePushed}) adds its commits to the Job's one
+ * {@code COMMITS} warning, from the payload alone: the first push after the confirmation raises it and tells the
+ * Customer and the Mentor once, and every later push adds to its list in place, with no new warning and no new notice.
+ * No head is read from GitHub, stored, or compared;</li>
+ * <li>that push and a {@code repository} {@link #HINTS hint}, matched by the repository's permanent ID, and an
+ * {@code installation}, {@code installation_repositories} or {@code installation_target} hint, matched by the Products
+ * bound on that installation or to a repository the payload lists, each request one read of each Job through the
+ * Customer's Source App ({@value #READ}, {@link ProductSources#drift}).</li>
  * </ul>
  * The read gives the Source App's block ({@code APP_UNINSTALLED} or {@code GONE}), else a {@code vibefix.yml} that
- * differs, archived, renamed, and transferred, each its own warning; it also records the Product's status, which opens
- * {@code product.install_source_app} or {@code product.add_workflow}. Each warning is stored with what triggered it,
- * and the Customer and the Mentor hear of it once. "Made private" is no drift, and neither is the admin right. A renamed
- * or transferred repository becomes the Final Merge target only after the Customer re-confirms it and still administers
- * it. A delivery is a hint: every state but the push's own commits comes from the read.
+ * differs, archived, renamed, and transferred, each its own warning, raised once ({@link #warn}); it also records the
+ * Product's status, which opens or closes {@code product.install_source_app} and {@code product.add_workflow}, so a fix
+ * on GitHub (a reinstall, a resume, a repository selected or unarchived again) is read as soon as GitHub tells of it.
+ * "Made private" is no drift, and neither is the admin right. A renamed or transferred repository becomes the Final Merge
+ * target only after the Customer re-confirms it and still administers it. A delivery is a hint: every state but the
+ * push's own commits comes from the read.
  */
 @Component
 class SourceDrift {
@@ -84,18 +88,32 @@ class SourceDrift {
 	static final String READ = "repo.source_drift_read";
 
 	/**
-	 * The Source App's deliveries besides {@code push} that request a read, by event and action. Every other action,
-	 * {@code privatized} included, does nothing and reads nothing.
+	 * The Source App's deliveries besides {@code push} that request a read, by event and action: those that may mean
+	 * drift, and those that may mean its fix ({@code unarchived}, {@code created}, {@code unsuspend},
+	 * {@code new_permissions_accepted}, {@code added}), read so the Product's status and its to-do follow. Every other
+	 * action, {@code privatized} and {@code edited} included, does nothing and reads nothing.
 	 */
-	static final Map<String, Set<String>> HINTS = Map.of("repository", Set.of("deleted", "archived", "renamed", "transferred"),
-			"installation", Set.of("deleted", "suspend"), "installation_repositories", Set.of("removed"));
+	static final Map<String, Set<String>> HINTS = Map.of(
+			"repository", Set.of("deleted", "archived", "renamed", "transferred", "unarchived"),
+			"installation", Set.of("deleted", "suspend", "created", "unsuspend", "new_permissions_accepted"),
+			"installation_repositories", Set.of("removed", "added"),
+			// An owner renamed: every repository of that account has a new full name.
+			"installation_target", Set.of("renamed"));
 
-	private static final Set<String> RUNNING = Set.of("ACTIVE", "CLOSING");
+	/** The Job states drift is told in: from the copy (J6) to the end, J7 included. */
+	private static final Set<String> RUNNING = Set.of("STARTING", "ACTIVE", "CLOSING");
+
+	/** A commit ID as the Job's {@code COMMITS} list keeps it; a poll-era {@code "unknown"} is none. */
+	private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
 
 	/** What changed in the Source Repository. */
 	enum Kind {
 
-		/** Commits pushed to the default branch after J7, as the Source App's {@code push} delivery names them. */
+		/**
+		 * Commits pushed to the default branch after the Customer's confirmation, as the Source App's {@code push}
+		 * deliveries name them: since Story 24.6 one row per Job, with no head, whose list grows in place. Rows of the
+		 * retired daily poll keep their head.
+		 */
 		COMMITS,
 
 		/**
@@ -131,8 +149,11 @@ class SourceDrift {
 
 	}
 
-	/** A running Code Job past Setup, with its Source Repository as the Product registered it. */
-	private record Running(BusyJob job, Registered registered) {
+	/**
+	 * A Code Job drift is told for, with its Source Repository as the Product registered it.
+	 * @param approvedSha the commit the Customer confirmed for the Job's latest Setup, which the copy pins
+	 */
+	private record Running(BusyJob job, Registered registered, String approvedSha) {
 	}
 
 	private final JdbcClient jdbc;
@@ -184,8 +205,9 @@ class SourceDrift {
 
 	/**
 	 * What the push listener does, on the caller's thread. Replay-safe. A push to another ref, or one that deleted the
-	 * default branch, does nothing; so does a push before the Job's Setup is {@code DONE}, since the J7 copy pins its own
-	 * commit.
+	 * default branch, does nothing and reads nothing; so does a push before the Customer's confirmation, since the copy
+	 * pins the commit confirmed. A push whose {@code after} is that commit does nothing either: every commit a push
+	 * names is reachable from its {@code after}, so it brings nothing past the copy (a delivery that arrives late, say).
 	 */
 	@Transactional
 	void pushed(SourcePushed event) {
@@ -193,18 +215,25 @@ class SourceDrift {
 			return;
 		}
 		for (Running running : running(this.sources.productsOfRepository(event.repositoryId()))) {
-			commits(running.job(), event.after(), event.commits());
+			if (running.approvedSha().equals(event.after())) {
+				continue;
+			}
+			commits(running, event.after(), event.commits());
 			requestRead(running.job().jobId(), event.deliveryId());
 		}
 	}
 
-	/** Another Source App delivery that may mean drift: the Job is read. */
+	/** Another Source App delivery that may mean drift or its fix: the Job is read. */
 	@ApplicationModuleListener
 	void onWebhook(GitHubWebhookReceived event) {
 		hinted(event);
 	}
 
-	/** What the webhook listener does, on the caller's thread. Replay-safe. */
+	/**
+	 * What the webhook listener does, on the caller's thread. Replay-safe. A {@code repository} delivery is matched by
+	 * the repository's permanent ID; an installation delivery by the Products bound on that installation, or bound to a
+	 * repository its payload lists, so an App installed again (a new installation ID) still finds its Products.
+	 */
 	@Transactional
 	void hinted(GitHubWebhookReceived event) {
 		Set<String> actions = HINTS.get(event.event());
@@ -212,11 +241,9 @@ class SourceDrift {
 				|| !this.processedEvents.markProcessed("repo.SourceDrift.onWebhook", event.eventId())) {
 			return;
 		}
-		List<UUID> products = new ArrayList<>();
-		if ("repository".equals(event.event())) {
-			event.repositoryIds().forEach(id -> products.addAll(this.sources.productsOfRepository(id)));
-		}
-		else if (event.installationId() != null) {
+		Set<UUID> products = new LinkedHashSet<>();
+		event.repositoryIds().forEach(id -> products.addAll(this.sources.productsOfRepository(id)));
+		if (!"repository".equals(event.event()) && event.installationId() != null) {
 			products.addAll(this.sources.productsOfInstallation(event.installationId()));
 		}
 		for (Running running : running(products)) {
@@ -225,27 +252,61 @@ class SourceDrift {
 	}
 
 	/**
-	 * One push batch, one {@code COMMITS} warning (FR-53): its {@code after} commit is its identity, and it lists the
-	 * Job's previous {@code COMMITS} list and then the batch's commits, newest last, at most
-	 * {@link ProductSources#MAX_DRIFT_COMMITS} (the newest), so its count is every change since the Job started. A batch
-	 * that lists no commit (a push back to an earlier commit, say) counts its {@code after} commit as its one change.
-	 * Under the Job's lock, so two batches handled at once never read the same previous list.
+	 * A push's commits on the Job's one {@code COMMITS} warning (FR-53), under the Job's lock, so two pushes handled at
+	 * once never read the same list. The push brings the commits it lists, or its {@code after} when it lists none (a
+	 * reset to an earlier commit, say), each a commit ID and never the confirmed one.
+	 * <ul>
+	 * <li>The first push after the confirmation raises the warning through {@link #warn}, so the Customer and the Mentor
+	 * are told once. Its list starts with what a poll-era {@code COMMITS} row of the Job counted, IDs only, then the
+	 * push's.</li>
+	 * <li>Each later push adds its commits to the end of that same row's list, newest last, with no new row, no new
+	 * notice and no new audit entry; the row keeps its first {@code detected_at}, which the page shows as its date.</li>
+	 * </ul>
+	 * The list keeps the newest {@link ProductSources#MAX_DRIFT_COMMITS}.
 	 */
-	private void commits(BusyJob job, String after, List<String> pushed) {
+	private void commits(Running running, String after, List<String> listed) {
+		BusyJob job = running.job();
+		List<String> brought = kept(listed.isEmpty() ? List.of(after) : listed, running.approvedSha());
+		if (brought.isEmpty()) {
+			return;
+		}
 		this.transactions.executeWithoutResult(status -> {
 			this.jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
 				.param("key", "repo.source_drift:" + job.jobId())
 				.query((rs, n) -> 1)
 				.list();
-			LinkedHashSet<String> commits = new LinkedHashSet<>(this.jdbc.sql("""
-					SELECT commits FROM repo.drift_warning WHERE job_id = :job AND kind = 'COMMITS'
-					ORDER BY detected_at DESC, cardinality(commits) DESC, id DESC LIMIT 1
-					""").param("job", job.jobId()).query((rs, n) -> list(rs.getArray("commits"))).optional().orElse(List.of()));
-			commits.addAll(pushed.isEmpty() ? List.of(after) : pushed);
-			List<String> all = List.copyOf(commits);
+			Optional<Warning> current = this.jdbc.sql("""
+					SELECT id, job_id, kind, head_sha, full_name, commits, detected_at, reconfirmed_at FROM repo.drift_warning
+					WHERE job_id = :job AND kind = 'COMMITS' AND head_sha IS NULL AND full_name IS NULL
+					""").param("job", job.jobId()).query(SourceDrift::warning).optional();
+			List<String> commits = new ArrayList<>();
+			if (current.isPresent()) {
+				commits.addAll(current.get().commits());
+			}
+			else {
+				commits.addAll(this.jdbc.sql("""
+						SELECT commits FROM repo.drift_warning WHERE job_id = :job AND kind = 'COMMITS' AND head_sha IS NOT NULL
+						ORDER BY detected_at DESC, cardinality(commits) DESC, id DESC LIMIT 1
+						""").param("job", job.jobId()).query((rs, n) -> list(rs.getArray("commits"))).optional().orElse(List.of()));
+			}
+			commits.addAll(brought);
+			List<String> all = kept(commits, running.approvedSha());
 			int max = ProductSources.MAX_DRIFT_COMMITS;
-			warn(job, Kind.COMMITS, after, null, all.size() > max ? all.subList(all.size() - max, all.size()) : all);
+			List<String> newest = all.size() > max ? all.subList(all.size() - max, all.size()) : all;
+			if (current.isEmpty()) {
+				warn(job, Kind.COMMITS, null, null, newest);
+				return;
+			}
+			this.jdbc.sql("UPDATE repo.drift_warning SET commits = :commits WHERE id = :id")
+				.param("commits", newest.toArray(String[]::new))
+				.param("id", current.get().id())
+				.update();
 		});
+	}
+
+	/** The commit IDs among {@code commits}, in their order, without the confirmed commit. */
+	private static List<String> kept(List<String> commits, String approvedSha) {
+		return commits.stream().filter(sha -> SHA.matcher(sha).matches() && !sha.equals(approvedSha)).toList();
 	}
 
 	/** One read of the Job through the Source App, keyed by the Job and the delivery that hinted at it. */
@@ -255,12 +316,18 @@ class SourceDrift {
 				Map.of("jobId", jobId.toString(), "deliveryId", deliveryId), null, null, 0));
 	}
 
-	/** The running Code Jobs past Setup of these Products, in ID order. */
-	private List<Running> running(List<UUID> products) {
+	/**
+	 * The Code Jobs of these Products drift is told for, in ID order: only Jobs with a confirmation on record are looked
+	 * at, so a Product's history of Jobs that never started costs nothing.
+	 */
+	private List<Running> running(Set<UUID> products) {
 		if (products.isEmpty()) {
 			return List.of();
 		}
-		return this.jdbc.sql("SELECT DISTINCT job_id FROM repo.job_setup WHERE product_id IN (:products) ORDER BY job_id")
+		return this.jdbc.sql("""
+				SELECT DISTINCT job_id FROM repo.job_setup
+				WHERE product_id IN (:products) AND approved_sha IS NOT NULL ORDER BY job_id
+				""")
 			.param("products", products)
 			.query(UUID.class)
 			.list()
@@ -270,11 +337,16 @@ class SourceDrift {
 			.toList();
 	}
 
+	private List<Running> running(List<UUID> products) {
+		return running(new LinkedHashSet<>(products));
+	}
+
 	/**
-	 * The Job, while it is a running Code Job past Setup whose Product is registered. An Assessment Job is none,
-	 * although Story 23.11a gave it a {@code DONE} Setup row too: its one read-only copy is pinned to the confirmed
-	 * commit and it has no Final Merge target, so there is nothing for the Customer to re-confirm -- and
-	 * {@code SourceDriftController} serves neither its warnings nor its re-confirmation.
+	 * The Job, while drift is told for it: a Code Job Starting, Active or Closing whose latest Setup records the
+	 * Customer's confirmation (so the copy is pinned, J7 or not), of a registered Product. An Assessment Job is none,
+	 * although Story 23.11a gave it a Setup too: its one read-only copy is pinned to the confirmed commit and it has no
+	 * Final Merge target, so there is nothing for the Customer to re-confirm -- and {@code SourceDriftController} serves
+	 * neither its warnings nor its re-confirmation.
 	 */
 	private Optional<Running> running(UUID jobId) {
 		BusyJob job = this.busy.job(jobId).orElse(null);
@@ -282,18 +354,20 @@ class SourceDrift {
 			return Optional.empty();
 		}
 		Setup setup = this.setups.latest(jobId).orElse(null);
-		if (setup == null || !"DONE".equals(setup.status())) {
+		if (setup == null || setup.approvedSha() == null) {
 			return Optional.empty();
 		}
-		return this.sources.registered(job.productId()).map(registered -> new Running(job, registered));
+		String approved = setup.approvedSha();
+		return this.sources.registered(job.productId()).map(registered -> new Running(job, registered, approved));
 	}
 
 	/**
 	 * {@value #READ}: reads one Job's Source Repository through the Source App and warns of any new change. When the
 	 * Source App cannot read it, that is its one kind ({@code APP_UNINSTALLED} or {@code GONE}); otherwise a
 	 * {@code vibefix.yml} that differs, archived, and renamed or transferred (by its owner and name) each warn on their
-	 * own. No commit is read: the push names them.
-	 * @return whether the Job was read; false when it is no longer a running Code Job past Setup
+	 * own. No commit is read: the push names them. The read records the Product's status either way, so a fix closes
+	 * the to-do it opened, and warns nothing.
+	 * @return whether the Job was read; false when drift is no longer told for it
 	 * @throws GitHubException when GitHub cannot answer now: nothing is warned, and the operation tries again
 	 */
 	boolean check(UUID jobId) {
@@ -326,7 +400,10 @@ class SourceDrift {
 		return true;
 	}
 
-	/** A new change makes one warning, in its own transaction or the caller's; one already warned makes nothing. */
+	/**
+	 * A new change makes one warning, in its own transaction or the caller's, and the Customer and the Mentor hear of it
+	 * once; one already warned (by {@code drift_warning_change_idx}) makes nothing.
+	 */
 	private void warn(BusyJob job, Kind kind, @Nullable String head, @Nullable String fullName, List<String> commits) {
 		this.transactions.executeWithoutResult(status -> {
 			UUID id = this.ids.newId();

@@ -130,13 +130,16 @@ public interface ProductSources {
 
 	/**
 	 * The live Products whose Source App binding is bound to the repository with this permanent GitHub ID (Story 24.6),
-	 * as recorded, with no GitHub call; a {@code push} or {@code repository} delivery is matched by it.
+	 * as recorded, with no GitHub call; a {@code push} or {@code repository} delivery is matched by it, and so is an
+	 * installation delivery that lists the repository. A binding the Source App can no longer read stays bound until a
+	 * check binds it again, so a fix on GitHub still finds it.
 	 */
 	List<UUID> productsOfRepository(long repositoryGithubId);
 
 	/**
 	 * The live Products whose Source App binding is bound on this installation (Story 24.6), as recorded, with no GitHub
-	 * call; an {@code installation} or {@code installation_repositories} delivery is matched by it.
+	 * call; an {@code installation}, {@code installation_repositories} or {@code installation_target} delivery is
+	 * matched by it.
 	 */
 	List<UUID> productsOfInstallation(long installationId);
 
