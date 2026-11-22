@@ -95,9 +95,12 @@ public final class GitHubStub implements AutoCloseable {
 	/** The slug of the Source App's own registration. */
 	public static final String SOURCE_SLUG = "vibefix-dev-source";
 
-	/** {@code GET /app}'s body for the Source App's JWT: AD-10's Source App, which sends {@code workflow_run} (Story 24.5a). */
+	/**
+	 * {@code GET /app}'s body for the Source App's JWT: AD-10's Source App, which sends {@code workflow_run} (Story 24.5a),
+	 * {@code push} and {@code repository} (Story 24.6).
+	 */
 	public volatile String sourceApp = "{\"slug\":\"" + SOURCE_SLUG + "\",\"permissions\":{\"contents\":\"read\","
-			+ "\"metadata\":\"read\",\"actions\":\"write\"},\"events\":[\"workflow_run\"]}";
+			+ "\"metadata\":\"read\",\"actions\":\"write\"},\"events\":[\"workflow_run\",\"push\",\"repository\"]}";
 
 	/** The App ID a JWT in {@code authorization} ({@code Bearer …}) names as its {@code iss}; none for an installation token. */
 	public static @org.jspecify.annotations.Nullable Long issuerOf(@org.jspecify.annotations.Nullable String authorization) {
@@ -263,6 +266,12 @@ public final class GitHubStub implements AutoCloseable {
 	public void archive(long id) {
 		this.published.computeIfPresent(id, (key, repository) -> new Published(repository.owner(), repository.name(), key,
 				repository.ownerId(), repository.publicRepository(), repository.admin(), true));
+	}
+
+	/** The repository with {@code id} is unarchived (Story 24.6). */
+	public void unarchive(long id) {
+		this.published.computeIfPresent(id, (key, repository) -> new Published(repository.owner(), repository.name(), key,
+				repository.ownerId(), repository.publicRepository(), repository.admin(), false));
 	}
 
 	/** The repository with {@code id} is renamed or transferred, its git data copied to the new name. */
@@ -1461,6 +1470,125 @@ public final class GitHubStub implements AutoCloseable {
 		payload.put("installation", Map.of("id", installation));
 		payload.put("sender", run.get("triggering_actor"));
 		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/**
+	 * The {@code push} delivery GitHub sends the Source App for {@code installation} (Story 24.6): a push to {@code ref}
+	 * of the repository with {@code id}, as the stub shows it now (its name and default branch), the commit the ref
+	 * points at after it ({@code after}, 40 zeros for a deleted ref), and the pushed commits, oldest first.
+	 */
+	public byte[] pushEvent(long installation, long id, String ref, String after, List<String> commits) {
+		return pushEvent(installation, id, ref, after, commits, null, "main");
+	}
+
+	/**
+	 * The same delivery, dated {@code pushedAt} in {@code repository.pushed_at} (epoch seconds, as GitHub dates a push;
+	 * left out when null), its repository's default branch named {@code defaultBranch} (Story 24.6).
+	 */
+	public byte[] pushEvent(long installation, long id, String ref, String after, List<String> commits,
+			@org.jspecify.annotations.Nullable Long pushedAt, String defaultBranch) {
+		Map<String, Object> repository = new LinkedHashMap<>(repositoryPayload(id));
+		repository.put("default_branch", defaultBranch);
+		if (pushedAt != null) {
+			repository.put("pushed_at", pushedAt);
+		}
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("ref", ref);
+		payload.put("before", "0".repeat(40));
+		payload.put("after", after);
+		payload.put("created", false);
+		payload.put("deleted", after.equals("0".repeat(40)));
+		payload.put("forced", false);
+		payload.put("commits", commits.stream().map(sha -> Map.of("id", sha, "message", "Lovable sync", "distinct", true))
+			.toList());
+		payload.put("head_commit", commits.isEmpty() ? null : Map.of("id", commits.getLast()));
+		payload.put("repository", repository);
+		payload.put("installation", Map.of("id", installation));
+		payload.put("sender", Map.of("id", this.published.get(id).ownerId(), "login", this.published.get(id).owner()));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/**
+	 * The {@code repository} delivery GitHub sends the Source App for {@code installation} (Story 24.6): {@code action}
+	 * ({@code renamed}, {@code transferred}, {@code archived}, {@code deleted}, {@code privatized}, …) on the
+	 * repository with {@code id}, as the stub shows it now.
+	 */
+	public byte[] repositoryEvent(String action, long installation, long id) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("action", action);
+		payload.put("repository", repositoryPayload(id));
+		payload.put("installation", Map.of("id", installation));
+		payload.put("sender", Map.of("id", this.published.get(id).ownerId(), "login", this.published.get(id).owner()));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/**
+	 * The {@code installation} delivery GitHub sends every App (Story 24.6): {@code action} ({@code deleted},
+	 * {@code suspend}, {@code unsuspend}, {@code created}, …) on {@code installation}, listing no repository.
+	 */
+	public byte[] installationEvent(String action, long installation) {
+		return installationEvent(action, installation, List.of());
+	}
+
+	/**
+	 * The same delivery listing the repositories with {@code ids} in {@code repositories}, as the stub shows them now,
+	 * as GitHub lists an installation's selection (Story 24.6).
+	 */
+	public byte[] installationEvent(String action, long installation, List<Long> ids) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("action", action);
+		payload.put("installation", Map.of("id", installation, "repository_selection", "selected"));
+		payload.put("repositories", listed(ids));
+		payload.put("sender", Map.of("id", 1, "login", "lan-dev"));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/**
+	 * The {@code installation_target} delivery GitHub sends every App when the account an installation is on is
+	 * renamed (Story 24.6): {@code action} {@code renamed}, the account's new {@code login} and the one it had.
+	 */
+	public byte[] installationTargetEvent(String action, long installation, long accountId, String login, String from) {
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("action", action);
+		payload.put("account", Map.of("id", accountId, "login", login, "type", "User"));
+		payload.put("changes", Map.of("login", Map.of("from", from)));
+		payload.put("target_type", "User");
+		payload.put("installation", Map.of("id", installation));
+		payload.put("sender", Map.of("id", accountId, "login", login));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/**
+	 * The {@code installation_repositories} delivery GitHub sends every App (Story 24.6): {@code action} ({@code removed}
+	 * or {@code added}) on {@code installation}, listing the repositories with {@code ids}, as the stub shows them now,
+	 * as removed or added.
+	 */
+	public byte[] installationRepositoriesEvent(String action, long installation, List<Long> ids) {
+		List<Map<String, Object>> repositories = listed(ids);
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("action", action);
+		payload.put("installation", Map.of("id", installation, "repository_selection", "selected"));
+		payload.put("repository_selection", "selected");
+		payload.put("repositories_added", "added".equals(action) ? repositories : List.of());
+		payload.put("repositories_removed", "removed".equals(action) ? repositories : List.of());
+		payload.put("sender", Map.of("id", 1, "login", "lan-dev"));
+		return GitHubHttp.JSON.writeValueAsBytes(payload);
+	}
+
+	/** Repositories outside the organization as an installation delivery lists them, by ID and full name. */
+	private List<Map<String, Object>> listed(List<Long> ids) {
+		return ids.stream()
+			.map(id -> Map.<String, Object>of("id", id, "full_name",
+					this.published.get(id).owner() + "/" + this.published.get(id).name(), "private", true))
+			.toList();
+	}
+
+	/** A repository outside the organization as a delivery names it: its ID, name, owner and default branch. */
+	private Map<String, Object> repositoryPayload(long id) {
+		Published repository = this.published.get(id);
+		return Map.of("id", id, "name", repository.name(), "full_name", repository.owner() + "/" + repository.name(),
+				"private", !repository.publicRepository(), "archived", repository.archived(), "default_branch", "main",
+				"owner", Map.of("id", repository.ownerId(), "login", repository.owner()));
 	}
 
 	/** Whether the request carries a JWT the Source App issued (Story 23.5). */

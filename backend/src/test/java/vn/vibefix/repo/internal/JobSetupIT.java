@@ -17,12 +17,17 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.AfterAll;
@@ -36,12 +41,16 @@ import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.JsonNode;
 import vn.vibefix.github.ActionsRuns;
+import vn.vibefix.github.SourcePushed;
 import vn.vibefix.github.internal.ActionsExchangeSupport;
 import vn.vibefix.github.internal.GitHubStub;
 import vn.vibefix.github.internal.TestKeys;
@@ -60,6 +69,7 @@ import vn.vibefix.operations.Lane;
 import vn.vibefix.operations.OperationPolicy;
 import vn.vibefix.operations.OperationRequest;
 import vn.vibefix.operations.internal.OperationWorker;
+import vn.vibefix.product.ProductSources;
 import vn.vibefix.repo.internal.JobSetups.Setup;
 import vn.vibefix.shared.PersonalDataSection;
 import vn.vibefix.support.IntegrationTest;
@@ -80,11 +90,13 @@ import vn.vibefix.support.IntegrationTest;
  * until the Customer taps "Thử lại". Then (Story 7.3) the Mentor and the active Crew are invited with read; once each
  * accepted with two-factor authentication on, Verify raises them to write, reads it back, and only then applies J7.
  * J8, J10, a locked account, or a Crew change revokes access, read back (Story 7.7); 30 days after the end both
- * repositories are deleted, with nothing archived first (Story 23.10d). GitHub and git hosting are
- * {@link GitHubStub}, which runs no
+ * repositories are deleted, with nothing archived first (Story 23.10d). While the Job runs, the Source App's signed
+ * {@code push}, {@code repository} and installation deliveries warn of Source drift (Story 24.6). GitHub and git
+ * hosting are {@link GitHubStub}, which runs no
  * workflow: a test pushes the confirmed head into both repositories as the copy run would, and completes the run. The
  * run's ID token is signed by {@link ActionsExchangeSupport}'s stand-in issuer; the sandbox jobs run in process.
  */
+@RecordApplicationEvents
 class JobSetupIT extends IntegrationTest {
 
 	private static final String TUNNEL = "https://exchange.example.test";
@@ -110,12 +122,19 @@ class JobSetupIT extends IntegrationTest {
 	/** The Source App's webhook secret (Story 24.5a), fake and built at run time. */
 	private static final byte[] SOURCE_SECRET;
 
+	/** The Platform App's webhook secret, fake and built at run time: its deliveries are no Source drift (Story 24.6). */
+	private static final byte[] PLATFORM_SECRET;
+
+	/** The Platform App's ID. */
+	private static final long PLATFORM_APP = 123456;
+
 	static {
 		try {
 			DIRECTORY = Files.createTempDirectory("job-setup-");
 			GITHUB = new GitHubStub(Files.createDirectories(DIRECTORY.resolve("git")));
 			Files.writeString(DIRECTORY.resolve("app-key"), TestKeys.pkcs1());
 			SOURCE_SECRET = ActionsExchangeSupport.webhookSecret(DIRECTORY.resolve("source-webhook-secret"));
+			PLATFORM_SECRET = ActionsExchangeSupport.webhookSecret(DIRECTORY.resolve("platform-webhook-secret"));
 			// The stand-in for GitHub Actions' OIDC issuer, whose ID tokens a copy run exchanges (Story 23.4).
 			ActionsExchangeSupport.issue(GITHUB);
 			TWO_REPOSITORY_WORKFLOW = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW)
@@ -158,6 +177,10 @@ class JobSetupIT extends IntegrationTest {
 
 	@Autowired
 	private ApplicationContext context;
+
+	/** The events published during the test, a Source App push's among them (Story 24.6). */
+	@Autowired
+	private ApplicationEvents events;
 
 	private UUID customer;
 
@@ -212,7 +235,9 @@ class JobSetupIT extends IntegrationTest {
 	static void github(DynamicPropertyRegistry registry) {
 		registry.add("vibefix.github.api-url", () -> GITHUB.apiUrl().toString());
 		registry.add("vibefix.github.git-url", () -> GITHUB.gitUrl().toString());
-		registry.add("vibefix.github.platform-app.id", () -> "123456");
+		registry.add("vibefix.github.platform-app.id", () -> String.valueOf(PLATFORM_APP));
+		registry.add("vibefix.github.platform-app.webhook-secret-file",
+				() -> DIRECTORY.resolve("platform-webhook-secret").toString());
 		registry.add("vibefix.github.platform-app.installation-id", () -> String.valueOf(GitHubStub.INSTALLATION));
 		registry.add("vibefix.github.platform-app.key-file", () -> DIRECTORY.resolve("app-key").toString());
 		registry.add("vibefix.github.runner-repository", () -> RUNNER);
@@ -1824,41 +1849,1089 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 23.5c: the daily drift read records the Product's status, so an uninstalled Source App opens
-	 * {@code product.install_source_app} and tells the Customer once, however often the poll reads it; the file changed
-	 * afterwards moves the to-do to {@code product.add_workflow} with one more notification.
+	 * Story 24.6 (FR-20, FR-53, AD-12): the first Source App push to the default branch after the Customer's
+	 * confirmation raises the Job's one {@code COMMITS} warning at once, from the payload alone and with no head, tells
+	 * the Customer and the Mentor once, and requests one read of the Job; the same delivery again does nothing. A push to
+	 * another branch, and one that deleted the default branch, do nothing and read nothing. Each later push adds its
+	 * commits to that same warning's list, newest last, with no new row and no new notice, and its date stays the first
+	 * push's; a reset that lists no commit counts its {@code after}, even one listed before, so "Có {n} thay đổi mới …
+	 * kể từ khi công việc bắt đầu" stays true. Nothing reads a head from GitHub or compares one.
 	 */
 	@Test
-	void theDriftReadRecordsTheStatusAndOpensItsToDoOnce() throws Exception {
-		setUpTheRepositories();
-		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+	void pushesToTheDefaultBranchGrowTheJobsOneCommitsWarningAndTellOnce() throws Exception {
+		activeAfterJ7();
+		int setupRequests = GITHUB.seen.size();
+		String first = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		String delivery = UUID.randomUUID().toString();
+		byte[] push = pushEvent(first, List.of(first));
+		Instant firstPush = this.clock.instant();
+
+		sourceDelivery(delivery, "push", push).andExpect(status().isAccepted());
+		awaitListeners();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.COMMITS);
+			assertThat(warning.headSha()).as("no head is kept").isNull();
+			assertThat(warning.commits()).as("stored as evidence").containsExactly(first);
+			assertThat(warning.detectedAt()).isEqualTo(firstPush);
+		});
+		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, before any read").isEqualTo(2);
+		assertThat(driftReads(this.job)).as("one read of the Job, for that delivery").containsExactly("PENDING");
+
+		sourceDelivery(delivery, "push", push).andExpect(status().isOk());
+		awaitListeners();
+		assertThat(this.drift.warnings(this.job).getFirst().commits()).as("the same delivery again").hasSize(1);
+		assertThat(driftReads(this.job)).hasSize(1);
+		// The same event published again, as the event registry republishes one not marked complete: the listener's
+		// replay guard drops it.
+		List<SourcePushed> published = this.events.stream(SourcePushed.class).toList();
+		assertThat(published).as("published once, the delivery seen again dropped before it").hasSize(1);
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.context.publishEvent(published.getFirst()));
+		awaitListeners();
+		assertThat(this.drift.warnings(this.job).getFirst().commits()).as("the same event again").containsExactly(first);
+		assertThat(driftReads(this.job)).hasSize(1);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
+		assertThat(this.drift.warnings(this.job)).as("the read finds nothing else").hasSize(1);
+
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/feature", "f".repeat(40),
+				List.of("f".repeat(40))));
+		sourceDelivers("push", pushEvent(SourcePushed.DELETED, List.of()));
+		driftRead();
+		assertThat(this.drift.warnings(this.job).getFirst().commits()).as("another branch, or the default branch deleted")
+			.containsExactly(first);
+		assertThat(driftReads(this.job)).as("and no read").hasSize(1);
+
+		this.clock.advance(Duration.ofMinutes(3));
+		String second = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		String third = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 3')\n");
+		sourceDelivers("push", pushEvent(third, List.of(second, third)));
+		driftRead();
+		// A reset back to the first commit lists no commit: its after counts, although it was listed before.
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("push", pushEvent(first, List.of()));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).as("the same warning, its list grown, newest last").singleElement()
+			.satisfies(warning -> {
+				assertThat(warning.commits()).containsExactly(first, second, third, first);
+				assertThat(warning.headSha()).isNull();
+				assertThat(warning.detectedAt()).as("the first push's date").isEqualTo(firstPush);
+			});
+		assertThat(notices("repo.drift_detected")).as("still once each").isEqualTo(2);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.drift_detected'")
+			.query(Long.class).single()).isOne();
+		assertThat(driftReads(this.job)).as("each push read the Job").containsExactly("SUCCEEDED", "SUCCEEDED", "SUCCEEDED");
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.warnings.length()").value(1))
+			.andExpect(jsonPath("$.warnings[0].kind").value("COMMITS"))
+			.andExpect(jsonPath("$.warnings[0].commits").value(4))
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
+		List<GitHubStub.Seen> seen = List.copyOf(GITHUB.seen);
+		assertThat(seen.subList(setupRequests, seen.size())).as("no head read and no compare")
+			.noneMatch(request -> request.path().contains("/compare/") || request.path().contains("/git/ref/"));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6 (FR-20): ten pushes to a running Job, an AI builder syncing as it works, are one warning: the Customer
+	 * has one {@code repo.drift_detected} notice and one email for them, and so has the Mentor, while its list names
+	 * every commit and each push is read.
+	 */
+	@Test
+	void tenPushesAreOneNoticeAndOneEmailEach() throws Exception {
+		this.jdbc.sql("UPDATE identity.account SET google_email = :email WHERE id = :id")
+			.param("email", "lan-" + this.customer + "@example.test").param("id", this.customer).update();
+		this.jdbc.sql("UPDATE identity.account SET google_email = :email WHERE id = :id")
+			.param("email", "hung-" + this.mentor + "@example.test").param("id", this.mentor).update();
+		activeAfterJ7();
+		List<String> shas = new ArrayList<>();
+		for (int i = 1; i <= 10; i++) {
+			String sha = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log(" + i + ")\n");
+			shas.add(sha);
+			pushed(sha);
+		}
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).isEqualTo(shas));
+		assertThat(notices("repo.drift_detected", this.customer)).isOne();
+		assertThat(emails("repo.drift_detected", this.customer)).isOne();
+		assertThat(notices("repo.drift_detected", this.mentor)).isOne();
+		assertThat(emails("repo.drift_detected", this.mentor)).isOne();
+		assertThat(driftReads(this.job)).hasSize(10).containsOnly("SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a push whose {@code after} is the commit the Customer confirmed brings nothing past the copy -- a reset
+	 * back to it, say -- so it adds nothing and warns nothing, but the Job is still read, since such a revert may
+	 * restore {@code vibefix.yml}. The list never holds the confirmed commit, even when a push lists it among new ones,
+	 * and a push that lists no commit counts its {@code after}.
+	 */
+	@Test
+	void aPushEndingAtTheConfirmedCommitDoesNothingAndTheListNeverHoldsIt() throws Exception {
+		activeAfterJ7();
+		String approved = this.setups.latest(this.job).orElseThrow().approvedSha();
+
+		sourceDelivers("push", pushEvent(approved, List.of()));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).as("the pinned commit").isEmpty();
+		assertThat(driftReads(this.job)).as("but the Job is read").containsExactly("SUCCEEDED");
+		assertThat(notices("repo.drift_detected")).isZero();
+
+		String next = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		// A forced push back past the copy, listing the confirmed commit among the new one.
+		pushed(next, List.of(approved, next));
+		String reset = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		// A push that lists no commit, as a reset or a forced push to a commit already pushed does.
+		pushed(reset, List.of());
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(next, reset));
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED", "SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a push GitHub dates at or before the head read the Customer confirmed, delivered after the
+	 * confirmation (late, or again), brings nothing that head does not hold, so it changes nothing: no commit is listed
+	 * and nobody is told, and the Job is only read. A push dated after it counts.
+	 */
+	@Test
+	void aPushDatedBeforeTheConfirmedHeadReadChangesNothing() throws Exception {
+		activeAfterJ7();
+		Instant headRead = this.setups.latest(this.job).orElseThrow().headReadAt();
+		String late = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", late, List.of(late),
+				headRead.minusSeconds(60).getEpochSecond(), "main"));
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", late, List.of(late),
+				headRead.getEpochSecond(), "main"));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).as("dated before or at the head read").isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED");
+
+		String after = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", after, List.of(after),
+				this.clock.instant().getEpochSecond(), "main"));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(after));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a push counts on the branch the copy was made from, the default branch the Setup read: after the
+	 * default branch is switched on GitHub, a push to the old one still counts and a push to the new one does nothing.
+	 */
+	@Test
+	void aPushCountsOnTheBranchTheCopyWasMadeFrom() throws Exception {
+		activeAfterJ7();
+		assertThat(this.setups.latest(this.job).orElseThrow().defaultBranch()).isEqualTo("main");
+		String sha = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/develop", "d".repeat(40),
+				List.of("d".repeat(40)), null, "develop"));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).as("the new default branch").isEmpty();
+		assertThat(driftReads(this.job)).as("and no read").isEmpty();
+
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", sha, List.of(sha), null,
+				"develop"));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(sha));
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: two pushes handled at once both wait for the Job's lock, so neither reads the list the other is
+	 * writing: while another transaction holds it, no warning is made; released, the one warning lists both pushes.
+	 */
+	@Test
+	void twoPushesHandledAtOnceWaitForTheJobsLockAndAreBothListed() throws Exception {
+		activeAfterJ7();
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger holder = new AtomicInteger();
+		CompletableFuture<Void> holding = CompletableFuture.runAsync(
+				() -> new TransactionTemplate(this.transactions).executeWithoutResult(status -> {
+					this.jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended('repo.source_drift:' || :job, 0))")
+						.param("job", this.job.toString())
+						.query((rs, n) -> 1)
+						.list();
+					holder.set(this.jdbc.sql("SELECT pg_backend_pid()").query(Integer.class).single());
+					locked.countDown();
+					await(release);
+				}));
+		assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+		String one = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		String two = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		try {
+			sourceDelivers("push", pushEvent(one, List.of(one)));
+			sourceDelivers("push", pushEvent(two, List.of(two)));
+			awaitBlockedBy(holder.get(), 2);
+			assertThat(this.drift.warnings(this.job)).as("while the lock is held").isEmpty();
+		}
+		finally {
+			release.countDown();
+		}
+		holding.get(15, TimeUnit.SECONDS);
+		awaitListeners();
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactlyInAnyOrder(one, two));
+		assertThat(notices("repo.drift_detected")).isEqualTo(2);
+	}
+
+	/**
+	 * Story 24.6: a push while the copy waits to be dispatched raises the new-commits warning; then the copy finds the
+	 * head moved and asks the Customer again. The head they confirm holds those commits, so the confirmation removes
+	 * the warning, and a later push raises a fresh one.
+	 */
+	@Test
+	void aConfirmationOfAMovedHeadRemovesTheWarningAndALaterPushRaisesAFreshOne() throws Exception {
+		confirmTheHead();
+		String moved = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		pushed(moved);
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(moved));
+
+		run();
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+		assertThat(waiting.status()).as("the head moved before the copy").isEqualTo("CONFIRMING");
+		assertThat(waiting.headSha()).isEqualTo(moved);
+		confirm(moved).andExpect(status().isOk());
+
+		assertThat(this.drift.warnings(this.job)).as("the head confirmed holds those commits").isEmpty();
+		String later = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		pushed(later);
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(later));
+		assertThat(notices("repo.drift_detected")).as("told of each warning").isEqualTo(4);
+		awaitListeners();
+	}
+
+	/** Story 24.6 (FR-53): the list keeps the newest 250 commits, and pushes past that still update it in place. */
+	@Test
+	void theListKeepsTheNewest250AndLaterPushesStillUpdateIt() throws Exception {
+		activeAfterJ7();
+		List<String> batch = shas(1, 200);
+		List<String> more = shas(201, 100);
+
+		sourceDelivers("push", pushEvent(batch.getLast(), batch));
+		driftRead();
+		sourceDelivers("push", pushEvent(more.getLast(), more));
+		driftRead();
+
+		List<String> kept = this.drift.warnings(this.job).getFirst().commits();
+		assertThat(kept).hasSize(ProductSources.MAX_DRIFT_COMMITS);
+		assertThat(kept.getFirst()).as("the oldest 50 dropped").isEqualTo(batch.get(50));
+		assertThat(kept.getLast()).isEqualTo(more.getLast());
+
+		String last = shas(301, 1).getFirst();
+		sourceDelivers("push", pushEvent(last, List.of(last)));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.commits()).hasSize(ProductSources.MAX_DRIFT_COMMITS);
+			assertThat(warning.commits().getFirst()).isEqualTo(batch.get(51));
+			assertThat(warning.commits().getLast()).isEqualTo(last);
+		});
+		assertThat(notices("repo.drift_detected")).isEqualTo(2);
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED", "SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: drift is told from the Customer's confirmation on, J7 or not. A push while the copy runs (the Setup
+	 * {@code RUNNING}, its run dispatched at the confirmed head) and one after it, while the Job is still Starting and
+	 * waits for the invitations, both count on the Job's one warning, and each is read; the copy still pins the confirmed
+	 * commit.
+	 */
+	@Test
+	void pushesAfterTheConfirmationCountBeforeJ7() throws Exception {
+		String head = confirmTheHead();
+		run();
+		Setup copying = this.setups.latest(this.job).orElseThrow();
+		assertThat(copying.status()).isEqualTo("RUNNING");
+		assertThat(copying.correlationId()).as("the copy run is out").isNotNull();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("STARTING");
+
+		String during = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		pushed(during);
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(during));
+		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor").isEqualTo(2);
+
+		copyRunSucceeds();
+		Setup done = this.setups.latest(this.job).orElseThrow();
+		assertThat(done.status()).isEqualTo("DONE");
+		assertThat(done.approvedSha()).as("the copy pins the confirmed commit").isEqualTo(head);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("waiting for the invitations").isEqualTo("STARTING");
+		String after = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		pushed(after);
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(during, after));
+		assertThat(notices("repo.drift_detected")).isEqualTo(2);
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: every push is read too, so one that leaves {@code vibefix.yml} unpublished warns
+	 * {@code WORKFLOW_CHANGED} and opens {@code product.add_workflow} once, however many pushes follow, and a push whose
+	 * file still matches raises neither. A workflow that differs never hides the commits, which stay one warning.
+	 */
+	@Test
+	void aPushThatLeavesTheWorkflowFileUnpublishedWarnsItOnceAndOpensItsToDo() throws Exception {
+		activeAfterJ7();
+		// From now on the file is served from the repository's own history, where the pushes change it.
+		GITHUB.sourceFiles.remove(this.source + ":" + WORKFLOW_PATH);
+
+		pushed(GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n"));
+
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.COMMITS);
+		assertThat(sourceStatus()).as("a matching file").isEqualTo("READY");
+		assertThat(productTodos()).isEmpty();
+		assertThat(workflowCheckFailures()).isEmpty();
+
+		pushed(GITHUB.push("lan-dev", this.sourceName, "main", WORKFLOW_PATH, publishedWorkflow() + "# changed\n"));
+		pushed(GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n"));
+
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.WORKFLOW_CHANGED);
+		assertThat(this.drift.warnings(this.job).getFirst().commits()).hasSize(3);
+		assertThat(this.drift.warnings(this.job).get(1).fullName()).isEqualTo(this.source);
+		assertThat(sourceStatus()).isEqualTo("WORKFLOW_MISMATCH");
+		assertThat(productTodos()).containsExactly("product.add_workflow");
+		assertThat(workflowCheckFailures()).as("once, to the Product's Customer").containsExactly(this.customer);
+		assertThat(notices("repo.drift_detected")).as("each warning once, to the Customer and the Mentor").isEqualTo(4);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.drift_detected'")
+			.query(Long.class).single()).isEqualTo(2);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a {@code repository} delivery is matched by the repository's permanent ID and read through the Source
+	 * App. Renamed warns {@code RENAMED} once, however often it is hinted at, and opens {@code repo.reconfirm_source},
+	 * which the Customer's re-confirmation closes, making the new name the Final Merge target; archived warns
+	 * {@code ARCHIVED}. Made private (R7) and edited are no drift: they do nothing and read nothing. Every request under
+	 * the Source Repository went through the Customer's Source App.
+	 */
+	@Test
+	void aRenameWarnsOnceAndWaitsForTheCustomersReconfirmationAndMadePrivateIsNoDrift() throws Exception {
+		activeAfterJ7();
+		long id = this.sourceId;
+		String name = this.sourceName;
+		// What the Setup read is left out below; it read the Source through the Source App too (Story 23.6b).
+		int setupRequests = GITHUB.seen.size();
+
+		GITHUB.rename(id, "lan-dev", name + "-v2");
+		sourceDelivers("repository", GITHUB.repositoryEvent("renamed", this.installation, id));
+		driftRead();
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("repository", GITHUB.repositoryEvent("renamed", this.installation, id));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.RENAMED);
+			assertThat(warning.fullName()).isEqualTo("lan-dev/" + name + "-v2");
+			assertThat(warning.commits()).isEmpty();
+		});
+		assertThat(driftReads(this.job)).as("each delivery read the Job").containsExactly("SUCCEEDED", "SUCCEEDED");
+		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
+		assertThat(openReconfirmTodos()).isOne();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reconfirmNeeded").value(true))
+			.andExpect(jsonPath("$.warnings[0].fullName").value("lan-dev/" + name + "-v2"));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.mentor, Role.MENTOR)))
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/source/reconfirm").with(as(this.customer, Role.CUSTOMER))
+			.with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
+		assertThat(this.jdbc.sql("SELECT repository_full_name FROM product.product WHERE id = :id").param("id", this.product)
+			.query(String.class).single()).as("the new name is the Final Merge target now").isEqualTo("lan-dev/" + name + "-v2");
+		assertThat(openReconfirmTodos()).isZero();
+
+		GITHUB.archive(id);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, id));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.RENAMED, SourceDrift.Kind.ARCHIVED);
+
+		// R7 (Story 23.5b): the Source App reads a private repository, so making it private is no drift.
+		GITHUB.publish("lan-dev", name + "-v2", id, githubUserId(this.customer), false, false);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("repository", GITHUB.repositoryEvent("privatized", this.installation, id));
+		sourceDelivers("repository", GITHUB.repositoryEvent("edited", this.installation, id));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind).as("made private warns nothing")
+			.containsExactly(SourceDrift.Kind.RENAMED, SourceDrift.Kind.ARCHIVED);
+		assertThat(driftReads(this.job)).as("and reads nothing").hasSize(3);
+
+		// Since the Setup, every request under the Source Repository, by either name, went through the Customer's Source
+		// App: a lookup with its JWT, else a token minted from its installation and narrowed to the Source. The Platform
+		// App read no Source Repository.
+		List<GitHubStub.Seen> seen = List.copyOf(GITHUB.seen);
+		assertThat(seen.subList(setupRequests, seen.size())).filteredOn(request -> List.of(this.source, this.source + "-v2")
+			.stream()
+			.anyMatch(base -> request.path().equals("/repos/" + base) || request.path().startsWith("/repos/" + base + "/")))
+			.isNotEmpty()
+			.allSatisfy(request -> {
+				if (request.path().endsWith("/installation")) {
+					assertThat(GitHubStub.issuerOf(request.authorization())).isEqualTo(GitHubStub.SOURCE_APP);
+					return;
+				}
+				String token = request.authorization().replaceFirst("^Bearer ", "");
+				assertThat(GITHUB.tokensOf(this.installation)).as(request.method() + " " + request.path()).contains(token);
+				assertThat(GITHUB.grantOf(token).path("repository_ids").toString()).isEqualTo("[" + id + "]");
+			});
+		// The copy's dispatch read its target by ID (Story 23.6a), with the Customer's Source App as well.
+		assertThat(seen).filteredOn(request -> request.path().equals("/repositories/" + id))
+			.allSatisfy(request -> assertThat(GITHUB.tokensOf(this.installation))
+				.contains(request.authorization().replaceFirst("^Bearer ", "")));
+		assertThat(GITHUB.revokedTokens).containsAll(GITHUB.tokensOf(this.installation));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: an owner renamed on GitHub sends {@code installation_target} {@code renamed}, matched by the
+	 * installation: the read finds the Source under its new owner and warns it once, as today's rules name a new owner
+	 * ({@code TRANSFERRED}), and the Customer is asked to re-confirm it.
+	 */
+	@Test
+	void anOwnerRenamedIsReadFromItsInstallationTargetDelivery() throws Exception {
+		activeAfterJ7();
+		long owner = githubUserId(this.customer);
+
+		GITHUB.rename(this.sourceId, "lan-dev-moi", this.sourceName);
+		sourceDelivers("installation_target",
+				GITHUB.installationTargetEvent("renamed", this.installation, owner, "lan-dev-moi", "lan-dev"));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.TRANSFERRED);
+			assertThat(warning.fullName()).isEqualTo("lan-dev-moi/" + this.sourceName);
+		});
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
+		assertThat(openReconfirmTodos()).isOne();
+		assertThat(notices("repo.drift_detected")).isEqualTo(2);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.5b, Story 24.6: a Source Repository transferred to an account where the Source App is installed is still
+	 * found by its old name (GitHub's 301 to its ID) when the {@code repository} delivery of the transfer is read, bound
+	 * to that account's installation, and warned as transferred; the Customer re-confirms it.
+	 */
+	@Test
+	void aSourceTransferredToAnAccountWithTheAppIsFoundByItsOldNameAndReconfirmed() throws Exception {
+		activeAfterJ7();
+		long id = this.sourceId;
+		String name = this.sourceName;
+		long owner = githubUserId(this.customer);
+
+		GITHUB.mergeInstallations.get(this.installation).deselect(id);
+		GITHUB.rename(id, "lan-shop", name);
+		long moved = GITHUB.installSource("lan-shop", name, id, owner);
+		sourceDelivers("repository", GITHUB.repositoryEvent("transferred", moved, id));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.TRANSFERRED);
+			assertThat(warning.fullName()).isEqualTo("lan-shop/" + name);
+		});
+		assertThat(GITHUB.seen).as("the old name's 301 is followed to the repository's ID")
+			.anyMatch(request -> request.path().equals("/repositories/" + id + "/installation"));
+		assertThat(this.jdbc.sql("SELECT installation_id FROM product.source_app_binding WHERE product_id = :id AND status = 'BOUND'")
+			.param("id", this.product).query(Long.class).single()).as("bound to the new account's installation").isEqualTo(moved);
+		assertThat(openReconfirmTodos()).isOne();
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/source/reconfirm").with(as(this.customer, Role.CUSTOMER))
+			.with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
+		assertThat(this.jdbc.sql("SELECT repository_full_name FROM product.product WHERE id = :id").param("id", this.product)
+			.query(String.class).single()).isEqualTo("lan-shop/" + name);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: an archived Source Repository warns {@code ARCHIVED}; a deleted one leaves the Source App nothing to
+	 * reach, so it warns {@code GONE} under the name it was read by, opens {@code product.install_source_app}, and asks
+	 * no re-confirmation.
+	 */
+	@Test
+	void anArchivedSourceWarnsArchivedAndADeletedOneGone() throws Exception {
+		activeAfterJ7();
+
+		GITHUB.archive(this.sourceId);
+		sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.ARCHIVED);
+
+		byte[] deleted = GITHUB.repositoryEvent("deleted", this.installation, this.sourceId);
+		// GitHub takes a deleted repository out of every installation's selection.
+		GITHUB.mergeInstallations.get(this.installation).deselect(this.sourceId);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("repository", deleted);
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.ARCHIVED, SourceDrift.Kind.GONE);
+		assertThat(this.drift.warnings(this.job).get(1).fullName()).isEqualTo(this.source);
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_WRONG_REPOSITORY");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+		assertThat(openReconfirmTodos()).as("nothing to re-confirm").isZero();
+		assertThat(notices("repo.drift_detected")).isEqualTo(4);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6, with Story 23.5c's status: the Source Repository removed from the Source App's selection warns
+	 * {@code GONE}; the App suspended, then uninstalled, warns {@code APP_UNINSTALLED} once. Each read records the
+	 * Product's status, which keeps {@code product.install_source_app} open and tells the Customer of each new failing
+	 * status once. Installed again, the new installation's {@code created} delivery names the Source, so it finds the
+	 * Product its old installation was bound on: the read binds it there and closes the to-do, warning nothing. With a
+	 * {@code vibefix.yml} that differs, the next push moves the to-do to {@code product.add_workflow}. None asks a
+	 * re-confirmation.
+	 */
+	@Test
+	void theSourceAppDeselectedSuspendedOrUninstalledWarnsOnceAndOpensItsToDo() throws Exception {
+		activeAfterJ7();
+		long owner = githubUserId(this.customer);
 		assertThat(sourceStatus()).as("the Setup check found it ready").isEqualTo("READY");
 		assertThat(this.jdbc.sql("SELECT workflow_blob FROM product.product WHERE id = :id").param("id", this.product)
 			.query(String.class).single()).as("with the blob it matched").matches("[0-9a-f]{40}");
 
+		GITHUB.mergeInstallations.get(this.installation).deselect(this.sourceId);
+		sourceDelivers("installation_repositories",
+				GITHUB.installationRepositoriesEvent("removed", this.installation, List.of(this.sourceId)));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.GONE);
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_WRONG_REPOSITORY");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+
+		GITHUB.mergeInstallations.get(this.installation).repository(this.sourceId, this.source, owner).suspended = true;
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", GITHUB.installationEvent("suspend", this.installation));
+		driftRead();
 		GITHUB.mergeInstallations.remove(this.installation);
 		GITHUB.repositoryInstallations.values().remove(this.installation);
-		this.drift.poll();
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", GITHUB.installationEvent("deleted", this.installation));
+		driftRead();
 
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.GONE, SourceDrift.Kind.APP_UNINSTALLED);
 		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_MISSING");
 		assertThat(productTodos()).containsExactly("product.install_source_app");
-		assertThat(workflowCheckFailures()).as("once, to the Product's Customer").containsExactly(this.customer);
+		assertThat(workflowCheckFailures()).as("each new failing status once").containsExactly(this.customer, this.customer);
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED", "SUCCEEDED");
+		assertThat(notices("repo.drift_detected")).as("once per new state, to the Customer and the Mentor").isEqualTo(4);
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source'")
+			.query(Long.class).single()).as("nothing to re-confirm").isZero();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.warnings[0].kind").value("GONE"))
+			.andExpect(jsonPath("$.warnings[0].fullName").value(this.source))
+			.andExpect(jsonPath("$.warnings[1].kind").value("APP_UNINSTALLED"))
+			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
 
-		long owner = githubUserId(this.customer);
-		long repository = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id")
-			.param("id", this.product).query(Long.class).single();
-		GITHUB.installSource("lan-dev", this.source.substring(this.source.indexOf('/') + 1), repository, owner);
-		GITHUB.sourceFiles.put(this.source + ":.github/workflows/vibefix.yml",
-				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW) + "# changed\n");
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
+		// Installed again: a new installation, which the Product is not bound on, names the Source.
+		long old = this.installation;
+		this.installation = GITHUB.installSource("lan-dev", this.sourceName, this.sourceId, owner);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", GITHUB.installationEvent("created", this.installation, List.of(this.sourceId)));
+		driftRead();
+
+		assertThat(sourceStatus()).as("ready again").isEqualTo("READY");
+		assertThat(productTodos()).as("its to-do closed").isEmpty();
+		assertThat(this.jdbc.sql("SELECT installation_id FROM product.source_app_binding WHERE product_id = :id AND status = 'BOUND'")
+			.param("id", this.product).query(Long.class).single()).as("bound on the new installation, not " + old)
+			.isEqualTo(this.installation);
+		assertThat(this.drift.warnings(this.job)).as("no warning for a fix").hasSize(2);
+
+		GITHUB.sourceFiles.put(this.source + ":" + WORKFLOW_PATH, publishedWorkflow() + "# changed\n");
+		pushed(GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n"));
 
 		assertThat(sourceStatus()).isEqualTo("WORKFLOW_MISMATCH");
 		assertThat(productTodos()).containsExactly("product.add_workflow");
-		assertThat(workflowCheckFailures()).hasSize(2);
+		assertThat(workflowCheckFailures()).hasSize(3);
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactlyInAnyOrder(SourceDrift.Kind.GONE, SourceDrift.Kind.APP_UNINSTALLED, SourceDrift.Kind.COMMITS,
+					SourceDrift.Kind.WORKFLOW_CHANGED);
 		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a fix on GitHub is read as soon as GitHub tells of it, so the Product's status and its to-do follow
+	 * within seconds, and no warning is made for it. The Source App resumed ({@code unsuspend}) with a permission still
+	 * to accept, then its permissions accepted ({@code new_permissions_accepted}), the Source selected again
+	 * ({@code added}), and the Source unarchived each read the Job; once it is ready again,
+	 * {@code product.install_source_app} closes.
+	 */
+	@Test
+	void aFixOnGitHubIsReadAndClosesTheToDoWithNoWarning() throws Exception {
+		activeAfterJ7();
+		long owner = githubUserId(this.customer);
+		GitHubStub.MergeInstallation installed = GITHUB.mergeInstallations.get(this.installation);
+
+		installed.suspended = true;
+		sourceDelivers("installation", GITHUB.installationEvent("suspend", this.installation));
+		driftRead();
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+
+		// Resumed, with a permission the App asks for not accepted yet.
+		installed.suspended = false;
+		installed.permissions.remove("actions");
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", GITHUB.installationEvent("unsuspend", this.installation, List.of(this.sourceId)));
+		driftRead();
+		assertThat(sourceStatus()).as("resumed, a permission still to accept").isEqualTo("SOURCE_APP_MISSING");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+		installed.permissions.put("actions", "write");
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", GITHUB.installationEvent("new_permissions_accepted", this.installation));
+		driftRead();
+		assertThat(sourceStatus()).as("its permissions accepted again").isEqualTo("READY");
+		assertThat(productTodos()).isEmpty();
+
+		installed.deselect(this.sourceId);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation_repositories",
+				GITHUB.installationRepositoriesEvent("removed", this.installation, List.of(this.sourceId)));
+		driftRead();
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+		installed.repository(this.sourceId, this.source, owner);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation_repositories",
+				GITHUB.installationRepositoriesEvent("added", this.installation, List.of(this.sourceId)));
+		driftRead();
+		assertThat(sourceStatus()).as("selected again").isEqualTo("READY");
+		assertThat(productTodos()).isEmpty();
+
+		GITHUB.archive(this.sourceId);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+		driftRead();
+		GITHUB.unarchive(this.sourceId);
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("repository", GITHUB.repositoryEvent("unarchived", this.installation, this.sourceId));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind).as("the drift, never its fix")
+			.containsExactly(SourceDrift.Kind.APP_UNINSTALLED, SourceDrift.Kind.GONE, SourceDrift.Kind.ARCHIVED);
+		assertThat(driftReads(this.job)).hasSize(7).containsOnly("SUCCEEDED");
+		assertThat(sourceStatus()).isEqualTo("READY");
+		assertThat(productTodos()).isEmpty();
+		assertThat(notices("repo.drift_detected")).isEqualTo(6);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6, with Story 23.5c's status: the Source App uninstalled warns {@code APP_UNINSTALLED} at its
+	 * {@code installation} {@code deleted} delivery and opens {@code product.install_source_app}, telling the Customer
+	 * once; GitHub delivering it again under another ID reads the Job again and warns nothing more.
+	 */
+	@Test
+	void anUninstalledSourceAppWarnsOnceAndOpensItsToDo() throws Exception {
+		activeAfterJ7();
+		GITHUB.mergeInstallations.remove(this.installation);
+		GITHUB.repositoryInstallations.values().remove(this.installation);
+		byte[] deleted = GITHUB.installationEvent("deleted", this.installation);
+
+		sourceDelivers("installation", deleted);
+		driftRead();
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", deleted);
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.APP_UNINSTALLED);
+			assertThat(warning.fullName()).isEqualTo(this.source);
+		});
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED");
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+		assertThat(workflowCheckFailures()).as("once, to the Product's Customer").containsExactly(this.customer);
+		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: GitHub not answering the read warns nothing yet, and the operation tries again after its backoff,
+	 * when the archive is found.
+	 */
+	@Test
+	void aReadGitHubCannotAnswerWarnsNothingYetAndIsTriedAgain() throws Exception {
+		activeAfterJ7();
+		GITHUB.archive(this.sourceId);
+		GITHUB.unavailable.add("GET /repos/" + this.source);
+		try {
+			sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+			driftRead();
+		}
+		finally {
+			GITHUB.unavailable.clear();
+		}
+
+		assertThat(this.drift.warnings(this.job)).as("nothing is known, so nothing is warned").isEmpty();
+		assertThat(driftReads(this.job)).containsExactly("PENDING");
+		assertThat(this.jdbc.sql("SELECT error_code FROM operations.external_operation WHERE type = :type")
+			.param("type", SourceDrift.READ).query(String.class).single()).isEqualTo("GITHUB_HTTP_502");
+
+		this.clock.advance(OperationPolicy.DEFAULT.delayAfter(1).plusSeconds(1));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.ARCHIVED);
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
+		assertThat(notices("repo.drift_detected")).isEqualTo(2);
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6 (FR-64): a read GitHub never answers is tried under the default policy, then waits in the
+	 * Administrators' failed queue, naming its Job; nothing is warned meanwhile.
+	 */
+	@Test
+	void aReadThatExhaustsItsAttemptsLandsInTheFailedQueue() throws Exception {
+		activeAfterJ7();
+		GITHUB.archive(this.sourceId);
+		GITHUB.unavailable.add("GET /repos/" + this.source);
+		try {
+			sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+			awaitListeners();
+			for (int attempt = 1; attempt <= OperationPolicy.DEFAULT.maxAttempts(); attempt++) {
+				this.worker.runDue(Lane.GITHUB_SHORT);
+				this.clock.advance(OperationPolicy.DEFAULT.delayAfter(attempt).plusSeconds(1));
+			}
+		}
+		finally {
+			GITHUB.unavailable.clear();
+		}
+
+		assertThat(driftReads(this.job)).containsExactly("FAILED");
+		assertThat(this.failedOperations.findAll()).filteredOn(failed -> failed.type().equals(SourceDrift.READ))
+			.singleElement()
+			.satisfies(failed -> {
+				assertThat(failed.jobId()).isEqualTo(this.job);
+				assertThat(failed.errorCode()).isEqualTo("GITHUB_HTTP_502");
+				assertThat(failed.attempts()).isEqualTo(OperationPolicy.DEFAULT.maxAttempts());
+			});
+		assertThat(this.drift.warnings(this.job)).isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: nothing but a Code Job's own Source drift acts. A repository or an installation no Product is bound
+	 * to, the Platform App's deliveries of the same events, and the Source App's other actions on the Job's own
+	 * repository warn nothing and read nothing; so does a Job that ended. A read requested while the Job ran finds it
+	 * Closed and is obsolete. No drift poll is left to read it later either.
+	 */
+	@Test
+	void deliveriesThatAreNotACodeJobsDriftDoNothing() throws Exception {
+		activeAfterJ7();
+		long owner = githubUserId(this.customer);
+		long other = REPOSITORY_IDS.incrementAndGet();
+		GITHUB.publish("lan-dev", "khac-" + other, other, owner, false, false);
+		String sha = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		byte[] ours = pushEvent(sha, List.of(sha));
+
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, other, "refs/heads/main", sha, List.of(sha)));
+		sourceDelivers("repository", GITHUB.repositoryEvent("renamed", this.installation, other));
+		sourceDelivers("installation", GITHUB.installationEvent("deleted", 424242, List.of(other)));
+		sourceDelivers("installation_repositories", GITHUB.installationRepositoriesEvent("removed", 424242, List.of(other)));
+		sourceDelivers("installation_target", GITHUB.installationTargetEvent("renamed", 424242, 77, "khac", "khac-cu"));
+		platformDelivers("push", ours);
+		platformDelivers("repository", GITHUB.repositoryEvent("archived", GitHubStub.INSTALLATION, this.sourceId));
+		platformDelivers("installation", GITHUB.installationEvent("deleted", this.installation, List.of(this.sourceId)));
+		platformDelivers("installation_repositories",
+				GITHUB.installationRepositoriesEvent("removed", this.installation, List.of(this.sourceId)));
+		sourceDelivers("repository", GITHUB.repositoryEvent("edited", this.installation, this.sourceId));
+		sourceDelivers("repository", GITHUB.repositoryEvent("publicized", this.installation, this.sourceId));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).as("not this Job's drift").isEmpty();
+		assertThat(driftReads(this.job)).as("and no read").isEmpty();
+
+		this.jdbc.sql("UPDATE job.job SET state = 'CANCELLED' WHERE id = :id").param("id", this.job).update();
+		sourceDelivers("push", ours);
+		sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).as("a Job that ended").isEmpty();
+		assertThat(driftReads(this.job)).isEmpty();
+
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+		sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+		awaitListeners();
+		this.jdbc.sql("UPDATE job.job SET state = 'CLOSED' WHERE id = :id").param("id", this.job).update();
+		GITHUB.archive(this.sourceId);
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(driftReads(this.job)).as("requested while it ran, read once it ended").containsExactly("OBSOLETE");
+		assertThat(this.drift.warnings(this.job)).isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		assertThat(this.context.getEnvironment().getProperty("vibefix.repo.drift-cron")).as("no drift poll's schedule")
+			.isNull();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a push or a rename before the Customer's confirmation warns nothing and reads nothing: the copy pins
+	 * the commit the Customer confirms, so nothing before it is drift.
+	 */
+	@Test
+	void aPushOrARenameBeforeTheConfirmationWarnsNothing() throws Exception {
+		j6();
+		String head = waitForTheCustomer();
+		String pushed = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+
+		sourceDelivers("push", pushEvent(pushed, List.of(pushed)));
+		GITHUB.rename(this.sourceId, "lan-dev", this.sourceName + "-v2");
+		sourceDelivers("repository", GITHUB.repositoryEvent("renamed", this.installation, this.sourceId));
+		driftRead();
+
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+		assertThat(waiting.status()).as("still waiting for the Customer").isEqualTo("CONFIRMING");
+		assertThat(waiting.approvedSha()).as("nothing confirmed yet").isNull();
+		assertThat(head).isNotEqualTo(pushed);
+		assertThat(this.drift.warnings(this.job)).isEmpty();
+		assertThat(driftReads(this.job)).isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 23.11a, Story 24.6: an Assessment Job has a {@code DONE} Setup row too, but its one read-only copy is pinned
+	 * to the confirmed commit and it has no Final Merge target, and {@code SourceDriftController} serves it neither its
+	 * warnings nor a re-confirmation. So a push and a rename of its Source warn nothing, read nothing and open no to-do.
+	 * The same Source, the same Setup and the same deliveries warn as soon as the Job is a Code Job, which is what makes
+	 * the Job's kind the cause.
+	 */
+	@Test
+	void anAssessmentJobsSourceWarnsNothingAndTheSameSourceWarnsOnceItIsACodeJob() throws Exception {
+		assessmentJob();
+		assessmentSetUpTheRepository();
+		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 applied, so the state guard passes")
+			.isEqualTo("ACTIVE");
+		String pushed = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		byte[] push = pushEvent(pushed, List.of(pushed));
+		GITHUB.rename(this.sourceId, "lan-dev", this.sourceName + "-v2");
+		byte[] renamed = GITHUB.repositoryEvent("renamed", this.installation, this.sourceId);
+
+		sourceDelivers("push", push);
+		sourceDelivers("repository", renamed);
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).as("an Assessment Job's Source is not read").isEmpty();
+		assertThat(driftReads(this.job)).isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
+		assertThat(openReconfirmTodos()).as("a to-do nobody could ever close").isZero();
+		// The Customer's own page still answers NOT_FOUND for an Assessment Job, as it did before.
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+
+		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['BUG_FIX']::TEXT[] WHERE id = :id").param("id", this.job).update();
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("push", push);
+		sourceDelivers("repository", renamed);
+		driftRead();
+
+		// The push's warning and the read's share a detected_at, so the kinds are what matters here, not their order.
+		assertThat(this.drift.warnings(this.job)).as("the same Source warns once the Job is a Code Job")
+			.extracting(SourceDrift.Warning::kind)
+			.containsExactlyInAnyOrder(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
+		assertThat(openReconfirmTodos()).isOne();
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: each read is its own operation, so one that fails unexpectedly (here GitHub selects its Source
+	 * Repository under a name with no owner) is tried again later, and the read another delivery requested for another
+	 * Job still warns the same minute.
+	 */
+	@Test
+	void oneJobsFailedReadDoesNotStopAnotherJobsRead() throws Exception {
+		activeAfterJ7();
+		long owner = githubUserId(this.customer);
+		long repository = REPOSITORY_IDS.incrementAndGet();
+		String name = "lan-dev/so-dat-ban-" + repository;
+		GITHUB.publish("lan-dev", "so-dat-ban-" + repository, repository, owner, false, false);
+		long installed = GITHUB.installSource("lan-dev", name.substring("lan-dev/".length()), repository, owner);
+		GITHUB.mergeInstallations.get(installed).deselect(repository).repository(repository, "khong-co-chu", owner);
+		UUID product = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
+				    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,
+				    copy_permission_version, detection_notice_version, acknowledged_at, created_at)
+				VALUES (:id, :owner, 'Sổ khác', 'Đặt bàn.', ARRAY['LOVABLE'], :github, :name, 'User', 'main', '1.0', '1.0',
+				    '1.0', :now, :now)
+				""").param("id", product).param("owner", this.customer).param("github", repository).param("name", name)
+			.param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO product.source_app_binding (id, customer_account_id, repository_full_name, repository_github_id,
+				    installation_id, account_github_id, account_login, account_type, product_id, status, created_at, bound_at)
+				VALUES (:id, :owner, :name, :github, :installation, :account, 'lan-dev', 'User', :product, 'BOUND', :now, :now)
+				""").param("id", UUID.randomUUID()).param("owner", this.customer).param("name", name).param("github", repository)
+			.param("installation", installed).param("account", owner).param("product", product).param("now", now).update();
+		UUID failing = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, opened_at, lapses_at, version, created_at, updated_at,
+				    mentor_account_id, selected_application_id, selected_at, agreement_version_no)
+				VALUES (:id, :product, :owner, 'ACTIVE', 'Việc khác', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    'UNDER_2M', DATE '2026-12-01', '{"REVISION_ROUNDS":2}'::jsonb, 14, :now, :now, 3, :now, :now,
+				    :mentor, :application, :now, 1)
+				""").param("id", failing).param("product", product).param("owner", this.customer).param("now", now)
+			.param("mentor", this.mentor).param("application", UUID.randomUUID()).update();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, source_full_name, default_branch, head_sha,
+				    head_read_at, approved_sha, confirmed_at, intermediary_github_id, intermediary_name, working_github_id,
+				    working_name, checked_at, intermediary_at, working_at, copied_at, started_at, finished_at)
+				VALUES (:id, :job, :product, 'DONE', :source, 'main', :sha, :now, :sha, :now, 1, 'vibefix-dev/khac-intermediary', 2,
+				    'vibefix-dev/khac-working', :now, :now, :now, :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", failing).param("product", product).param("source", name)
+			.param("sha", "a".repeat(40)).param("now", now).update();
+
+		sourceDelivers("installation_repositories",
+				GITHUB.installationRepositoriesEvent("removed", installed, List.of(repository)));
+		GITHUB.archive(this.sourceId);
+		sourceDelivers("repository", GITHUB.repositoryEvent("archived", this.installation, this.sourceId));
+		driftRead();
+
+		assertThat(this.drift.warnings(failing)).isEmpty();
+		assertThat(driftReads(failing)).as("tried again later").containsExactly("PENDING");
+		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
+			.containsExactly(SourceDrift.Kind.ARCHIVED);
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
+		awaitListeners();
+	}
+
+	/** The Source App's {@code push} to the Source Repository's default branch, ending at {@code after} (Story 24.6). */
+	private byte[] pushEvent(String after, List<String> commits) {
+		return GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", after, commits);
+	}
+
+	/**
+	 * {@code count} commit IDs, the {@code from}th first, as a push names them; nothing reads them but the drift's own
+	 * list.
+	 */
+	private static List<String> shas(int from, int count) {
+		List<String> shas = new ArrayList<>();
+		for (int i = from; i < from + count; i++) {
+			shas.add(String.format("%040x", i));
+		}
+		return shas;
+	}
+
+	/** {@code account}'s notifications of {@code type}. */
+	private long notices(String type, UUID account) {
+		return this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE type = :type AND account_id = :account")
+			.param("type", type)
+			.param("account", account)
+			.query(Long.class)
+			.single();
+	}
+
+	/** At least {@code sessions} other sessions wait for a lock that {@code holder}'s transaction holds. */
+	private void awaitBlockedBy(int holder, int sessions) {
+		org.awaitility.Awaitility.await()
+			.atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM pg_locks WHERE NOT granted AND :holder = ANY(pg_blocking_pids(pid))")
+				.param("holder", holder)
+				.query(Long.class)
+				.single() >= sessions);
+	}
+
+	private static void await(CountDownLatch latch) {
+		try {
+			assertThat(latch.await(15, TimeUnit.SECONDS)).isTrue();
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException(ex);
+		}
+	}
+
+	/** The emails of {@code template} requested for {@code account}, sent or not. */
+	private long emails(String template, UUID account) {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM operations.external_operation
+				WHERE type = 'notification.email' AND payload ->> 'template' = :template AND account_id = :account
+				""").param("template", template).param("account", account).query(Long.class).single();
+	}
+
+	/** J6, the Customer's self-confirmation, the copy, and the Job Active after J7, as a test of drift needs it. */
+	private void activeAfterJ7() throws Exception {
+		setUpTheRepositories();
+		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
+	}
+
+	/**
+	 * A push of {@code sha} to the Source Repository's default branch, delivered by the Source App a minute later; then
+	 * the listeners and every drift read due.
+	 */
+	private void pushed(String sha) throws Exception {
+		pushed(sha, List.of(sha));
+	}
+
+	/** The same, for a push ending at {@code after} that lists {@code commits}. */
+	private void pushed(String after, List<String> commits) throws Exception {
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("push", pushEvent(after, commits));
+		driftRead();
+	}
+
+	/** The Source App delivers {@code event}, signed with its secret, under a delivery ID of its own (Story 24.6). */
+	private void sourceDelivers(String event, byte[] body) throws Exception {
+		sourceDelivery(UUID.randomUUID().toString(), event, body).andExpect(status().isAccepted());
+	}
+
+	private ResultActions sourceDelivery(String deliveryId, String event, byte[] body) throws Exception {
+		return this.mvc.perform(ActionsExchangeSupport.webhook(GitHubStub.SOURCE_APP, deliveryId, event, body, SOURCE_SECRET));
+	}
+
+	/** The Platform App delivers {@code event}, signed with its own secret. */
+	private void platformDelivers(String event, byte[] body) throws Exception {
+		this.mvc.perform(ActionsExchangeSupport.webhook(PLATFORM_APP, event, body, PLATFORM_SECRET))
+			.andExpect(status().isAccepted());
+	}
+
+	/** The listeners finish, then every operation due in the GitHub-short lane runs, the drift reads among them. */
+	private void driftRead() {
+		awaitListeners();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+	}
+
+	/** The status of each {@value SourceDrift#READ} requested for {@code job}, oldest first. */
+	private List<String> driftReads(UUID job) {
+		return this.jdbc.sql("""
+				SELECT status FROM operations.external_operation WHERE type = :type AND payload ->> 'jobId' = :job
+				ORDER BY created_at, operation_key
+				""").param("type", SourceDrift.READ).param("job", job.toString()).query(String.class).list();
 	}
 
 	/** The Product's recorded Source App and workflow status (Story 23.5c). */
@@ -1897,319 +2970,11 @@ class JobSetupIT extends IntegrationTest {
 		return this.grants.ofJob(this.job).stream().filter(JobGrants.Grant::customer).findFirst().orElseThrow();
 	}
 
-	/**
-	 * Story 23.11a: an Assessment Job has a {@code DONE} Setup row too, so the daily poll now reaches it -- but its one
-	 * read-only copy is pinned to the confirmed commit and it has no Final Merge target, and
-	 * {@code SourceDriftController} serves it neither its warnings nor a re-confirmation. The poll skips it: a commit
-	 * and a rename warn nothing and open no to-do. The same Source, the same Setup and the same changes warn as soon as
-	 * the Job is a Code Job again, which is what makes the Job's kind the cause.
-	 */
-	@Test
-	void theDailyPollSkipsAnAssessmentJobAndWarnsTheSameSourceOnceItIsACodeJob() throws Exception {
-		assessmentJob();
-		assessmentSetUpTheRepository();
-		assertThat(this.busy.job(this.job).orElseThrow().state()).as("J7 applied, so the poll's state guard passes")
-			.isEqualTo("ACTIVE");
-		String name = this.source.substring("lan-dev/".length());
-		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
-			.query(Long.class).single();
-		GITHUB.push("lan-dev", name, "main", "app.js", "console.log('Lovable')\n");
-		GITHUB.rename(id, "lan-dev", name + "-v2");
-
-		this.drift.poll();
-
-		assertThat(this.drift.warnings(this.job)).as("an Assessment Job's Source is not polled").isEmpty();
-		assertThat(notices("repo.drift_detected")).isZero();
-		assertThat(openReconfirmTodos()).as("a to-do nobody could ever close").isZero();
-		// The Customer's own page still answers NOT_FOUND for an Assessment Job, as it did before this story.
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isNotFound());
-
-		this.jdbc.sql("UPDATE job.job SET job_types = ARRAY['BUG_FIX']::TEXT[] WHERE id = :id").param("id", this.job).update();
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-
-		// Both warnings are made in this one poll, so they share a detected_at and the query's id tie-break orders them:
-		// the kinds are what matters here, not their order.
-		assertThat(this.drift.warnings(this.job)).as("the same Source warns once the Job is a Code Job")
-			.extracting(SourceDrift.Warning::kind)
-			.containsExactlyInAnyOrder(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
-		assertThat(openReconfirmTodos()).isOne();
-		awaitListeners();
-	}
-
 	/** The Customer's open {@code repo.reconfirm_source} to-dos. */
 	private long openReconfirmTodos() {
 		return this.jdbc.sql("""
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source' AND closed_at IS NULL
 				""").query(Long.class).single();
-	}
-
-	@Test
-	void theDailyPollWarnsOncePerChangeAndARenameWaitsForTheCustomersReconfirmation() throws Exception {
-		setUpTheRepositories();
-		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
-		String name = this.source.substring("lan-dev/".length());
-		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
-			.query(Long.class).single();
-		// What the Setup read is left out below; it read the Source through the Source App too (Story 23.6b).
-		int setupRequests = GITHUB.seen.size();
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).as("nothing changed since the copy").isEmpty();
-
-		String pushed = GITHUB.push("lan-dev", name, "main", "app.js", "console.log('Lovable')\n");
-		this.drift.poll();
-		this.drift.poll();
-
-		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
-			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.COMMITS);
-			assertThat(warning.commits()).as("stored as evidence").containsExactly(pushed);
-		});
-		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
-
-		GITHUB.rename(id, "lan-dev", name + "-v2");
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
-			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED);
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.reconfirmNeeded").value(true))
-			.andExpect(jsonPath("$.warnings[1].fullName").value("lan-dev/" + name + "-v2"));
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.mentor, Role.MENTOR)))
-			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/source/reconfirm").with(as(this.customer, Role.CUSTOMER))
-			.with(csrf()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
-		assertThat(this.jdbc.sql("SELECT repository_full_name FROM product.product WHERE id = :id").param("id", this.product)
-			.query(String.class).single()).as("the new name is the Final Merge target now").isEqualTo("lan-dev/" + name + "-v2");
-		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source' AND closed_at IS NULL")
-			.query(Long.class).single()).isZero();
-
-		GITHUB.archive(id);
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
-			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED, SourceDrift.Kind.ARCHIVED);
-		// R7 (Story 23.5b): the Source App reads a private repository, so making it private is no drift.
-		GITHUB.publish("lan-dev", name + "-v2", id, githubUserId(this.customer), false, false);
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind).as("made private warns nothing")
-			.containsExactly(SourceDrift.Kind.COMMITS, SourceDrift.Kind.RENAMED, SourceDrift.Kind.ARCHIVED);
-
-		// Since the Setup, every request under the Source Repository, by either name, went through the Customer's Source
-		// App: a lookup with its JWT, else a token minted from its installation and narrowed to the Source. The Platform
-		// App read no Source Repository.
-		List<GitHubStub.Seen> seen = List.copyOf(GITHUB.seen);
-		assertThat(seen.subList(setupRequests, seen.size())).filteredOn(request -> List.of(this.source, this.source + "-v2")
-			.stream()
-			.anyMatch(base -> request.path().equals("/repos/" + base) || request.path().startsWith("/repos/" + base + "/")))
-			.isNotEmpty()
-			.allSatisfy(request -> {
-				if (request.path().endsWith("/installation")) {
-					assertThat(GitHubStub.issuerOf(request.authorization())).isEqualTo(GitHubStub.SOURCE_APP);
-					return;
-				}
-				String token = request.authorization().replaceFirst("^Bearer ", "");
-				assertThat(GITHUB.tokensOf(this.installation)).as(request.method() + " " + request.path()).contains(token);
-				assertThat(GITHUB.grantOf(token).path("repository_ids").toString()).isEqualTo("[" + id + "]");
-			});
-		// The copy's dispatch read its target by ID (Story 23.6a), with the Customer's Source App as well.
-		assertThat(seen).filteredOn(request -> request.path().equals("/repositories/" + id))
-			.allSatisfy(request -> assertThat(GITHUB.tokensOf(this.installation))
-				.contains(request.authorization().replaceFirst("^Bearer ", "")));
-		assertThat(GITHUB.revokedTokens).containsAll(GITHUB.tokensOf(this.installation));
-		awaitListeners();
-	}
-
-	/**
-	 * Story 23.5b (R7, EXPERIENCE.md "Drift detected"): the poll reads through the Source App, so the published
-	 * {@code vibefix.yml} changed or removed, the Source Repository no longer selected, and the App uninstalled each warn
-	 * once with a notification, and ask no re-confirmation. GitHub not answering warns nothing, and the next poll reads
-	 * again.
-	 */
-	@Test
-	void theDailyPollWarnsOnceWhenTheWorkflowFileTheSelectionOrTheSourceAppGoes() throws Exception {
-		setUpTheRepositories();
-		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
-		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
-			.query(Long.class).single();
-		String workflow = this.source + ":.github/workflows/vibefix.yml";
-		String published = GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW);
-
-		GITHUB.unavailable.add("GET /repos/" + this.source + "/compare/");
-		try {
-			this.drift.poll();
-		}
-		finally {
-			GITHUB.unavailable.clear();
-		}
-		assertThat(this.drift.warnings(this.job)).as("GitHub down: nothing is known, so nothing is warned").isEmpty();
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).as("read again: nothing changed").isEmpty();
-
-		GITHUB.sourceFiles.put(workflow, published + "# changed\n");
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		this.drift.poll();
-		GITHUB.sourceFiles.remove(workflow);
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).as("changed, then removed: one warning").singleElement()
-			.satisfies(warning -> {
-				assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.WORKFLOW_CHANGED);
-				assertThat(warning.fullName()).isEqualTo(this.source);
-			});
-		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
-		GITHUB.sourceFiles.put(workflow, published);
-
-		long owner = githubUserId(this.customer);
-		GITHUB.mergeInstallations.get(this.installation).deselect(id);
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
-			.containsExactly(SourceDrift.Kind.WORKFLOW_CHANGED, SourceDrift.Kind.GONE);
-		GITHUB.mergeInstallations.get(this.installation).repository(id, this.source, owner);
-
-		GITHUB.mergeInstallations.remove(this.installation);
-		this.clock.advance(Duration.ofDays(1));
-		this.drift.poll();
-		this.drift.poll();
-		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
-			.containsExactly(SourceDrift.Kind.WORKFLOW_CHANGED, SourceDrift.Kind.GONE, SourceDrift.Kind.APP_UNINSTALLED);
-		assertThat(notices("repo.drift_detected")).as("once per new state, to the Customer and the Mentor").isEqualTo(6);
-		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE todo_key = 'repo.reconfirm_source'")
-			.query(Long.class).single()).as("nothing to re-confirm").isZero();
-		assertThat(this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE action = 'repo.drift_detected'")
-			.query(Long.class).single()).isEqualTo(3);
-		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/drift").with(as(this.customer, Role.CUSTOMER)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.warnings[1].kind").value("GONE"))
-			.andExpect(jsonPath("$.warnings[1].fullName").value(this.source))
-			.andExpect(jsonPath("$.warnings[2].kind").value("APP_UNINSTALLED"))
-			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
-		awaitListeners();
-	}
-
-	/**
-	 * Story 23.5b: a Source Repository transferred to an account where the Source App is installed is still found by its
-	 * old name (GitHub's 301 to its ID), bound to that account's installation, and warned as transferred; the Customer
-	 * re-confirms it.
-	 */
-	@Test
-	void aSourceTransferredToAnAccountWithTheAppIsFoundByItsOldNameAndReconfirmed() throws Exception {
-		setUpTheRepositories();
-		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
-		long id = this.jdbc.sql("SELECT repository_github_id FROM product.product WHERE id = :id").param("id", this.product)
-			.query(Long.class).single();
-		String name = this.source.substring("lan-dev/".length());
-		long owner = githubUserId(this.customer);
-
-		GITHUB.mergeInstallations.get(this.installation).deselect(id);
-		GITHUB.rename(id, "lan-shop", name);
-		long moved = GITHUB.installSource("lan-shop", name, id, owner);
-		this.drift.poll();
-
-		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
-			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.TRANSFERRED);
-			assertThat(warning.fullName()).isEqualTo("lan-shop/" + name);
-		});
-		assertThat(GITHUB.seen).as("the old name's 301 is followed to the repository's ID")
-			.anyMatch(request -> request.path().equals("/repositories/" + id + "/installation"));
-		assertThat(this.jdbc.sql("SELECT installation_id FROM product.source_app_binding WHERE product_id = :id AND status = 'BOUND'")
-			.param("id", this.product).query(Long.class).single()).as("bound to the new account's installation").isEqualTo(moved);
-		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/source/reconfirm").with(as(this.customer, Role.CUSTOMER))
-			.with(csrf()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.reconfirmNeeded").value(false));
-		assertThat(this.jdbc.sql("SELECT repository_full_name FROM product.product WHERE id = :id").param("id", this.product)
-			.query(String.class).single()).isEqualTo("lan-shop/" + name);
-		awaitListeners();
-	}
-
-	/**
-	 * Story 23.5b: a commit that changes {@code vibefix.yml} warns twice over, as the workflow file changed and as new
-	 * commits carrying its SHA: a workflow that differs never hides the other changes.
-	 */
-	@Test
-	void aCommitThatChangesTheWorkflowFileWarnsTheWorkflowAndTheCommits() throws Exception {
-		setUpTheRepositories();
-		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
-		String name = this.source.substring("lan-dev/".length());
-		// From now on the file is served from the repository's own history, where the push changes it.
-		GITHUB.sourceFiles.remove(this.source + ":.github/workflows/vibefix.yml");
-		String pushed = GITHUB.push("lan-dev", name, "main", ".github/workflows/vibefix.yml",
-				GitHubStub.published(GitHubStub.CUSTOMER_WORKFLOW) + "# changed\n");
-
-		this.drift.poll();
-		this.drift.poll();
-
-		assertThat(this.drift.warnings(this.job)).extracting(SourceDrift.Warning::kind)
-			.containsExactlyInAnyOrder(SourceDrift.Kind.WORKFLOW_CHANGED, SourceDrift.Kind.COMMITS);
-		assertThat(this.drift.warnings(this.job)).filteredOn(warning -> warning.kind() == SourceDrift.Kind.COMMITS)
-			.singleElement()
-			.satisfies(warning -> assertThat(warning.commits()).as("stored as evidence").containsExactly(pushed));
-		assertThat(notices("repo.drift_detected")).as("each, once, to the Customer and the Mentor").isEqualTo(4);
-		awaitListeners();
-	}
-
-	/**
-	 * Story 23.5b: one Job whose read fails unexpectedly (here GitHub lists its Source Repository under a name with no
-	 * owner) is logged and skipped; the poll still reads the next Job and warns of its change the same day.
-	 */
-	@Test
-	void oneJobsFailedReadDoesNotStopTheNextJobsWarning() throws Exception {
-		setUpTheRepositories();
-		this.jdbc.sql("UPDATE job.job SET state = 'ACTIVE' WHERE id = :id").param("id", this.job).update();
-		String pushed = GITHUB.push("lan-dev", this.source.substring("lan-dev/".length()), "main", "app.js",
-				"console.log('Lovable')\n");
-
-		long owner = githubUserId(this.customer);
-		long repository = REPOSITORY_IDS.incrementAndGet();
-		String name = "lan-dev/so-dat-ban-" + repository;
-		long installed = GITHUB.installSource("lan-dev", name.substring("lan-dev/".length()), repository, owner);
-		GITHUB.mergeInstallations.get(installed).deselect(repository).repository(repository, "khong-co-chu", owner);
-		UUID product = UUID.randomUUID();
-		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("""
-				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
-				    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,
-				    copy_permission_version, detection_notice_version, acknowledged_at, created_at)
-				VALUES (:id, :owner, 'Sổ khác', 'Đặt bàn.', ARRAY['LOVABLE'], :github, :name, 'User', 'main', '1.0', '1.0',
-				    '1.0', :now, :now)
-				""").param("id", product).param("owner", this.customer).param("github", repository).param("name", name)
-			.param("now", now).update();
-		// Its ID sorts first, so the poll meets its failure before this Job.
-		UUID failing = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		this.jdbc.sql("""
-				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
-				    job_types, budget, deadline, rules, selection_days, opened_at, lapses_at, version, created_at, updated_at,
-				    mentor_account_id, selected_application_id, selected_at, agreement_version_no)
-				VALUES (:id, :product, :owner, 'ACTIVE', 'Việc khác', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
-				    'UNDER_2M', DATE '2026-12-01', '{"REVISION_ROUNDS":2}'::jsonb, 14, :now, :now, 3, :now, :now,
-				    :mentor, :application, :now, 1)
-				""").param("id", failing).param("product", product).param("owner", this.customer).param("now", now)
-			.param("mentor", this.mentor).param("application", UUID.randomUUID()).update();
-		this.jdbc.sql("""
-				INSERT INTO repo.job_setup (id, job_id, product_id, status, source_full_name, default_branch, head_sha,
-				    head_read_at, approved_sha, confirmed_at, intermediary_github_id, intermediary_name, working_github_id,
-				    working_name, checked_at, intermediary_at, working_at, copied_at, started_at, finished_at)
-				VALUES (:id, :job, :product, 'DONE', :source, 'main', :sha, :now, :sha, :now, 1, 'vibefix-dev/khac-intermediary', 2,
-				    'vibefix-dev/khac-working', :now, :now, :now, :now, :now, :now)
-				""").param("id", UUID.randomUUID()).param("job", failing).param("product", product).param("source", name)
-			.param("sha", "a".repeat(40)).param("now", now).update();
-
-		this.drift.poll();
-
-		assertThat(this.drift.warnings(failing)).isEmpty();
-		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
-			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.COMMITS);
-			assertThat(warning.commits()).containsExactly(pushed);
-		});
-		awaitListeners();
 	}
 
 	@Test

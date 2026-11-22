@@ -79,11 +79,17 @@ public final class ActionsExchangeSupport {
 
 	/** A delivery of {@code event} from the App {@code appId}, signed with {@code secret}, with no session or CSRF token. */
 	public static MockHttpServletRequestBuilder webhook(long appId, String event, byte[] body, byte[] secret) {
+		return webhook(appId, UUID.randomUUID().toString(), event, body, secret);
+	}
+
+	/** The same delivery under the delivery ID {@code deliveryId}, as GitHub sends it again (Story 24.6). */
+	public static MockHttpServletRequestBuilder webhook(long appId, String deliveryId, String event, byte[] body,
+			byte[] secret) {
 		return post(WebhookController.PATH).contentType(MediaType.APPLICATION_JSON)
 			.content(body)
 			.header("X-GitHub-Hook-Installation-Target-ID", String.valueOf(appId))
 			.header("X-GitHub-Hook-Installation-Target-Type", "integration")
-			.header("X-GitHub-Delivery", UUID.randomUUID().toString())
+			.header("X-GitHub-Delivery", deliveryId)
 			.header("X-GitHub-Event", event)
 			.header("X-Hub-Signature-256", WebhookSignaturesTest.header(secret, body));
 	}

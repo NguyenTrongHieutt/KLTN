@@ -491,7 +491,9 @@ repository, and revokes it after use.
 
 1. **Settings of the dev Source App** (the App Spike S6 left, "Spike S6" below, step 4). On its settings page:
    - Repository permissions **Contents: Read**, **Metadata: Read**, **Actions: Read and write**, and nothing
-     else; no organization or account permission. Since Story 24.5a its one event is **Workflow run**.
+     else; no organization or account permission. Its events are **Workflow run** (Story 24.5a), **Push** and
+     **Repository** (Story 24.6). GitHub sends Installation and Installation repositories events to every App
+     without a tick, so the configuration check accepts them listed or not.
    - **Webhook: on**, with its own secret, at `<tunnel>/webhooks` (Story 24.5a): "Webhooks in dev" below gives the
      steps. The daily configuration check compares its webhook as it compares the Platform App's, and the
      redelivery job reads its failed deliveries with its own JWT.
@@ -564,8 +566,9 @@ the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and
      secret file's content as the **Webhook secret** (`cat deploy/secrets/github-platform-app-webhook-secret` for
      the Platform App, `...-source-app-...` for the Source App). Leave SSL verification on.
    - Permissions & events › Subscribe to events: tick **Workflow run**. The Platform App keeps its other events
-     (Pull request, Repository, Member, Membership, Organization); the Source App has Workflow run alone (Story 24.6
-     adds the rest). Save. Its installations need not accept anything: no permission changes.
+     (Pull request, Repository, Member, Membership, Organization); the Source App also ticks **Push** and
+     **Repository** ("Source drift by webhook" below, Story 24.6). Save. Its installations need not accept anything:
+     no permission changes.
 4. **Recreate the backend with the overlay** (PowerShell, in `D:\KLTN\vibefix`):
    ```
    docker compose -f deploy/compose.yaml -f deploy/compose.integrations.yaml -f deploy/compose.webhooks.yaml up -d --build --wait backend
@@ -579,9 +582,45 @@ the dev stack" above): the backend serves `POST /webhooks` on port 8098 too, and
    ```
    cd backend; ./mvnw -B test -Pvibefix-dev
    ```
-   It fails until both Apps send Workflow run. Then dispatch a copy (a Job's Setup, or `runner-dispatch` above):
-   the backend logs `Run … of correlation … completed, as the … App delivered it` within seconds of the run's end,
-   and each App's settings page › Advanced lists the delivery with a 202.
+   It fails until both Apps send Workflow run, and the Source App Push and Repository too. Then dispatch a copy (a
+   Job's Setup, or `runner-dispatch` above): the backend logs `Run … of correlation … completed, as the … App
+   delivered it` within seconds of the run's end, and each App's settings page › Advanced lists the delivery with a
+   202.
+
+## Source drift by webhook (Story 24.6)
+
+No daily poll reads the Source Repositories any more, and nothing reads them on an interval. A Code Job's Source
+Repository is warned of from the Source App's own deliveries, within seconds, to the Customer and the Mentor, from
+the Customer's confirmation of the head (the copy pins it) until the Job ends: Starting, Active or Closing, J7 or not.
+An Assessment Job is never warned.
+
+- A **Push** to the branch the copy is made from (the default branch the Setup read, even if the default branch is
+  switched later) adds its commits to the Job's one "new commits" warning, from the delivery alone: the first push
+  after the confirmation raises it and tells the Customer and the Mentor once; every later push adds to the same
+  warning's list (newest last, at most 250), with no new notice, and its date stays the first push's. A push that
+  lists no commit (a reset or a forced push) counts its `after`. A push whose `after` is the confirmed commit, or that
+  GitHub dates at or before the head read the Customer confirmed (a late delivery), adds nothing, but the Job is still
+  read. A push to another branch, and one that deletes a branch, do nothing. A later confirmation (the head moved
+  before the copy) removes the warning, since the head it confirms holds those commits.
+- That push, a **Repository** deleted, archived, renamed, transferred or unarchived, an **Installation** deleted,
+  suspended, created, unsuspended or with new permissions accepted, an **Installation repositories** removal or
+  addition, and an **Installation target** rename (the owner renamed) each queue one `repo.source_drift_read` per
+  Job (GitHub-short lane). A Repository delivery is matched by the repository's ID; the installation ones by the
+  installation, or by a repository they list, so a reinstalled App still finds its Products. The read goes through
+  the Source App: `GONE`, `APP_UNINSTALLED`, `WORKFLOW_CHANGED`, `ARCHIVED`, `RENAMED` or `TRANSFERRED`, each once,
+  and the Product's status, which opens or closes its to-do, so a fix on GitHub is recorded within seconds too. A
+  GitHub failure is retried under the default policy, then waits in the Administrators' failed queue. Made private
+  and edited are no drift, and do nothing.
+
+**The author's step, after this story is merged:** on the dev Source App, Permissions & events › Subscribe to
+events, tick **Push** and **Repository** beside Workflow run, and save. No permission changes, so no installation
+needs to accept anything. The code came first: ticked before it, the configuration check would alert on events
+AD-10 did not name yet. Until they are ticked, the check alerts `github.app_configuration_drift` daily
+(`events: [workflow_run] instead of [push, repository, workflow_run]`), and nothing warns of a Source drift except
+the Installation, Installation repositories and Installation target events GitHub sends every App anyway. To try it,
+push a commit to a running Job's Source Repository, then reload the Job page: it shows "Dự án gốc vừa thay đổi"
+(an open page only refetches the warning every minute), and the Source App's settings page › Advanced lists the
+`push` delivery with a 202.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries
 

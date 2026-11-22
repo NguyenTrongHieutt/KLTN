@@ -2,6 +2,7 @@ package vn.vibefix.github.internal;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -33,7 +34,8 @@ import vn.vibefix.shared.IdGenerator;
  * before answers 200 and publishes nothing; a new one is kept and published as {@link GitHubWebhookReceived} in one
  * transaction and answers 202 at once, while the listeners run after commit. In that transaction a completed
  * {@code workflow_run} of a correlation of that App also publishes {@link vn.vibefix.github.ActionsRunUpdated}
- * ({@link ActionsRunUpdates}). The body is never logged: it may name people.
+ * ({@link ActionsRunUpdates}), and a Source App {@code push} publishes {@link vn.vibefix.github.SourcePushed}
+ * ({@link SourcePushes}, Story 24.6). The body is never logged: it may name people.
  */
 @RestController
 @Access(Gate.PUBLIC)
@@ -48,6 +50,8 @@ class WebhookController {
 
 	private final ActionsRunUpdates runUpdates;
 
+	private final SourcePushes pushes;
+
 	private final JdbcClient jdbc;
 
 	private final TransactionTemplate transactions;
@@ -58,10 +62,11 @@ class WebhookController {
 
 	private final Clock clock;
 
-	WebhookController(WebhookSignatures signatures, ActionsRunUpdates runUpdates, JdbcClient jdbc,
+	WebhookController(WebhookSignatures signatures, ActionsRunUpdates runUpdates, SourcePushes pushes, JdbcClient jdbc,
 			PlatformTransactionManager transactionManager, ApplicationEventPublisher events, IdGenerator ids, Clock clock) {
 		this.signatures = signatures;
 		this.runUpdates = runUpdates;
+		this.pushes = pushes;
 		this.jdbc = jdbc;
 		this.transactions = new TransactionTemplate(transactionManager);
 		this.events = events;
@@ -104,9 +109,10 @@ class WebhookController {
 				.update();
 			if (kept == 1) {
 				this.events.publishEvent(new GitHubWebhookReceived(this.ids.newId(), deliveryId, app, event,
-						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(json),
+						text(json.path("action")), number(json.path("installation").path("id")), repositoryIds(event, json),
 						number(json.path("sender").path("id")), text(json.path("sender").path("login"))));
 				this.runUpdates.delivered(app, event, json);
+				this.pushes.delivered(app, deliveryId, event, json);
 			}
 			return kept == 1;
 		});
@@ -114,13 +120,33 @@ class WebhookController {
 	}
 
 	/**
-	 * The repository the payload names, if any. Every event either App subscribes to ({@link AppExpectations#events})
-	 * names one repository at most, in {@code repository}; the {@code installation} and
-	 * {@code installation_repositories} deliveries that carried a list were the retired Merge App's (Story 23.9b).
+	 * The repositories the payload names, each once, in its order. Every event either App subscribes to
+	 * ({@link AppExpectations#events}) names one repository at most, in {@code repository}. The {@code installation}
+	 * and {@code installation_repositories} deliveries GitHub sends every App carry lists instead, which are read since
+	 * Story 24.6: {@code repositories}, and {@code repositories_added} with {@code repositories_removed}. The Source
+	 * drift matches a reinstalled App's Products by them, since its new installation ID is not the one they are bound
+	 * on.
 	 */
-	static List<Long> repositoryIds(JsonNode json) {
-		Long id = number(json.path("repository").path("id"));
-		return id == null ? List.of() : List.of(id);
+	static List<Long> repositoryIds(String event, JsonNode json) {
+		List<Long> ids = new ArrayList<>();
+		Long named = number(json.path("repository").path("id"));
+		if (named != null) {
+			ids.add(named);
+		}
+		List<String> lists = switch (event) {
+			case "installation" -> List.of("repositories");
+			case "installation_repositories" -> List.of("repositories_added", "repositories_removed");
+			default -> List.of();
+		};
+		for (String list : lists) {
+			for (JsonNode repository : json.path(list)) {
+				Long id = number(repository.path("id"));
+				if (id != null && !ids.contains(id)) {
+					ids.add(id);
+				}
+			}
+		}
+		return ids;
 	}
 
 	private static @Nullable Long number(JsonNode node) {

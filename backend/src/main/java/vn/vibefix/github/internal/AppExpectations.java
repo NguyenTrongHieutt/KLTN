@@ -46,10 +46,17 @@ final class AppExpectations {
 			"write");
 
 	/**
-	 * AD-10's Source App events since Story 24.5a: {@code workflow_run} alone, so the J7 copy and the Final Merge resolve
-	 * on their run's completion. Story 24.6 adds the events of Source drift.
+	 * AD-10's Source App events: {@code workflow_run} since Story 24.5a, so the J7 copy and the Final Merge resolve on
+	 * their run's completion, and since Story 24.6 {@code push} and {@code repository}, so a Source Repository that
+	 * drifts during a Job is warned of within seconds (FR-20).
 	 */
-	static final Set<String> SOURCE_EVENTS = Set.of("workflow_run");
+	static final Set<String> SOURCE_EVENTS = Set.of("workflow_run", "push", "repository");
+
+	/**
+	 * The Source App's events {@code GET /app} may list or leave out (Story 24.6): GitHub sends {@code installation} and
+	 * {@code installation_repositories} to every App, subscribed or not, and the Source drift reads both.
+	 */
+	static final Set<String> SOURCE_EITHER_WAY = Set.of("installation", "installation_repositories");
 
 	/** Global events {@code GET /app} may list or leave out. */
 	static final Set<String> GLOBAL_EVENTS = Set.of("meta", "installation_target", "security_advisory");
@@ -70,6 +77,14 @@ final class AppExpectations {
 		return switch (app) {
 			case PLATFORM -> PLATFORM_EVENTS;
 			case SOURCE -> SOURCE_EVENTS;
+		};
+	}
+
+	/** The App's events, beside the global ones, that {@code GET /app} may list or leave out. */
+	static Set<String> eitherWay(App app) {
+		return switch (app) {
+			case PLATFORM -> Set.of();
+			case SOURCE -> SOURCE_EITHER_WAY;
 		};
 	}
 
@@ -94,6 +109,7 @@ final class AppExpectations {
 		}
 		Set<String> events = new HashSet<>(registration.events());
 		events.removeAll(GLOBAL_EVENTS);
+		events.removeAll(eitherWay(app));
 		if (!events.equals(events(app))) {
 			differences.add("events: " + new TreeSet<>(events) + " instead of " + new TreeSet<>(events(app)));
 		}

@@ -24,10 +24,11 @@ class AppExpectationsTest {
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(AppExpectations.PLATFORM_EVENTS))).isEmpty();
 		assertThat(AppExpectations.differences(App.PLATFORM, platform(withMeta))).isEmpty();
 		assertThat(AppExpectations.differences(App.SOURCE,
-				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run"))))
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "push",
+						"repository"))))
 			.isEmpty();
 		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source",
-				AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "installation_target"))))
+				AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "push", "repository", "installation_target"))))
 			.isEmpty();
 	}
 
@@ -102,29 +103,73 @@ class AppExpectationsTest {
 
 	/**
 	 * Story 23.5: the Source App reads the code and metadata and dispatches vibefix.yml. Story 24.5a: it has a webhook,
-	 * as the Platform App has, and sends workflow_run alone; its permissions stay as they were.
+	 * as the Platform App has, and sends workflow_run. Story 24.6: push and repository too, for Source drift; its
+	 * permissions stay as they were.
 	 */
 	@Test
-	void theSourceAppReadsContentsAndMetadataDispatchesActionsAndHearsOfItsRuns() {
+	void theSourceAppReadsContentsAndMetadataDispatchesActionsAndHearsOfItsRunsAndItsDrift() {
 		Map<String, String> withWrite = new HashMap<>(AppExpectations.SOURCE_PERMISSIONS);
 		withWrite.put("contents", "write");
 
 		assertThat(AppExpectations.permissions(App.SOURCE)).isEqualTo(Map.of("contents", "read", "metadata", "read",
 				"actions", "write"));
-		assertThat(AppExpectations.events(App.SOURCE)).containsExactly("workflow_run");
+		assertThat(AppExpectations.events(App.SOURCE)).containsExactlyInAnyOrder("workflow_run", "push", "repository");
 		assertThat(AppExpectations.webhook(App.SOURCE)).isTrue();
 		assertThat(AppExpectations.webhook(App.PLATFORM)).isTrue();
-		assertThat(AppExpectations.differences(App.SOURCE,
-				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "meta"))))
+		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source",
+				AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "push", "repository", "meta"))))
 			.isEmpty();
 		assertThat(AppExpectations.differences(App.SOURCE,
 				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of())))
 			.singleElement()
-			.isEqualTo("events: [] instead of [workflow_run]");
-		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source", withWrite, Set.of("push"))))
+			.isEqualTo("events: [] instead of [push, repository, workflow_run]");
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", withWrite, Set.of("push", "pull_request"))))
 			.hasSize(2)
 			.anySatisfy(difference -> assertThat(difference).startsWith("permissions: ").contains("contents=write"))
-			.anySatisfy(difference -> assertThat(difference).isEqualTo("events: [push] instead of [workflow_run]"));
+			.anySatisfy(difference -> assertThat(difference)
+				.isEqualTo("events: [pull_request, push] instead of [push, repository, workflow_run]"));
+	}
+
+	/**
+	 * Story 24.6: the Source App before its drift events (workflow_run alone, as Story 24.5a left it) differs, so the
+	 * daily check alerts until the author ticks Push and Repository.
+	 */
+	@Test
+	void theSourceAppWithoutPushOrRepositoryDiffers() {
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run"))))
+			.singleElement()
+			.isEqualTo("events: [workflow_run] instead of [push, repository, workflow_run]");
+		assertThat(AppExpectations.differences(App.SOURCE, new Registration("vibefix-dev-source",
+				AppExpectations.SOURCE_PERMISSIONS, Set.of("workflow_run", "push"))))
+			.singleElement()
+			.isEqualTo("events: [push, workflow_run] instead of [push, repository, workflow_run]");
+	}
+
+	/**
+	 * Story 24.6: GitHub sends installation and installation_repositories to every App, so the Source App matches AD-10
+	 * whether {@code GET /app} lists them or not. The Platform App is unchanged: they are no event of its.
+	 */
+	@Test
+	void theSourceAppMatchesWithOrWithoutTheInstallationEvents() {
+		Set<String> listed = new HashSet<>(AppExpectations.SOURCE_EVENTS);
+		listed.addAll(Set.of("installation", "installation_repositories"));
+		Set<String> one = new HashSet<>(AppExpectations.SOURCE_EVENTS);
+		one.add("installation_repositories");
+		Set<String> platform = new HashSet<>(AppExpectations.PLATFORM_EVENTS);
+		platform.add("installation");
+
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, AppExpectations.SOURCE_EVENTS)))
+			.isEmpty();
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, listed))).isEmpty();
+		assertThat(AppExpectations.differences(App.SOURCE,
+				new Registration("vibefix-dev-source", AppExpectations.SOURCE_PERMISSIONS, one))).isEmpty();
+		assertThat(AppExpectations.differences(App.PLATFORM, platform(platform))).singleElement()
+			.asString()
+			.startsWith("events: [installation, ");
 	}
 
 	/** Story 23.9b (R1, R16, AD-10): the Merge App is retired, so an environment has exactly these two Apps. */

@@ -180,13 +180,13 @@ class ProductRegistrationIT extends IntegrationTest {
 		workflowCheck("https://github.com/lan-nguyen/shop-gom").andExpect(status().isOk())
 			.andExpect(jsonPath("$.defaultBranch").value("main"));
 
-		String body = register("https://github.com/lan-nguyen/shop-gom", "2.0").andExpect(status().isCreated())
+		String body = register("https://github.com/lan-nguyen/shop-gom", "2.1").andExpect(status().isCreated())
 			.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 		UUID id = UUID.fromString(JsonPath.read(body, "$.id"));
 
 		assertThat(this.jdbc.sql("""
-				SELECT repository_github_id = 4001 AND public_notice_version = '2.0' AND copy_permission_version = '2.0'
-				       AND detection_notice_version = '2.0' AND ai_tools = ARRAY['LOVABLE']
+				SELECT repository_github_id = 4001 AND public_notice_version = '2.1' AND copy_permission_version = '2.1'
+				       AND detection_notice_version = '2.1' AND ai_tools = ARRAY['LOVABLE']
 				FROM product.product WHERE id = :id
 				""").param("id", id).query(Boolean.class).single()).isTrue();
 		assertThat(this.jdbc.sql("""
@@ -239,7 +239,7 @@ class ProductRegistrationIT extends IntegrationTest {
 	void aSecondProductOnTheSameInstallationIsAcceptedAndAnOrganizationRepositoryPassesOnAdmin() throws Exception {
 		long installation = ready("cong-ty/app", 4002, 99, "Organization", false, 1_000, "");
 		GITHUB.mergeInstallations.get(installation).accountType = "Organization";
-		register("https://github.com/cong-ty/app", "2.0").andExpect(status().isCreated());
+		register("https://github.com/cong-ty/app", "2.1").andExpect(status().isCreated());
 
 		repository("cong-ty/app-2", 4003, 99, "Organization", false, 1_000, "");
 		GITHUB.mergeInstallations.get(installation).repository(4003, "cong-ty/app-2", 99);
@@ -248,7 +248,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		GITHUB.sourceFiles.put("cong-ty/app-2:" + WORKFLOW, published());
 
 		check("https://github.com/cong-ty/app-2").andExpect(status().isOk());
-		String body = register("https://github.com/cong-ty/app-2", "2.0").andExpect(status().isCreated()).andReturn()
+		String body = register("https://github.com/cong-ty/app-2", "2.1").andExpect(status().isCreated()).andReturn()
 			.getResponse().getContentAsString(StandardCharsets.UTF_8);
 		this.mvc.perform(get("/api/v1/products/" + JsonPath.read(body, "$.id")).with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.sourceApp.accountType").value("Organization"))
@@ -363,7 +363,7 @@ class ProductRegistrationIT extends IntegrationTest {
 
 		GITHUB.sourceFiles.remove("lan-nguyen/shop-gom:" + WORKFLOW);
 		workflowCheck(url).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("WORKFLOW_MISSING"));
-		register(url, "2.0").andExpect(jsonPath("$.reason").value("WORKFLOW_MISSING"));
+		register(url, "2.1").andExpect(jsonPath("$.reason").value("WORKFLOW_MISSING"));
 		GITHUB.sourceFiles.put("lan-nguyen/shop-gom:" + WORKFLOW, published + "# changed\n");
 		workflowCheck(url).andExpect(jsonPath("$.reason").value("WORKFLOW_MISMATCH"))
 			.andExpect(jsonPath("$.lineEndings").doesNotExist());
@@ -398,7 +398,7 @@ class ProductRegistrationIT extends IntegrationTest {
 	@Test
 	void aRepositoryLinkedAlreadyIsRefusedEvenUnderANewName() throws Exception {
 		long installation = ready("lan-nguyen/shop-gom", 4001, this.lanGithubId, "User", false, 10, "");
-		register("https://github.com/lan-nguyen/shop-gom", "2.0").andExpect(status().isCreated());
+		register("https://github.com/lan-nguyen/shop-gom", "2.1").andExpect(status().isCreated());
 		REPOSITORIES.remove("/repos/lan-nguyen/shop-gom");
 		repository("lan-nguyen/gom-shop", 4001, this.lanGithubId, "User", false, 10, "");
 		GITHUB.mergeInstallations.get(installation).deselect(4001).repository(4001, "lan-nguyen/gom-shop", this.lanGithubId);
@@ -407,7 +407,7 @@ class ProductRegistrationIT extends IntegrationTest {
 
 		check("https://github.com/lan-nguyen/gom-shop").andExpect(status().is(422))
 			.andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
-		register("https://github.com/lan-nguyen/gom-shop", "2.0").andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
+		register("https://github.com/lan-nguyen/gom-shop", "2.1").andExpect(jsonPath("$.reason").value("REPO_ALREADY_LINKED"));
 	}
 
 	@Test
@@ -416,8 +416,10 @@ class ProductRegistrationIT extends IntegrationTest {
 
 		register("https://github.com/lan-nguyen/shop-gom", null).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
-		// 1.1 spoke of public repositories (Story 23.5): acknowledging it no longer registers.
+		// 1.1 spoke of public repositories (Story 23.5): acknowledging it no longer registers. Neither does 2.0, whose
+		// N-1b did not yet name what the Source App tells vibefix (Story 24.6).
 		register("https://github.com/lan-nguyen/shop-gom", "1.1").andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
+		register("https://github.com/lan-nguyen/shop-gom", "2.0").andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
 		assertThat(this.jdbc.sql("SELECT count(*) FROM product.product").query(Long.class).single()).isZero();
 	}
 
@@ -427,13 +429,13 @@ class ProductRegistrationIT extends IntegrationTest {
 			ready("lan-nguyen/app-" + i, 5000 + i, this.lanGithubId, "User", false, 10, "");
 		}
 		for (int i = 1; i <= 5; i++) {
-			register("https://github.com/lan-nguyen/app-" + i, "2.0").andExpect(status().isCreated());
+			register("https://github.com/lan-nguyen/app-" + i, "2.1").andExpect(status().isCreated());
 		}
-		register("https://github.com/lan-nguyen/app-6", "2.0").andExpect(status().isTooManyRequests())
+		register("https://github.com/lan-nguyen/app-6", "2.1").andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.reason").value("PRODUCT_LIMIT"));
 
 		this.clock.advance(Duration.ofDays(1));
-		register("https://github.com/lan-nguyen/app-6", "2.0").andExpect(status().isCreated());
+		register("https://github.com/lan-nguyen/app-6", "2.1").andExpect(status().isCreated());
 	}
 
 	@Test
@@ -445,7 +447,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		ready("minh-tran/quan-ca-phe", 4101, minhId, "User", false, 1_000, "");
 		GITHUB.sourcePermissions.put("minh-tran/quan-ca-phe", Map.of(GITHUB.loginOf(minhId), "admin"));
 		check(as(minh, null), "https://github.com/minh-tran/quan-ca-phe").andExpect(status().isOk());
-		register(as(minh, null), "https://github.com/minh-tran/quan-ca-phe", "2.0").andExpect(status().isCreated());
+		register(as(minh, null), "https://github.com/minh-tran/quan-ca-phe", "2.1").andExpect(status().isCreated());
 		this.mvc.perform(get("/api/v1/products").with(as(minh, null))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(1));
 		this.mvc.perform(get("/api/v1/products").with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk())
@@ -459,7 +461,7 @@ class ProductRegistrationIT extends IntegrationTest {
 			.content("{\"url\":\"https://github.com/minh-tran/quan-ca-phe\"}"))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
-		register(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe", "2.0").andExpect(status().isForbidden())
+		register(as(unlinked, null), "https://github.com/minh-tran/quan-ca-phe", "2.1").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.reason").value("GITHUB_NOT_LINKED"));
 	}
 
@@ -683,7 +685,7 @@ class ProductRegistrationIT extends IntegrationTest {
 		check("https://github.com/LAN-NGUYEN/ban-nhap.git").andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.reason").value("CHECK_LIMIT"));
 		// Registering the draft reads GitHub again, so it counts too, before any check.
-		register("https://github.com/lan-nguyen/ban-nhap", "2.0").andExpect(status().isTooManyRequests())
+		register("https://github.com/lan-nguyen/ban-nhap", "2.1").andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.reason").value("CHECK_LIMIT"))
 			.andExpect(header().exists("Retry-After"));
 		// An address that is no GitHub repository is refused before it counts.
@@ -1141,7 +1143,7 @@ class ProductRegistrationIT extends IntegrationTest {
 
 	/** Registers the repository with the current notices and answers the Product's ID. */
 	private UUID registered(String url) throws Exception {
-		return UUID.fromString(JsonPath.read(register(url, "2.0").andExpect(status().isCreated()).andReturn().getResponse()
+		return UUID.fromString(JsonPath.read(register(url, "2.1").andExpect(status().isCreated()).andReturn().getResponse()
 			.getContentAsString(StandardCharsets.UTF_8), "$.id"));
 	}
 

@@ -8,8 +8,10 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Read-only repository metadata (AD-13, FR-7, FR-13, FR-20), with a caller's credential: {@code product} reads a
- * Source Repository, its contributors and its commits with a {@link SourceApp} token narrowed to it (Stories 23.5 and
- * 23.5b). No path reads with a Customer's linking token. Nothing is written.
+ * Source Repository, its contributors and its default branch's head with a {@link SourceApp} token narrowed to it
+ * (Stories 23.5, 23.5b and 23.6a). Since Story 24.6 the Source App's {@code push} deliveries name new commits, so no
+ * path compares the default branch with a copied commit. No path reads with a Customer's linking token. Nothing is
+ * written.
  */
 public interface GitHubRepositories {
 
@@ -55,15 +57,6 @@ public interface GitHubRepositories {
 
 	/** How many pages of contributors {@link #contributorIds} reads. */
 	int MAX_CONTRIBUTOR_PAGES = 5;
-
-	/**
-	 * The commits on {@code branch} after {@code baseSha}, oldest first, as GitHub's compare lists them
-	 * ({@code GET /repos/{fullName}/compare/{baseSha}...{branch}}, Contents read): at most 250 (FR-20, FR-53).
-	 * @return {@code ["unknown"]} when GitHub answers 404: the base commit is gone from the branch's history, so every
-	 * commit counts as new
-	 * @throws GitHubException for any other refusal, or when GitHub cannot be reached
-	 */
-	List<String> commitsSince(String bearer, String fullName, String baseSha, String branch);
 
 	/**
 	 * The head commit of {@code branch} ({@code GET /repos/{fullName}/git/ref/heads/{branch}}, Contents read): the

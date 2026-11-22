@@ -16,7 +16,8 @@ import org.jspecify.annotations.Nullable;
  * on its default branch;</li>
  * <li>its contributors, for the guard of bids, Crew Applications and signatures (FR-13, FR-81, Story 23.5b), which
  * fails closed;</li>
- * <li>what the daily drift poll reads (FR-20, R7, Story 23.5b);</li>
+ * <li>what the Source drift reads when the Source App's events hint at a change (FR-20, R7, Stories 23.5b and 24.6),
+ * and which Products those events are about;</li>
  * <li>for J7 (Story 23.6a): the default branch's head the Customer confirms, and the installation and repository a
  * run of {@code vibefix.yml} is dispatched through ({@link vn.vibefix.github.ActionsRuns.Dispatch}).</li>
  * </ul>
@@ -100,7 +101,8 @@ public interface ProductSources {
 	Optional<Set<Long>> contributors(UUID productId);
 
 	/**
-	 * What the daily drift poll reads of a Source Repository (FR-20, R7). The admin right is not read: it is no drift.
+	 * What the drift read finds of a Source Repository (FR-20, R7). The admin right is not read: it is no drift. New
+	 * commits are not read either: since Story 24.6 the Source App's {@code push} deliveries name them.
 	 * @param block why the Source App cannot read it: {@link Block#SOURCE_APP_MISSING} or
 	 * {@link Block#SOURCE_APP_WRONG_REPOSITORY}, and nothing else is read; none while the binding holds
 	 * @param workflow why its {@code vibefix.yml} is no published version: {@link Block#WORKFLOW_MISSING} or
@@ -108,32 +110,38 @@ public interface ProductSources {
 	 * @param fullName the repository's full name as GitHub shows it now; the registered one when there is a
 	 * {@code block}
 	 * @param archived GitHub's {@code archived}; false when there is a {@code block}
-	 * @param commits the commits on the default branch after the Job's copied commit, oldest first, at most
-	 * {@link #MAX_DRIFT_COMMITS} (the newest), {@code ["unknown"]} when the copied commit is gone from the branch's
-	 * history; empty when there is a {@code block}
 	 */
-	record Drift(@Nullable Block block, @Nullable Block workflow, String fullName, boolean archived, List<String> commits) {
-
-		public Drift {
-			commits = List.copyOf(commits);
-		}
-
+	record Drift(@Nullable Block block, @Nullable Block workflow, String fullName, boolean archived) {
 	}
 
-	/** How many commits a {@link Drift} keeps, as a Drift Warning stores them (FR-53). */
+	/** How many commits a Drift Warning stores, the newest (FR-53). */
 	int MAX_DRIFT_COMMITS = 250;
 
 	/**
-	 * Reads the Product's Source Repository for the daily drift poll (FR-20, R7): the binding is taken on a fresh read
-	 * (so a Source transferred to an account with the App is bound there, and shows its new owner), then one token
-	 * narrowed to the repository (Contents read, Metadata read), revoked after use, reads the repository, its
-	 * {@code vibefix.yml} and the commits on its default branch after {@code copiedSha}. The drift poll no longer reads
-	 * through the Platform App (J7's head read moves to {@link #head} in Story 23.6b).
+	 * Reads the Product's Source Repository for the drift read (FR-20, R7, Story 24.6): the binding is taken on a fresh
+	 * read (so a Source transferred to an account with the App is bound there, and shows its new owner), then one token
+	 * narrowed to the repository (Contents read, Metadata read), revoked after use, reads the repository and its
+	 * {@code vibefix.yml}. No commit is read or compared.
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for no such Product
 	 * @throws vn.vibefix.github.GitHubException when GitHub cannot answer now, or the Source App is not configured:
-	 * nothing is known, so the poll tries again the next day
+	 * nothing is known, so the caller tries again
 	 */
-	Drift drift(UUID productId, String copiedSha);
+	Drift drift(UUID productId);
+
+	/**
+	 * The live Products whose Source App binding is bound to the repository with this permanent GitHub ID (Story 24.6),
+	 * as recorded, with no GitHub call; a {@code push} or {@code repository} delivery is matched by it, and so is an
+	 * installation delivery that lists the repository. A binding the Source App can no longer read stays bound until a
+	 * check binds it again, so a fix on GitHub still finds it.
+	 */
+	List<UUID> productsOfRepository(long repositoryGithubId);
+
+	/**
+	 * The live Products whose Source App binding is bound on this installation (Story 24.6), as recorded, with no GitHub
+	 * call; an {@code installation}, {@code installation_repositories} or {@code installation_target} delivery is
+	 * matched by it.
+	 */
+	List<UUID> productsOfInstallation(long installationId);
 
 	/**
 	 * The Source Repository's default-branch head as read now (Story 23.6a).

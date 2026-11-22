@@ -34,9 +34,9 @@ import vn.vibefix.shared.IdGenerator;
  * Each Product's last known Source App and workflow status (AD-45, R7, R12, UX-DR118, Story 23.5c), so CUS-2 shows it
  * without a GitHub call. Whatever check found it records it here: CUS-4's "Kiểm tra lại", the Source checks before
  * Setup and the Final Merge and the re-confirmation (their Source App and workflow part: the admin right is no status),
- * the daily drift read, and a contributor read the binding refused. A GitHub failure records nothing. Each record is
- * written in a transaction of its own, under the Product's row lock, so the refused command that found it does not
- * undo it, and acts only on a change:
+ * the drift read the Source App's events request (Story 24.6), and a contributor read the binding refused. A GitHub
+ * failure records nothing. Each record is written in a transaction of its own, under the Product's row lock, so the
+ * refused command that found it does not undo it, and acts only on a change:
  * <ul>
  * <li>into a {@code SOURCE_APP_*} status, {@value #INSTALL_SOURCE_APP} opens, and {@value #ADD_WORKFLOW} closes;</li>
  * <li>into a {@code WORKFLOW_*} status, {@value #ADD_WORKFLOW} opens (without a deadline), and

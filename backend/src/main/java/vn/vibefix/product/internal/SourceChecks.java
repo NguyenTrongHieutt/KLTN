@@ -205,18 +205,28 @@ class SourceChecks implements ProductSources {
 	}
 
 	@Override
-	public Drift drift(UUID productId, String copiedSha) {
+	public Drift drift(UUID productId) {
 		Row product = row(productId);
 		Checked checked = this.bindings.forProduct(product.customerId(), productId, product.githubId(), product.fullName());
 		if (checked.refusal() != null) {
 			recordQuietly(productId, Status.valueOf(checked.refusal().name()), null, null);
-			return new Drift(Block.valueOf(checked.refusal().name()), null, product.fullName(), false, List.of());
+			return new Drift(Block.valueOf(checked.refusal().name()), null, product.fullName(), false);
 		}
 		Bound bound = checked.bound();
 		DriftRead read = this.app.withToken(bound.installationId(), bound.repositoryId(), SourceAppBindings.READ,
-				token -> drift(product, bound, token, copiedSha));
+				token -> drift(product, bound, token));
 		recordQuietly(productId, read.status(), read.blob(), read.branchRead());
 		return read.drift();
+	}
+
+	@Override
+	public List<UUID> productsOfRepository(long repositoryGithubId) {
+		return this.bindings.productsOfRepository(repositoryGithubId);
+	}
+
+	@Override
+	public List<UUID> productsOfInstallation(long installationId) {
+		return this.bindings.productsOfInstallation(installationId);
 	}
 
 	@Override
@@ -331,22 +341,18 @@ class SourceChecks implements ProductSources {
 	}
 
 	/**
-	 * The repository, its workflow and its new commits, with one token: a workflow that differs is read next to the
-	 * rest, so no other change waits for it. The admin right is no drift.
+	 * The repository and its workflow, with one token: a workflow that differs is read next to the rest, so no other
+	 * change waits for it. The admin right is no drift, and no commit is read (Story 24.6).
 	 */
-	private DriftRead drift(Row product, Bound bound, InstallationToken token, String copiedSha) {
+	private DriftRead drift(Row product, Bound bound, InstallationToken token) {
 		Found found = found(product, bound, token);
 		RepositoryMetadata repository = found.repository();
 		if (repository == null) {
-			return new DriftRead(new Drift(Block.SOURCE_APP_WRONG_REPOSITORY, null, product.fullName(), false, List.of()),
+			return new DriftRead(new Drift(Block.SOURCE_APP_WRONG_REPOSITORY, null, product.fullName(), false),
 					found.status(), null, null);
 		}
 		Block workflow = found.status() == Status.READY ? null : Block.valueOf(found.status().name());
-		List<String> commits = this.repositories.commitsSince(token.value(), repository.fullName(), copiedSha,
-				repository.defaultBranch());
-		List<String> kept = commits.size() > MAX_DRIFT_COMMITS ? commits.subList(commits.size() - MAX_DRIFT_COMMITS,
-				commits.size()) : commits;
-		return new DriftRead(new Drift(null, workflow, repository.fullName(), repository.archived(), kept), found.status(),
+		return new DriftRead(new Drift(null, workflow, repository.fullName(), repository.archived()), found.status(),
 				found.blob(), repository.defaultBranch());
 	}
 

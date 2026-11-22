@@ -17,7 +17,11 @@ public interface DriftEvidence {
 	 * @param kind {@code COMMITS}, {@code GONE}, {@code ARCHIVED}, {@code RENAMED}, {@code TRANSFERRED},
 	 * {@code APP_UNINSTALLED}, or {@code WORKFLOW_CHANGED} (Story 23.5b; an Evidence Package snapshotted earlier may
 	 * still name a kind retired since)
-	 * @param commits the SHAs past the copied commit that triggered a {@code COMMITS} warning
+	 * @param headSha none for a {@code COMMITS} warning since Story 24.6, which names no head; the head a retired daily
+	 * poll found, for one of its own
+	 * @param commits a {@code COMMITS} warning's SHAs: since Story 24.6 those pushed to the branch the copy is made from
+	 * after the Customer's confirmation, newest last, which every later push adds to; a warning the retired daily poll
+	 * made keeps the SHAs past the copied commit it found
 	 * @param reconfirmedAt when the Customer re-confirmed a renamed or transferred repository
 	 */
 	record Warning(UUID id, String kind, @Nullable String headSha, @Nullable String fullName, List<String> commits,

@@ -14,8 +14,8 @@
  * <p>
  * Public API: {@link vn.vibefix.product.ProductDirectory}, {@link vn.vibefix.product.ProductPins} (Job
  * pins, Epic 3), {@link vn.vibefix.product.ProductSources} (the check before a Code Job starts and before the Final
- * Merge, Story 7.2; the contributor read and the drift read through the Source App, Story 23.5b; J7's head read and
- * dispatch target, Story 23.6a), and
+ * Merge, Story 7.2; the contributor read and the drift read through the Source App, Story 23.5b, with the Products a
+ * Source App delivery names, Story 24.6; J7's head read and dispatch target, Story 23.6a), and
  * {@link vn.vibefix.product.ProductDeleted}. The HTTP endpoints, the Source App's Setup URL
  * included, are wiring in {@code product.internal}.
  */

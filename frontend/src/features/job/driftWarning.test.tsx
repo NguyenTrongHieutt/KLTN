@@ -1,10 +1,12 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
-import { fakeBackend, json, signedInUser } from '@/test/fakeBackend'
+import { fakeBackend, inEveryJob, json, signedInUser } from '@/test/fakeBackend'
 import { DriftWarning } from './DriftWarning'
+import { JobHeader } from './JobHeader'
 
 const warning = (kind: string, extra: Record<string, unknown> = {}) => ({
   kind,
@@ -109,5 +111,34 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('shows on a Starting Job, since drift is told from the Customer confirmation on (Story 24.6)', async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1/drift': () => json({ warnings: [warning('COMMITS', { commits: 2 })], reconfirmNeeded: false }),
+    })
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/cong-viec/:jobId',
+          element: (
+            <JobHeader title="Sửa lỗi đặt bàn" state="STARTING" meta="Sổ đặt bàn Quán Mây">
+              {null}
+            </JobHeader>
+          ),
+        },
+      ],
+      { initialEntries: ['/cong-viec/j1'] },
+    )
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('Có 2 thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày 23/10).'),
+    ).toBeInTheDocument()
   })
 })

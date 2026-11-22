@@ -346,6 +346,27 @@ class SourceAppBindings {
 			.optional();
 	}
 
+	/**
+	 * The live Products bound to the repository with this permanent GitHub ID (Story 24.6), by their {@code BOUND}
+	 * binding, as recorded.
+	 */
+	java.util.List<UUID> productsOfRepository(long repositoryGithubId) {
+		return this.jdbc.sql("""
+				SELECT b.product_id FROM product.source_app_binding b JOIN product.product p ON p.id = b.product_id
+				WHERE b.status = 'BOUND' AND b.repository_github_id = :repository AND p.deleted_at IS NULL
+				ORDER BY b.product_id
+				""").param("repository", repositoryGithubId).query(UUID.class).list();
+	}
+
+	/** The live Products bound on this installation (Story 24.6), by their {@code BOUND} binding, as recorded. */
+	java.util.List<UUID> productsOfInstallation(long installationId) {
+		return this.jdbc.sql("""
+				SELECT b.product_id FROM product.source_app_binding b JOIN product.product p ON p.id = b.product_id
+				WHERE b.status = 'BOUND' AND b.installation_id = :installation AND p.deleted_at IS NULL
+				ORDER BY b.product_id
+				""").param("installation", installationId).query(UUID.class).list();
+	}
+
 	/** GitHub's installation settings page, where the Customer changes the selection or uninstalls (R23). */
 	String settingsUrl(ProductBinding binding) {
 		return this.app.settingsUrl(binding.accountType(), binding.accountLogin(), binding.installationId());
