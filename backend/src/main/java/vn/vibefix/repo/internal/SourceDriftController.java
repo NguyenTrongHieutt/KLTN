@@ -36,8 +36,9 @@ class SourceDriftController {
 	 * One warning.
 	 * @param kind {@code COMMITS}, {@code GONE}, {@code ARCHIVED}, {@code RENAMED}, {@code TRANSFERRED},
 	 * {@code APP_UNINSTALLED}, or {@code WORKFLOW_CHANGED} (Story 23.5b)
-	 * @param commits how many commits it names: for {@code COMMITS}, every commit pushed to the default branch since the
-	 * Job started, as the Source App's push deliveries named them (Story 24.6), at most 250
+	 * @param commits how many commits it names: for {@code COMMITS}, every commit pushed to the branch the copy is made
+	 * from since the Customer's confirmation, as the Source App's push deliveries named them (Story 24.6), at most
+	 * {@link vn.vibefix.product.ProductSources#MAX_DRIFT_COMMITS}, the newest
 	 * @param fullName the repository's new name, for a rename or transfer; the name it was read under, for every other
 	 * kind but {@code COMMITS}
 	 */

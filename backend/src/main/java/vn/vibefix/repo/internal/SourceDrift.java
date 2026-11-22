@@ -60,7 +60,7 @@ import vn.vibefix.shared.ProcessedEvents;
  * only on a Code Job of a Product they name that is Starting, Active or Closing and whose latest Setup records the
  * Customer's confirmation (its approved commit), so a push between the confirmation and J7 counts too:
  * <ul>
- * <li>a {@code push} to the repository's default branch ({@link SourcePushed}) adds its commits to the Job's one
+ * <li>a {@code push} to the branch the Job's copy is made from ({@link SourcePushed}) adds its commits to the Job's one
  * {@code COMMITS} warning, from the payload alone: the first push after the confirmation raises it and tells the
  * Customer and the Mentor once, and every later push adds to its list in place, with no new warning and no new notice.
  * No head is read from GitHub, stored, or compared;</li>
@@ -103,16 +103,16 @@ class SourceDrift {
 	/** The Job states drift is told in: from the copy (J6) to the end, J7 included. */
 	private static final Set<String> RUNNING = Set.of("STARTING", "ACTIVE", "CLOSING");
 
-	/** A commit ID as the Job's {@code COMMITS} list keeps it; a poll-era {@code "unknown"} is none. */
+	/** A commit ID as the Job's {@code COMMITS} list keeps it. */
 	private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
 
 	/** What changed in the Source Repository. */
 	enum Kind {
 
 		/**
-		 * Commits pushed to the default branch after the Customer's confirmation, as the Source App's {@code push}
-		 * deliveries name them: since Story 24.6 one row per Job, with no head, whose list grows in place. Rows of the
-		 * retired daily poll keep their head.
+		 * Commits pushed to the branch the copy is made from after the Customer's confirmation, as the Source App's
+		 * {@code push} deliveries name them: since Story 24.6 one row per Job, with no head, whose list grows in place and
+		 * which a later confirmation removes. Rows of the retired daily poll stay as they are, each with its head.
 		 */
 		COMMITS,
 
@@ -152,8 +152,33 @@ class SourceDrift {
 	/**
 	 * A Code Job drift is told for, with its Source Repository as the Product registered it.
 	 * @param approvedSha the commit the Customer confirmed for the Job's latest Setup, which the copy pins
+	 * @param defaultBranch the branch that Setup read the head of, which the copy is made from; none when it named none
+	 * @param headReadAt when that Setup read the head the Customer confirmed
 	 */
-	private record Running(BusyJob job, Registered registered, String approvedSha) {
+	private record Running(BusyJob job, Registered registered, String approvedSha, @Nullable String defaultBranch,
+			@Nullable Instant headReadAt) {
+
+		/**
+		 * Whether the push moved the branch the copy is made from: the Setup's, so a default branch switched on GitHub
+		 * since does not count; the payload's only when the Setup named none. A deletion never counts.
+		 */
+		boolean moves(SourcePushed push) {
+			return push.moved(this.defaultBranch == null ? push.defaultBranch() : this.defaultBranch);
+		}
+
+		/**
+		 * Whether the push brings commits past the copy: not one whose {@code after} is the confirmed commit (every
+		 * commit a push names is reachable from its {@code after}), nor one GitHub dates at or before the head read the
+		 * Customer confirmed, whose commits that head already holds (a delivery that arrives late, or again).
+		 */
+		boolean bringsCommits(SourcePushed push) {
+			if (this.approvedSha.equals(push.after())) {
+				return false;
+			}
+			return push.pushedAt() == null || this.headReadAt == null
+					|| Instant.ofEpochSecond(push.pushedAt()).isAfter(this.headReadAt);
+		}
+
 	}
 
 	private final JdbcClient jdbc;
@@ -197,28 +222,31 @@ class SourceDrift {
 		this.transactions = new TransactionTemplate(transactionManager);
 	}
 
-	/** A Source App push: new commits on the default branch warn at once, and the Job is read. */
+	/** A Source App push: new commits on the branch the copy is made from warn at once, and the Job is read. */
 	@ApplicationModuleListener
 	void onPush(SourcePushed event) {
 		pushed(event);
 	}
 
 	/**
-	 * What the push listener does, on the caller's thread. Replay-safe. A push to another ref, or one that deleted the
-	 * default branch, does nothing and reads nothing; so does a push before the Customer's confirmation, since the copy
-	 * pins the commit confirmed. A push whose {@code after} is that commit does nothing either: every commit a push
-	 * names is reachable from its {@code after}, so it brings nothing past the copy (a delivery that arrives late, say).
+	 * What the push listener does, on the caller's thread. Replay-safe. A push to a ref other than the branch the copy
+	 * is made from, or one that deleted a ref, does nothing and reads nothing; so does a push before the Customer's
+	 * confirmation, since the copy pins the commit confirmed. A push that brings nothing past the copy (its
+	 * {@code after} is the confirmed commit, or GitHub dates it at or before the head read the Customer confirmed) adds
+	 * nothing to the list, and the Job is still read: a revert to the confirmed commit may restore {@code vibefix.yml}.
 	 */
 	@Transactional
 	void pushed(SourcePushed event) {
-		if (!event.toDefaultBranch() || !this.processedEvents.markProcessed("repo.SourceDrift.onPush", event.eventId())) {
+		if (event.deleted() || !this.processedEvents.markProcessed("repo.SourceDrift.onPush", event.eventId())) {
 			return;
 		}
 		for (Running running : running(this.sources.productsOfRepository(event.repositoryId()))) {
-			if (running.approvedSha().equals(event.after())) {
+			if (!running.moves(event)) {
 				continue;
 			}
-			commits(running, event.after(), event.commits());
+			if (running.bringsCommits(event)) {
+				commits(running, event.after(), event.commits());
+			}
 			requestRead(running.job().jobId(), event.deliveryId());
 		}
 	}
@@ -256,13 +284,14 @@ class SourceDrift {
 	 * once never read the same list. The push brings the commits it lists, or its {@code after} when it lists none (a
 	 * reset to an earlier commit, say), each a commit ID and never the confirmed one.
 	 * <ul>
-	 * <li>The first push after the confirmation raises the warning through {@link #warn}, so the Customer and the Mentor
-	 * are told once. Its list starts with what a poll-era {@code COMMITS} row of the Job counted, IDs only, then the
-	 * push's.</li>
+	 * <li>The first push after the confirmation raises the warning through {@link #warn}, with the push's own commits,
+	 * so the Customer and the Mentor are told once. A poll-era {@code COMMITS} row of the Job stays as it is.</li>
 	 * <li>Each later push adds its commits to the end of that same row's list, newest last, with no new row, no new
 	 * notice and no new audit entry; the row keeps its first {@code detected_at}, which the page shows as its date.</li>
 	 * </ul>
-	 * The list keeps the newest {@link ProductSources#MAX_DRIFT_COMMITS}.
+	 * The list keeps the newest {@link ProductSources#MAX_DRIFT_COMMITS}. A later confirmation of the Customer's (a head
+	 * that moved before the copy, say) removes the row ({@link JobSetups#confirm}), since the head it confirms holds
+	 * every commit up to it.
 	 */
 	private void commits(Running running, String after, List<String> listed) {
 		BusyJob job = running.job();
@@ -279,16 +308,7 @@ class SourceDrift {
 					SELECT id, job_id, kind, head_sha, full_name, commits, detected_at, reconfirmed_at FROM repo.drift_warning
 					WHERE job_id = :job AND kind = 'COMMITS' AND head_sha IS NULL AND full_name IS NULL
 					""").param("job", job.jobId()).query(SourceDrift::warning).optional();
-			List<String> commits = new ArrayList<>();
-			if (current.isPresent()) {
-				commits.addAll(current.get().commits());
-			}
-			else {
-				commits.addAll(this.jdbc.sql("""
-						SELECT commits FROM repo.drift_warning WHERE job_id = :job AND kind = 'COMMITS' AND head_sha IS NOT NULL
-						ORDER BY detected_at DESC, cardinality(commits) DESC, id DESC LIMIT 1
-						""").param("job", job.jobId()).query((rs, n) -> list(rs.getArray("commits"))).optional().orElse(List.of()));
-			}
+			List<String> commits = new ArrayList<>(current.map(Warning::commits).orElse(List.of()));
 			commits.addAll(brought);
 			List<String> all = kept(commits, running.approvedSha());
 			int max = ProductSources.MAX_DRIFT_COMMITS;
@@ -358,7 +378,8 @@ class SourceDrift {
 			return Optional.empty();
 		}
 		String approved = setup.approvedSha();
-		return this.sources.registered(job.productId()).map(registered -> new Running(job, registered, approved));
+		return this.sources.registered(job.productId())
+			.map(registered -> new Running(job, registered, approved, setup.defaultBranch(), setup.headReadAt()));
 	}
 
 	/**

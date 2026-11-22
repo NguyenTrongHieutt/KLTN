@@ -1478,6 +1478,20 @@ public final class GitHubStub implements AutoCloseable {
 	 * points at after it ({@code after}, 40 zeros for a deleted ref), and the pushed commits, oldest first.
 	 */
 	public byte[] pushEvent(long installation, long id, String ref, String after, List<String> commits) {
+		return pushEvent(installation, id, ref, after, commits, null, "main");
+	}
+
+	/**
+	 * The same delivery, dated {@code pushedAt} in {@code repository.pushed_at} (epoch seconds, as GitHub dates a push;
+	 * left out when null), its repository's default branch named {@code defaultBranch} (Story 24.6).
+	 */
+	public byte[] pushEvent(long installation, long id, String ref, String after, List<String> commits,
+			@org.jspecify.annotations.Nullable Long pushedAt, String defaultBranch) {
+		Map<String, Object> repository = new LinkedHashMap<>(repositoryPayload(id));
+		repository.put("default_branch", defaultBranch);
+		if (pushedAt != null) {
+			repository.put("pushed_at", pushedAt);
+		}
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("ref", ref);
 		payload.put("before", "0".repeat(40));
@@ -1488,7 +1502,7 @@ public final class GitHubStub implements AutoCloseable {
 		payload.put("commits", commits.stream().map(sha -> Map.of("id", sha, "message", "Lovable sync", "distinct", true))
 			.toList());
 		payload.put("head_commit", commits.isEmpty() ? null : Map.of("id", commits.getLast()));
-		payload.put("repository", repositoryPayload(id));
+		payload.put("repository", repository);
 		payload.put("installation", Map.of("id", installation));
 		payload.put("sender", Map.of("id", this.published.get(id).ownerId(), "login", this.published.get(id).owner()));
 		return GitHubHttp.JSON.writeValueAsBytes(payload);

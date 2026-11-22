@@ -228,8 +228,8 @@ function DriftTab({ disputeId }: { disputeId: string }) {
             <p className="text-caption text-muted-foreground">{formatDayMonthTime(warning.detectedAt)}</p>
             {warning.commits.length > 0 && (
               <ul className="font-mono text-caption">
-                {warning.commits.map((sha) => (
-                  <li key={sha} className="break-all">
+                {warning.commits.map((sha, index) => (
+                  <li key={`${index}-${sha}`} className="break-all">
                     {sha.slice(0, 12)}
                   </li>
                 ))}

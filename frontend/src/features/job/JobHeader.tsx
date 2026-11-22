@@ -16,7 +16,8 @@ import { SetupTracker } from './SetupTracker'
  * A Job screen's top (UX-DR17, UX-DR87): the breadcrumb, the title with its state in the words of the caller's
  * role in the Job and its phase (X6), the meta line, "Bạn là: …", an optional status line such as the Crew's
  * confirmations, the Mentor's No-Crew banner (UX-DR104), the step tracker while the Job is Starting (UX-DR23), the busy
- * banner while a precondition operation holds the Job (UX-DR21), and the tabs.
+ * banner while a precondition operation holds the Job (UX-DR21), the Drift Warning from the Customer's confirmation on
+ * (Starting, J7 or not, Active and Closing; Story 24.6), and the tabs.
  */
 export function JobHeader({
   title,
@@ -54,7 +55,7 @@ export function JobHeader({
       {jobId && <NoCrewBanner jobId={jobId} />}
       {state === 'STARTING' && jobId && <SetupTracker jobId={jobId} />}
       {(state === 'ACTIVE' || state === 'CLOSING') && jobId && <BusyBanner jobId={jobId} />}
-      {(state === 'ACTIVE' || state === 'CLOSING') && jobId && <DriftWarning jobId={jobId} />}
+      {(state === 'STARTING' || state === 'ACTIVE' || state === 'CLOSING') && jobId && <DriftWarning jobId={jobId} />}
       {children}
     </div>
   )

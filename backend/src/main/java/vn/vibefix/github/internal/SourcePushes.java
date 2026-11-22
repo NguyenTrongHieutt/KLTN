@@ -16,7 +16,8 @@ import vn.vibefix.shared.IdGenerator;
  * {@link SourcePushed}, published in the caller's transaction (Story 24.6), and only here: a webhook delivery
  * ({@link WebhookController}) becomes one only for a {@code push} the Source App sent whose payload names a repository
  * by its numeric ID, the ref it moved, the repository's default branch and the commit the ref points at now. Each
- * listed commit whose {@code id} is a commit SHA is carried, in the payload's order. Anything else publishes nothing.
+ * listed commit whose {@code id} is a commit SHA is carried, in the payload's order, and so is the repository's
+ * {@code pushed_at} when it is epoch seconds. Anything else publishes nothing.
  * Which push counts, and for which Job, is the listener's to decide.
  */
 @Component
@@ -61,9 +62,11 @@ class SourcePushes {
 			}
 		}
 		JsonNode installation = payload.path("installation").path("id");
+		// A push's payload dates it in epoch seconds; any other form is not read.
+		JsonNode pushedAt = repository.path("pushed_at");
 		this.events.publishEvent(new SourcePushed(this.ids.newId(), deliveryId,
 				installation.isIntegralNumber() ? installation.asLong() : null, repositoryId, ref, defaultBranch, after,
-				commits));
+				commits, pushedAt.isIntegralNumber() ? pushedAt.asLong() : null));
 		return true;
 	}
 

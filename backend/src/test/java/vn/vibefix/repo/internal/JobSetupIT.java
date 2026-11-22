@@ -23,7 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.AfterAll;
@@ -37,9 +41,12 @@ import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.JsonNode;
 import vn.vibefix.github.ActionsRuns;
@@ -89,6 +96,7 @@ import vn.vibefix.support.IntegrationTest;
  * workflow: a test pushes the confirmed head into both repositories as the copy run would, and completes the run. The
  * run's ID token is signed by {@link ActionsExchangeSupport}'s stand-in issuer; the sandbox jobs run in process.
  */
+@RecordApplicationEvents
 class JobSetupIT extends IntegrationTest {
 
 	private static final String TUNNEL = "https://exchange.example.test";
@@ -169,6 +177,10 @@ class JobSetupIT extends IntegrationTest {
 
 	@Autowired
 	private ApplicationContext context;
+
+	/** The events published during the test, a Source App push's among them (Story 24.6). */
+	@Autowired
+	private ApplicationEvents events;
 
 	private UUID customer;
 
@@ -1870,6 +1882,15 @@ class JobSetupIT extends IntegrationTest {
 		awaitListeners();
 		assertThat(this.drift.warnings(this.job).getFirst().commits()).as("the same delivery again").hasSize(1);
 		assertThat(driftReads(this.job)).hasSize(1);
+		// The same event published again, as the event registry republishes one not marked complete: the listener's
+		// replay guard drops it.
+		List<SourcePushed> published = this.events.stream(SourcePushed.class).toList();
+		assertThat(published).as("published once, the delivery seen again dropped before it").hasSize(1);
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.context.publishEvent(published.getFirst()));
+		awaitListeners();
+		assertThat(this.drift.warnings(this.job).getFirst().commits()).as("the same event again").containsExactly(first);
+		assertThat(driftReads(this.job)).hasSize(1);
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
 		assertThat(this.drift.warnings(this.job)).as("the read finds nothing else").hasSize(1);
@@ -1944,35 +1965,159 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 24.6: a push whose {@code after} is the commit the Customer confirmed brings nothing past the copy -- a
-	 * delivery that arrives late, or a reset back to it -- so it warns nothing and reads nothing. The list never holds
-	 * the confirmed commit, even when a push lists it among new ones, and a push that lists no commit counts its
-	 * {@code after}.
+	 * Story 24.6: a push whose {@code after} is the commit the Customer confirmed brings nothing past the copy -- a reset
+	 * back to it, say -- so it adds nothing and warns nothing, but the Job is still read, since such a revert may
+	 * restore {@code vibefix.yml}. The list never holds the confirmed commit, even when a push lists it among new ones,
+	 * and a push that lists no commit counts its {@code after}.
 	 */
 	@Test
 	void aPushEndingAtTheConfirmedCommitDoesNothingAndTheListNeverHoldsIt() throws Exception {
 		activeAfterJ7();
 		String approved = this.setups.latest(this.job).orElseThrow().approvedSha();
-		String earlier = "e".repeat(40);
 
-		sourceDelivers("push", pushEvent(approved, List.of(earlier, approved)));
 		sourceDelivers("push", pushEvent(approved, List.of()));
 		driftRead();
 
 		assertThat(this.drift.warnings(this.job)).as("the pinned commit").isEmpty();
-		assertThat(driftReads(this.job)).as("and no read").isEmpty();
+		assertThat(driftReads(this.job)).as("but the Job is read").containsExactly("SUCCEEDED");
 		assertThat(notices("repo.drift_detected")).isZero();
 
 		String next = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
 		// A forced push back past the copy, listing the confirmed commit among the new one.
 		pushed(next, List.of(approved, next));
-		String fastForward = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
-		// A push that lists no commit, as a fast-forward to a commit pushed elsewhere does.
-		pushed(fastForward, List.of());
+		String reset = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		// A push that lists no commit, as a reset or a forced push to a commit already pushed does.
+		pushed(reset, List.of());
 
 		assertThat(this.drift.warnings(this.job)).singleElement()
-			.satisfies(warning -> assertThat(warning.commits()).containsExactly(next, fastForward));
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(next, reset));
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED", "SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a push GitHub dates at or before the head read the Customer confirmed, delivered after the
+	 * confirmation (late, or again), brings nothing that head does not hold, so it changes nothing: no commit is listed
+	 * and nobody is told, and the Job is only read. A push dated after it counts.
+	 */
+	@Test
+	void aPushDatedBeforeTheConfirmedHeadReadChangesNothing() throws Exception {
+		activeAfterJ7();
+		Instant headRead = this.setups.latest(this.job).orElseThrow().headReadAt();
+		String late = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", late, List.of(late),
+				headRead.minusSeconds(60).getEpochSecond(), "main"));
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", late, List.of(late),
+				headRead.getEpochSecond(), "main"));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).as("dated before or at the head read").isEmpty();
+		assertThat(notices("repo.drift_detected")).isZero();
 		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED");
+
+		String after = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", after, List.of(after),
+				this.clock.instant().getEpochSecond(), "main"));
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(after));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: a push counts on the branch the copy was made from, the default branch the Setup read: after the
+	 * default branch is switched on GitHub, a push to the old one still counts and a push to the new one does nothing.
+	 */
+	@Test
+	void aPushCountsOnTheBranchTheCopyWasMadeFrom() throws Exception {
+		activeAfterJ7();
+		assertThat(this.setups.latest(this.job).orElseThrow().defaultBranch()).isEqualTo("main");
+		String sha = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/develop", "d".repeat(40),
+				List.of("d".repeat(40)), null, "develop"));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).as("the new default branch").isEmpty();
+		assertThat(driftReads(this.job)).as("and no read").isEmpty();
+
+		sourceDelivers("push", GITHUB.pushEvent(this.installation, this.sourceId, "refs/heads/main", sha, List.of(sha), null,
+				"develop"));
+		driftRead();
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(sha));
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 24.6: two pushes handled at once both wait for the Job's lock, so neither reads the list the other is
+	 * writing: while another transaction holds it, no warning is made; released, the one warning lists both pushes.
+	 */
+	@Test
+	void twoPushesHandledAtOnceWaitForTheJobsLockAndAreBothListed() throws Exception {
+		activeAfterJ7();
+		CountDownLatch locked = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger holder = new AtomicInteger();
+		CompletableFuture<Void> holding = CompletableFuture.runAsync(
+				() -> new TransactionTemplate(this.transactions).executeWithoutResult(status -> {
+					this.jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended('repo.source_drift:' || :job, 0))")
+						.param("job", this.job.toString())
+						.query((rs, n) -> 1)
+						.list();
+					holder.set(this.jdbc.sql("SELECT pg_backend_pid()").query(Integer.class).single());
+					locked.countDown();
+					await(release);
+				}));
+		assertThat(locked.await(15, TimeUnit.SECONDS)).isTrue();
+		String one = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		String two = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		try {
+			sourceDelivers("push", pushEvent(one, List.of(one)));
+			sourceDelivers("push", pushEvent(two, List.of(two)));
+			awaitBlockedBy(holder.get(), 2);
+			assertThat(this.drift.warnings(this.job)).as("while the lock is held").isEmpty();
+		}
+		finally {
+			release.countDown();
+		}
+		holding.get(15, TimeUnit.SECONDS);
+		awaitListeners();
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactlyInAnyOrder(one, two));
+		assertThat(notices("repo.drift_detected")).isEqualTo(2);
+	}
+
+	/**
+	 * Story 24.6: a push while the copy waits to be dispatched raises the new-commits warning; then the copy finds the
+	 * head moved and asks the Customer again. The head they confirm holds those commits, so the confirmation removes
+	 * the warning, and a later push raises a fresh one.
+	 */
+	@Test
+	void aConfirmationOfAMovedHeadRemovesTheWarningAndALaterPushRaisesAFreshOne() throws Exception {
+		confirmTheHead();
+		String moved = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable')\n");
+		pushed(moved);
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(moved));
+
+		run();
+		Setup waiting = this.setups.latest(this.job).orElseThrow();
+		assertThat(waiting.status()).as("the head moved before the copy").isEqualTo("CONFIRMING");
+		assertThat(waiting.headSha()).isEqualTo(moved);
+		confirm(moved).andExpect(status().isOk());
+
+		assertThat(this.drift.warnings(this.job)).as("the head confirmed holds those commits").isEmpty();
+		String later = GITHUB.push("lan-dev", this.sourceName, "main", "app.js", "console.log('Lovable 2')\n");
+		pushed(later);
+
+		assertThat(this.drift.warnings(this.job)).singleElement()
+			.satisfies(warning -> assertThat(warning.commits()).containsExactly(later));
+		assertThat(notices("repo.drift_detected")).as("told of each warning").isEqualTo(4);
 		awaitListeners();
 	}
 
@@ -2709,6 +2854,26 @@ class JobSetupIT extends IntegrationTest {
 			.param("account", account)
 			.query(Long.class)
 			.single();
+	}
+
+	/** At least {@code sessions} other sessions wait for a lock that {@code holder}'s transaction holds. */
+	private void awaitBlockedBy(int holder, int sessions) {
+		org.awaitility.Awaitility.await()
+			.atMost(Duration.ofSeconds(15))
+			.until(() -> this.jdbc.sql("SELECT count(*) FROM pg_locks WHERE NOT granted AND :holder = ANY(pg_blocking_pids(pid))")
+				.param("holder", holder)
+				.query(Long.class)
+				.single() >= sessions);
+	}
+
+	private static void await(CountDownLatch latch) {
+		try {
+			assertThat(latch.await(15, TimeUnit.SECONDS)).isTrue();
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException(ex);
+		}
 	}
 
 	/** The emails of {@code template} requested for {@code account}, sent or not. */

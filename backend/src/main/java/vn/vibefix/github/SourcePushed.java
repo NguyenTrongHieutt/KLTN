@@ -19,9 +19,11 @@ import vn.vibefix.shared.DomainEvent;
  * @param defaultBranch the repository's default branch, as the payload names it
  * @param after the commit the ref points at after the push, 40 hex; 40 zeros when the push deleted the ref
  * @param commits the IDs of the commits the push brought, in the payload's order, oldest first
+ * @param pushedAt when GitHub says the push happened, as the payload's {@code repository.pushed_at} (epoch seconds);
+ * none when the payload does not say, so a delivery that arrives late can be told from a new push
  */
 public record SourcePushed(UUID eventId, String deliveryId, @Nullable Long installationId, long repositoryId, String ref,
-		String defaultBranch, String after, List<String> commits) implements DomainEvent {
+		String defaultBranch, String after, List<String> commits, @Nullable Long pushedAt) implements DomainEvent {
 
 	/** The {@code after} of a push that deleted its ref. */
 	public static final String DELETED = "0".repeat(40);
@@ -32,7 +34,17 @@ public record SourcePushed(UUID eventId, String deliveryId, @Nullable Long insta
 
 	/** Whether the push moved the repository's default branch to a commit, rather than another ref or a deletion. */
 	public boolean toDefaultBranch() {
-		return ("refs/heads/" + this.defaultBranch).equals(this.ref) && !DELETED.equals(this.after);
+		return moved(this.defaultBranch);
+	}
+
+	/** Whether the push moved {@code branch} to a commit, rather than another ref or a deletion. */
+	public boolean moved(String branch) {
+		return ("refs/heads/" + branch).equals(this.ref) && !deleted();
+	}
+
+	/** Whether the push deleted its ref. */
+	public boolean deleted() {
+		return DELETED.equals(this.after);
 	}
 
 }

@@ -364,6 +364,7 @@ class GitHubWebhookIT extends IntegrationTest {
 			assertThat(pushed.defaultBranch()).isEqualTo("main");
 			assertThat(pushed.after()).isEqualTo(second);
 			assertThat(pushed.commits()).containsExactly(first, second);
+			assertThat(pushed.pushedAt()).as("repository.pushed_at").isEqualTo(PUSHED_AT);
 			assertThat(pushed.toDefaultBranch()).isTrue();
 		});
 		assertThat(this.events.stream(SourcePushed.class).toList().get(1).toDefaultBranch()).as("another branch").isFalse();
@@ -600,13 +601,16 @@ class GitHubWebhookIT extends IntegrationTest {
 		return id;
 	}
 
+	/** When GitHub dates each push of these tests, in epoch seconds, as {@code repository.pushed_at} carries it. */
+	private static final long PUSHED_AT = 1_795_000_000L;
+
 	/** A {@code push} delivery's body, as GitHub sends it for the Customer's Source App installation (Story 24.6). */
 	private static byte[] push(long repositoryId, String ref, String defaultBranch, String after, List<String> commits) {
 		return GitHubHttp.JSON.writeValueAsBytes(Map.of("ref", ref, "before", "0".repeat(40), "after", after, "commits",
 				commits.stream().map(id -> Map.of("id", id, "message", "Lovable sync")).toList(), "installation",
-				Map.of("id", CUSTOMER_INSTALLATION), "repository",
-				Map.of("id", repositoryId, "full_name", "lan-dev/quan-may", "default_branch", defaultBranch), "sender",
-				Map.of("id", 42, "login", "lan-dev")));
+				Map.of("id", CUSTOMER_INSTALLATION), "repository", Map.of("id", repositoryId, "full_name",
+						"lan-dev/quan-may", "default_branch", defaultBranch, "pushed_at", PUSHED_AT),
+				"sender", Map.of("id", 42, "login", "lan-dev")));
 	}
 
 	/** A {@code workflow_run} delivery's body, as GitHub sends it for an App's installation. */

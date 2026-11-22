@@ -594,20 +594,23 @@ Repository is warned of from the Source App's own deliveries, within seconds, to
 the Customer's confirmation of the head (the copy pins it) until the Job ends: Starting, Active or Closing, J7 or not.
 An Assessment Job is never warned.
 
-- A **Push** to the default branch adds its commits to the Job's one "new commits" warning, from the delivery alone:
-  the first push after the confirmation raises it and tells the Customer and the Mentor once; every later push adds
-  to the same warning's list (newest last, at most 250), with no new notice, and its date stays the first push's. A
-  push that lists no commit (a reset) counts its `after`. A push whose `after` is the confirmed commit, a push to
-  another branch, and one that deletes the branch do nothing.
+- A **Push** to the branch the copy is made from (the default branch the Setup read, even if the default branch is
+  switched later) adds its commits to the Job's one "new commits" warning, from the delivery alone: the first push
+  after the confirmation raises it and tells the Customer and the Mentor once; every later push adds to the same
+  warning's list (newest last, at most 250), with no new notice, and its date stays the first push's. A push that
+  lists no commit (a reset or a forced push) counts its `after`. A push whose `after` is the confirmed commit, or that
+  GitHub dates at or before the head read the Customer confirmed (a late delivery), adds nothing, but the Job is still
+  read. A push to another branch, and one that deletes a branch, do nothing. A later confirmation (the head moved
+  before the copy) removes the warning, since the head it confirms holds those commits.
 - That push, a **Repository** deleted, archived, renamed, transferred or unarchived, an **Installation** deleted,
   suspended, created, unsuspended or with new permissions accepted, an **Installation repositories** removal or
   addition, and an **Installation target** rename (the owner renamed) each queue one `repo.source_drift_read` per
   Job (GitHub-short lane). A Repository delivery is matched by the repository's ID; the installation ones by the
   installation, or by a repository they list, so a reinstalled App still finds its Products. The read goes through
   the Source App: `GONE`, `APP_UNINSTALLED`, `WORKFLOW_CHANGED`, `ARCHIVED`, `RENAMED` or `TRANSFERRED`, each once,
-  and the Product's status, which opens or closes its to-do, so a fix on GitHub shows within seconds too. A GitHub
-  failure is retried under the default policy, then waits in the Administrators' failed queue. Made private and
-  edited are no drift, and do nothing.
+  and the Product's status, which opens or closes its to-do, so a fix on GitHub is recorded within seconds too. A
+  GitHub failure is retried under the default policy, then waits in the Administrators' failed queue. Made private
+  and edited are no drift, and do nothing.
 
 **The author's step, after this story is merged:** on the dev Source App, Permissions & events › Subscribe to
 events, tick **Push** and **Repository** beside Workflow run, and save. No permission changes, so no installation
@@ -615,8 +618,8 @@ needs to accept anything. The code came first: ticked before it, the configurati
 AD-10 did not name yet. Until they are ticked, the check alerts `github.app_configuration_drift` daily
 (`events: [workflow_run] instead of [push, repository, workflow_run]`), and nothing warns of a Source drift except
 the Installation, Installation repositories and Installation target events GitHub sends every App anyway. To try it,
-push a commit to a running Job's Source Repository: the
-Job page shows "Dự án gốc vừa thay đổi" within seconds, and the Source App's settings page › Advanced lists the
+push a commit to a running Job's Source Repository, then reload the Job page: it shows "Dự án gốc vừa thay đổi"
+(an open page only refetches the warning every minute), and the Source App's settings page › Advanced lists the
 `push` delivery with a 202.
 
 ## Spike S2: VNPay sandbox refunds and transaction queries

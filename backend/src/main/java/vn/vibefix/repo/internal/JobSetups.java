@@ -498,7 +498,8 @@ class JobSetups {
 	/**
 	 * The Customer's self-confirmation at the current head (N-32): recorded with the account, the SHA, the notice version
 	 * and the time, and audited; the to-do closes, the marker is reserved for the copy stage keyed by the confirmation,
-	 * and the copy stage is requested. Nothing is dispatched without such a record.
+	 * and the copy stage is requested. Nothing is dispatched without such a record. The Job's new-commits Drift Warning
+	 * from an earlier confirmation is removed (Story 24.6), since the head confirmed holds those commits.
 	 * @throws ApiException {@code CONFLICT SETUP_NOT_CONFIRMING} when the attempt no longer waits; as
 	 * {@link #retry} for the Job; {@code JOB_BUSY} when another marker is set
 	 */
@@ -520,6 +521,12 @@ class JobSetups {
 		if (updated == 0) {
 			throw new ApiException(ErrorCode.CONFLICT, RepoReason.SETUP_NOT_CONFIRMING);
 		}
+		// Story 24.6: the head confirmed now holds every commit pushed up to it, so the new-commits warning raised since an
+		// earlier confirmation (a head that moved before the copy, a retry) lists nothing new; the next push raises it again.
+		this.jdbc.sql("""
+				DELETE FROM repo.drift_warning
+				WHERE job_id = :job AND kind = 'COMMITS' AND head_sha IS NULL AND full_name IS NULL
+				""").param("job", setup.jobId()).update();
 		this.jdbc.sql("""
 				INSERT INTO repo.source_confirmation (id, job_id, product_id, setup_id, account_id, head_sha, notice_version,
 				    confirmed_at)
