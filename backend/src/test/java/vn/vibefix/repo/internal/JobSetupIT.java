@@ -2156,6 +2156,36 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
+	 * Story 24.6, with Story 23.5c's status: the Source App uninstalled warns {@code APP_UNINSTALLED} at its
+	 * {@code installation} {@code deleted} delivery and opens {@code product.install_source_app}, telling the Customer
+	 * once; GitHub delivering it again under another ID reads the Job again and warns nothing more.
+	 */
+	@Test
+	void anUninstalledSourceAppWarnsOnceAndOpensItsToDo() throws Exception {
+		activeAfterJ7();
+		GITHUB.mergeInstallations.remove(this.installation);
+		GITHUB.repositoryInstallations.values().remove(this.installation);
+		byte[] deleted = GITHUB.installationEvent("deleted", this.installation);
+
+		sourceDelivers("installation", deleted);
+		driftRead();
+		this.clock.advance(Duration.ofMinutes(1));
+		sourceDelivers("installation", deleted);
+		driftRead();
+
+		assertThat(this.drift.warnings(this.job)).singleElement().satisfies(warning -> {
+			assertThat(warning.kind()).isEqualTo(SourceDrift.Kind.APP_UNINSTALLED);
+			assertThat(warning.fullName()).isEqualTo(this.source);
+		});
+		assertThat(driftReads(this.job)).containsExactly("SUCCEEDED", "SUCCEEDED");
+		assertThat(sourceStatus()).isEqualTo("SOURCE_APP_MISSING");
+		assertThat(productTodos()).containsExactly("product.install_source_app");
+		assertThat(workflowCheckFailures()).as("once, to the Product's Customer").containsExactly(this.customer);
+		assertThat(notices("repo.drift_detected")).as("the Customer and the Mentor, once").isEqualTo(2);
+		awaitListeners();
+	}
+
+	/**
 	 * Story 24.6: GitHub not answering the read warns nothing yet, and the operation tries again after its backoff,
 	 * when the archive is found; the delivery is never lost.
 	 */
