@@ -36,7 +36,7 @@ import {
 import { PartLines } from './PartLines'
 import { finalText, partyName, pendingText, pendingTone } from './partText'
 import { RefundLine } from './RefundLine'
-import { TestTag } from '@/components/TestTag'
+import { TestColumn, TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
@@ -355,14 +355,14 @@ function Funding({ funding }: { funding: JobFunding }) {
                 <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.milestone')}
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
-                  {t('screen.payment.amount')}
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  <TestColumn>{t('screen.payment.amount')}</TestColumn>
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
-                  {t('screen.payment.funded')}
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  <TestColumn>{t('screen.payment.funded')}</TestColumn>
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
-                  {t('screen.payment.released')}
+                <th scope="col" className="px-4 py-2 font-semibold">
+                  <TestColumn>{t('screen.payment.released')}</TestColumn>
                 </th>
                 <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.status')}
@@ -379,14 +379,10 @@ function Funding({ funding }: { funding: JobFunding }) {
                 return (
                   <tr key={milestone.milestoneId} className="border-b border-border align-top last:border-b-0">
                     <td className="px-4 py-3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatVnd(milestone.priceVnd)}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatVnd(milestone.fundedVnd + milestone.topUpVnd)}</td>
                     <td className="px-4 py-3 tabular-nums">
-                      {formatVnd(milestone.priceVnd)} <TestTag />
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">
-                      {formatVnd(milestone.fundedVnd + milestone.topUpVnd)} <TestTag />
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">
-                      {formatVnd(milestone.releasedTotalVnd)} <TestTag />
+                      {formatVnd(milestone.releasedTotalVnd)}
                       {milestone.refundAtEndVnd > 0 && (
                         <p className="text-caption text-muted-foreground">
                           {t('screen.payment.refundAtEnd', { amount: formatVnd(milestone.refundAtEndVnd) })}

@@ -133,7 +133,10 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
     expect(within(table).getByText('Hoàn tiền mô phỏng · Giai đoạn 1')).toBeInTheDocument()
     expect(within(table).getByText('Đã thanh toán')).toBeInTheDocument()
     expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng giờ: đã chuyển 1.200.000 ₫')).toBeInTheDocument()
-    expect(screen.getAllByText('tiền thử nghiệm, không phải tiền thật').length).toBeGreaterThan(3)
+    // Under the test-mode banner the table says it once, in its amount column's header; amounts outside it keep the tag.
+    expect(within(table).getByRole('columnheader', { name: 'Số tiền (thử nghiệm)' })).toBeInTheDocument()
+    expect(within(table).queryByText('tiền thử nghiệm, không phải tiền thật')).toBeNull()
+    expect(screen.getAllByText('tiền thử nghiệm, không phải tiền thật').length).toBeGreaterThan(2)
     expect(screen.queryByRole('heading', { name: 'Phần của bạn' })).toBeNull()
   })
 
