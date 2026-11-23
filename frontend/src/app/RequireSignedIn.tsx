@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router'
 import { isAdministrator } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
 import { t } from '@/i18n/t'
+import { ShellSkeleton } from './ShellSkeleton'
 
 /**
  * Keeps signed-in routes for signed-in accounts (AD-19): anyone else goes to PUB-2, carrying the
@@ -13,7 +14,7 @@ export function RequireSignedIn({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   if (session.isPending) {
-    return <p className="p-gutter-mobile text-body-sm text-muted-foreground">{t('state.loading')}</p>
+    return <ShellSkeleton />
   }
   if (session.isError) {
     return (

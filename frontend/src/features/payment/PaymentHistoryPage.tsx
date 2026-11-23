@@ -10,6 +10,7 @@ import { formatVnd } from '@/lib/money'
 import { useBalance, usePaymentHistory, type BalanceLine, type CustomerHistory } from './paymentApi'
 import { PartLines } from './PartLines'
 import { TestModeBanner } from './TestModeBanner'
+import { Page } from '@/components/ui/page'
 
 /**
  * "Lịch sử thanh toán" (`/lich-su-thanh-toan`, FR-44, FR-45, UX-DR85, Story 22.5), in two sections from two separate
@@ -23,7 +24,7 @@ export function PaymentHistoryPage() {
   const balance = useBalance()
   const empty = history.data?.jobs.length === 0 && balance.data?.lines.length === 0
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <div className="flex flex-col gap-0.5">
         <PageHeading>{t('screen.payment.history.title')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.payment.history.lead')}</p>
@@ -36,7 +37,7 @@ export function PaymentHistoryPage() {
       <RegionState query={balance} skeleton={<Skeleton className="h-32 w-full" />}>
         {balance.data && balance.data.lines.length > 0 && <Parts lines={balance.data.lines} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

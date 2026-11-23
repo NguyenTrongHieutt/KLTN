@@ -25,6 +25,7 @@ import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from '@/features/job/cancellation/CancellationSection'
 import { SetupTracker } from '@/features/job/SetupTracker'
 import { hasStarted } from '@/features/job/jobState'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text
@@ -38,11 +39,11 @@ export function MentorJobPage({ jobId }: { jobId: string }) {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <Overview job={job.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

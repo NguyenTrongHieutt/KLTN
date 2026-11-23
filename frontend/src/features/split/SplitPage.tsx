@@ -33,6 +33,7 @@ import {
   type SplitShare,
   type SplitVersion,
 } from './splitApi'
+import { Page } from '@/components/ui/page'
 
 const TONE = {
   waiting: 'bg-warning-soft text-warning',
@@ -61,7 +62,7 @@ export function SplitPage() {
   const cards = splits.data ?? []
   const mentor = splits.isSuccess && (cards.length === 0 || cards[0].viewerIsMentor)
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <div className="flex flex-col gap-3">
         <Link
           to={cards.length > 0 && !cards[0].jobLive ? '/cong-viec' : `/cong-viec/${jobId ?? ''}`}
@@ -89,7 +90,7 @@ export function SplitPage() {
           </div>
         )}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

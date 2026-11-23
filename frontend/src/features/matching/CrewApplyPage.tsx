@@ -37,6 +37,7 @@ import { CrewApplicationState } from './CrewApplicationState'
 import { crewRefusal, crewUploadRefusal, runningCrewJob } from './crewText'
 import { SkillChips } from './SkillChips'
 import { ProofList } from './ProofList'
+import { Page } from '@/components/ui/page'
 
 /**
  * FND-2 Xin vào nhóm (`/tim-viec/{jobId}/xin-vao-nhom`, FR-81, UX-DR103, Story 21.4), a focused task route: the Mentor's
@@ -51,7 +52,7 @@ export function CrewApplyPage() {
   usePageTitle(t('screen.crewApply.title'))
   const account = useSession().data?.account
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="focused">
       {account && !account.capabilities.githubVerified ? (
         <>
           <PageHeading>{t('screen.crewApply.heading')}</PageHeading>
@@ -67,7 +68,7 @@ export function CrewApplyPage() {
       ) : (
         postId && <CrewApplyRoute postId={postId} />
       )}
-    </div>
+    </Page>
   )
 }
 

@@ -30,6 +30,7 @@ import { CancellationSection } from './cancellation/CancellationSection'
 import { SetupTracker } from './SetupTracker'
 import { CrewJobPage } from './progress/CrewJobPage'
 import { ProgressOverview } from './progress/ProgressOverview'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the
@@ -63,11 +64,11 @@ function CustomerJobPage({ jobId }: { jobId: string | undefined }) {
     return <Navigate to={`/cong-viec/${job.data.id}/sua`} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <Overview job={job.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

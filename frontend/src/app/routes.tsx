@@ -5,6 +5,7 @@ import { LandingPage } from '@/features/public/LandingPage'
 import { PrivacyPage } from '@/features/public/PrivacyPage'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { PublicLayout } from './PublicLayout'
+import { ShellSkeleton } from './ShellSkeleton'
 
 /**
  * The route table (EXPERIENCE.md Surfaces). Routes use Vietnamese slugs without diacritics; a
@@ -16,6 +17,8 @@ export const routes: RouteObject[] = [
   {
     // Signed-in surfaces: the guard sends anyone else to PUB-2 or PUB-3.
     lazy: async () => ({ Component: (await import('./AppLayout')).AppLayout }),
+    // The frame of the shell while its chunk loads on a first visit, instead of a blank page.
+    HydrateFallback: ShellSkeleton,
     children: [
       {
         path: 'viec-can-lam',

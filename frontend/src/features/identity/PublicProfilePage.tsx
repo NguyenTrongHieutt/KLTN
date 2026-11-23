@@ -7,6 +7,7 @@ import { t } from '@/i18n/t'
 import { GitHubGate } from './GitHubGate'
 import { personPath } from './personText'
 import { useSession } from './useSession'
+import { Page } from '@/components/ui/page'
 
 /**
  * "Hồ sơ công khai" (`/ho-so/cong-khai`, UX-DR85): the avatar menu's way to the user's own PUB-4 (Story 21.3), which
@@ -20,7 +21,7 @@ export function PublicProfilePage() {
     return <Navigate to={personPath(login)} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <PageHeading>{t('screen.profile.public.heading')}</PageHeading>
       <div className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-card px-6 py-10 text-center">
         <UserRound aria-hidden="true" className="size-12 text-muted-foreground" />
@@ -35,6 +36,6 @@ export function PublicProfilePage() {
       >
         <ReadSessionAgain />
       </GitHubGate>
-    </div>
+    </Page>
   )
 }

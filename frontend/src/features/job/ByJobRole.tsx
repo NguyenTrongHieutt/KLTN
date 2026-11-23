@@ -6,6 +6,7 @@ import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
 import { useJobRole, youAreText, type JobRoleView } from './jobRoleApi'
 import { PhaseBadge } from './PhaseBadge'
+import { Page } from '@/components/ui/page'
 
 type Variant = (view: JobRoleView) => ReactNode
 
@@ -31,11 +32,11 @@ export function ByJobRole({
   }
   if (!role.data) {
     return (
-      <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      <Page>
         <RegionState query={role} skeleton={<Skeleton className="h-96 w-full" />}>
           {null}
         </RegionState>
-      </div>
+      </Page>
     )
   }
   const variant = { CUSTOMER: customer, MENTOR: mentor, CREW: crew }[role.data.role]

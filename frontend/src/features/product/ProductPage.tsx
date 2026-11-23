@@ -14,6 +14,7 @@ import { useProduct, type Product } from './productApi'
 import { DeleteProduct } from './DeleteProduct'
 import { domainOf } from './productText'
 import { SourceSetupCard } from './SourceSetupCard'
+import { Page } from '@/components/ui/page'
 
 /**
  * CUS-4 (`/san-pham/{productId}`, FR-7): the Product, its Source Repository, and its information, with
@@ -29,11 +30,11 @@ export function ProductPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={product} skeleton={<Skeleton className="h-64 w-full" />}>
         {product.data && <ProductDetail product={product.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

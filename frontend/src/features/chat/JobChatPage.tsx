@@ -16,6 +16,7 @@ import { isNotFound } from '@/lib/problemMessage'
 import { ChatPanel } from './ChatPanel'
 import { hasChat, useJobChat } from './chatApi'
 import { hasStarted } from '@/features/job/jobState'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-4 "Trò chuyện" (`/cong-viec/{jobId}/tro-chuyen`, FR-46, UX-DR17): the Job Chat for its Customer
@@ -109,8 +110,8 @@ function JobChatPanel({ jobId, side }: { jobId: string; side: 'customer' | 'ment
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       {children}
-    </div>
+    </Page>
   )
 }

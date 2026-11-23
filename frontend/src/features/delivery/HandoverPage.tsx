@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { CopyRunBanner } from './CopyRunBanner'
 import { useCopyingHandover, useHandover, useHandovers, type HandoverList } from './deliveryApi'
 import { DeliveryReportView } from './DeliveryReportView'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-5 "Bàn giao" (FR-32, UX-DR53, UX-DR68): the Job's handovers and, when one is chosen, its Delivery
@@ -105,7 +106,7 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       {header ?? (
         <div className="flex flex-col gap-1">
           <Link to={`/cong-viec/${jobId}`} className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline">
@@ -137,7 +138,7 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
           </div>
         )}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

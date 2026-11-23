@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { useMarkAllRead, useNotifications, useUnreadCount } from './hooks'
 import { NotificationItemRow } from './NotificationItemRow'
+import { Page } from '@/components/ui/page'
 
 /**
  * ALL-1 (`/thong-bao`): the notifications of the last 90 days, newest first, with "Đánh dấu đã đọc
@@ -22,7 +23,7 @@ export function NotificationsPage() {
   const items = notifications.data?.pages.flatMap((page) => page.items) ?? []
 
   return (
-    <div className="mx-auto flex max-w-reading-max flex-col gap-4 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageHeading>{t('screen.shared.notifications.heading')}</PageHeading>
         <Button
@@ -69,6 +70,6 @@ export function NotificationsPage() {
           </Button>
         )}
       </RegionState>
-    </div>
+    </Page>
   )
 }

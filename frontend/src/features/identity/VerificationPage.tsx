@@ -16,6 +16,7 @@ import { GitHubNoticeDialog } from './GitHubNoticeDialog'
 import { useGitHubLink, useUnlinkGitHub, type GitHubLink, type GitHubLinkBlocker } from './githubApi'
 import { ProfileTabs } from './ProfileTabs'
 import { StudentEmailRow } from './StudentEmailRow'
+import { Page } from '@/components/ui/page'
 
 /** What GitHub's return says in ACC-2's address (`?ket-qua=…` or `?loi=…`), as the backend writes it. */
 const RESULTS = ['da-lien-ket']
@@ -43,7 +44,7 @@ export function VerificationPage() {
     }
   }, [params, setParams])
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <div className="flex flex-col gap-3">
         <PageHeading>{t('screen.verification.heading')}</PageHeading>
         <ProfileTabs />
@@ -67,7 +68,7 @@ export function VerificationPage() {
         {link.data && <GitHubRow link={link.data} />}
       </RegionState>
       <StudentEmailRow />
-    </div>
+    </Page>
   )
 }
 

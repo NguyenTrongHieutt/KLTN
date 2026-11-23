@@ -1,5 +1,5 @@
 import { Menu } from '@base-ui/react/menu'
-import { Check } from 'lucide-react'
+import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { t, type MessageKey } from '@/i18n/t'
 import { applyTheme, DEFAULT_THEME, type ThemeChoice } from '@/theme/accountTheme'
@@ -8,10 +8,10 @@ import { initials } from './personText'
 import { useSaveTheme } from './profileApi'
 import { useSignOut } from './useSession'
 
-const THEMES: { value: ThemeChoice; label: MessageKey }[] = [
-  { value: 'LIGHT', label: 'theme.light' },
-  { value: 'DARK', label: 'theme.dark' },
-  { value: 'SYSTEM', label: 'theme.system' },
+const THEMES: { value: ThemeChoice; label: MessageKey; icon: LucideIcon }[] = [
+  { value: 'LIGHT', label: 'theme.light', icon: Sun },
+  { value: 'DARK', label: 'theme.dark', icon: Moon },
+  { value: 'SYSTEM', label: 'theme.system', icon: Monitor },
 ]
 
 const item =
@@ -55,7 +55,22 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
-          <Menu.Popup className="min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+          <Menu.Popup className="w-72 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+            <div className="flex items-center gap-3 px-3 pt-2 pb-3">
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-label font-bold text-primary"
+              >
+                {initials(login)}
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-label font-semibold">{session.displayName ?? login}</span>
+                {session.githubLogin && (
+                  <span className="truncate text-caption text-muted-foreground">@{session.githubLogin}</span>
+                )}
+              </span>
+            </div>
+            <Menu.Separator className="mb-1 h-px bg-border" />
             {PAGES.map((page) => (
               <Menu.Item key={page.to} className={item} onClick={() => navigate(page.to)}>
                 {t(page.label)}
@@ -65,14 +80,20 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
               <Menu.GroupLabel className="px-3 pt-2 pb-1 text-caption text-muted-foreground">
                 {t('shell.theme')}
               </Menu.GroupLabel>
-              <Menu.RadioGroup value={theme} onValueChange={(value) => chooseTheme(value as ThemeChoice)}>
+              {/* DESIGN.md Theme toggle: a three-option segmented control, each option with its icon. */}
+              <Menu.RadioGroup
+                value={theme}
+                onValueChange={(value) => chooseTheme(value as ThemeChoice)}
+                className="mx-2 mb-1 flex gap-1 rounded-md bg-muted p-1"
+              >
                 {THEMES.map((choice) => (
-                  <Menu.RadioItem key={choice.value} value={choice.value} className={item} disabled={offline}>
-                    <span className="flex size-4 items-center justify-center">
-                      <Menu.RadioItemIndicator>
-                        <Check aria-hidden="true" className="size-4" />
-                      </Menu.RadioItemIndicator>
-                    </span>
+                  <Menu.RadioItem
+                    key={choice.value}
+                    value={choice.value}
+                    disabled={offline}
+                    className="flex min-h-tap-min flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-sm px-1 text-caption text-muted-foreground data-checked:bg-card data-checked:font-semibold data-checked:text-primary data-checked:shadow-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:text-foreground data-highlighted:outline-2 data-highlighted:outline-ring"
+                  >
+                    <choice.icon aria-hidden="true" className="size-4" />
                     {t(choice.label)}
                   </Menu.RadioItem>
                 ))}

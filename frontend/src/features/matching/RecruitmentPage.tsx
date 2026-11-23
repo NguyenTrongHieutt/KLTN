@@ -43,6 +43,7 @@ import { FitMetricsList } from './FitMetrics'
 import { MentorJobTabs } from './MentorJobTabs'
 import { useMentorJob, type MentorJob } from './mentorJobApi'
 import { ProofList } from './ProofList'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-9 Tuyển thành viên (`/cong-viec/{jobId}/tuyen-thanh-vien`, FR-75, FR-81, UX-DR102, Story 21.4), for the Job's
@@ -72,11 +73,11 @@ export function RecruitmentPage() {
     refetch: () => Promise.all([recruitment.refetch(), job.refetch()]),
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={both} skeleton={<Skeleton className="h-96 w-full" />}>
         {recruitment.data && job.data && <Recruiting job={job.data} recruitment={recruitment.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

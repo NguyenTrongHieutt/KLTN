@@ -18,6 +18,7 @@ import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
 import { hasStarted } from '@/features/job/jobState'
 import { ProgressOverview } from './ProgressOverview'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before
@@ -36,11 +37,11 @@ export function CrewJobPage({ jobId }: { jobId: string }) {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={crew} skeleton={<Skeleton className="h-24 w-full" />}>
         {crew.data && <Content me={crew.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

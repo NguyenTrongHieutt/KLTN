@@ -32,6 +32,7 @@ import {
   type JobDraft,
   type JobType,
 } from './jobApi'
+import { Page } from '@/components/ui/page'
 
 /** The answers publishing needs besides the title, in the order CUS-6 asks them (FR-9). */
 const REQUIRED = ['problem', 'expected', 'appUsers', 'jobTypes', 'budget', 'deadline'] as const
@@ -80,7 +81,7 @@ export function JobFormPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       {jobId ? (
         <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
           {job.data && <ProductStep productId={job.data.productId} job={job.data} />}
@@ -88,7 +89,7 @@ export function JobFormPage() {
       ) : (
         productId && <ProductStep productId={productId} />
       )}
-    </div>
+    </Page>
   )
 }
 

@@ -150,6 +150,8 @@
   --spacing-control-compact: 36px;
   --container-content-max: 1120px;
   --container-reading-max: 720px;
+  /* A centered reading column with its gutters (the focused task routes): 720 + 2 x 24. */
+  --container-reading-frame: 768px;
 
   /*
    * DESIGN.md Typography: the ramp, in rem so text follows the reader's font-size setting (WCAG
@@ -197,6 +199,8 @@
   html {
     @apply font-sans;
     color-scheme: light;
+    /* The page keeps its place whether or not it scrolls, so nothing shifts sideways between screens. */
+    scrollbar-gutter: stable;
   }
 
   html.dark {

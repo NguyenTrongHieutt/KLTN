@@ -6,6 +6,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { t } from '@/i18n/t'
 import { redirectTo } from '@/lib/redirect'
 import { useSetup } from './setupApi'
+import { Page } from '@/components/ui/page'
 
 /**
  * Where the Customer's read invitation to-do and notification lead (R5, UX-DR118, Story 23.7):
@@ -25,7 +26,7 @@ export function IntermediaryInvitationPage() {
   }, [url])
   const settled = setup.isError || (setup.data !== undefined && !url)
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <PageHeading>{t('screen.job.intermediary.title')}</PageHeading>
       <div className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-card px-6 py-10 text-center">
         <FolderGit2 aria-hidden="true" className="size-12 text-muted-foreground" />
@@ -53,6 +54,6 @@ export function IntermediaryInvitationPage() {
           </>
         )}
       </div>
-    </div>
+    </Page>
   )
 }

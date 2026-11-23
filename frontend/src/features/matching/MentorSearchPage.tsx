@@ -38,6 +38,7 @@ import {
 } from './invitationApi'
 import { useMentorRecommendations, type RecommendedMentor } from './recommendationApi'
 import { SignalChips } from './SignalChips'
+import { Page } from '@/components/ui/page'
 
 /** The keyword and Skill filter in the URL, as on MEN-2 (UX-DR72, UX-DR75). */
 const PARAMS = { q: 'q', skills: 'ky-nang', categories: 'nhom-ky-nang', page: 'trang' }
@@ -85,11 +86,11 @@ export function MentorSearchPage() {
     return <Navigate to={`/cong-viec/${job.data.id}/ung-tuyen`} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <FindMentors job={job.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { SESSION_QUERY_KEY } from '@/features/identity/api'
 import { GitHubGate } from '@/features/identity/GitHubGate'
 import { t } from '@/i18n/t'
+import { Page } from '@/components/ui/page'
 
 /**
  * "Tìm việc" (X1) behind the GitHub gate (UX-DR95, FR-80, Story 20.1): the session's capabilities say GitHub is
@@ -14,7 +15,7 @@ import { t } from '@/i18n/t'
  */
 export function FindWorkGate({ returnTo }: { returnTo: string }) {
   return (
-    <div className="mx-auto flex max-w-[1000px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <PageHeading>{t('screen.jobPost.heading')}</PageHeading>
       <GitHubGate
         action={t('screen.githubGate.action.findWork')}
@@ -24,7 +25,7 @@ export function FindWorkGate({ returnTo }: { returnTo: string }) {
       >
         <ReadSessionAgain />
       </GitHubGate>
-    </div>
+    </Page>
   )
 }
 

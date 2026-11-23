@@ -34,6 +34,7 @@ import {
 } from './productApi'
 import { TOOL_DOCS, TOOLS, checkProblem, domainOf, megabytes } from './productText'
 import { OutLink, SecretGuidance, WorkflowFileActions } from './WorkflowSetup'
+import { Page } from '@/components/ui/page'
 
 const NOTICE_VERSION = (vi as { notice: { product: { version: string } } }).notice.product.version
 
@@ -162,7 +163,7 @@ function Wizard() {
   const leave = () => writeDraft({ step: 2, tools, url, values })
   return (
     <TermScope>
-      <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+      <Page width="focused">
         <div className="flex flex-col gap-2">
           <p className="text-label text-muted-foreground">{t('screen.product.wizard.step', { n: step })}</p>
           <div
@@ -221,7 +222,7 @@ function Wizard() {
             onGate={toGate}
           />
         )}
-      </div>
+      </Page>
     </TermScope>
   )
 }

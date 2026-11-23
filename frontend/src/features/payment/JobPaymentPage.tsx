@@ -39,6 +39,7 @@ import { RefundLine } from './RefundLine'
 import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
 import { hasStarted } from '@/features/job/jobState'
+import { Page } from '@/components/ui/page'
 
 const STATE_TONE: Record<string, string> = {
   PLANNED: 'bg-warning-soft text-warning',
@@ -88,7 +89,7 @@ function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
   }
   const lines = balance.data?.lines.filter((line) => line.jobId === jobId) ?? []
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <div className="flex flex-col gap-3">
         <Link
           to={`/cong-viec/${jobId}`}
@@ -118,7 +119,7 @@ function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
             ))}
         </RegionState>
       </section>
-    </div>
+    </Page>
   )
 }
 
@@ -130,7 +131,7 @@ function MentorPayment({ jobId }: { jobId: string }) {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && (
           <JobHeader title={job.data.title} state={job.data.state} meta={mentorMeta(job.data)}>
@@ -142,7 +143,7 @@ function MentorPayment({ jobId }: { jobId: string }) {
       <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
         {funding.data && <MentorFunding funding={funding.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 
@@ -268,7 +269,7 @@ function CustomerPayment({ jobId }: { jobId: string }) {
     return <Navigate to={`/cong-viec/${job.data.id}`} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && <Header job={job.data} />}
       </RegionState>
@@ -276,7 +277,7 @@ function CustomerPayment({ jobId }: { jobId: string }) {
       <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
         {funding.data && <Funding funding={funding.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

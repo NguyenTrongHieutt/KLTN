@@ -9,6 +9,7 @@ import { useBalance, type Balance } from './paymentApi'
 import { PartLines } from './PartLines'
 import { hasMentorLine } from './partText'
 import { TestModeBanner } from './TestModeBanner'
+import { Page } from '@/components/ui/page'
 
 /**
  * MEN-7, which STU-7 merged into (`/so-du`, FR-44, FR-45, AD-15, Story 22.5): N-13's banner, the Balance, the sum of
@@ -21,13 +22,13 @@ export function BalancePage() {
   usePageTitle(t('screen.payment.balance.title'))
   const balance = useBalance()
   return (
-    <div className="mx-auto flex max-w-[960px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <PageHeading>{t('screen.payment.balance.title')}</PageHeading>
       <TestModeBanner balance />
       <RegionState query={balance} skeleton={<Skeleton className="h-64 w-full" />}>
         {balance.data && <Content balance={balance.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 
