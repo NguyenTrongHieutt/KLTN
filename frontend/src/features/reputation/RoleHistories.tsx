@@ -35,7 +35,7 @@ function RoleHistory({
   const id = useId()
   const held = history.jobs > 0 || history.count > 0 || history.portfolio.length > 0
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <section aria-labelledby={id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <LevelHeading level={level} id={id} className="text-h3">
         {t(role === 'mentor' ? 'screen.person.asMentor' : 'screen.person.asCrew')}
       </LevelHeading>

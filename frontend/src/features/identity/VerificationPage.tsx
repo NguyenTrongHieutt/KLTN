@@ -77,7 +77,7 @@ function GitHubRow({ link }: { link: GitHubLink }) {
   const [notice, setNotice] = useState(false)
   const status = link.linked ? 'linked' : 'notLinked'
   return (
-    <section aria-labelledby="github-heading" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="github-heading" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <h2 id="github-heading" className="text-h3">
           {t('screen.verification.github.name')}
@@ -85,7 +85,7 @@ function GitHubRow({ link }: { link: GitHubLink }) {
         <span className="text-caption text-muted-foreground">{t('screen.verification.github.required')}</span>
         <span
           className={cn(
-            'rounded-full px-2 py-0.5 text-caption font-semibold',
+            'rounded-full px-2.5 py-0.5 text-caption font-semibold',
             status === 'linked' && 'bg-success-soft text-success',
             status === 'notLinked' && 'bg-muted text-foreground',
           )}

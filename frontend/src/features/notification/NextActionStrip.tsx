@@ -25,7 +25,7 @@ export function NextActionStrip({ jobId }: { jobId?: string }) {
   return (
     <section
       aria-label={t('screen.shared.todo.stripLabel')}
-      className="border-b border-primary-border border-l-4 border-l-primary bg-primary-soft"
+      className="rounded-md border-b border-primary-border border-l-4 border-l-primary bg-primary-soft"
     >
       <div className="mx-auto flex min-h-strip-min-height max-w-content-max flex-wrap items-center gap-x-4 gap-y-2 px-gutter-mobile py-2 md:px-gutter-desktop">
         <div className="flex min-w-0 grow flex-col gap-0.5">

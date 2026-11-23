@@ -127,7 +127,7 @@ function Part({ line }: { line: BalanceLine }) {
 function Pending({ line }: { line: BalanceLine }) {
   return (
     <div className="flex flex-col items-start gap-1">
-      <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', pendingTone(line.status))}>
+      <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', pendingTone(line.status))}>
         {pendingText(line.status)}
       </span>
       <p className="text-caption text-muted-foreground">

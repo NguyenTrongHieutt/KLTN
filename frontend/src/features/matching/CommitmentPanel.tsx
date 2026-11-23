@@ -96,7 +96,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
       },
     })
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id={`${ids}-heading`} className="text-h2">
           {t('screen.commitment.title')}
@@ -106,7 +106,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
           {t('screen.commitment.due', { date: due })}
         </span>
       </div>
-      <div role="note" className="rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+      <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
         {t('screen.commitment.n19', {
           mentor: commitment.mentorName,
           job: commitment.jobTitle,
@@ -223,7 +223,7 @@ function Ended({ commitment }: { commitment: Commitment }) {
   const joined = commitment.status === 'JOINED'
   const key = joined ? 'screen.commitment.joined' : (ENDED[commitment.endReason ?? ''] ?? 'screen.commitment.ended.other')
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <p className="text-label font-semibold">{t(key, { job: commitment.jobTitle })}</p>
       {joined ? (
         <Link to={`/cong-viec/${commitment.jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>

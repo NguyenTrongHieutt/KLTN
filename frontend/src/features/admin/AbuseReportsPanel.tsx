@@ -38,7 +38,7 @@ export function AbuseReportsPanel() {
       <RegionState query={reports} skeleton={<Skeleton className="h-64 w-full" />}>
         {reports.data &&
           (reports.data.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">
+            <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
               {t('screen.admin.reports.empty')}
             </p>
           ) : (
@@ -102,7 +102,7 @@ function Detail({ data }: { data: AbuseReport }) {
   const [error, setError] = useState<string>()
   const open = data.status === 'OPEN'
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <div className="flex flex-col gap-1">
         <span className="text-caption text-muted-foreground">{t(`screen.admin.reports.kind.${data.kind}` as MessageKey)}</span>
         <h2 className="text-h2 break-words">{data.label}</h2>

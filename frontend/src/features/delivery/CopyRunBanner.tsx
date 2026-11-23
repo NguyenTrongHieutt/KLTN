@@ -32,7 +32,7 @@ export function CopyRunBanner({ submission }: { submission: HandoverSubmission }
     <div
       role="status"
       aria-live="polite"
-      className="flex w-full flex-col gap-2 rounded-md border-l-4 border-primary bg-primary-soft p-3"
+      className="flex w-full flex-col gap-2 rounded-md border-l-4 border-info bg-info-soft p-4"
     >
       <p className="flex items-center gap-2 text-body-sm">
         <LoaderCircle

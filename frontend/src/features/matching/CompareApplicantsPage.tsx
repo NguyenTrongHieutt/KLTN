@@ -152,7 +152,7 @@ function Applicants({ jobId }: { jobId: string }) {
           extra={(application) =>
             application.status === 'PICKED' &&
             application.signDueAt && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-normal">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-normal">
                 {t('screen.recruitment.pickedChip', { date: formatDayMonth(application.signDueAt) })}
               </span>
             )

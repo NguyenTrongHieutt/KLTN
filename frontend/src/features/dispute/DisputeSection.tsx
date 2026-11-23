@@ -53,7 +53,7 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
       <div
         id="tranh-chap"
         role="status"
-        className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm"
+        className="flex gap-3 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm"
       >
         <Snowflake aria-hidden="true" className="size-5 shrink-0 text-primary" />
         <div className="flex min-w-0 grow flex-col gap-1">

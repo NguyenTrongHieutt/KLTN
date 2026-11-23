@@ -67,7 +67,7 @@ export function SkillSuggestionsPanel({ categories }: { categories: Category[] }
   const [declining, setDeclining] = useState<Suggestion>()
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id={`${ids}-heading`} className="text-h2">
         {t('screen.admin.catalog.suggestions.heading')}
       </h2>

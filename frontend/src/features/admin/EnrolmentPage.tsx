@@ -69,10 +69,10 @@ export function EnrolmentPage() {
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="flex min-h-14 items-center gap-2 border-b border-border bg-card px-gutter-mobile md:px-gutter-desktop">
         <span className="text-h3 font-bold">vibefix</span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
       </header>
       <main id="main" className="flex flex-1 justify-center px-gutter-mobile py-12">
-        <div className="flex w-full max-w-[520px] flex-col gap-4 self-start rounded-lg border border-border bg-card p-6 md:p-8">
+        <div className="flex w-full max-w-[520px] flex-col gap-4 self-start rounded-lg border border-border bg-card p-4 md:p-5">
           <PageHeading>{t('screen.admin.enrolment.heading')}</PageHeading>
           {enrolment.isPending ? (
             <Skeleton className="h-48 w-full" />
@@ -99,7 +99,7 @@ export function EnrolmentPage() {
               <form noValidate onSubmit={submit} className="flex flex-col gap-4">
                 <h2 className="text-h3">{t('screen.admin.enrolment.step2')}</h2>
                 {refusal && (
-                  <p role="alert" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+                  <p role="alert" className="rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
                     {refusal}
                   </p>
                 )}

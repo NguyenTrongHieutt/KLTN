@@ -47,17 +47,17 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         </StatusBadge>
       </header>
       {report.acceptance === 'MERGING' && (
-        <p role="status" className="rounded-md border-l-4 border-primary bg-primary-soft p-3 text-body-sm">
+        <p role="status" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           {t('screen.handover.acceptance.merging', { n: report.number })}
         </p>
       )}
       {report.acceptance === 'FAILED' && (
-        <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+        <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           {t('screen.handover.acceptance.failed')}
         </p>
       )}
       {(report.status === 'VOIDED' || report.acceptance === 'VOIDED') && (
-        <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+        <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <span>{t('reason.delivery.HANDOVER_VOIDED')}</span>
           {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
         </p>
@@ -74,7 +74,7 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
       {report.decision && (
         <section
           aria-label={t('screen.handover.check.nextAction')}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-primary bg-primary-soft p-4 text-body-sm"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-info bg-info-soft p-4 text-body-sm"
         >
           <span>
             {report.decision.revisionAllowed
@@ -96,7 +96,7 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         </h3>
         <ol className="flex flex-col gap-3">
           {report.criteria.map((criterion) => (
-            <li key={criterion.criterionId} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-body-sm">
+            <li key={criterion.criterionId} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
               <p className="font-semibold break-words">
                 {t('screen.handover.report.criterion', { n: criterion.number, statement: criterion.statement })}
               </p>
@@ -144,7 +144,7 @@ function EvidenceSection({ report }: { report: DeliveryReport }) {
     return null
   }
   return (
-    <section aria-labelledby="delivery-evidence" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-body-sm">
+    <section aria-labelledby="delivery-evidence" className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h3 id="delivery-evidence" className="text-h3">
         {t('screen.handover.links.title')}
       </h3>
@@ -208,7 +208,7 @@ function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) 
   return (
     <>
       <SensitiveChangeList changes={code.sensitiveChanges} headingId="delivery-sensitive" />
-      <details className="rounded-lg border border-border bg-card p-4 text-body-sm">
+      <details className="rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <summary className="cursor-pointer font-semibold">{t('screen.handover.code.technical')}</summary>
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-caption text-muted-foreground">{t('screen.handover.code.technicalLead')}</p>

@@ -64,7 +64,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
     <section
       id="huy-cong-viec"
       aria-labelledby={`${ids}-title`}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5"
     >
       <h2 id={`${ids}-title`} className="text-h2">
         {t('screen.cancellation.heading')}

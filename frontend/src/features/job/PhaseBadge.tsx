@@ -8,7 +8,7 @@ export function PhaseBadge({ phase, className }: { phase: JobPhase | undefined; 
     return null
   }
   return (
-    <span className={cn('w-fit rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary', className)}>
+    <span className={cn('w-fit rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info', className)}>
       {phaseText(phase)}
     </span>
   )

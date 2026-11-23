@@ -44,7 +44,7 @@ export function ActionsRunRow({
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-body-sm font-semibold break-words">{purpose}</span>
-        <span className={cn('w-fit rounded-full px-2 py-0.5 text-caption font-semibold', TONES[state])}>
+        <span className={cn('w-fit rounded-full px-2.5 py-0.5 text-caption font-semibold', TONES[state])}>
           <span className="sr-only">{t('screen.job.actionsRun.statePrefix')} </span>
           {t(`screen.job.actionsRun.state${state}` as MessageKey)}
         </span>

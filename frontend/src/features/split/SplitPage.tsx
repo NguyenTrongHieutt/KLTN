@@ -117,7 +117,7 @@ function Card({ jobId, card, focused }: { jobId: string; card: SplitCard; focuse
       ref={ref}
       aria-labelledby={`split-${card.splitId}`}
       className={cn(
-        'flex flex-col gap-3 rounded-lg border border-border bg-card p-4',
+        'flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5',
         focused && 'ring-2 ring-primary',
       )}
     >

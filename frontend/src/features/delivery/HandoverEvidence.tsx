@@ -81,7 +81,7 @@ export function EvidenceFields({
   return (
     <>
       {!assessment && <PreviewFields jobId={jobId} required={required} value={value} onChange={onChange} />}
-      <section aria-labelledby={`${ids}-evidence`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+      <section aria-labelledby={`${ids}-evidence`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id={`${ids}-evidence`} className="text-h2">
           {t('screen.handover.links.title')}
         </h2>
@@ -221,7 +221,7 @@ function PreviewFields({
   const unreachable = result && !result.reachable ? t('reason.delivery.PREVIEW_UNREACHABLE') : undefined
 
   return (
-    <section aria-labelledby={`${ids}-preview`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <section aria-labelledby={`${ids}-preview`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id={`${ids}-preview`} className="text-h2">
         <TermHint term="previewLink" />
       </h2>

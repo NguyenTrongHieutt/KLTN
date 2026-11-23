@@ -48,7 +48,7 @@ export function DeleteProduct({ product }: { product: Product }) {
       },
     })
   return (
-    <section aria-labelledby="delete-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="delete-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="delete-heading" className="text-h3">
         {t('screen.product.detail.deleteHeading')}
       </h2>

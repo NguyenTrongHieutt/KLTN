@@ -25,7 +25,7 @@ function Content({ jobId, portfolio }: { jobId: string; portfolio: JobPortfolio 
   const date = portfolio.decideBy ? formatDayMonth(portfolio.decideBy) : ''
   const status = portfolio.summaryStatus
   return (
-    <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id={`${ids}-title`} className="text-h2">
         {t('screen.portfolioSection.heading')}
       </h2>

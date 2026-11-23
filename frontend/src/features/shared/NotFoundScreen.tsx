@@ -14,7 +14,7 @@ export function NotFoundScreen() {
 
   return (
     <div className="mx-auto max-w-reading-max px-gutter-mobile py-section-gap md:px-gutter-desktop">
-      <section className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+      <section className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         <SearchX aria-hidden="true" className="size-12 text-muted-foreground" />
         <PageHeading className="text-h2">{t('screen.shared.notFound.heading')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.shared.notFound.detail')}</p>

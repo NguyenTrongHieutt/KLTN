@@ -218,7 +218,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
         {t('screen.closure.finalMerge.reviewLead')}
       </p>
       {blocked && (
-        <div role="note" className="flex flex-col gap-1 rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+        <div role="note" className="flex flex-col gap-1 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <p className="flex items-center gap-2 font-semibold">
             <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-warning" />
             {t('screen.closure.finalMerge.workflowsTitle')}

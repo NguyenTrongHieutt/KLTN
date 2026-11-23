@@ -114,7 +114,7 @@ function Detail({ data }: { data: AdminDispute }) {
   const [error, setError] = useState<string>()
   const fail = (failure: unknown) => setError(problemMessage(failure, { module: 'dispute' }).text)
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h2 className="text-h2 break-words">{data.jobTitle}</h2>
       <p className="text-caption text-muted-foreground">
         {t(`screen.admin.disputes.openedBy.${data.openedBy}` as MessageKey)} · {formatDayMonthTime(data.openedAt)} ·{' '}

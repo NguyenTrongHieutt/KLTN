@@ -110,7 +110,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label={t('screen.admin.shell.navLabel')} className="flex flex-col gap-0.5 px-3 py-4">
       <p className="flex items-center gap-2 px-3 pb-4">
         <span className="text-h3 font-bold text-primary">{t('app.name')}</span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
       </p>
       {ADMIN_DESTINATIONS.map((destination) => (
         <NavLink

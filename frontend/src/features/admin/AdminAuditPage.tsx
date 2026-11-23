@@ -78,7 +78,7 @@ export function AdminAuditPage() {
       <RegionState query={entries} skeleton={<Skeleton className="h-64 w-full" />}>
         {entries.data &&
           (entries.data.items.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">{t('screen.admin.audit.empty')}</p>
+            <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">{t('screen.admin.audit.empty')}</p>
           ) : (
             <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
               <table className="w-full text-left text-body-sm">

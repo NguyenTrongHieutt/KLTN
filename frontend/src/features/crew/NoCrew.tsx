@@ -40,7 +40,7 @@ export function NoCrewAlert({ jobId, mentor }: { jobId: string; mentor: string }
     return null
   }
   return (
-    <div role="status" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+    <div role="status" className="flex gap-3 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
       <Info aria-hidden="true" className="size-5 shrink-0 text-primary" />
       <p className="break-words">{t('screen.crew.noCrew.customer', { mentor })}</p>
     </div>

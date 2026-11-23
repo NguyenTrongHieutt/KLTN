@@ -57,7 +57,7 @@ export function AdminOverviewPage() {
           {lowFeedback && (
             <Link
               to="/quan-tri/nguoi-dung?status=LOW_FEEDBACK"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.lowFeedback')}</p>
               <p className={cn('text-h1', lowFeedback.count > 0 && 'text-warning')}>{lowFeedback.count}</p>
@@ -67,7 +67,7 @@ export function AdminOverviewPage() {
           {overview.data?.teamIssues && (
             <Link
               to="/quan-tri/khieu-nai-noi-bo"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.teamIssues')}</p>
               <p className={cn('text-h1', overview.data.teamIssues.count > 0 && 'text-warning')}>{overview.data.teamIssues.count}</p>
@@ -81,7 +81,7 @@ export function AdminOverviewPage() {
           {overview.data?.splitResolutions && (
             <Link
               to="/quan-tri/tranh-chap/phan-chia"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.splitResolutions')}</p>
               <p className={cn('text-h1', overview.data.splitResolutions.count > 0 && 'text-warning')}>
@@ -97,7 +97,7 @@ export function AdminOverviewPage() {
           {overview.data?.skillSuggestions && (
             <Link
               to="/quan-tri/ky-nang?tab=de-xuat"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary"
+              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.skillSuggestions')}</p>
               <p className="text-h1">{overview.data.skillSuggestions.count}</p>
@@ -109,7 +109,7 @@ export function AdminOverviewPage() {
             </Link>
           )}
           {failed && (
-            <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 hover:border-primary">
+            <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5">
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.failedOperations')}</p>
               <p className={cn('text-h1', failed.count > 0 && 'text-destructive')}>{failed.count}</p>
               <p className="text-caption text-muted-foreground">
@@ -147,7 +147,7 @@ function AlertList({ items, stalled }: { items: NotificationItem[]; stalled?: { 
     <ul className="divide-y divide-border rounded-lg border border-border bg-card text-body-sm">
       {system && (
         <li className="flex flex-wrap items-center gap-3 px-4 py-3">
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
+          <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
             {t('screen.admin.overview.system')}
           </span>
           <p className="min-w-0 grow">{t('screen.admin.overview.stalledEvents', { n: stalled.count })}</p>
@@ -158,7 +158,7 @@ function AlertList({ items, stalled }: { items: NotificationItem[]; stalled?: { 
         const category = CATEGORY[item.type] ?? INFO
         return (
           <li key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', category.tone)}>{t(category.label)}</span>
+            <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', category.tone)}>{t(category.label)}</span>
             <p className="min-w-0 grow">{notificationTitle(item)}</p>
             <span className="text-caption text-muted-foreground">{formatDayMonthTime(item.createdAt)}</span>
           </li>

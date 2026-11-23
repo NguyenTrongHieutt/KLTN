@@ -116,7 +116,7 @@ function Overview({ job }: { job: Job }) {
       {job.mentor && <NoCrewAlert jobId={job.id} mentor={job.mentor.displayName} />}
       <LeaverRevocations jobId={job.id} />
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (
-        <section aria-labelledby="job-selecting" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+        <section aria-labelledby="job-selecting" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
           <h2 id="job-selecting" className="text-h2">
             {t('screen.matching.selecting.title', { mentor: job.mentor.displayName })}
           </h2>
@@ -181,7 +181,7 @@ function Overview({ job }: { job: Job }) {
 
 function LapseChip({ lapsesAt }: { lapsesAt: string }) {
   return (
-    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
+    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
       <Clock aria-hidden="true" className="size-4" />
       {t('screen.job.detail.lapsesChip', { date: formatDayMonth(lapsesAt) })}
     </span>
@@ -196,7 +196,7 @@ function NextSteps({ lapsesAt, jobId, applications }: { lapsesAt: string; jobId:
     ['nextSign', 'nextSignBody'],
   ] as const
   return (
-    <section aria-labelledby="job-applications" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="job-applications" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="job-applications" className="text-h2">
           {applications > 0
@@ -245,7 +245,7 @@ function JobPost({ job }: { job: Job }) {
     ['doneCheck', job.doneCheck],
   ] as const
   return (
-    <section aria-labelledby="job-post" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="job-post" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="job-post" className="text-h2">
         {t('screen.job.detail.postTitle')}
       </h2>
@@ -262,7 +262,7 @@ function JobPost({ job }: { job: Job }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-label font-semibold text-body-sm">{t('screen.job.detail.skills')}</span>
           {job.skills.map((skill) => (
-            <span key={skill.id} className="rounded-full bg-muted px-2 py-0.5 text-caption">
+            <span key={skill.id} className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
               {skill.name}
             </span>
           ))}
@@ -289,18 +289,18 @@ function JobPost({ job }: { job: Job }) {
 function Aside({ job, lapsesAt }: { job: Job; lapsesAt: string }) {
   return (
     <aside className="flex flex-col gap-4">
-      <section aria-labelledby="job-upcoming" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+      <section aria-labelledby="job-upcoming" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h3 id="job-upcoming" className="text-h3">
           {t('screen.job.detail.upcoming')}
         </h3>
         <div className="flex items-center justify-between gap-2 text-body-sm">
           <span>{t('screen.job.detail.lapses')}</span>
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
+          <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
             {formatDayMonth(lapsesAt)}
           </span>
         </div>
       </section>
-      <section aria-labelledby="job-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 text-body-sm">
+      <section aria-labelledby="job-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <h3 id="job-product" className="text-h3">
           {t('screen.job.detail.product')}
         </h3>

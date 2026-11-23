@@ -63,7 +63,7 @@ function Outcome({ order, slow }: { order: PaymentOrder; slow: boolean }) {
   const outcome = OUTCOME[order.status]
   return (
     <>
-      <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-8 text-center">
+      <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         {outcome === undefined ? (
           <LoaderCircle aria-hidden="true" className="size-12 animate-spin text-primary" />
         ) : outcome.tone === 'ok' ? (

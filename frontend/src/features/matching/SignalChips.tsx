@@ -29,7 +29,7 @@ export function SignalChips({ signals, extra }: { signals: Signals; extra?: Reac
   return (
     <ul className="flex flex-wrap gap-1.5">
       {chips.map((chip) => (
-        <li key={chip} className="rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
+        <li key={chip} className="rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info">
           {chip}
         </li>
       ))}

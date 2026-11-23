@@ -60,7 +60,7 @@ export function AgreementContentView({
   return (
     <>
       {!content.assessment && (
-        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
           <Commentable review={review} kind="SCOPE" label={t('screen.agreement.review.target.SCOPE')}>
             <h2 className="text-h2">{t('screen.agreement.scope')}</h2>
           </Commentable>
@@ -69,7 +69,7 @@ export function AgreementContentView({
           {content.skills.length > 0 && (
             <ul className="flex flex-wrap gap-1.5">
               {content.skills.map((skill) => (
-                <li key={skill.id} className="rounded-full bg-muted px-2 py-0.5 text-caption">
+                <li key={skill.id} className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
                   {skill.name}
                 </li>
               ))}
@@ -95,7 +95,7 @@ export function AgreementContentView({
         </p>
       </section>
       {content.externalAccess.length > 0 && (
-        <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
           <h2 className="text-h2">{t('screen.agreement.externalAccess')}</h2>
           <ul className="flex flex-col gap-3 text-body-sm">
             {content.externalAccess.map((entry) => {
@@ -114,7 +114,7 @@ export function AgreementContentView({
                       </span>
                       <span
                         className={cn(
-                          'rounded-full px-2 py-0.5 text-caption font-semibold',
+                          'rounded-full px-2.5 py-0.5 text-caption font-semibold',
                           live ? 'bg-destructive-soft text-destructive' : 'bg-muted',
                         )}
                       >
@@ -156,7 +156,7 @@ function MilestoneView({
 }) {
   const label = t('screen.agreement.review.target.MILESTONE', { n: index + 1, title: milestone.title })
   return (
-    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <Commentable
         review={review}
         kind="MILESTONE"
@@ -279,7 +279,7 @@ function Commentable({
         )}
       </div>
       {comments.map((comment) => (
-        <p key={comment.id} className="rounded-md border-l-4 border-primary bg-primary-soft px-3 py-2 text-body-sm">
+        <p key={comment.id} className="rounded-md border-l-4 border-info bg-info-soft px-3 py-2 text-body-sm">
           <span className="block text-caption text-muted-foreground">
             {t('screen.agreement.review.yourComment', { time: formatDayMonthTime(comment.createdAt) })}
           </span>

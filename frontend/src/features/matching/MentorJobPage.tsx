@@ -77,7 +77,7 @@ function Overview({ job }: { job: MentorJob }) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
           <NdaPanel job={job} />
           <aside className="flex flex-col gap-4">
-            <section aria-labelledby="after-signing" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+            <section aria-labelledby="after-signing" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
               <h3 id="after-signing" className="text-h3">
                 {t('screen.nda.afterTitle')}
               </h3>
@@ -87,7 +87,7 @@ function Overview({ job }: { job: MentorJob }) {
                 <li>{t('screen.nda.afterCrew')}</li>
               </ol>
             </section>
-            <section aria-labelledby="customer-sees" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 text-body-sm">
+            <section aria-labelledby="customer-sees" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
               <h3 id="customer-sees" className="text-h3">
                 {t('screen.nda.customerSeesTitle')}
               </h3>
@@ -103,7 +103,7 @@ function Overview({ job }: { job: MentorJob }) {
         </>
       ) : (
         <>
-          <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+          <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
             <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>
             <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
           </section>

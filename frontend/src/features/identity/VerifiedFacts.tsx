@@ -83,7 +83,7 @@ export function VerifiedFactChips({ facts }: { facts: VerifiedFact[] }) {
         <li
           key={chip.key}
           className={cn(
-            'rounded-full px-2 py-0.5 text-caption',
+            'rounded-full px-2.5 py-0.5 text-caption font-semibold',
             chip.held ? 'bg-success-soft text-success' : 'bg-muted text-foreground',
           )}
         >

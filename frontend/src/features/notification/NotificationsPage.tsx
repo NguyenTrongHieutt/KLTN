@@ -63,7 +63,7 @@ export function NotificationsPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-10 text-center">
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
             <Bell aria-hidden="true" className="size-12 text-muted-foreground" />
             <p className="text-h3">{t('screen.shared.notifications.empty')}</p>
           </div>

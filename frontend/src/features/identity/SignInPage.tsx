@@ -41,7 +41,7 @@ export function SignInPage() {
   return (
     <TermScope>
       <div className="flex justify-center px-gutter-mobile py-section-gap">
-        <section className="flex w-full max-w-[440px] flex-col gap-5 rounded-lg border border-border bg-card p-6 md:p-8">
+        <section className="flex w-full max-w-[440px] flex-col gap-5 rounded-lg border border-border bg-card p-4 md:p-5">
           <div className="flex flex-col gap-2">
             <PageHeading>{t('screen.public.signIn.heading')}</PageHeading>
             <p className="text-body-sm text-muted-foreground">

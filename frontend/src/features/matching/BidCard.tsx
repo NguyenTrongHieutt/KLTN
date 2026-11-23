@@ -62,7 +62,7 @@ export function BidCard({
             {bidder.displayName}
           </span>
           {application.invited && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-caption">{t('screen.matching.invitedChip')}</span>
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.matching.invitedChip')}</span>
           )}
         </span>
         <span className="text-caption text-muted-foreground">

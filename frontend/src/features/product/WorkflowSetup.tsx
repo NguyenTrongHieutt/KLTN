@@ -196,7 +196,7 @@ export function SourceStatusBadge({ status, className }: { status: SourceStatus;
   return (
     <span
       className={cn(
-        'w-fit rounded-full px-2 py-0.5 text-caption font-semibold',
+        'w-fit rounded-full px-2.5 py-0.5 text-caption font-semibold',
         statusTone(status) === 'success' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning',
         className,
       )}

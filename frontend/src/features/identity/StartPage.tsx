@@ -87,7 +87,7 @@ export function StartPage() {
         <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
         <p className="text-body-sm">{t('screen.public.start.rolePerJob')}</p>
       </div>
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4" aria-labelledby="thong-bao-du-lieu">
+      <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5" aria-labelledby="thong-bao-du-lieu">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="thong-bao-du-lieu" className="text-h2">
             {t('screen.public.start.noticeHeading')}

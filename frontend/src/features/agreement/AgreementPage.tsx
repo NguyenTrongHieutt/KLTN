@@ -187,7 +187,7 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
   const last = draft.versions.at(-1)
 
   return (
-    <div className="flex w-full max-w-[860px] flex-col gap-5 self-center">
+    <div className="flex w-full max-w-reading-max flex-col gap-5">
       <CustomerFeedback
         review={draft.review}
         content={content}
@@ -209,7 +209,7 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
         )}
       </div>
 
-      <section aria-labelledby={`${ids}-scope`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby={`${ids}-scope`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id={`${ids}-scope`} className="text-h2">
           {t('screen.agreement.scope')}
         </h2>
@@ -354,7 +354,7 @@ function MilestoneCard({
   const setCriterion = (c: number, next: Partial<DraftMilestone['criteria'][number]>) =>
     onChange({ criteria: milestone.criteria.map((criterion, other) => (other === c ? { ...criterion, ...next } : criterion)) })
   return (
-    <article aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <article aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 id={`${ids}-title`} className="text-h3">
           {t('screen.agreement.milestone', { n })}
@@ -490,7 +490,7 @@ function AccessEditor({ access, onChange }: { access: DraftAccess[]; onChange: (
   const set = (index: number, next: Partial<DraftAccess>) =>
     onChange(access.map((entry, a) => (a === index ? { ...entry, ...next } : entry)))
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id={`${ids}-heading`} className="text-h2">
         {t('screen.agreement.externalAccess')}
       </h2>

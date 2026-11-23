@@ -70,7 +70,7 @@ function ProductDetail({ product }: { product: Product }) {
       </div>
       <p className="text-body-sm break-words">{product.description}</p>
       <SourceSetupCard product={product} />
-      <section aria-labelledby="product-info-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby="product-info-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id="product-info-heading" className="text-h3">
           {t('screen.product.detail.info')}
         </h2>

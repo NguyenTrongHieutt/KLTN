@@ -12,13 +12,13 @@ import type { MyJob } from './jobRoleApi'
  */
 export function CrewJobCard({ job }: { job: MyJob }) {
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <article className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h3 className="text-h3 break-words">{job.title}</h3>
           <p className="text-caption text-muted-foreground">{job.productName}</p>
         </div>
-        <span className="rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
+        <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success">
           {t('screen.crew.student.activeBadge')}
         </span>
       </div>

@@ -124,7 +124,7 @@ export function ComparisonView<T extends { id: string }>({
         ))}
       </ul>
       {items.map((item) => (
-        <section key={item.id} aria-label={name(item)} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+        <section key={item.id} aria-label={name(item)} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
           {title(item)}
           <dl className="flex flex-col gap-3 text-body-sm">
             {rows.map((row) => (

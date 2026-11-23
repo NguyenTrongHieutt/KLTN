@@ -123,7 +123,7 @@ export function ProfilePage() {
           <>
             <section
               aria-labelledby="typed-heading"
-              className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-6"
+              className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5"
             >
               <div className="flex flex-col gap-1">
                 <h2 id="typed-heading" className="text-h2">
@@ -459,7 +459,7 @@ function TypedForm({ profile }: { profile: Profile }) {
 /** "Tự khai": what the person typed, which nothing checked. */
 function SelfDeclared() {
   return (
-    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
+    <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold text-muted-foreground">
       {t('screen.profile.typed.selfDeclared')}
     </span>
   )
@@ -474,7 +474,7 @@ function VerifiedZone({ profile }: { profile: Profile }) {
   return (
     <section
       aria-labelledby="verified-heading"
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-6"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5"
     >
       <div className="flex flex-col gap-1">
         <h2 id="verified-heading" className="text-h2">
@@ -563,7 +563,7 @@ function Declared({ label, value }: { label: string; value: string }) {
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="text-muted-foreground">{label}:</span>
       <span className="break-words">{value}</span>
-      <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
+      <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold text-muted-foreground">
         {t('screen.profile.verified.declared')}
       </span>
     </li>

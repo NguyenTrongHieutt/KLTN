@@ -32,7 +32,7 @@ export function CustomerFeedback({
   const request = review.changeRequest
   const order = request?.milestoneOrder
   return (
-    <section aria-labelledby="feedback-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="feedback-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="feedback-heading" className="flex items-center gap-2 text-h2">
         <MessageSquare aria-hidden="true" className="size-5 text-primary" />
         {t('screen.agreement.review.reviewTitle', { n: review.latestVersionNo })}
@@ -117,7 +117,7 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
       },
     )
   return (
-    <section aria-labelledby="confirm-heading" className="flex w-full max-w-[1120px] flex-col gap-3 self-center rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="confirm-heading" className="flex w-full max-w-[1120px] flex-col gap-3 self-center rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="confirm-heading" className="text-h3">
           {t('screen.agreement.review.confirmTitle')}
@@ -163,8 +163,8 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
 /** The confirmed Agreement, read-only, in place of the editor (FR-17, AD-29). */
 export function ConfirmedView({ confirmed }: { confirmed: ConfirmedAgreement }) {
   return (
-    <div className="flex w-full max-w-[860px] flex-col gap-5 self-center">
-      <section role="status" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
+    <div className="flex w-full max-w-reading-max flex-col gap-5">
+      <section role="status" className="flex flex-col gap-1 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <p className="flex items-center gap-2 text-h3">
           <CircleCheck aria-hidden="true" className="size-5 text-success" />
           {t('screen.agreement.review.confirmedTitle', { n: confirmed.versionNo })}

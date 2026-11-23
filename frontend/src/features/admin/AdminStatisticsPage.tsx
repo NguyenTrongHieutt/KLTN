@@ -68,7 +68,7 @@ export function AdminStatisticsPage() {
                 <section
                   key={group.group}
                   aria-labelledby={`group-${group.group}`}
-                  className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-body-sm"
+                  className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5"
                 >
                   <h2 id={`group-${group.group}`} className="text-h3">
                     {t(`screen.admin.statistics.group.${group.group}` as MessageKey)}

@@ -79,12 +79,12 @@ function AdministratorTable({ rows }: { rows: AdministratorRow[] }) {
                 </td>
                 <td className="px-4 py-3">{row.email}</td>
                 <td className="px-4 py-3">
-                  <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', status.tone)}>{t(status.label)}</span>
+                  <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', status.tone)}>{t(status.label)}</span>
                 </td>
                 <td className="px-4 py-3">{formatDate(row.createdAt)}</td>
                 <td className="px-4 py-3">
                   {row.lockedUntil ? (
-                    <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption font-semibold text-destructive">
+                    <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption font-semibold text-destructive">
                       {t('screen.admin.administrators.lockedUntil', { time: formatTime(row.lockedUntil) })}
                     </span>
                   ) : row.signedInAt ? (
@@ -125,7 +125,7 @@ function CreateAdministrator() {
 
   return (
     <>
-      <form noValidate onSubmit={review} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-6">
+      <form noValidate onSubmit={review} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 className="text-h3">{t('screen.admin.administrators.formHeading')}</h2>
         <FormField id="newDisplayName" label={t('screen.admin.administrators.displayName')} error={errors.displayName}>
           <input
@@ -152,7 +152,7 @@ function CreateAdministrator() {
             onChange={(event) => setValues({ ...values, email: event.target.value })}
           />
         </FormField>
-        <p className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+        <p className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-warning" />
           {t('screen.admin.administrators.notice')}
         </p>
