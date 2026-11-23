@@ -67,7 +67,7 @@ function Ended({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
     <section
       id={FINAL_MERGE_ANCHOR}
       aria-labelledby={`${ids}-final-merge`}
-      className="flex flex-col gap-3 rounded-md border border-border p-4"
+      className="flex flex-col gap-3 border-t border-border pt-4"
     >
       <h3 id={`${ids}-final-merge`} className="text-h3">
         <TermHint term="finalMerge" />
@@ -137,7 +137,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
       <section
         id={FINAL_MERGE_ANCHOR}
         aria-labelledby={`${ids}-final-merge`}
-        className="flex flex-col gap-2 rounded-md border border-border p-4"
+        className="flex flex-col gap-2 border-t border-border pt-4"
       >
         {heading}
         <ActionsRunRow
@@ -162,7 +162,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
       <section
         id={FINAL_MERGE_ANCHOR}
         aria-labelledby={`${ids}-final-merge`}
-        className="flex flex-col gap-2 rounded-md border border-border p-4"
+        className="flex flex-col gap-2 border-t border-border pt-4"
       >
         {heading}
         {merge.deadlineAt && <p className="text-body-sm">{t('screen.closure.finalMerge.deadline', { date })}</p>}
@@ -175,7 +175,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
       <section
         id={FINAL_MERGE_ANCHOR}
         aria-labelledby={`${ids}-final-merge`}
-        className="flex flex-col gap-2 rounded-md border border-border p-4"
+        className="flex flex-col gap-2 border-t border-border pt-4"
       >
         {heading}
         <ActionsRunRow
@@ -192,7 +192,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
       <section
         id={FINAL_MERGE_ANCHOR}
         aria-labelledby={`${ids}-final-merge`}
-        className="flex flex-col gap-3 rounded-md border border-border p-4"
+        className="flex flex-col gap-3 border-t border-border pt-4"
       >
         {heading}
         <Failure jobId={jobId} productId={merge.productId} merge={step} />
@@ -210,7 +210,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
     <section
       id={FINAL_MERGE_ANCHOR}
       aria-labelledby={`${ids}-final-merge`}
-      className="flex flex-col gap-3 rounded-md border border-border p-4"
+      className="flex flex-col gap-3 border-t border-border pt-4"
     >
       {heading}
       {merge.deadlineAt && <p className="text-body-sm">{t('screen.closure.finalMerge.deadline', { date })}</p>}

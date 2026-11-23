@@ -4,6 +4,8 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { Card } from '@/components/ui/card'
+import { DescriptionList } from '@/components/ui/description-list'
 import { FollowUpSection } from '@/features/delivery/FollowUpSection'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { DriftWarning } from '@/features/job/DriftWarning'
@@ -74,10 +76,8 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         <DisputeSection jobId={jobId} />
         {audience === 'mentor' && <JobTeamIssues jobId={jobId} />}
         <JobNextAction jobId={jobId} />
-        <ClosureSection jobId={jobId} />
-        <CancellationSection jobId={jobId} />
-        {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
-        {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
+        {/* While Closing the closure is the next decision; otherwise the Milestones lead and the closure follows. */}
+        {progress.state === 'CLOSING' && <ClosureSection jobId={jobId} />}
         {/* FR-11: the Customer answers the follow-ups here, and `assessment` is false for them by design, so the
             section decides for itself -- it renders nothing for a Mentor with none to send and a Customer with none
             to answer. */}
@@ -100,6 +100,10 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             </ul>
           </section>
         )}
+        {progress.state !== 'CLOSING' && <ClosureSection jobId={jobId} />}
+        <CancellationSection jobId={jobId} />
+        {progress.state === 'CLOSED' && <RatingSection jobId={jobId} />}
+        {progress.state === 'CLOSED' && <JobPortfolioSection jobId={jobId} />}
         {audience === 'mentor' && (
           <section aria-labelledby="progress-crew" className="flex flex-col gap-3">
             <h2 id="progress-crew" className="text-h2">
@@ -125,27 +129,34 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
           </section>
         )}
       </div>
-      <aside aria-label={t('screen.progress.aside')} className="flex flex-col gap-4">
-        <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
-          <h3 className="text-h3">{t('screen.progress.deadline')}</h3>
-          <p>
-            {nextDue?.dueOn
-              ? t('screen.progress.deadlineLine', { n: nextDue.number, date: formatCalendarDayMonth(nextDue.dueOn) })
-              : t('screen.progress.noDeadline')}
-          </p>
-        </section>
-        <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
-          <h3 className="text-h3">{t('screen.progress.people')}</h3>
-          <p>{t('screen.progress.mentor', { name: progress.mentorName })}</p>
-          {audience === 'mentor' &&
-            progress.crew
-              .filter((member) => member.state !== 'RELEASED')
-              .map((member) => <p key={member.accountId}>{t('screen.progress.member', { name: member.name })}</p>)}
-        </section>
-        <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
-          <h3 className="text-h3">{t('screen.progress.product')}</h3>
-          <p className="break-words">{progress.productName}</p>
-        </section>
+      <aside aria-label={t('screen.progress.aside')}>
+        <Card as="section" className="flex flex-col gap-4">
+          <h2 className="text-h3">{t('screen.progress.aside')}</h2>
+          <DescriptionList
+            stacked
+            items={[
+              {
+                term: t('screen.progress.deadline'),
+                value: nextDue?.dueOn
+                  ? t('screen.progress.deadlineLine', { n: nextDue.number, date: formatCalendarDayMonth(nextDue.dueOn) })
+                  : t('screen.progress.noDeadline'),
+              },
+              {
+                term: t('screen.progress.people'),
+                value: (
+                  <span className="flex flex-col">
+                    <span>{t('screen.progress.mentor', { name: progress.mentorName })}</span>
+                    {audience === 'mentor' &&
+                      progress.crew
+                        .filter((member) => member.state !== 'RELEASED')
+                        .map((member) => <span key={member.accountId}>{t('screen.progress.member', { name: member.name })}</span>)}
+                  </span>
+                ),
+              },
+              { term: t('screen.progress.product'), value: progress.productName },
+            ]}
+          />
+        </Card>
       </aside>
     </div>
   )

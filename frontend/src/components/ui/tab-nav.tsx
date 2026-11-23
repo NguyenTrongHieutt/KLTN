@@ -42,7 +42,7 @@ export function TabNav({ label, items, current, className }: { label: string; it
       <div
         ref={ref}
         className={cn(
-          'flex gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          'relative flex gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           fade.end && !fade.start && '[mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)]',
           fade.start && !fade.end && '[mask-image:linear-gradient(to_left,black_calc(100%-40px),transparent)]',
           fade.start &&

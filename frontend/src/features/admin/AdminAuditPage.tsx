@@ -80,7 +80,7 @@ export function AdminAuditPage() {
           (entries.data.items.length === 0 ? (
             <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">{t('screen.admin.audit.empty')}</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border bg-card">
+            <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
               <table className="w-full text-left text-body-sm">
                 <caption className="sr-only">{t('screen.admin.audit.caption')}</caption>
                 <thead className="border-b border-border text-caption text-muted-foreground">

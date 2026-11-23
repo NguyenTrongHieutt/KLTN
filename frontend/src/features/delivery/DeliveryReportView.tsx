@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import type { DeliveryReport } from './deliveryApi'
 import { HandoverLinkList } from './HandoverLinkList'
 import { OutsideLink } from './OutsideLink'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { handoverTone } from './handoverTone'
 import { SensitiveChangeList } from './SensitiveChangeList'
 
 /**
@@ -36,13 +38,13 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         <p className="text-body-sm text-muted-foreground">
           {t('screen.handover.report.meta', { mentor: report.mentorName, date: formatDate(report.createdAt), round: report.round })}
         </p>
-        <p className="w-fit rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
+        <StatusBadge tone={handoverTone(report.status, report.auto, customer)}>
           {report.auto
             ? t('screen.handover.status.auto')
             : customer && report.status === 'SUBMITTED'
               ? t('screen.handover.status.customer', { date: formatDayMonth(report.checkBy) })
               : t(`screen.handover.status.${report.status}` as MessageKey)}
-        </p>
+        </StatusBadge>
       </header>
       {report.acceptance === 'MERGING' && (
         <p role="status" className="rounded-md border-l-4 border-primary bg-primary-soft p-3 text-body-sm">

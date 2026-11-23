@@ -99,24 +99,53 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
             : t(`screen.closure.proposedBy.${proposal.proposer}` as MessageKey, { date: formatDayMonth(proposal.answerBy) })}
         </p>
       )}
-      {closure.steps.length > 0 && (
-        <ul className="flex flex-col gap-1.5 text-body-sm">
-          {closure.steps.map((step, index) => (
-            <Step
-              key={`${step.party}-${index}`}
-              done={step.done}
-              text={t(`screen.closure.step.${step.party}.${step.step}` as MessageKey, { name: step.name })}
-            />
-          ))}
-          {deletion?.parties.map((party, index) => (
-            <Step
-              key={`deletion-${index}`}
-              done={party.confirmed}
-              text={t(`screen.closure.deletion.${party.party}` as MessageKey, { name: party.name })}
-            />
-          ))}
-        </ul>
-      )}
+      {closure.steps.length > 0 &&
+        (closure.state === 'CLOSED' ? (
+          // Once the Job has ended, the finished steps fold into one line that opens on demand (2026-11-23).
+          <details className="group text-body-sm">
+            <summary className="w-fit cursor-pointer text-primary underline-offset-4 hover:underline">
+              {t('screen.closure.stepsSummary', {
+                done: closure.steps.filter((step) => step.done).length + (deletion?.parties.filter((party) => party.confirmed).length ?? 0),
+                total: closure.steps.length + (deletion?.parties.length ?? 0),
+              })}
+            </summary>
+            <div className="mt-2">
+              <ul className="flex flex-col gap-1.5 text-body-sm">
+                {closure.steps.map((step, index) => (
+                  <Step
+                    key={`${step.party}-${index}`}
+                    done={step.done}
+                    text={t(`screen.closure.step.${step.party}.${step.step}` as MessageKey, { name: step.name })}
+                  />
+                ))}
+                {deletion?.parties.map((party, index) => (
+                  <Step
+                    key={`deletion-${index}`}
+                    done={party.confirmed}
+                    text={t(`screen.closure.deletion.${party.party}` as MessageKey, { name: party.name })}
+                  />
+                ))}
+              </ul>
+            </div>
+          </details>
+        ) : (
+          <ul className="flex flex-col gap-1.5 text-body-sm">
+            {closure.steps.map((step, index) => (
+              <Step
+                key={`${step.party}-${index}`}
+                done={step.done}
+                text={t(`screen.closure.step.${step.party}.${step.step}` as MessageKey, { name: step.name })}
+              />
+            ))}
+            {deletion?.parties.map((party, index) => (
+              <Step
+                key={`deletion-${index}`}
+                done={party.confirmed}
+                text={t(`screen.closure.deletion.${party.party}` as MessageKey, { name: party.name })}
+              />
+            ))}
+          </ul>
+        ))}
       {(closure.audience === 'CUSTOMER' || closure.audience === 'MENTOR')
         && (closure.steps.length > 0 || closure.state !== 'ACTIVE') && (
           <ClosingChoice jobId={jobId} version={closure.version} />
