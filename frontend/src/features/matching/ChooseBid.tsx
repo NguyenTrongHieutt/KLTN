@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { useJobApplications, useSelectApplication, type JobApplication } from './applicationApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** "Chọn {mentor}?" lists what will happen before J3 (UX-DR41), from CUS-8, CUS-12 and CUS-13 alike. */
 export function ChooseDialog({
@@ -50,8 +51,8 @@ export function ChooseDialog({
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(560px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="lg">
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2 break-words">{t('screen.matching.choose.title', { mentor })}</Dialog.Title>
             <Dialog.Close aria-label={t('screen.shared.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
@@ -80,7 +81,7 @@ export function ChooseDialog({
               {t('screen.matching.choose.confirm', { mentor })}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )
@@ -98,8 +99,8 @@ export function StaleDialog({ open, onClose, jobId }: { open: boolean; onClose: 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="sm">
           <Dialog.Title className="text-h2">{t('error.STALE')}</Dialog.Title>
           <Dialog.Description className="text-body-sm">{t('screen.matching.stale.body')}</Dialog.Description>
           <div className="flex justify-end">
@@ -107,7 +108,7 @@ export function StaleDialog({ open, onClose, jobId }: { open: boolean; onClose: 
               {t('screen.matching.stale.reload')}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

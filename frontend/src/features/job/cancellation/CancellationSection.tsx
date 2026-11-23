@@ -9,6 +9,7 @@ import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useCancellation, useCancellationCommand, type Cancellation } from './cancellationApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): either side proposes cancelling the Job or its remaining
@@ -197,8 +198,8 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
       )}
       <Dialog.Root open={asking} onOpenChange={(next) => !next && setAsking(false)}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup size="sm" className="z-[70]">
             <Dialog.Title className="text-h2">
               {t(alone ? 'screen.cancellation.aloneTitle' : 'screen.cancellation.confirmTitle')}
             </Dialog.Title>
@@ -227,7 +228,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
                 {t(alone ? 'screen.cancellation.aloneSend' : 'screen.cancellation.confirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>

@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/apiClient'
 import { fieldMessage } from '@/lib/formErrors'
 import { cn } from '@/lib/utils'
 import { verificationMessage } from '@/features/identity/verificationMessages'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * The Step-up dialog (SG-10, UX-DR42): a fresh code from the authenticator before a sensitive
@@ -63,11 +64,8 @@ export function StepUpDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup
-          initialFocus={inputRef}
-          className="fixed top-24 left-1/2 z-50 flex w-[min(440px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md"
-        >
+        <DialogBackdrop />
+        <DialogPopup size="sm" initialFocus={inputRef}>
           <Dialog.Title className="text-h2">
             {t('screen.admin.stepUp.title')}
           </Dialog.Title>
@@ -94,7 +92,7 @@ export function StepUpDialog({
               </Button>
             </div>
           </form>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

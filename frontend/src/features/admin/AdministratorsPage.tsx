@@ -17,6 +17,7 @@ import { zodFieldErrors } from '@/lib/formErrors'
 import { cn } from '@/lib/utils'
 import { useAdministrators, useCreateAdministrator, type AdministratorRow } from './adminApi'
 import { StepUpDialog } from './StepUpDialog'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 const schema = z.object({
   displayName: z.string().trim().min(1, 'required').max(100, 'tooLong'),
@@ -159,8 +160,8 @@ function CreateAdministrator() {
       </form>
       <Dialog.Root open={step === 'confirm'} onOpenChange={(open) => !open && setStep('form')}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup>
             <div className="flex items-start justify-between gap-4">
               <Dialog.Title className="text-h2">{t('screen.admin.administrators.confirmTitle')}</Dialog.Title>
               <Dialog.Close
@@ -193,7 +194,7 @@ function CreateAdministrator() {
               <Dialog.Close render={<Button variant="secondary" />}>{t('screen.admin.administrators.cancel')}</Dialog.Close>
               <Button onClick={() => setStep('stepUp')}>{t('screen.admin.administrators.continue')}</Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
       <StepUpDialog

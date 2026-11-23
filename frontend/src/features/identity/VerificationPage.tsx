@@ -17,6 +17,7 @@ import { useGitHubLink, useUnlinkGitHub, type GitHubLink, type GitHubLinkBlocker
 import { ProfileTabs } from './ProfileTabs'
 import { StudentEmailRow } from './StudentEmailRow'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** What GitHub's return says in ACC-2's address (`?ket-qua=…` or `?loi=…`), as the backend writes it. */
 const RESULTS = ['da-lien-ket']
@@ -160,8 +161,8 @@ function Unlink({ blockers }: { blockers: GitHubLinkBlocker[] }) {
       )}
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg border-t-4 border-destructive bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup tone="danger">
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.verification.github.unlinkTitle')}</Dialog.Title>
               <Dialog.Close
@@ -178,7 +179,7 @@ function Unlink({ blockers }: { blockers: GitHubLinkBlocker[] }) {
                 {unlink.isPending ? t('screen.verification.github.unlinking') : t('screen.verification.github.unlinkConfirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </div>

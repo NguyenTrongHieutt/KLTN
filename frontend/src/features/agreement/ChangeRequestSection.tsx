@@ -19,6 +19,7 @@ import {
   type ChangeRequest,
   type ChangeRequests,
 } from './changeRequestApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * JOB-6's "Đề nghị thay đổi" (FR-36, UX-DR57): either side proposes new due dates and, in the full form, a
@@ -255,8 +256,8 @@ function OpenRequest({ jobId, data, request }: { jobId: string; data: ChangeRequ
       </div>
       <Dialog.Root open={asking !== undefined} onOpenChange={(next) => !next && setAsking(undefined)}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup size="sm" className="z-[70]">
             <Dialog.Title className="text-h2">{t('screen.changeRequest.confirmTitle')}</Dialog.Title>
             <Dialog.Description className="text-body-sm">{t('screen.changeRequest.confirmBody')}</Dialog.Description>
             <div className="flex flex-wrap justify-end gap-3">
@@ -271,7 +272,7 @@ function OpenRequest({ jobId, data, request }: { jobId: string; data: ChangeRequ
                 {t(asking === 'confirm' ? 'screen.changeRequest.confirm' : 'screen.changeRequest.approve')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </div>

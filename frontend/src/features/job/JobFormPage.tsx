@@ -33,6 +33,7 @@ import {
   type JobType,
 } from './jobApi'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** The answers publishing needs besides the title, in the order CUS-6 asks them (FR-9). */
 const REQUIRED = ['problem', 'expected', 'appUsers', 'jobTypes', 'budget', 'deadline'] as const
@@ -442,8 +443,8 @@ function JobForm({
       </form>
       <Dialog.Root open={confirming} onOpenChange={setConfirming}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg border-t-4 border-warning bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup tone="warning">
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.job.form.publishTitle')}</Dialog.Title>
               <Dialog.Close
@@ -460,7 +461,7 @@ function JobForm({
                 {t(save.isPending || publish.isPending ? 'screen.job.form.publishing' : 'screen.job.form.publish')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </>

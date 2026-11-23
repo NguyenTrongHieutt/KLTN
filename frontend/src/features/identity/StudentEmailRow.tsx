@@ -27,6 +27,7 @@ import {
   type Verification,
 } from './verificationApi'
 import { identityReason, verificationMessage } from './verificationMessages'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 const email = z.string().trim().min(1, 'required').max(254, 'tooLong').pipe(z.email('email'))
 
@@ -544,8 +545,8 @@ function Unlink() {
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg border-t-4 border-destructive bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup tone="danger">
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.verification.student.unlinkTitle')}</Dialog.Title>
               <Dialog.Close
@@ -568,7 +569,7 @@ function Unlink() {
                   : t('screen.verification.student.unlinkConfirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </div>

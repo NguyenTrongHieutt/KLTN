@@ -7,6 +7,7 @@ import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 import { signInUrl } from './api'
 import { sessionExpiry } from './sessionExpiry'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * "Phiên đăng nhập đã hết" (UX-DR26, frame CHUNG-het-phien): shown when a command answers 401. The
@@ -21,11 +22,8 @@ export function SessionExpiredDialog() {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && sessionExpiry.dismiss()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup
-          initialFocus={titleRef}
-          className="fixed top-24 left-1/2 z-50 flex w-[min(460px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md"
-        >
+        <DialogBackdrop />
+        <DialogPopup size="sm" initialFocus={titleRef}>
           <div className="flex items-start justify-between gap-4">
             <Dialog.Title ref={titleRef} tabIndex={-1} className="text-h2 focus:outline-none">
               {t('screen.shared.sessionExpired.title')}
@@ -50,7 +48,7 @@ export function SessionExpiredDialog() {
               {t('screen.shared.sessionExpired.signIn')}
             </a>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

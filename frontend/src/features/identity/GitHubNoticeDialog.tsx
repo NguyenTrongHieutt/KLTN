@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
 import { GITHUB_NOTICE_VERSION, leaveForGitHub, useStartGitHubLink } from './githubApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * N-24 (FR-80, NFR-9, UX-DR94), shown before the browser leaves for GitHub, from ACC-2's GitHub row and
@@ -37,8 +38,8 @@ export function GitHubNoticeDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-16 left-1/2 z-50 flex max-h-[calc(100vh-96px)] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg border-t-4 border-primary bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="lg" tone="primary">
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2">{t('notice.github.title')}</Dialog.Title>
             <Dialog.Close
@@ -85,7 +86,7 @@ export function GitHubNoticeDialog({
               {!start.isPending && !start.isSuccess && <ExternalLink aria-hidden="true" className="size-4" />}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

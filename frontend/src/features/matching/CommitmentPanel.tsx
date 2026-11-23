@@ -24,6 +24,7 @@ import {
 import { signRefusal } from './crewText'
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** How an ended pick reads (UX-DR103): withdrawn, lapsed, ended by J8, declined, or joined. */
 const ENDED: Partial<Record<string, MessageKey>> = {
@@ -192,8 +193,8 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
       )}
       <Dialog.Root open={declining} onOpenChange={setDeclining}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup>
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.commitment.declineTitle')}</Dialog.Title>
               <Dialog.Close
@@ -210,7 +211,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
                 {t('screen.commitment.decline')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>

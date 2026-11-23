@@ -15,6 +15,7 @@ import { erasureBlockerText } from './erasureBlockers'
 import { EXPORT_URL, useMyData, useRequestDeletion, type MyData } from './myDataApi'
 import { useSession } from './useSession'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * ALL-2 "Dữ liệu của tôi" (`/tai-khoan/du-lieu`, NFR-9, NFR-10, NFR-11): what vibefix keeps and why (PUB-7), the
@@ -110,8 +111,8 @@ function Deletion({ data }: { data: MyData }) {
       )}
       <Dialog.Root open={asking} onOpenChange={setAsking}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup size="sm">
             <Dialog.Title className="text-h2">{t('screen.myData.askTitle')}</Dialog.Title>
             <Dialog.Description className="text-body-sm">{t('screen.myData.askBody')}</Dialog.Description>
             <div className="flex flex-wrap justify-between gap-3">
@@ -136,7 +137,7 @@ function Deletion({ data }: { data: MyData }) {
                 {t('screen.myData.confirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>

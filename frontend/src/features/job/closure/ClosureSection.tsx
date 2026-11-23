@@ -18,6 +18,7 @@ import {
 import { ClosingChoice } from './ClosingChoice'
 import { FinalMergeStep } from './FinalMergeStep'
 import { RevocationChecklist } from './RevocationChecklist'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 type Action = 'propose' | 'confirm' | 'decline'
 
@@ -189,8 +190,8 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
       </div>
       <Dialog.Root open={asking !== undefined} onOpenChange={(next) => !next && setAsking(undefined)}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup size="sm" className="z-[70]">
             <Dialog.Title className="text-h2">
               {t(asking === 'propose' ? 'screen.closure.proposeTitle' : 'screen.closure.confirmTitle')}
             </Dialog.Title>
@@ -203,7 +204,7 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
                 {t(asking === 'propose' ? 'screen.closure.propose' : 'screen.closure.confirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>
@@ -268,8 +269,8 @@ export function DeletionChecklist({ jobId, deletion }: { jobId: string; deletion
       )}
       <Dialog.Root open={asking !== undefined} onOpenChange={(next) => !next && setAsking(undefined)}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup size="sm" className="z-[70]">
             <Dialog.Title className="text-h2">{t('screen.closure.deletion.dialogTitle')}</Dialog.Title>
             <Dialog.Description className="text-body-sm">
               {asking && t(`screen.closure.deletion.${asking}` as MessageKey)}. {t('screen.closure.deletion.dialogBody')}
@@ -299,7 +300,7 @@ export function DeletionChecklist({ jobId, deletion }: { jobId: string; deletion
                 {t('screen.closure.deletion.confirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </fieldset>

@@ -9,6 +9,7 @@ import { t } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
 import { useWithdrawCrewApplication, type CrewApplication } from './crewApplicationApi'
 import { crewApplicationStateText } from './crewText'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * The applicant's state (UX-DR103): "Đã gửi · chờ người hướng dẫn xem · hết hạn ngày {date}" with "Xem" (FND-2) and
@@ -49,8 +50,8 @@ export function CrewApplicationState({ application, view = true }: { application
       )}
       <Dialog.Root open={confirming} onOpenChange={setConfirming}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup>
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.crewApply.withdrawTitle')}</Dialog.Title>
               <Dialog.Close
@@ -67,7 +68,7 @@ export function CrewApplicationState({ application, view = true }: { application
                 {t('screen.crewApply.withdraw')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </div>

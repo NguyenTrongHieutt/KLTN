@@ -34,6 +34,7 @@ import {
   type SplitVersion,
 } from './splitApi'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 const TONE = {
   waiting: 'bg-warning-soft text-warning',
@@ -744,8 +745,8 @@ function StaleDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="sm">
           <Dialog.Title className="text-h2">{t('error.STALE')}</Dialog.Title>
           <Dialog.Description className="text-body-sm">{t('screen.split.staleBody')}</Dialog.Description>
           <div className="flex justify-end">
@@ -753,7 +754,7 @@ function StaleDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
               {t('screen.split.staleReload')}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

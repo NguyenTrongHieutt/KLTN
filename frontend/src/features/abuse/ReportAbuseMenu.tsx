@@ -13,6 +13,7 @@ import { ApiError, apiClient, unwrap } from '@/lib/apiClient'
 import { fieldMessage } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 export type ReportKind =
   | 'PRODUCT'
@@ -142,11 +143,8 @@ function ReportDialog({ target, onClose }: { target: ReportTarget; onClose: () =
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup
-          initialFocus={inputRef}
-          className="fixed top-24 left-1/2 z-50 flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md"
-        >
+        <DialogBackdrop />
+        <DialogPopup size="sm" initialFocus={inputRef}>
           <Dialog.Title className="text-h2">{t('screen.report.title')}</Dialog.Title>
           {sent ? (
             <>
@@ -178,7 +176,7 @@ function ReportDialog({ target, onClose }: { target: ReportTarget; onClose: () =
               </div>
             </form>
           )}
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )
