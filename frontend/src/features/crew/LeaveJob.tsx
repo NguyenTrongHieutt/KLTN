@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
 import { MAX_LEFT_NOTE, useLeaveJob, type CrewMe } from './crewApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * "Rời công việc" on a member's JOB-1 (FR-82, UX-DR104): the Leave dialog with N-28, in the words of this Job: a Job
@@ -46,8 +47,8 @@ function LeaveDialog({ me, onClose }: { me: CrewMe; onClose: () => void }) {
   return (
     <Dialog.Root open onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-16 left-1/2 z-50 flex max-h-[calc(100vh-96px)] w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup>
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2 break-words">{t('screen.crew.leave.title', { job: me.title })}</Dialog.Title>
             <Dialog.Close
@@ -83,7 +84,7 @@ function LeaveDialog({ me, onClose }: { me: CrewMe; onClose: () => void }) {
               {t('screen.crew.leave.action')}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

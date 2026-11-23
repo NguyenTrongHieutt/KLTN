@@ -1,6 +1,7 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * The Confirmation dialog (DESIGN.md): the action's effect in a sentence, "Quay lại", and the
@@ -28,8 +29,8 @@ export function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop className="z-[60]" />
+        <DialogPopup size="sm" className="z-[70]">
           <Dialog.Title className="text-h2 break-words">{title}</Dialog.Title>
           <Dialog.Description className="text-body-sm break-words">{body}</Dialog.Description>
           <div className="flex flex-wrap justify-between gap-3">
@@ -38,7 +39,7 @@ export function ConfirmDialog({
               {confirmLabel}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

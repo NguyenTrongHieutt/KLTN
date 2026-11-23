@@ -7,6 +7,7 @@ import { SESSION_QUERY_KEY } from '@/features/identity/api'
 import { useSession, useSignOut } from '@/features/identity/useSession'
 import { t } from '@/i18n/t'
 import { useSessionActivity } from './adminApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** How long before the session ends the warning appears (UX-DR26, frame ADM-1-sap-het-phien). */
 const WARNING_MS = 2 * 60_000
@@ -74,8 +75,8 @@ export function AdminSessionWatcher() {
   return (
     <Dialog.Root open={warning !== null} onOpenChange={(open) => !open && setWarnedFor(null)}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(460px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="sm">
           <Dialog.Title className="text-h2">{t('screen.admin.idle.title')}</Dialog.Title>
           <Dialog.Description className="text-body-sm">
             {t(warning === 'absolute' ? 'screen.admin.idle.absoluteBody' : 'screen.admin.idle.body')}
@@ -98,7 +99,7 @@ export function AdminSessionWatcher() {
               <Dialog.Close render={<Button />}>{t('screen.admin.idle.close')}</Dialog.Close>
             )}
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

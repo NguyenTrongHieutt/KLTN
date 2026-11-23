@@ -8,6 +8,7 @@ import { ApiError, apiClient, unwrap } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useCatalog } from './catalogApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** An active Skill the catalog already has, as `SKILL_ALREADY_EXISTS` names it. */
 interface Existing {
@@ -77,8 +78,8 @@ export function SuggestSkillDialog({
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[70] bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-[80] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop className="z-[70]" />
+        <DialogPopup size="sm" className="z-[80]">
           <Dialog.Title className="text-h2">{t('screen.shared.suggestSkill.title')}</Dialog.Title>
           {sent ? (
             <>
@@ -157,7 +158,7 @@ export function SuggestSkillDialog({
               </div>
             </form>
           )}
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

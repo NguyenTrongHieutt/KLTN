@@ -18,6 +18,7 @@ import {
   type SplitCard,
   type SplitResolution,
 } from './splitApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 const MOST = 2000
 
@@ -122,8 +123,8 @@ function RaiseResolution({
         }}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-16 left-1/2 z-[70] flex max-h-[calc(100vh-96px)] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup size="lg" className="z-[70]">
             <Dialog.Title className="text-h2 break-words">
               {t('screen.split.resolution.dialogTitle', { n: card.milestoneNumber })}
             </Dialog.Title>
@@ -174,7 +175,7 @@ function RaiseResolution({
                 {t('screen.split.resolution.send')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
       <ConfirmDialog

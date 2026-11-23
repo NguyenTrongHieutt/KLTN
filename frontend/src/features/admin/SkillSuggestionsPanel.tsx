@@ -13,6 +13,7 @@ import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { OVERVIEW_QUERY_KEY } from './adminApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 type Category = components['schemas']['CatalogCategoryView']
 type Suggestion = components['schemas']['AdminSkillSuggestionView']
@@ -149,8 +150,8 @@ function ApproveDialog({ suggestion, categories, onClose }: { suggestion: Sugges
   return (
     <Dialog.Root open onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-16 left-1/2 z-50 flex max-h-[calc(100dvh-96px)] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="lg">
           <form
             onSubmit={(event) => {
               event.preventDefault()
@@ -202,7 +203,7 @@ function ApproveDialog({ suggestion, categories, onClose }: { suggestion: Sugges
               </Button>
             </div>
           </form>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )
@@ -225,8 +226,8 @@ function DeclineDialog({ suggestion, onClose }: { suggestion: Suggestion; onClos
   return (
     <Dialog.Root open onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-16 left-1/2 z-50 flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup size="sm">
           <form
             onSubmit={(event) => {
               event.preventDefault()
@@ -251,7 +252,7 @@ function DeclineDialog({ suggestion, onClose }: { suggestion: Suggestion; onClos
               </Button>
             </div>
           </form>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

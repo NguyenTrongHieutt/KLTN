@@ -32,6 +32,7 @@ import { StageStrip } from './StageStrip'
 import { CrewJobPage } from './progress/CrewJobPage'
 import { ProgressOverview } from './progress/ProgressOverview'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the
@@ -336,8 +337,8 @@ function Withdraw({ job }: { job: Job }) {
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup>
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.job.detail.withdrawTitle')}</Dialog.Title>
               <Dialog.Close
@@ -354,7 +355,7 @@ function Withdraw({ job }: { job: Job }) {
                 {t(withdraw.isPending ? 'screen.job.detail.withdrawing' : 'screen.job.detail.withdrawConfirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </>
@@ -384,8 +385,8 @@ function CancelSelection({ job }: { job: Job }) {
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup>
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.matching.selecting.cancelTitle')}</Dialog.Title>
               <Dialog.Close
@@ -402,7 +403,7 @@ function CancelSelection({ job }: { job: Job }) {
                 {t('screen.matching.selecting.cancel')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </>

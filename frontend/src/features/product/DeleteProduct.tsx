@@ -8,6 +8,7 @@ import { t } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
 import { useDeleteProduct, type Product, type SourceApp } from './productApi'
 import { domainOf } from './productText'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /** What CUS-2 shows once a Product is gone: its name, and the Source App guidance (R23). */
 export interface DeletedProduct {
@@ -62,8 +63,8 @@ export function DeleteProduct({ product }: { product: Product }) {
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex max-h-[calc(100vh-128px)] w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg border-t-4 border-destructive bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup tone="danger">
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2 break-words">
                 {t('screen.product.detail.deleteTitle', { product: product.name })}
@@ -90,7 +91,7 @@ export function DeleteProduct({ product }: { product: Product }) {
                 {t('screen.product.detail.delete')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>

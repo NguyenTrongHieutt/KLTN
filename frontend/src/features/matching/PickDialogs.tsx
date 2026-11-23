@@ -8,6 +8,7 @@ import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { SIGN_DAYS, usePickCrewApplication, useWithdrawPick, type ApplicantCard } from './crewApplicationApi'
 import { pickRefusal, signDeadline } from './crewText'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * "Chọn" asks first (UX-DR102): "{name} có {days} ngày để ký cam kết. Trước khi họ ký, bạn có thể rút lựa chọn.", with
@@ -110,8 +111,8 @@ function PickConfirm({
   return (
     <Dialog.Root open onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup>
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2">{title}</Dialog.Title>
             <Dialog.Close aria-label={t('screen.shared.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
@@ -126,7 +127,7 @@ function PickConfirm({
               {confirm}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

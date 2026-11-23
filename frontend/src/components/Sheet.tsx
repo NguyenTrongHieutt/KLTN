@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
+import { DialogBackdrop } from '@/components/ui/dialog'
 
 /**
  * The Sheet (DESIGN.md, UX-DR48): a panel from the right edge, full width on phones, for a profile
@@ -27,7 +28,7 @@ export function Sheet({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
+        <DialogBackdrop />
         <Dialog.Popup className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[560px] flex-col bg-popover text-popover-foreground shadow-md">
           <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
             <div className="flex min-w-0 flex-col gap-1">

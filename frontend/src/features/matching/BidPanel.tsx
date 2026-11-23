@@ -15,6 +15,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useMyApplications, useWithdrawApplication, type Application } from './applicationApi'
 import { bidStateText } from './bidText'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * MEN-3's bid action (FR-13, UX-DR98): "Chào giá làm người hướng dẫn" opens FND-1, or the Mentor Job limit's plain
@@ -94,8 +95,8 @@ function BidState({ application }: { application: Application }) {
       </div>
       <Dialog.Root open={confirming} onOpenChange={setConfirming}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop />
+          <DialogPopup>
             <div className="flex items-start justify-between gap-3">
               <Dialog.Title className="text-h2">{t('screen.matching.applied.withdrawTitle')}</Dialog.Title>
               <Dialog.Close
@@ -112,7 +113,7 @@ function BidState({ application }: { application: Application }) {
                 {t('screen.matching.applied.withdraw')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>

@@ -27,6 +27,7 @@ import { CancellationSection } from '@/features/job/cancellation/CancellationSec
 import { SetupTracker } from '@/features/job/SetupTracker'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text
@@ -185,8 +186,8 @@ function DeclineDialog({ job, onClose }: { job: MentorJob; onClose: () => void }
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-50 flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup>
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2">{t('screen.nda.declineTitle')}</Dialog.Title>
             <Dialog.Close aria-label={t('screen.shared.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
@@ -200,7 +201,7 @@ function DeclineDialog({ job, onClose }: { job: MentorJob; onClose: () => void }
               {t('screen.nda.decline')}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

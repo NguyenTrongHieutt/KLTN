@@ -10,6 +10,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 type Item = components['schemas']['RevocationItemView']
 type Outcome = 'REMOVED' | 'ROTATED'
@@ -188,8 +189,8 @@ function CustomerChecklist({
       )}
       <Dialog.Root open={asking !== undefined} onOpenChange={(next) => !next && setAsking(undefined)}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup size="sm" className="z-[70]">
             <Dialog.Title className="text-h2">
               {asking && t('screen.closure.revocation.confirmTitle', { system: asking.item.system })}
             </Dialog.Title>
@@ -221,7 +222,7 @@ function CustomerChecklist({
                 {t('screen.closure.revocation.confirm')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </section>

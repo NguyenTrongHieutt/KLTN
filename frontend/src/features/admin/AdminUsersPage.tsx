@@ -24,6 +24,7 @@ import {
   type UserQuery,
 } from './adminUsersApi'
 import { StepUpDialog } from './StepUpDialog'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 const FILTERS: UserFilter[] = ['LOCKED', 'VERIFIED', 'LOW_FEEDBACK']
 
@@ -464,8 +465,8 @@ function ReasonDialog({ user, action, onClose }: { user: AdminUser; action?: Ask
   return (
     <Dialog.Root open={action !== undefined} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50" />
-        <Dialog.Popup className="fixed top-16 left-1/2 z-50 flex max-h-[calc(100dvh-96px)] w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop />
+        <DialogPopup>
           {action && (
             <form onSubmit={submit} className="flex flex-col gap-4">
               <Dialog.Title className="text-h2 break-words">
@@ -500,7 +501,7 @@ function ReasonDialog({ user, action, onClose }: { user: AdminUser; action?: Ask
               </div>
             </form>
           )}
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

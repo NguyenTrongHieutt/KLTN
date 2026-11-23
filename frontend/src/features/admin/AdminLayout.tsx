@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useAdminOverview } from './adminApi'
 import { ADMIN_DESTINATIONS } from './adminNavigation'
 import { AdminSessionWatcher } from './AdminSessionWatcher'
+import { DialogBackdrop } from '@/components/ui/dialog'
 
 /**
  * The Admin shell (UX-DR13, SG-10), at `/quan-tri`: a 240 px sidebar from 1024 px and a sheet below
@@ -76,7 +77,7 @@ function AdminShell({ session }: { session: Session }) {
                 <MenuIcon aria-hidden="true" />
               </Dialog.Trigger>
               <Dialog.Portal>
-                <Dialog.Backdrop className="fixed inset-0 z-40 bg-foreground/50 lg:hidden" />
+                <DialogBackdrop className="lg:hidden" />
                 <Dialog.Popup className="fixed inset-y-0 left-0 z-50 w-60 border-r border-border bg-card lg:hidden">
                   <Dialog.Title className="sr-only">{t('screen.admin.shell.navLabel')}</Dialog.Title>
                   <Dialog.Close

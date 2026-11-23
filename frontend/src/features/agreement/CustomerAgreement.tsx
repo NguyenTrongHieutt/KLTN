@@ -35,6 +35,7 @@ import {
 import { draftDays, inOrder, moved } from './reviewTargets'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 /**
  * The Customer's JOB-6 (FR-16, FR-17, UX-DR34): the shared versions with "Góp ý", "Lên"/"Xuống", the
@@ -433,8 +434,8 @@ function ChoiceDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-3 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop className="z-[60]" />
+        <DialogPopup className="z-[70] gap-3">
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="text-h2 break-words">{title}</Dialog.Title>
             <Dialog.Close aria-label={t('screen.shared.close')} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
@@ -450,7 +451,7 @@ function ChoiceDialog({
               {primary.label}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

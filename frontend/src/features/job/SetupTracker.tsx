@@ -25,6 +25,7 @@ import {
   useSetup,
   type Setup,
 } from './setupApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 type Person = Setup['people'][number]
 type Head = NonNullable<Setup['head']>
@@ -500,8 +501,8 @@ function StaleHeadDialog({ open, onReload }: { open: boolean; onReload: () => vo
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onReload()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-        <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(480px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+        <DialogBackdrop className="z-[60]" />
+        <DialogPopup size="sm" className="z-[70]">
           <Dialog.Title className="text-h2">{t('error.STALE')}</Dialog.Title>
           <Dialog.Description className="text-body-sm">{t('screen.job.setup.card.staleBody')}</Dialog.Description>
           <div className="flex justify-end">
@@ -509,7 +510,7 @@ function StaleHeadDialog({ open, onReload }: { open: boolean; onReload: () => vo
               {t('screen.matching.stale.reload')}
             </Button>
           </div>
-        </Dialog.Popup>
+        </DialogPopup>
       </Dialog.Portal>
     </Dialog.Root>
   )

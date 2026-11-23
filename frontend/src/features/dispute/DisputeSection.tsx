@@ -13,6 +13,7 @@ import { formatVnd } from '@/lib/money'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useJobDispute, type JobDispute } from './disputeApi'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 
 
 /**
@@ -87,8 +88,8 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
       </Button>
       <Dialog.Root open={asking} onOpenChange={(next) => !next && setAsking(false)}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[60] bg-foreground/50" />
-          <Dialog.Popup className="fixed top-24 left-1/2 z-[70] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-4 rounded-lg bg-popover p-6 text-popover-foreground shadow-md">
+          <DialogBackdrop className="z-[60]" />
+          <DialogPopup className="z-[70]">
             <Dialog.Title className="text-h2">{t('screen.dispute.title')}</Dialog.Title>
             <Dialog.Description className="flex flex-col gap-2 text-body-sm">
               <span>{t('screen.dispute.freezes')}</span>
@@ -119,7 +120,7 @@ function Content({ jobId, data }: { jobId: string; data: JobDispute }) {
                 {t('screen.dispute.send')}
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </div>
