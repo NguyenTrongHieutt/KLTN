@@ -15,7 +15,7 @@ const THEMES: { value: ThemeChoice; label: MessageKey; icon: LucideIcon }[] = [
 ]
 
 const item =
-  'flex min-h-tap-min cursor-pointer items-center gap-2 rounded-md px-3 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:bg-muted'
+  'flex min-h-tap-min md:min-h-control-compact cursor-pointer items-center gap-2 rounded-md px-3 text-body-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:bg-muted'
 
 /** The avatar menu's pages, the same for every user (UX-DR85): each shows its Empty state when there is nothing. */
 const PAGES: { to: string; label: MessageKey }[] = [

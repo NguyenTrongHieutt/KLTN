@@ -234,7 +234,7 @@ function DecisionForm({ data, onError }: { data: AbuseReport; onError: (error: s
       <fieldset className="flex flex-col gap-2">
         <legend className="text-label">{t('screen.admin.reports.action')}</legend>
         {actions.map((option) => (
-          <label key={option} className="flex min-h-tap-min items-center gap-2">
+          <label key={option} className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
             <input
               type="radio"
               name={`${ids}-action`}

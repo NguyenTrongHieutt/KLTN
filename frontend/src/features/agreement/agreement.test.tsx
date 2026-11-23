@@ -95,7 +95,7 @@ describe('JOB-6 for the Mentor: draft the Agreement (FR-16)', () => {
 
     expect(await screen.findByRole('link', { name: 'Thỏa thuận' })).toHaveAttribute('aria-current', 'page')
     expect(await screen.findByText(/Báo giá trong đơn ứng tuyển: 800.000 ₫ · 7 ngày/)).toBeInTheDocument()
-    expect(screen.getByText(/Các thay đổi về cơ sở dữ liệu và cấu hình/)).toBeInTheDocument()
+    expect(screen.getByText(/Các thay đổi về database và cấu hình/)).toBeInTheDocument()
     expect(screen.getByText('Quyền đối với mã')).toBeInTheDocument()
     const alert = screen.getByRole('alert')
     expect(within(alert).getByText('Tiêu chí 1 của Giai đoạn 1 chưa có nội dung hoặc cách kiểm tra.')).toBeInTheDocument()
@@ -260,7 +260,7 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ đặt bàn' })).toBeInTheDocument()
     expect(screen.getByText('· 3 bước kiểm tra')).toBeInTheDocument()
     expect(screen.getByText('khớp báo giá')).toBeInTheDocument()
-    expect(screen.getByText('Môi trường thử')).toBeInTheDocument()
+    expect(screen.getByText('Staging')).toBeInTheDocument()
     expect(screen.getByText('minhtq')).toBeInTheDocument()
     // Story 21.5: the Customer sees the usernames of the members who signed, with no Crew confirmation to wait for.
     expect(screen.queryByText('Chờ nhóm thực hiện xác nhận')).toBeNull()

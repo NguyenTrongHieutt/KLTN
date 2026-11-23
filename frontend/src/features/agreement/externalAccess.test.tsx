@@ -109,7 +109,7 @@ describe('FR-66 External Access after confirmation (N-8, UX-DR83)', () => {
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Cấp quyền cho người thực hiện' })).closest('section')!
     const card = within(section).getByRole('heading', { level: 3, name: 'Supabase · đọc và ghi bảng đặt bàn' }).closest('article')!
-    expect(within(card).getByText('Môi trường thử')).toBeInTheDocument()
+    expect(within(card).getByText('Staging')).toBeInTheDocument()
     expect(within(card).getByText(/Mời đúng các tài khoản dưới đây/)).toBeInTheDocument()
     expect(within(card).getByText(/Đừng gửi mật khẩu của bạn qua Trò chuyện/)).toBeInTheDocument()
     expect(within(card).getByText('@vy-le')).toBeInTheDocument()
@@ -144,13 +144,13 @@ describe('FR-66 External Access after confirmation (N-8, UX-DR83)', () => {
     expect(screen.getByText(/Chỉ khách hàng thấy tài khoản này/)).toBeInTheDocument()
     await user.type(field, 'sk_test_value')
     await user.click(screen.getByRole('button', { name: 'Lưu' }))
-    expect(await screen.findByText(/Đây giống một mật khẩu hoặc khóa bí mật/)).toBeInTheDocument()
+    expect(await screen.findByText(/Đây giống một mật khẩu hoặc secret/)).toBeInTheDocument()
 
     await user.clear(field)
     await user.type(field, 'vy.le.dev@gmail.com')
     await user.click(screen.getByRole('button', { name: 'Lưu' }))
     await waitFor(() => expect(sent).toHaveLength(2))
     expect(sent[1]).toEqual({ identifier: 'vy.le.dev@gmail.com' })
-    await waitFor(() => expect(screen.queryByText(/Đây giống một mật khẩu hoặc khóa bí mật/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/Đây giống một mật khẩu hoặc secret/)).not.toBeInTheDocument())
   })
 })

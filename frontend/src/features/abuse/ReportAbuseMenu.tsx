@@ -35,7 +35,7 @@ export interface ReportTarget {
 }
 
 const itemClass =
-  'flex min-h-tap-min cursor-pointer items-center rounded-md px-3 py-1.5 text-body-sm data-highlighted:bg-muted'
+  'flex min-h-tap-min md:min-h-control-compact cursor-pointer items-center rounded-md px-3 py-1.5 text-body-sm data-highlighted:bg-muted'
 
 /**
  * Report abuse (FR-69, AD-34, UX-DR64): the "…" menu of a Product, Job Post, recruitment note, Rating, chat

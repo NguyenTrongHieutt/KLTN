@@ -116,8 +116,8 @@ afterEach(() => {
 describe('JOB-9 says why a pick was refused, and writes nothing (FR-81, AD-23, Story 21.5)', () => {
   it.each([
     ['CREW_FULL', { n: 5 }, /^Nhóm thực hiện đã đủ 5 người\.$/],
-    ['CONTRIBUTORS_UNKNOWN', {}, /^Chưa thể chọn người này: vibefix chưa kiểm tra được kho mã của khách hàng/],
-    ['APPLICANT_IS_CONTRIBUTOR', {}, /^Trần Quang Minh đã từng đóng góp vào dự án gốc này nên không vào nhóm được\.$/],
+    ['CONTRIBUTORS_UNKNOWN', {}, /^Chưa thể chọn người này: vibefix chưa kiểm tra được repo của khách hàng/],
+    ['APPLICANT_IS_CONTRIBUTOR', {}, /^Trần Quang Minh đã từng đóng góp vào repo nguồn này nên không vào nhóm được\.$/],
     ['CONFLICT_OF_INTEREST', {}, /^Trần Quang Minh không thể tham gia công việc này\.$/],
     // In the Mentor's words, not "Người hướng dẫn đang không nhận đơn" about themselves.
     ['RECRUITMENT_CLOSED', {}, /^Công việc không còn nhận thêm thành viên\.$/],
@@ -204,13 +204,13 @@ describe('MEN-3 says why a signature was refused, in the words of the person sig
       422,
       'GUARD_FAILED',
       'CONTRIBUTORS_UNKNOWN',
-      'vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn này. Việc này không do bạn; hãy thử lại sau.',
+      'vibefix chưa kiểm tra được repo của khách hàng nên chưa nhận đơn này. Việc này không do bạn; hãy thử lại sau.',
     ],
     [
       422,
       'GUARD_FAILED',
       'APPLICANT_IS_CONTRIBUTOR',
-      'Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá hay xin vào nhóm.',
+      'Bạn đã từng đóng góp vào repo nguồn này nên không thể chào giá hay xin vào nhóm.',
     ],
     [422, 'GUARD_FAILED', 'CONFLICT_OF_INTEREST', 'Bạn không thể tham gia công việc này.'],
     // A-16: never saying whether another Crew or a lock is why, and never the words written for the Mentor.

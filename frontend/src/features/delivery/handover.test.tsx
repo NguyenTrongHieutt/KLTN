@@ -173,7 +173,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await user.type(screen.getByRole('textbox', { name: 'Ghi chú cho tiêu chí 1' }), 'Đã rà đủ chín mục.')
     // Story 24.3 (FR-10): an Assessment Job changes no running Product, so it has no preview part, and its report
     // goes in as a "Tài liệu" link: the form starts with that row, and waits for it.
-    expect(screen.queryByRole('textbox', { name: 'Đường dẫn bản xem thử (https)' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Đường dẫn preview (https)' })).toBeNull()
     expect(screen.getByText(/Gửi báo cáo đánh giá dưới dạng một liên kết loại "Tài liệu"/)).toBeInTheDocument()
     const row = screen.getByRole('group', { name: 'Liên kết 1' })
     expect(within(row).getByRole('combobox', { name: 'Loại' })).toHaveValue('DOCUMENT')
@@ -374,16 +374,16 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     renderAt('/cong-viec/j1/ban-giao/h1')
 
     const sensitive = (await screen.findByText('package.json')).closest('section')!
-    expect(within(sensitive).getByText(/Danh sách thư viện mà ứng dụng dùng/)).toBeInTheDocument()
+    expect(within(sensitive).getByText(/Danh sách dependency mà ứng dụng dùng/)).toBeInTheDocument()
     // N-33 (FR-33, R28, Story 23.8b): the Customer reads it above their decision, and never ticks it.
     expect(
       screen.getByText(/vibefix không quét mã của nhóm\. Người hướng dẫn Đỗ Mạnh Hùng đã xác nhận/),
     ).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(screen.getByText('Chi tiết kỹ thuật'))
-    expect(screen.getByText('Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.')).toBeInTheDocument()
-    expect(screen.getByText('Yêu cầu hợp nhất #101 trong kho trung gian')).toBeInTheDocument()
-    expect(screen.getByText('1 lần lưu không gắn với tài khoản GitHub nào.')).toBeInTheDocument()
+    expect(screen.getByText('Danh sách các commit, dành cho người hỗ trợ kỹ thuật của bạn.')).toBeInTheDocument()
+    expect(screen.getByText('Yêu cầu merge #101 trong repo trung gian')).toBeInTheDocument()
+    expect(screen.getByText('1 commit không gắn với tài khoản GitHub nào.')).toBeInTheDocument()
     // FR-32 (Story 23.8b): the two GitHub links, each with its domain, and the Customer's invitation line.
     expect(screen.getByRole('link', { name: /Xem thay đổi trên GitHub/ })).toHaveAttribute(
       'href',
@@ -395,9 +395,9 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     )
     expect(screen.getAllByText('(github.com)')).toHaveLength(2)
     expect(
-      screen.getByText('Hai liên kết trên chỉ mở được sau khi bạn chấp nhận lời mời đọc kho trung gian trên GitHub.'),
+      screen.getByText('Hai liên kết trên chỉ mở được sau khi bạn chấp nhận lời mời đọc repo trung gian trên GitHub.'),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Mở lời mời đọc kho trung gian' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Mở lời mời đọc repo trung gian' })).toHaveAttribute(
       'href',
       '/cong-viec/j1/kho-trung-gian',
     )
@@ -451,7 +451,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
       screen.getByText('Trang này nằm ngoài vibefix (docs.google.com). Đừng nhập mật khẩu GitHub hoặc vibefix ở đó.'),
     ).toBeInTheDocument()
 
-    const link = screen.getByRole('link', { name: /Mở bản xem thử/ })
+    const link = screen.getByRole('link', { name: /Mở preview/ })
     expect(link).toHaveAttribute('href', 'https://so-dat-ban-gd1.vercel.app')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
@@ -492,13 +492,13 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
     const send = screen.getByRole('button', { name: 'Gửi bàn giao' })
     expect(send).toBeDisabled()
-    await user.type(screen.getByRole('textbox', { name: 'Đường dẫn bản xem thử (https)' }), 'https://dead.vercel.app')
+    await user.type(screen.getByRole('textbox', { name: 'Đường dẫn preview (https)' }), 'https://dead.vercel.app')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra đường dẫn' }))
-    expect(await screen.findByText('Bản xem thử không phản hồi. Hãy kiểm tra đường dẫn.')).toBeInTheDocument()
+    expect(await screen.findByText('Preview không phản hồi. Hãy kiểm tra đường dẫn.')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('checkbox', { name: 'Không thể làm bản xem thử' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Không thể làm preview' }))
     expect(send).toBeDisabled()
-    await user.type(screen.getByRole('textbox', { name: 'Vì sao không làm được bản xem thử' }), 'Chỉ chạy trên máy của quán')
+    await user.type(screen.getByRole('textbox', { name: 'Vì sao không làm được preview' }), 'Chỉ chạy trên máy của quán')
     expect(screen.getByText(/Thêm video quay màn hình vào phần Liên kết kèm bàn giao bên dưới/)).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Đường dẫn video quay màn hình (https)' })).toBeNull()
     await user.click(teamCode())
@@ -799,9 +799,9 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
     await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
-    await user.type(screen.getByRole('textbox', { name: 'Đường dẫn bản xem thử (https)' }), 'https://so-dat-ban.vercel.app')
+    await user.type(screen.getByRole('textbox', { name: 'Đường dẫn preview (https)' }), 'https://so-dat-ban.vercel.app')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra đường dẫn' }))
-    expect(await screen.findByText('Bản xem thử phản hồi (so-dat-ban.vercel.app).')).toBeInTheDocument()
+    expect(await screen.findByText('Preview phản hồi (so-dat-ban.vercel.app).')).toBeInTheDocument()
 
     const add = screen.getByRole('button', { name: 'Thêm liên kết' })
     await user.click(add)
@@ -847,7 +847,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     renderAt('/cong-viec/j1/ban-giao/h1')
 
     expect(await screen.findByText('Ứng dụng chỉ chạy trên máy của quán')).toBeInTheDocument()
-    expect(screen.getByText('Lý do không có bản xem thử')).toBeInTheDocument()
+    expect(screen.getByText('Lý do không có preview')).toBeInTheDocument()
     // SG-30: the label is the Mentor's text, shown as text; the link is found by where it goes.
     const recording = document.querySelector('a[href="https://www.loom.com/share/abc"]')
     expect(recording).toHaveAttribute('href', 'https://www.loom.com/share/abc')
@@ -1111,7 +1111,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     renderAt('/cong-viec/j1/ban-giao/tao')
 
     expect(await screen.findByText(/Không thể bàn giao: có thay đổi trong thư mục \.github\/workflows/)).toBeInTheDocument()
-    expect(screen.getByText('Sẽ bàn giao 2 lần lưu thay đổi mới.')).toBeInTheDocument()
+    expect(screen.getByText('Sẽ bàn giao 2 commit mới.')).toBeInTheDocument()
     expect(screen.getByText('Dockerfile')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gửi bàn giao' })).toBeDisabled()
   })

@@ -37,7 +37,7 @@ const catalog = () =>
         id: 'c1',
         name: 'Giao diện web',
         skills: [
-          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
+          { id: 'react', name: 'React', hint: 'Dependency dựng giao diện web.' },
           { id: 'supabase', name: 'Supabase', hint: 'Dịch vụ lưu dữ liệu và đăng nhập.' },
           { id: 'vnpay', name: 'VNPay', hint: 'Cổng thanh toán online.' },
         ],
@@ -208,7 +208,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
       'GET /api/v1/products/p1': () => json(product()),
       'GET /api/v1/products/p1/skill-suggestions': () =>
         json([
-          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
+          { id: 'react', name: 'React', hint: 'Dependency dựng giao diện web.' },
           { id: 'supabase', name: 'Supabase', hint: 'Dịch vụ lưu dữ liệu và đăng nhập.' },
         ]),
       'GET /api/v1/catalog': catalog,
@@ -278,7 +278,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
 
     expect(await screen.findByLabelText('Tên công việc')).toHaveValue('Ghép mã đã hoàn thiện vào dự án')
     expect(screen.getByLabelText('Điều gì đang chưa đúng?')).toHaveValue(
-      'Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Mã đã hoàn thiện nằm trong kho trung gian của công việc đó trên GitHub, tôi tự tải về được.',
+      'Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào repo nguồn. Mã đã hoàn thiện nằm trong repo trung gian của công việc đó trên GitHub, tôi tự tải về được.',
     )
     expect(screen.getByRole('checkbox', { name: /Chỉnh sửa/ })).toBeChecked()
   })
@@ -460,7 +460,7 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     expect(within(post).getByText('React')).toBeInTheDocument()
     expect(within(post).getByText(/Ngân sách: 2–5 triệu ₫/)).toBeInTheDocument()
     expect(within(post).getByText(/đăng 16\/10/)).toBeInTheDocument()
-    expect(screen.getByText(/Mã của sản phẩm nằm trong kho mã công khai/)).toBeInTheDocument()
+    expect(screen.getByText(/Mã của sản phẩm nằm trong repo công khai/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Sổ đặt bàn Quán Mây' })).toHaveAttribute('href', '/san-pham/p1')
 
     await user.click(screen.getByRole('button', { name: 'Rút tin' }))

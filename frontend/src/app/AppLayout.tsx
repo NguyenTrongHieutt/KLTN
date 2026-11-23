@@ -10,7 +10,6 @@ import { useSession } from '@/features/identity/useSession'
 import { useTodos, useUnreadCount } from '@/features/notification/hooks'
 import { NextActionStrip } from '@/features/notification/NextActionStrip'
 import { NotificationBell } from '@/features/notification/NotificationBell'
-import { useJobRole } from '@/features/job/jobRoleApi'
 import { t, type MessageKey } from '@/i18n/t'
 import { useMatchMedia } from '@/lib/useMatchMedia'
 import { cn } from '@/lib/utils'
@@ -65,7 +64,6 @@ function SignedInShell() {
   const { offline } = usePollHealth()
   const narrow = useMatchMedia(NARROW)
   const jobId = useMatch('/cong-viec/:jobId/*')?.params.jobId
-  const role = useJobRole(jobId).data?.role
   // The account's theme while signed in; light again after signing out (UX-DR5).
   useEffect(() => {
     if (!theme) {
@@ -102,7 +100,8 @@ function SignedInShell() {
           </Link>
           <nav aria-label={t('shell.mainNav')} className="hidden md:block">
             <ul className="flex gap-6">
-              {DESTINATIONS.map((destination) => (
+              {/* From 768 px the bell holds the notifications, so the top bar lists four destinations (2026-11-23). */}
+              {DESTINATIONS.filter((destination) => destination.to !== '/thong-bao').map((destination) => (
                 <li key={destination.to}>
                   <NavLink
                     to={destination.to}
@@ -129,7 +128,7 @@ function SignedInShell() {
           {t('state.offline')}
         </p>
       )}
-      <NextActionStrip jobId={jobId} compact={role === 'MENTOR' || role === 'CREW'} />
+      <NextActionStrip jobId={jobId} />
       <main id={MAIN_ID} tabIndex={-1} className="grow pb-tab-bar-height focus:outline-none md:pb-0">
         <Outlet />
       </main>

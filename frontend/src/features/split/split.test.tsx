@@ -1040,7 +1040,7 @@ describe('JOB-10, a Split Resolution (FR-84, UX-DR106)', () => {
     ...overrides,
   })
   const n31 =
-    'Quản trị viên sẽ xem các bản phân chia và các lần sửa, các lần lưu thay đổi (commit) của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa 30% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.'
+    'Quản trị viên sẽ xem các bản phân chia và các lần sửa, các commit của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa 30% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.'
 
   it(
     'asks with N-31 verbatim and a required reason, naming the version it was shown',

@@ -217,7 +217,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         </figure>
         <fieldset className="flex flex-wrap gap-4 text-body">
           <legend className="sr-only">{criterion.statement}</legend>
-          <label className="flex min-h-tap-min items-center gap-2">
+          <label className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
             <input
               type="radio"
               name={`${ids}-mark`}
@@ -227,7 +227,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
             />
             {t('screen.handover.check.met')}
           </label>
-          <label className="flex min-h-tap-min items-center gap-2">
+          <label className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
             <input
               type="radio"
               name={`${ids}-mark`}

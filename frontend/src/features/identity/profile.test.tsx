@@ -39,10 +39,10 @@ describe('ACC-1 "Bạn tự nhập" (Story 19.3, FR-3, FR-4, UX-DR44)', () => {
     await user.type(within(typed).getByLabelText('Số năm kinh nghiệm (không bắt buộc)'), '5')
     await user.click(within(typed).getByRole('button', { name: 'Thêm liên kết' }))
     await user.type(within(typed).getByLabelText('Liên kết 1'), 'https://tiembanhlan.vn')
-    await user.click(within(typed).getByRole('button', { name: 'Thêm kho mã' }))
-    await user.type(within(typed).getByLabelText('Kho mã 1'), 'lan/shop')
+    await user.click(within(typed).getByRole('button', { name: 'Thêm repo' }))
+    await user.type(within(typed).getByLabelText('Repo 1'), 'lan/shop')
     // A row added and left blank is not sent.
-    await user.click(within(typed).getByRole('button', { name: 'Thêm kho mã' }))
+    await user.click(within(typed).getByRole('button', { name: 'Thêm repo' }))
     await user.click(within(typed).getByRole('button', { name: 'Lưu hồ sơ' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(/Đã lưu lúc/)

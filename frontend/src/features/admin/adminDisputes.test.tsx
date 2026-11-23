@@ -278,14 +278,14 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     const second = screen.getByText('Giai đoạn 1: Báo cáo · lần 2').closest('li') as HTMLElement
     expect(within(first).getByText(/Đã kiểm tra trên điện thoại/)).toBeInTheDocument()
     expect(within(first).getByText(/Vẫn đặt trùng bàn/)).toBeInTheDocument()
-    expect(within(first).getByRole('link', { name: 'Mở bản xem thử' })).toHaveAttribute(
+    expect(within(first).getByRole('link', { name: 'Mở preview' })).toHaveAttribute(
       'href',
       'https://so-dat-ban.vercel.app/dat-ban',
     )
     for (const [name, url] of [
       ['Ghi chú phát hành', 'https://docs.google.com/document/d/ghi-chu'],
       ['Video thao tác', 'https://www.loom.com/share/dat-ban'],
-      ['Mở bản xem thử', 'https://so-dat-ban.vercel.app/dat-ban'],
+      ['Mở preview', 'https://so-dat-ban.vercel.app/dat-ban'],
     ]) {
       const link = within(first).getByRole('link', { name })
       expect(link).toHaveAttribute('href', url)
@@ -304,7 +304,7 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(within(first).getAllByRole('img')).toHaveLength(2)
 
     expect(within(second).getByText('Ứng dụng chỉ chạy trên máy của quán')).toBeInTheDocument()
-    expect(within(second).queryByRole('link', { name: 'Mở bản xem thử' })).toBeNull()
+    expect(within(second).queryByRole('link', { name: 'Mở preview' })).toBeNull()
     expect(within(second).getByRole('link', { name: 'Video quay màn hình' })).toHaveAttribute('href', 'https://youtu.be/quay')
     expect(within(second).queryByRole('img')).toBeNull()
     expect(within(second).queryByText(/quyết định lúc/)).toBeNull()
@@ -346,11 +346,11 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     await user.click(await screen.findByRole('tab', { name: 'Cảnh báo thay đổi' }))
     expect(
       await screen.findByText(
-        'Ứng dụng vibefix không còn đến được kho nguồn lan/so-dat-ban: kho bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi',
+        'App vibefix không còn đến được repo nguồn lan/so-dat-ban: repo bị xóa hoặc chuyển đi, hoặc danh sách repo của ứng dụng đã đổi',
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Ứng dụng vibefix trên kho nguồn bị gỡ, bị tạm ngưng hoặc thiếu quyền')).toBeInTheDocument()
-    expect(screen.getByText('File workflow vibefix.yml trong kho nguồn bị xóa hoặc sửa')).toBeInTheDocument()
+    expect(screen.getByText('App vibefix trên repo nguồn bị gỡ, bị tạm ngưng hoặc thiếu quyền')).toBeInTheDocument()
+    expect(screen.getByText('File workflow vibefix.yml trong repo nguồn bị xóa hoặc sửa')).toBeInTheDocument()
     expect(screen.queryByText(/screen\.admin\.disputes\.evidence\.drift/)).toBeNull()
   })
 

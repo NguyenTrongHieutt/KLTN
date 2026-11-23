@@ -214,7 +214,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     expect(within(hung).getByText('Đã làm 2 công việc Sửa lỗi khi làm người hướng dẫn · 1 khi làm thành viên nhóm')).toBeInTheDocument()
     expect(within(hung).getByText('3/4 giai đoạn')).toBeInTheDocument()
     expect(within(hung).getByText('2/3: GitHub, Sinh viên đã xác minh')).toBeInTheDocument()
-    expect(within(hung).getByRole('button', { name: 'Đúng hạn' })).toBeInTheDocument()
+    expect(within(hung).getByText('Đúng hạn')).toBeInTheDocument()
     expect(within(hung).getByText('Chấm sao khi làm người hướng dẫn: 4,8 sao (6 lượt)')).toBeInTheDocument()
     expect(within(hung).getByText('Tham gia vibefix từ 06/2026')).toBeInTheDocument()
     // A new user: every history metric is "Chưa có dữ liệu", with "Mới" beside them; their histories read "Chưa có";

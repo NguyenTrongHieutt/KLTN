@@ -209,7 +209,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
                     {criterion.checkSteps}
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    <label className="flex min-h-tap-min items-center gap-2">
+                    <label className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
                       <input
                         type="radio"
                         name={`${ids}-met-${criterion.criterionId}`}
@@ -219,7 +219,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
                       />
                       {t('screen.handover.form.met')}
                     </label>
-                    <label className="flex min-h-tap-min items-center gap-2">
+                    <label className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
                       <input
                         type="radio"
                         name={`${ids}-met-${criterion.criterionId}`}

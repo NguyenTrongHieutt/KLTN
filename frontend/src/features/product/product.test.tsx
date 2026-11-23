@@ -69,7 +69,7 @@ async function registerThroughTheNotices(user: ReturnType<typeof userEvent.setup
   renderAt('/san-pham/moi')
   await user.click(await screen.findByRole('button', { name: 'Lovable' }))
   await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
-  await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+  await user.type(await screen.findByLabelText('Đường dẫn repo trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
   await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
   await screen.findByText('Dung lượng 38 MB, dưới giới hạn 250 MB')
   await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
@@ -121,7 +121,7 @@ describe('CUS-2, the Products (FR-7)', () => {
 
     const list = await screen.findByRole('list', { name: 'Sản phẩm của bạn' })
     expect(within(list).getByRole('link', { name: 'Shop Gốm Bát Tràng' })).toHaveAttribute('href', '/san-pham/p1')
-    expect(within(list).getByText(/Dự án gốc: lan-nguyen\/shop-gom/)).toBeInTheDocument()
+    expect(within(list).getByText(/Repo nguồn: lan-nguyen\/shop-gom/)).toBeInTheDocument()
     expect(within(list).queryByText(/kiểm tra|vấn đề/i)).toBeNull()
   })
 
@@ -136,13 +136,13 @@ describe('CUS-2, the Products (FR-7)', () => {
     const list = await screen.findByRole('list', { name: 'Sản phẩm của bạn' })
     const badges = within(list)
       .getAllByRole('listitem')
-      .map((item) => within(item).getByText(/^(Sẵn sàng|Chưa cài ứng dụng vibefix|Thiếu file workflow|File workflow khác bản mẫu)$/).textContent)
+      .map((item) => within(item).getByText(/^(Sẵn sàng|Chưa cài app vibefix|Thiếu file workflow|File workflow khác bản mẫu)$/).textContent)
     expect(badges).toEqual([
-      'Ứng dụng vibefix và file workflow: Sẵn sàng',
-      'Ứng dụng vibefix và file workflow: Chưa cài ứng dụng vibefix',
-      'Ứng dụng vibefix và file workflow: Chưa cài ứng dụng vibefix',
-      'Ứng dụng vibefix và file workflow: Thiếu file workflow',
-      'Ứng dụng vibefix và file workflow: File workflow khác bản mẫu',
+      'App vibefix và file workflow: Sẵn sàng',
+      'App vibefix và file workflow: Chưa cài app vibefix',
+      'App vibefix và file workflow: Chưa cài app vibefix',
+      'App vibefix và file workflow: Thiếu file workflow',
+      'App vibefix và file workflow: File workflow khác bản mẫu',
     ])
     const reads = seen
       .map((request) => new URL(request.url, 'http://localhost').pathname)
@@ -180,13 +180,13 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 
     expect(await screen.findByText('Bước 2/5')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled()
-    await user.type(screen.getByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
-    expect(screen.getByRole('button', { name: /Cài ứng dụng vibefix trên GitHub/ })).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Đường dẫn repo trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    expect(screen.getByRole('button', { name: /Cài app vibefix trên GitHub/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
-    expect(await screen.findByText('Kho mã này được sao từ lovable-templates/shop-starter')).toBeInTheDocument()
-    expect(screen.getByText('Ứng dụng vibefix được cài cho đúng kho mã này')).toBeInTheDocument()
+    expect(await screen.findByText('Repo này được sao từ lovable-templates/shop-starter')).toBeInTheDocument()
+    expect(screen.getByText('App vibefix được cài cho đúng repo này')).toBeInTheDocument()
     expect(screen.getByText('Dung lượng 38 MB, dưới giới hạn 250 MB')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Cài ứng dụng vibefix trên GitHub/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Cài app vibefix trên GitHub/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
 
     expect(await screen.findByText('Bước 3/5')).toBeInTheDocument()
@@ -203,7 +203,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     expect(screen.getByRole('button', { name: 'Sao chép nội dung' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Tải file vibefix.yml/ })).toHaveAttribute('download', 'vibefix.yml')
     expect(screen.getByText(/vibefix không quét mã của bạn\. Trước khi người khác đọc mã/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Tự kiểm tra khóa bí mật trên GitHub/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Tự kiểm tra secret trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/lan-nguyen/shop-gom/actions/workflows/vibefix.yml',
     )
@@ -224,7 +224,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     // N-1, N-1b and N-2 were rewritten for private copies under notice version 2.0 (Story 23.5); under 2.1 N-1b names
     // what the Source App tells vibefix (Story 24.6).
     expect(screen.getByText('Lưu ý khi đăng ký sản phẩm · phiên bản 2.1 · 22/11/2026')).toBeInTheDocument()
-    expect(screen.getByText(/^Tôi hiểu vibefix giữ các bản sao riêng tư của dự án gốc trên GitHub\./)).toBeInTheDocument()
+    expect(screen.getByText(/^Tôi hiểu vibefix giữ các bản sao riêng tư của repo nguồn trên GitHub\./)).toBeInTheDocument()
     expect(
       screen.getByText(
         /Ứng dụng này báo cho vibefix khi một lần chạy trên GitHub Actions xong, .* bị bỏ khỏi danh sách dự án của ứng dụng, hoặc ứng dụng bị gỡ hay tạm ngưng\./,
@@ -269,20 +269,20 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 
     await user.click(await screen.findByRole('button', { name: 'Lovable' }))
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
-    const field = await screen.findByLabelText('Đường dẫn kho mã trên GitHub')
+    const field = await screen.findByLabelText('Đường dẫn repo trên GitHub')
     await user.type(field, 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
 
     expect(
-      await screen.findAllByText('Ứng dụng vibefix chưa được cài trên lan-nguyen/shop-gom. Hãy cài ứng dụng trên GitHub rồi quay lại.'),
+      await screen.findAllByText('App vibefix chưa được cài trên lan-nguyen/shop-gom. Hãy cài ứng dụng trên GitHub rồi quay lại.'),
     ).not.toHaveLength(0)
-    expect(screen.getByText('Ứng dụng vibefix được cài cho đúng kho mã này')).toBeInTheDocument()
-    expect(screen.getByText('Tìm thấy kho mã · chưa kiểm tra')).toBeInTheDocument()
+    expect(screen.getByText('App vibefix được cài cho đúng repo này')).toBeInTheDocument()
+    expect(screen.getByText('Tìm thấy repo · chưa kiểm tra')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled()
     expect(field).toHaveValue('https://github.com/lan-nguyen/shop-gom')
     expect(field).toHaveAttribute('aria-invalid', 'true')
 
-    await user.click(screen.getByRole('button', { name: /Cài ứng dụng vibefix trên GitHub/ }))
+    await user.click(screen.getByRole('button', { name: /Cài app vibefix trên GitHub/ }))
     await waitFor(() =>
       expect(redirectTo).toHaveBeenCalledWith('https://github.com/apps/vibefix-dev-source/installations/new?state=s1'),
     )
@@ -307,15 +307,15 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 
     expect(await screen.findByText('Chờ chủ tổ chức duyệt')).toBeInTheDocument()
     expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
-    expect(screen.getByLabelText('Đường dẫn kho mã trên GitHub')).toHaveValue('https://github.com/cong-ty/app')
+    expect(screen.getByLabelText('Đường dẫn repo trên GitHub')).toHaveValue('https://github.com/cong-ty/app')
     expect(
       screen.getByText(
-        'Nhờ duyệt giúp yêu cầu cài ứng dụng vibefix cho đúng kho cong-ty/app trên GitHub. Yêu cầu đang chờ trong phần GitHub Apps của tổ chức cong-ty.',
+        'Nhờ duyệt giúp yêu cầu cài app vibefix cho đúng repo cong-ty/app trên GitHub. Yêu cầu đang chờ trong phần GitHub Apps của tổ chức cong-ty.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sao chép lời nhắn' })).toBeInTheDocument()
     await waitFor(() => expect(checks).toBe(1))
-    expect(screen.queryByRole('button', { name: /Cài ứng dụng vibefix trên GitHub/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Cài app vibefix trên GitHub/ })).toBeNull()
   })
 
   it('says when GitHub came back with nothing installed and offers the install again', { timeout: 15_000 }, async () => {
@@ -326,7 +326,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     })
     renderAt('/san-pham/moi?ung-dung=chua-thay')
 
-    expect(await screen.findByText(/^Chưa thấy ứng dụng vibefix được cài cho kho cong-ty\/app/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Chưa thấy app vibefix được cài cho repo cong-ty\/app/)).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: /Cài lại trên GitHub/ })).toBeInTheDocument()
   })
 
@@ -340,7 +340,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 
     await user.click(await screen.findByRole('button', { name: 'Lovable' }))
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
-    await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    await user.type(await screen.findByLabelText('Đường dẫn repo trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
 
     expect(await screen.findAllByText(/phải được cài cho lan-nguyen\/shop-gom/)).not.toHaveLength(0)
@@ -363,9 +363,9 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 
     await user.click(await screen.findByRole('button', { name: 'Lovable' }))
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
-    await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    await user.type(await screen.findByLabelText('Đường dẫn repo trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
-    await screen.findByText('Ứng dụng vibefix được cài cho đúng kho mã này')
+    await screen.findByText('App vibefix được cài cho đúng repo này')
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
     await user.click(await screen.findByRole('button', { name: 'Kiểm tra' }))
 
@@ -412,7 +412,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 
     await user.click(await screen.findByRole('button', { name: 'Lovable' }))
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
-    await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    await user.type(await screen.findByLabelText('Đường dẫn repo trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
     await screen.findByText('Dung lượng 38 MB, dưới giới hạn 250 MB')
     limitRepository = true
@@ -462,7 +462,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     await registerThroughTheNotices(user)
 
     expect(await screen.findByText('Bước 2/5')).toBeInTheDocument()
-    expect(await screen.findByLabelText('Đường dẫn kho mã trên GitHub')).toHaveValue('https://github.com/lan-nguyen/shop-gom')
+    expect(await screen.findByLabelText('Đường dẫn repo trên GitHub')).toHaveValue('https://github.com/lan-nguyen/shop-gom')
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled()
   })
 
@@ -481,7 +481,7 @@ describe('CUS-4, a Product (FR-7)', () => {
     renderAt('/san-pham/p1')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Shop Gốm Bát Tràng' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Mở dự án gốc/ })).toHaveAttribute('href', 'https://github.com/lan-nguyen/shop-gom')
+    expect(screen.getByRole('link', { name: /Mở repo nguồn/ })).toHaveAttribute('href', 'https://github.com/lan-nguyen/shop-gom')
     expect(screen.getByRole('link', { name: 'Đăng công việc' })).toHaveAttribute('href', '/san-pham/p1/cong-viec-moi')
     expect(screen.getByText('Lovable')).toBeInTheDocument()
     expect(screen.getByText('lovable-templates/shop-starter')).toBeInTheDocument()
@@ -490,10 +490,10 @@ describe('CUS-4, a Product (FR-7)', () => {
     expect(screen.getByText('Sẵn sàng')).toBeInTheDocument()
     expect(screen.getByText('Kiểm tra lần cuối lúc 10:00 16/10')).toBeInTheDocument()
     expect(
-      screen.getByText('Ứng dụng vibefix được cài cho đúng kho lan-nguyen/shop-gom, và file workflow đúng bản vibefix công bố.'),
+      screen.getByText('App vibefix được cài cho đúng repo lan-nguyen/shop-gom, và file workflow đúng bản vibefix công bố.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Kiểm tra lại' })).toBeEnabled()
-    expect(screen.getByRole('link', { name: /Tự kiểm tra khóa bí mật trên GitHub/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Tự kiểm tra secret trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/lan-nguyen/shop-gom/actions/workflows/vibefix.yml',
     )
@@ -525,13 +525,13 @@ describe('CUS-4, a Product (FR-7)', () => {
     })
     renderAt('/san-pham/p1')
 
-    expect(await screen.findByText('Chưa cài ứng dụng vibefix')).toBeInTheDocument()
+    expect(await screen.findByText('Chưa cài app vibefix')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Ứng dụng vibefix chưa được cài trên lan-nguyen/shop-gom. vibefix cần ứng dụng này để đọc dự án và chạy việc sao chép.',
+        'App vibefix chưa được cài trên lan-nguyen/shop-gom. vibefix cần ứng dụng này để đọc dự án và chạy việc sao chép.',
       ),
     ).toBeInTheDocument()
-    const install = screen.getByRole('link', { name: /Cài ứng dụng vibefix trên GitHub/ })
+    const install = screen.getByRole('link', { name: /Cài app vibefix trên GitHub/ })
     expect(install).toHaveAttribute('href', 'https://github.com/apps/vibefix-dev-source/installations/new')
     expect(install).toHaveAttribute('target', '_blank')
     expect(screen.getByText(/GitHub đưa bạn về trang Sản phẩm/)).toBeInTheDocument()
@@ -540,7 +540,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
     expect(await screen.findByText('Sẵn sàng')).toBeInTheDocument()
     expect(checks).toBe(1)
-    expect(screen.queryByRole('link', { name: /Cài ứng dụng vibefix trên GitHub/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Cài app vibefix trên GitHub/ })).toBeNull()
   })
 
   it('shows the selection link of a Source App on the wrong repositories (Story 23.5c)', async () => {
@@ -549,7 +549,7 @@ describe('CUS-4, a Product (FR-7)', () => {
     })
     renderAt('/san-pham/p1')
 
-    expect(await screen.findByText(/Ứng dụng vibefix phải được cài cho lan-nguyen\/shop-gom/)).toBeInTheDocument()
+    expect(await screen.findByText(/App vibefix phải được cài cho lan-nguyen\/shop-gom/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Chọn lại trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/settings/installations/21',
@@ -647,7 +647,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
     expect(
       await screen.findByText(
-        'vibefix chưa kiểm tra ứng dụng vibefix và file workflow của lan-nguyen/shop-gom. Bấm “Kiểm tra lại” để kiểm tra ngay.',
+        'vibefix chưa kiểm tra app vibefix và file workflow của lan-nguyen/shop-gom. Bấm “Kiểm tra lại” để kiểm tra ngay.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText('Chưa kiểm tra')).toBeInTheDocument()
@@ -698,7 +698,7 @@ describe('CUS-4, a Product (FR-7)', () => {
       await screen.findByText(/^Bạn đã bấm “Kiểm tra” quá nhiều lần trong một giờ\. Hãy thử lại sau \d\d:\d\d \d\d\/\d\d\.$/),
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
-    expect(await screen.findByText('Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.')).toBeInTheDocument()
+    expect(await screen.findByText('Chưa đọc được repo từ GitHub. Hãy thử lại sau ít phút.')).toBeInTheDocument()
     expect(screen.getByText('Sẵn sàng')).toBeInTheDocument()
   })
 
@@ -726,7 +726,7 @@ describe('CUS-4, a Product (FR-7)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Xóa Shop Gốm Bát Tràng?' })
     expect(within(dialog).getByText('Thông tin sản phẩm và các lưu ý bạn đã xác nhận')).toBeInTheDocument()
     expect(within(dialog).queryByText(/Kết quả kiểm tra/)).toBeNull()
-    expect(within(dialog).getByText('Dự án gốc trên GitHub không bị ảnh hưởng.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Repo nguồn trên GitHub không bị ảnh hưởng.')).toBeInTheDocument()
     expect(deleted).toBe(false)
     await user.click(within(dialog).getByRole('button', { name: 'Xóa sản phẩm' }))
 
@@ -746,7 +746,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Xóa sản phẩm' }))
     const dialog = await screen.findByRole('dialog', { name: 'Xóa Shop Gốm Bát Tràng?' })
-    expect(within(dialog).getByText('Liên kết giữa sản phẩm và ứng dụng vibefix trên dự án gốc')).toBeInTheDocument()
+    expect(within(dialog).getByText('Liên kết giữa sản phẩm và app vibefix trên repo nguồn')).toBeInTheDocument()
     expect(within(dialog).getByText(/hãy gỡ ứng dụng trên GitHub/)).toBeInTheDocument()
     expect(within(dialog).getByRole('link', { name: /Mở cài đặt ứng dụng trên GitHub/ })).toHaveAttribute(
       'href',
@@ -781,7 +781,7 @@ describe('CUS-4, a Product (FR-7)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Xóa sản phẩm' }))
     const dialog = await screen.findByRole('dialog', { name: 'Xóa Shop Gốm Bát Tràng?' })
-    expect(within(dialog).getByText(/bỏ chọn lan-nguyen\/shop-gom khỏi các kho mã của ứng dụng/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/bỏ chọn lan-nguyen\/shop-gom khỏi các repo của ứng dụng/)).toBeInTheDocument()
     expect(within(dialog).getByRole('link', { name: /Mở cài đặt ứng dụng trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/organizations/cong-ty/settings/installations/21',

@@ -148,7 +148,7 @@ function ApprovalForm({ jobId, portfolio, date }: { jobId: string; portfolio: Jo
         className={cn(inputClass, 'min-h-18')}
       />
       {portfolio.productName && (
-        <label htmlFor={`${ids}-name`} className="flex min-h-tap-min items-center gap-2 text-body-sm">
+        <label htmlFor={`${ids}-name`} className="flex min-h-tap-min md:min-h-control-compact items-center gap-2 text-body-sm">
           <input
             id={`${ids}-name`}
             type="checkbox"

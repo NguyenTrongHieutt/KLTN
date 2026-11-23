@@ -143,7 +143,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(screen.queryByRole('heading', { name: 'Việc của tôi' })).toBeNull()
     expect(screen.queryByText(/tiêu chí đã xong/)).toBeNull()
     expect(screen.queryByText(/phần mềm độc hại/)).toBeNull()
-    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /repo trung gian/ })).toBeNull()
   })
 
   /**
@@ -169,13 +169,13 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     })
     renderAt('/cong-viec/j1')
 
-    const invitation = await screen.findByRole('link', { name: /Mở lời mời đọc kho trung gian trên GitHub/ })
+    const invitation = await screen.findByRole('link', { name: /Mở lời mời đọc repo trung gian trên GitHub/ })
     expect(invitation).toHaveAttribute('href', `${COPY}/invitations`)
     expect(invitation).toHaveAttribute('target', '_blank')
     expect(invitation).toHaveAttribute('rel', 'noopener noreferrer nofollow')
     expect(screen.getByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
     // The invitation is still out, so nothing yet opens the copy itself.
-    expect(screen.queryByRole('link', { name: /Mở kho trung gian \(chỉ đọc\)/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Mở repo trung gian \(chỉ đọc\)/ })).toBeNull()
   })
 
   it('links a Crew member of an Assessment Job to the copy once they accepted', { timeout: 20_000 }, async () => {
@@ -188,7 +188,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByRole('link', { name: /Mở kho trung gian \(chỉ đọc\) trên GitHub/ })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /Mở repo trung gian \(chỉ đọc\) trên GitHub/ })).toHaveAttribute(
       'href',
       COPY,
     )
@@ -204,8 +204,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByText(/đang gửi lời mời đọc kho trung gian cho bạn/)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
+    expect(await screen.findByText(/đang gửi lời mời đọc repo trung gian cho bạn/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /repo trung gian/ })).toBeNull()
   })
 
   it('shows no copy link to a Mentor with no row of their own', { timeout: 20_000 }, async () => {
@@ -218,7 +218,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     renderAt('/cong-viec/j1')
 
     expect(await screen.findByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /kho trung gian/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /repo trung gian/ })).toBeNull()
     expect(screen.queryByText(/đang gửi lời mời/)).toBeNull()
   })
 

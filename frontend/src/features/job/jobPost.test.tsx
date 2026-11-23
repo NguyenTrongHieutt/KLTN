@@ -25,7 +25,7 @@ const catalog = () =>
         id: 'c1',
         name: 'Giao diện web',
         skills: [
-          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
+          { id: 'react', name: 'React', hint: 'Dependency dựng giao diện web.' },
           { id: 'supabase', name: 'Supabase', hint: 'Dịch vụ lưu dữ liệu và đăng nhập.' },
         ],
       },
@@ -81,7 +81,7 @@ const post = {
   appUsers: 'Khách mua trên điện thoại.',
   doneCheck: 'Tôi đặt thử 5 đơn và thấy đủ.',
   jobTypes: ['BUG_FIX'],
-  skills: [{ id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' }],
+  skills: [{ id: 'react', name: 'React', hint: 'Dependency dựng giao diện web.' }],
   budget: 'FROM_2M_TO_5M',
   deadline: '2026-11-10',
   openedAt: '2026-10-15T03:00:00Z',
@@ -320,11 +320,11 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Khách hàng muốn nó hoạt động thế nào?')).toBeInTheDocument()
     expect(screen.getByText(post.expected)).toBeInTheDocument()
-    expect(screen.getByText('Thư viện dựng giao diện web.')).toBeInTheDocument()
+    expect(screen.getByText('Dependency dựng giao diện web.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /danh-sach-don.png/ })).toHaveAttribute('href', '/api/v1/files/f1')
     expect(screen.getByText('Shop Gốm Bát Tràng, làm bằng Lovable.')).toBeInTheDocument()
     // Story 23.1: vibefix scans no code, so the Job Post says nothing of scans.
-    expect(screen.queryByText(/Kiểm tra khóa bí mật/)).toBeNull()
+    expect(screen.queryByText(/Kiểm tra secret/)).toBeNull()
     expect(await screen.findByText('Chưa có lượt chấm sao')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 2, name: 'Chào giá làm người hướng dẫn' })).toBeInTheDocument()
     // Story 21.1 retires the Team card and the free-Student banner.

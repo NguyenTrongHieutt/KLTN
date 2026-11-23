@@ -61,13 +61,13 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
 
     expect(await screen.findByText('Hạn chọn cách nhận mã: 29/10.')).toBeInTheDocument()
     expect(screen.getByText('package.json')).toBeInTheDocument()
-    expect(screen.getByText(/Sau khi bạn hợp nhất nhánh vibefix\/final-… trên GitHub/)).toBeInTheDocument()
+    expect(screen.getByText(/Sau khi bạn merge nhánh vibefix\/final-… trên GitHub/)).toBeInTheDocument()
     const run = screen.getByRole('button', { name: 'Chép mã vào dự án của tôi' })
     expect(run).toBeDisabled()
     await user.click(screen.getByRole('checkbox', { name: 'Tôi đã xem và muốn chép mã vào dự án của tôi.' }))
     await user.click(run)
 
-    const row = await screen.findByRole('group', { name: 'Hợp nhất cuối' })
+    const row = await screen.findByRole('group', { name: 'Merge cuối' })
     expect(row).toHaveTextContent('Đang chờ GitHub')
     expect(sent).toEqual([{ agreed: true }])
   })
@@ -87,7 +87,7 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     })
     renderStep()
 
-    const row = await screen.findByRole('group', { name: 'Hợp nhất cuối' })
+    const row = await screen.findByRole('group', { name: 'Merge cuối' })
     expect(row).toHaveTextContent('Đang chạy')
     expect(within(row).getByRole('link', { name: /Xem lần chạy/ })).toHaveAttribute(
       'href',
@@ -115,8 +115,8 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     renderStep()
 
     expect(await screen.findByText('Nhánh vibefix/final-j1 đã sẵn sàng')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Hợp nhất cuối' })).toHaveTextContent('Xong')
-    expect(screen.getByRole('link', { name: /Mở trang hợp nhất trên GitHub/ })).toHaveAttribute(
+    expect(screen.getByRole('group', { name: 'Merge cuối' })).toHaveTextContent('Xong')
+    expect(screen.getByRole('link', { name: /Mở trang merge trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/quan-may/so-dat-ban/compare/main...vibefix/final-j1?expand=1',
     )
@@ -138,7 +138,7 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
 
     expect(await screen.findByText('Mã đã nghiệm thu có thay đổi trong thư mục .github/workflows')).toBeInTheDocument()
     expect(screen.getByText('.github/workflows/ci.yml')).toBeInTheDocument()
-    expect(screen.getByText(/GitHub không cho bước hợp nhất cuối ghi các tệp này/)).toBeInTheDocument()
+    expect(screen.getByText(/GitHub không cho bước merge cuối ghi các tệp này/)).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Chép mã vào dự án của tôi' })).toBeNull()
     // Story 23.10c: the way forward is the self-download card above; vibefix stores no ZIP of its own any more.
@@ -162,9 +162,9 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     renderStep()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Chưa chép được mã vào dự án của bạn: GitHub Actions của dự án gốc đã hết số phút trong tháng. Bạn vẫn có thể tự tải mã về từ kho trung gian',
+      'Chưa chép được mã vào dự án của bạn: GitHub Actions của repo nguồn đã hết số phút trong tháng. Bạn vẫn có thể tự tải mã về từ repo trung gian',
     )
-    expect(screen.getByRole('group', { name: 'Hợp nhất cuối' })).toHaveTextContent('Không chạy được')
+    expect(screen.getByRole('group', { name: 'Merge cuối' })).toHaveTextContent('Không chạy được')
   })
 
   /**
@@ -285,7 +285,7 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     renderStep()
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Đang chờ bạn sửa dự án gốc: vibefix chưa đọc được dự án gốc trên GitHub. vibefix kiểm tra lại lúc 10:30 28/10.',
+      'Đang chờ bạn sửa repo nguồn: vibefix chưa đọc được repo nguồn trên GitHub. vibefix kiểm tra lại lúc 10:30 28/10.',
     )
     expect(screen.getByRole('link', { name: 'Mở trang sản phẩm' })).toHaveAttribute('href', '/san-pham/pr1')
   })
@@ -337,7 +337,7 @@ describe('The Final Merge on the Customer’s own Actions (FR-37, UX-DR116, Stor
     })
     renderStep()
     await vi.waitFor(() => expect(read).toBe(true))
-    expect(screen.queryByText(/Hợp nhất vào dự án của bạn/)).toBeNull()
+    expect(screen.queryByText(/Merge vào repo nguồn/)).toBeNull()
   })
 })
 
@@ -359,7 +359,7 @@ describe('A Final Merge that could not run (FR-38, D10, Story 23.10c)', () => {
     renderStep()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Chưa chép được mã vào dự án của bạn: GitHub Actions của dự án gốc đã hết số phút trong tháng',
+      'Chưa chép được mã vào dự án của bạn: GitHub Actions của repo nguồn đã hết số phút trong tháng',
     )
     expect(screen.getByRole('link', { name: 'Đăng công việc ghép mã' })).toHaveAttribute(
       'href',

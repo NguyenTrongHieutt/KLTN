@@ -48,21 +48,19 @@ describe('route guards (AD-19)', () => {
   it.each([
     ['a Google account with nothing linked', signedInWithGoogle],
     ['a user with GitHub linked', signedInUser],
-  ])('lands %s on the to-do list with the same five destinations (UX-DR85, Story 20.6)', async (_, session) => {
+  ])('lands %s on the to-do list with the same destinations (UX-DR85, Story 20.6; the bell holds Thông báo from 768 px)', async (_, session) => {
     fakeBackend(session)
     const router = renderAt('/dang-nhap')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/viec-can-lam')
-    for (const name of ['Điều hướng chính', 'Điều hướng nhanh']) {
+    const five = ['Việc cần làm', 'Công việc', 'Tìm việc', 'Sản phẩm', 'Thông báo']
+    for (const [name, links] of [
+      ['Điều hướng chính', five.slice(0, 4)],
+      ['Điều hướng nhanh', five],
+    ] as const) {
       const nav = screen.getByRole('navigation', { name })
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
-        'Việc cần làm',
-        'Công việc',
-        'Tìm việc',
-        'Sản phẩm',
-        'Thông báo',
-      ])
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(links)
     }
     // No mode switcher, and no "Nhóm": Teams are gone (Story 21.7).
     expect(screen.queryByRole('link', { name: 'Nhóm' })).not.toBeInTheDocument()

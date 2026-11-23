@@ -83,11 +83,11 @@ const customerJob = {
 }
 
 const N28 = {
-  repository: 'Quyền ghi vào kho làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.',
+  repository: 'Quyền write vào repo làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.',
   noRepository: 'Bạn không vào lại công việc này được.',
   split: 'Bạn vẫn là một bên trong phần chia tiền của Giai đoạn 1, 2, và vẫn làm các việc sau công việc',
   duties: 'Bạn vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.',
-  customer: 'Khách hàng chỉ được báo tên tài khoản GitHub của bạn để thu hồi quyền.',
+  customer: 'Khách hàng chỉ được báo GitHub username của bạn để thu hồi quyền.',
 }
 
 describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
@@ -168,7 +168,7 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     expect(screen.queryByRole('button', { name: 'Rời công việc' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Bảng công việc' })).toBeNull()
-    expect(await screen.findByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeEnabled()
+    expect(await screen.findByRole('checkbox', { name: /Đã xóa các preview/ })).toBeEnabled()
   })
 
   it('a non-Code Job drops the repository; no Milestone leaves only the duties', { timeout: 20_000 }, async () => {
@@ -223,7 +223,7 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     renderAt('/cong-viec/j1')
 
     expect(await screen.findByText('Bạn là: Thành viên nhóm · đã rời')).toBeInTheDocument()
-    await user.click(await screen.findByRole('checkbox', { name: /Đã xóa các bản xem thử/ }))
+    await user.click(await screen.findByRole('checkbox', { name: /Đã xóa các preview/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Xác nhận đã xóa?' })
     await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
     await waitFor(() => expect(confirmed).toEqual(['PREVIEWS']))
@@ -246,7 +246,7 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeEnabled()
+    expect(await screen.findByRole('checkbox', { name: /Đã xóa các preview/ })).toBeEnabled()
     expect(screen.queryByRole('link', { name: 'Bảng công việc' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
   })

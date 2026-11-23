@@ -295,7 +295,7 @@ function DecisionForm({
         <legend className="text-label">{t('screen.admin.disputes.next')}</legend>
         <div className="flex flex-wrap gap-x-4">
           {options.map((option) => (
-            <label key={option} className="flex min-h-tap-min items-center gap-2">
+            <label key={option} className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
               <input
                 type="radio"
                 name={`${ids}-next`}

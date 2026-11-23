@@ -25,8 +25,8 @@ const catalog = () =>
         id: 'c1',
         name: 'Giao diện web',
         skills: [
-          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
-          { id: 'supabase', name: 'Supabase', hint: 'Cơ sở dữ liệu có sẵn.' },
+          { id: 'react', name: 'React', hint: 'Dependency dựng giao diện web.' },
+          { id: 'supabase', name: 'Supabase', hint: 'Database có sẵn.' },
         ],
       },
     ],

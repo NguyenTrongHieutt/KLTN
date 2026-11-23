@@ -208,7 +208,8 @@
   }
 
   body {
-    @apply bg-background text-body text-foreground;
+    /* One density for every screen (DESIGN.md, 2026-11-23): 14 px UI text; long reading text sets text-body. */
+    @apply bg-background text-body-sm text-foreground;
     margin: 0;
     overflow-wrap: break-word;
   }
