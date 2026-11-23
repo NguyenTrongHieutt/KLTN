@@ -4,6 +4,8 @@ import { ExternalAccessSection } from '@/features/agreement/ExternalAccessSectio
 import { hasStarted } from '@/features/job/jobState'
 import { t } from '@/i18n/t'
 import type { MyJob } from './jobRoleApi'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
  * A Job the user joined, on CUS-7 "Việc tôi tham gia" (FR-75, FR-66, AD-41, UX-DR86, Story 21.5): its title and
@@ -12,15 +14,15 @@ import type { MyJob } from './jobRoleApi'
  */
 export function CrewJobCard({ job }: { job: MyJob }) {
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="article" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h3 className="text-h3 break-words">{job.title}</h3>
           <p className="text-caption text-muted-foreground">{job.productName}</p>
         </div>
-        <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success">
+        <StatusBadge tone="done">
           {t('screen.crew.student.activeBadge')}
-        </span>
+        </StatusBadge>
       </div>
       <ExternalAccessSection jobId={job.jobId} level={3} />
       <div className="flex flex-wrap gap-2">
@@ -36,6 +38,6 @@ export function CrewJobCard({ job }: { job: MyJob }) {
           {t('screen.crewChat.tab')}
         </Link>
       </div>
-    </article>
+    </Card>
   )
 }

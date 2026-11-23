@@ -6,6 +6,7 @@ import { below, type HeadingLevel } from './headingLevel'
 import type { Histories, PersonReputation, RoleReputation, RoleSummary } from './historyApi'
 import { LevelHeading } from './LevelHeading'
 import { PortfolioSection, RatingLine } from './ReputationParts'
+import { Card } from '@/components/ui/card'
 
 /**
  * PUB-4's two histories (UX-DR96, R17): "Khi làm người hướng dẫn" and "Khi làm thành viên nhóm", each with its Jobs
@@ -35,7 +36,7 @@ function RoleHistory({
   const id = useId()
   const held = history.jobs > 0 || history.count > 0 || history.portfolio.length > 0
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby={id} className="flex flex-col gap-3">
       <LevelHeading level={level} id={id} className="text-h3">
         {t(role === 'mentor' ? 'screen.person.asMentor' : 'screen.person.asCrew')}
       </LevelHeading>
@@ -63,7 +64,7 @@ function RoleHistory({
       ) : (
         <p className="text-body-sm text-muted-foreground">{t('screen.person.never')}</p>
       )}
-    </section>
+    </Card>
   )
 }
 

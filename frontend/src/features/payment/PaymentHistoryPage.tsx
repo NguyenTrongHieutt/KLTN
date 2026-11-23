@@ -11,6 +11,7 @@ import { useBalance, usePaymentHistory, type BalanceLine, type CustomerHistory }
 import { PartLines } from './PartLines'
 import { TestModeBanner } from './TestModeBanner'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * "Lịch sử thanh toán" (`/lich-su-thanh-toan`, FR-44, FR-45, UX-DR85, Story 22.5), in two sections from two separate
@@ -43,12 +44,12 @@ export function PaymentHistoryPage() {
 
 function Stat({ label, amount }: { label: MessageKey; amount: number }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card className="flex flex-col gap-1">
       <span className="text-caption text-muted-foreground">{t(label)}</span>
       <p className="text-h3 tabular-nums">
         {formatVnd(amount)} <TestTag />
       </p>
-    </div>
+    </Card>
   )
 }
 
@@ -84,7 +85,7 @@ function History({ history }: { history: CustomerHistory }) {
               {job.title}
             </Link>
           </h3>
-          <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+          <Card padding="none" className="relative overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-body-sm">
               <thead className="text-caption text-muted-foreground">
                 <tr className="border-b border-border">
@@ -115,7 +116,7 @@ function History({ history }: { history: CustomerHistory }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
           <ul className="flex flex-col gap-0.5 text-caption text-muted-foreground">
             {job.milestones
               .filter((milestone) => milestone.releasedTotalVnd > 0)

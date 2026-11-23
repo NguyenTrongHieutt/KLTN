@@ -19,6 +19,7 @@ import {
   type ChatMessage,
   type ChatTarget,
 } from './chatApi'
+import { Card } from '@/components/ui/card'
 
 /** The upload rules an attachment is pre-checked against (AD-21, NFR-3). */
 const MAX_FILE_BYTES = 10 * 1024 * 1024
@@ -74,9 +75,9 @@ export function ChatPanel({
     }
   }, [newest])
   return (
-    <section
+    <Card as="section"
       aria-label={t('screen.chat.message')}
-      className="flex w-full flex-col gap-3.5 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex w-full flex-col gap-3.5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <h2 className="text-h3">{heading}</h2>
@@ -135,7 +136,7 @@ export function ChatPanel({
       ) : (
         <Composer target={target} placeholder={placeholder} />
       )}
-    </section>
+    </Card>
   )
 }
 

@@ -1,7 +1,7 @@
-import { createElement, type HTMLAttributes, type ReactNode } from 'react'
+import { createElement, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import { cn } from '@/lib/utils'
 
-type CardElement = 'div' | 'section' | 'article' | 'li' | 'aside'
+type CardElement = 'div' | 'section' | 'article' | 'li' | 'aside' | 'ul' | 'ol' | 'p'
 
 /**
  * DESIGN.md card: `{colors.card}` on the canvas, a 1 px `{colors.border}`, `{rounded.lg}`, no shadow. One padding
@@ -14,7 +14,12 @@ export function Card({
   className,
   children,
   ...props
-}: HTMLAttributes<HTMLElement> & { as?: CardElement; padding?: 'default' | 'none'; children?: ReactNode }) {
+}: HTMLAttributes<HTMLElement> & {
+  as?: CardElement
+  padding?: 'default' | 'none'
+  ref?: Ref<HTMLElement>
+  children?: ReactNode
+}) {
   return createElement(
     as,
     {

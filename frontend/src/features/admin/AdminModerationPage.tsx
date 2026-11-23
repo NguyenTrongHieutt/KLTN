@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { AbuseReportsPanel } from './AbuseReportsPanel'
 import { useHideContent, useModerationItems, type ContentKind, type ModerationItem } from './adminModerationApi'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 const KINDS: ContentKind[] = ['PRODUCT', 'JOB_POST', 'RATING']
 
@@ -82,13 +83,13 @@ function ModerationList({ kind }: { kind: ContentKind }) {
       <RegionState query={items} skeleton={<Skeleton className="h-64 w-full" />}>
         {items.data &&
           (items.data.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+            <Card as="p" className="text-body-sm text-muted-foreground">
               {t('screen.admin.moderation.empty')}
-            </p>
+            </Card>
           ) : (
-            <ul
+            <Card as="ul" padding="none"
               aria-label={t('screen.admin.moderation.listLabel')}
-              className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card"
+              className="flex flex-col divide-y divide-border overflow-hidden"
             >
               {items.data.map((item) => (
                 <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 p-4 text-body-sm">
@@ -111,7 +112,7 @@ function ModerationList({ kind }: { kind: ContentKind }) {
                   )}
                 </li>
               ))}
-            </ul>
+            </Card>
           ))}
       </RegionState>
       <HideDialog kind={kind} item={hiding} onClose={() => setHiding(undefined)} />

@@ -4,6 +4,8 @@ import { formatMonthYear } from '@/lib/dates'
 import type { HeadingLevel } from './headingLevel'
 import { LevelHeading } from './LevelHeading'
 import type { PortfolioEntry } from './historyApi'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
  * A profile's visible Rating summary in one role (AD-33): "{avg} sao ({n} lượt từ …)", "Mới" for a Mentor with no
@@ -38,9 +40,9 @@ export function RatingLine({
   }
   if (newcomer) {
     return (
-      <span className="w-fit rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info">
+      <StatusBadge tone="progress">
         {t('screen.reputation.new')}
-      </span>
+      </StatusBadge>
     )
   }
   return <p className="text-body-sm text-muted-foreground">{t('screen.reputation.none')}</p>
@@ -74,7 +76,7 @@ export function PortfolioSection({
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {entries.map((entry) => (
-            <li key={`${entry.title}-${entry.closedAt}`} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
+            <Card as="li" key={`${entry.title}-${entry.closedAt}`} className="flex flex-col gap-1">
               <p className="text-label font-semibold break-words">
                 {entry.title || t('screen.reputation.portfolioFacts.untitled')}
               </p>
@@ -91,7 +93,7 @@ export function PortfolioSection({
                 <p className="text-caption text-muted-foreground break-words">{entry.skills.join(' · ')}</p>
               )}
               {entry.summary && <p className="text-body-sm break-words whitespace-pre-line">{entry.summary}</p>}
-            </li>
+            </Card>
           ))}
         </ul>
       )}

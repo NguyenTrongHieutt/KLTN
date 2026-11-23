@@ -51,7 +51,9 @@ function SectionTitle({ id, title, count, action }: { id: string; title: string;
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h2 id={id} className="text-h2">
         {title}
-        {count !== undefined && <span className="ms-2 text-body text-muted-foreground">{count}</span>}
+        {count !== undefined && (
+          <span className="ms-2 font-normal text-muted-foreground">{t('screen.job.groupCount', { n: count })}</span>
+        )}
       </h2>
       {action}
     </div>

@@ -8,6 +8,7 @@ import { formatCalendarDate, formatDayMonthTime } from '@/lib/dates'
 import { useSourceCheck, useWorkflowFile, type Product, type SourceCheck } from './productApi'
 import { checkProblem, workflowActionsUrl } from './productText'
 import { GitHubAction, OutLink, SourceStatusBadge, WorkflowFileActions } from './WorkflowSetup'
+import { Card } from '@/components/ui/card'
 
 /**
  * CUS-4's compact Workflow setup card (UX-DR113, AD-45, Story 23.5c): the recorded Source App and workflow status as
@@ -35,7 +36,7 @@ export function SourceSetupCard({ product }: { product: Product }) {
 
   const endsOn = fresh ? fresh.workflowEndsOn : product.workflowEndsOn
   return (
-    <section aria-labelledby="source-setup-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="source-setup-heading" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="source-setup-heading" className="text-h3">
           {t('screen.product.setup.heading')}
@@ -68,7 +69,7 @@ export function SourceSetupCard({ product }: { product: Product }) {
         <OutLink href={workflowActionsUrl(product.repositoryUrl)}>{t('screen.product.wizard.selfScan')}</OutLink>
         <p className="text-caption text-muted-foreground">{t('screen.product.setup.selfScanHint')}</p>
       </div>
-    </section>
+    </Card>
   )
 }
 

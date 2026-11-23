@@ -22,13 +22,25 @@ const TONES: Record<StatusTone, string> = {
 /**
  * A read-only status pill in `{typography.caption}` at 600 weight (DESIGN.md, Status badge). The pill shape means
  * "status, read-only": never use it for something clickable. The text always names the status, so color is never
- * the only signal.
+ * the only signal. It never breaks inside: a status is a few words.
  */
-export function StatusBadge({ tone, className, children }: { tone: StatusTone; className?: string; children: ReactNode }) {
+export function StatusBadge({
+  tone,
+  role,
+  className,
+  children,
+}: {
+  tone: StatusTone
+  /** "status" where the badge changes in place and the change should be announced. */
+  role?: 'status'
+  className?: string
+  children: ReactNode
+}) {
   return (
     <span
+      role={role}
       className={cn(
-        'inline-flex w-fit max-w-full items-center gap-1 rounded-full px-2.5 py-0.5 text-caption font-semibold',
+        'inline-flex w-fit max-w-full items-center gap-1 rounded-full px-2.5 py-0.5 text-caption font-semibold whitespace-nowrap',
         TONES[tone],
         className,
       )}

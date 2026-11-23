@@ -17,6 +17,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { SkillSuggestionsPanel } from './SkillSuggestionsPanel'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 type Category = components['schemas']['CatalogCategoryView']
 type Skill = components['schemas']['CatalogSkillView']
@@ -142,8 +143,8 @@ function Categories({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card lg:w-[340px] lg:shrink-0 p-4 md:p-5">
-      <h2 id={`${ids}-heading`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 lg:w-[340px] lg:shrink-0">
+      <h2 id={`${ids}-heading`} className="text-h3">
         {t('screen.admin.catalog.categories')}
       </h2>
       {error && (
@@ -206,7 +207,7 @@ function Categories({ categories }: { categories: Category[] }) {
         </Button>
       </form>
       {renaming && <RenameDialog category={renaming} onClose={() => setRenaming(undefined)} />}
-    </section>
+    </Card>
   )
 }
 
@@ -294,9 +295,9 @@ function Skills({ categories }: { categories: Category[] }) {
   const pages = Math.max(1, Math.ceil((skills.data?.total ?? 0) / (skills.data?.size ?? 25)))
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 grow flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby={`${ids}-heading`} className="flex grow flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`${ids}-heading`} className="text-h2">
+        <h2 id={`${ids}-heading`} className="text-h3">
           {t('screen.admin.catalog.skills')}
         </h2>
         <Button type="button" onClick={() => setEditing('new')}>
@@ -423,7 +424,7 @@ function Skills({ categories }: { categories: Category[] }) {
           onClose={() => setEditing(undefined)}
         />
       )}
-    </section>
+    </Card>
   )
 }
 

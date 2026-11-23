@@ -10,6 +10,7 @@ import { useMarkAllRead, useNotifications, useUnreadCount } from './hooks'
 import { NotificationItemRow } from './NotificationItemRow'
 import { formatDate } from '@/lib/dates'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * ALL-1 (`/thong-bao`): the notifications of the last 90 days, newest first, with "Đánh dấu đã đọc
@@ -52,21 +53,21 @@ export function NotificationsPage() {
             {byDay(items).map(([day, group]) => (
               <section key={day} aria-label={day} className="flex flex-col gap-2">
                 <h2 className="text-label text-muted-foreground">{day}</h2>
-                <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                <Card as="ul" padding="none" className="flex flex-col divide-y divide-border overflow-hidden">
                   {group.map((item) => (
                     <li key={item.id}>
                       <NotificationItemRow item={item} offline={offline} />
                     </li>
                   ))}
-                </ul>
+                </Card>
               </section>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+          <Card padding="none" className="flex flex-col items-center gap-3 text-center px-4 py-10">
             <Bell aria-hidden="true" className="size-12 text-muted-foreground" />
             <p className="text-h3">{t('screen.shared.notifications.empty')}</p>
-          </div>
+          </Card>
         )}
         {notifications.hasNextPage && (
           <Button

@@ -7,6 +7,7 @@ import { t } from '@/i18n/t'
 import { redirectTo } from '@/lib/redirect'
 import { useSetup } from './setupApi'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * Where the Customer's read invitation to-do and notification lead (R5, UX-DR118, Story 23.7):
@@ -28,7 +29,7 @@ export function IntermediaryInvitationPage() {
   return (
     <Page width="reading">
       <PageHeading>{t('screen.job.intermediary.title')}</PageHeading>
-      <div className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card padding="none" className="flex flex-col items-center gap-2.5 text-center px-4 py-10">
         <FolderGit2 aria-hidden="true" className="size-12 text-muted-foreground" />
         {url && (
           <>
@@ -53,7 +54,7 @@ export function IntermediaryInvitationPage() {
             </Link>
           </>
         )}
-      </div>
+      </Card>
     </Page>
   )
 }

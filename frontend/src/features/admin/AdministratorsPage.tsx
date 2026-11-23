@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils'
 import { useAdministrators, useCreateAdministrator, type AdministratorRow } from './adminApi'
 import { StepUpDialog } from './StepUpDialog'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 const schema = z.object({
   displayName: z.string().trim().min(1, 'required').max(100, 'tooLong'),
@@ -58,7 +60,7 @@ export function AdministratorsPage() {
 
 function AdministratorTable({ rows }: { rows: AdministratorRow[] }) {
   return (
-    <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+    <Card padding="none" className="relative overflow-x-auto">
       <table className="w-full text-left text-body-sm" aria-label={t('screen.admin.administrators.listLabel')}>
         <thead className="border-b border-border text-caption text-muted-foreground">
           <tr>
@@ -84,9 +86,9 @@ function AdministratorTable({ rows }: { rows: AdministratorRow[] }) {
                 <td className="px-4 py-3">{formatDate(row.createdAt)}</td>
                 <td className="px-4 py-3">
                   {row.lockedUntil ? (
-                    <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption font-semibold text-destructive">
+                    <StatusBadge tone="problem">
                       {t('screen.admin.administrators.lockedUntil', { time: formatTime(row.lockedUntil) })}
-                    </span>
+                    </StatusBadge>
                   ) : row.signedInAt ? (
                     formatDayMonthTime(row.signedInAt)
                   ) : (
@@ -98,7 +100,7 @@ function AdministratorTable({ rows }: { rows: AdministratorRow[] }) {
           })}
         </tbody>
       </table>
-    </div>
+    </Card>
   )
 }
 

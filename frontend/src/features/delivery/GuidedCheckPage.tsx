@@ -183,7 +183,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         <h1 id={`${ids}-criterion`} className="text-h1 break-words">
           {criterion.statement}
         </h1>
-        <div className="flex flex-col gap-1 rounded-md bg-muted p-4 text-body-sm">
+        <div className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
           <h2 className="text-label">{t('screen.handover.check.howTo')}</h2>
           <ol className="ml-5 list-decimal">
             {steps(criterion.checkSteps).map((line, index) => (

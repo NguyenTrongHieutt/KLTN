@@ -35,6 +35,7 @@ import {
 import { TOOL_DOCS, TOOLS, checkProblem, domainOf, megabytes } from './productText'
 import { OutLink, SecretGuidance, WorkflowFileActions } from './WorkflowSetup'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 const NOTICE_VERSION = (vi as { notice: { product: { version: string } } }).notice.product.version
 
@@ -280,7 +281,7 @@ function ToolStep({ tools, onChange, onNext }: { tools: Tool[]; onChange: (tools
         )}
       </fieldset>
       {shown && (
-        <section aria-labelledby="tool-help-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+        <Card as="section" aria-labelledby="tool-help-heading" className="flex flex-col gap-2">
           <h2 id="tool-help-heading" className="text-h3">
             {t('screen.product.wizard.helpHeading', { tool: t(`screen.product.tools.${shown}` as MessageKey) })}
           </h2>
@@ -289,7 +290,7 @@ function ToolStep({ tools, onChange, onNext }: { tools: Tool[]; onChange: (tools
           <OutLink href={TOOL_DOCS[shown]}>
             {t('screen.product.wizard.helpLink', { tool: t(`screen.product.tools.${shown}` as MessageKey) })}
           </OutLink>
-        </section>
+        </Card>
       )}
       <NextSteps text={t('screen.product.wizard.step1Next')} />
       <div className="flex justify-end">
@@ -540,7 +541,7 @@ function Checklist({ checked }: { checked: Checked }) {
     return null
   }
   return (
-    <section aria-labelledby="checks-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="checks-heading" className="flex flex-col gap-2">
       <h2 id="checks-heading" className="text-label font-semibold">
         {t('screen.product.wizard.resultHeading')}
       </h2>
@@ -572,7 +573,7 @@ function Checklist({ checked }: { checked: Checked }) {
           )
         })}
       </ul>
-    </section>
+    </Card>
   )
 }
 
@@ -650,7 +651,7 @@ function WorkflowStep({
       </div>
       <RegionState query={file} skeleton={<Skeleton className="h-40 w-full" />}>
         {file.data && (
-          <section aria-labelledby="workflow-card" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+          <Card as="section" aria-labelledby="workflow-card" className="flex flex-col gap-3">
             <h2 id="workflow-card" className="text-h3">
               {rich('screen.product.wizard.workflowCardHeading', { file: <TermHint term="fileWorkflow" /> })}
             </h2>
@@ -675,7 +676,7 @@ function WorkflowStep({
               </p>
             )}
             {outcome && <WorkflowResult outcome={outcome} repo={repo} />}
-          </section>
+          </Card>
         )}
       </RegionState>
       <Secrets repository={repository} />
@@ -720,12 +721,12 @@ function WorkflowResult({ outcome, repo }: { outcome: WorkflowOutcome; repo: str
 /** N-2's guidance (FR-8, D8): what to check by hand, each credential's page, and the optional gitleaks run. */
 function Secrets({ repository }: { repository: RepositoryCheck }) {
   return (
-    <section aria-labelledby="secrets-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="secrets-heading" className="flex flex-col gap-2">
       <h2 id="secrets-heading" className="text-h3">
         {t('screen.product.wizard.secretsHeading')}
       </h2>
       <SecretGuidance htmlUrl={repository.htmlUrl} />
-    </section>
+    </Card>
   )
 }
 
@@ -910,7 +911,7 @@ function NoticeStep({
           </label>
         ))}
       </div>
-      <section aria-labelledby="after-heading" className="flex flex-col gap-1 rounded-md bg-muted p-4">
+      <section aria-labelledby="after-heading" className="flex flex-col gap-1 rounded-md bg-muted p-3">
         <h2 id="after-heading" className="text-label font-semibold">
           {t('screen.product.wizard.afterHeading')}
         </h2>
@@ -963,7 +964,7 @@ function StepNav({ onBack, ready, hint }: { onBack: () => void; ready: boolean; 
 
 function NextSteps({ text }: { text: string }) {
   return (
-    <section className="flex flex-col gap-1 rounded-md bg-muted p-4">
+    <section className="flex flex-col gap-1 rounded-md bg-muted p-3">
       <h2 className="text-label font-semibold">{t('screen.product.wizard.nextSteps')}</h2>
       <p className="text-body-sm">{text}</p>
     </section>

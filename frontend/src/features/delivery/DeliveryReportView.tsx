@@ -10,6 +10,8 @@ import { OutsideLink } from './OutsideLink'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { handoverTone } from './handoverTone'
 import { SensitiveChangeList } from './SensitiveChangeList'
+import { Card } from '@/components/ui/card'
+import { Alert } from '@/components/ui/alert'
 
 /**
  * The Delivery Report (FR-10, FR-32, AD-33, UX-DR53): per criterion the Mentor's own statement
@@ -67,14 +69,16 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         only where the handover really holds the Mentor's confirmation.
       */}
       {customer && report.code?.teamCodeConfirmedAt && (
-        <p className="rounded-md border border-border bg-muted p-3 text-body-sm break-words">
-          {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
-        </p>
+        <Alert tone="info">
+          <p className="break-words">
+            {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
+          </p>
+        </Alert>
       )}
       {report.decision && (
         <section
           aria-label={t('screen.handover.check.nextAction')}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-info bg-info-soft p-4 text-body-sm"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm"
         >
           <span>
             {report.decision.revisionAllowed
@@ -96,7 +100,7 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         </h3>
         <ol className="flex flex-col gap-3">
           {report.criteria.map((criterion) => (
-            <li key={criterion.criterionId} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+            <Card as="li" key={criterion.criterionId} className="flex flex-col gap-2 text-body-sm">
               <p className="font-semibold break-words">
                 {t('screen.handover.report.criterion', { n: criterion.number, statement: criterion.statement })}
               </p>
@@ -123,7 +127,7 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
                   )}
                 </p>
               )}
-            </li>
+            </Card>
           ))}
         </ol>
       </section>
@@ -144,7 +148,7 @@ function EvidenceSection({ report }: { report: DeliveryReport }) {
     return null
   }
   return (
-    <section aria-labelledby="delivery-evidence" className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="section" aria-labelledby="delivery-evidence" className="flex flex-col gap-3 text-body-sm">
       <h3 id="delivery-evidence" className="text-h3">
         {t('screen.handover.links.title')}
       </h3>
@@ -193,7 +197,7 @@ function EvidenceSection({ report }: { report: DeliveryReport }) {
           </ul>
         </div>
       )}
-    </section>
+    </Card>
   )
 }
 

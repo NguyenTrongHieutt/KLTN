@@ -14,6 +14,7 @@ import { fieldMessage } from '@/lib/formErrors'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useCompleteEnrolment, useEnrolment } from './adminApi'
+import { Card } from '@/components/ui/card'
 
 const MIN_PASSWORD = 12
 
@@ -72,7 +73,7 @@ export function EnrolmentPage() {
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
       </header>
       <main id="main" className="flex flex-1 justify-center px-gutter-mobile py-12">
-        <div className="flex w-full max-w-[520px] flex-col gap-4 self-start rounded-lg border border-border bg-card p-4 md:p-5">
+        <Card className="flex w-full max-w-[520px] flex-col gap-4 self-start">
           <PageHeading>{t('screen.admin.enrolment.heading')}</PageHeading>
           {enrolment.isPending ? (
             <Skeleton className="h-48 w-full" />
@@ -146,7 +147,7 @@ export function EnrolmentPage() {
               </form>
             </>
           )}
-        </div>
+        </Card>
       </main>
     </div>
   )

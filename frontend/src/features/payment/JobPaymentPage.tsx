@@ -41,6 +41,7 @@ import { TestModeBanner } from './TestModeBanner'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
 import { JobTabBody } from '@/features/job/progress/JobInfoAside'
+import { Card } from '@/components/ui/card'
 
 const STATE_TONE: Record<string, string> = {
   PLANNED: 'bg-warning-soft text-warning',
@@ -112,9 +113,9 @@ function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
         <RegionState query={balance} skeleton={<Skeleton className="h-32 w-full" />}>
           {balance.data &&
             (lines.length === 0 ? (
-              <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+              <Card as="p" className="text-body-sm text-muted-foreground">
                 {t('screen.payment.crew.empty')}
-              </p>
+              </Card>
             ) : (
               <PartLines lines={lines} crew={false} job={false} left={left} />
             ))}
@@ -161,7 +162,7 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
           <MentorMilestone key={milestone.milestoneId} jobId={funding.jobId} milestone={milestone} />
         ))}
       </section>
-      <section aria-labelledby="mentor-orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+      <Card as="section" aria-labelledby="mentor-orders-heading" className="flex flex-col gap-2">
         <h2 id="mentor-orders-heading" className="text-h3">
           {t('screen.payment.mentor.ordersTitle')}
         </h2>
@@ -181,7 +182,7 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
             ))}
           </ul>
         )}
-      </section>
+      </Card>
     </>
   )
 }
@@ -196,7 +197,7 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
   const final =
     milestone.splitStatus === 'FINAL' && !pending ? finalText(milestone.finality, milestone.finalAt) : undefined
   return (
-    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="article" className="flex flex-col gap-2 text-body-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-h3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</h3>
         <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', STATE_TONE[milestone.state] ?? 'bg-muted')}>
@@ -257,7 +258,7 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
         </ul>
       )}
       {final && <p className="text-caption text-muted-foreground">{final}</p>}
-    </article>
+    </Card>
   )
 }
 
@@ -347,7 +348,7 @@ function Funding({ funding }: { funding: JobFunding }) {
         <h2 id="funding-heading" className="text-h2">
           {t('screen.payment.milestonesTitle')}
         </h2>
-        <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+        <Card padding="none" className="relative overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-body-sm">
             <thead className="text-caption text-muted-foreground">
               <tr className="border-b border-border">
@@ -423,9 +424,9 @@ function Funding({ funding }: { funding: JobFunding }) {
               })}
             </tbody>
           </table>
-        </div>
+        </Card>
       </section>
-      <section aria-labelledby="orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+      <Card as="section" aria-labelledby="orders-heading" className="flex flex-col gap-2">
         <h2 id="orders-heading" className="text-h3">
           {t('screen.payment.ordersTitle')}
         </h2>
@@ -460,7 +461,7 @@ function Funding({ funding }: { funding: JobFunding }) {
             ))}
           </ul>
         )}
-      </section>
+      </Card>
     </>
   )
 }

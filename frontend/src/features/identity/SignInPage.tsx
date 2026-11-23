@@ -9,6 +9,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { cn } from '@/lib/utils'
 import { landingPath, signInUrl } from './api'
 import { useSession } from './useSession'
+import { Card } from '@/components/ui/card'
 
 const ERRORS: Record<string, MessageKey> = {
   'that-bai': 'screen.public.signIn.failed',
@@ -41,7 +42,7 @@ export function SignInPage() {
   return (
     <TermScope>
       <div className="flex justify-center px-gutter-mobile py-section-gap">
-        <section className="flex w-full max-w-[440px] flex-col gap-5 rounded-lg border border-border bg-card p-4 md:p-5">
+        <Card as="section" className="flex w-full max-w-[440px] flex-col gap-5">
           <div className="flex flex-col gap-2">
             <PageHeading>{t('screen.public.signIn.heading')}</PageHeading>
             <p className="text-body-sm text-muted-foreground">
@@ -82,7 +83,7 @@ export function SignInPage() {
               })}
             </p>
           </div>
-        </section>
+        </Card>
       </div>
     </TermScope>
   )

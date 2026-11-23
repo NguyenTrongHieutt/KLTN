@@ -38,6 +38,7 @@ import {
 import { bidRefusal, bidRefusalLink, bidStateText, proofUploadRefusal } from './bidText'
 import { ProofList } from './ProofList'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * FND-1 Chào giá (`/tim-viec/{jobId}/chao-gia`, FR-13, UX-DR99), a focused task route: the bid, called "Đơn chào
@@ -105,20 +106,20 @@ function BidRoute({ postId }: { postId: string }) {
 /** A Job no longer Open, or hidden (UX-DR95): one plain reason and "Tìm việc khác". */
 function NotOpen() {
   return (
-    <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+    <Card padding="none" role="status" className="flex flex-col items-center gap-3 text-center px-4 py-10">
       <PageHeading className="text-h3">{t('screen.matching.apply.notOpen')}</PageHeading>
       <p className="text-body-sm text-muted-foreground">{t('screen.matching.apply.notOpenBody')}</p>
       <Link to="/tim-viec" className={buttonVariants()}>
         {t('screen.jobPost.detail.findOther')}
       </Link>
-    </div>
+    </Card>
   )
 }
 
 /** The Job's own people bid on it never (AD-43): "Đây là công việc bạn đăng." or their role, with the way to the Job. */
 function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card role="status" className="flex flex-col gap-3">
       <PageHeading className="text-h3">
         {role.role === 'CUSTOMER'
           ? t('reason.matching.ROLE_TAKEN')
@@ -127,7 +128,7 @@ function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
       <Link to={`/cong-viec/${jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
         {t('screen.jobPost.detail.openJob')}
       </Link>
-    </div>
+    </Card>
   )
 }
 
@@ -143,7 +144,7 @@ function SentBid({ application }: { application: Application }) {
         {bidStateText(application)}
       </p>
       <p className="text-body-sm text-muted-foreground">{t('screen.matching.applied.readLead')}</p>
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <Card className="flex flex-col gap-3 text-body-sm">
         <p>
           <span className="font-semibold">{formatVnd(application.priceVnd)}</span> <TestTag />
           {' · '}
@@ -157,7 +158,7 @@ function SentBid({ application }: { application: Application }) {
           <h2 className="text-label font-semibold">{t('screen.matching.proof.heading')}</h2>
           <ProofList proof={application.proof} />
         </div>
-      </div>
+      </Card>
       <Link to={`/tim-viec/${application.jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
         {t('screen.matching.apply.back')}
       </Link>
@@ -376,7 +377,7 @@ function BidForm({ post }: { post: JobPost }) {
           className={cn(inputClass, 'min-h-24')}
         />
       </FormField>
-      <section aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+      <Card as="section" aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3">
         <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           {t('notice.proofConfidentiality', { who: t('screen.matching.apply.proofWho') })}
         </div>
@@ -484,7 +485,7 @@ function BidForm({ post }: { post: JobPost }) {
             {proofError ?? errors.proof}
           </p>
         )}
-      </section>
+      </Card>
       <div className="flex flex-col gap-1">
         <label className="flex items-start gap-2 text-body-sm">
           <input

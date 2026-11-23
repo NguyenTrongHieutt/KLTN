@@ -5,6 +5,7 @@ import type { Histories, ReputationHistory } from '@/features/reputation/history
 import { HistoryRegion } from '@/features/reputation/RoleHistories'
 import { t } from '@/i18n/t'
 import { useMatchMedia } from '@/lib/useMatchMedia'
+import { Card } from '@/components/ui/card'
 
 /** Below this width the columns stack under a sticky header of names (UX-DR101). */
 const WIDE = '(min-width: 1024px)'
@@ -68,7 +69,7 @@ export function ComparisonView<T extends { id: string }>({
   )
   if (wide) {
     return (
-      <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+      <Card padding="none" className="relative overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-body-sm">
           <caption className="sr-only">{heading}</caption>
           <thead>
@@ -108,7 +109,7 @@ export function ComparisonView<T extends { id: string }>({
             </tr>
           </tbody>
         </table>
-      </div>
+      </Card>
     )
   }
   return (
@@ -124,7 +125,7 @@ export function ComparisonView<T extends { id: string }>({
         ))}
       </ul>
       {items.map((item) => (
-        <section key={item.id} aria-label={name(item)} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+        <Card as="section" key={item.id} aria-label={name(item)} className="flex flex-col gap-3">
           {title(item)}
           <dl className="flex flex-col gap-3 text-body-sm">
             {rows.map((row) => (
@@ -139,7 +140,7 @@ export function ComparisonView<T extends { id: string }>({
               {chooseLabel}
             </Button>
           )}
-        </section>
+        </Card>
       ))}
     </div>
   )

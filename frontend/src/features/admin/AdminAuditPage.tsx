@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
+import { Card } from '@/components/ui/card'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -78,9 +79,9 @@ export function AdminAuditPage() {
       <RegionState query={entries} skeleton={<Skeleton className="h-64 w-full" />}>
         {entries.data &&
           (entries.data.items.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">{t('screen.admin.audit.empty')}</p>
+            <Card as="p" className="text-body-sm text-muted-foreground">{t('screen.admin.audit.empty')}</Card>
           ) : (
-            <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+            <Card padding="none" className="relative overflow-x-auto">
               <table className="w-full text-left text-body-sm">
                 <caption className="sr-only">{t('screen.admin.audit.caption')}</caption>
                 <thead className="border-b border-border text-caption text-muted-foreground">
@@ -112,7 +113,7 @@ export function AdminAuditPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Card>
           ))}
       </RegionState>
       {pages > 1 && (

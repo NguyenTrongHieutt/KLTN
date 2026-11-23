@@ -25,6 +25,8 @@ import { signRefusal } from './crewText'
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /** How an ended pick reads (UX-DR103): withdrawn, lapsed, ended by J8, declined, or joined. */
 const ENDED: Partial<Record<string, MessageKey>> = {
@@ -96,15 +98,15 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
       },
     })
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`${ids}-heading`} className="text-h2">
+        <h2 id={`${ids}-heading`} className="text-h3">
           {t('screen.commitment.title')}
         </h2>
-        <span className="flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold">
+        <StatusBadge tone="waiting" className="flex gap-1.5">
           <Clock aria-hidden="true" className="size-3.5" />
           {t('screen.commitment.due', { date: due })}
-        </span>
+        </StatusBadge>
       </div>
       <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
         {t('screen.commitment.n19', {
@@ -115,11 +117,11 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         })}
       </div>
       <div className="flex flex-col gap-2">
-        <h3 className="text-h3">{t('screen.commitment.scope')}</h3>
+        <h3 className="text-label font-semibold">{t('screen.commitment.scope')}</h3>
         <p className="text-body-sm break-words whitespace-pre-line">{panel.scope ?? t('screen.commitment.noScope')}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <h3 className="text-h3">{t('screen.commitment.milestones')}</h3>
+        <h3 className="text-label font-semibold">{t('screen.commitment.milestones')}</h3>
         {panel.milestones.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">{t('screen.commitment.noMilestones')}</p>
         ) : (
@@ -144,7 +146,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         <p className="text-caption text-muted-foreground">{t('screen.commitment.noShare')}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <h3 className="text-h3">{t('screen.commitment.splitRules')}</h3>
+        <h3 className="text-label font-semibold">{t('screen.commitment.splitRules')}</h3>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-body-sm">
           <li>{t('screen.commitment.ruleCap', { n: panel.splitRules.mentorShareCapPercent })}</li>
           <li>{t('screen.commitment.ruleDraft', { n: panel.splitRules.draftDays })}</li>
@@ -153,11 +155,11 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         </ul>
       </div>
       <div className="flex flex-col gap-2">
-        <h3 className="text-h3">{t('screen.nda.title', { version: panel.ndaVersion })}</h3>
+        <h3 className="text-label font-semibold">{t('screen.nda.title', { version: panel.ndaVersion })}</h3>
         <NdaText />
       </div>
       <div className="flex flex-col gap-2">
-        <h3 className="text-h3">{t('screen.commitment.textTitle', { version: panel.commitmentVersion })}</h3>
+        <h3 className="text-label font-semibold">{t('screen.commitment.textTitle', { version: panel.commitmentVersion })}</h3>
         <div
           tabIndex={0}
           role="region"
@@ -214,7 +216,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
-    </section>
+    </Card>
   )
 }
 
@@ -223,7 +225,7 @@ function Ended({ commitment }: { commitment: Commitment }) {
   const joined = commitment.status === 'JOINED'
   const key = joined ? 'screen.commitment.joined' : (ENDED[commitment.endReason ?? ''] ?? 'screen.commitment.ended.other')
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card role="status" className="flex flex-col gap-3">
       <p className="text-label font-semibold">{t(key, { job: commitment.jobTitle })}</p>
       {joined ? (
         <Link to={`/cong-viec/${commitment.jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
@@ -234,6 +236,6 @@ function Ended({ commitment }: { commitment: Commitment }) {
           {t('screen.jobPost.detail.findOther')}
         </Link>
       )}
-    </div>
+    </Card>
   )
 }

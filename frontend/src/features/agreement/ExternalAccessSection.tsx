@@ -13,6 +13,7 @@ import {
   type ExternalAccess,
   type ExternalAccessItem,
 } from './externalAccessApi'
+import { Card } from '@/components/ui/card'
 
 /**
  * External Access after confirmation (FR-66, UX-DR83). The Customer gets N-8 per item: whom to invite,
@@ -81,7 +82,7 @@ function Guidance({ jobId, access, item, level }: ItemProps) {
   const grant = useGrantAccess(jobId)
   const toasts = useToasts()
   return (
-    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="article" className="flex flex-col gap-2.5">
       <ItemHeading item={item} level={level} />
       {access.open && (
         <>
@@ -114,7 +115,7 @@ function Guidance({ jobId, access, item, level }: ItemProps) {
         />
         {t('screen.agreement.externalGuide.granted')}
       </label>
-    </article>
+    </Card>
   )
 }
 
@@ -126,7 +127,7 @@ function OwnAccount({ jobId, access, item, level }: ItemProps) {
   const toasts = useToasts()
   const id = useId()
   return (
-    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="article" className="flex flex-col gap-2.5">
       <ItemHeading item={item} level={level} />
       <form
         className="flex flex-col gap-2"
@@ -163,6 +164,6 @@ function OwnAccount({ jobId, access, item, level }: ItemProps) {
           {t('screen.agreement.externalGuide.save')}
         </Button>
       </form>
-    </article>
+    </Card>
   )
 }

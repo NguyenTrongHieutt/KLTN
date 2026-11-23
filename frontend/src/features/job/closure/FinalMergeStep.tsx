@@ -69,7 +69,7 @@ function Ended({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
       aria-labelledby={`${ids}-final-merge`}
       className="flex flex-col gap-3 border-t border-border pt-4"
     >
-      <h3 id={`${ids}-final-merge`} className="text-h3">
+      <h3 id={`${ids}-final-merge`} className="text-label font-semibold">
         <TermHint term="finalMerge" />
       </h3>
       <Failure jobId={jobId} productId={merge.productId} merge={merge.merge} />
@@ -127,7 +127,7 @@ function Merge({ jobId, merge }: { jobId: string; merge: FinalMerge }) {
   const step = merge.merge
   const date = merge.deadlineAt ? formatDayMonth(merge.deadlineAt) : t('screen.closure.finalMerge.beforeEnd')
   const heading = (
-    <h3 id={`${ids}-final-merge`} className="text-h3">
+    <h3 id={`${ids}-final-merge`} className="text-label font-semibold">
       <TermHint term="finalMerge" />
     </h3>
   )

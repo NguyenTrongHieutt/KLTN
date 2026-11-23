@@ -27,6 +27,7 @@ import { useCustomerRating, useJobPost, type JobPost } from './jobPostApi'
 import { PhaseBadge } from './PhaseBadge'
 import { needText } from './phaseText'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * MEN-3 Chi tiết công việc (`/tim-viec/{jobId}`, FR-12, FR-13, UX-DR98) for every user: a listed Job's Post (the
@@ -108,13 +109,13 @@ function GatePage({ title, children }: { title?: string; children: ReactNode }) 
 function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
   return (
     <GatePage title={invitation.jobTitle}>
-      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card padding="none" role="status" className="flex flex-col items-center gap-3 text-center px-4 py-10">
         <PageHeading className="text-h3">{t('screen.jobPost.invitation.lapsedTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.invitation.lapsedBody')}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.jobPost.invitation.findOther')}
         </Link>
-      </div>
+      </Card>
     </GatePage>
   )
 }
@@ -123,13 +124,13 @@ function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
 function NoLongerOpen() {
   return (
     <GatePage>
-      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card padding="none" role="status" className="flex flex-col items-center gap-3 text-center px-4 py-10">
         <PageHeading className="text-h3">{t('screen.jobPost.detail.goneTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.detail.goneBody')}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.jobPost.detail.findOther')}
         </Link>
-      </div>
+      </Card>
     </GatePage>
   )
 }
@@ -141,13 +142,13 @@ function NoLongerOpen() {
 function ApplicationOnly({ application }: { application: CrewApplication }) {
   return (
     <GatePage title={application.jobTitle}>
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card padding="none" className="flex flex-col items-center gap-3 text-center px-4 py-10">
         <PageHeading className="text-h3">{t('screen.crewApply.readTitle')}</PageHeading>
         <CrewApplicationState application={application} />
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.jobPost.detail.findOther')}
         </Link>
-      </div>
+      </Card>
     </GatePage>
   )
 }
@@ -171,14 +172,14 @@ function RoleOnly({ jobId, role }: { jobId: string; role: JobRoleView }) {
  */
 function RoleNotice({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card role="status" className="flex flex-col gap-3">
       <p className="text-label font-semibold">
         {role.left ? youAreText(role) : t('screen.jobPost.detail.role', { role: roleLabel(role.role) })}
       </p>
       <Link to={`/cong-viec/${jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
         {t('screen.jobPost.detail.openJob')}
       </Link>
-    </div>
+    </Card>
   )
 }
 
@@ -230,7 +231,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
       )}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <section aria-label={post.title} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
+          <Card as="section" aria-label={post.title} className="flex flex-col gap-4">
             {answers.map(
               ([field, answer]) =>
                 answer && (
@@ -273,12 +274,12 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
                 </ul>
               </div>
             )}
-          </section>
+          </Card>
           <ActionArea post={post} />
         </div>
         <aside className="flex flex-col gap-4">
           <CustomerCard postId={post.id} />
-          <section aria-labelledby="post-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+          <Card as="section" aria-labelledby="post-product" className="flex flex-col gap-1.5 text-body-sm">
             <h3 id="post-product" className="text-h3">
               {t('screen.jobPost.detail.product')}
             </h3>
@@ -289,7 +290,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
               })}
             </p>
             <p className="break-words whitespace-pre-line text-muted-foreground">{post.productDescription}</p>
-          </section>
+          </Card>
         </aside>
       </div>
     </>
@@ -327,9 +328,9 @@ function ActionArea({ post }: { post: JobPost }) {
     return <CrewAction post={post} recruitment={post.recruitment} />
   }
   return (
-    <p role="status" className="rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="p" role="status" className="text-body-sm">
       {t('screen.jobPost.detail.notTaking')}
-    </p>
+    </Card>
   )
 }
 
@@ -350,8 +351,8 @@ function CrewAction({
 }) {
   const mentor = post.mentor
   return (
-    <section aria-labelledby="crew-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id="crew-heading" className="text-h2">
+    <Card as="section" aria-labelledby="crew-heading" className="flex flex-col gap-3">
+      <h2 id="crew-heading" className="text-h3">
         {t('screen.jobPost.detail.crewHeading')}
       </h2>
       {mentor && (
@@ -393,7 +394,7 @@ function CrewAction({
       ) : (
         <CrewApplicationArea jobId={post.id} />
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -438,7 +439,7 @@ function CrewApplicationArea({ jobId }: { jobId: string }) {
 function CustomerCard({ postId }: { postId: string }) {
   const rating = useCustomerRating(postId)
   return (
-    <section aria-labelledby="post-customer" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="section" aria-labelledby="post-customer" className="flex flex-col gap-1.5 text-body-sm">
       <h3 id="post-customer" className="text-h3">
         {t('screen.jobPost.detail.customer')}
       </h3>
@@ -465,6 +466,6 @@ function CustomerCard({ postId }: { postId: string }) {
         ) : (
           <p className="text-muted-foreground">{t('screen.jobPost.detail.noRating')}</p>
         ))}
-    </section>
+    </Card>
   )
 }

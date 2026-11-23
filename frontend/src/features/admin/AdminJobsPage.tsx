@@ -11,6 +11,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 type OversightJob = components['schemas']['OversightJobView']
 type Flag = 'OVERDUE' | 'FROZEN'
@@ -86,13 +87,13 @@ export function AdminJobsPage() {
           <RegionState query={jobs} skeleton={<Skeleton className="h-40 w-full" />}>
             {jobs.data &&
               (jobs.data.items.length === 0 ? (
-                <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+                <Card as="p" className="text-body-sm text-muted-foreground">
                   {t('screen.admin.jobs.empty')}
-                </p>
+                </Card>
               ) : (
-                <ul
+                <Card as="ul" padding="none"
                   aria-label={t('screen.admin.jobs.listLabel')}
-                  className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card"
+                  className="flex flex-col divide-y divide-border overflow-hidden"
                 >
                   {jobs.data.items.map((job) => (
                     <li key={job.id}>
@@ -114,7 +115,7 @@ export function AdminJobsPage() {
                       </Link>
                     </li>
                   ))}
-                </ul>
+                </Card>
               ))}
           </RegionState>
           {pages > 1 && (
@@ -133,9 +134,9 @@ export function AdminJobsPage() {
           {jobId ? (
             <JobPanel key={jobId} jobId={jobId} />
           ) : (
-            <p className="rounded-lg border border-dashed border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+            <Card as="p" className="border-dashed text-body-sm text-muted-foreground">
               {t('screen.admin.jobs.pick')}
-            </p>
+            </Card>
           )}
         </div>
       </div>
@@ -158,8 +159,8 @@ function JobPanel({ jobId }: { jobId: string }) {
 
 function JobDetail({ job }: { job: OversightJob }) {
   return (
-    <section aria-labelledby="job-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
-      <h2 id="job-heading" className="text-h2 break-words">
+    <Card as="section" aria-labelledby="job-heading" className="flex flex-col gap-3 text-body-sm">
+      <h2 id="job-heading" className="text-h3 break-words">
         {job.title}
       </h2>
       <p className="text-muted-foreground">
@@ -173,7 +174,7 @@ function JobDetail({ job }: { job: OversightJob }) {
           .join(' · ')}
       </p>
       {job.frozen && <p className="text-label text-destructive">{t('screen.admin.jobs.frozenLine')}</p>}
-      <h3 className="text-h3">{t('screen.admin.jobs.milestones')}</h3>
+      <h3 className="text-label font-semibold">{t('screen.admin.jobs.milestones')}</h3>
       {job.milestones.length === 0 ? (
         <p className="text-muted-foreground">{t('screen.admin.jobs.noMilestones')}</p>
       ) : (
@@ -195,6 +196,6 @@ function JobDetail({ job }: { job: OversightJob }) {
           {t('screen.admin.jobs.auditLink')}
         </Link>
       </div>
-    </section>
+    </Card>
   )
 }

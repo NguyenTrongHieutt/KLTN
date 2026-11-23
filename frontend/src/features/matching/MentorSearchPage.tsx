@@ -39,6 +39,7 @@ import {
 import { useMentorRecommendations, type RecommendedMentor } from './recommendationApi'
 import { SignalChips } from './SignalChips'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /** The keyword and Skill filter in the URL, as on MEN-2 (UX-DR72, UX-DR75). */
 const PARAMS = { q: 'q', skills: 'ky-nang', categories: 'nhom-ky-nang', page: 'trang' }
@@ -173,9 +174,9 @@ function FindMentors({ job }: { job: Job }) {
       {filter.q === undefined ? (
         <RegionState query={recommendations} skeleton={<Skeleton className="h-48 w-full" />}>
           {noRecommendation ? (
-            <div className="rounded-lg border border-border bg-card text-center text-body-sm text-muted-foreground px-4 py-10">
+            <Card padding="none" className="text-center text-body-sm text-muted-foreground px-4 py-10">
               {t('screen.matching.find.noRecommendation')}
-            </div>
+            </Card>
           ) : (
             <section aria-labelledby={`${ids}-recommended`} className="flex flex-col gap-3">
               <h2 id={`${ids}-recommended`} className="text-h2">
@@ -207,10 +208,10 @@ function FindMentors({ job }: { job: Job }) {
                 <p className="text-caption text-muted-foreground">{t('screen.matching.find.order')}</p>
               </div>
               {items.length === 0 ? (
-                <div className="flex flex-col gap-1 rounded-lg border border-border bg-card text-center px-4 py-10">
+                <Card padding="none" className="flex flex-col gap-1 text-center px-4 py-10">
                   <p className="text-label font-semibold">{t('screen.matching.find.empty', { q: shownFilter.q ?? '' })}</p>
                   <p className="text-body-sm text-muted-foreground">{t('screen.matching.find.emptyHint')}</p>
-                </div>
+                </Card>
               ) : (
                 <ul className="flex flex-col gap-3">
                   {items.map((mentor) => (
@@ -384,7 +385,7 @@ function MentorCard({
   onProfile: () => void
 }) {
   return (
-    <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="li" className="flex flex-wrap items-start gap-3">
       <div className="flex min-w-[220px] grow flex-col gap-1.5">
         <div className="flex items-start gap-3">
           <MentorHeading mentor={mentor} />
@@ -402,7 +403,7 @@ function MentorCard({
         <ProfileLink mentor={mentor} onProfile={onProfile} />
       </div>
       <InviteButton job={job} mentor={mentor} limited={limited} />
-    </li>
+    </Card>
   )
 }
 
@@ -421,7 +422,7 @@ function RecommendationCard({
   onProfile: () => void
 }) {
   return (
-    <li className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="li" className="flex flex-col gap-2.5">
       <div className="flex items-start gap-3">
         <MentorHeading mentor={mentor} />
       </div>
@@ -433,7 +434,7 @@ function RecommendationCard({
         <ProfileLink mentor={mentor} onProfile={onProfile} />
         <InviteButton job={job} mentor={mentor} limited={limited} />
       </div>
-    </li>
+    </Card>
   )
 }
 

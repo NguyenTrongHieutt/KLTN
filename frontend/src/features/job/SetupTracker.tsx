@@ -26,6 +26,7 @@ import {
   type Setup,
 } from './setupApi'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 type Person = Setup['people'][number]
 type Head = NonNullable<Setup['head']>
@@ -199,7 +200,7 @@ function Steps({ setup }: { setup: Setup }) {
   const nothingToDo =
     ['NONE', 'CONFIRMING', 'RUNNING', 'DONE'].includes(setup.status) && !confirming && !setup.people.some(ownInvited)
   return (
-    <section aria-labelledby="job-setup" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="job-setup" className="flex flex-col gap-3">
       <h2 id="job-setup" className="text-h3">
         {t('screen.job.setup.title')}
       </h2>
@@ -253,7 +254,7 @@ function Steps({ setup }: { setup: Setup }) {
       {setup.status === 'FAILED' && <p className="text-body-sm">{t('screen.job.setup.failed')}</p>}
       {setup.status === 'ENDED' && <p className="text-body-sm">{t('screen.job.setup.ended')}</p>}
       {nothingToDo && <p className="text-body-sm text-muted-foreground">{t('screen.job.setup.nothingToDo')}</p>}
-    </section>
+    </Card>
   )
 }
 

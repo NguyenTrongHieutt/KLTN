@@ -18,6 +18,7 @@ import { ProfileTabs } from './ProfileTabs'
 import { StudentEmailRow } from './StudentEmailRow'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /** What GitHub's return says in ACC-2's address (`?ket-qua=…` or `?loi=…`), as the backend writes it. */
 const RESULTS = ['da-lien-ket']
@@ -77,7 +78,7 @@ function GitHubRow({ link }: { link: GitHubLink }) {
   const [notice, setNotice] = useState(false)
   const status = link.linked ? 'linked' : 'notLinked'
   return (
-    <section aria-labelledby="github-heading" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="github-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 id="github-heading" className="text-h3">
           {t('screen.verification.github.name')}
@@ -113,7 +114,7 @@ function GitHubRow({ link }: { link: GitHubLink }) {
         </div>
       )}
       <GitHubNoticeDialog open={notice} onOpenChange={setNotice} />
-    </section>
+    </Card>
   )
 }
 

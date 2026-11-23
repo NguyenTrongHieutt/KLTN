@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useFollowUpCommand, useFollowUps, type FollowUp, type FollowUps } from './followUpApi'
+import { Card } from '@/components/ui/card'
 
 const JOB_TYPES = [
   'BUG_FIX',
@@ -40,12 +41,12 @@ export function FollowUpSection({ jobId }: { jobId: string }) {
 function Content({ jobId, data }: { jobId: string; data: FollowUps }) {
   const ids = useId()
   return (
-    <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id={`${ids}-title`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-title`} className="flex flex-col gap-3">
+      <h2 id={`${ids}-title`} className="text-h3">
         {t('screen.followUps.heading')}
       </h2>
       {data.audience === 'MENTOR' ? <MentorPart jobId={jobId} data={data} /> : <CustomerPart jobId={jobId} data={data} />}
-    </section>
+    </Card>
   )
 }
 

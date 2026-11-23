@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useMyApplications, useWithdrawApplication, type Application } from './applicationApi'
 import { bidStateText } from './bidText'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * MEN-3's bid action (FR-13, UX-DR98): "Chào giá làm người hướng dẫn" opens FND-1, or the Mentor Job limit's plain
@@ -34,8 +35,8 @@ export function BidPanel({ postId }: { postId: string }) {
   }
   const atLimit = capacity.data?.reasons.includes('MENTOR_JOB_LIMIT') ?? false
   return (
-    <section aria-labelledby="bid-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id="bid-heading" className="text-h2">
+    <Card as="section" aria-labelledby="bid-heading" className="flex flex-col gap-3">
+      <h2 id="bid-heading" className="text-h3">
         {t('screen.matching.apply.heading')}
       </h2>
       {atLimit ? (
@@ -48,7 +49,7 @@ export function BidPanel({ postId }: { postId: string }) {
           </Link>
         </>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -70,8 +71,8 @@ function BidState({ application }: { application: Application }) {
     })
   const withdrawable = application.status === 'SUBMITTED' || application.status === 'ON_HOLD'
   return (
-    <section aria-labelledby="bid-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id="bid-heading" className="text-h2">
+    <Card as="section" aria-labelledby="bid-heading" className="flex flex-col gap-2">
+      <h2 id="bid-heading" className="text-h3">
         {t('screen.matching.applied.readTitle')}
       </h2>
       <p role="status" className="text-label font-semibold">
@@ -116,6 +117,6 @@ function BidState({ application }: { application: Application }) {
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
-    </section>
+    </Card>
   )
 }

@@ -3,6 +3,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import type { JobSummary } from './jobApi'
 import { JobStateBadge } from './JobStateBadge'
+import { Card } from '@/components/ui/card'
 
 /**
  * A divided list of the Customer's Jobs (CUS-7's groups, CUS-4's Jobs): the title, a meta line (the Product unless
@@ -18,7 +19,7 @@ export function JobSummaryList({
   label?: string
 }) {
   return (
-    <ul aria-label={label} className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+    <Card as="ul" padding="none" aria-label={label} className="flex flex-col divide-y divide-border">
       {jobs.map((job) => (
         <li key={job.id}>
           <Link
@@ -41,6 +42,6 @@ export function JobSummaryList({
           </Link>
         </li>
       ))}
-    </ul>
+    </Card>
   )
 }

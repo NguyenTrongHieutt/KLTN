@@ -13,6 +13,7 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { StepUpDialog } from './StepUpDialog'
+import { Card } from '@/components/ui/card'
 
 type Rules = components['schemas']['RulesView']
 type RuleKey = components['schemas']['RuleView']['key']
@@ -86,8 +87,8 @@ function RulesForm({ rules }: { rules: Rules }) {
   return (
     <>
       <form onSubmit={submit} className="flex flex-col gap-6">
-      <section aria-labelledby={`${ids}-values`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-        <h2 id={`${ids}-values`} className="text-h2">
+      <Card as="section" aria-labelledby={`${ids}-values`} className="flex flex-col gap-3">
+        <h2 id={`${ids}-values`} className="text-h3">
           {t('screen.admin.rules.values')}
         </h2>
         <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">
@@ -117,9 +118,9 @@ function RulesForm({ rules }: { rules: Rules }) {
             )
           })}
         </div>
-      </section>
-      <section aria-labelledby={`${ids}-domains`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
-        <h2 id={`${ids}-domains`} className="text-h2">
+      </Card>
+      <Card as="section" aria-labelledby={`${ids}-domains`} className="flex flex-col gap-2">
+        <h2 id={`${ids}-domains`} className="text-h3">
           {t('screen.admin.rules.domains')}
         </h2>
         <label htmlFor={`${ids}-domain-list`} className="text-label">
@@ -132,15 +133,15 @@ function RulesForm({ rules }: { rules: Rules }) {
           className={cn(inputClass, 'min-h-32 font-mono')}
         />
         <p className="text-caption text-muted-foreground">{t('screen.admin.rules.domainNote')}</p>
-      </section>
+      </Card>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <p className="text-caption text-muted-foreground">{t('screen.admin.rules.appliesLater')}</p>
         <Button type="submit" disabled={invalid.length > 0}>
           {t('screen.admin.rules.save')}
         </Button>
       </div>
-      <section aria-labelledby={`${ids}-history`} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
-        <h2 id={`${ids}-history`} className="text-h2">
+      <Card as="section" aria-labelledby={`${ids}-history`} className="flex flex-col gap-2 text-body-sm">
+        <h2 id={`${ids}-history`} className="text-h3">
           {t('screen.admin.rules.history')}
         </h2>
         {rules.history.length === 0 ? (
@@ -163,7 +164,7 @@ function RulesForm({ rules }: { rules: Rules }) {
             ))}
           </ul>
         )}
-      </section>
+      </Card>
       </form>
       <StepUpDialog
         open={stepUp}

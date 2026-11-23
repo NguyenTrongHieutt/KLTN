@@ -19,6 +19,7 @@ import { ClosingChoice } from './ClosingChoice'
 import { FinalMergeStep } from './FinalMergeStep'
 import { RevocationChecklist } from './RevocationChecklist'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 type Action = 'propose' | 'confirm' | 'decline'
 
@@ -87,8 +88,8 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
   }
 
   return (
-    <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id={`${ids}-title`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-title`} className="flex flex-col gap-3">
+      <h2 id={`${ids}-title`} className="text-h3">
         {t(closure.state === 'CLOSED' ? 'screen.closure.titleClosed' : 'screen.closure.title')}
       </h2>
       {closure.state === 'CLOSED' && <p className="text-body-sm">{t('screen.closure.done')}</p>}
@@ -207,7 +208,7 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
-    </section>
+    </Card>
   )
 }
 

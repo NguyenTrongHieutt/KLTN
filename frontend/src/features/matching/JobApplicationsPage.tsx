@@ -20,6 +20,7 @@ import { BidCard, BidderSheet } from './BidCard'
 import { ChooseDialog, StaleDialog } from './ChooseBid'
 import { comparePath, MAX_COMPARED } from './compare'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /** CUS-12's place in the URL (UX-DR100): `?ho-so={bidId}`. */
 const PROFILE = 'ho-so'
@@ -98,14 +99,14 @@ function BidList({ job }: { job: Job }) {
       </div>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>
         {items.length === 0 ? (
-          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card text-center px-4 py-10">
+          <Card padding="none" className="flex flex-col gap-1 text-center px-4 py-10">
             <p className="text-label font-semibold">{t('screen.job.detail.applicationsTitle')}</p>
             {job.lapsesAt && (
               <p className="text-body-sm text-muted-foreground">
                 {t('screen.job.detail.lapseNote', { date: formatDayMonth(job.lapsesAt) })}
               </p>
             )}
-          </div>
+          </Card>
         ) : (
           <>
             <p className="text-body-sm text-muted-foreground">{t('screen.matching.compare.lead')}</p>

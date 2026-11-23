@@ -16,6 +16,7 @@ import { useAdminDispute, useAdminDisputes, useDisputeCommand, type AdminDispute
 import { CaseTabs } from './CaseTabs'
 import { DecisionEvidence, DisputeEvidence } from './DisputeEvidence'
 import { StepUpDialog } from './StepUpDialog'
+import { Card } from '@/components/ui/card'
 
 type Next = 'CONTINUE' | 'END' | 'CANCEL'
 
@@ -114,8 +115,8 @@ function Detail({ data }: { data: AdminDispute }) {
   const [error, setError] = useState<string>()
   const fail = (failure: unknown) => setError(problemMessage(failure, { module: 'dispute' }).text)
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
-      <h2 className="text-h2 break-words">{data.jobTitle}</h2>
+    <Card as="section" className="flex flex-col gap-4 text-body-sm">
+      <h2 className="text-h3 break-words">{data.jobTitle}</h2>
       <p className="text-caption text-muted-foreground">
         {t(`screen.admin.disputes.openedBy.${data.openedBy}` as MessageKey)} · {formatDayMonthTime(data.openedAt)} ·{' '}
         {t(`screen.admin.disputes.concern.${data.concern}` as MessageKey)}
@@ -193,7 +194,7 @@ function Detail({ data }: { data: AdminDispute }) {
           />
         )
       )}
-    </section>
+    </Card>
   )
 }
 

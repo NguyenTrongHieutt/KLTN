@@ -28,6 +28,7 @@ import {
 } from './verificationApi'
 import { identityReason, verificationMessage } from './verificationMessages'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 const email = z.string().trim().min(1, 'required').max(254, 'tooLong').pipe(z.email('email'))
 
@@ -64,9 +65,9 @@ export function StudentEmailRow() {
   const data = verification.data
   const status = data && statusOf(data)
   return (
-    <section
+    <Card as="section"
       aria-labelledby="student-email-heading"
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex flex-col gap-4"
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2 id="student-email-heading" className="text-h3">
@@ -82,7 +83,7 @@ export function StudentEmailRow() {
       <RegionState query={verification} skeleton={<Skeleton className="h-28 w-full" />}>
         {data && <StudentEmailBody verification={data} />}
       </RegionState>
-    </section>
+    </Card>
   )
 }
 

@@ -23,6 +23,8 @@ import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { JobInfoCard } from './JobInfoAside'
 import { useJobProgress, type JobProgress, type MilestoneProgress } from './progressApi'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 export type ProgressAudience = 'customer' | 'mentor' | 'crew'
 
@@ -110,15 +112,15 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
             ) : (
               <ul className="flex flex-col gap-3">
                 {progress.crew.map((member) => (
-                  <li
+                  <Card as="li"
                     key={member.accountId}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4 md:p-5"
+                    className="flex flex-wrap items-center gap-2"
                   >
                     <p className="text-label font-semibold">{member.name}</p>
                     <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', crewStateTone(member.state))}>
                       {t(`screen.progress.crewState.${member.state}` as MessageKey)}
                     </span>
-                  </li>
+                  </Card>
                 ))}
               </ul>
             )}
@@ -204,14 +206,14 @@ function MilestoneCard({
     refunded: milestone.refunded,
   })
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="li" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-h3 break-words">{t('screen.progress.milestone', { n: milestone.number, title: milestone.title })}</h3>
         <span className="flex flex-wrap gap-2">
           {milestone.overdueSince && (
-            <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption font-semibold text-destructive">
+            <StatusBadge tone="problem">
               {t('screen.progress.overdue', { date: formatDayMonth(milestone.overdueSince) })}
-            </span>
+            </StatusBadge>
           )}
           <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', milestoneTone(milestone.state, textAudience, nextToFund))}>
             {text}
@@ -227,7 +229,7 @@ function MilestoneCard({
         {milestone.dueOn && <span>{t('screen.progress.due', { date: formatCalendarDayMonth(milestone.dueOn) })}</span>}
       </p>
       {milestone.overdueSince && audience === 'customer' && <OverdueOptions jobId={jobId} />}
-    </li>
+    </Card>
   )
 }
 
@@ -246,7 +248,7 @@ function JobNextAction({ jobId }: { jobId: string }) {
   return (
     <section
       aria-label={t('screen.progress.nextAction')}
-      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-info bg-info-soft p-4"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-md border-l-4 border-info bg-info-soft p-4"
     >
       <span className="text-label">{todoText(first)}</span>
       <Link to={first.link} className={buttonVariants({ size: 'compact' })}>

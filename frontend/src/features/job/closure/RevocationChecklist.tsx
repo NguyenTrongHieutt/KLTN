@@ -123,7 +123,7 @@ function CustomerChecklist({
   })
   return (
     <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-md bg-muted p-3 text-body-sm">
-      <h3 id={`${ids}-title`} className="text-h3">
+      <h3 id={`${ids}-title`} className="text-label font-semibold">
         {title}
       </h3>
       <p>{lead}</p>
