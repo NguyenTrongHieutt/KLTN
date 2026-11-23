@@ -98,7 +98,7 @@ function BidList({ job }: { job: Job }) {
       </div>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>
         {items.length === 0 ? (
-          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-8 text-center">
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card text-center px-4 py-10">
             <p className="text-label font-semibold">{t('screen.job.detail.applicationsTitle')}</p>
             {job.lapsesAt && (
               <p className="text-body-sm text-muted-foreground">
@@ -127,7 +127,7 @@ function BidList({ job }: { job: Job }) {
         )}
       </RegionState>
       {compared.length > 0 && <CompareBar job={job} ids={compared} onClear={() => setTicked([])} />}
-      <div role="note" className="rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+      <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
         {t('screen.matching.compare.note')}
       </div>
       <BidderSheet

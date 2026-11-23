@@ -38,7 +38,7 @@ export function RatingLine({
   }
   if (newcomer) {
     return (
-      <span className="w-fit rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
+      <span className="w-fit rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info">
         {t('screen.reputation.new')}
       </span>
     )
@@ -74,7 +74,7 @@ export function PortfolioSection({
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {entries.map((entry) => (
-            <li key={`${entry.title}-${entry.closedAt}`} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+            <li key={`${entry.title}-${entry.closedAt}`} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
               <p className="text-label font-semibold break-words">
                 {entry.title || t('screen.reputation.portfolioFacts.untitled')}
               </p>

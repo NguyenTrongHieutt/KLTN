@@ -16,7 +16,7 @@ export function TodoItemRow({ todo }: { todo: TodoItem }) {
     <Link
       to={todo.link}
       className={cn(
-        'flex min-h-tap-min items-center gap-3 rounded-lg border border-border bg-card p-4 hover:bg-muted',
+        'flex min-h-tap-min items-center gap-3 rounded-lg border border-border bg-card hover:bg-muted p-4 md:p-5',
         todo.tier === 1 && 'border-l-4 border-l-warning',
       )}
     >

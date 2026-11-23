@@ -59,7 +59,7 @@ function ItemHeading({ item, level }: { item: ExternalAccessItem; level: 2 | 3 }
       </Heading>
       <span
         className={cn(
-          'rounded-full px-2 py-0.5 text-caption font-semibold',
+          'rounded-full px-2.5 py-0.5 text-caption font-semibold',
           item.live ? 'bg-destructive-soft text-destructive' : 'bg-muted',
         )}
       >
@@ -81,7 +81,7 @@ function Guidance({ jobId, access, item, level }: ItemProps) {
   const grant = useGrantAccess(jobId)
   const toasts = useToasts()
   return (
-    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-5">
+    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
       <ItemHeading item={item} level={level} />
       {access.open && (
         <>
@@ -126,7 +126,7 @@ function OwnAccount({ jobId, access, item, level }: ItemProps) {
   const toasts = useToasts()
   const id = useId()
   return (
-    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-5">
+    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
       <ItemHeading item={item} level={level} />
       <form
         className="flex flex-col gap-2"

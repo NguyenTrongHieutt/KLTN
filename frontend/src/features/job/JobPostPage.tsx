@@ -108,7 +108,7 @@ function GatePage({ title, children }: { title?: string; children: ReactNode }) 
 function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
   return (
     <GatePage title={invitation.jobTitle}>
-      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         <PageHeading className="text-h3">{t('screen.jobPost.invitation.lapsedTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.invitation.lapsedBody')}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
@@ -123,7 +123,7 @@ function LapsedInvitation({ invitation }: { invitation: MentorInvitation }) {
 function NoLongerOpen() {
   return (
     <GatePage>
-      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+      <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         <PageHeading className="text-h3">{t('screen.jobPost.detail.goneTitle')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.detail.goneBody')}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
@@ -141,7 +141,7 @@ function NoLongerOpen() {
 function ApplicationOnly({ application }: { application: CrewApplication }) {
   return (
     <GatePage title={application.jobTitle}>
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         <PageHeading className="text-h3">{t('screen.crewApply.readTitle')}</PageHeading>
         <CrewApplicationState application={application} />
         <Link to="/tim-viec" className={buttonVariants()}>
@@ -171,7 +171,7 @@ function RoleOnly({ jobId, role }: { jobId: string; role: JobRoleView }) {
  */
 function RoleNotice({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <p className="text-label font-semibold">
         {role.left ? youAreText(role) : t('screen.jobPost.detail.role', { role: roleLabel(role.role) })}
       </p>
@@ -223,14 +223,14 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
         <p className="text-caption text-muted-foreground break-words">{meta.join(' · ')}</p>
       </div>
       {invitation?.status === 'OPEN' && (
-        <div role="note" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+        <div role="note" className="flex gap-3 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           <Info aria-hidden="true" className="size-5 shrink-0 text-primary" />
           <p className="break-words">{t('screen.jobPost.invitation.note')}</p>
         </div>
       )}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <section aria-label={post.title} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-5">
+          <section aria-label={post.title} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
             {answers.map(
               ([field, answer]) =>
                 answer && (
@@ -246,7 +246,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
                 <ul className="flex flex-col gap-1.5">
                   {post.skills.map((skill) => (
                     <li key={skill.id} className="flex flex-wrap items-baseline gap-2 text-body-sm">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{skill.name}</span>
+                      <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{skill.name}</span>
                       {skill.hint && <span className="text-caption text-muted-foreground">{skill.hint}</span>}
                     </li>
                   ))}
@@ -278,7 +278,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
         </div>
         <aside className="flex flex-col gap-4">
           <CustomerCard postId={post.id} />
-          <section aria-labelledby="post-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 text-body-sm">
+          <section aria-labelledby="post-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
             <h3 id="post-product" className="text-h3">
               {t('screen.jobPost.detail.product')}
             </h3>
@@ -327,7 +327,7 @@ function ActionArea({ post }: { post: JobPost }) {
     return <CrewAction post={post} recruitment={post.recruitment} />
   }
   return (
-    <p role="status" className="rounded-lg border border-border bg-card p-5 text-body-sm">
+    <p role="status" className="rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       {t('screen.jobPost.detail.notTaking')}
     </p>
   )
@@ -350,7 +350,7 @@ function CrewAction({
 }) {
   const mentor = post.mentor
   return (
-    <section aria-labelledby="crew-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="crew-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="crew-heading" className="text-h2">
         {t('screen.jobPost.detail.crewHeading')}
       </h2>
@@ -373,7 +373,7 @@ function CrewAction({
           <p className="text-label font-semibold">{t('screen.jobPost.detail.crewSkills')}</p>
           <ul className="flex flex-wrap gap-1.5">
             {recruitment.skills.map((skill) => (
-              <li key={skill} className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+              <li key={skill} className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
                 {skill}
               </li>
             ))}
@@ -438,7 +438,7 @@ function CrewApplicationArea({ jobId }: { jobId: string }) {
 function CustomerCard({ postId }: { postId: string }) {
   const rating = useCustomerRating(postId)
   return (
-    <section aria-labelledby="post-customer" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 text-body-sm">
+    <section aria-labelledby="post-customer" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h3 id="post-customer" className="text-h3">
         {t('screen.jobPost.detail.customer')}
       </h3>

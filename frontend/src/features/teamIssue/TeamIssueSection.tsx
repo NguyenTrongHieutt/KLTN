@@ -65,7 +65,7 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
   }
 
   return (
-    <article aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <article aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-col gap-0.5">
         <h3 id={`${ids}-title`} className="text-h3 break-words">
           {job.title}

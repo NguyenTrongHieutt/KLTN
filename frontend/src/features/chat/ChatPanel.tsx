@@ -68,7 +68,7 @@ export function ChatPanel({
   return (
     <section
       aria-label={t('screen.chat.message')}
-      className="flex w-full max-w-[860px] flex-col gap-3.5 self-center rounded-lg border border-border bg-card p-5"
+      className="flex w-full max-w-reading-max flex-col gap-3.5 rounded-lg border border-border bg-card p-4 md:p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <h2 className="text-h3">{heading}</h2>

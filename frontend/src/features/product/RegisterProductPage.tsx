@@ -280,7 +280,7 @@ function ToolStep({ tools, onChange, onNext }: { tools: Tool[]; onChange: (tools
         )}
       </fieldset>
       {shown && (
-        <section aria-labelledby="tool-help-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+        <section aria-labelledby="tool-help-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
           <h2 id="tool-help-heading" className="text-h3">
             {t('screen.product.wizard.helpHeading', { tool: t(`screen.product.tools.${shown}` as MessageKey) })}
           </h2>
@@ -453,7 +453,7 @@ function RepositoryStep({
       )}
       {marker === 'cho-duyet' && checked?.kind !== 'passed' && (
         <section aria-labelledby="waiting-heading" className="flex flex-col gap-2 rounded-md border border-border bg-card p-4">
-          <p id="waiting-heading" className="w-fit rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold">
+          <p id="waiting-heading" className="w-fit rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold">
             {t('screen.product.wizard.waitingBadge')}
           </p>
           <p className="text-body-sm">{t('screen.product.wizard.waiting', { org, repo })}</p>
@@ -513,7 +513,7 @@ function RepositoryStep({
         </section>
       )}
       {checked?.kind === 'passed' && checked.repository.forkParent && (
-        <div role="status" className="flex gap-3 rounded-md border-l-4 border-primary bg-primary-soft p-4">
+        <div role="status" className="flex gap-3 rounded-md border-l-4 border-info bg-info-soft p-4">
           <GitFork aria-hidden="true" className="size-5 shrink-0 text-primary" />
           <div className="flex flex-col gap-0.5">
             <p className="text-label font-semibold break-all">
@@ -540,7 +540,7 @@ function Checklist({ checked }: { checked: Checked }) {
     return null
   }
   return (
-    <section aria-labelledby="checks-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="checks-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="checks-heading" className="text-label font-semibold">
         {t('screen.product.wizard.resultHeading')}
       </h2>
@@ -650,7 +650,7 @@ function WorkflowStep({
       </div>
       <RegionState query={file} skeleton={<Skeleton className="h-40 w-full" />}>
         {file.data && (
-          <section aria-labelledby="workflow-card" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+          <section aria-labelledby="workflow-card" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
             <h2 id="workflow-card" className="text-h3">
               {rich('screen.product.wizard.workflowCardHeading', { file: <TermHint term="fileWorkflow" /> })}
             </h2>
@@ -720,7 +720,7 @@ function WorkflowResult({ outcome, repo }: { outcome: WorkflowOutcome; repo: str
 /** N-2's guidance (FR-8, D8): what to check by hand, each credential's page, and the optional gitleaks run. */
 function Secrets({ repository }: { repository: RepositoryCheck }) {
   return (
-    <section aria-labelledby="secrets-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="secrets-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="secrets-heading" className="text-h3">
         {t('screen.product.wizard.secretsHeading')}
       </h2>
@@ -899,7 +899,7 @@ function NoticeStep({
       </div>
       <div className="flex flex-col gap-3">
         {items.map((item) => (
-          <label key={item.key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4">
+          <label key={item.key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
             <input
               type="checkbox"
               checked={ticked[item.key]}

@@ -132,7 +132,7 @@ function Section({ title, empty, children }: { title: string; empty: boolean; ch
     <section className="flex flex-col gap-2">
       <h2 className="text-h2">{title}</h2>
       {empty ? (
-        <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">{t('screen.admin.failures.empty')}</p>
+        <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">{t('screen.admin.failures.empty')}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">{children}</ul>
       )}

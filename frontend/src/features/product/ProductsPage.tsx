@@ -51,7 +51,7 @@ function ProductList() {
       )}
       <RegionState query={products} skeleton={<Skeleton className="h-48 w-full" />}>
         {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card p-10 text-center">
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card text-center px-4 py-10">
             <Package aria-hidden="true" className="size-8 text-muted-foreground" />
             <p className="text-h3">{t('screen.product.empty')}</p>
             <p className="max-w-md text-body-sm text-muted-foreground">{t('screen.product.emptyHint')}</p>

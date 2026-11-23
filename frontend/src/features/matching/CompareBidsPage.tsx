@@ -162,7 +162,7 @@ function Comparison({ job }: { job: Job }) {
           name={(application) => application.mentor.displayName}
           extra={(application) =>
             application.invited && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-normal">{t('screen.matching.invitedChip')}</span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-normal">{t('screen.matching.invitedChip')}</span>
             )
           }
           login={(application) => application.mentor.githubLogin}

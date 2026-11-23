@@ -80,7 +80,7 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
   )
   if (shown.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         <BriefcaseBusiness aria-hidden="true" className="size-8 text-muted-foreground" />
         <p className="text-label">{t('screen.job.empty')}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
@@ -281,7 +281,7 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
                   {t('screen.matching.list.sent', { date: formatDayMonth(application.submittedAt) })}
                 </span>
               </span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
                 {t(
                   application.endReason
                     ? (`screen.matching.mentor.end_${application.endReason}` as MessageKey)
@@ -326,7 +326,7 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
                       {t('screen.matching.list.sent', { date: formatDayMonth(application.submittedAt) })}
                     </span>
                   </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
                     {crewApplicationStateText(application)}
                   </span>
                 </Link>

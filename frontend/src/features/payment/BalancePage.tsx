@@ -38,7 +38,7 @@ function Content({ balance }: { balance: Balance }) {
   return (
     <>
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
           <span className="text-caption text-muted-foreground">{t('screen.payment.balance.yours')}</span>
           <p className="text-h3 tabular-nums">
             {formatVnd(balance.balanceVnd)} <TestTag />
@@ -46,7 +46,7 @@ function Content({ balance }: { balance: Balance }) {
           <span className="text-caption text-muted-foreground">{t('screen.payment.balance.count', { n: balance.releases })}</span>
         </div>
         {balance.sentToCrewVnd != null && (
-          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
             <span className="text-caption text-muted-foreground">{t('screen.payment.balance.sentToCrew')}</span>
             <p className="text-h3 tabular-nums">
               {formatVnd(balance.sentToCrewVnd)} <TestTag />
@@ -54,7 +54,7 @@ function Content({ balance }: { balance: Balance }) {
           </div>
         )}
         {balance.heldVnd != null && (
-          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
             <span className="text-caption text-muted-foreground">{t('screen.payment.balance.held')}</span>
             <p className="text-h3 tabular-nums">
               {formatVnd(balance.heldVnd)} <TestTag />
@@ -70,7 +70,7 @@ function Content({ balance }: { balance: Balance }) {
           {t(mentor ? 'screen.payment.balance.mentorLead' : 'screen.payment.balance.studentLead')}
         </p>
         {balance.lines.length === 0 ? (
-          <p className="rounded-lg border border-border bg-card p-5 text-body-sm text-muted-foreground">
+          <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
             {t('screen.payment.balance.empty')}
           </p>
         ) : (

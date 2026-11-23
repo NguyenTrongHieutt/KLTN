@@ -142,7 +142,7 @@ function Categories({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 lg:w-[340px] lg:shrink-0">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card lg:w-[340px] lg:shrink-0 p-4 md:p-5">
       <h2 id={`${ids}-heading`} className="text-h2">
         {t('screen.admin.catalog.categories')}
       </h2>
@@ -294,7 +294,7 @@ function Skills({ categories }: { categories: Category[] }) {
   const pages = Math.max(1, Math.ceil((skills.data?.total ?? 0) / (skills.data?.size ?? 25)))
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 grow flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 grow flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id={`${ids}-heading`} className="text-h2">
           {t('screen.admin.catalog.skills')}

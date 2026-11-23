@@ -64,7 +64,7 @@ export function BusyBanner({ jobId }: { jobId: string }) {
     <p
       role="status"
       aria-live="polite"
-      className="flex items-center gap-2 rounded-md border-l-4 border-primary bg-primary-soft p-3 text-body-sm"
+      className="flex items-center gap-2 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm"
     >
       <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
       {t(`screen.job.busy.${banner(view)}` as MessageKey, { n: view.milestone ?? '' })}

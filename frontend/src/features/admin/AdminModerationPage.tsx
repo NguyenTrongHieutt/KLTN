@@ -82,7 +82,7 @@ function ModerationList({ kind }: { kind: ContentKind }) {
       <RegionState query={items} skeleton={<Skeleton className="h-64 w-full" />}>
         {items.data &&
           (items.data.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">
+            <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
               {t('screen.admin.moderation.empty')}
             </p>
           ) : (

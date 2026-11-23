@@ -35,7 +35,7 @@ export function SourceSetupCard({ product }: { product: Product }) {
 
   const endsOn = fresh ? fresh.workflowEndsOn : product.workflowEndsOn
   return (
-    <section aria-labelledby="source-setup-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="source-setup-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="source-setup-heading" className="text-h3">
           {t('screen.product.setup.heading')}

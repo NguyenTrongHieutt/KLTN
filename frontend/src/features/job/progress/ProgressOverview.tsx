@@ -66,7 +66,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="flex min-w-0 flex-col gap-6">
         {(audience === 'crew' || (audience === 'mentor' && progress.assessment)) && (
-          <p role="note" className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-3 text-body-sm">
+          <p role="note" className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
             <ShieldAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
             {t('screen.progress.n12')}
           </p>
@@ -116,10 +116,10 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
                 {progress.crew.map((member) => (
                   <li
                     key={member.accountId}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4 md:p-5"
                   >
                     <p className="text-label font-semibold">{member.name}</p>
-                    <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', crewStateTone(member.state))}>
+                    <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', crewStateTone(member.state))}>
                       {t(`screen.progress.crewState.${member.state}` as MessageKey)}
                     </span>
                   </li>
@@ -236,16 +236,16 @@ function MilestoneCard({
     refunded: milestone.refunded,
   })
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-h3 break-words">{t('screen.progress.milestone', { n: milestone.number, title: milestone.title })}</h3>
         <span className="flex flex-wrap gap-2">
           {milestone.overdueSince && (
-            <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption font-semibold text-destructive">
+            <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption font-semibold text-destructive">
               {t('screen.progress.overdue', { date: formatDayMonth(milestone.overdueSince) })}
             </span>
           )}
-          <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', milestoneTone(milestone.state, textAudience, nextToFund))}>
+          <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', milestoneTone(milestone.state, textAudience, nextToFund))}>
             {text}
           </span>
         </span>
@@ -278,7 +278,7 @@ function JobNextAction({ jobId }: { jobId: string }) {
   return (
     <section
       aria-label={t('screen.progress.nextAction')}
-      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-primary bg-primary-soft p-4"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-info bg-info-soft p-4"
     >
       <span className="text-label">{todoText(first)}</span>
       <Link to={first.link} className={buttonVariants({ size: 'compact' })}>

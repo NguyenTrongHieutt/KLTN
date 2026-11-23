@@ -34,7 +34,7 @@ export function BidPanel({ postId }: { postId: string }) {
   }
   const atLimit = capacity.data?.reasons.includes('MENTOR_JOB_LIMIT') ?? false
   return (
-    <section aria-labelledby="bid-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="bid-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="bid-heading" className="text-h2">
         {t('screen.matching.apply.heading')}
       </h2>
@@ -70,7 +70,7 @@ function BidState({ application }: { application: Application }) {
     })
   const withdrawable = application.status === 'SUBMITTED' || application.status === 'ON_HOLD'
   return (
-    <section aria-labelledby="bid-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="bid-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="bid-heading" className="text-h2">
         {t('screen.matching.applied.readTitle')}
       </h2>

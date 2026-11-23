@@ -174,7 +174,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
       {preflight.problems.length > 0 && (
         <ul className="flex flex-col gap-2">
           {preflight.problems.map((problem) => (
-            <li key={problem} role="alert" className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-3 text-body-sm">
+            <li key={problem} role="alert" className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-4 text-body-sm">
               <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
               {t(`reason.delivery.${problem}` as MessageKey)}
             </li>
@@ -199,7 +199,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
             const mark = marks[criterion.criterionId] ?? { note: '' }
             const set = (next: Partial<Mark>) => setMarks({ ...marks, [criterion.criterionId]: { ...mark, ...next } })
             return (
-              <li key={criterion.criterionId} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-body-sm">
+              <li key={criterion.criterionId} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
                 <fieldset className="flex flex-col gap-2">
                   <legend className="font-semibold break-words">
                     {t('screen.handover.report.criterion', { n: criterion.number, statement: criterion.statement })}
@@ -292,7 +292,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
       )}
       {waiting && copied && <CopyRunBanner submission={copied} />}
       {(notCopied ?? unread) && (
-        <p role="alert" className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-3 text-body-sm">
+        <p role="alert" className="flex gap-2 rounded-md border-l-4 border-destructive bg-destructive-soft p-4 text-body-sm">
           <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
           {notCopied ?? unread}
         </p>

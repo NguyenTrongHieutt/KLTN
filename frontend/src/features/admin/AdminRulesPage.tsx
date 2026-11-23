@@ -86,7 +86,7 @@ function RulesForm({ rules }: { rules: Rules }) {
   return (
     <>
       <form onSubmit={submit} className="flex flex-col gap-6">
-      <section aria-labelledby={`${ids}-values`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby={`${ids}-values`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id={`${ids}-values`} className="text-h2">
           {t('screen.admin.rules.values')}
         </h2>
@@ -118,7 +118,7 @@ function RulesForm({ rules }: { rules: Rules }) {
           })}
         </div>
       </section>
-      <section aria-labelledby={`${ids}-domains`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby={`${ids}-domains`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id={`${ids}-domains`} className="text-h2">
           {t('screen.admin.rules.domains')}
         </h2>
@@ -139,7 +139,7 @@ function RulesForm({ rules }: { rules: Rules }) {
           {t('screen.admin.rules.save')}
         </Button>
       </div>
-      <section aria-labelledby={`${ids}-history`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <section aria-labelledby={`${ids}-history`} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <h2 id={`${ids}-history`} className="text-h2">
           {t('screen.admin.rules.history')}
         </h2>

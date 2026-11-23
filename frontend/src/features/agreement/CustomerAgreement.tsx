@@ -60,7 +60,7 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
       </RegionState>
       <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
         {agreement.data && job.data && (
-          <div className="flex w-full max-w-[820px] flex-col gap-5 self-center">
+          <div className="flex w-full max-w-reading-max flex-col gap-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
               {agreement.data.versions.length > 1 && (
                 <VersionPicker
@@ -187,7 +187,7 @@ function Review({ job, agreement }: { job: Job; agreement: AgreementVersion }) {
 function Status({ agreement, confirmed, latest }: { agreement: AgreementVersion; confirmed?: ConfirmedAgreement; latest: boolean }) {
   if (confirmed) {
     return (
-      <section role="status" className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
+      <section role="status" className="flex flex-col gap-1 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <p className="flex items-center gap-2 font-semibold">
           <CircleCheck aria-hidden="true" className="size-5 text-success" />
           {t('screen.agreement.review.confirmedLine')}
@@ -204,7 +204,7 @@ function Status({ agreement, confirmed, latest }: { agreement: AgreementVersion;
         ? t('screen.agreement.review.statusChanges', { n: agreement.versionNo })
         : undefined
   return text ? (
-    <p role="status" className="flex gap-2 rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+    <p role="status" className="flex gap-2 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
       <Info aria-hidden="true" className="size-5 shrink-0 text-primary" />
       {text}
     </p>
@@ -240,7 +240,7 @@ function Compare({ agreement }: { agreement: AgreementVersion }) {
     },
   ]
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 className="text-h2">{t('screen.agreement.review.compareTitle')}</h2>
       <ul className="flex flex-col gap-1.5 text-body-sm">
         {rows.map((row) => (
@@ -277,7 +277,7 @@ function CrewLine({ crew, confirmedCrew, state }: { crew: string[]; confirmedCre
     return null
   }
   return (
-    <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-body-sm">
+    <section className="flex flex-col gap-1 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <p className="flex flex-wrap items-center gap-2">
         <Users aria-hidden="true" className="size-4 text-primary" />
         <span className="font-semibold">{t('screen.crew.customer.title')}:</span>

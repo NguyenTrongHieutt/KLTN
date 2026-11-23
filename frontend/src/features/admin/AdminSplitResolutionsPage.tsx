@@ -118,7 +118,7 @@ function ResolutionList({ current }: { current?: string }) {
                         .join(' · ')}
                     </span>
                     {row.undecidedLong && (
-                      <span className="w-fit rounded-full bg-warning-soft px-2 py-0.5 text-caption text-warning">
+                      <span className="w-fit rounded-full bg-warning-soft px-2.5 py-0.5 text-caption text-warning font-semibold">
                         {t('screen.admin.splitResolutions.undecidedLong')}
                       </span>
                     )}
@@ -170,7 +170,7 @@ function Detail({ data }: { data: AdminSplitResolution }) {
   const [error, setError] = useState<string>()
   const open = data.status === 'OPEN'
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h2 className="text-h2 break-words">{data.jobTitle ?? t('screen.admin.splitResolutions.noTitle')}</h2>
       <p className="text-caption text-muted-foreground">
         {[

@@ -86,7 +86,7 @@ export function AdminJobsPage() {
           <RegionState query={jobs} skeleton={<Skeleton className="h-40 w-full" />}>
             {jobs.data &&
               (jobs.data.items.length === 0 ? (
-                <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">
+                <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
                   {t('screen.admin.jobs.empty')}
                 </p>
               ) : (
@@ -133,7 +133,7 @@ export function AdminJobsPage() {
           {jobId ? (
             <JobPanel key={jobId} jobId={jobId} />
           ) : (
-            <p className="rounded-lg border border-dashed border-border bg-card p-6 text-body-sm text-muted-foreground">
+            <p className="rounded-lg border border-dashed border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
               {t('screen.admin.jobs.pick')}
             </p>
           )}
@@ -158,7 +158,7 @@ function JobPanel({ jobId }: { jobId: string }) {
 
 function JobDetail({ job }: { job: OversightJob }) {
   return (
-    <section aria-labelledby="job-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <section aria-labelledby="job-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h2 id="job-heading" className="text-h2 break-words">
         {job.title}
       </h2>

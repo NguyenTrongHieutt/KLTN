@@ -33,7 +33,7 @@ export function MyDataPage() {
   return (
     <Page width="reading">
       <PageHeading>{t('screen.myData.title')}</PageHeading>
-      <section aria-labelledby="my-data-kept" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby="my-data-kept" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id="my-data-kept" className="text-h3">
           {t('screen.myData.keptTitle')}
         </h2>
@@ -42,7 +42,7 @@ export function MyDataPage() {
           {t('screen.myData.privacy')}
         </Link>
       </section>
-      <section aria-labelledby="my-data-export" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby="my-data-export" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id="my-data-export" className="text-h3">
           {t('screen.myData.exportTitle')}
         </h2>
@@ -63,7 +63,7 @@ function Deletion({ data }: { data: MyData }) {
   const [error, setError] = useState<string>()
   const request = useRequestDeletion()
   return (
-    <section aria-labelledby="my-data-delete" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="my-data-delete" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="my-data-delete" className="text-h3">
         {t('screen.myData.deleteTitle')}
       </h2>

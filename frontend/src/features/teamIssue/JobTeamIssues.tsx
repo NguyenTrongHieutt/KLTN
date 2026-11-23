@@ -18,7 +18,7 @@ export function JobTeamIssues({ jobId }: { jobId: string }) {
     return null
   }
   return (
-    <section aria-labelledby="job-team-issues" className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="job-team-issues" className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id="job-team-issues" className="text-h2">
         {t('screen.teamIssue.title')}
       </h2>

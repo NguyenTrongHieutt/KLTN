@@ -173,7 +173,7 @@ function FindMentors({ job }: { job: Job }) {
       {filter.q === undefined ? (
         <RegionState query={recommendations} skeleton={<Skeleton className="h-48 w-full" />}>
           {noRecommendation ? (
-            <div className="rounded-lg border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">
+            <div className="rounded-lg border border-border bg-card text-center text-body-sm text-muted-foreground px-4 py-10">
               {t('screen.matching.find.noRecommendation')}
             </div>
           ) : (
@@ -207,7 +207,7 @@ function FindMentors({ job }: { job: Job }) {
                 <p className="text-caption text-muted-foreground">{t('screen.matching.find.order')}</p>
               </div>
               {items.length === 0 ? (
-                <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-8 text-center">
+                <div className="flex flex-col gap-1 rounded-lg border border-border bg-card text-center px-4 py-10">
                   <p className="text-label font-semibold">{t('screen.matching.find.empty', { q: shownFilter.q ?? '' })}</p>
                   <p className="text-body-sm text-muted-foreground">{t('screen.matching.find.emptyHint')}</p>
                 </div>
@@ -384,7 +384,7 @@ function MentorCard({
   onProfile: () => void
 }) {
   return (
-    <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-4">
+    <li className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex min-w-[220px] grow flex-col gap-1.5">
         <div className="flex items-start gap-3">
           <MentorHeading mentor={mentor} />
@@ -392,11 +392,11 @@ function MentorCard({
         {(mentor.skills.length > 0 || rating) && (
           <ul className="flex flex-wrap gap-1.5">
             {mentor.skills.map((skill) => (
-              <li key={skill} className="rounded-full bg-muted px-2 py-0.5 text-caption">
+              <li key={skill} className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
                 {skill}
               </li>
             ))}
-            {rating && <li className="rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">{rating}</li>}
+            {rating && <li className="rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info">{rating}</li>}
           </ul>
         )}
         <ProfileLink mentor={mentor} onProfile={onProfile} />
@@ -421,13 +421,13 @@ function RecommendationCard({
   onProfile: () => void
 }) {
   return (
-    <li className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4">
+    <li className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex items-start gap-3">
         <MentorHeading mentor={mentor} />
       </div>
       <SignalChips
         signals={mentor.signals}
-        extra={rating && <li className="rounded-full bg-muted px-2 py-0.5 text-caption">{rating}</li>}
+        extra={rating && <li className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{rating}</li>}
       />
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
         <ProfileLink mentor={mentor} onProfile={onProfile} />

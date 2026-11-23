@@ -24,7 +24,7 @@ const ENDED = ['CLOSED', 'CANCELLED']
 const link = 'text-body-sm text-primary underline-offset-4 hover:underline'
 
 const tile =
-  'flex h-full flex-col gap-3 rounded-lg border border-border bg-card p-4 no-underline hover:border-primary-border hover:bg-primary-soft/40'
+  'flex h-full flex-col gap-3 rounded-lg border border-border bg-card no-underline hover:border-primary-border hover:bg-primary-soft/40 p-4 md:p-5'
 
 /**
  * `/viec-can-lam`: CUS-1 "Tổng quan" (EXPERIENCE.md, "UX changes of 2026-11-23"), where a signed-in account lands.

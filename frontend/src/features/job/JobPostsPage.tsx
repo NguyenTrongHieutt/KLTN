@@ -250,7 +250,7 @@ function Results({
   if (data.total === 0) {
     if (filter.q) {
       return (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
           <p aria-live="polite" className="text-label font-semibold break-words">
             {t('screen.jobPost.noMatchKeyword', { q: filter.q })}
           </p>
@@ -264,7 +264,7 @@ function Results({
       )
     }
     return filtered(filter) ? (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-10 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
         <p className="text-label font-semibold">{t('screen.jobPost.noMatch')}</p>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.noMatchBody')}</p>
         <Button type="button" variant="secondary" onClick={clearAll}>
@@ -419,12 +419,12 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
             <li key={post.id}>
               <Link
                 to={`/tim-viec/${post.id}`}
-                className="flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 text-inherit no-underline hover:bg-muted/50"
+                className="flex h-full flex-col gap-2 rounded-lg border border-border bg-card text-inherit no-underline hover:bg-muted/50 p-4 md:p-5"
               >
                 <span className="flex flex-wrap items-start justify-between gap-2">
                   <span className="text-h3 break-words">{post.title}</span>
                   {post.invited && (
-                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-caption font-semibold text-warning">
+                    <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
                       {t('screen.jobPost.recommend.invited')}
                     </span>
                   )}
@@ -530,7 +530,7 @@ function PostItem({
         {post.skills.length > 0 && (
           <span className="flex flex-wrap gap-1.5">
             {post.skills.map((skill) => (
-              <span key={skill} className="rounded-full bg-muted px-2 py-0.5 text-caption">
+              <span key={skill} className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
                 {skill}
               </span>
             ))}
@@ -565,12 +565,12 @@ function PostItem({
         {customer && <span className="text-caption text-muted-foreground break-words">{customer}</span>}
       </div>
       {applied ? (
-        <span className="rounded-full bg-success-soft px-2 py-0.5 text-caption font-semibold text-success">
+        <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success">
           {t('screen.matching.appliedBadge')}
         </span>
       ) : (
         post.deadline && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-caption">
+          <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
             {t('screen.jobPost.due', { date: formatCalendarDayMonth(post.deadline) })}
           </span>
         )

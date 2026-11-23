@@ -110,7 +110,7 @@ function CrewApplyRoute({ postId }: { postId: string }) {
 /** A plain reason with "Tìm việc khác" (UX-DR95). */
 function Gate({ text }: { text: string }) {
   return (
-    <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+    <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
       <PageHeading className="text-h3">{t('screen.crewApply.notRecruiting')}</PageHeading>
       <p className="text-body-sm text-muted-foreground">{text}</p>
       <Link to="/tim-viec" className={buttonVariants()}>
@@ -132,7 +132,7 @@ function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
         ? t('reason.matching.ROLE_TAKEN')
         : t('reason.matching.ROLE_IN_JOB_TAKEN', { role: roleLabel(role.role) })
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <PageHeading className="text-h3">{text}</PageHeading>
       <Link to={`/cong-viec/${jobId}`} className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
         {t('screen.jobPost.detail.openJob')}
@@ -151,7 +151,7 @@ function SentApplication({ application }: { application: CrewApplication }) {
       </div>
       <CrewApplicationState application={application} view={false} />
       <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.readLead')}</p>
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <div className="flex flex-col gap-1">
           <p className="text-label font-semibold">{t('screen.crewApply.note')}</p>
           <p className="break-words whitespace-pre-line">{application.note}</p>
@@ -346,7 +346,7 @@ function CrewApplyFields({
         <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.lead')}</p>
       </div>
       {recruitment && (
-        <section aria-label={t('screen.jobPost.detail.crewNote')} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+        <section aria-label={t('screen.jobPost.detail.crewNote')} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
           <p className="font-semibold break-words">
             {recruitment.skills.length > 0
               ? t('screen.crewApply.ask', { skills: recruitment.skills.join(', ') })
@@ -381,8 +381,8 @@ function CrewApplyFields({
           {t('screen.crewApply.skillsHint')}
         </p>
       </div>
-      <section aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
-        <div role="note" className="rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+      <section aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+        <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           {t('notice.proofConfidentiality', { who: t('screen.crewApply.proofWho') })}
         </div>
         <h2 id={`${ids}-proof`} className="text-h3">

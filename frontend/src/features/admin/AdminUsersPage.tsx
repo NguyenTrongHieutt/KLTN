@@ -105,7 +105,7 @@ export function AdminUsersPage() {
         <aside className="flex flex-col gap-3 lg:w-[320px] lg:shrink-0">
           <RegionState query={users} skeleton={<Skeleton className="h-40 w-full" />}>
             {rows.length === 0 ? (
-              <p className="rounded-lg border border-border bg-card p-4 text-body-sm text-muted-foreground">
+              <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
                 {t('screen.admin.users.empty')}
               </p>
             ) : (
@@ -156,7 +156,7 @@ export function AdminUsersPage() {
           {accountId ? (
             <UserPanel key={accountId} accountId={accountId} />
           ) : (
-            <p className="rounded-lg border border-dashed border-border bg-card p-6 text-body-sm text-muted-foreground">
+            <p className="rounded-lg border border-dashed border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
               {t('screen.admin.users.pick')}
             </p>
           )}
@@ -215,13 +215,13 @@ function UserDetail({ user }: { user: AdminUser }) {
   const verified = user.verification?.current === true
   return (
     <>
-      <section aria-labelledby="user-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <section aria-labelledby="user-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h2 id="user-heading" className="text-h2 break-words">
             {nameOf(user)}
           </h2>
           {user.lockedAt && (
-            <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption font-semibold text-destructive">
+            <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption font-semibold text-destructive">
               {t('screen.admin.users.locked')}
             </span>
           )}
@@ -271,7 +271,7 @@ function UserDetail({ user }: { user: AdminUser }) {
         <p className="text-caption text-muted-foreground">{t('screen.admin.users.unlockNote')}</p>
       </section>
       <PersonLinks links={user.personLinks} />
-      <section aria-labelledby="feedback-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <section aria-labelledby="feedback-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <h3 id="feedback-heading" className="text-h3">
           {t('screen.admin.users.feedback')}
         </h3>
@@ -296,7 +296,7 @@ function UserDetail({ user }: { user: AdminUser }) {
         )}
       </section>
       {user.deletionRequest && <DeletionSection user={user} />}
-      <section aria-labelledby="history-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <section aria-labelledby="history-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <h3 id="history-heading" className="text-h3">
           {t('screen.admin.users.history')}
         </h3>
@@ -327,7 +327,7 @@ function UserDetail({ user }: { user: AdminUser }) {
  */
 function PersonLinks({ links }: { links: PersonLink[] }) {
   return (
-    <section aria-labelledby="links-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <section aria-labelledby="links-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h3 id="links-heading" className="text-h3">
         {t('screen.admin.users.personLinks.title')}
       </h3>
@@ -346,7 +346,7 @@ function PersonLinks({ links }: { links: PersonLink[] }) {
                 </Link>
               )}
               {link.locked && !link.erased && (
-                <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-caption text-destructive">
+                <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption text-destructive font-semibold">
                   {t('screen.admin.users.personLinks.locked')}
                 </span>
               )}
@@ -354,7 +354,7 @@ function PersonLinks({ links }: { links: PersonLink[] }) {
                 {t('screen.admin.users.personLinks.createdAt', { date: formatDate(link.createdAt) })}
               </span>
               {link.kinds.map((kind) => (
-                <span key={kind} className="rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground">
+                <span key={kind} className="rounded-full bg-muted px-2.5 py-0.5 text-caption text-muted-foreground font-semibold">
                   {t(`screen.admin.users.personLinks.kind.${kind}` as MessageKey)}
                 </span>
               ))}
@@ -378,7 +378,7 @@ function DeletionSection({ user }: { user: AdminUser }) {
   const [error, setError] = useState<string>()
   const deletion = user.deletionRequest!
   return (
-    <section aria-labelledby="deletion-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <section aria-labelledby="deletion-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <h3 id="deletion-heading" className="text-h3">
         {t('screen.admin.users.deletion.title')}
       </h3>

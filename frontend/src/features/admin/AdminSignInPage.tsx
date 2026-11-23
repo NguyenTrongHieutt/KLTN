@@ -68,13 +68,13 @@ export function AdminSignInPage() {
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="flex min-h-14 items-center gap-2 border-b border-border bg-card px-gutter-mobile md:px-gutter-desktop">
         <span className="text-h3 font-bold">vibefix</span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
       </header>
       <main id="main" className="flex flex-1 justify-center px-gutter-mobile py-16">
         <form
           noValidate
           onSubmit={submit}
-          className="flex w-full max-w-[420px] flex-col gap-4 self-start rounded-lg border border-border bg-card p-6 md:p-8"
+          className="flex w-full max-w-[420px] flex-col gap-4 self-start rounded-lg border border-border bg-card p-4 md:p-5"
         >
           <div className="flex flex-col gap-2">
             <PageHeading>{t('screen.admin.signIn.heading')}</PageHeading>

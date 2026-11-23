@@ -111,7 +111,7 @@ function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
         <RegionState query={balance} skeleton={<Skeleton className="h-32 w-full" />}>
           {balance.data &&
             (lines.length === 0 ? (
-              <p className="rounded-lg border border-border bg-card p-5 text-body-sm text-muted-foreground">
+              <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
                 {t('screen.payment.crew.empty')}
               </p>
             ) : (
@@ -158,7 +158,7 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
           <MentorMilestone key={milestone.milestoneId} jobId={funding.jobId} milestone={milestone} />
         ))}
       </section>
-      <section aria-labelledby="mentor-orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby="mentor-orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id="mentor-orders-heading" className="text-h3">
           {t('screen.payment.mentor.ordersTitle')}
         </h2>
@@ -171,7 +171,7 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
                 <span className="tabular-nums">
                   {t('screen.payment.history.funding', { n: order.number })} · {formatVnd(order.amountVnd)} <TestTag />
                 </span>
-                <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', ORDER_TONE[order.status] ?? 'bg-muted')}>
+                <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', ORDER_TONE[order.status] ?? 'bg-muted')}>
                   {t(`screen.payment.orderStatus.${order.status}` as MessageKey)}
                 </span>
               </li>
@@ -193,10 +193,10 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
   const final =
     milestone.splitStatus === 'FINAL' && !pending ? finalText(milestone.finality, milestone.finalAt) : undefined
   return (
-    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5 text-body-sm">
+    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-h3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</h3>
-        <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[milestone.state] ?? 'bg-muted')}>
+        <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', STATE_TONE[milestone.state] ?? 'bg-muted')}>
           {t(`screen.payment.milestoneState.${milestone.state}` as MessageKey)}
         </span>
       </div>
@@ -217,7 +217,7 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
       {pending ? (
         <div className="flex flex-col items-start gap-1">
           <span
-            className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', pendingTone(milestone.splitStatus))}
+            className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', pendingTone(milestone.splitStatus))}
           >
             {pendingText(milestone.splitStatus)}
           </span>
@@ -388,7 +388,7 @@ function Funding({ funding }: { funding: JobFunding }) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', STATE_TONE[key] ?? 'bg-muted')}>
+                      <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', STATE_TONE[key] ?? 'bg-muted')}>
                         {t(`screen.payment.milestoneState.${key}` as MessageKey)}
                       </span>
                     </td>
@@ -420,7 +420,7 @@ function Funding({ funding }: { funding: JobFunding }) {
           </table>
         </div>
       </section>
-      <section aria-labelledby="orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby="orders-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id="orders-heading" className="text-h3">
           {t('screen.payment.ordersTitle')}
         </h2>
@@ -444,7 +444,7 @@ function Funding({ funding }: { funding: JobFunding }) {
                   </span>
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', ORDER_TONE[order.status] ?? 'bg-muted')}>
+                  <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', ORDER_TONE[order.status] ?? 'bg-muted')}>
                     {t(`screen.payment.orderStatus.${order.status}` as MessageKey)}
                   </span>
                   <Link to={`/thanh-toan/${order.id}`} className="text-primary underline-offset-4 hover:underline">

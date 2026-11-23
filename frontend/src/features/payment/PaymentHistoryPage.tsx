@@ -43,7 +43,7 @@ export function PaymentHistoryPage() {
 
 function Stat({ label, amount }: { label: MessageKey; amount: number }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
+    <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 md:p-5">
       <span className="text-caption text-muted-foreground">{t(label)}</span>
       <p className="text-h3 tabular-nums">
         {formatVnd(amount)} <TestTag />

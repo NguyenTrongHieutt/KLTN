@@ -99,7 +99,7 @@ export function LandingPage() {
           <p>{t('screen.public.landing.rolesLead')}</p>
           <ul className="grid gap-3 md:grid-cols-3">
             {ROLES.map((role) => (
-              <li key={role.label} className="flex gap-3 rounded-lg border border-border bg-card p-4">
+              <li key={role.label} className="flex gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
                 <role.icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <h3 className="text-label font-semibold">{t(role.label)}</h3>

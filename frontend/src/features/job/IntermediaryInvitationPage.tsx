@@ -28,7 +28,7 @@ export function IntermediaryInvitationPage() {
   return (
     <Page width="reading">
       <PageHeading>{t('screen.job.intermediary.title')}</PageHeading>
-      <div className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-card px-6 py-10 text-center">
+      <div className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-card text-center px-4 py-10">
         <FolderGit2 aria-hidden="true" className="size-12 text-muted-foreground" />
         {url && (
           <>

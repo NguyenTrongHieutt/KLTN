@@ -105,7 +105,7 @@ function BidRoute({ postId }: { postId: string }) {
 /** A Job no longer Open, or hidden (UX-DR95): one plain reason and "Tìm việc khác". */
 function NotOpen() {
   return (
-    <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-14 text-center">
+    <div role="status" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
       <PageHeading className="text-h3">{t('screen.matching.apply.notOpen')}</PageHeading>
       <p className="text-body-sm text-muted-foreground">{t('screen.matching.apply.notOpenBody')}</p>
       <Link to="/tim-viec" className={buttonVariants()}>
@@ -118,7 +118,7 @@ function NotOpen() {
 /** The Job's own people bid on it never (AD-43): "Đây là công việc bạn đăng." or their role, with the way to the Job. */
 function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
       <PageHeading className="text-h3">
         {role.role === 'CUSTOMER'
           ? t('reason.matching.ROLE_TAKEN')
@@ -143,7 +143,7 @@ function SentBid({ application }: { application: Application }) {
         {bidStateText(application)}
       </p>
       <p className="text-body-sm text-muted-foreground">{t('screen.matching.applied.readLead')}</p>
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 text-body-sm">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
         <p>
           <span className="font-semibold">{formatVnd(application.priceVnd)}</span> <TestTag />
           {' · '}
@@ -376,8 +376,8 @@ function BidForm({ post }: { post: JobPost }) {
           className={cn(inputClass, 'min-h-24')}
         />
       </FormField>
-      <section aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
-        <div role="note" className="rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+      <section aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+        <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           {t('notice.proofConfidentiality', { who: t('screen.matching.apply.proofWho') })}
         </div>
         <h2 id={`${ids}-proof`} className="text-h3">

@@ -66,7 +66,7 @@ export function StudentEmailRow() {
   return (
     <section
       aria-labelledby="student-email-heading"
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5"
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2 id="student-email-heading" className="text-h3">
@@ -74,7 +74,7 @@ export function StudentEmailRow() {
         </h2>
         <span className="text-caption text-muted-foreground">{t('screen.verification.student.optional')}</span>
         {status && (
-          <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', status.tone)}>
+          <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', status.tone)}>
             {t(status.label)}
           </span>
         )}

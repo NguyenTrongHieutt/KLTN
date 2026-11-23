@@ -129,7 +129,7 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
 
   if (!recruitment.available) {
     return (
-      <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+      <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id={`${ids}-heading`} className="text-h2">
           {t('screen.recruitment.settings')}
         </h2>
@@ -187,11 +187,11 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
   }
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
       <h2 id={`${ids}-heading`} className="text-h2">
         {t('screen.recruitment.settings')}
       </h2>
-      <div role="note" className="rounded-md border-l-4 border-primary bg-primary-soft p-4 text-body-sm">
+      <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
         {t('screen.recruitment.n20')}
       </div>
       <p role="status" className="text-label font-semibold">
@@ -372,7 +372,7 @@ function Applicants({ jobId }: { jobId: string }) {
               {closed.map((application) => (
                 <li key={application.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-body-sm">
                   <span className="font-semibold break-words">{application.applicant.displayName}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold">{closedLabel(application)}</span>
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{closedLabel(application)}</span>
                 </li>
               ))}
             </ul>
@@ -434,13 +434,13 @@ function ApplicantCardItem({
     </div>
   )
   return (
-    <li aria-labelledby={`${ids}-name`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+    <li aria-labelledby={`${ids}-name`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span id={`${ids}-name`} className="text-label font-semibold break-words">
           {applicant.displayName}
         </span>
         {picked && application.signDueAt ? (
-          <span role="status" className="rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
+          <span role="status" className="rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info">
             {t('screen.recruitment.pickedChip', { date: formatDayMonth(application.signDueAt) })}
           </span>
         ) : (

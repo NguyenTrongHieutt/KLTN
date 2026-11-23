@@ -25,7 +25,7 @@ export function FitMetricsList({
   const facts = (
     <ul className="flex flex-wrap gap-1.5">
       {profileFacts(username ? histories.byUsername.get(username) : undefined, memberSince).map((fact) => (
-        <li key={fact} className="rounded-full bg-muted px-2 py-0.5 text-caption">
+        <li key={fact} className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">
           {fact}
         </li>
       ))}

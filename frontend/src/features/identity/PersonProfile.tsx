@@ -114,7 +114,7 @@ function Person({
           <LevelHeading level={level} id={`${ids}-typed`} className="text-h3">
             {t('screen.person.typedHeading')}
           </LevelHeading>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-caption">{t('screen.person.selfDeclared')}</span>
+          <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.person.selfDeclared')}</span>
         </div>
         <p className="text-body-sm">{experienceText(person.yearsOfExperience)}</p>
         {person.experience && <p className="text-body-sm break-words whitespace-pre-line">{person.experience}</p>}
