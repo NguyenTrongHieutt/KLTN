@@ -106,37 +106,44 @@ function ProductDetail({ product }: { product: Product }) {
         </div>
       </div>
       <p className="text-body-sm break-words">{product.description}</p>
-      <SourceSetupCard product={product} />
-      <ProductJobs product={product} />
-      <Card as="section" aria-labelledby="product-info-heading" className="flex flex-col gap-2">
-        <h2 id="product-info-heading" className="text-h3">
-          {t('screen.product.detail.info')}
-        </h2>
-        <dl className="grid gap-x-4 gap-y-2 text-body-sm sm:grid-cols-[max-content_1fr]">
-          <dt className="text-muted-foreground">{t('screen.product.detail.madeWith')}</dt>
-          <dd>{product.tools.map((tool) => t(`screen.product.tools.${tool}` as MessageKey)).join(', ')}</dd>
-          <dt className="text-muted-foreground">{t('screen.product.detail.demo')}</dt>
-          <dd className="break-all">
-            {product.demoUrl ? (
-              <a href={product.demoUrl} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline-offset-4 hover:underline">
-                {domainOf(product.demoUrl)}
-                <span className="sr-only">{t('screen.product.newTab')}</span>
-              </a>
-            ) : (
-              t('screen.product.detail.noDemo')
-            )}
-          </dd>
-          {product.forkParent && (
-            <>
-              <dt className="text-muted-foreground">{t('screen.product.detail.forkOf')}</dt>
-              <dd className="break-all">{product.forkParent}</dd>
-            </>
-          )}
-          <dt className="text-muted-foreground">{t('screen.product.detail.registered')}</dt>
-          <dd>{formatDate(product.createdAt)}</dd>
-        </dl>
-      </Card>
-      <DeleteProduct product={product} />
+      {/* From 1024 px: the setup and the Jobs in the main column, the information and the deletion beside them. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <SourceSetupCard product={product} />
+          <ProductJobs product={product} />
+        </div>
+        <div className="flex min-w-0 flex-col gap-6 lg:self-start">
+          <Card as="section" aria-labelledby="product-info-heading" className="flex flex-col gap-2">
+            <h2 id="product-info-heading" className="text-h3">
+              {t('screen.product.detail.info')}
+            </h2>
+            <dl className="grid gap-x-4 gap-y-2 text-body-sm sm:grid-cols-[max-content_1fr]">
+              <dt className="text-muted-foreground">{t('screen.product.detail.madeWith')}</dt>
+              <dd>{product.tools.map((tool) => t(`screen.product.tools.${tool}` as MessageKey)).join(', ')}</dd>
+              <dt className="text-muted-foreground">{t('screen.product.detail.demo')}</dt>
+              <dd className="break-all">
+                {product.demoUrl ? (
+                  <a href={product.demoUrl} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline-offset-4 hover:underline">
+                    {domainOf(product.demoUrl)}
+                    <span className="sr-only">{t('screen.product.newTab')}</span>
+                  </a>
+                ) : (
+                  t('screen.product.detail.noDemo')
+                )}
+              </dd>
+              {product.forkParent && (
+                <>
+                  <dt className="text-muted-foreground">{t('screen.product.detail.forkOf')}</dt>
+                  <dd className="break-all">{product.forkParent}</dd>
+                </>
+              )}
+              <dt className="text-muted-foreground">{t('screen.product.detail.registered')}</dt>
+              <dd>{formatDate(product.createdAt)}</dd>
+            </dl>
+          </Card>
+          <DeleteProduct product={product} />
+        </div>
+      </div>
     </>
   )
 }

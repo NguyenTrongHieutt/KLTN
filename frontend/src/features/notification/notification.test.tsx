@@ -190,11 +190,11 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
     })
     const router = renderAt('/thong-bao')
 
-    const item = await screen.findByRole('button', { name: /Có tin mới cho Lan/ })
+    const item = await screen.findByRole('link', { name: /Có tin mới cho Lan/ })
     expect(item).toHaveTextContent('Mở để xem chi tiết.')
     expect(item).toHaveTextContent('14:05 19/10')
     expect(item).toHaveTextContent('Chưa đọc')
-    expect(screen.getByRole('button', { name: /Thông tin mới/ })).not.toHaveTextContent('Chưa đọc')
+    expect(screen.getByRole('link', { name: /Thông tin mới/ })).not.toHaveTextContent('Chưa đọc')
     expect(await screen.findByRole('link', { name: 'Thông báo, 1 chưa đọc' })).toHaveAttribute('href', '/thong-bao')
 
     await user.click(item)
@@ -223,7 +223,7 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
     })
     renderAt('/thong-bao')
 
-    const item = await screen.findByRole('button', {
+    const item = await screen.findByRole('link', {
       name: /Cần thêm lại file workflow vibefix cho lan-nguyen\/shop-gom: bản file workflow bạn đang dùng hết hạn ngày 25\/01\/2026/,
     })
     expect(item).toHaveTextContent('Mở trang sản phẩm để sửa, rồi bấm “Kiểm tra lại”.')
@@ -266,7 +266,7 @@ describe('notifications (FR-48, UX-DR11, UX-DR16)', () => {
     await user.click(await screen.findByRole('button', { name: 'Thông báo, 1 chưa đọc' }))
 
     expect(await screen.findByText('Thông báo mới')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Thông tin mới/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Thông tin mới/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Xem tất cả thông báo' })).toHaveAttribute('href', '/thong-bao')
     expect(document.querySelectorAll('style')).toHaveLength(0)
   })

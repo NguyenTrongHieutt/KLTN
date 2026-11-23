@@ -151,13 +151,17 @@ function JobPostList() {
         <PageHeading>{t('screen.jobPost.heading')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.lead')}</p>
       </div>
-      <SearchBar
-        key={filter.q ?? ''}
-        keyword={filter.q}
-        retryAfter={limited ? (limited.retryAfter ?? 60) : undefined}
-        search={(q) => update({ q })}
-      />
-      <Filters filter={filter} update={update} />
+      {/* One panel: the keyword on top, the filters under it. The keyword still runs on Enter or "Tìm" only, since
+          searching as one types would run into the search rate limit (UX-DR27, UX-DR47). */}
+      <Card padding="none" className="flex flex-col divide-y divide-border">
+        <SearchBar
+          key={filter.q ?? ''}
+          keyword={filter.q}
+          retryAfter={limited ? (limited.retryAfter ?? 60) : undefined}
+          search={(q) => update({ q })}
+        />
+        <Filters filter={filter} update={update} />
+      </Card>
       {filter.q === undefined && recommendations.data && recommendations.data.length > 0 && (
         <Recommended posts={recommendations.data} />
       )}
@@ -196,7 +200,7 @@ function SearchBar({
     }
   }
   return (
-    <form role="search" onSubmit={submit} className="flex flex-col gap-1.5">
+    <form role="search" onSubmit={submit} className="flex flex-col gap-1.5 px-4 py-3">
       <label htmlFor={`${ids}-q`} className="text-label font-semibold">
         {t('screen.jobPost.searchLabel')}
       </label>
@@ -214,7 +218,7 @@ function SearchBar({
             className={cn(inputClass, 'pl-10')}
           />
         </div>
-        <Button type="submit" disabled={input.trim() === ''}>
+        <Button type="submit" variant="secondary" disabled={input.trim() === ''}>
           {t('screen.jobPost.searchButton')}
         </Button>
         {keyword && (
@@ -309,7 +313,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
   const ids = useId()
   const skills = [...filter.categories.map(categoryValue), ...filter.skills]
   return (
-    <Card padding="none" role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 px-4 py-3">
+    <div role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 px-4 py-3">
       {/* One compact row from 1024 px, the Skill field twice as wide; two columns from 640 px (2026-11-23). */}
       <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-1">
@@ -400,7 +404,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
       <p id={`${ids}-hint`} className="text-caption text-muted-foreground">
         {t('screen.jobPost.filtersHint')}
       </p>
-    </Card>
+    </div>
   )
 }
 

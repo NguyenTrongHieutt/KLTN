@@ -1,5 +1,5 @@
-import { Bell, BriefcaseBusiness, CircleCheck, Info, Mail, TriangleAlert, Users, type LucideIcon } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import { Bell, BriefcaseBusiness, ChevronRight, CircleCheck, Info, Mail, TriangleAlert, Users, type LucideIcon } from 'lucide-react'
+import { Link } from 'react-router'
 import { t } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,8 @@ const ICONS: Record<string, LucideIcon> = {
 
 /**
  * A notification list item (DESIGN.md, UX-DR16): the type icon, the title, the body line, and the
- * time; unread items carry a dot and a tinted fill. Tapping marks it read and opens its surface;
+ * time; unread items carry a dot and a tinted fill, and a chevron says the row opens. It is a link to its surface, so
+ * it opens in a new tab too; following it marks it read;
  * offline it only opens it, because commands wait for the connection (UX-DR26).
  */
 export function NotificationItemRow({
@@ -32,7 +33,6 @@ export function NotificationItemRow({
   offline: boolean
   onOpen?: () => void
 }) {
-  const navigate = useNavigate()
   const markRead = useMarkRead()
   const Icon = ICONS[item.icon] ?? Bell
   const body = notificationBody(item)
@@ -42,15 +42,14 @@ export function NotificationItemRow({
       markRead.mutate(item.id)
     }
     onOpen?.()
-    navigate(item.link)
   }
 
   return (
-    <button
-      type="button"
+    <Link
+      to={item.link}
       onClick={open}
       className={cn(
-        'flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted',
+        'flex w-full items-start gap-3 px-4 py-3 text-left text-inherit no-underline hover:bg-muted',
         !item.read && 'bg-primary-soft/50',
       )}
     >
@@ -65,6 +64,7 @@ export function NotificationItemRow({
           <span className="sr-only">{t('screen.shared.notifications.unread')}</span>
         </span>
       )}
-    </button>
+      <ChevronRight aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+    </Link>
   )
 }

@@ -43,6 +43,14 @@ export function SourceSetupCard({ product }: { product: Product }) {
         </h2>
         <SourceStatusBadge status={product.sourceStatus} />
       </div>
+      {/* What the status means first, then the way to check it again and when it was last checked. */}
+      <StatusDetail product={product} fresh={fresh} />
+      {endsOn && product.sourceStatus === 'READY' && (
+        <Problem>
+          <p className="text-body-sm">{t('screen.product.setup.ending', { date: formatCalendarDate(endsOn) })}</p>
+          <WorkflowActions product={product} existing />
+        </Problem>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" variant="secondary" disabled={check.isPending} onClick={run}>
           {check.isPending ? t('screen.product.setup.rechecking') : t('screen.product.setup.recheck')}
@@ -57,13 +65,6 @@ export function SourceSetupCard({ product }: { product: Product }) {
         <p role="alert" className="text-body-sm text-destructive">
           {refusal}
         </p>
-      )}
-      <StatusDetail product={product} fresh={fresh} />
-      {endsOn && product.sourceStatus === 'READY' && (
-        <Problem>
-          <p className="text-body-sm">{t('screen.product.setup.ending', { date: formatCalendarDate(endsOn) })}</p>
-          <WorkflowActions product={product} existing />
-        </Problem>
       )}
       <div className="flex flex-col gap-1">
         <OutLink href={workflowActionsUrl(product.repositoryUrl)}>{t('screen.product.wizard.selfScan')}</OutLink>
