@@ -54,6 +54,23 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
     )
   })
 
+  it('PUB-1 offers the sign-in and the way to the seven steps on its first screen', async () => {
+    renderAt('/')
+
+    await screen.findByRole('heading', { level: 1 })
+    const signIns = screen.getAllByRole('link', { name: 'Đăng nhập bằng Google' })
+    expect(signIns).toHaveLength(2)
+    expect(signIns[0]).toHaveAttribute('href', '/oauth2/authorization/google')
+    expect(screen.getByRole('link', { name: 'Xem bảy bước' })).toHaveAttribute('href', '#cac-buoc')
+  })
+
+  it('PUB-2 does not repeat "Đăng nhập" in the header', async () => {
+    renderAt('/dang-nhap')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập vibefix' })).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).queryByRole('link', { name: 'Đăng nhập' })).toBeNull()
+  })
+
   it('shows terms as plain text, with no hint buttons (UX changes of 2026-11-23)', async () => {
     renderAt('/')
 

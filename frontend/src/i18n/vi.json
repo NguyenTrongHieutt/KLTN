@@ -237,6 +237,7 @@
           "7": "Kết thúc"
         },
         "stageNumber": "Bước {n}",
+        "seeStages": "Xem bảy bước",
         "noticesHeading": "Trước khi bắt đầu",
         "testMoneyTitle": "Tiền trên vibefix hiện là tiền thử nghiệm",
         "testMoneyBody": "Mọi thanh toán dùng {vnpayTest}, không trừ tiền thật.",

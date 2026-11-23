@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router'
+import { Link, Outlet, useMatch } from 'react-router'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { landingPath } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
@@ -11,7 +11,8 @@ export const MAIN_ID = 'noi-dung-chinh'
 
 /**
  * The frame of every public screen (Accessibility Floor): the skip link, then the header, main,
- * and footer landmarks. A signed-in visitor sees "Vào trang của bạn" instead of "Đăng nhập".
+ * and footer landmarks. A signed-in visitor sees "Vào trang của bạn" instead of "Đăng nhập", and the sign-in page
+ * itself offers no "Đăng nhập" in the header: its own Google button is the way in.
  */
 export function PublicLayout() {
   useFocusHeadingOnNavigate(MAIN_ID)
@@ -23,6 +24,7 @@ export function PublicLayout() {
       : session.data?.status === 'SIGNING_UP'
         ? '/bat-dau'
         : undefined
+  const onSignIn = useMatch('/dang-nhap') !== null
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -47,9 +49,11 @@ export function PublicLayout() {
               {t('shell.goToApp')}
             </Link>
           ) : (
-            <Link to="/dang-nhap" className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
-              {t('shell.signIn')}
-            </Link>
+            !onSignIn && (
+              <Link to="/dang-nhap" className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+                {t('shell.signIn')}
+              </Link>
+            )
           )}
         </div>
       </header>
