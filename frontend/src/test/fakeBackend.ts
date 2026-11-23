@@ -126,9 +126,9 @@ export const workflowFile = {
 /**
  * Replaces `fetch`, and the XHR that `uploadWithProgress` sends (Story 24.3c), with a backend that answers
  * `GET /api/v1/session` with `session` and any other `METHOD /path` from `handlers`, where a `*` in a handler's path
- * stands for one path segment; the to-dos, notifications, Jobs held (`/my-jobs`), bids and Crew Applications are
- * empty, GitHub is as {@link gitHubLink} says, the profile is {@link profileView}'s, the published workflow is
- * {@link workflowFile}, and the verification is `UNVERIFIED` unless a handler answers them, and an unknown request
+ * stands for one path segment; the to-dos, notifications, Jobs held (`/my-jobs`), the Customer's own Jobs (`/jobs`),
+ * bids and Crew Applications are empty, GitHub is as {@link gitHubLink} says, the profile is {@link profileView}'s,
+ * the published workflow is {@link workflowFile}, and the verification is `UNVERIFIED` unless a handler answers them, and an unknown request
  * answers 404. Both answer from the same handlers and record their requests in the one list it returns. An XHR
  * reports, once sent, half its files' bytes as uploaded, all of them once its handler answers, and then loads; the
  * upload reports only when a progress listener was there at `send`, and headers are taken only between `open` and
@@ -158,6 +158,7 @@ export function fakeBackend(session: Session, handlers: Record<string, Handler> 
     }
     if (
       key === 'GET /api/v1/my-jobs' ||
+      key === 'GET /api/v1/jobs' ||
       key === 'GET /api/v1/mentor/applications' ||
       key === 'GET /api/v1/mentor/crew-applications'
     ) {

@@ -380,7 +380,8 @@
         "seeAllProducts": "Xem tất cả sản phẩm",
         "findWork": "Tìm việc",
         "registerProduct": "Đăng ký sản phẩm",
-        "productJobs": "{n} công việc",
+        "postJob": "Đăng công việc",
+        "runningEmptyHint": "Đăng công việc cho sản phẩm của bạn, hoặc tìm việc để hướng dẫn hay tham gia nhóm.",
         "listJobs": "Công việc đang chạy của bạn",
         "listProducts": "Sản phẩm của bạn"
       }
@@ -1282,6 +1283,9 @@
       "source": "Repo nguồn: {name}",
       "registeredOn": "Đăng ký {date}",
       "noJobs": "Chưa có công việc",
+      "jobsRunning": "{n} công việc đang chạy",
+      "jobsEnded": "{n} công việc đã kết thúc",
+      "jobsBoth": "{running} đang chạy · {ended} đã kết thúc",
       "domain": "({domain})",
       "newTab": "(mở trong thẻ mới)",
       "wizard": {
@@ -1428,7 +1432,11 @@
         "appUninstall": "vibefix không tự gỡ app vibefix. Không còn sản phẩm nào dùng nó, nên hãy gỡ ứng dụng trên GitHub (Uninstall ở cuối trang).",
         "appSettings": "Mở cài đặt ứng dụng trên GitHub",
         "deletedGuidance": "Đã xóa {product}. Còn một việc trên GitHub:",
-        "postJob": "Đăng công việc"
+        "postJob": "Đăng công việc",
+        "jobsHeading": "Công việc",
+        "jobsLabel": "Công việc của sản phẩm này",
+        "jobsEmpty": "Sản phẩm này chưa có công việc nào.",
+        "jobsEmptyHint": "Đăng công việc để người hướng dẫn chào giá."
       },
       "status": {
         "prefix": "App vibefix và file workflow: ",
@@ -1714,6 +1722,7 @@
         "huong-dan": "Việc tôi hướng dẫn",
         "tham-gia": "Việc tôi tham gia",
         "todos": "{n} việc cần làm",
+        "waiting": "{n} đơn đang chờ",
         "pastTitle": "Công việc đã qua",
         "left": "{job} · đã rời",
         "applicationsTitle": "Đơn xin vào nhóm"

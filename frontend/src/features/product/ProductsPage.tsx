@@ -8,15 +8,17 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { SourceAppGuidance, type DeletedProduct } from './DeleteProduct'
+import { useJobs, type JobSummary } from '@/features/job/jobApi'
 import { useProducts, type Product } from './productApi'
+import { productJobCounts, productJobsText } from './productJobs'
 import { SourceStatusBadge } from './WorkflowSetup'
 import { Page } from '@/components/ui/page'
 
 /**
  * CUS-2 (`/san-pham`, FR-7, UX-DR66): the user's own Products, with no role needed (Story 20.3), each with
  * its Source Repository, its Workflow status badge (the recorded status, read with no GitHub call, Story 23.5c), and
- * its Jobs; with none, the empty state and "Đăng ký sản phẩm". vibefix scans no code, so no scan state is shown. Job
- * counts come with Story 3.1.
+ * its Jobs (counted from the user's own Job list); with none, the empty state and "Đăng ký sản phẩm". vibefix scans no
+ * code, so no scan state is shown.
  */
 export function ProductsPage() {
   usePageTitle(t('screen.product.title'))
@@ -25,6 +27,7 @@ export function ProductsPage() {
 
 function ProductList() {
   const products = useProducts()
+  const jobs = useJobs()
   const items = products.data ?? []
   // R23: after a deletion, the Source App guidance stays on CUS-2 until the page is left.
   const deleted = (useLocation().state as { deleted?: DeletedProduct } | null)?.deleted
@@ -62,7 +65,7 @@ function ProductList() {
         ) : (
           <ul aria-label={t('screen.product.listLabel')} className="grid gap-3 md:grid-cols-2">
             {items.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} jobs={jobs.data} />
             ))}
           </ul>
         )}
@@ -71,7 +74,7 @@ function ProductList() {
   )
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, jobs }: { product: Product; jobs?: JobSummary[] }) {
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -85,7 +88,8 @@ function ProductCard({ product }: { product: Product }) {
         {t('screen.product.source', { name: product.repositoryFullName })} {t('screen.product.domain', { domain: 'github.com' })}
       </p>
       <p className="text-caption text-muted-foreground">
-        {t('screen.product.registeredOn', { date: formatDayMonth(product.createdAt) })} · {t('screen.product.noJobs')}
+        {t('screen.product.registeredOn', { date: formatDayMonth(product.createdAt) })}
+        {jobs && ` · ${productJobsText(productJobCounts(jobs, product.id))}`}
       </p>
     </li>
   )

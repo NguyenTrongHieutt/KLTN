@@ -37,6 +37,17 @@ const product = {
   defaultBranch: 'main',
 }
 
+/** One of the Customer's Jobs (`GET /api/v1/jobs`), on Product p1 unless said otherwise. */
+const jobOf = (id: string, state: string, productId = 'p1', title = `Việc ${id}`) => ({
+  id,
+  title,
+  productId,
+  productName: productId === 'p1' ? 'Shop Gốm Bát Tràng' : 'Khác',
+  state,
+  jobTypes: ['BUG_FIX'],
+  updatedAt: '2026-11-18T03:00:00Z',
+})
+
 const sourceApp = {
   accountLogin: 'lan-nguyen',
   accountType: 'User',
@@ -123,6 +134,18 @@ describe('CUS-2, the Products (FR-7)', () => {
     expect(within(list).getByRole('link', { name: 'Shop Gốm Bát Tràng' })).toHaveAttribute('href', '/san-pham/p1')
     expect(within(list).getByText(/Repo nguồn: lan-nguyen\/shop-gom/)).toBeInTheDocument()
     expect(within(list).queryByText(/kiểm tra|vấn đề/i)).toBeNull()
+  })
+
+  it('counts each Product\'s running and ended Jobs from the Customer\'s Job list', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products': () => json([product, { ...product, id: 'p2', name: 'Quán Mây' }]),
+      'GET /api/v1/jobs': () => json([jobOf('j1', 'ACTIVE'), jobOf('j2', 'CLOSED'), jobOf('j3', 'DRAFT', 'p9')]),
+    })
+    renderAt('/san-pham')
+
+    const list = await screen.findByRole('list', { name: 'Sản phẩm của bạn' })
+    expect(await within(list).findByText(/1 đang chạy · 1 đã kết thúc/)).toBeInTheDocument()
+    expect(within(list).getByText(/Chưa có công việc/)).toBeInTheDocument()
   })
 
   it('shows each Product\'s recorded Workflow status badge, with no other read (Story 23.5c)', async () => {
@@ -476,6 +499,29 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
 })
 
 describe('CUS-4, a Product (FR-7)', () => {
+  it('lists the Product\'s Jobs, running ones first, and says when it has none', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products/p1': () => json(product),
+      'GET /api/v1/jobs': () =>
+        json([jobOf('j2', 'CLOSED', 'p1', 'Việc đã xong'), jobOf('j1', 'ACTIVE', 'p1', 'Việc đang làm'), jobOf('j9', 'ACTIVE', 'p9')]),
+    })
+    renderAt('/san-pham/p1')
+
+    const jobs = await screen.findByRole('list', { name: 'Công việc của sản phẩm này' })
+    expect(within(jobs).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/cong-viec/j1',
+      '/cong-viec/j2',
+    ])
+    expect(within(jobs).queryByText(/Shop Gốm Bát Tràng/)).toBeNull()
+  })
+
+  it('says a Product with no Job has none yet', async () => {
+    fakeBackend(signedInUser, { 'GET /api/v1/products/p1': () => json(product) })
+    renderAt('/san-pham/p1')
+
+    expect(await screen.findByText('Sản phẩm này chưa có công việc nào.')).toBeInTheDocument()
+  })
+
   it('shows the Product with its source and information, and posts a Job at once (Story 23.1)', async () => {
     const seen = fakeBackend(signedInUser, { 'GET /api/v1/products/p1': () => json(product) })
     renderAt('/san-pham/p1')

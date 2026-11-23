@@ -1,10 +1,13 @@
-import { ExternalLink } from 'lucide-react'
+import { BriefcaseBusiness, ExternalLink } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useJobs } from '@/features/job/jobApi'
+import { JobSummaryList } from '@/features/job/JobSummaryList'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDate } from '@/lib/dates'
@@ -12,12 +15,13 @@ import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useProduct, type Product } from './productApi'
 import { DeleteProduct } from './DeleteProduct'
+import { ENDED_JOB_STATES } from './productJobs'
 import { domainOf } from './productText'
 import { SourceSetupCard } from './SourceSetupCard'
 import { Page } from '@/components/ui/page'
 
 /**
- * CUS-4 (`/san-pham/{productId}`, FR-7): the Product, its Source Repository, and its information, with
+ * CUS-4 (`/san-pham/{productId}`, FR-7): the Product, its Source Repository, its Jobs, and its information, with
  * "Đăng công việc" (CUS-6) open at once. vibefix does not scan code (FR-8, rewritten 2026-11-12), so
  * CUS-4 shows no scan result and no re-scan; the compact Workflow setup card shows the Source App and workflow status
  * with "Kiểm tra lại" (Story 23.5c). "Xóa sản phẩm" deletes it after a destructive Confirmation dialog.
@@ -35,6 +39,38 @@ export function ProductPage() {
         {product.data && <ProductDetail product={product.data} />}
       </RegionState>
     </Page>
+  )
+}
+
+/** The Product's Jobs, running ones first, each linking to its Job (or a Draft to its form). */
+function ProductJobs({ product }: { product: Product }) {
+  const jobs = useJobs()
+  const mine = (jobs.data ?? []).filter((job) => job.productId === product.id)
+  const ordered = [
+    ...mine.filter((job) => !ENDED_JOB_STATES.includes(job.state)),
+    ...mine.filter((job) => ENDED_JOB_STATES.includes(job.state)),
+  ]
+  return (
+    <section aria-labelledby="product-jobs-heading" className="flex flex-col gap-3">
+      <h2 id="product-jobs-heading" className="text-h2">
+        {t('screen.product.detail.jobsHeading')}
+        {jobs.data && (
+          <span className="ms-2 font-normal text-muted-foreground">{t('screen.job.groupCount', { n: mine.length })}</span>
+        )}
+      </h2>
+      <RegionState query={jobs} skeleton={<Skeleton className="h-20 w-full rounded-lg" />}>
+        {ordered.length > 0 ? (
+          <JobSummaryList jobs={ordered} showProduct={false} label={t('screen.product.detail.jobsLabel')} />
+        ) : (
+          <EmptyState
+            compact
+            icon={BriefcaseBusiness}
+            title={t('screen.product.detail.jobsEmpty')}
+            description={t('screen.product.detail.jobsEmptyHint')}
+          />
+        )}
+      </RegionState>
+    </section>
   )
 }
 
@@ -70,6 +106,7 @@ function ProductDetail({ product }: { product: Product }) {
       </div>
       <p className="text-body-sm break-words">{product.description}</p>
       <SourceSetupCard product={product} />
+      <ProductJobs product={product} />
       <section aria-labelledby="product-info-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
         <h2 id="product-info-heading" className="text-h3">
           {t('screen.product.detail.info')}

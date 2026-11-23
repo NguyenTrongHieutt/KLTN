@@ -102,6 +102,21 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     expect(tab).toHaveTextContent('2')
   })
 
+  it('offers to post a Job for the one Product when nothing runs, and counts its Jobs from the Job list', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/products': () =>
+        json([{ id: 'p1', name: 'Shop Gốm', description: '', tools: [], repositoryFullName: 'lan/shop', repositoryUrl: '', repositoryOwnerType: 'User', createdAt: '2026-10-16T03:00:00Z', jobs: 0, sourceStatus: 'READY', defaultBranch: 'main' }]),
+      'GET /api/v1/jobs': () =>
+        json([{ id: 'j1', title: 'Sửa giỏ hàng', productId: 'p1', productName: 'Shop Gốm', state: 'CLOSED', jobTypes: ['BUG_FIX'], updatedAt: '2026-11-18T03:00:00Z' }]),
+    })
+    renderAt('/viec-can-lam')
+
+    expect(await screen.findByRole('link', { name: 'Đăng công việc' })).toHaveAttribute('href', '/san-pham/p1/cong-viec-moi')
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Tìm việc' })).toHaveAttribute('href', '/tim-viec')
+    const products = screen.getByRole('list', { name: 'Sản phẩm của bạn' })
+    expect(await within(products).findByText('1 công việc đã kết thúc')).toBeInTheDocument()
+  })
+
   it('hides the strip and shows the Empty state when nothing is open', async () => {
     fakeBackend(signedInUser)
     renderAt('/viec-can-lam')

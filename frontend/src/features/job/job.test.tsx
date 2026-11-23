@@ -155,7 +155,7 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
 
   it.each([
     ['a closed bid shows the segment with the bid and no count', 'CLOSED', null],
-    ['a bid on hold counts in the segment', 'ON_HOLD', '1 việc cần làm'],
+    ['a bid on hold counts in the segment as waiting, not as a to-do', 'ON_HOLD', '1 đơn đang chờ'],
   ])('%s', async (_, status, count) => {
     fakeBackend(signedInUser, {
       'GET /api/v1/my-jobs': () => json([held('a', 'Việc A của tôi', 'CUSTOMER')]),

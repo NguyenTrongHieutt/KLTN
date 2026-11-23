@@ -11,8 +11,10 @@ import { Page } from '@/components/ui/page'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { StageStrip } from '@/features/job/StageStrip'
 import { audienceOf } from '@/features/job/jobStateText'
+import { useJobs } from '@/features/job/jobApi'
 import { roleLabel, useMyJobs, type MyJob } from '@/features/job/jobRoleApi'
 import { useProducts } from '@/features/product/productApi'
+import { productJobCounts, productJobsText } from '@/features/product/productJobs'
 import { SourceStatusBadge } from '@/features/product/WorkflowSetup'
 import { t } from '@/i18n/t'
 import { useTodos } from './hooks'
@@ -89,7 +91,11 @@ function Todos() {
 
 function RunningJobs() {
   const jobs = useMyJobs()
+  const products = useProducts()
   const running = (jobs.data ?? []).filter((job) => !ENDED.includes(job.state) && !job.left)
+  // With a Product and nothing running, the next step is to post a Job for it; finding work stays beside it.
+  const list = products.data ?? []
+  const postTo = list.length === 1 ? `/san-pham/${list[0].id}/cong-viec-moi` : '/san-pham'
   return (
     <section aria-labelledby="overview-jobs" className="flex flex-col gap-3">
       <SectionTitle
@@ -116,10 +122,18 @@ function RunningJobs() {
             compact
             icon={BriefcaseBusiness}
             title={t('screen.shared.overview.runningEmpty')}
+            description={list.length > 0 ? t('screen.shared.overview.runningEmptyHint') : undefined}
             action={
-              <Link to="/tim-viec" className={buttonVariants({ variant: 'secondary' })}>
-                {t('screen.shared.overview.findWork')}
-              </Link>
+              <div className="flex flex-wrap justify-center gap-2">
+                {list.length > 0 && (
+                  <Link to={postTo} className={buttonVariants()}>
+                    {t('screen.shared.overview.postJob')}
+                  </Link>
+                )}
+                <Link to="/tim-viec" className={buttonVariants({ variant: 'secondary' })}>
+                  {t('screen.shared.overview.findWork')}
+                </Link>
+              </div>
             }
           />
         )}
@@ -147,6 +161,7 @@ function RunningJob({ job }: { job: MyJob }) {
 
 function Products() {
   const products = useProducts()
+  const jobs = useJobs()
   const list = products.data ?? []
   return (
     <section aria-labelledby="overview-products" className="flex flex-col gap-3">
@@ -169,9 +184,11 @@ function Products() {
                   <span className="text-label font-semibold break-words text-foreground">{product.name}</span>
                   <span className="flex flex-wrap items-center gap-2">
                     <SourceStatusBadge status={product.sourceStatus} />
-                    <span className="text-caption text-muted-foreground">
-                      {t('screen.shared.overview.productJobs', { n: product.jobs })}
-                    </span>
+                    {jobs.data && (
+                      <span className="text-caption text-muted-foreground">
+                        {productJobsText(productJobCounts(jobs.data, product.id))}
+                      </span>
+                    )}
                   </span>
                 </Link>
               </li>
