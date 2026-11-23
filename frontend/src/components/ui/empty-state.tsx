@@ -14,6 +14,7 @@ export function EmptyState({
   description,
   action,
   bare = false,
+  compact = false,
   className,
 }: {
   icon: LucideIcon
@@ -21,11 +22,13 @@ export function EmptyState({
   description?: ReactNode
   action?: ReactNode
   bare?: boolean
+  /** A smaller version for a region of a page that also holds other regions (Tổng quan). */
+  compact?: boolean
   className?: string
 }) {
   const body = (
-    <div className={cn('flex flex-col items-center gap-2 px-4 py-10 text-center', className)}>
-      <Icon aria-hidden="true" className="size-12 text-muted-foreground" strokeWidth={1.5} />
+    <div className={cn('flex flex-col items-center gap-2 px-4 text-center', compact ? 'py-6' : 'py-10', className)}>
+      <Icon aria-hidden="true" className={cn('text-muted-foreground', compact ? 'size-8' : 'size-12')} strokeWidth={1.5} />
       <p className="text-h3 text-balance">{title}</p>
       {description && <p className="max-w-reading-max text-body-sm text-muted-foreground">{description}</p>}
       {action && <div className="mt-2">{action}</div>}

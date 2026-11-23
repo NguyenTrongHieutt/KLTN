@@ -308,8 +308,9 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
   const skills = [...filter.categories.map(categoryValue), ...filter.skills]
   return (
     <div role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex min-w-48 flex-[1_1_200px] flex-col gap-1">
+      {/* One compact row from 1024 px, the Skill field twice as wide; two columns from 640 px (2026-11-23). */}
+      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={`${ids}-phase`} className="text-caption">
             {t('screen.jobPost.phaseFilter')}
           </label>
@@ -327,7 +328,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
             ))}
           </select>
         </div>
-        <div className="flex min-w-40 flex-[1_1_170px] flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={`${ids}-type`} className="text-caption">
             {t('screen.jobPost.type')}
           </label>
@@ -345,7 +346,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
             ))}
           </select>
         </div>
-        <div className="flex min-w-60 flex-[3_1_360px] flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-1">
           <label htmlFor={`${ids}-skills`} className="text-caption">
             {t('screen.jobPost.skills')}
           </label>
@@ -358,7 +359,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
             describedBy={`${ids}-hint`}
           />
         </div>
-        <div className="flex min-w-36 flex-[1_1_150px] flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={`${ids}-budget`} className="text-caption">
             {t('screen.jobPost.budget')}
           </label>
@@ -376,7 +377,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
             ))}
           </select>
         </div>
-        <div className="flex min-w-36 flex-[1_1_150px] flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={`${ids}-within`} className="text-caption">
             {t('screen.jobPost.within')}
           </label>
@@ -521,7 +522,10 @@ function PostItem({
           </Link>
           <PhaseBadge phase={post.phase} />
         </span>
-        <span className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</span>
+        {/* The phase badge already says a Mentor is sought; the line stays only for the Crew's open places. */}
+        {post.need !== 'MENTOR' && (
+          <span className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</span>
+        )}
         <span className="text-caption text-muted-foreground break-words">{postMeta(post)}</span>
         {post.skills.length > 0 && (
           <span className="flex flex-wrap gap-1.5">

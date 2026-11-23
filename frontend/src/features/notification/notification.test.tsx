@@ -97,7 +97,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
       expect.stringContaining('Cài app vibefix trên GitHub cho lan-nguyen/so-dat-ban'),
     ])
     const tab = within(screen.getByRole('navigation', { name: 'Điều hướng nhanh' })).getByRole('link', {
-      name: /Việc cần làm/,
+      name: /Trang chủ/,
     })
     expect(tab).toHaveTextContent('2')
   })

@@ -32,6 +32,8 @@ function ToastList() {
       toast={toast}
       className={cn(
         'flex items-start gap-3 rounded-lg border border-border border-l-4 bg-card p-4 text-card-foreground shadow-md',
+        // Slides up and fades in; leaves faster (the motion tokens of index.css).
+        'transition-[opacity,translate] duration-(--duration-base) ease-(--ease-out) data-[ending-style]:opacity-0 data-[ending-style]:duration-(--duration-fast) data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0',
         toast.type === 'error' ? 'border-l-destructive' : 'border-l-success',
       )}
     >

@@ -50,8 +50,8 @@ export function NotificationItemRow({
       type="button"
       onClick={open}
       className={cn(
-        'flex w-full items-start gap-3 rounded-lg p-3 text-left hover:bg-muted',
-        !item.read && 'bg-primary-soft',
+        'flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted',
+        !item.read && 'bg-primary-soft/50',
       )}
     >
       <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />

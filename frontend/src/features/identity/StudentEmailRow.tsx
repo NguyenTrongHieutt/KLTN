@@ -71,9 +71,7 @@ export function StudentEmailRow() {
         <h2 id="student-email-heading" className="text-h3">
           {t('screen.verification.student.name')}
         </h2>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
-          {t('screen.verification.student.optional')}
-        </span>
+        <span className="text-caption text-muted-foreground">{t('screen.verification.student.optional')}</span>
         {status && (
           <span className={cn('rounded-full px-2 py-0.5 text-caption font-semibold', status.tone)}>
             {t(status.label)}
@@ -222,9 +220,7 @@ function Declared({ value }: { value: string }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="break-words">{value}</span>
-      <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
-        {t('screen.verification.student.declared')}
-      </span>
+      <span className="text-caption text-muted-foreground">{t('screen.verification.student.declared')}</span>
     </span>
   )
 }

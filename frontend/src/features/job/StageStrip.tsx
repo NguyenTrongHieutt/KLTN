@@ -6,9 +6,10 @@ import { currentStage, STAGES } from './stages'
 
 /**
  * The 7-stage strip under a Job's title: done stages checked, the current one marked, later ones hollow. From 768 px
- * every stage shows its name; on phones the strip is seven segments under one line naming the current stage.
+ * every stage shows its name; on phones, and everywhere when `compact` (the Tổng quan list), the strip is seven
+ * segments under one line naming the current stage.
  */
-export function StageStrip({ state }: { state: Job['state'] }) {
+export function StageStrip({ state, compact = false }: { state: Job['state']; compact?: boolean }) {
   const current = currentStage(state)
   if (current === undefined) {
     return null
@@ -20,7 +21,7 @@ export function StageStrip({ state }: { state: Job['state'] }) {
       : t('screen.job.stages.current', { n: current, total: STAGES.length, name: name(current) })
   return (
     <nav aria-label={t('screen.job.stages.label')} className="flex flex-col gap-2">
-      <p className="text-caption text-muted-foreground md:hidden">{summary}</p>
+      <p className={cn('text-caption text-muted-foreground', !compact && 'md:hidden')}>{summary}</p>
       <ol className="flex gap-1 md:gap-0">
         {STAGES.map((stage) => {
           const done = stage < current
@@ -29,9 +30,9 @@ export function StageStrip({ state }: { state: Job['state'] }) {
             <li key={stage} aria-current={now ? 'step' : undefined} className="flex min-w-0 flex-1 flex-col gap-1.5">
               <span
                 aria-hidden="true"
-                className={cn('h-1 rounded-full md:hidden', done ? 'bg-success' : now ? 'bg-primary' : 'bg-border-strong')}
+                className={cn('h-1 rounded-full', !compact && 'md:hidden', done ? 'bg-success' : now ? 'bg-primary' : 'bg-border-strong')}
               />
-              <span aria-hidden="true" className="hidden items-center md:flex">
+              <span aria-hidden="true" className={cn('hidden items-center', !compact && 'md:flex')}>
                 <span
                   className={cn(
                     'flex size-6 shrink-0 items-center justify-center rounded-full border text-caption font-semibold',
@@ -49,7 +50,8 @@ export function StageStrip({ state }: { state: Job['state'] }) {
               <span
                 aria-hidden="true"
                 className={cn(
-                  'hidden pr-3 text-caption leading-snug md:block',
+                  'hidden pr-3 text-caption leading-snug',
+                  !compact && 'md:block',
                   now ? 'font-semibold text-foreground' : done ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >

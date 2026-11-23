@@ -91,8 +91,9 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
     const drafts = await screen.findByRole('region', { name: /Bản nháp/ })
     expect(within(drafts).getByRole('link', { name: /Thêm thanh toán online khi đặt bàn/ })).toHaveAttribute('href', '/cong-viec/j1/sua')
     expect(within(drafts).getByText(/Sổ đặt bàn Quán Mây · Tính năng mới · sửa lần cuối 16\/10/)).toBeInTheDocument()
+    // Only the groups that hold a Job show (2026-11-23).
     for (const heading of ['Cần bạn quyết định', 'Đang thực hiện', 'Đang tìm người hướng dẫn', 'Đã kết thúc']) {
-      expect(screen.getByRole('heading', { level: 2, name: new RegExp(heading) })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { level: 2, name: new RegExp(heading) })).not.toBeInTheDocument()
     }
     // One segment left: no Toggle Group.
     expect(screen.queryByRole('group', { name: 'Vai trò của bạn trong công việc' })).not.toBeInTheDocument()

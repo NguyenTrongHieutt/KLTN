@@ -336,7 +336,9 @@
         "bell": "Thông báo",
         "bellUnread": "Thông báo, {count} chưa đọc",
         "latest": "Thông báo mới",
-        "seeAll": "Xem tất cả thông báo"
+        "seeAll": "Xem tất cả thông báo",
+        "today": "Hôm nay",
+        "yesterday": "Hôm qua"
       },
       "skillPicker": {
         "placeholder": "Tìm kỹ năng, ví dụ: React",
@@ -365,6 +367,22 @@
         "sent": "Đã gửi đề xuất. Bạn sẽ nhận thông báo khi quản trị viên quyết định.",
         "exists": "Kỹ năng “{name}” đã có trong danh sách.",
         "pick": "Chọn kỹ năng này"
+      },
+      "overview": {
+        "title": "Trang chủ",
+        "heading": "Trang chủ",
+        "todos": "Việc cần làm",
+        "running": "Công việc đang chạy",
+        "runningEmpty": "Không có công việc nào đang chạy.",
+        "products": "Sản phẩm",
+        "productsEmpty": "Bạn chưa đăng ký sản phẩm nào.",
+        "seeAllJobs": "Xem tất cả công việc",
+        "seeAllProducts": "Xem tất cả sản phẩm",
+        "findWork": "Tìm việc",
+        "registerProduct": "Đăng ký sản phẩm",
+        "productJobs": "{n} công việc",
+        "listJobs": "Công việc đang chạy của bạn",
+        "listProducts": "Sản phẩm của bạn"
       }
     },
     "reputation": {
@@ -3941,7 +3959,7 @@
     }
   },
   "nav": {
-    "todo": "Việc cần làm",
+    "todo": "Trang chủ",
     "products": "Sản phẩm",
     "jobs": "Công việc",
     "notifications": "Thông báo",

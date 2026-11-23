@@ -171,7 +171,7 @@ describe('CUS-3, registering a Product (FR-7, AD-13, AD-45, Story 23.5)', () => 
     renderAt('/san-pham/moi')
 
     expect(await screen.findByText('Bước 1/5')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Việc cần làm' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Trang chủ' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Lovable' }))
     expect(screen.getByText('Đưa mã từ Lovable lên GitHub')).toBeInTheDocument()
     expect(screen.getByText(/công khai hay riêng tư đều được/)).toBeInTheDocument()

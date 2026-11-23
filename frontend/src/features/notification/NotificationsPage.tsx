@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { t } from '@/i18n/t'
 import { useMarkAllRead, useNotifications, useUnreadCount } from './hooks'
 import { NotificationItemRow } from './NotificationItemRow'
+import { formatDate } from '@/lib/dates'
 import { Page } from '@/components/ui/page'
 
 /**
@@ -46,13 +47,21 @@ export function NotificationsPage() {
         }
       >
         {items.length > 0 ? (
-          <ul className="flex flex-col gap-1 rounded-lg border border-border bg-card p-1">
-            {items.map((item) => (
-              <li key={item.id}>
-                <NotificationItemRow item={item} offline={offline} />
-              </li>
+          // Grouped by day, newest first (2026-11-23): "Hôm nay", "Hôm qua", then the date.
+          <div className="flex flex-col gap-4">
+            {byDay(items).map(([day, group]) => (
+              <section key={day} aria-label={day} className="flex flex-col gap-2">
+                <h2 className="text-label text-muted-foreground">{day}</h2>
+                <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                  {group.map((item) => (
+                    <li key={item.id}>
+                      <NotificationItemRow item={item} offline={offline} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-10 text-center">
             <Bell aria-hidden="true" className="size-12 text-muted-foreground" />
@@ -72,4 +81,22 @@ export function NotificationsPage() {
       </RegionState>
     </Page>
   )
+}
+
+/** The notifications in groups of one day each, in Vietnam, labelled "Hôm nay", "Hôm qua", or the date. */
+function byDay<T extends { createdAt: string }>(items: T[]): [string, T[]][] {
+  const today = formatDate(new Date().toISOString())
+  const yesterday = formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+  const groups = new Map<string, T[]>()
+  for (const item of items) {
+    const day = formatDate(item.createdAt)
+    const label =
+      day === today
+        ? t('screen.shared.notifications.today')
+        : day === yesterday
+          ? t('screen.shared.notifications.yesterday')
+          : day
+    groups.set(label, [...(groups.get(label) ?? []), item])
+  }
+  return [...groups.entries()]
 }

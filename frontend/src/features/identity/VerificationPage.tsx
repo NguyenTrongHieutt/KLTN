@@ -81,9 +81,7 @@ function GitHubRow({ link }: { link: GitHubLink }) {
         <h2 id="github-heading" className="text-h3">
           {t('screen.verification.github.name')}
         </h2>
-        <span className="rounded-full bg-primary-soft px-2 py-0.5 text-caption font-semibold text-primary">
-          {t('screen.verification.github.required')}
-        </span>
+        <span className="text-caption text-muted-foreground">{t('screen.verification.github.required')}</span>
         <span
           className={cn(
             'rounded-full px-2 py-0.5 text-caption font-semibold',
