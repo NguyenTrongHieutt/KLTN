@@ -253,7 +253,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     // Story 20.4: a lock counts as leaving, so no member is "Tạm ngừng" and no reassignment banner shows.
     expect(within(crew).queryByText('Tạm ngừng')).toBeNull()
     expect(within(crew).queryByRole('status')).toBeNull()
-    const people = screen.getByRole('heading', { level: 3, name: 'Người tham gia' }).closest('section')!
+    // The side column is one card since 2026-11-23: the people are one entry of its list.
+    const people = screen.getByText('Người tham gia').closest('div')!
     expect(within(people).getByText('Nhóm thực hiện: Lê Minh Tùng')).toBeInTheDocument()
     expect(within(people).queryByText('Nhóm thực hiện: Hoàng Kim Ngân')).toBeNull()
   })

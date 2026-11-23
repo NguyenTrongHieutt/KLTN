@@ -84,7 +84,7 @@ function History({ history }: { history: CustomerHistory }) {
               {job.title}
             </Link>
           </h3>
-          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full min-w-[560px] text-left text-body-sm">
               <thead className="text-caption text-muted-foreground">
                 <tr className="border-b border-border">

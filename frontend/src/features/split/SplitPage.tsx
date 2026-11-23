@@ -350,7 +350,7 @@ function Lines({ card, version }: { card: SplitCard; version: SplitVersion | und
   const current = version.versionNo === card.latest?.versionNo
   const raiser = openCase(resolutions.data)?.raiserPartyId
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full border-collapse text-body-sm">
         <caption className="sr-only">{t('screen.split.linesCaption', { n: version.versionNo })}</caption>
         <thead>

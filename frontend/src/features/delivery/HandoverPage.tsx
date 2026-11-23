@@ -22,6 +22,9 @@ import { cn } from '@/lib/utils'
 import { CopyRunBanner } from './CopyRunBanner'
 import { useCopyingHandover, useHandover, useHandovers, type HandoverList } from './deliveryApi'
 import { DeliveryReportView } from './DeliveryReportView'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { useMatchMedia } from '@/lib/useMatchMedia'
+import { handoverTone } from './handoverTone'
 import { Page } from '@/components/ui/page'
 
 /**
@@ -101,6 +104,7 @@ function MentorHandovers({ jobId, handoverId }: { jobId: string; handoverId: str
 function Content({ jobId, handoverId, header }: { jobId: string; handoverId: string | undefined; header: ReactNode }) {
   const list = useHandovers(jobId)
   const report = useHandover(handoverId)
+  const wide = useMatchMedia('(min-width: 1024px)')
   usePageTitle(list.data ? t('screen.handover.title', { job: list.data.title }) : t('screen.handover.tab'))
   if ((list.isError && isNotFound(list.error)) || (report.isError && isNotFound(report.error))) {
     return <NotFoundScreen />
@@ -125,7 +129,10 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
               <HandoverListPanel list={list.data} jobId={jobId} current={handoverId} />
             </div>
             <div className="min-w-0">
-              {handoverId ? (
+              {!handoverId && wide && list.data.handovers.length > 0 ? (
+                // From 1024 px the list and the report sit side by side, so the latest handover opens at once.
+                <Navigate replace to={`/cong-viec/${jobId}/ban-giao/${list.data.handovers[list.data.handovers.length - 1].id}`} />
+              ) : handoverId ? (
                 <RegionState query={report} skeleton={<Skeleton className="h-96 w-full" />}>
                   {report.data && <DeliveryReportView report={report.data} />}
                 </RegionState>
@@ -197,13 +204,13 @@ function HandoverListPanel({ list, jobId, current }: { list: HandoverList; jobId
               <span className="text-caption text-muted-foreground">
                 {t('screen.handover.itemMeta', { round: handover.round, date: formatDate(handover.createdAt) })}
               </span>
-              <span className="text-caption">
+              <StatusBadge tone={handoverTone(handover.status, handover.auto, list.audience === 'CUSTOMER')} className="mt-1">
                 {handover.auto
                   ? t('screen.handover.status.auto')
                   : list.audience === 'CUSTOMER' && handover.status === 'SUBMITTED'
                     ? t('screen.handover.status.customer', { date: formatDayMonth(handover.checkBy) })
                     : t(`screen.handover.status.${handover.status}` as MessageKey)}
-              </span>
+              </StatusBadge>
             </Link>
           </li>
         ))}

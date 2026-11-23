@@ -57,7 +57,7 @@ export function AdministratorsPage() {
 
 function AdministratorTable({ rows }: { rows: AdministratorRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-left text-body-sm" aria-label={t('screen.admin.administrators.listLabel')}>
         <thead className="border-b border-border text-caption text-muted-foreground">
           <tr>

@@ -28,6 +28,7 @@ import { hasStarted } from '@/features/job/jobState'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from './cancellation/CancellationSection'
 import { SetupTracker } from './SetupTracker'
+import { StageStrip } from './StageStrip'
 import { CrewJobPage } from './progress/CrewJobPage'
 import { ProgressOverview } from './progress/ProgressOverview'
 import { Page } from '@/components/ui/page'
@@ -100,6 +101,7 @@ function Overview({ job }: { job: Job }) {
           </div>
           {job.state === 'OPEN' && <Withdraw job={job} />}
         </div>
+        <StageStrip state={job.state} />
         <JobTabs
           jobId={job.id}
           current="overview"

@@ -68,7 +68,7 @@ export function ComparisonView<T extends { id: string }>({
   )
   if (wide) {
     return (
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full table-fixed border-collapse text-body-sm">
           <caption className="sr-only">{heading}</caption>
           <thead>

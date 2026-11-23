@@ -1699,6 +1699,14 @@
         "pastTitle": "Công việc đã qua",
         "left": "{job} · đã rời",
         "applicationsTitle": "Đơn xin vào nhóm"
+      },
+      "stages": {
+        "label": "Tiến trình công việc",
+        "current": "Bước {n}/{total}: {name}",
+        "done": "Đã qua đủ 7 bước",
+        "srDone": "Bước {n}, {name}: đã xong",
+        "srNow": "Bước {n}, {name}: đang ở bước này",
+        "srLater": "Bước {n}, {name}: chưa tới"
       }
     },
     "jobPost": {
@@ -2185,10 +2193,10 @@
           "REPLIT": "Replit: tạm dừng đồng bộ với GitHub, hoặc đừng sửa dự án cho đến khi merge xong.",
           "V0": "v0: đừng sửa dự án, vì v0 đẩy mỗi thay đổi lên repo đã kết nối.",
           "BASE44": "Base44: đừng sửa ứng dụng trong lúc công việc chạy.",
-          "CURSOR": "Cursor: đừng đẩy mã mới lên repo gốc.",
-          "CLAUDE_CODE": "Claude Code: đừng đẩy mã mới lên repo gốc.",
-          "CODEX": "Codex: đừng đẩy mã mới hay đề xuất thay đổi lên repo gốc.",
-          "OTHER": "Công cụ khác: đừng để công cụ nào đẩy mã lên repo gốc cho đến khi merge xong."
+          "CURSOR": "Cursor: đừng đẩy mã mới lên repo nguồn.",
+          "CLAUDE_CODE": "Claude Code: đừng đẩy mã mới lên repo nguồn.",
+          "CODEX": "Codex: đừng đẩy mã mới hay đề xuất thay đổi lên repo nguồn.",
+          "OTHER": "Công cụ khác: đừng để công cụ nào đẩy mã lên repo nguồn cho đến khi merge xong."
         },
         "afterApprove": "Sau khi bạn duyệt, người hướng dẫn xác nhận thì thỏa thuận có hiệu lực.",
         "requestChanges": "Yêu cầu sửa",
@@ -2345,16 +2353,16 @@
       "tab": "Thanh toán",
       "title": "Thanh toán · {job}",
       "n13Title": "Giao dịch thử nghiệm — không dùng tiền thật",
-      "n13Body": "vibefix đang chạy thử với staging nghiệm của VNPay.",
+      "n13Body": "vibefix đang chạy thử với môi trường sandbox của VNPay.",
       "n13Help": "Cách thanh toán thử",
-      "helpLead": "Trên trang VNPay, chọn thẻ ngân hàng nội địa và nhập thẻ thử VNPay công bố cho staging nghiệm:",
+      "helpLead": "Trên trang VNPay, chọn thẻ ngân hàng nội địa và nhập thẻ thử VNPay công bố cho môi trường sandbox:",
       "helpBank": "Ngân hàng: {value}",
       "helpNumber": "Số thẻ: {value}",
       "helpHolder": "Tên chủ thẻ: {value}",
       "helpIssued": "Ngày phát hành: {value}",
       "helpOtp": "Mã OTP: {value}",
       "helpNote": "Đây là thẻ thử, không phải thẻ thật, và không có tiền thật nào được chuyển.",
-      "helpMissing": "Môi trường này chưa có thẻ thử. Hãy xem trang hướng dẫn staging nghiệm của VNPay.",
+      "helpMissing": "Môi trường này chưa có thẻ thử. Hãy xem trang hướng dẫn môi trường sandbox của VNPay.",
       "milestonesTitle": "Thanh toán theo giai đoạn",
       "milestone": "Giai đoạn",
       "amount": "Số tiền",
@@ -2861,7 +2869,8 @@
         "saved": "Đã ghi nhận."
       },
       "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
-      "openDispute": "Mở tranh chấp"
+      "openDispute": "Mở tranh chấp",
+      "stepsSummary": "Đã xong {done}/{total} bước kết thúc"
     },
     "rating": {
       "heading": "Chấm sao",
@@ -3573,7 +3582,7 @@
     },
     "sourceRepository": {
       "label": "repo nguồn",
-      "labelTeam": "Source Repository (repo gốc)",
+      "labelTeam": "Source Repository (repo nguồn)",
       "hint": "Nơi lưu mã nguồn ứng dụng của bạn trên GitHub. Lovable và các công cụ AI tự cập nhật vào đây."
     },
     "codeJob": {
@@ -4536,7 +4545,7 @@
       "WORKFLOW_MISSING": "Chưa có file workflow .github/workflows/vibefix.yml trong {repo}. Hãy bấm “Thêm file workflow”, lưu trên GitHub, rồi bấm “Kiểm tra”.",
       "WORKFLOW_MISMATCH": "File workflow trong {repo} khác bản vibefix công bố. Hãy thêm lại file bằng nút “Thêm file workflow”, rồi bấm “Kiểm tra”.",
       "REPO_ALREADY_LINKED": "Repo này đã được đăng ký cho một sản phẩm khác.",
-      "REPO_UNSUPPORTED_CONTENT": "Repo lưu tệp lớn ở nơi khác hoặc chứa repo con, vibefix chưa hỗ trợ.",
+      "REPO_UNSUPPORTED_CONTENT": "Repo dùng Git LFS hoặc có submodule, vibefix chưa hỗ trợ.",
       "PRODUCT_HAS_ACTIVE_JOB": "Không thể xóa sản phẩm khi còn công việc đang thực hiện.",
       "REPO_TOO_LARGE": "Repo lớn hơn giới hạn 250 MB.",
       "GITHUB_UNAVAILABLE": "Chưa đọc được repo từ GitHub. Hãy thử lại sau ít phút.",

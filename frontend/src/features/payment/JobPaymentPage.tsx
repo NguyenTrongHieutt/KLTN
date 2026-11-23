@@ -342,7 +342,7 @@ function Funding({ funding }: { funding: JobFunding }) {
         <h2 id="funding-heading" className="text-h2">
           {t('screen.payment.milestonesTitle')}
         </h2>
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[760px] text-left text-body-sm">
             <thead className="text-caption text-muted-foreground">
               <tr className="border-b border-border">

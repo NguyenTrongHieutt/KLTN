@@ -302,7 +302,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     expect(await screen.findByText('Bạn xem được các lần bàn giao; chỉ người hướng dẫn tạo bàn giao.')).toBeInTheDocument()
     expect(await screen.findByText('Đã rà đủ chín mục.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Hạng mục chưa Xong khi bàn giao' })).toBeNull()
-    expect(screen.getByText('Chờ khách nghiệm thu', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText('Chờ khách nghiệm thu', { selector: 'header span' })).toBeInTheDocument()
   })
 
   it('keeps planted payloads in notes and the Report as inert text (SG-30)', { timeout: 20_000 }, async () => {

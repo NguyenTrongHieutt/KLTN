@@ -17,6 +17,7 @@ import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth } from '@/lib/dates'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { MentorJobTabs } from './MentorJobTabs'
+import { StageStrip } from '@/features/job/StageStrip'
 import { useDeclineSelection, useMentorJob, useSignNda, type MentorJob } from './mentorJobApi'
 import { NDA_VERSION } from './nda'
 import { CommitEmailNotice, NdaText } from './NdaText'
@@ -67,6 +68,7 @@ function Overview({ job }: { job: MentorJob }) {
           {t('screen.nda.meta', { product: job.productName, types, date: formatDayMonth(job.selectedAt) })}
         </p>
         <JobRoleLine jobId={job.id} />
+        <StageStrip state={job.state} />
         <NoCrewBanner jobId={job.id} />
         <MentorJobTabs jobId={job.id} state={job.state} current="overview" payment={job.agreementConfirmed} />
       </div>
