@@ -37,6 +37,7 @@ import {
 } from './applicationApi'
 import { bidRefusal, bidRefusalLink, bidStateText, proofUploadRefusal } from './bidText'
 import { ProofList } from './ProofList'
+import { Page } from '@/components/ui/page'
 
 /**
  * FND-1 Chào giá (`/tim-viec/{jobId}/chao-gia`, FR-13, UX-DR99), a focused task route: the bid, called "Đơn chào
@@ -50,7 +51,7 @@ export function BidFormPage() {
   usePageTitle(t('screen.matching.apply.title'))
   const account = useSession().data?.account
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="focused">
       {account && !account.capabilities.githubVerified ? (
         <>
           <PageHeading>{t('screen.matching.apply.heading')}</PageHeading>
@@ -66,7 +67,7 @@ export function BidFormPage() {
       ) : (
         postId && <BidRoute postId={postId} />
       )}
-    </div>
+    </Page>
   )
 }
 

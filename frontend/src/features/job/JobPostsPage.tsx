@@ -33,6 +33,7 @@ import {
 } from './jobPostApi'
 import { PhaseBadge } from './PhaseBadge'
 import { needText, phaseText } from './phaseText'
+import { Page } from '@/components/ui/page'
 
 /** MEN-2's keyword and filters in the URL (UX-DR47, UX-DR72, UX-DR97): shareable, and kept by the back button. */
 const PARAMS = {
@@ -143,7 +144,7 @@ function JobPostList() {
     />
   )
   return (
-    <div className="mx-auto flex max-w-[1000px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <div className="flex flex-col gap-1">
         <PageHeading>{t('screen.jobPost.heading')}</PageHeading>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.lead')}</p>
@@ -165,7 +166,7 @@ function JobPostList() {
           {posts.data && results(posts.data)}
         </RegionState>
       )}
-    </div>
+    </Page>
   )
 }
 

@@ -19,6 +19,7 @@ import { fitRows, profileFacts } from './fitRows'
 import { PickDialog } from './PickDialogs'
 import { ProofList } from './ProofList'
 import { SkillChips } from './SkillChips'
+import { Page } from '@/components/ui/page'
 
 type Row = ComparisonRow<ApplicantCard>
 
@@ -100,11 +101,11 @@ export function CompareApplicantsPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={recruitment} skeleton={<Skeleton className="h-96 w-full" />}>
         {recruitment.data && jobId && <Applicants jobId={jobId} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

@@ -34,6 +34,7 @@ import {
 } from './agreementApi'
 import { draftDays, inOrder, moved } from './reviewTargets'
 import { hasStarted } from '@/features/job/jobState'
+import { Page } from '@/components/ui/page'
 
 /**
  * The Customer's JOB-6 (FR-16, FR-17, UX-DR34): the shared versions with "Góp ý", "Lên"/"Xuống", the
@@ -52,7 +53,7 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
     return <Navigate to={`/cong-viec/${job.data.id}`} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && <CustomerHeader job={job.data} />}
       </RegionState>
@@ -81,7 +82,7 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
         )}
       </RegionState>
       {agreement.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
-    </div>
+    </Page>
   )
 }
 

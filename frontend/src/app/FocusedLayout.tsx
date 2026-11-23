@@ -21,7 +21,7 @@ export function FocusedLayout({ title, closeTo }: { title: string; closeTo: stri
       <Toaster>
         <div className="flex min-h-dvh flex-col">
           <header className="border-b border-border bg-card">
-            <div className="mx-auto flex min-h-header-height max-w-[760px] items-center gap-3 px-gutter-mobile py-2 md:px-gutter-desktop">
+            <div className="mx-auto flex min-h-header-height max-w-reading-frame items-center gap-3 px-gutter-mobile py-2 md:px-gutter-desktop">
               <span className="text-h3 font-bold text-primary">{t('app.name')}</span>
               <span className="grow truncate text-label text-muted-foreground">{title}</span>
               <Link to={typeof closeTo === 'string' ? closeTo : closeTo(params)} className={cn(buttonVariants({ variant: 'ghost', size: 'compact' }), 'gap-1')}>

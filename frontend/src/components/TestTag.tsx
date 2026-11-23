@@ -6,7 +6,7 @@ import { t } from '@/i18n/t'
  */
 export function TestTag() {
   return (
-    <span className="rounded bg-warning-soft px-1 text-caption font-semibold text-warning">
+    <span className="inline-block rounded-sm border border-dashed border-test-mode bg-test-mode-soft px-1.5 py-px align-baseline text-tag whitespace-nowrap text-test-mode uppercase">
       <span aria-hidden="true">{t('screen.matching.test')}</span>
       <span className="sr-only">{t('shell.testMoney')}</span>
     </span>

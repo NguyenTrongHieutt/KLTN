@@ -10,6 +10,7 @@ import { formatDayMonth } from '@/lib/dates'
 import { SourceAppGuidance, type DeletedProduct } from './DeleteProduct'
 import { useProducts, type Product } from './productApi'
 import { SourceStatusBadge } from './WorkflowSetup'
+import { Page } from '@/components/ui/page'
 
 /**
  * CUS-2 (`/san-pham`, FR-7, UX-DR66): the user's own Products, with no role needed (Story 20.3), each with
@@ -28,7 +29,7 @@ function ProductList() {
   // R23: after a deletion, the Source App guidance stays on CUS-2 until the page is left.
   const deleted = (useLocation().state as { deleted?: DeletedProduct } | null)?.deleted
   return (
-    <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <PageHeading>{t('screen.product.heading')}</PageHeading>
@@ -66,7 +67,7 @@ function ProductList() {
           </ul>
         )}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

@@ -23,6 +23,7 @@ import {
 import { EvidenceFields } from './HandoverEvidence'
 import { MAX_SCREENSHOTS, NO_EVIDENCE, evidenceBody, evidenceReady, newLink, type Evidence } from './evidenceRules'
 import { SensitiveChangeList } from './SensitiveChangeList'
+import { Page } from '@/components/ui/page'
 
 interface Mark {
   met?: boolean
@@ -60,11 +61,11 @@ export function HandoverFormPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="focused">
       <RegionState query={preflight} skeleton={<Skeleton className="h-96 w-full" />}>
         {preflight.data && <Form jobId={jobId} preflight={preflight.data} onStale={() => void preflight.refetch()} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

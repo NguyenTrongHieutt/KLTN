@@ -19,6 +19,7 @@ import { useJobApplications, type JobApplication } from './applicationApi'
 import { BidCard, BidderSheet } from './BidCard'
 import { ChooseDialog, StaleDialog } from './ChooseBid'
 import { comparePath, MAX_COMPARED } from './compare'
+import { Page } from '@/components/ui/page'
 
 /** CUS-12's place in the URL (UX-DR100): `?ho-so={bidId}`. */
 const PROFILE = 'ho-so'
@@ -43,11 +44,11 @@ export function JobApplicationsPage() {
     return <Navigate to={`/cong-viec/${job.data.id}`} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <BidList job={job.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

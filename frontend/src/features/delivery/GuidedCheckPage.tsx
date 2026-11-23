@@ -17,6 +17,7 @@ import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { useDecideHandover, useHandover, type DeliveryReport } from './deliveryApi'
 import { HandoverLinkList } from './HandoverLinkList'
 import { OutsideLink } from './OutsideLink'
+import { Page } from '@/components/ui/page'
 
 interface Mark {
   met?: boolean
@@ -82,7 +83,7 @@ export function GuidedCheckPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="focused">
       <RegionState query={report} skeleton={<Skeleton className="h-96 w-full" />}>
         {report.data &&
           (report.data.decision ? (
@@ -96,7 +97,7 @@ export function GuidedCheckPage() {
             </p>
           ))}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

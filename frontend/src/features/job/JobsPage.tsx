@@ -19,6 +19,7 @@ import { CrewJobCard } from './CrewJobCard'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
 import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
+import { Page } from '@/components/ui/page'
 
 /** CUS-7's segments (UX-DR86), as `?vai-tro=` keeps them: the Jobs the user posts, mentors, and joins. */
 type Segment = 'dang' | 'huong-dan' | 'tham-gia'
@@ -57,12 +58,12 @@ export function JobsPage() {
     refetch: () => Promise.all([mine.refetch(), bids.refetch(), crew.refetch()]),
   }
   return (
-    <div className="mx-auto flex max-w-[920px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <PageHeading>{t('screen.job.heading')}</PageHeading>
       <RegionState query={both} skeleton={<Skeleton className="h-48 w-full" />}>
         {mine.data && bids.data && crew.data && <Segments jobs={mine.data} bids={bids.data} crew={crew.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

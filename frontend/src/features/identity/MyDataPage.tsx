@@ -14,6 +14,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { erasureBlockerText } from './erasureBlockers'
 import { EXPORT_URL, useMyData, useRequestDeletion, type MyData } from './myDataApi'
 import { useSession } from './useSession'
+import { Page } from '@/components/ui/page'
 
 /**
  * ALL-2 "Dữ liệu của tôi" (`/tai-khoan/du-lieu`, NFR-9, NFR-10, NFR-11): what vibefix keeps and why (PUB-7), the
@@ -29,7 +30,7 @@ export function MyDataPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <PageHeading>{t('screen.myData.title')}</PageHeading>
       <section aria-labelledby="my-data-kept" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
         <h2 id="my-data-kept" className="text-h3">
@@ -52,7 +53,7 @@ export function MyDataPage() {
       <RegionState query={data} skeleton={<Skeleton className="h-40 w-full" />}>
         {data.data && <Deletion data={data.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

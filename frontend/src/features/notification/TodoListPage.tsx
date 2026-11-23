@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { t } from '@/i18n/t'
 import { useTodos } from './hooks'
 import { TodoItemRow } from './TodoItemRow'
+import { Page } from '@/components/ui/page'
 
 /**
  * `/viec-can-lam`: CUS-1, the one to-do list of every role the user holds (FR-28, UX-DR14, UX-DR88), where a
@@ -17,7 +18,7 @@ export function TodoListPage() {
   const todos = useTodos()
 
   return (
-    <div className="mx-auto flex max-w-content-max flex-col gap-4 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <PageHeading>{t('screen.shared.todo.heading')}</PageHeading>
       <RegionState
         query={todos}
@@ -44,6 +45,6 @@ export function TodoListPage() {
           </div>
         )}
       </RegionState>
-    </div>
+    </Page>
   )
 }

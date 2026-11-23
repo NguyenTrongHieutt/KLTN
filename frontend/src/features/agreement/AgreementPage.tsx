@@ -32,6 +32,7 @@ import { ChangeRequestSection } from './ChangeRequestSection'
 import { ExternalAccessSection } from './ExternalAccessSection'
 import { ConfirmCard, ConfirmedView, CustomerFeedback } from './MentorReview'
 import { inOrder } from './reviewTargets'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-17, FR-75, AD-29, UX-DR34, UX-DR60):
@@ -52,9 +53,9 @@ export function AgreementPage() {
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       {children}
-    </div>
+    </Page>
   )
 }
 

@@ -26,6 +26,7 @@ import { roleLabel, useJobRole, useMyJobs, youAreText, type JobRoleView } from '
 import { useCustomerRating, useJobPost, type JobPost } from './jobPostApi'
 import { PhaseBadge } from './PhaseBadge'
 import { needText } from './phaseText'
+import { Page } from '@/components/ui/page'
 
 /**
  * MEN-3 Chi tiết công việc (`/tim-viec/{jobId}`, FR-12, FR-13, UX-DR98) for every user: a listed Job's Post (the
@@ -75,18 +76,18 @@ function JobPostDetail({ postId }: { postId: string | undefined }) {
     return invitation.data?.status === 'LAPSED' ? <LapsedInvitation invitation={invitation.data} /> : <NoLongerOpen />
   }
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={post} skeleton={<Skeleton className="h-96 w-full" />}>
         {post.data && <Post post={post.data} invitation={invitation.data ?? undefined} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 
 /** A page of MEN-3 with nothing but a breadcrumb back to "Tìm việc" and its content. */
 function GatePage({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <nav aria-label={t('screen.jobPost.detail.breadcrumb')} className="text-caption text-muted-foreground">
         <Link to="/tim-viec" className="text-primary underline-offset-4 hover:underline">
           {t('screen.jobPost.detail.breadcrumb')}
@@ -99,7 +100,7 @@ function GatePage({ title, children }: { title?: string; children: ReactNode }) 
         )}
       </nav>
       {children}
-    </div>
+    </Page>
   )
 }
 

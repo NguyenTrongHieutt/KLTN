@@ -6,6 +6,7 @@ import { isNotFound } from '@/lib/problemMessage'
 import { PersonProfileContent } from './PersonProfile'
 import { usePublicPerson } from './personApi'
 import { personPath } from './personText'
+import { Page } from '@/components/ui/page'
 
 /**
  * PUB-4 (`/nguoi-dung/{username}`, FR-51, UX-DR96, Story 21.3): one public profile per person, for anyone, in the
@@ -20,9 +21,9 @@ export function PersonPage() {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <PersonProfileContent username={username} onPage />
-    </div>
+    </Page>
   )
 }
 

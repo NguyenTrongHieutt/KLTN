@@ -21,6 +21,7 @@ import { comparePath, comparedIds } from './compare'
 import { ComparisonView, type ComparisonRow } from './Comparison'
 import { fitRows, profileFacts } from './fitRows'
 import { ProofList } from './ProofList'
+import { Page } from '@/components/ui/page'
 
 type Row = ComparisonRow<JobApplication>
 
@@ -110,11 +111,11 @@ export function CompareBidsPage() {
     return <Navigate to={`/cong-viec/${job.data.id}`} replace />
   }
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <Comparison job={job.data} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

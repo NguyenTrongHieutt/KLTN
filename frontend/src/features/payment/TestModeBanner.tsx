@@ -23,11 +23,11 @@ export function TestModeBanner({ balance = false }: { balance?: boolean }) {
       ] as const)
     : []
   return (
-    <div role="note" className="flex flex-col gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
+    <div role="note" className="flex flex-col gap-2 rounded-lg border border-dashed border-test-mode bg-test-mode-soft p-4 text-body-sm">
       <div className="flex gap-3">
-        <FlaskConical aria-hidden="true" className="size-5 shrink-0 text-warning" />
+        <FlaskConical aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-test-mode" />
         <div className="flex flex-col gap-0.5">
-          <p className="font-semibold">{t('screen.payment.n13Title')}</p>
+          <p className="text-label font-semibold">{t('screen.payment.n13Title')}</p>
           <p>
             {t('screen.payment.n13Body')} {balance && `${t('screen.payment.n13NoWithdraw')} `}
             <Button

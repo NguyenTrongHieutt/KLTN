@@ -21,6 +21,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { ProfileTabs } from './ProfileTabs'
 import { useProfile, useSaveProfile, type Profile, type ProfileRequest } from './profileApi'
+import { Page } from '@/components/ui/page'
 
 /** At most 20 Skills, 5 links, and 5 repositories (FR-4, AD-38). */
 export const MAX_SKILLS = 20
@@ -103,7 +104,7 @@ export function ProfilePage() {
   usePageTitle(t('screen.profile.title'))
   const profile = useProfile()
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="reading">
       <div className="flex flex-col gap-3">
         <PageHeading>{t('screen.profile.heading')}</PageHeading>
         <ProfileTabs />
@@ -136,7 +137,7 @@ export function ProfilePage() {
           </>
         )}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 

@@ -146,7 +146,7 @@ function SignedInShell() {
                   to={destination.to}
                   className={({ isActive }) =>
                     cn(
-                      'flex min-h-tab-bar-height flex-col items-center justify-center gap-0.5 text-caption',
+                      'flex min-h-tab-bar-height flex-col items-center justify-center gap-0.5 px-0.5 text-caption',
                       isActive ? 'text-primary' : 'text-muted-foreground',
                     )
                   }
@@ -159,7 +159,7 @@ function SignedInShell() {
                       </span>
                     )}
                   </span>
-                  {t(destination.label)}
+                  <span className="text-center leading-tight">{t(destination.label)}</span>
                 </NavLink>
               </li>
             )

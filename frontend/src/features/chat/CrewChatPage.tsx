@@ -14,6 +14,7 @@ import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
 import { ChatPanel } from './ChatPanel'
 import { hasChat, useCrewChat, type CrewChat } from './chatApi'
+import { Page } from '@/components/ui/page'
 
 /**
  * JOB-8 "Trao đổi nhóm" (`/cong-viec/{jobId}/trao-doi-nhom`, FR-77, UX-DR17, UX-DR80): the Crew Chat
@@ -107,8 +108,8 @@ function CrewThread({ jobId, chat }: { jobId: string; chat: CrewChat }) {
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex max-w-[1120px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page>
       {children}
-    </div>
+    </Page>
   )
 }

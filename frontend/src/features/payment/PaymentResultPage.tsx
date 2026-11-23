@@ -14,6 +14,7 @@ import { FAST_POLL_FOR_MS, usePaymentOrder, type PaymentOrder } from './paymentA
 import { RefundLine } from './RefundLine'
 import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
+import { Page } from '@/components/ui/page'
 
 /**
  * CUS-9 (`/thanh-toan/{paymentOrderId}`, AD-14, UX-DR25): VNPay's return URL. It only displays the
@@ -41,12 +42,12 @@ function Result({ paymentOrderId }: { paymentOrderId: string }) {
     return <NotFoundScreen />
   }
   return (
-    <div className="mx-auto flex w-full max-w-[600px] flex-col gap-5 px-gutter-mobile py-section-gap md:px-gutter-desktop">
+    <Page width="focused">
       <TestModeBanner />
       <RegionState query={order} skeleton={<Skeleton className="h-64 w-full" />}>
         {order.data && <Outcome order={order.data} slow={slow} />}
       </RegionState>
-    </div>
+    </Page>
   )
 }
 
