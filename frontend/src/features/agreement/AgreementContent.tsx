@@ -12,11 +12,12 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useCommentOnAgreement, type AgreementComment, type AgreementContent, type CommentTarget } from './agreementApi'
 import { stepCount } from './agreementChecks'
+import { Card } from '@/components/ui/card'
 
 
 export function CodeRights() {
   return (
-    <section className="flex flex-col gap-1 rounded-lg bg-muted p-4">
+    <section className="flex flex-col gap-1 rounded-md bg-muted p-3">
       <p className="text-label font-semibold">{t('screen.agreement.codeRightsTitle')}</p>
       <p className="text-body-sm">{t('screen.agreement.codeRights')}</p>
     </section>
@@ -60,9 +61,9 @@ export function AgreementContentView({
   return (
     <>
       {!content.assessment && (
-        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+        <Card as="section" className="flex flex-col gap-2">
           <Commentable review={review} kind="SCOPE" label={t('screen.agreement.review.target.SCOPE')}>
-            <h2 className="text-h2">{t('screen.agreement.scope')}</h2>
+            <h2 className="text-h3">{t('screen.agreement.scope')}</h2>
           </Commentable>
           <p className="text-body-sm break-words whitespace-pre-line">{content.scope}</p>
           {content.codeJob && <p className="text-body-sm text-muted-foreground">{t('screen.agreement.codeStatement')}</p>}
@@ -75,7 +76,7 @@ export function AgreementContentView({
               ))}
             </ul>
           )}
-        </section>
+        </Card>
       )}
       <section className="flex flex-col gap-3">
         <h2 className="text-h2">{t('screen.agreement.milestones')}</h2>
@@ -95,8 +96,8 @@ export function AgreementContentView({
         </p>
       </section>
       {content.externalAccess.length > 0 && (
-        <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-          <h2 className="text-h2">{t('screen.agreement.externalAccess')}</h2>
+        <Card as="section" className="flex flex-col gap-3">
+          <h2 className="text-h3">{t('screen.agreement.externalAccess')}</h2>
           <ul className="flex flex-col gap-3 text-body-sm">
             {content.externalAccess.map((entry) => {
               const live = entry.environment === 'PRODUCTION' || review?.live.has(entry.id)
@@ -136,7 +137,7 @@ export function AgreementContentView({
               )
             })}
           </ul>
-        </section>
+        </Card>
       )}
       <CodeRights />
     </>
@@ -156,7 +157,7 @@ function MilestoneView({
 }) {
   const label = t('screen.agreement.review.target.MILESTONE', { n: index + 1, title: milestone.title })
   return (
-    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="article" className="flex flex-col gap-2">
       <Commentable
         review={review}
         kind="MILESTONE"
@@ -228,7 +229,7 @@ function MilestoneView({
           </li>
         ))}
       </ol>
-    </article>
+    </Card>
   )
 }
 

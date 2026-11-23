@@ -46,7 +46,7 @@ export function PersonProfileContent({
     <RegionState query={person} skeleton={<Skeleton className="h-96 w-full" />}>
       {person.data &&
         (person.data.locked ? (
-          <p role="status" className="rounded-md bg-muted p-4 text-body-sm">
+          <p role="status" className="rounded-md bg-muted p-3 text-body-sm">
             {t('screen.person.locked')}
           </p>
         ) : (

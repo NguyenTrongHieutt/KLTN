@@ -11,6 +11,8 @@ import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth, formatDayMonthTime, formatTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { useAdminAlerts, useAdminOverview } from './adminApi'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /** The alert badge of a notification type; anything not listed reads "Thông tin". */
 const CATEGORY: Record<string, { label: MessageKey; tone: string }> = {
@@ -144,12 +146,12 @@ function AlertList({ items, stalled }: { items: NotificationItem[]; stalled?: { 
     return <p className="text-body-sm text-muted-foreground">{t('screen.admin.overview.noAlerts')}</p>
   }
   return (
-    <ul className="divide-y divide-border rounded-lg border border-border bg-card text-body-sm">
+    <Card as="ul" padding="none" className="divide-y divide-border text-body-sm">
       {system && (
         <li className="flex flex-wrap items-center gap-3 px-4 py-3">
-          <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
+          <StatusBadge tone="waiting">
             {t('screen.admin.overview.system')}
-          </span>
+          </StatusBadge>
           <p className="min-w-0 grow">{t('screen.admin.overview.stalledEvents', { n: stalled.count })}</p>
           {stalled.oldestAt && <span className="text-caption text-muted-foreground">{formatDayMonthTime(stalled.oldestAt)}</span>}
         </li>
@@ -164,6 +166,6 @@ function AlertList({ items, stalled }: { items: NotificationItem[]; stalled?: { 
           </li>
         )
       })}
-    </ul>
+    </Card>
   )
 }

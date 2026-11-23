@@ -34,6 +34,8 @@ import {
 import { PhaseBadge } from './PhaseBadge'
 import { needText, phaseText } from './phaseText'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /** MEN-2's keyword and filters in the URL (UX-DR47, UX-DR72, UX-DR97): shareable, and kept by the back button. */
 const PARAMS = {
@@ -250,7 +252,7 @@ function Results({
   if (data.total === 0) {
     if (filter.q) {
       return (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+        <Card padding="none" className="flex flex-col items-center gap-3 text-center px-4 py-10">
           <p aria-live="polite" className="text-label font-semibold break-words">
             {t('screen.jobPost.noMatchKeyword', { q: filter.q })}
           </p>
@@ -260,22 +262,22 @@ function Results({
               {t('screen.jobPost.clearFilters')}
             </Button>
           )}
-        </div>
+        </Card>
       )
     }
     return filtered(filter) ? (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card padding="none" className="flex flex-col items-center gap-3 text-center px-4 py-10">
         <p className="text-label font-semibold">{t('screen.jobPost.noMatch')}</p>
         <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.noMatchBody')}</p>
         <Button type="button" variant="secondary" onClick={clearAll}>
           {t('screen.jobPost.clearFilters')}
         </Button>
-      </div>
+      </Card>
     ) : (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
+      <Card padding="none" className="flex flex-col items-center gap-3 p-12 text-center">
         <Search aria-hidden="true" className="size-10 text-muted-foreground" />
         <p className="text-label">{t('screen.jobPost.empty')}</p>
-      </div>
+      </Card>
     )
   }
   return (
@@ -293,11 +295,11 @@ function Results({
           <span className="font-normal text-muted-foreground">{t('screen.jobPost.count', { n: data.total })}</span>
         </h2>
       )}
-      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+      <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
         {data.items.map((post) => (
           <PostItem key={post.id} post={post} applied={applied.has(post.id)} rating={ratingOf.get(post.id)} />
         ))}
-      </ul>
+      </Card>
       <Pager page={data.page} pages={Math.ceil(data.total / data.size)} go={go} />
     </section>
   )
@@ -307,7 +309,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
   const ids = useId()
   const skills = [...filter.categories.map(categoryValue), ...filter.skills]
   return (
-    <div role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3">
+    <Card padding="none" role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 px-4 py-3">
       {/* One compact row from 1024 px, the Skill field twice as wide; two columns from 640 px (2026-11-23). */}
       <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-1">
@@ -398,7 +400,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
       <p id={`${ids}-hint`} className="text-caption text-muted-foreground">
         {t('screen.jobPost.filtersHint')}
       </p>
-    </div>
+    </Card>
   )
 }
 
@@ -424,9 +426,9 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
                 <span className="flex flex-wrap items-start justify-between gap-2">
                   <span className="text-h3 break-words">{post.title}</span>
                   {post.invited && (
-                    <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
+                    <StatusBadge tone="waiting">
                       {t('screen.jobPost.recommend.invited')}
-                    </span>
+                    </StatusBadge>
                   )}
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
@@ -565,9 +567,9 @@ function PostItem({
         {customer && <span className="text-caption text-muted-foreground break-words">{customer}</span>}
       </div>
       {applied ? (
-        <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success">
+        <StatusBadge tone="done">
           {t('screen.matching.appliedBadge')}
-        </span>
+        </StatusBadge>
       ) : (
         post.deadline && (
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">

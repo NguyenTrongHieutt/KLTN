@@ -19,6 +19,7 @@ import {
   type AbuseAction,
   type AbuseReport,
 } from './adminAbuseReportsApi'
+import { Card } from '@/components/ui/card'
 
 /**
  * ADM-6's "Báo cáo vi phạm" tab (FR-69, FR-60, AD-20, UX-DR16): the queue, oldest open first, with titles and
@@ -38,9 +39,9 @@ export function AbuseReportsPanel() {
       <RegionState query={reports} skeleton={<Skeleton className="h-64 w-full" />}>
         {reports.data &&
           (reports.data.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+            <Card as="p" className="text-body-sm text-muted-foreground">
               {t('screen.admin.reports.empty')}
-            </p>
+            </Card>
           ) : (
             <ul aria-label={t('screen.admin.reports.listLabel')} className="flex flex-col gap-2">
               {reports.data.map((row) => (
@@ -102,10 +103,10 @@ function Detail({ data }: { data: AbuseReport }) {
   const [error, setError] = useState<string>()
   const open = data.status === 'OPEN'
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="section" className="flex flex-col gap-4 text-body-sm">
       <div className="flex flex-col gap-1">
         <span className="text-caption text-muted-foreground">{t(`screen.admin.reports.kind.${data.kind}` as MessageKey)}</span>
-        <h2 className="text-h2 break-words">{data.label}</h2>
+        <h2 className="text-h3 break-words">{data.label}</h2>
         <p className="text-caption text-muted-foreground">
           {t('screen.admin.reports.filedBy', {
             name: data.reporterName ?? t('screen.admin.reports.erased'),
@@ -171,7 +172,7 @@ function Detail({ data }: { data: AbuseReport }) {
       ) : (
         <DecisionForm data={data} onError={setError} />
       )}
-    </section>
+    </Card>
   )
 }
 

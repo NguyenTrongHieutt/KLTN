@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { StatusBadge } from '@/components/ui/status-badge'
 import type { JobPhase } from './jobPostApi'
 import { phaseText } from './phaseText'
 
@@ -8,8 +8,8 @@ export function PhaseBadge({ phase, className }: { phase: JobPhase | undefined; 
     return null
   }
   return (
-    <span className={cn('w-fit rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info', className)}>
+    <StatusBadge tone="progress" className={className}>
       {phaseText(phase)}
-    </span>
+    </StatusBadge>
   )
 }

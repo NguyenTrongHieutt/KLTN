@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { ProfileTabs } from './ProfileTabs'
 import { useProfile, useSaveProfile, type Profile, type ProfileRequest } from './profileApi'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /** At most 20 Skills, 5 links, and 5 repositories (FR-4, AD-38). */
 export const MAX_SKILLS = 20
@@ -121,18 +122,18 @@ export function ProfilePage() {
       >
         {profile.data && (
           <>
-            <section
+            <Card as="section"
               aria-labelledby="typed-heading"
-              className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5"
+              className="flex flex-col gap-4"
             >
               <div className="flex flex-col gap-1">
-                <h2 id="typed-heading" className="text-h2">
+                <h2 id="typed-heading" className="text-h3">
                   {t('screen.profile.typed.heading')}
                 </h2>
                 <p className="text-body-sm text-muted-foreground">{t('screen.profile.typed.lead')}</p>
               </div>
               <TypedForm profile={profile.data} />
-            </section>
+            </Card>
             <VerifiedZone profile={profile.data} />
           </>
         )}
@@ -472,12 +473,12 @@ function SelfDeclared() {
 function VerifiedZone({ profile }: { profile: Profile }) {
   const { github, student } = profile.verified
   return (
-    <section
+    <Card as="section"
       aria-labelledby="verified-heading"
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-1">
-        <h2 id="verified-heading" className="text-h2">
+        <h2 id="verified-heading" className="text-h3">
           {t('screen.profile.verified.heading')}
         </h2>
         <p className="text-body-sm text-muted-foreground">{t('screen.profile.verified.lead')}</p>
@@ -526,7 +527,7 @@ function VerifiedZone({ profile }: { profile: Profile }) {
       <Link to="/ho-so/xac-minh" className="self-start text-body-sm text-primary underline-offset-4 hover:underline">
         {t('screen.profile.verified.manage')}
       </Link>
-    </section>
+    </Card>
   )
 }
 

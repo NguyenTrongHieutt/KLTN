@@ -8,6 +8,7 @@ import { t, type MessageKey } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
 import { landingPath } from './api'
 import { useSession, useSignOut, useSignUp } from './useSession'
+import { Card } from '@/components/ui/card'
 
 const LINES: { icon: LucideIcon; text: MessageKey }[] = [
   { icon: Package, text: 'screen.public.start.linePost' },
@@ -87,9 +88,9 @@ export function StartPage() {
         <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
         <p className="text-body-sm">{t('screen.public.start.rolePerJob')}</p>
       </div>
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5" aria-labelledby="thong-bao-du-lieu">
+      <Card as="section" className="flex flex-col gap-3" aria-labelledby="thong-bao-du-lieu">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="thong-bao-du-lieu" className="text-h2">
+          <h2 id="thong-bao-du-lieu" className="text-h3">
             {t('screen.public.start.noticeHeading')}
           </h2>
           <span className="text-caption text-muted-foreground">{t('screen.public.start.noticeVersion', { version })}</span>
@@ -110,7 +111,7 @@ export function StartPage() {
         >
           {t('screen.public.start.noticeFull')}
         </Link>
-      </section>
+      </Card>
       <label className="flex cursor-pointer gap-3">
         <input
           type="checkbox"

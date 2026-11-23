@@ -21,6 +21,7 @@ import {
   type AdminTeamIssue,
 } from './adminTeamIssuesApi'
 import { StepUpDialog } from './StepUpDialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * ADM-4's "Khiếu nại nội bộ" tab (FR-63, FR-79, AD-20, AD-40, UX-DR84): the escalated Team Issues about a Rating, the
@@ -106,8 +107,8 @@ function Detail({ data }: { data: AdminTeamIssue }) {
   const fail = (failure: unknown) => setError(problemMessage(failure, { module: 'dispute' }).text)
   const open = data.phase === 'ESCALATED'
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
-      <h2 className="text-h2 break-words">{data.jobTitle}</h2>
+    <Card as="section" className="flex flex-col gap-4 text-body-sm">
+      <h2 className="text-h3 break-words">{data.jobTitle}</h2>
       <p className="text-caption text-muted-foreground">
         {t('screen.admin.teamIssues.subject')} ·{' '}
         {t('screen.admin.teamIssues.people', { raiser: data.raiserName ?? '', mentor: data.mentorName ?? '' })} ·{' '}
@@ -159,7 +160,7 @@ function Detail({ data }: { data: AdminTeamIssue }) {
         )
       )}
       {data.assignedToMe && <Evidence data={data} />}
-    </section>
+    </Card>
   )
 }
 

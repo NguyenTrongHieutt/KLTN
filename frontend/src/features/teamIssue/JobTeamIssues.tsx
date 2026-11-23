@@ -6,6 +6,7 @@ import { t } from '@/i18n/t'
 import { problemMessage } from '@/lib/problemMessage'
 import { IssueLine } from './TeamIssueSection'
 import { useAnswerTeamIssue, useJobTeamIssues, type TeamIssue } from './teamIssueApi'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-1's Team Issues for the Job's Mentor (FR-79, AD-40, UX-DR63): each issue a Crew member raised about the Rating
@@ -18,8 +19,8 @@ export function JobTeamIssues({ jobId }: { jobId: string }) {
     return null
   }
   return (
-    <section aria-labelledby="job-team-issues" className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id="job-team-issues" className="text-h2">
+    <Card as="section" aria-labelledby="job-team-issues" className="flex flex-col gap-2.5">
+      <h2 id="job-team-issues" className="text-h3">
         {t('screen.teamIssue.title')}
       </h2>
       <p className="text-body-sm text-muted-foreground">{t('screen.teamIssue.jobLead')}</p>
@@ -30,7 +31,7 @@ export function JobTeamIssues({ jobId }: { jobId: string }) {
           </IssueLine>
         ))}
       </ul>
-    </section>
+    </Card>
   )
 }
 

@@ -6,6 +6,7 @@ import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import type { MentorCrew } from './crewApi'
+import { Card } from '@/components/ui/card'
 
 /** JOB-H's and JOB-6's Crew line for the Mentor: how many members signed, and the picks still waiting. */
 export function CrewHeaderLine({ crew }: { crew: MentorCrew }) {
@@ -30,7 +31,7 @@ export function CrewHeaderLine({ crew }: { crew: MentorCrew }) {
 export function MentorCrewSection({ jobId, crew }: { jobId: string; crew: MentorCrew }) {
   const ids = useId()
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex w-full max-w-[1120px] flex-col gap-3 self-center rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby={`${ids}-heading`} className="flex w-full max-w-[1120px] flex-col gap-3 self-center">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id={`${ids}-heading`} className="text-h3">
           {t('screen.crew.mentor.title')}
@@ -55,6 +56,6 @@ export function MentorCrewSection({ jobId, crew }: { jobId: string; crew: Mentor
         </ul>
       )}
       <p className="text-caption text-muted-foreground">{t('screen.crew.mentor.note')}</p>
-    </section>
+    </Card>
   )
 }

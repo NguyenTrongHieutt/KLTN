@@ -92,7 +92,7 @@ function Cards({ jobId, version, view }: { jobId: string; version: number; view:
     <section aria-labelledby={`${ids}-choice`} className="flex flex-col gap-3">
       {unconfirmed ? (
         <div className="flex flex-col gap-1">
-          <h3 id={`${ids}-choice`} className="text-h3">
+          <h3 id={`${ids}-choice`} className="text-label font-semibold">
             {t('screen.closure.choice.unconfirmed.title')}
           </h3>
           <p className="text-body-sm">
@@ -106,7 +106,7 @@ function Cards({ jobId, version, view }: { jobId: string; version: number; view:
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <h3 id={`${ids}-choice`} className="text-h3">
+          <h3 id={`${ids}-choice`} className="text-label font-semibold">
             <TermHint term="closingChoice" />
           </h3>
           {choice.deadlineAt && (

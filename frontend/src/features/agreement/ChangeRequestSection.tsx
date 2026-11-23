@@ -20,6 +20,7 @@ import {
   type ChangeRequests,
 } from './changeRequestApi'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-6's "Đề nghị thay đổi" (FR-36, UX-DR57): either side proposes new due dates and, in the full form, a
@@ -48,12 +49,12 @@ function Content({ jobId, data }: { jobId: string; data: ChangeRequests }) {
   const ids = useId()
   const [proposing, setProposing] = useState(false)
   return (
-    <section
+    <Card as="section"
       id="doi-han"
       aria-labelledby={`${ids}-title`}
-      className="flex w-full max-w-reading-max flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex w-full max-w-reading-max flex-col gap-3"
     >
-      <h2 id={`${ids}-title`} className="text-h2">
+      <h2 id={`${ids}-title`} className="text-h3">
         {t('screen.changeRequest.heading')}
       </h2>
       <p className="text-body-sm text-muted-foreground">{t('screen.changeRequest.lead')}</p>
@@ -70,7 +71,7 @@ function Content({ jobId, data }: { jobId: string; data: ChangeRequests }) {
         ))}
       {data.history.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-h3">{t('screen.changeRequest.history')}</h3>
+          <h3 className="text-label font-semibold">{t('screen.changeRequest.history')}</h3>
           <ul className="flex flex-col gap-2">
             {data.history.map((request) => (
               <li key={request.id} className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
@@ -86,7 +87,7 @@ function Content({ jobId, data }: { jobId: string; data: ChangeRequests }) {
         </div>
       )}
       <Versions jobId={jobId} />
-    </section>
+    </Card>
   )
 }
 

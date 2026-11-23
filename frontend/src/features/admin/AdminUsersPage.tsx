@@ -25,6 +25,8 @@ import {
 } from './adminUsersApi'
 import { StepUpDialog } from './StepUpDialog'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 const FILTERS: UserFilter[] = ['LOCKED', 'VERIFIED', 'LOW_FEEDBACK']
 
@@ -105,13 +107,13 @@ export function AdminUsersPage() {
         <aside className="flex flex-col gap-3 lg:w-[320px] lg:shrink-0">
           <RegionState query={users} skeleton={<Skeleton className="h-40 w-full" />}>
             {rows.length === 0 ? (
-              <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+              <Card as="p" className="text-body-sm text-muted-foreground">
                 {t('screen.admin.users.empty')}
-              </p>
+              </Card>
             ) : (
-              <ul
+              <Card as="ul" padding="none"
                 aria-label={t('screen.admin.users.listLabel')}
-                className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card"
+                className="flex flex-col divide-y divide-border overflow-hidden"
               >
                 {rows.map((row) => (
                   <li key={row.id}>
@@ -132,7 +134,7 @@ export function AdminUsersPage() {
                     </Link>
                   </li>
                 ))}
-              </ul>
+              </Card>
             )}
           </RegionState>
           {pages > 1 && (
@@ -156,9 +158,9 @@ export function AdminUsersPage() {
           {accountId ? (
             <UserPanel key={accountId} accountId={accountId} />
           ) : (
-            <p className="rounded-lg border border-dashed border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">
+            <Card as="p" className="border-dashed text-body-sm text-muted-foreground">
               {t('screen.admin.users.pick')}
-            </p>
+            </Card>
           )}
         </div>
       </div>
@@ -215,15 +217,15 @@ function UserDetail({ user }: { user: AdminUser }) {
   const verified = user.verification?.current === true
   return (
     <>
-      <section aria-labelledby="user-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <Card as="section" aria-labelledby="user-heading" className="flex flex-col gap-3 text-body-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h2 id="user-heading" className="text-h2 break-words">
+          <h2 id="user-heading" className="text-h3 break-words">
             {nameOf(user)}
           </h2>
           {user.lockedAt && (
-            <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption font-semibold text-destructive">
+            <StatusBadge tone="problem">
               {t('screen.admin.users.locked')}
-            </span>
+            </StatusBadge>
           )}
         </div>
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[max-content_1fr]">
@@ -269,9 +271,9 @@ function UserDetail({ user }: { user: AdminUser }) {
           )}
         </div>
         <p className="text-caption text-muted-foreground">{t('screen.admin.users.unlockNote')}</p>
-      </section>
+      </Card>
       <PersonLinks links={user.personLinks} />
-      <section aria-labelledby="feedback-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <Card as="section" aria-labelledby="feedback-heading" className="flex flex-col gap-2 text-body-sm">
         <h3 id="feedback-heading" className="text-h3">
           {t('screen.admin.users.feedback')}
         </h3>
@@ -294,9 +296,9 @@ function UserDetail({ user }: { user: AdminUser }) {
         ) : (
           <p className="text-muted-foreground">{t('screen.admin.users.feedbackEmpty')}</p>
         )}
-      </section>
+      </Card>
       {user.deletionRequest && <DeletionSection user={user} />}
-      <section aria-labelledby="history-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <Card as="section" aria-labelledby="history-heading" className="flex flex-col gap-2 text-body-sm">
         <h3 id="history-heading" className="text-h3">
           {t('screen.admin.users.history')}
         </h3>
@@ -315,7 +317,7 @@ function UserDetail({ user }: { user: AdminUser }) {
             ))}
           </ul>
         )}
-      </section>
+      </Card>
       <ReasonDialog user={user} action={asking} onClose={() => setAsking(undefined)} />
     </>
   )
@@ -327,7 +329,7 @@ function UserDetail({ user }: { user: AdminUser }) {
  */
 function PersonLinks({ links }: { links: PersonLink[] }) {
   return (
-    <section aria-labelledby="links-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="section" aria-labelledby="links-heading" className="flex flex-col gap-2 text-body-sm">
       <h3 id="links-heading" className="text-h3">
         {t('screen.admin.users.personLinks.title')}
       </h3>
@@ -346,9 +348,9 @@ function PersonLinks({ links }: { links: PersonLink[] }) {
                 </Link>
               )}
               {link.locked && !link.erased && (
-                <span className="rounded-full bg-destructive-soft px-2.5 py-0.5 text-caption text-destructive font-semibold">
+                <StatusBadge tone="problem">
                   {t('screen.admin.users.personLinks.locked')}
-                </span>
+                </StatusBadge>
               )}
               <span className="text-caption text-muted-foreground">
                 {t('screen.admin.users.personLinks.createdAt', { date: formatDate(link.createdAt) })}
@@ -362,7 +364,7 @@ function PersonLinks({ links }: { links: PersonLink[] }) {
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -378,7 +380,7 @@ function DeletionSection({ user }: { user: AdminUser }) {
   const [error, setError] = useState<string>()
   const deletion = user.deletionRequest!
   return (
-    <section aria-labelledby="deletion-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="section" aria-labelledby="deletion-heading" className="flex flex-col gap-2 text-body-sm">
       <h3 id="deletion-heading" className="text-h3">
         {t('screen.admin.users.deletion.title')}
       </h3>
@@ -432,7 +434,7 @@ function DeletionSection({ user }: { user: AdminUser }) {
           })
         }
       />
-    </section>
+    </Card>
   )
 }
 

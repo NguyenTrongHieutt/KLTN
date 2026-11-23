@@ -1754,7 +1754,7 @@
       "within30": "Trong 1 tháng",
       "filtersHint": "Bộ lọc áp dụng ngay. Chọn \"Cả nhóm\" để lọc theo mọi kỹ năng trong một nhóm kỹ năng.",
       "listHeading": "Tất cả tin công việc",
-      "count": "{n} tin",
+      "count": "· {n}",
       "meta": "{product} · {types} · {budget} · đăng {date}",
       "metaNoBudget": "{product} · {types} · đăng {date}",
       "metaUndated": "{product} · {types} · {budget}",

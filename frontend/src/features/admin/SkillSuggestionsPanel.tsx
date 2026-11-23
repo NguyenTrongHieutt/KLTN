@@ -14,6 +14,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { OVERVIEW_QUERY_KEY } from './adminApi'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 type Category = components['schemas']['CatalogCategoryView']
 type Suggestion = components['schemas']['AdminSkillSuggestionView']
@@ -67,8 +68,8 @@ export function SkillSuggestionsPanel({ categories }: { categories: Category[] }
   const [declining, setDeclining] = useState<Suggestion>()
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id={`${ids}-heading`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-heading`} className="flex flex-col gap-3">
+      <h2 id={`${ids}-heading`} className="text-h3">
         {t('screen.admin.catalog.suggestions.heading')}
       </h2>
       <RegionState query={queue} skeleton={<Skeleton className="h-64 w-full" />}>
@@ -122,7 +123,7 @@ export function SkillSuggestionsPanel({ categories }: { categories: Category[] }
       </RegionState>
       {approving && <ApproveDialog suggestion={approving} categories={categories} onClose={() => setApproving(undefined)} />}
       {declining && <DeclineDialog suggestion={declining} onClose={() => setDeclining(undefined)} />}
-    </section>
+    </Card>
   )
 }
 

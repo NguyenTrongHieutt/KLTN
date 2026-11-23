@@ -33,6 +33,8 @@ import { CrewJobPage } from './progress/CrewJobPage'
 import { ProgressOverview } from './progress/ProgressOverview'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
  * JOB-1 Tổng quan (`/cong-viec/{jobId}`, UX-DR17, UX-DR19, UX-DR68). The Customer's: while Open, the
@@ -118,8 +120,8 @@ function Overview({ job }: { job: Job }) {
       {job.mentor && <NoCrewAlert jobId={job.id} mentor={job.mentor.displayName} />}
       <LeaverRevocations jobId={job.id} />
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (
-        <section aria-labelledby="job-selecting" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
-          <h2 id="job-selecting" className="text-h2">
+        <Card as="section" aria-labelledby="job-selecting" className="flex flex-col gap-2">
+          <h2 id="job-selecting" className="text-h3">
             {t('screen.matching.selecting.title', { mentor: job.mentor.displayName })}
           </h2>
           <p className="text-body-sm">
@@ -133,7 +135,7 @@ function Overview({ job }: { job: Job }) {
           <p className="text-body-sm text-muted-foreground">{t('screen.matching.selecting.ifNot')}</p>
           {applications.some((application) => application.status === 'ON_HOLD') && (
             <div className="flex flex-col gap-1.5">
-              <h3 className="text-h3">{t('screen.matching.selecting.held')}</h3>
+              <h3 className="text-label font-semibold">{t('screen.matching.selecting.held')}</h3>
               <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
                 {applications
                   .filter((application) => application.status === 'ON_HOLD')
@@ -150,7 +152,7 @@ function Overview({ job }: { job: Job }) {
             </div>
           )}
           {job.canCancelSelection && <CancelSelection job={job} />}
-        </section>
+        </Card>
       ) : open && job.lapsesAt ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="flex min-w-0 flex-col gap-6">
@@ -183,10 +185,10 @@ function Overview({ job }: { job: Job }) {
 
 function LapseChip({ lapsesAt }: { lapsesAt: string }) {
   return (
-    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
+    <StatusBadge tone="waiting">
       <Clock aria-hidden="true" className="size-4" />
       {t('screen.job.detail.lapsesChip', { date: formatDayMonth(lapsesAt) })}
-    </span>
+    </StatusBadge>
   )
 }
 
@@ -198,9 +200,9 @@ function NextSteps({ lapsesAt, jobId, applications }: { lapsesAt: string; jobId:
     ['nextSign', 'nextSignBody'],
   ] as const
   return (
-    <section aria-labelledby="job-applications" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="job-applications" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="job-applications" className="text-h2">
+        <h2 id="job-applications" className="text-h3">
           {applications > 0
             ? t('screen.matching.overviewCount', { n: applications })
             : t('screen.job.detail.applicationsTitle')}
@@ -214,7 +216,7 @@ function NextSteps({ lapsesAt, jobId, applications }: { lapsesAt: string; jobId:
       ) : (
         <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.applicationsBody')}</p>
       )}
-      <h3 className="text-h3">{t('screen.job.detail.nextTitle')}</h3>
+      <h3 className="text-label font-semibold">{t('screen.job.detail.nextTitle')}</h3>
       <ol className="flex flex-col gap-3">
         {steps.map(([title, body], index) => (
           <li key={title} className="flex gap-3">
@@ -234,7 +236,7 @@ function NextSteps({ lapsesAt, jobId, applications }: { lapsesAt: string; jobId:
       <p className="text-caption text-muted-foreground">
         {t('screen.job.detail.lapseNote', { date: formatDayMonth(lapsesAt) })}
       </p>
-    </section>
+    </Card>
   )
 }
 
@@ -247,8 +249,8 @@ function JobPost({ job }: { job: Job }) {
     ['doneCheck', job.doneCheck],
   ] as const
   return (
-    <section aria-labelledby="job-post" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id="job-post" className="text-h2">
+    <Card as="section" aria-labelledby="job-post" className="flex flex-col gap-3">
+      <h2 id="job-post" className="text-h3">
         {t('screen.job.detail.postTitle')}
       </h2>
       {answers.map(
@@ -284,32 +286,32 @@ function JobPost({ job }: { job: Job }) {
       {job.deadline && (
         <p className="text-body-sm">{t('screen.job.detail.deadline', { date: formatCalendarDate(job.deadline) })}</p>
       )}
-    </section>
+    </Card>
   )
 }
 
 function Aside({ job, lapsesAt }: { job: Job; lapsesAt: string }) {
   return (
     <aside className="flex flex-col gap-4">
-      <section aria-labelledby="job-upcoming" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+      <Card as="section" aria-labelledby="job-upcoming" className="flex flex-col gap-2">
         <h3 id="job-upcoming" className="text-h3">
           {t('screen.job.detail.upcoming')}
         </h3>
         <div className="flex items-center justify-between gap-2 text-body-sm">
           <span>{t('screen.job.detail.lapses')}</span>
-          <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-caption font-semibold text-warning">
+          <StatusBadge tone="waiting">
             {formatDayMonth(lapsesAt)}
-          </span>
+          </StatusBadge>
         </div>
-      </section>
-      <section aria-labelledby="job-product" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      </Card>
+      <Card as="section" aria-labelledby="job-product" className="flex flex-col gap-1.5 text-body-sm">
         <h3 id="job-product" className="text-h3">
           {t('screen.job.detail.product')}
         </h3>
         <Link to={`/san-pham/${job.productId}`} className="break-words text-primary underline-offset-4 hover:underline">
           {job.productName}
         </Link>
-      </section>
+      </Card>
     </aside>
   )
 }

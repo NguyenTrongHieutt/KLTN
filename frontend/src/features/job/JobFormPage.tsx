@@ -34,6 +34,7 @@ import {
 } from './jobApi'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /** The answers publishing needs besides the title, in the order CUS-6 asks them (FR-9). */
 const REQUIRED = ['problem', 'expected', 'appUsers', 'jobTypes', 'budget', 'deadline'] as const
@@ -574,7 +575,7 @@ function ScreenshotUpload({ job, labelledBy }: { job: Job; labelledBy: string })
   }
   return (
     <>
-      <div className="flex flex-col items-center gap-1.5 rounded-lg border border-dashed border-border bg-card p-5 text-center">
+      <Card padding="none" className="flex flex-col items-center gap-1.5 border-dashed p-5 text-center">
         <input
           ref={input}
           type="file"
@@ -588,7 +589,7 @@ function ScreenshotUpload({ job, labelledBy }: { job: Job; labelledBy: string })
         </Button>
         <p className="text-caption text-muted-foreground">{t('screen.job.form.fileRule')}</p>
         <p className="text-caption text-warning">{t('screen.job.form.personalData')}</p>
-      </div>
+      </Card>
       {job.screenshots.length > 0 && (
         <ul className="flex flex-col gap-2">
           {job.screenshots.map((shot) => (

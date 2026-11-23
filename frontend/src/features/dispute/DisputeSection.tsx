@@ -201,7 +201,7 @@ function Statements({ jobId, data }: { jobId: string; data: JobDispute }) {
 
 function Decided({ decided }: { decided: NonNullable<JobDispute['decided']> }) {
   return (
-    <div id="tranh-chap" role="status" className="flex flex-col gap-1 rounded-md bg-muted p-4 text-body-sm">
+    <div id="tranh-chap" role="status" className="flex flex-col gap-1 rounded-md bg-muted p-3 text-body-sm">
       <p className="font-semibold">{t('screen.dispute.decided', { time: formatDayMonthTime(decided.decidedAt) })}</p>
       <p>{t(`screen.dispute.decidedNext.${decided.nextState}` as MessageKey)}</p>
       {decided.releaseVnd != null && decided.refundVnd != null && (

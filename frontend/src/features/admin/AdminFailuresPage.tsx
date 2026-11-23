@@ -14,6 +14,7 @@ import { apiClient, unwrap } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { OVERVIEW_QUERY_KEY } from './adminApi'
 import { StepUpDialog } from './StepUpDialog'
+import { Card } from '@/components/ui/card'
 
 type Failures = components['schemas']['FailuresView']
 
@@ -132,9 +133,9 @@ function Section({ title, empty, children }: { title: string; empty: boolean; ch
     <section className="flex flex-col gap-2">
       <h2 className="text-h2">{title}</h2>
       {empty ? (
-        <p className="rounded-lg border border-border bg-card text-body-sm text-muted-foreground p-4 md:p-5">{t('screen.admin.failures.empty')}</p>
+        <Card as="p" className="text-body-sm text-muted-foreground">{t('screen.admin.failures.empty')}</Card>
       ) : (
-        <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">{children}</ul>
+        <Card as="ul" padding="none" className="flex flex-col divide-y divide-border overflow-hidden">{children}</Card>
       )}
     </section>
   )

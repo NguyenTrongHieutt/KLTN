@@ -21,6 +21,7 @@ import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
 import { JobSummaryList } from './JobSummaryList'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /** CUS-7's segments (UX-DR86), as `?vai-tro=` keeps them: the Jobs the user posts, mentors, and joins. */
 type Segment = 'dang' | 'huong-dan' | 'tham-gia'
@@ -81,13 +82,13 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
   )
   if (shown.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card padding="none" className="flex flex-col items-center gap-3 text-center px-4 py-10">
         <BriefcaseBusiness aria-hidden="true" className="size-8 text-muted-foreground" />
         <p className="text-label">{t('screen.job.empty')}</p>
         <Link to="/tim-viec" className={buttonVariants()}>
           {t('screen.job.emptyCta')}
         </Link>
-      </div>
+      </Card>
     )
   }
   // A to-do counts for the role it carries, or else for the user's role in its Job.
@@ -255,7 +256,7 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
         {t(`screen.matching.mentor.group_${group}` as MessageKey)}{' '}
         <span className="font-normal text-muted-foreground">· {items.length}</span>
       </h2>
-      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+      <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
         {items.map((application) => (
           <li key={application.id}>
             <Link
@@ -280,7 +281,7 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
             </Link>
           </li>
         ))}
-      </ul>
+      </Card>
     </section>
   )
 }
@@ -302,7 +303,7 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
             {t('screen.job.segments.applicationsTitle')}{' '}
             <span className="font-normal text-muted-foreground">· {crew.length}</span>
           </h2>
-          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+          <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
             {crew.map((application) => (
               <li key={application.id}>
                 <Link
@@ -321,7 +322,7 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
                 </Link>
               </li>
             ))}
-          </ul>
+          </Card>
         </section>
       )}
       {active.length > 0 && (
@@ -350,7 +351,7 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
 /** Jobs as rows to their JOB-1, in the Mentor's and the Crew's words; one the user left marked "· đã rời". */
 function JobRows({ jobs }: { jobs: MyJob[] }) {
   return (
-    <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+    <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
       {jobs.map((job) => (
         <li key={job.jobId}>
           <Link
@@ -367,6 +368,6 @@ function JobRows({ jobs }: { jobs: MyJob[] }) {
           </Link>
         </li>
       ))}
-    </ul>
+    </Card>
   )
 }

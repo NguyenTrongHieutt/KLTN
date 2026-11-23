@@ -180,7 +180,7 @@ function HandoverListPanel({ list, jobId, current }: { list: HandoverList; jobId
   return (
     <nav aria-label={t('screen.handover.list')} className="flex flex-col gap-3">
       {list.waiting && (
-        <div className="flex flex-col gap-2 rounded-lg border-l-4 border-info bg-info-soft p-4 text-body-sm">
+        <div className="flex flex-col gap-2 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           <p>{t('screen.handover.waiting', { n: list.waiting.number, title: list.waiting.title })}</p>
           <Link to={`/cong-viec/${jobId}/ban-giao/tao`} className={cn(buttonVariants({ size: 'compact' }), 'self-start')}>
             {t('screen.handover.create')}

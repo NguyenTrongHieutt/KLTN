@@ -9,6 +9,36 @@ const BANS = ['no-restricted-syntax', 'no-restricted-globals', 'no-restricted-pr
 
 const cases = [
   {
+    name: 'a hand-written card in a screen',
+    file: 'src/features/probe/Probe.tsx',
+    code: 'export function Probe() {\n  return <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">x</section>\n}\n',
+    expect: 'no-restricted-syntax',
+  },
+  {
+    name: 'a hand-written card in braces',
+    file: 'src/features/probe/Probe.tsx',
+    code: "export function Probe() {\n  return <div className={'rounded-lg border border-border bg-card'}>x</div>\n}\n",
+    expect: 'no-restricted-syntax',
+  },
+  {
+    name: 'a hand-written status pill in a screen',
+    file: 'src/features/probe/Probe.tsx',
+    code: 'export function Probe() {\n  return <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-success">x</span>\n}\n',
+    expect: 'no-restricted-syntax',
+  },
+  {
+    name: 'a muted chip is not a status pill',
+    file: 'src/features/probe/Probe.tsx',
+    code: 'export function Probe() {\n  return <span className="rounded-full bg-muted px-2.5 py-0.5">Vue.js</span>\n}\n',
+    expect: null,
+  },
+  {
+    name: 'the card component itself',
+    file: 'src/components/ui/probe.tsx',
+    code: 'export function Probe() {\n  return <div className="rounded-lg border border-border bg-card">x</div>\n}\n',
+    expect: null,
+  },
+  {
     name: 'dangerouslySetInnerHTML as a JSX attribute',
     file: 'src/features/probe/Probe.tsx',
     code: "export function Probe() {\n  return <div dangerouslySetInnerHTML={{ __html: '<b>x</b>' }} />\n}\n",

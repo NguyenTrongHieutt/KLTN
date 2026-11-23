@@ -28,6 +28,7 @@ import { SetupTracker } from '@/features/job/SetupTracker'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-1 for the Job's Mentor (FR-15, UX-DR52): while Selecting, the NDA panel with N-14, the NDA text
@@ -79,7 +80,7 @@ function Overview({ job }: { job: MentorJob }) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
           <NdaPanel job={job} />
           <aside className="flex flex-col gap-4">
-            <section aria-labelledby="after-signing" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+            <Card as="section" aria-labelledby="after-signing" className="flex flex-col gap-2">
               <h3 id="after-signing" className="text-h3">
                 {t('screen.nda.afterTitle')}
               </h3>
@@ -88,13 +89,13 @@ function Overview({ job }: { job: MentorJob }) {
                 <li>{t('screen.nda.afterAgreement')}</li>
                 <li>{t('screen.nda.afterCrew')}</li>
               </ol>
-            </section>
-            <section aria-labelledby="customer-sees" className="flex flex-col gap-1.5 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+            </Card>
+            <Card as="section" aria-labelledby="customer-sees" className="flex flex-col gap-1.5 text-body-sm">
               <h3 id="customer-sees" className="text-h3">
                 {t('screen.nda.customerSeesTitle')}
               </h3>
               <p className="text-muted-foreground">{t('screen.nda.customerSees')}</p>
-            </section>
+            </Card>
           </aside>
         </div>
       ) : hasStarted(job.state) || job.state === 'CANCELLED' ? (
@@ -105,10 +106,10 @@ function Overview({ job }: { job: MentorJob }) {
         </>
       ) : (
         <>
-          <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
-            <h2 className="text-h2">{t('screen.nda.signedTitle')}</h2>
+          <Card as="section" className="flex flex-col gap-2">
+            <h2 className="text-h3">{t('screen.nda.signedTitle')}</h2>
             <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
-          </section>
+          </Card>
           {/* The Mentor reads the same step tracker the Customer and the Crew do, and with it why a start is blocked. */}
           <SetupTracker jobId={job.id} />
           {(job.state === 'AGREEMENT' || job.state === 'STARTING') && (

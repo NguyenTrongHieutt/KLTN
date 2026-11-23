@@ -10,6 +10,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useCancellation, useCancellationCommand, type Cancellation } from './cancellationApi'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): either side proposes cancelling the Job or its remaining
@@ -61,12 +62,12 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
   }
   const party = data.audience !== 'CREW'
   return (
-    <section
+    <Card as="section"
       id="huy-cong-viec"
       aria-labelledby={`${ids}-title`}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex flex-col gap-3"
     >
-      <h2 id={`${ids}-title`} className="text-h2">
+      <h2 id={`${ids}-title`} className="text-h3">
         {t('screen.cancellation.heading')}
       </h2>
       <p className="text-body-sm text-muted-foreground">
@@ -231,6 +232,6 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
-    </section>
+    </Card>
   )
 }

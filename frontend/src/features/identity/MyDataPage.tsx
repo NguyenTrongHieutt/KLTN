@@ -16,6 +16,7 @@ import { EXPORT_URL, useMyData, useRequestDeletion, type MyData } from './myData
 import { useSession } from './useSession'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * ALL-2 "Dữ liệu của tôi" (`/tai-khoan/du-lieu`, NFR-9, NFR-10, NFR-11): what vibefix keeps and why (PUB-7), the
@@ -33,7 +34,7 @@ export function MyDataPage() {
   return (
     <Page width="reading">
       <PageHeading>{t('screen.myData.title')}</PageHeading>
-      <section aria-labelledby="my-data-kept" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+      <Card as="section" aria-labelledby="my-data-kept" className="flex flex-col gap-2">
         <h2 id="my-data-kept" className="text-h3">
           {t('screen.myData.keptTitle')}
         </h2>
@@ -41,8 +42,8 @@ export function MyDataPage() {
         <Link to="/quyen-rieng-tu" className="w-fit text-body-sm text-primary underline-offset-4 hover:underline">
           {t('screen.myData.privacy')}
         </Link>
-      </section>
-      <section aria-labelledby="my-data-export" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+      </Card>
+      <Card as="section" aria-labelledby="my-data-export" className="flex flex-col gap-2">
         <h2 id="my-data-export" className="text-h3">
           {t('screen.myData.exportTitle')}
         </h2>
@@ -50,7 +51,7 @@ export function MyDataPage() {
         <a href={EXPORT_URL} download className={buttonVariants({ variant: 'secondary', className: 'w-fit' })}>
           {t('screen.myData.export')}
         </a>
-      </section>
+      </Card>
       <RegionState query={data} skeleton={<Skeleton className="h-40 w-full" />}>
         {data.data && <Deletion data={data.data} />}
       </RegionState>
@@ -63,7 +64,7 @@ function Deletion({ data }: { data: MyData }) {
   const [error, setError] = useState<string>()
   const request = useRequestDeletion()
   return (
-    <section aria-labelledby="my-data-delete" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="my-data-delete" className="flex flex-col gap-3">
       <h2 id="my-data-delete" className="text-h3">
         {t('screen.myData.deleteTitle')}
       </h2>
@@ -140,6 +141,6 @@ function Deletion({ data }: { data: MyData }) {
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
-    </section>
+    </Card>
   )
 }

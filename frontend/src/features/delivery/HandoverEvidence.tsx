@@ -29,6 +29,7 @@ import {
   type EvidenceUpdate,
   type LinkKind,
 } from './evidenceRules'
+import { Card } from '@/components/ui/card'
 
 /**
  * "Tạo bàn giao"'s evidence (FR-10, FR-32, UX-DR27, UX-DR54, Story 24.3). A Code Job's preview part: the `https`
@@ -81,12 +82,12 @@ export function EvidenceFields({
   return (
     <>
       {!assessment && <PreviewFields jobId={jobId} required={required} value={value} onChange={onChange} />}
-      <section aria-labelledby={`${ids}-evidence`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
-        <h2 id={`${ids}-evidence`} className="text-h2">
+      <Card as="section" aria-labelledby={`${ids}-evidence`} className="flex flex-col gap-4">
+        <h2 id={`${ids}-evidence`} className="text-h3">
           {t('screen.handover.links.title')}
         </h2>
         <div className="flex flex-col gap-2">
-          <h3 className="text-h3">
+          <h3 className="text-label font-semibold">
             <TermHint term="handoverLink" />
           </h3>
           <p className="text-caption text-muted-foreground">
@@ -116,7 +117,7 @@ export function EvidenceFields({
           </div>
         </div>
         <ScreenshotFields jobId={jobId} uploads={uploads} value={value} onChange={onChange} />
-      </section>
+      </Card>
     </>
   )
 }
@@ -221,8 +222,8 @@ function PreviewFields({
   const unreachable = result && !result.reachable ? t('reason.delivery.PREVIEW_UNREACHABLE') : undefined
 
   return (
-    <section aria-labelledby={`${ids}-preview`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id={`${ids}-preview`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-preview`} className="flex flex-col gap-3">
+      <h2 id={`${ids}-preview`} className="text-h3">
         <TermHint term="previewLink" />
       </h2>
       {required && <p className="text-body-sm text-muted-foreground">{t('screen.handover.preview.required')}</p>}
@@ -285,7 +286,7 @@ function PreviewFields({
           />
         </FormField>
       )}
-    </section>
+    </Card>
   )
 }
 

@@ -35,6 +35,7 @@ import {
 } from './splitApi'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card as UiCard } from '@/components/ui/card'
 
 const TONE = {
   waiting: 'bg-warning-soft text-warning',
@@ -113,13 +114,11 @@ function Card({ jobId, card, focused }: { jobId: string; card: SplitCard; focuse
   }, [focused])
   const state = stateOf(card)
   return (
-    <section
+    <UiCard
+      as="section"
       ref={ref}
       aria-labelledby={`split-${card.splitId}`}
-      className={cn(
-        'flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5',
-        focused && 'ring-2 ring-primary',
-      )}
+      className={cn('flex flex-col gap-3', focused && 'ring-2 ring-primary')}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 id={`split-${card.splitId}`} className="text-h3">
@@ -136,7 +135,7 @@ function Card({ jobId, card, focused }: { jobId: string; card: SplitCard; focuse
       <Chip card={card} />
       <Body jobId={jobId} card={card} />
       <EarlierVersions card={card} />
-    </section>
+    </UiCard>
   )
 }
 

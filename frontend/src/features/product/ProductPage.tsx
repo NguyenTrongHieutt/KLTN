@@ -19,6 +19,7 @@ import { ENDED_JOB_STATES } from './productJobs'
 import { domainOf } from './productText'
 import { SourceSetupCard } from './SourceSetupCard'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * CUS-4 (`/san-pham/{productId}`, FR-7): the Product, its Source Repository, its Jobs, and its information, with
@@ -107,7 +108,7 @@ function ProductDetail({ product }: { product: Product }) {
       <p className="text-body-sm break-words">{product.description}</p>
       <SourceSetupCard product={product} />
       <ProductJobs product={product} />
-      <section aria-labelledby="product-info-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+      <Card as="section" aria-labelledby="product-info-heading" className="flex flex-col gap-2">
         <h2 id="product-info-heading" className="text-h3">
           {t('screen.product.detail.info')}
         </h2>
@@ -134,7 +135,7 @@ function ProductDetail({ product }: { product: Product }) {
           <dt className="text-muted-foreground">{t('screen.product.detail.registered')}</dt>
           <dd>{formatDate(product.createdAt)}</dd>
         </dl>
-      </section>
+      </Card>
       <DeleteProduct product={product} />
     </>
   )

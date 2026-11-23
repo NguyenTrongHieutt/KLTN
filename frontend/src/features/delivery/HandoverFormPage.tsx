@@ -24,6 +24,7 @@ import { EvidenceFields } from './HandoverEvidence'
 import { MAX_SCREENSHOTS, NO_EVIDENCE, evidenceBody, evidenceReady, newLink, type Evidence } from './evidenceRules'
 import { SensitiveChangeList } from './SensitiveChangeList'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 interface Mark {
   met?: boolean
@@ -199,7 +200,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
             const mark = marks[criterion.criterionId] ?? { note: '' }
             const set = (next: Partial<Mark>) => setMarks({ ...marks, [criterion.criterionId]: { ...mark, ...next } })
             return (
-              <li key={criterion.criterionId} className="flex flex-col gap-2 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+              <Card as="li" key={criterion.criterionId} className="flex flex-col gap-2 text-body-sm">
                 <fieldset className="flex flex-col gap-2">
                   <legend className="font-semibold break-words">
                     {t('screen.handover.report.criterion', { n: criterion.number, statement: criterion.statement })}
@@ -242,7 +243,7 @@ function Form({ jobId, preflight, onStale }: { jobId: string; preflight: Handove
                     className={inputClass}
                   />
                 </fieldset>
-              </li>
+              </Card>
             )
           })}
         </ol>

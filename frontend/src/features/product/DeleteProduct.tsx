@@ -9,6 +9,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { useDeleteProduct, type Product, type SourceApp } from './productApi'
 import { domainOf } from './productText'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /** What CUS-2 shows once a Product is gone: its name, and the Source App guidance (R23). */
 export interface DeletedProduct {
@@ -48,7 +49,7 @@ export function DeleteProduct({ product }: { product: Product }) {
       },
     })
   return (
-    <section aria-labelledby="delete-heading" className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="delete-heading" className="flex flex-col gap-2">
       <h2 id="delete-heading" className="text-h3">
         {t('screen.product.detail.deleteHeading')}
       </h2>
@@ -94,7 +95,7 @@ export function DeleteProduct({ product }: { product: Product }) {
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
-    </section>
+    </Card>
   )
 }
 

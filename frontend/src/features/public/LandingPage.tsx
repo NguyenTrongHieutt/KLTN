@@ -7,6 +7,7 @@ import { signInUrl } from '@/features/identity/api'
 import { rich } from '@/i18n/rich'
 import { t } from '@/i18n/t'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 const STAGES = ['1', '2', '3', '4', '5', '6', '7'] as const
 
@@ -99,13 +100,13 @@ export function LandingPage() {
           <p>{t('screen.public.landing.rolesLead')}</p>
           <ul className="grid gap-3 md:grid-cols-3">
             {ROLES.map((role) => (
-              <li key={role.label} className="flex gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+              <Card as="li" key={role.label} className="flex gap-3">
                 <role.icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <h3 className="text-label font-semibold">{t(role.label)}</h3>
                   <p className="text-body-sm text-muted-foreground">{t(role.body)}</p>
                 </div>
-              </li>
+              </Card>
             ))}
           </ul>
           <a href={signInUrl()} className={cn(buttonVariants(), 'w-full md:w-auto md:self-start')}>

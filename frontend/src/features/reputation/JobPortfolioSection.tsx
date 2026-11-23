@@ -7,6 +7,7 @@ import { formatDayMonth } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { usePortfolio, useSummaryCommand, type JobPortfolio, type OwnEntry } from './portfolioApi'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-1's portfolio section from Closed (FR-50, UX-DR55): the Mentor drafts the summary, the Customer
@@ -25,8 +26,8 @@ function Content({ jobId, portfolio }: { jobId: string; portfolio: JobPortfolio 
   const date = portfolio.decideBy ? formatDayMonth(portfolio.decideBy) : ''
   const status = portfolio.summaryStatus
   return (
-    <section aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id={`${ids}-title`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-title`} className="flex flex-col gap-3">
+      <h2 id={`${ids}-title`} className="text-h3">
         {t('screen.portfolioSection.heading')}
       </h2>
       <p className="text-body-sm text-muted-foreground">{t('screen.portfolioSection.intro')}</p>
@@ -36,7 +37,7 @@ function Content({ jobId, portfolio }: { jobId: string; portfolio: JobPortfolio 
       )}
       <SummaryStatus portfolio={portfolio} date={date} />
       {portfolio.mine && <OwnEntryCard entry={portfolio.mine} />}
-    </section>
+    </Card>
   )
 }
 

@@ -12,6 +12,7 @@ import {
   type TeamIssuePanel,
   type TeamIssueRatingOption,
 } from './teamIssueApi'
+import { Card } from '@/components/ui/card'
 
 /**
  * "Khiếu nại nội bộ" in "Việc tôi tham gia" on CUS-7 (FR-79, AD-40, UX-DR63): on each Job where the member was ever
@@ -65,7 +66,7 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
   }
 
   return (
-    <article aria-labelledby={`${ids}-title`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="article" aria-labelledby={`${ids}-title`} className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
         <h3 id={`${ids}-title`} className="text-h3 break-words">
           {job.title}
@@ -131,7 +132,7 @@ function JobCard({ job }: { job: TeamIssuePanel }) {
           </div>
         </fieldset>
       )}
-    </article>
+    </Card>
   )
 }
 

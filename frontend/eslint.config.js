@@ -44,6 +44,21 @@ const noDirectHttp = {
   ],
 }
 
+// DESIGN.md components: a screen does not hand-write a card or a status pill, so every card and every pill keeps the
+// one look of components/ui (batch 9 of the redesign moved 158 cards and 14 pills onto them).
+const noHandMadeComponents = [
+  {
+    selector:
+      "JSXOpeningElement[name.name=/^(div|section|article|li|aside|ul|ol|p)$/] > JSXAttribute[name.name='className'] Literal[value=/rounded-lg/][value=/border-border/][value=/bg-card/]",
+    message: 'Use <Card> from @/components/ui/card for a card (DESIGN.md card), not hand-written classes.',
+  },
+  {
+    selector:
+      "JSXOpeningElement[name.name='span'] > JSXAttribute[name.name='className'] Literal[value=/rounded-full/][value=/bg-(warning|info|success|destructive)-soft/]",
+    message: 'Use <StatusBadge> from @/components/ui/status-badge for a status pill (DESIGN.md Status badge).',
+  },
+]
+
 export default defineConfig([
   // The client types are generated from the backend's OpenAPI document and never edited by hand.
   // Anything else placed in src/api is linted like the rest of src.
@@ -68,6 +83,12 @@ export default defineConfig([
     rules: {
       'no-restricted-syntax': ['error', ...noRawHtml],
       ...noDirectHttp,
+    },
+  },
+  {
+    files: ['src/features/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', ...noRawHtml, ...noHandMadeComponents],
     },
   },
   {

@@ -15,6 +15,7 @@ import { RefundLine } from './RefundLine'
 import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * CUS-9 (`/thanh-toan/{paymentOrderId}`, AD-14, UX-DR25): VNPay's return URL. It only displays the
@@ -63,7 +64,7 @@ function Outcome({ order, slow }: { order: PaymentOrder; slow: boolean }) {
   const outcome = OUTCOME[order.status]
   return (
     <>
-      <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card text-center px-4 py-10">
+      <Card as="section" padding="none" aria-live="polite" className="flex flex-col items-center gap-3 text-center px-4 py-10">
         {outcome === undefined ? (
           <LoaderCircle aria-hidden="true" className="size-12 animate-spin text-primary" />
         ) : outcome.tone === 'ok' ? (
@@ -99,7 +100,7 @@ function Outcome({ order, slow }: { order: PaymentOrder; slow: boolean }) {
           <dt className="text-muted-foreground">{t('screen.payment.result.time')}</dt>
           <dd>{formatDayMonthTime(order.createdAt)}</dd>
         </dl>
-      </section>
+      </Card>
       <Link to={`/cong-viec/${order.jobId}/thanh-toan`} className={buttonVariants({ variant: 'secondary', className: 'self-center' })}>
         {t('screen.payment.result.backToJob')}
       </Link>

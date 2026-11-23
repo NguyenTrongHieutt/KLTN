@@ -11,6 +11,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useGiveFeedback, useRate, useRatings, type GivenRating, type Ratee, type Ratings } from './ratingApi'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-1's Ratings from Closed (FR-49, FR-78, UX-DR27, UX-DR51, UX-DR82): the Customer and the Mentor
@@ -32,11 +33,11 @@ function Content({ jobId, ratings }: { jobId: string; ratings: Ratings }) {
   const given = ratings.ratings.filter((rating) => rating.mine)
   const received = ratings.ratings.filter((rating) => !rating.mine)
   return (
-    <section
+    <Card as="section"
       aria-labelledby={`${ids}-title`}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex flex-col gap-3"
     >
-      <h2 id={`${ids}-title`} className="text-h2">
+      <h2 id={`${ids}-title`} className="text-h3">
         {t('screen.rating.heading')}
       </h2>
       {ratings.open && ratings.toRate.length > 0 && (
@@ -54,7 +55,7 @@ function Content({ jobId, ratings }: { jobId: string; ratings: Ratings }) {
       {given.length > 0 && <RatingList title={t('screen.rating.given')} ratings={given} mine />}
       {received.length > 0 && <RatingList title={t('screen.rating.received')} ratings={received} mine={false} />}
       {crew && <PrivateFeedback jobId={jobId} ratings={ratings} />}
-    </section>
+    </Card>
   )
 }
 
@@ -171,7 +172,7 @@ function RatingForm({ jobId, ratee }: { jobId: string; ratee: Ratee }) {
 function RatingList({ title, ratings, mine }: { title: string; ratings: GivenRating[]; mine: boolean }) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-h3">{title}</h3>
+      <h3 className="text-label font-semibold">{title}</h3>
       <ul className="flex flex-col gap-2">
         {ratings.map((rating) => (
           <li

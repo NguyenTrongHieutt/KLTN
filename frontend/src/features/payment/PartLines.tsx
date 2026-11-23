@@ -7,6 +7,7 @@ import { formatVnd } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import type { BalanceLine } from './paymentApi'
 import { finalText, hasMentorLine, partyName, pendingText, pendingTone } from './partText'
+import { Card } from '@/components/ui/card'
 
 /**
  * The reader's own lines (FR-44, AD-15, AD-20, UX-DR106): MEN-7's, the second section of "Lịch sử thanh toán", and a
@@ -29,7 +30,7 @@ export function PartLines({
 }) {
   const crewColumn = crew && hasMentorLine(lines)
   return (
-    <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+    <Card padding="none" className="relative overflow-x-auto">
       <table className="w-full min-w-[640px] text-left text-body-sm">
         <thead className="text-caption text-muted-foreground">
           <tr className="border-b border-border">
@@ -106,7 +107,7 @@ export function PartLines({
           ))}
         </tbody>
       </table>
-    </div>
+    </Card>
   )
 }
 

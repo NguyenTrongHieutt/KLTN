@@ -37,6 +37,7 @@ import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 import { JobTabBody } from '@/features/job/progress/JobInfoAside'
+import { Card } from '@/components/ui/card'
 
 /**
  * The Customer's JOB-6 (FR-16, FR-17, UX-DR34): the shared versions with "Góp ý", "Lên"/"Xuống", the
@@ -190,13 +191,13 @@ function Review({ job, agreement }: { job: Job; agreement: AgreementVersion }) {
 function Status({ agreement, confirmed, latest }: { agreement: AgreementVersion; confirmed?: ConfirmedAgreement; latest: boolean }) {
   if (confirmed) {
     return (
-      <section role="status" className="flex flex-col gap-1 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <Card as="section" role="status" className="flex flex-col gap-1 text-body-sm">
         <p className="flex items-center gap-2 font-semibold">
           <CircleCheck aria-hidden="true" className="size-5 text-success" />
           {t('screen.agreement.review.confirmedLine')}
         </p>
         <p className="text-muted-foreground">{t('screen.agreement.review.confirmedAt', { time: formatDayMonthTime(confirmed.confirmedAt) })}</p>
-      </section>
+      </Card>
     )
   }
   const text = !latest
@@ -243,8 +244,8 @@ function Compare({ agreement }: { agreement: AgreementVersion }) {
     },
   ]
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 className="text-h2">{t('screen.agreement.review.compareTitle')}</h2>
+    <Card as="section" className="flex flex-col gap-2">
+      <h2 className="text-h3">{t('screen.agreement.review.compareTitle')}</h2>
       <ul className="flex flex-col gap-1.5 text-body-sm">
         {rows.map((row) => (
           <li
@@ -263,7 +264,7 @@ function Compare({ agreement }: { agreement: AgreementVersion }) {
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   )
 }
 
@@ -280,7 +281,7 @@ function CrewLine({ crew, confirmedCrew, state }: { crew: string[]; confirmedCre
     return null
   }
   return (
-    <section className="flex flex-col gap-1 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+    <Card as="section" className="flex flex-col gap-1 text-body-sm">
       <p className="flex flex-wrap items-center gap-2">
         <Users aria-hidden="true" className="size-4 text-primary" />
         <span className="font-semibold">{t('screen.crew.customer.title')}:</span>
@@ -293,20 +294,20 @@ function CrewLine({ crew, confirmedCrew, state }: { crew: string[]; confirmedCre
         )}
       </p>
       <p className="text-caption text-muted-foreground">{t('screen.crew.customer.note')}</p>
-    </section>
+    </Card>
   )
 }
 
 /** N-6, bordered, with "Cách tạm dừng đồng bộ" (draft per-builder text until OQ7). */
 function FreezeCommitment({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border-2 border-border bg-card p-4">
+    <Card className="flex flex-col gap-2 border-2">
       <label className="flex items-start gap-3 text-body-sm">
         <input type="checkbox" className="mt-1" checked={checked} onChange={(event) => onChange(event.target.checked)} />
         <span>{t('screen.agreement.review.n6')}</span>
       </label>
       <PauseSyncHelp />
-    </div>
+    </Card>
   )
 }
 

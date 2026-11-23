@@ -45,6 +45,8 @@ import { useMentorJob, type MentorJob } from './mentorJobApi'
 import { ProofList } from './ProofList'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
  * JOB-9 Tuyển thành viên (`/cong-viec/{jobId}/tuyen-thanh-vien`, FR-75, FR-81, UX-DR102, Story 21.4), for the Job's
@@ -129,14 +131,14 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
 
   if (!recruitment.available) {
     return (
-      <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
-        <h2 id={`${ids}-heading`} className="text-h2">
+      <Card as="section" aria-labelledby={`${ids}-heading`} className="flex flex-col gap-2">
+        <h2 id={`${ids}-heading`} className="text-h3">
           {t('screen.recruitment.settings')}
         </h2>
         <p role="status" className="text-body-sm text-muted-foreground">
           {t('screen.recruitment.unavailable')}
         </p>
-      </section>
+      </Card>
     )
   }
 
@@ -187,8 +189,8 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
   }
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id={`${ids}-heading`} className="text-h2">
+    <Card as="section" aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">
+      <h2 id={`${ids}-heading`} className="text-h3">
         {t('screen.recruitment.settings')}
       </h2>
       <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
@@ -279,7 +281,7 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
         onClose={() => setConfirmingOff(false)}
         onConfirm={() => send(false)}
       />
-    </section>
+    </Card>
   )
 }
 
@@ -368,14 +370,14 @@ function Applicants({ jobId }: { jobId: string }) {
         {closed.length > 0 && (
           <div className="flex flex-col gap-2">
             <h3 className="text-h3">{t('screen.recruitment.closed')}</h3>
-            <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+            <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
               {closed.map((application) => (
                 <li key={application.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-body-sm">
                   <span className="font-semibold break-words">{application.applicant.displayName}</span>
                   <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{closedLabel(application)}</span>
                 </li>
               ))}
-            </ul>
+            </Card>
           </div>
         )}
       </RegionState>
@@ -434,15 +436,15 @@ function ApplicantCardItem({
     </div>
   )
   return (
-    <li aria-labelledby={`${ids}-name`} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="li" aria-labelledby={`${ids}-name`} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span id={`${ids}-name`} className="text-label font-semibold break-words">
           {applicant.displayName}
         </span>
         {picked && application.signDueAt ? (
-          <span role="status" className="rounded-full bg-info-soft px-2.5 py-0.5 text-caption font-semibold text-info">
+          <StatusBadge tone="progress" role="status">
             {t('screen.recruitment.pickedChip', { date: formatDayMonth(application.signDueAt) })}
-          </span>
+          </StatusBadge>
         ) : (
           <span className="text-caption text-muted-foreground">
             {t('screen.recruitment.sentOn', {
@@ -507,7 +509,7 @@ function ApplicantCardItem({
           </>
         )}
       </div>
-    </li>
+    </Card>
   )
 }
 
@@ -552,7 +554,7 @@ function CrewList({ crew }: { crew: RecruitmentMember[] }) {
       {crew.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">{t('screen.recruitment.crewEmpty')}</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+        <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
           {crew.map((member) => (
             <li key={member.rowId} className="flex flex-col gap-1 px-4 py-3 text-body-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -566,7 +568,7 @@ function CrewList({ crew }: { crew: RecruitmentMember[] }) {
               )}
             </li>
           ))}
-        </ul>
+        </Card>
       )}
     </section>
   )

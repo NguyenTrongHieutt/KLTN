@@ -11,6 +11,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { AgreementContentView } from './AgreementContent'
 import { useConfirmAgreement, type AgreementContent, type AgreementDraft, type ConfirmedAgreement } from './agreementApi'
 import { inOrder, targetLabel } from './reviewTargets'
+import { Card } from '@/components/ui/card'
 
 /**
  * What the Customer said about the latest shared version, at the top of the Mentor's editor
@@ -32,8 +33,8 @@ export function CustomerFeedback({
   const request = review.changeRequest
   const order = request?.milestoneOrder
   return (
-    <section aria-labelledby="feedback-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
-      <h2 id="feedback-heading" className="flex items-center gap-2 text-h2">
+    <Card as="section" aria-labelledby="feedback-heading" className="flex flex-col gap-3">
+      <h2 id="feedback-heading" className="flex items-center gap-2 text-h3">
         <MessageSquare aria-hidden="true" className="size-5 text-primary" />
         {t('screen.agreement.review.reviewTitle', { n: review.latestVersionNo })}
       </h2>
@@ -73,7 +74,7 @@ export function CustomerFeedback({
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -117,7 +118,7 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
       },
     )
   return (
-    <section aria-labelledby="confirm-heading" className="flex w-full max-w-[1120px] flex-col gap-3 self-center rounded-lg border border-border bg-card p-4 md:p-5">
+    <Card as="section" aria-labelledby="confirm-heading" className="flex w-full max-w-[1120px] flex-col gap-3 self-center">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="confirm-heading" className="text-h3">
           {t('screen.agreement.review.confirmTitle')}
@@ -156,7 +157,7 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
         onConfirm={submit}
         onClose={() => setAsking(false)}
       />
-    </section>
+    </Card>
   )
 }
 
@@ -164,7 +165,7 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
 export function ConfirmedView({ confirmed }: { confirmed: ConfirmedAgreement }) {
   return (
     <div className="flex w-full max-w-reading-max flex-col gap-5">
-      <section role="status" className="flex flex-col gap-1 rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <Card as="section" role="status" className="flex flex-col gap-1 text-body-sm">
         <p className="flex items-center gap-2 text-h3">
           <CircleCheck aria-hidden="true" className="size-5 text-success" />
           {t('screen.agreement.review.confirmedTitle', { n: confirmed.versionNo })}
@@ -177,7 +178,7 @@ export function ConfirmedView({ confirmed }: { confirmed: ConfirmedAgreement }) 
             confirmed: formatDayMonthTime(confirmed.confirmedAt),
           })}
         </p>
-      </section>
+      </Card>
       <AgreementContentView
         content={confirmed.content}
         review={{
