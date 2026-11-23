@@ -14,10 +14,8 @@ import { todoText } from './texts'
  * no context line. It is hidden when nothing is open (never filler), while loading, and while the poll fails; it
  * cannot be dismissed.
  * @param jobId the Job whose screen is open, if any
- * @param compact the 36 px button inside a Job where the user is the Mentor or a Crew member; 44 px everywhere else
- * (UX-DR111)
  */
-export function NextActionStrip({ jobId, compact }: { jobId?: string; compact: boolean }) {
+export function NextActionStrip({ jobId }: { jobId?: string }) {
   const todos = useTodos(jobId)
   const first = todos.data?.items[0]
   if (!first || todos.isError) {
@@ -44,7 +42,7 @@ export function NextActionStrip({ jobId, compact }: { jobId?: string; compact: b
         </div>
         <Link
           to={first.link}
-          className={cn(buttonVariants({ size: compact ? 'compact' : 'default' }), 'w-full md:w-auto')}
+          className={cn(buttonVariants(), 'w-full md:w-auto')}
         >
           {t('screen.shared.todo.open')}
         </Link>

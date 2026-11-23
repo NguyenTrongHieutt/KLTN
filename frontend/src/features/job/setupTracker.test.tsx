@@ -86,7 +86,7 @@ function renderTracker() {
 }
 
 /** The copy's Actions run status row. */
-const copyRow = () => screen.getByRole('group', { name: 'Sao chép dự án gốc' })
+const copyRow = () => screen.getByRole('group', { name: 'Sao chép repo nguồn' })
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -106,20 +106,20 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Chuẩn bị repo' })).toBeInTheDocument()
     const items = within(screen.getByRole('list')).getAllByRole('listitem')
     expect(items.map((item) => item.querySelector('span')?.textContent)).toEqual([
-      'Kiểm tra ứng dụng vibefix và file workflow',
-      'Khách hàng xác nhận dự án gốc đã sạch',
-      'Tạo kho trung gian và kho làm việc (riêng tư)',
+      'Kiểm tra app vibefix và file workflow',
+      'Khách hàng xác nhận repo nguồn đã sạch',
+      'Tạo repo trung gian và repo làm việc (riêng tư)',
       'Sao chép trên GitHub Actions của khách hàng',
       'Mời trên GitHub',
-      'Cấp quyền ghi và kiểm tra',
+      'Cấp quyền write và kiểm tra',
     ])
-    expect(screen.getByText(/Đã xác nhận lần lưu/)).toHaveTextContent('Đã xác nhận lần lưu e4f5a6b')
+    expect(screen.getByText(/Đã xác nhận commit/)).toHaveTextContent('Đã xác nhận commit e4f5a6b')
     expect(screen.getByText('e4f5a6b').tagName).toBe('CODE')
     expect(screen.getByText('Bạn không cần làm gì.')).toBeInTheDocument()
-    expect(screen.getByText('Tạo kho trung gian và kho làm việc (riêng tư): Đang làm')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('Tạo repo trung gian và repo làm việc (riêng tư): Đang làm')).toHaveAttribute('aria-live', 'polite')
   })
 
   it('tells the Mentor to wait for the Customer, with no card', async () => {
@@ -144,16 +144,16 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByText('Bạn xác nhận dự án gốc đã sạch')).toBeInTheDocument()
-    expect(screen.getByText('Dự án gốc: lan-nguyen/so-dat-ban')).toBeInTheDocument()
-    expect(screen.getByText(/Lần lưu mới nhất:/)).toHaveTextContent('Lần lưu mới nhất: e4f5a6b · 14:05 13/11')
-    expect(screen.getByRole('button', { name: 'Sao chép mã lần lưu' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Xác nhận dự án gốc đã sạch' })).toBeInTheDocument()
+    expect(await screen.findByText('Bạn xác nhận repo nguồn đã sạch')).toBeInTheDocument()
+    expect(screen.getByText('Repo nguồn: lan-nguyen/so-dat-ban')).toBeInTheDocument()
+    expect(screen.getByText(/Commit mới nhất:/)).toHaveTextContent('Commit mới nhất: e4f5a6b · 14:05 13/11')
+    expect(screen.getByRole('button', { name: 'Sao chép mã commit' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Xác nhận repo nguồn đã sạch' })).toBeInTheDocument()
     const box = screen.getByRole('checkbox', {
-      name: /Tôi xác nhận: trong toàn bộ lịch sử của lan-nguyen\/so-dat-ban đến lần lưu e4f5a6b, mọi khóa bí mật/,
+      name: /Tôi xác nhận: trong toàn bộ lịch sử của lan-nguyen\/so-dat-ban đến commit e4f5a6b, mọi secret/,
     })
     expect(screen.getByRole('button', { name: 'Chưa chắc? Xem lại hướng dẫn' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Tự kiểm tra khóa bí mật trên GitHub/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Tự kiểm tra secret trên GitHub/ })).toHaveAttribute(
       'href',
       `${SOURCE_URL}/actions/workflows/vibefix.yml`,
     )
@@ -166,7 +166,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     expect(confirm).toBeEnabled()
     await user.click(confirm)
 
-    expect(await screen.findByText(/Đã xác nhận lần lưu/)).toHaveTextContent('Đã xác nhận lần lưu e4f5a6b lúc 14:05 13/11')
+    expect(await screen.findByText(/Đã xác nhận commit/)).toHaveTextContent('Đã xác nhận commit e4f5a6b lúc 14:05 13/11')
     expect(sent).toEqual([{ sha: HEAD, noticeVersion: '1.0' }])
     expect(messages.notice.selfConfirmation.version).toBe('1.0')
     expect(screen.getByText('Sao chép trên GitHub Actions của bạn')).toBeInTheDocument()
@@ -183,7 +183,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     await user.click(await screen.findByRole('checkbox'))
 
     expect(screen.getByRole('button', { name: 'Xác nhận và bắt đầu sao chép' })).toBeDisabled()
-    expect(screen.queryByText(/^Dự án gốc:/)).toBeNull()
+    expect(screen.queryByText(/^Repo nguồn:/)).toBeNull()
   })
 
   it('copies the full head and says so', async () => {
@@ -193,11 +193,11 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1/setup': () => json(confirming()) })
     renderTracker()
 
-    await user.click(await screen.findByRole('button', { name: 'Sao chép mã lần lưu' }))
+    await user.click(await screen.findByRole('button', { name: 'Sao chép mã commit' }))
 
     expect(writeText).toHaveBeenCalledWith(HEAD)
     expect(HEAD).toHaveLength(40)
-    expect(await screen.findByText('Đã sao chép mã lần lưu.')).toBeInTheDocument()
+    expect(await screen.findByText('Đã sao chép mã commit.')).toBeInTheDocument()
   })
 
   it("opens N-2's guidance in a Sheet", async () => {
@@ -232,7 +232,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     await user.click(within(dialog).getByRole('button', { name: 'Tải lại và xem' }))
 
     expect(await screen.findAllByText('f00ba12')).not.toHaveLength(0)
-    expect(screen.getByText(/Lần lưu mới nhất:/)).toHaveTextContent('Lần lưu mới nhất: f00ba12 · 14:05 13/11')
+    expect(screen.getByText(/Commit mới nhất:/)).toHaveTextContent('Commit mới nhất: f00ba12 · 14:05 13/11')
     expect(screen.getByRole('checkbox')).not.toBeChecked()
     expect(screen.getByRole('button', { name: 'Xác nhận và bắt đầu sao chép' })).toBeDisabled()
     expect(seen.filter((request) => request.method === 'POST')).toHaveLength(1)
@@ -243,7 +243,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     [
       409,
       { code: 'CONFLICT', reason: 'SETUP_NOT_CONFIRMING' },
-      'Không thể làm việc này vì dữ liệu đã thay đổi. Việc chuẩn bị kho mã không còn chờ bạn xác nhận. Hãy tải lại trang.',
+      'Không thể làm việc này vì dữ liệu đã thay đổi. Việc chuẩn bị repo không còn chờ bạn xác nhận. Hãy tải lại trang.',
     ],
     [
       409,
@@ -284,7 +284,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Dự án gốc có lần lưu mới (f00ba12) sau khi bạn xác nhận. Hãy xác nhận lại cho lần lưu này.',
+      'Repo nguồn có commit mới (f00ba12) sau khi bạn xác nhận. Hãy xác nhận lại cho commit này.',
     )
     expect(screen.getByRole('button', { name: 'Xác nhận và bắt đầu sao chép' })).toBeDisabled()
   })
@@ -297,7 +297,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     expect(await screen.findByText(/sau khi khách hàng xác nhận/)).toHaveTextContent(
-      'Dự án gốc có lần lưu mới (f00ba12) sau khi khách hàng xác nhận. Chờ khách hàng xác nhận lại cho lần lưu này.',
+      'Repo nguồn có commit mới (f00ba12) sau khi khách hàng xác nhận. Chờ khách hàng xác nhận lại cho commit này.',
     )
   })
 
@@ -315,7 +315,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    const row = await screen.findByRole('group', { name: 'Sao chép dự án gốc' })
+    const row = await screen.findByRole('group', { name: 'Sao chép repo nguồn' })
     expect(within(row).getByText(badge)).toBeInTheDocument()
     expect(within(row).queryByText('Xong')).toBeNull()
     expect(within(row).queryByText('Không chạy được')).toBeNull()
@@ -353,7 +353,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    const row = await screen.findByRole('group', { name: 'Sao chép dự án gốc' })
+    const row = await screen.findByRole('group', { name: 'Sao chép repo nguồn' })
     expect(within(row).getByText('Xong')).toHaveTextContent('Trạng thái lần chạy: Xong')
   })
 
@@ -365,7 +365,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    const row = await screen.findByRole('group', { name: 'Sao chép dự án gốc' })
+    const row = await screen.findByRole('group', { name: 'Sao chép repo nguồn' })
     expect(within(row).getByText('Không chạy được')).toBeInTheDocument()
     expect(within(row).getByText(messages.screen.job.setup.blockedACTIONS_QUOTA)).toBeInTheDocument()
     await user.click(within(row).getByRole('button', { name: 'Thử lại' }))
@@ -388,7 +388,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    const row = await screen.findByRole('group', { name: 'Sao chép dự án gốc' })
+    const row = await screen.findByRole('group', { name: 'Sao chép repo nguồn' })
     expect(within(row).getByText(text)).toBeInTheDocument()
     expect(within(row).getByText('Không chạy được')).toBeInTheDocument()
     expect(within(row).queryAllByRole('button', { name: 'Thử lại' })).toHaveLength(retry ? 1 : 0)
@@ -401,7 +401,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    const row = await screen.findByRole('group', { name: 'Sao chép dự án gốc' })
+    const row = await screen.findByRole('group', { name: 'Sao chép repo nguồn' })
     expect(await within(row).findByRole('link', { name: /Sửa file workflow/ })).toHaveAttribute(
       'href',
       `${SOURCE_URL}/edit/main/.github/workflows/vibefix.yml`,
@@ -412,22 +412,22 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
 
   it('says RUN_FAILED starts over from the confirmation of the newest commit', () => {
     expect(messages.screen.job.setup.blockedRUN_FAILED).toContain(
-      'Bấm Thử lại để bắt đầu lại từ bước xác nhận, cho lần lưu mới nhất của dự án gốc.',
+      'Bấm Thử lại để bắt đầu lại từ bước xác nhận, cho commit mới nhất của repo nguồn.',
     )
   })
 
   it.each([
-    ['RUN_FAILED', undefined, 'Lần chạy trên GitHub Actions chưa xong: sao chép dự án gốc. vibefix đã báo quản trị viên.'],
+    ['RUN_FAILED', undefined, 'Lần chạy trên GitHub Actions chưa xong: sao chép repo nguồn. vibefix đã báo quản trị viên.'],
     ['EXCHANGE_REFUSED', 'blob', messages.screen.job.setup.teamExchangeBlob],
     ['EXCHANGE_REFUSED', 'run', messages.screen.job.setup.teamEXCHANGE_REFUSED],
-    ['ACTIONS_QUOTA', undefined, 'GitHub Actions của dự án gốc đã hết số phút trong tháng, nên việc sao chép chưa chạy được.'],
+    ['ACTIONS_QUOTA', undefined, 'GitHub Actions của repo nguồn đã hết số phút trong tháng, nên việc sao chép chưa chạy được.'],
   ])("gives the Mentor a %s (%s) block's own text, never the Customer's actions", async (reason, exchangeReason, text) => {
     fakeBackend(signedInUser, {
       'GET /api/v1/jobs/j1/setup': () => json(copyBlocked(reason, { ...mentor, exchangeReason })),
     })
     renderTracker()
 
-    const row = await screen.findByRole('group', { name: 'Sao chép dự án gốc' })
+    const row = await screen.findByRole('group', { name: 'Sao chép repo nguồn' })
     expect(within(row).getByText(text)).toBeInTheDocument()
     expect(screen.queryByText(/Đang chờ khách hàng xử lý/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
@@ -444,7 +444,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     expect(
-      await screen.findByText('Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.'),
+      await screen.findByText('Tài khoản GitHub của bạn không còn quyền admin repo nguồn. Hãy lấy lại quyền rồi bấm Thử lại.'),
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Thử lại' }))
 
@@ -502,7 +502,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByText('Ứng dụng vibefix chưa được cài trên dự án gốc. Đang chờ khách hàng cài lại.')).toBeInTheDocument()
+    expect(await screen.findByText('App vibefix chưa được cài trên repo nguồn. Đang chờ khách hàng cài lại.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Mở trang sản phẩm' })).toBeNull()
   })
@@ -513,7 +513,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByText('Việc chuẩn bị kho mã đang tạm dừng.')).toBeInTheDocument()
+    expect(await screen.findByText('Việc chuẩn bị repo đang tạm dừng.')).toBeInTheDocument()
     expect(screen.queryByText(/khách hàng xử lý/)).toBeNull()
   })
 
@@ -542,14 +542,14 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     expect(await screen.findByText('Mời trên GitHub')).toBeInTheDocument()
     expect(screen.getByText('· đã chấp nhận')).toBeInTheDocument()
     expect(screen.getByText('· chờ chấp nhận lời mời · hết hạn 28/10')).toBeInTheDocument()
-    expect(screen.getByText('· cần bật xác thực hai lớp')).toBeInTheDocument()
+    expect(screen.getByText('· cần bật 2FA')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Mở trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/vibefix-dev/job-1-working/invitations',
     )
     // Spike S4 under 2FA: GitHub greys out the acceptance until it is on, so the own row says it first.
-    expect(screen.getByText(/Bật xác thực hai lớp trên GitHub trước \(nếu chưa bật\), rồi chấp nhận lời mời/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /^Bật xác thực hai lớp/ })).toHaveAttribute('href', 'https://github.com/settings/security')
+    expect(screen.getByText(/Bật 2FA trên GitHub trước \(nếu chưa bật\), rồi chấp nhận lời mời/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^Bật 2FA/ })).toHaveAttribute('href', 'https://github.com/settings/security')
     expect(screen.queryByText('Bạn không cần làm gì.')).not.toBeInTheDocument()
     expect(screen.getByText('Mời trên GitHub: Đang làm')).toHaveAttribute('aria-live', 'polite')
   })
@@ -576,14 +576,14 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     const own = (await screen.findByText('@lan-dev (bạn)')).closest('li')!
-    expect(within(own).getByText('· quyền đọc kho trung gian')).toBeInTheDocument()
+    expect(within(own).getByText('· quyền đọc repo trung gian')).toBeInTheDocument()
     expect(within(own).getByText('· chờ chấp nhận lời mời · hết hạn 28/10')).toBeInTheDocument()
     expect(within(own).getByRole('link', { name: /Mở trên GitHub/ })).toHaveAttribute(
       'href',
       'https://github.com/vibefix-dev/job-1-intermediary/invitations',
     )
-    expect(within(own).getByText(/Bật xác thực hai lớp trên GitHub trước \(nếu chưa bật\)/)).toBeInTheDocument()
-    expect(within(own).getByRole('link', { name: /^Bật xác thực hai lớp/ })).toHaveAttribute(
+    expect(within(own).getByText(/Bật 2FA trên GitHub trước \(nếu chưa bật\)/)).toBeInTheDocument()
+    expect(within(own).getByRole('link', { name: /^Bật 2FA/ })).toHaveAttribute(
       'href',
       'https://github.com/settings/security',
     )
@@ -618,7 +618,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     const own = (await screen.findByText('@lan-dev (bạn)')).closest('li')!
     expect(within(own).getByText('· đã chấp nhận')).toBeInTheDocument()
     expect(screen.queryByText(/^Không bắt buộc:/)).toBeNull()
-    expect(screen.queryByText(/Bật xác thực hai lớp trên GitHub trước/)).toBeNull()
+    expect(screen.queryByText(/Bật 2FA trên GitHub trước/)).toBeNull()
     expect(screen.getByText('Bạn không cần làm gì.')).toBeInTheDocument()
   })
 
@@ -639,11 +639,11 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     const row = (await screen.findByText('Khách hàng')).closest('li')!
-    expect(within(row).getByText('· quyền đọc kho trung gian')).toBeInTheDocument()
+    expect(within(row).getByText('· quyền đọc repo trung gian')).toBeInTheDocument()
     expect(within(row).getByText('· chờ chấp nhận lời mời · hết hạn 28/10')).toBeInTheDocument()
     expect(within(row).queryByRole('link')).toBeNull()
     expect(screen.queryByText(/^Không bắt buộc:/)).toBeNull()
-    expect(screen.queryByText(/Bật xác thực hai lớp trên GitHub trước/)).toBeNull()
+    expect(screen.queryByText(/Bật 2FA trên GitHub trước/)).toBeNull()
     // The Customer's pending read is not the Mentor's to act on.
     expect(screen.getByText('Bạn không cần làm gì.')).toBeInTheDocument()
   })
@@ -654,7 +654,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByText('Công việc không còn ở bước bắt đầu, nên việc chuẩn bị kho mã đã dừng.')).toBeInTheDocument()
+    expect(await screen.findByText('Công việc không còn ở bước bắt đầu, nên việc chuẩn bị repo đã dừng.')).toBeInTheDocument()
     expect(screen.queryByText(/quản trị viên/)).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
   })
@@ -673,17 +673,17 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Chuẩn bị repo' })).toBeInTheDocument()
     const items = within(screen.getByRole('list')).getAllByRole('listitem')
     expect(items.map((item) => item.querySelector('span')?.textContent)).toEqual([
-      'Kiểm tra ứng dụng vibefix và file workflow',
-      'Khách hàng xác nhận dự án gốc đã sạch',
-      'Tạo kho trung gian (riêng tư, chỉ đọc)',
+      'Kiểm tra app vibefix và file workflow',
+      'Khách hàng xác nhận repo nguồn đã sạch',
+      'Tạo repo trung gian (riêng tư, chỉ đọc)',
       'Sao chép trên GitHub Actions của khách hàng',
-      'Mời đọc kho trung gian trên GitHub',
+      'Mời đọc repo trung gian trên GitHub',
     ])
     expect(screen.queryByText('Mời trên GitHub')).toBeNull()
-    expect(screen.queryByText('Cấp quyền ghi và kiểm tra')).toBeNull()
+    expect(screen.queryByText('Cấp quyền write và kiểm tra')).toBeNull()
     expect(copyRow()).toBeInTheDocument()
   })
 
@@ -718,7 +718,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByText('Mời đọc kho trung gian trên GitHub')).toBeInTheDocument()
+    expect(await screen.findByText('Mời đọc repo trung gian trên GitHub')).toBeInTheDocument()
     const own = screen.getByText('Đỗ Mạnh Hùng').closest('li')!
     expect(within(own).getByRole('link', { name: /Mở trên GitHub/ })).toHaveAttribute(
       'href',
@@ -744,8 +744,8 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     await waitFor(() => expect(seen.some((request) => request.url.includes('/setup'))).toBe(true))
-    expect(screen.queryByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeNull()
-    expect(screen.queryByText('Mời đọc kho trung gian trên GitHub')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Chuẩn bị repo' })).toBeNull()
+    expect(screen.queryByText('Mời đọc repo trung gian trên GitHub')).toBeNull()
   })
 
   /** A Code Job's Verify holds J7, so by the time it is Active there is nothing of its Setup left to show. */
@@ -757,7 +757,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     renderTracker()
 
     await waitFor(() => expect(seen.some((request) => request.url.includes('/setup'))).toBe(true))
-    expect(screen.queryByRole('heading', { name: 'Chuẩn bị kho mã' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Chuẩn bị repo' })).toBeNull()
   })
 
   it('still names the Working Repository for a Code Job', async () => {
@@ -766,10 +766,10 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     })
     renderTracker()
 
-    expect(await screen.findByText('Tạo kho trung gian và kho làm việc (riêng tư)')).toBeInTheDocument()
-    expect(screen.queryByText('Tạo kho trung gian (riêng tư, chỉ đọc)')).toBeNull()
+    expect(await screen.findByText('Tạo repo trung gian và repo làm việc (riêng tư)')).toBeInTheDocument()
+    expect(screen.queryByText('Tạo repo trung gian (riêng tư, chỉ đọc)')).toBeNull()
     expect(screen.getByText('Mời trên GitHub')).toBeInTheDocument()
-    expect(screen.getByText('Cấp quyền ghi và kiểm tra')).toBeInTheDocument()
+    expect(screen.getByText('Cấp quyền write và kiểm tra')).toBeInTheDocument()
   })
 
   it('gives the Customer of an Assessment Job the published vibefix.yml to add again when theirs is too old', async () => {

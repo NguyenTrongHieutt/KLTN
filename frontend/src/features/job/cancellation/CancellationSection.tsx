@@ -123,7 +123,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
         <fieldset className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 text-body-sm">
           <legend className="px-1 text-label">{t('screen.cancellation.scope')}</legend>
           {(['JOB', 'REMAINING'] as const).map((value) => (
-            <label key={value} className="flex min-h-tap-min items-center gap-2">
+            <label key={value} className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
               <input
                 type="radio"
                 name={`${ids}-scope`}

@@ -129,7 +129,7 @@ export function SkillPicker({
       >
         <Combobox.InputGroup
           className={cn(
-            'flex min-h-tap-min w-full cursor-text flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
+            'flex min-h-tap-min md:min-h-control-compact w-full cursor-text flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
             invalid && 'border-destructive',
           )}
         >

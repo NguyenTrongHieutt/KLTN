@@ -39,7 +39,7 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
     expect(stages).toHaveTextContent('Bàn giao và nghiệm thu')
     expect(screen.getByText('Tiền trên vibefix hiện là tiền thử nghiệm')).toBeInTheDocument()
     // Story 23.5: the copies are private, and PUB-1 no longer says "public".
-    expect(screen.getByRole('heading', { name: /Mã của bạn nằm trong kho riêng tư trên GitHub/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Mã của bạn nằm trong repo riêng tư trên GitHub/ })).toBeInTheDocument()
     expect(screen.queryByText(/công khai/)).toBeNull()
     const roles = screen.getByRole('region', { name: 'Bạn đến vibefix để làm gì?' })
     expect(within(roles).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
@@ -54,12 +54,12 @@ describe('public routes (UX-DR65, UX-DR70, UX-DR26)', () => {
     )
   })
 
-  it('explains the unavoidable terms on their first occurrence', async () => {
+  it('shows terms as plain text, with no hint buttons (UX changes of 2026-11-23)', async () => {
     renderAt('/')
 
     await screen.findByRole('heading', { level: 1 })
     for (const term of ['GitHub', 'người hướng dẫn', 'giai đoạn', 'nghiệm thu']) {
-      expect(screen.getAllByRole('button', { name: term })).toHaveLength(1)
+      expect(screen.queryByRole('button', { name: term })).toBeNull()
     }
   })
 

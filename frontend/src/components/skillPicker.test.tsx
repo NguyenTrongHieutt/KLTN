@@ -26,7 +26,7 @@ const catalog = () =>
         id: 'c1',
         name: 'Giao diện web',
         skills: [
-          { id: 'react', name: 'React', hint: 'Thư viện dựng giao diện web.' },
+          { id: 'react', name: 'React', hint: 'Dependency dựng giao diện web.' },
           { id: 'ts', name: 'TypeScript', hint: 'JavaScript có kiểm tra kiểu.' },
         ],
       },

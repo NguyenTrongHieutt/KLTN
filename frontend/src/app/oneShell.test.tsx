@@ -172,7 +172,7 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
     expect(strip).toHaveTextContent('Tài khoản')
   })
 
-  it("shows only that Job's to-dos in the strip inside a Job, dense where the user is the Mentor", { timeout: 15_000 }, async () => {
+  it("shows only that Job's to-dos in the strip inside a Job, at the one density of 2026-11-23", { timeout: 15_000 }, async () => {
     const asked: (string | null)[] = []
     twoRoles({
       'GET /api/v1/todos': (request) => {
@@ -196,10 +196,10 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
     expect(strip).not.toHaveTextContent('Bạn là')
     expect(strip).not.toHaveTextContent('Tài khoản')
     expect(asked).toContain('b')
-    await waitFor(() => expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('min-h-control-compact'))
+    await waitFor(() => expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('md:min-h-control-compact'))
   })
 
-  it('keeps the Customer sizes in the strip inside a Job the user posted (UX-DR111)', { timeout: 15_000 }, async () => {
+  it('keeps 44 px on phones in the strip inside a Job the user posted (one density, 2026-11-23)', { timeout: 15_000 }, async () => {
     twoRoles({
       'GET /api/v1/todos': () =>
         json({

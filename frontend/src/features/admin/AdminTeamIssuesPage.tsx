@@ -200,7 +200,7 @@ function DecisionForm({
       <legend className="px-1 text-label">{t('screen.admin.teamIssues.decision.title')}</legend>
       <div className="flex flex-wrap gap-x-4">
         {[false, true].map((option) => (
-          <label key={String(option)} className="flex min-h-tap-min items-center gap-2">
+          <label key={String(option)} className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
             <input
               type="radio"
               name={`${ids}-rating`}

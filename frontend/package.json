@@ -10,7 +10,7 @@
     "prebuild": "npm run generate:api",
     "build": "tsc -b && vitest run && vite build && node scripts/check-static-styles.mjs",
     "test": "vitest run",
-    "lint": "eslint . && node scripts/check-eslint-bans.mjs && node scripts/check-plain-terms.mjs",
+    "lint": "eslint . && node scripts/check-eslint-bans.mjs && node scripts/check-role-words.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

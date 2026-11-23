@@ -55,7 +55,7 @@ const react = {
   categoryId: 'c1',
   categoryName: 'Giao diện web',
   name: 'React',
-  hint: 'Thư viện giao diện',
+  hint: 'Dependency giao diện',
   matchLanguages: ['JavaScript'],
   matchTools: [],
   active: true,
@@ -89,7 +89,7 @@ describe('ADM-12 Skill catalog (FR-72)', () => {
     })
     renderAt('/quan-tri/ky-nang')
 
-    expect(await screen.findByText('Thư viện giao diện')).toBeInTheDocument()
+    expect(await screen.findByText('Dependency giao diện')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Thêm kỹ năng' }))
     let dialog = await screen.findByRole('dialog', { name: 'Thêm kỹ năng' })
     await user.type(within(dialog).getByLabelText('Tên'), 'Svelte')

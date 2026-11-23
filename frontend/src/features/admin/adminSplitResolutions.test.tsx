@@ -393,7 +393,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
       expect(link).toHaveAttribute('target', '_blank')
       expect(link).toHaveAttribute('rel', 'noopener noreferrer')
       expect(within(accepted).getByText('(docs.google.com)')).toBeInTheDocument()
-      expect(within(accepted).getByRole('link', { name: 'Mở bản xem thử' })).toHaveAttribute(
+      expect(within(accepted).getByRole('link', { name: 'Mở preview' })).toHaveAttribute(
         'href',
         'https://so-dat-ban.vercel.app',
       )

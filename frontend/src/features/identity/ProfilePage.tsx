@@ -239,7 +239,7 @@ function TypedForm({ profile }: { profile: Profile }) {
             <label
               key={kind}
               className={cn(
-                'flex min-h-tap-min cursor-pointer items-center gap-2 rounded-md border px-3',
+                'flex min-h-tap-min md:min-h-control-compact cursor-pointer items-center gap-2 rounded-md border px-3',
                 values.kind === kind ? 'border-primary bg-primary-soft' : 'border-border',
               )}
             >

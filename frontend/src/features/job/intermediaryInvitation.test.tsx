@@ -65,7 +65,7 @@ describe("The Customer's read invitation link (R5, Story 23.7)", () => {
     renderPage()
 
     expect(
-      await screen.findByText('Bạn không có lời mời đọc kho trung gian nào đang mở ở công việc này.'),
+      await screen.findByText('Bạn không có lời mời đọc repo trung gian nào đang mở ở công việc này.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Về trang công việc' })).toHaveAttribute('href', '/cong-viec/j1')
     expect(redirectTo).not.toHaveBeenCalled()

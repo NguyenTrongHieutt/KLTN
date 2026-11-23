@@ -58,7 +58,7 @@ export function TabNav({ label, items, current, className }: { label: string; it
               to={item.to}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'relative flex min-h-tap-min shrink-0 items-center gap-1.5 rounded-t-md px-3 text-label whitespace-nowrap no-underline transition-colors focus-visible:-outline-offset-2',
+                'relative flex min-h-tap-min md:min-h-10 shrink-0 items-center gap-1.5 rounded-t-md px-3 text-label whitespace-nowrap no-underline transition-colors focus-visible:-outline-offset-2',
                 'after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full',
                 active
                   ? 'font-semibold text-primary after:bg-primary'

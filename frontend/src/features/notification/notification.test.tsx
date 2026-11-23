@@ -94,7 +94,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
     expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual([
       expect.stringContaining('Liên kết tài khoản GitHub'),
-      expect.stringContaining('Cài ứng dụng vibefix trên GitHub cho lan-nguyen/so-dat-ban'),
+      expect.stringContaining('Cài app vibefix trên GitHub cho lan-nguyen/so-dat-ban'),
     ])
     const tab = within(screen.getByRole('navigation', { name: 'Điều hướng nhanh' })).getByRole('link', {
       name: /Việc cần làm/,
@@ -134,7 +134,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     expect(strip).toHaveTextContent('Hạn 25/01')
     expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/san-pham/p1')
     const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
-    expect(within(list).getByRole('link', { name: /Cài ứng dụng vibefix trên GitHub cho lan-nguyen\/quan-may/ })).toHaveAttribute(
+    expect(within(list).getByRole('link', { name: /Cài app vibefix trên GitHub cho lan-nguyen\/quan-may/ })).toHaveAttribute(
       'href',
       '/san-pham/p2',
     )

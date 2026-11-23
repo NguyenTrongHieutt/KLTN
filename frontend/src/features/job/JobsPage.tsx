@@ -121,7 +121,7 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
               aria-pressed={segment === current}
               onClick={() => setParams({ 'vai-tro': segment }, { replace: true })}
               className={cn(
-                'inline-flex min-h-tap-min items-center gap-2 rounded px-3 text-label',
+                'inline-flex min-h-tap-min md:min-h-control-compact items-center gap-2 rounded-md px-3 text-label',
                 segment === current ? 'bg-card font-semibold text-foreground shadow-sm' : 'text-muted-foreground',
               )}
             >

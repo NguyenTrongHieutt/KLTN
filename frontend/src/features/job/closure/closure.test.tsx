@@ -240,11 +240,11 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     })
     expect(done).toBeChecked()
     expect(done).toBeDisabled()
-    await user.click(within(section).getByRole('checkbox', { name: 'Đã xóa các bản xem thử tôi đã triển khai' }))
+    await user.click(within(section).getByRole('checkbox', { name: 'Đã xóa các preview tôi đã triển khai' }))
     const dialog = await screen.findByRole('dialog', { name: 'Xác nhận đã xóa?' })
     await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
     await waitFor(() =>
-      expect(within(section).getByRole('checkbox', { name: /Đã xóa các bản xem thử/ })).toBeChecked(),
+      expect(within(section).getByRole('checkbox', { name: /Đã xóa các preview/ })).toBeChecked(),
     )
   })
 

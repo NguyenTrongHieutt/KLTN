@@ -38,19 +38,19 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
     renderBanner()
 
     const banner = await screen.findByRole('status')
-    expect(banner).toHaveTextContent('Đang hợp nhất bàn giao Giai đoạn 1…')
+    expect(banner).toHaveTextContent('Đang merge bàn giao Giai đoạn 1…')
     expect(banner).toHaveAttribute('aria-live', 'polite')
     expect(await screen.findByText('Đã nghiệm thu Giai đoạn 1.', {}, { timeout: 5_000 })).toBeInTheDocument()
-    expect(screen.queryByText('Đang hợp nhất bàn giao Giai đoạn 1…')).toBeNull()
+    expect(screen.queryByText('Đang merge bàn giao Giai đoạn 1…')).toBeNull()
   })
 
   it('tells the Customer plainly when the merge did not go through', { timeout: 15_000 }, async () => {
     clearsAfterOnePoll({ status: 'SUBMITTED', acceptance: 'FAILED' })
     renderBanner()
 
-    await screen.findByText('Đang hợp nhất bàn giao Giai đoạn 1…')
+    await screen.findByText('Đang merge bàn giao Giai đoạn 1…')
     // An error toast also has a copy for screen readers.
-    const failed = await screen.findAllByText('Chưa hợp nhất được. Quản trị viên đã được báo; bạn chưa cần làm gì.', {}, { timeout: 5_000 })
+    const failed = await screen.findAllByText('Chưa merge được. Quản trị viên đã được báo; bạn chưa cần làm gì.', {}, { timeout: 5_000 })
     expect(failed.length).toBeGreaterThan(0)
   })
 
@@ -58,7 +58,7 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
     clearsAfterOnePoll({ status: 'SUBMITTED', acceptance: 'VOIDED' })
     renderBanner()
 
-    await screen.findByText('Đang hợp nhất bàn giao Giai đoạn 1…')
+    await screen.findByText('Đang merge bàn giao Giai đoạn 1…')
     const voided = await screen.findAllByText(
       'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.',
       {},
@@ -97,7 +97,7 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
     })
     renderBanner()
     expect(
-      await screen.findByText('Đang chạy hợp nhất cuối trên GitHub Actions của khách hàng…'),
+      await screen.findByText('Đang chạy merge cuối trên GitHub Actions của khách hàng…'),
     ).toBeInTheDocument()
   })
 })

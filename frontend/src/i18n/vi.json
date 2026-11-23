@@ -80,7 +80,7 @@
           "OPEN_BID": "Một đơn chào giá đang mở"
         },
         "unlinkTitle": "Bỏ liên kết GitHub?",
-        "unlinkBody": "Tên tài khoản GitHub được gỡ khỏi hồ sơ của bạn ngay. Từ nay vibefix không giữ quyền GitHub nào và thu hồi quyền ngay sau khi liên kết, nên lần bỏ liên kết này không phải thu hồi gì. Nếu bạn đã liên kết trước đây, bạn có thể gỡ vibefix trong GitHub, ở mục Settings › Applications. Những việc cần GitHub, như đăng sản phẩm, chào giá hay xin vào nhóm, sẽ đóng lại cho đến khi bạn liên kết lại. Dấu mã hóa dùng để chống gian lận vẫn được giữ, như thông báo khi liên kết đã nói.",
+        "unlinkBody": "GitHub username được gỡ khỏi hồ sơ của bạn ngay. Từ nay vibefix không giữ quyền GitHub nào và thu hồi quyền ngay sau khi liên kết, nên lần bỏ liên kết này không phải thu hồi gì. Nếu bạn đã liên kết trước đây, bạn có thể gỡ vibefix trong GitHub, ở mục Settings › Applications. Những việc cần GitHub, như đăng sản phẩm, chào giá hay xin vào nhóm, sẽ đóng lại cho đến khi bạn liên kết lại. Dấu mã hóa dùng để chống gian lận vẫn được giữ, như thông báo khi liên kết đã nói.",
         "unlinkConfirm": "Bỏ liên kết",
         "unlinking": "Đang bỏ liên kết…",
         "unlinked": "Đã bỏ liên kết GitHub.",
@@ -170,11 +170,11 @@
         "removeLink": "Bỏ liên kết {n}",
         "addLink": "Thêm liên kết",
         "selfDeclared": "Tự khai",
-        "repositories": "Kho mã muốn giới thiệu",
-        "repositoriesHelper": "Tối đa 5 kho mã công khai trên GitHub, dạng chủ-sở-hữu/tên-kho. vibefix chỉ hiện đường dẫn, không đọc mã.",
-        "repositoryN": "Kho mã {n}",
-        "removeRepository": "Bỏ kho mã {n}",
-        "addRepository": "Thêm kho mã",
+        "repositories": "Repo muốn giới thiệu",
+        "repositoriesHelper": "Tối đa 5 repo công khai trên GitHub, dạng chủ-sở-hữu/tên-repo. vibefix chỉ hiện đường dẫn, không đọc mã.",
+        "repositoryN": "Repo {n}",
+        "removeRepository": "Bỏ repo {n}",
+        "addRepository": "Thêm repo",
         "hideStudentDetails": "Ẩn trường, họ tên và ngành học đã khai trên hồ sơ công khai",
         "hideHelper": "Mặc định tắt, nên trường, họ tên và ngành học bạn khai khi xác minh hiện trên hồ sơ công khai. Khi bật, chúng được ẩn; huy hiệu vẫn hiện.",
         "save": "Lưu hồ sơ",
@@ -201,12 +201,12 @@
         "title": "Hồ sơ công khai",
         "heading": "Hồ sơ công khai",
         "empty": "Bạn chưa có hồ sơ công khai.",
-        "emptyBody": "Hồ sơ công khai có địa chỉ theo tên tài khoản GitHub của bạn. Liên kết GitHub để mọi người xem được những gì bạn đã làm trên vibefix."
+        "emptyBody": "Hồ sơ công khai có địa chỉ theo GitHub username của bạn. Liên kết GitHub để mọi người xem được những gì bạn đã làm trên vibefix."
       }
     },
     "githubGate": {
       "heading": "Liên kết GitHub để {action}",
-      "why": "vibefix dùng tài khoản GitHub để cấp quyền vào kho mã và nhận ra các thao tác của bạn trên GitHub.",
+      "why": "vibefix dùng tài khoản GitHub để cấp quyền vào repo và nhận ra các thao tác của bạn trên GitHub.",
       "kept": "Những gì bạn đã nhập được giữ lại. Sau khi liên kết, bạn quay về đúng bước này.",
       "returnsHere": "Sau khi liên kết, bạn quay về đúng trang này.",
       "action": {
@@ -240,7 +240,7 @@
         "noticesHeading": "Trước khi bắt đầu",
         "testMoneyTitle": "Tiền trên vibefix hiện là tiền thử nghiệm",
         "testMoneyBody": "Mọi thanh toán dùng {vnpayTest}, không trừ tiền thật.",
-        "privateCodeTitle": "Mã của bạn nằm trong kho riêng tư trên {github}",
+        "privateCodeTitle": "Mã của bạn nằm trong repo riêng tư trên {github}",
         "privateCodeBody": "Máy chủ của vibefix không tải mã về. Chỉ bạn, người hướng dẫn bạn chọn và nhóm thực hiện của họ được cấp quyền vào các bản sao.",
         "rolesHeading": "Bạn đến vibefix để làm gì?",
         "rolesLead": "Một tài khoản cho mọi vai: đăng sản phẩm, làm người hướng dẫn, hoặc tham gia nhóm thực hiện.",
@@ -468,7 +468,7 @@
         "displayName": "Họ tên",
         "displayNamePlaceholder": "Ví dụ: Trần Minh Châu",
         "workEmail": "Email công việc",
-        "workEmailHelper": "Người mới nhận email để đặt mật khẩu và thiết lập xác thực hai lớp.",
+        "workEmailHelper": "Người mới nhận email để đặt mật khẩu và thiết lập 2FA.",
         "notice": "Mọi quản trị viên sẽ nhận cảnh báo khi có quản trị viên mới. Cần nhập mã xác thực 6 số để tạo.",
         "create": "Tạo quản trị viên",
         "confirmTitle": "Tạo quản trị viên",
@@ -539,7 +539,7 @@
         "sum": "Tổng {sum} / đang giữ {held}",
         "sumOk": "Khớp số tiền đang giữ.",
         "sumMismatch": "Chưa khớp số tiền đang giữ.",
-        "merge": "Hợp nhất: Không (chưa có bàn giao mã)",
+        "merge": "Merge: Không (chưa có bàn giao mã)",
         "next": "Bước tiếp theo",
         "nextOption": {
           "CONTINUE": "Tiếp tục",
@@ -602,9 +602,9 @@
           "autoAccepted": "Tự động chấp nhận khi hết hạn kiểm tra",
           "decidedAt": "quyết định lúc {time}",
           "carried": "Kèm theo bàn giao",
-          "preview": "Bản xem thử",
-          "openPreview": "Mở bản xem thử",
-          "noPreviewReason": "Lý do không có bản xem thử",
+          "preview": "Preview",
+          "openPreview": "Mở preview",
+          "noPreviewReason": "Lý do không có preview",
           "links": "Liên kết kèm bàn giao",
           "images": "Hình ảnh",
           "system": "vibefix",
@@ -637,14 +637,14 @@
           },
           "totals": "Đã giải ngân {released} · Còn giữ {releasable}",
           "drift": {
-            "COMMITS": "Có commit mới trên kho nguồn",
-            "DELETED_OR_PRIVATE": "Kho nguồn bị xóa hoặc chuyển sang riêng tư",
-            "GONE": "Ứng dụng vibefix không còn đến được kho nguồn {name}: kho bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi",
-            "ARCHIVED": "Kho nguồn đã được lưu trữ",
-            "RENAMED": "Kho nguồn đổi tên thành {name}",
-            "TRANSFERRED": "Kho nguồn được chuyển sang {name}",
-            "APP_UNINSTALLED": "Ứng dụng vibefix trên kho nguồn bị gỡ, bị tạm ngưng hoặc thiếu quyền",
-            "WORKFLOW_CHANGED": "File workflow vibefix.yml trong kho nguồn bị xóa hoặc sửa"
+            "COMMITS": "Có commit mới trên repo nguồn",
+            "DELETED_OR_PRIVATE": "Repo nguồn bị xóa hoặc chuyển sang riêng tư",
+            "GONE": "App vibefix không còn đến được repo nguồn {name}: repo bị xóa hoặc chuyển đi, hoặc danh sách repo của ứng dụng đã đổi",
+            "ARCHIVED": "Repo nguồn đã được lưu trữ",
+            "RENAMED": "Repo nguồn đổi tên thành {name}",
+            "TRANSFERRED": "Repo nguồn được chuyển sang {name}",
+            "APP_UNINSTALLED": "App vibefix trên repo nguồn bị gỡ, bị tạm ngưng hoặc thiếu quyền",
+            "WORKFLOW_CHANGED": "File workflow vibefix.yml trong repo nguồn bị xóa hoặc sửa"
           },
           "newer": "Mới hơn",
           "older": "Cũ hơn",
@@ -699,7 +699,7 @@
         "lockReason": "Lý do khóa",
         "lock": "Khóa tài khoản",
         "unlock": "Mở khóa",
-        "unlockNote": "Mở khóa chỉ cho đăng nhập lại; quyền vào kho mã và nhóm không tự trở lại.",
+        "unlockNote": "Mở khóa chỉ cho đăng nhập lại; quyền vào repo và nhóm không tự trở lại.",
         "feedback": "Đánh giá kín",
         "feedbackPrivate": "Chỉ quản trị viên xem được. Người hướng dẫn không biết ai đã đánh giá hay vào lúc nào.",
         "feedbackSummary": "Trung bình {average} sao trên {n} đánh giá",
@@ -720,7 +720,7 @@
         },
         "effects": {
           "lock": "Mọi phiên đăng nhập kết thúc ngay và người này nhận email kèm lý do. Họ không đăng nhập được cho đến khi được mở khóa. Người này được tính là đã rời nhóm thực hiện của mọi công việc.",
-          "unlock": "Người này đăng nhập lại được. Quyền vào kho mã và nhóm không tự trở lại."
+          "unlock": "Người này đăng nhập lại được. Quyền vào repo và nhóm không tự trở lại."
         },
         "confirm": {
           "lock": "Khóa tài khoản",
@@ -742,7 +742,7 @@
             "TEAM_ISSUE_OPEN": "Khiếu nại nội bộ chưa xong"
           },
           "lockFirst": "Nếu cần chặn ngay, hãy khóa tài khoản trước.",
-          "effects": "Xác nhận sẽ xóa hoặc ẩn danh dữ liệu của người dùng, xóa sản phẩm và kho mã của họ, chỉ giữ hồ sơ thanh toán và tranh chấp theo quy định.",
+          "effects": "Xác nhận sẽ xóa hoặc ẩn danh dữ liệu của người dùng, xóa sản phẩm và repo của họ, chỉ giữ hồ sơ thanh toán và tranh chấp theo quy định.",
           "confirm": "Xác nhận xóa tài khoản",
           "done": "Đã xóa tài khoản."
         },
@@ -789,7 +789,7 @@
       "rules": {
         "title": "Quy tắc",
         "heading": "Quy tắc nền tảng",
-        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo; mức tối đa của người hướng dẫn và số lần sửa phân chia áp dụng từ lần lưu phân chia tiếp theo.",
+        "lead": "Các giá trị này áp dụng cho công việc đăng sau khi lưu; công việc đang chạy giữ giá trị đã sao chép khi đăng. Giới hạn số việc áp dụng từ lần ứng tuyển hoặc chọn tiếp theo; mức tối đa của người hướng dẫn và số lần sửa phân chia áp dụng từ commit phân chia tiếp theo.",
         "values": "Giá trị quy tắc",
         "rule": {
           "AUTO_ACCEPTANCE_DAYS": "Số ngày trước khi tự động nghiệm thu",
@@ -1145,7 +1145,7 @@
         "statements": "Ý kiến của các bên",
         "noStatements": "Chưa có ý kiến nào.",
         "take": "Nhận xử lý",
-        "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, các lần lưu thay đổi (commit) của giai đoạn này và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
+        "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, các commit của giai đoạn này và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "alreadyDecided": "Yêu cầu này đã có quyết định.",
         "takenByOther": "Một quản trị viên khác đang xử lý. Bạn có thể nhận lại nếu cần.",
         "contentGone": "Nội dung của công việc đã xóa theo thời hạn lưu; bản ghi quyết định vẫn còn.",
@@ -1261,7 +1261,7 @@
       "empty": "Chưa có sản phẩm nào.",
       "emptyHint": "Đăng ký ứng dụng bạn đã làm bằng công cụ AI để tìm người hướng dẫn.",
       "listLabel": "Sản phẩm của bạn",
-      "source": "Dự án gốc: {name}",
+      "source": "Repo nguồn: {name}",
       "registeredOn": "Đăng ký {date}",
       "noJobs": "Chưa có công việc",
       "domain": "({domain})",
@@ -1279,46 +1279,46 @@
         "toolsLabel": "Công cụ bạn đã dùng",
         "toolsRequired": "Hãy chọn ít nhất một công cụ.",
         "helpHeading": "Đưa mã từ {tool} lên GitHub",
-        "helpLead": "vibefix làm việc với kho mã GitHub mà công cụ của bạn đồng bộ tới, công khai hay riêng tư đều được.",
+        "helpLead": "vibefix làm việc với repo GitHub mà công cụ của bạn đồng bộ tới, công khai hay riêng tư đều được.",
         "helpLink": "Mở hướng dẫn của {tool}",
-        "step1Next": "Bước 2: gắn kho mã GitHub và cài ứng dụng vibefix · Bước 3: thêm file workflow · Bước 4: tên, mô tả và bản chạy thử · Bước 5: xác nhận các lưu ý, rồi đăng ký sản phẩm.",
-        "step2Heading": "Gắn dự án gốc trên GitHub",
-        "step2Lead": "Dán đường dẫn kho mã mà công cụ của bạn đang đồng bộ, công khai hay riêng tư đều được. Rồi cài ứng dụng vibefix cho đúng kho mã đó.",
-        "urlLabel": "Đường dẫn kho mã trên GitHub",
+        "step1Next": "Bước 2: gắn repo GitHub và cài app vibefix · Bước 3: thêm file workflow · Bước 4: tên, mô tả và bản chạy thử · Bước 5: xác nhận các lưu ý, rồi đăng ký sản phẩm.",
+        "step2Heading": "Gắn repo nguồn trên GitHub",
+        "step2Lead": "Dán đường dẫn repo mà công cụ của bạn đang đồng bộ, công khai hay riêng tư đều được. Rồi cài app vibefix cho đúng repo đó.",
+        "urlLabel": "Đường dẫn repo trên GitHub",
         "urlHelper": "Ví dụ: https://github.com/ten-cua-ban/ten-du-an",
         "check": "Kiểm tra",
         "checking": "Đang kiểm tra…",
-        "installHeading": "Cài {app} trên dự án gốc",
-        "install": "Cài ứng dụng vibefix trên GitHub",
+        "installHeading": "Cài {app} trên repo nguồn",
+        "install": "Cài app vibefix trên GitHub",
         "installAgain": "Cài lại trên GitHub",
         "reselect": "Chọn lại trên GitHub",
         "opening": "Đang mở GitHub…",
-        "installHint": "Trên GitHub, chọn “Only select repositories” rồi chỉ chọn kho mã này. Sau khi cài, GitHub đưa bạn quay lại đây và vibefix kiểm tra ngay.",
-        "appMissing": "Ứng dụng vibefix chưa được cài trên {repo}. vibefix cần ứng dụng này để đọc dự án và chạy việc sao chép.",
+        "installHint": "Trên GitHub, chọn “Only select repositories” rồi chỉ chọn repo này. Sau khi cài, GitHub đưa bạn quay lại đây và vibefix kiểm tra ngay.",
+        "appMissing": "App vibefix chưa được cài trên {repo}. vibefix cần ứng dụng này để đọc dự án và chạy việc sao chép.",
         "waitingBadge": "Chờ chủ tổ chức duyệt",
-        "waiting": "Yêu cầu cài ứng dụng vibefix đang chờ chủ tổ chức {org} duyệt trên GitHub. Hãy nhờ họ chấp nhận cho đúng kho {repo}, rồi bấm “Kiểm tra”.",
+        "waiting": "Yêu cầu cài app vibefix đang chờ chủ tổ chức {org} duyệt trên GitHub. Hãy nhờ họ chấp nhận cho đúng repo {repo}, rồi bấm “Kiểm tra”.",
         "messageTitle": "Lời nhắn gửi chủ tổ chức",
-        "message": "Nhờ duyệt giúp yêu cầu cài ứng dụng vibefix cho đúng kho {repo} trên GitHub. Yêu cầu đang chờ trong phần GitHub Apps của tổ chức {org}.",
+        "message": "Nhờ duyệt giúp yêu cầu cài app vibefix cho đúng repo {repo} trên GitHub. Yêu cầu đang chờ trong phần GitHub Apps của tổ chức {org}.",
         "copyMessage": "Sao chép lời nhắn",
         "copied": "Đã sao chép.",
         "copyFailed": "Chưa sao chép được. Hãy chọn và sao chép bằng tay.",
-        "notSeen": "Chưa thấy ứng dụng vibefix được cài cho kho {repo}, cũng không có yêu cầu nào đang chờ duyệt. Nếu GitHub không cho bạn cài hay gửi yêu cầu, tổ chức {org} đang chặn việc này: hãy nhờ chủ tổ chức cho phép bạn cài ứng dụng GitHub.",
+        "notSeen": "Chưa thấy app vibefix được cài cho repo {repo}, cũng không có yêu cầu nào đang chờ duyệt. Nếu GitHub không cho bạn cài hay gửi yêu cầu, tổ chức {org} đang chặn việc này: hãy nhờ chủ tổ chức cho phép bạn cài ứng dụng GitHub.",
         "resultHeading": "Kết quả kiểm tra",
-        "checkSourceApp": "Ứng dụng vibefix được cài cho đúng kho mã này",
-        "checkFound": "Tìm thấy kho mã",
-        "checkAdmin": "Bạn có quyền quản trị kho mã này",
+        "checkSourceApp": "App vibefix được cài cho đúng repo này",
+        "checkFound": "Tìm thấy repo",
+        "checkAdmin": "Bạn có quyền admin repo này",
         "checkNotLinked": "Chưa được đăng ký cho sản phẩm khác",
         "checkContent": "Không dùng Git LFS hay submodule",
         "checkSize": "Dung lượng dưới giới hạn 250 MB",
         "checkSizePassed": "Dung lượng {size}, dưới giới hạn 250 MB",
         "notChecked": "chưa kiểm tra",
-        "forkAlert": "Kho mã này được sao từ {parent}",
+        "forkAlert": "Repo này được sao từ {parent}",
         "forkBody": "Không sao cả. vibefix chỉ làm việc với bản của bạn.",
         "continueWhenPassed": "Tiếp tục khi mọi mục kiểm tra đều đạt.",
         "step2Next": "Bước 3: thêm file workflow · Bước 4: tên, mô tả và bản chạy thử · Bước 5: xác nhận các lưu ý, rồi đăng ký sản phẩm.",
         "workflowHeading": "Thêm file workflow",
         "workflowLead": "Thêm file vibefix.yml vào {repo} một lần, đúng nội dung vibefix đưa. Nhờ nó, việc sao chép mã chạy trên GitHub Actions của dự án, không qua máy chủ của vibefix.",
-        "workflowCardHeading": "Thêm {file} vào dự án gốc",
+        "workflowCardHeading": "Thêm {file} vào repo nguồn",
         "addWorkflow": "Thêm file workflow",
         "addWorkflowHint": "GitHub không mang được nội dung file trong đường dẫn, nên hãy bấm “Sao chép nội dung”, mở “Thêm file workflow”, dán vào ô nội dung của tệp {path}, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra”.",
         "editWorkflow": "Sửa file workflow",
@@ -1338,12 +1338,12 @@
         "secret": {
           "SUPABASE": "Khóa của Supabase",
           "FIREBASE": "Khóa của Firebase",
-          "OPENAI": "Khóa API của OpenAI",
+          "OPENAI": "API key của OpenAI",
           "VNPAY": "Mã bí mật của VNPay"
         },
         "secretLink": "Mở trang khóa của {provider}",
         "selfScanTerm": "{term} (gitleaks, không bắt buộc)",
-        "selfScan": "Tự kiểm tra khóa bí mật trên GitHub",
+        "selfScan": "Tự kiểm tra secret trên GitHub",
         "selfScanHint": "Mở trang Actions của dự án, chọn vibefix, bấm “Run workflow” và chọn scan. Kết quả chỉ hiện trên GitHub của bạn.",
         "continueWhenMatches": "Tiếp tục khi file workflow đúng bản vibefix công bố.",
         "step3Next": "Bước 4: tên, mô tả và bản chạy thử · Bước 5: xác nhận các lưu ý, rồi đăng ký sản phẩm.",
@@ -1358,7 +1358,7 @@
         "noticesHeading": "Xác nhận các lưu ý",
         "noticesLead": "Đọc và đánh dấu từng mục. vibefix lưu phiên bản của lưu ý cùng sản phẩm.",
         "afterHeading": "Sau khi bấm \"Đăng ký sản phẩm\"",
-        "afterBody": "Sản phẩm được đăng ký ngay, và bạn đăng được công việc cho nó. vibefix không quét mã của bạn. Hãy giữ ứng dụng vibefix và file workflow trong dự án gốc cho đến khi bạn xóa sản phẩm.",
+        "afterBody": "Sản phẩm được đăng ký ngay, và bạn đăng được công việc cho nó. vibefix không quét mã của bạn. Hãy giữ app vibefix và file workflow trong repo nguồn cho đến khi bạn xóa sản phẩm.",
         "tickAll": "Đánh dấu đủ 3 mục để đăng ký.",
         "submit": "Đăng ký sản phẩm",
         "submitting": "Đang đăng ký…",
@@ -1376,19 +1376,19 @@
         "OTHER": "Công cụ khác"
       },
       "toolHelp": {
-        "LOVABLE": "Trong Lovable, mở dự án, chọn GitHub rồi Connect to GitHub để tạo kho mã. Lovable tự đồng bộ mã mỗi lần bạn sửa. Kho mã để riêng tư cũng được.",
-        "BOLT": "Trong Bolt, bấm biểu tượng GitHub, kết nối tài khoản và tạo kho mã mới. Kho mã để riêng tư cũng được.",
-        "REPLIT": "Trong Replit, mở công cụ Git, kết nối GitHub và đẩy mã lên một kho mã mới, công khai hay riêng tư đều được.",
-        "V0": "Trong v0, dùng nút GitHub của dự án để tạo kho mã và đồng bộ mã. Kho mã để riêng tư cũng được.",
-        "BASE44": "vibefix chưa nhận mã trực tiếp từ Base44. Nếu bạn xuất được mã lên một kho mã GitHub, hãy dán đường dẫn đó ở bước 2.",
-        "CURSOR": "Cursor làm việc với mã trên máy bạn. Dùng Git trong Cursor để đẩy mã lên một kho mã GitHub, công khai hay riêng tư đều được.",
-        "CLAUDE_CODE": "Claude Code làm việc trong thư mục mã của bạn. Đẩy mã lên một kho mã GitHub bằng Git, công khai hay riêng tư đều được.",
-        "CODEX": "Codex làm việc trên kho mã GitHub của bạn. Dán đường dẫn của kho mã đó ở bước 2.",
-        "OTHER": "vibefix cần mã nguồn trên một kho mã GitHub, công khai hay riêng tư đều được. Đưa mã của bạn lên GitHub rồi quay lại."
+        "LOVABLE": "Trong Lovable, mở dự án, chọn GitHub rồi Connect to GitHub để tạo repo. Lovable tự đồng bộ mã mỗi lần bạn sửa. Repo để riêng tư cũng được.",
+        "BOLT": "Trong Bolt, bấm biểu tượng GitHub, kết nối tài khoản và tạo repo mới. Repo để riêng tư cũng được.",
+        "REPLIT": "Trong Replit, mở công cụ Git, kết nối GitHub và đẩy mã lên một repo mới, công khai hay riêng tư đều được.",
+        "V0": "Trong v0, dùng nút GitHub của dự án để tạo repo và đồng bộ mã. Repo để riêng tư cũng được.",
+        "BASE44": "vibefix chưa nhận mã trực tiếp từ Base44. Nếu bạn xuất được mã lên một repo GitHub, hãy dán đường dẫn đó ở bước 2.",
+        "CURSOR": "Cursor làm việc với mã trên máy bạn. Dùng Git trong Cursor để đẩy mã lên một repo GitHub, công khai hay riêng tư đều được.",
+        "CLAUDE_CODE": "Claude Code làm việc trong thư mục mã của bạn. Đẩy mã lên một repo GitHub bằng Git, công khai hay riêng tư đều được.",
+        "CODEX": "Codex làm việc trên repo GitHub của bạn. Dán đường dẫn của repo đó ở bước 2.",
+        "OTHER": "vibefix cần mã nguồn trên một repo GitHub, công khai hay riêng tư đều được. Đưa mã của bạn lên GitHub rồi quay lại."
       },
       "detail": {
         "breadcrumb": "Sản phẩm",
-        "openSource": "Mở dự án gốc",
+        "openSource": "Mở repo nguồn",
         "info": "Thông tin",
         "madeWith": "Làm bằng:",
         "demo": "Bản chạy:",
@@ -1396,39 +1396,39 @@
         "forkOf": "Sao từ:",
         "noDemo": "Chưa có",
         "deleteHeading": "Xóa sản phẩm",
-        "deleteBody": "Chỉ xóa được khi không còn công việc đang thực hiện. Dự án gốc trên GitHub không bị ảnh hưởng.",
+        "deleteBody": "Chỉ xóa được khi không còn công việc đang thực hiện. Repo nguồn trên GitHub không bị ảnh hưởng.",
         "delete": "Xóa sản phẩm",
         "deleteTitle": "Xóa {product}?",
         "deleteWhat": "Những gì sẽ bị xóa",
         "deleteInfo": "Thông tin sản phẩm và các lưu ý bạn đã xác nhận",
-        "deleteBinding": "Liên kết giữa sản phẩm và ứng dụng vibefix trên dự án gốc",
-        "deleteGithub": "Dự án gốc trên GitHub không bị ảnh hưởng.",
+        "deleteBinding": "Liên kết giữa sản phẩm và app vibefix trên repo nguồn",
+        "deleteGithub": "Repo nguồn trên GitHub không bị ảnh hưởng.",
         "deleteBack": "Quay lại",
         "deleted": "Đã xóa {product}.",
-        "appGuidanceHeading": "Ứng dụng vibefix trên GitHub",
-        "appDeselect": "vibefix không tự gỡ ứng dụng vibefix. Trên GitHub, bỏ chọn {repo} khỏi các kho mã của ứng dụng: sản phẩm khác của bạn vẫn dùng ứng dụng này.",
-        "appUninstall": "vibefix không tự gỡ ứng dụng vibefix. Không còn sản phẩm nào dùng nó, nên hãy gỡ ứng dụng trên GitHub (Uninstall ở cuối trang).",
+        "appGuidanceHeading": "App vibefix trên GitHub",
+        "appDeselect": "vibefix không tự gỡ app vibefix. Trên GitHub, bỏ chọn {repo} khỏi các repo của ứng dụng: sản phẩm khác của bạn vẫn dùng ứng dụng này.",
+        "appUninstall": "vibefix không tự gỡ app vibefix. Không còn sản phẩm nào dùng nó, nên hãy gỡ ứng dụng trên GitHub (Uninstall ở cuối trang).",
         "appSettings": "Mở cài đặt ứng dụng trên GitHub",
         "deletedGuidance": "Đã xóa {product}. Còn một việc trên GitHub:",
         "postJob": "Đăng công việc"
       },
       "status": {
-        "prefix": "Ứng dụng vibefix và file workflow: ",
+        "prefix": "App vibefix và file workflow: ",
         "READY": "Sẵn sàng",
-        "SOURCE_APP_MISSING": "Chưa cài ứng dụng vibefix",
-        "SOURCE_APP_WRONG_REPOSITORY": "Chưa cài ứng dụng vibefix",
+        "SOURCE_APP_MISSING": "Chưa cài app vibefix",
+        "SOURCE_APP_WRONG_REPOSITORY": "Chưa cài app vibefix",
         "WORKFLOW_MISSING": "Thiếu file workflow",
         "WORKFLOW_MISMATCH": "File workflow khác bản mẫu"
       },
       "setup": {
-        "heading": "Ứng dụng vibefix và file workflow",
+        "heading": "App vibefix và file workflow",
         "checkedAt": "Kiểm tra lần cuối lúc {time}",
         "neverChecked": "Chưa kiểm tra",
         "recheck": "Kiểm tra lại",
         "rechecking": "Đang kiểm tra…",
-        "ready": "Ứng dụng vibefix được cài cho đúng kho {repo}, và file workflow đúng bản vibefix công bố.",
-        "notChecked": "vibefix chưa kiểm tra ứng dụng vibefix và file workflow của {repo}. Bấm “Kiểm tra lại” để kiểm tra ngay.",
-        "wrongRepository": "Ứng dụng vibefix phải được cài cho {repo}. Trên GitHub, chọn “Only select repositories”, rồi chọn {repo} trong danh sách. Các kho khác bạn đã chọn cứ để nguyên.",
+        "ready": "App vibefix được cài cho đúng repo {repo}, và file workflow đúng bản vibefix công bố.",
+        "notChecked": "vibefix chưa kiểm tra app vibefix và file workflow của {repo}. Bấm “Kiểm tra lại” để kiểm tra ngay.",
+        "wrongRepository": "App vibefix phải được cài cho {repo}. Trên GitHub, chọn “Only select repositories”, rồi chọn {repo} trong danh sách. Các repo khác bạn đã chọn cứ để nguyên.",
         "installReturn": "Sau khi cài, GitHub đưa bạn về trang Sản phẩm. Mở lại sản phẩm này và bấm “Kiểm tra lại”.",
         "reselectHint": "Sau khi chọn lại trên GitHub, quay lại đây và bấm “Kiểm tra lại”.",
         "addWorkflowHint": "GitHub không mang được nội dung file trong đường dẫn, nên hãy bấm “Sao chép nội dung”, mở “Thêm file workflow”, dán vào ô nội dung của tệp {path}, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Kiểm tra lại”.",
@@ -1439,55 +1439,55 @@
     },
     "job": {
       "busy": {
-        "ACCEPTANCE": "Đang hợp nhất bàn giao Giai đoạn {n}…",
+        "ACCEPTANCE": "Đang merge bàn giao Giai đoạn {n}…",
         "SETTLEMENT": "Đang tất toán công việc…",
-        "FINAL_MERGE": "Đang chạy hợp nhất cuối trên GitHub Actions của khách hàng…",
+        "FINAL_MERGE": "Đang chạy merge cuối trên GitHub Actions của khách hàng…",
         "FINAL_MERGE_CUSTOMER": "Đang chép mã vào một nhánh mới của dự án bạn, trên GitHub Actions của bạn…",
         "mergedCustomer": "Mã đã được chép vào nhánh mới của dự án bạn.",
         "done": "Việc đang chạy đã xong."
       },
       "drift": {
-        "title": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại.",
-        "kindCOMMITS": "Có {n} thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày {date}).",
-        "kindGONE": "Ứng dụng vibefix không còn đến được dự án gốc {name}: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày {date}). Cần sửa lại trên GitHub để ứng dụng có chọn dự án này.",
-        "kindARCHIVED": "Dự án gốc đã được lưu trữ trên GitHub, nên không nhận thay đổi mới (ghi nhận ngày {date}).",
-        "kindRENAMED": "Dự án gốc đã đổi tên thành {name} (ghi nhận ngày {date}).",
-        "kindTRANSFERRED": "Dự án gốc đã được chuyển sang {name} (ghi nhận ngày {date}).",
-        "kindAPP_UNINSTALLED": "Ứng dụng vibefix trên dự án gốc đã bị gỡ, bị tạm ngưng hoặc thiếu quyền cần có, nên vibefix không còn đọc được dự án (ghi nhận ngày {date}). Cần cài lại hoặc bật lại ứng dụng vibefix trên GitHub và chấp nhận đủ quyền.",
-        "kindWORKFLOW_CHANGED": "File workflow vibefix.yml trong dự án gốc đã bị xóa hoặc sửa khác bản vibefix công bố (ghi nhận ngày {date}). Cần thêm lại đúng file trên GitHub.",
-        "meaning": "Nếu dự án gốc tiếp tục thay đổi, việc hợp nhất cuối có thể thất bại; khi đó bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub về máy. Hãy tạm dừng đồng bộ của công cụ AI cho đến khi bạn nhận mã.",
-        "reconfirmLead": "Hãy xác nhận lại dự án gốc ở tên mới, để vibefix hợp nhất cuối vào đúng kho mã của bạn.",
-        "reconfirm": "Xác nhận lại dự án gốc",
-        "reconfirmAction": "xác nhận lại dự án gốc"
+        "title": "Repo nguồn vừa thay đổi trong lúc nhóm đang làm. Việc merge cuối có thể thất bại.",
+        "kindCOMMITS": "Có {n} thay đổi mới trong repo nguồn kể từ khi công việc bắt đầu (ghi nhận ngày {date}).",
+        "kindGONE": "App vibefix không còn đến được repo nguồn {name}: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách repo của ứng dụng đã đổi (ghi nhận ngày {date}). Cần sửa lại trên GitHub để ứng dụng có chọn dự án này.",
+        "kindARCHIVED": "Repo nguồn đã được lưu trữ trên GitHub, nên không nhận thay đổi mới (ghi nhận ngày {date}).",
+        "kindRENAMED": "Repo nguồn đã đổi tên thành {name} (ghi nhận ngày {date}).",
+        "kindTRANSFERRED": "Repo nguồn đã được chuyển sang {name} (ghi nhận ngày {date}).",
+        "kindAPP_UNINSTALLED": "App vibefix trên repo nguồn đã bị gỡ, bị tạm ngưng hoặc thiếu quyền cần có, nên vibefix không còn đọc được dự án (ghi nhận ngày {date}). Cần cài lại hoặc bật lại app vibefix trên GitHub và chấp nhận đủ quyền.",
+        "kindWORKFLOW_CHANGED": "File workflow vibefix.yml trong repo nguồn đã bị xóa hoặc sửa khác bản vibefix công bố (ghi nhận ngày {date}). Cần thêm lại đúng file trên GitHub.",
+        "meaning": "Nếu repo nguồn tiếp tục thay đổi, việc merge cuối có thể thất bại; khi đó bạn vẫn tự tải mã đã hoàn thiện từ repo trung gian trên GitHub về máy. Hãy tạm dừng đồng bộ của công cụ AI cho đến khi bạn nhận mã.",
+        "reconfirmLead": "Hãy xác nhận lại repo nguồn ở tên mới, để vibefix merge cuối vào đúng repo của bạn.",
+        "reconfirm": "Xác nhận lại repo nguồn",
+        "reconfirmAction": "xác nhận lại repo nguồn"
       },
       "intermediary": {
-        "title": "Lời mời đọc kho trung gian",
+        "title": "Lời mời đọc repo trung gian",
         "opening": "Đang mở lời mời trên GitHub…",
         "open": "Mở trên GitHub (github.com)",
-        "none": "Bạn không có lời mời đọc kho trung gian nào đang mở ở công việc này.",
+        "none": "Bạn không có lời mời đọc repo trung gian nào đang mở ở công việc này.",
         "back": "Về trang công việc"
       },
       "setup": {
-        "title": "Chuẩn bị kho mã",
-        "stepCHECK": "Kiểm tra ứng dụng vibefix và file workflow",
-        "stepCONFIRM": "Khách hàng xác nhận dự án gốc đã sạch",
-        "stepCONFIRMCustomer": "Bạn xác nhận dự án gốc đã sạch",
-        "stepREPOSITORIES": "Tạo kho trung gian và kho làm việc (riêng tư)",
-        "stepREPOSITORIESAssessment": "Tạo kho trung gian (riêng tư, chỉ đọc)",
+        "title": "Chuẩn bị repo",
+        "stepCHECK": "Kiểm tra app vibefix và file workflow",
+        "stepCONFIRM": "Khách hàng xác nhận repo nguồn đã sạch",
+        "stepCONFIRMCustomer": "Bạn xác nhận repo nguồn đã sạch",
+        "stepREPOSITORIES": "Tạo repo trung gian và repo làm việc (riêng tư)",
+        "stepREPOSITORIESAssessment": "Tạo repo trung gian (riêng tư, chỉ đọc)",
         "stepCOPY": "Sao chép trên GitHub Actions của bạn",
         "stepCOPYTeam": "Sao chép trên GitHub Actions của khách hàng",
         "stepINVITE": "Mời trên GitHub",
-        "stepINVITEAssessment": "Mời đọc kho trung gian trên GitHub",
-        "stepVERIFY": "Cấp quyền ghi và kiểm tra",
+        "stepINVITEAssessment": "Mời đọc repo trung gian trên GitHub",
+        "stepVERIFY": "Cấp quyền write và kiểm tra",
         "personINVITING": "đang gửi lời mời",
         "personINVITED": "chờ chấp nhận lời mời · hết hạn {date}",
-        "personTWO_FACTOR_MISSING": "cần bật xác thực hai lớp",
+        "personTWO_FACTOR_MISSING": "cần bật 2FA",
         "personACCEPTED": "đã chấp nhận",
-        "personWRITE": "đã có quyền ghi",
+        "personWRITE": "đã có quyền write",
         "personMEMBER_DRIFT": "đang chờ quản trị viên xử lý trên GitHub",
         "personCustomer": "Khách hàng",
         "personCustomerOwn": "{login} (bạn)",
-        "customerRead": "quyền đọc kho trung gian",
+        "customerRead": "quyền đọc repo trung gian",
         "customerOptional": "Không bắt buộc: công việc vẫn bắt đầu khi bạn chưa chấp nhận, và bạn vẫn xem bàn giao trên vibefix.",
         "openGitHub": "Mở trên GitHub",
         "stateDONE": "Xong",
@@ -1496,26 +1496,26 @@
         "stateBLOCKED": "Đang dừng",
         "stateFAILED": "Chưa làm được",
         "announce": "{step}: {state}",
-        "allDone": "Đã chuẩn bị xong kho mã",
+        "allDone": "Đã chuẩn bị xong repo",
         "nothingToDo": "Bạn không cần làm gì.",
-        "ownInvitedHint": "Bật xác thực hai lớp trên GitHub trước (nếu chưa bật), rồi chấp nhận lời mời. Khi chưa bật, GitHub làm mờ nút chấp nhận.",
-        "enableTwoFactor": "Bật xác thực hai lớp",
+        "ownInvitedHint": "Bật 2FA trên GitHub trước (nếu chưa bật), rồi chấp nhận lời mời. Khi chưa bật, GitHub làm mờ nút chấp nhận.",
+        "enableTwoFactor": "Bật 2FA",
         "githubDomain": "(github.com)",
         "waitingConfirmation": "Chờ khách hàng xác nhận",
-        "confirmedTeam": "Đã xác nhận lần lưu {sha}",
-        "confirmedCustomer": "Đã xác nhận lần lưu {sha} lúc {time}",
-        "headMovedTeam": "Dự án gốc có lần lưu mới ({sha}) sau khi khách hàng xác nhận. Chờ khách hàng xác nhận lại cho lần lưu này.",
+        "confirmedTeam": "Đã xác nhận commit {sha}",
+        "confirmedCustomer": "Đã xác nhận commit {sha} lúc {time}",
+        "headMovedTeam": "Repo nguồn có commit mới ({sha}) sau khi khách hàng xác nhận. Chờ khách hàng xác nhận lại cho commit này.",
         "card": {
-          "source": "Dự án gốc: {repo}",
-          "head": "Lần lưu mới nhất: {sha} · {date}",
-          "copySha": "Sao chép mã lần lưu",
-          "shaCopied": "Đã sao chép mã lần lưu.",
-          "copyFailed": "Chưa sao chép được mã lần lưu. Hãy chọn và sao chép bằng tay.",
-          "headMoved": "Dự án gốc có lần lưu mới ({sha}) sau khi bạn xác nhận. Hãy xác nhận lại cho lần lưu này.",
+          "source": "Repo nguồn: {repo}",
+          "head": "Commit mới nhất: {sha} · {date}",
+          "copySha": "Sao chép mã commit",
+          "shaCopied": "Đã sao chép mã commit.",
+          "copyFailed": "Chưa sao chép được mã commit. Hãy chọn và sao chép bằng tay.",
+          "headMoved": "Repo nguồn có commit mới ({sha}) sau khi bạn xác nhận. Hãy xác nhận lại cho commit này.",
           "guidance": "Chưa chắc? Xem lại hướng dẫn",
           "guidanceTitle": "Tự kiểm tra trước khi người khác đọc mã",
           "confirm": "Xác nhận và bắt đầu sao chép",
-          "staleBody": "Dự án gốc có lần lưu mới sau khi trang này hiện lần lưu cần xác nhận, nên lần xác nhận của bạn chưa được gửi. Hãy xem lần lưu mới rồi xác nhận lại.",
+          "staleBody": "Repo nguồn có commit mới sau khi trang này hiện commit cần xác nhận, nên lần xác nhận của bạn chưa được gửi. Hãy xem commit mới rồi xác nhận lại.",
           "noticeChanged": "Lưu ý xác nhận vừa được cập nhật, nên lần xác nhận của bạn chưa được gửi. Hãy tải lại trang để đọc bản mới rồi xác nhận lại.",
           "reload": "Tải lại trang"
         },
@@ -1523,35 +1523,35 @@
         "editWorkflowHint": "Tệp {path} đã có trong dự án, và trang sửa của GitHub không điền sẵn được nội dung. Bấm “Sao chép nội dung”, mở “Sửa file workflow”, thay toàn bộ nội dung cũ bằng nội dung vừa chép, bấm “Commit changes” trên GitHub, rồi quay lại đây và bấm “Thử lại”.",
         "openProduct": "Mở trang sản phẩm",
         "busyOperation": "việc đang chạy trên công việc này",
-        "blockedSOURCE_APP_MISSING": "Ứng dụng vibefix chưa được cài trên dự án gốc. Hãy cài lại ứng dụng cho đúng kho mã đó trên GitHub rồi bấm Thử lại.",
-        "blockedSOURCE_APP_WRONG_REPOSITORY": "Ứng dụng vibefix phải được cài cho đúng dự án gốc. Hãy chọn lại trên GitHub: chọn “Only select repositories”, chỉ chọn dự án gốc, rồi bấm Thử lại.",
-        "blockedWORKFLOW_MISSING": "Dự án gốc chưa có file workflow vibefix.yml. Hãy thêm lại file trên GitHub rồi bấm Thử lại.",
-        "blockedWORKFLOW_MISMATCH": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố. Hãy thêm lại file đúng nội dung rồi bấm Thử lại.",
-        "blockedWORKFLOW_TOO_OLD": "File workflow vibefix.yml trong dự án gốc là bản cũ, chưa sao chép được vào một kho chỉ đọc. Hãy thêm lại bản vibefix công bố mới nhất rồi bấm Thử lại.",
-        "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền quản trị dự án gốc. Hãy lấy lại quyền rồi bấm Thử lại.",
-        "blockedExchangeBlob": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố, nên GitHub Actions không được chạy việc này. Hãy thêm lại file đúng bản vibefix công bố trên GitHub rồi bấm Thử lại.",
+        "blockedSOURCE_APP_MISSING": "App vibefix chưa được cài trên repo nguồn. Hãy cài lại ứng dụng cho đúng repo đó trên GitHub rồi bấm Thử lại.",
+        "blockedSOURCE_APP_WRONG_REPOSITORY": "App vibefix phải được cài cho đúng repo nguồn. Hãy chọn lại trên GitHub: chọn “Only select repositories”, chỉ chọn repo nguồn, rồi bấm Thử lại.",
+        "blockedWORKFLOW_MISSING": "Repo nguồn chưa có file workflow vibefix.yml. Hãy thêm lại file trên GitHub rồi bấm Thử lại.",
+        "blockedWORKFLOW_MISMATCH": "File workflow vibefix.yml trong repo nguồn khác bản vibefix công bố. Hãy thêm lại file đúng nội dung rồi bấm Thử lại.",
+        "blockedWORKFLOW_TOO_OLD": "File workflow vibefix.yml trong repo nguồn là bản cũ, chưa sao chép được vào một repo chỉ đọc. Hãy thêm lại bản vibefix công bố mới nhất rồi bấm Thử lại.",
+        "blockedNO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không còn quyền admin repo nguồn. Hãy lấy lại quyền rồi bấm Thử lại.",
+        "blockedExchangeBlob": "File workflow vibefix.yml trong repo nguồn khác bản vibefix công bố, nên GitHub Actions không được chạy việc này. Hãy thêm lại file đúng bản vibefix công bố trên GitHub rồi bấm Thử lại.",
         "blockedEXCHANGE_REFUSED": "GitHub chưa xác nhận được lần chạy này. vibefix đã báo quản trị viên; bạn chưa cần làm gì.",
-        "blockedRUN_FAILED": "Lần chạy trên GitHub Actions chưa xong: sao chép dự án gốc. vibefix đã báo quản trị viên. Bấm Thử lại để bắt đầu lại từ bước xác nhận, cho lần lưu mới nhất của dự án gốc.",
-        "blockedACTIONS_QUOTA": "GitHub Actions của dự án gốc đã hết số phút trong tháng, nên việc sao chép chưa chạy được. Hãy thử lại khi GitHub cấp thêm phút, hoặc nâng gói trên GitHub.",
-        "blockedUnknown": "Việc chuẩn bị kho mã đang dừng. Hãy bấm Thử lại.",
-        "teamSOURCE_APP_MISSING": "Ứng dụng vibefix chưa được cài trên dự án gốc. Đang chờ khách hàng cài lại.",
-        "teamSOURCE_APP_WRONG_REPOSITORY": "Ứng dụng vibefix phải được cài cho đúng dự án gốc. Đang chờ khách hàng chọn lại trên GitHub.",
-        "teamWORKFLOW_MISSING": "Dự án gốc chưa có file workflow vibefix.yml. Đang chờ khách hàng thêm lại file.",
-        "teamWORKFLOW_MISMATCH": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố. Đang chờ khách hàng thêm lại file.",
-        "teamWORKFLOW_TOO_OLD": "File workflow vibefix.yml trong dự án gốc là bản cũ, chưa sao chép được vào một kho chỉ đọc. Đang chờ khách hàng thêm lại bản mới nhất.",
-        "teamNO_ADMIN_PERMISSION": "Tài khoản GitHub của khách hàng không còn quyền quản trị dự án gốc. Đang chờ khách hàng lấy lại quyền.",
-        "teamExchangeBlob": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố, nên GitHub Actions không được chạy việc sao chép. Đang chờ khách hàng thêm lại file.",
+        "blockedRUN_FAILED": "Lần chạy trên GitHub Actions chưa xong: sao chép repo nguồn. vibefix đã báo quản trị viên. Bấm Thử lại để bắt đầu lại từ bước xác nhận, cho commit mới nhất của repo nguồn.",
+        "blockedACTIONS_QUOTA": "GitHub Actions của repo nguồn đã hết số phút trong tháng, nên việc sao chép chưa chạy được. Hãy thử lại khi GitHub cấp thêm phút, hoặc nâng gói trên GitHub.",
+        "blockedUnknown": "Việc chuẩn bị repo đang dừng. Hãy bấm Thử lại.",
+        "teamSOURCE_APP_MISSING": "App vibefix chưa được cài trên repo nguồn. Đang chờ khách hàng cài lại.",
+        "teamSOURCE_APP_WRONG_REPOSITORY": "App vibefix phải được cài cho đúng repo nguồn. Đang chờ khách hàng chọn lại trên GitHub.",
+        "teamWORKFLOW_MISSING": "Repo nguồn chưa có file workflow vibefix.yml. Đang chờ khách hàng thêm lại file.",
+        "teamWORKFLOW_MISMATCH": "File workflow vibefix.yml trong repo nguồn khác bản vibefix công bố. Đang chờ khách hàng thêm lại file.",
+        "teamWORKFLOW_TOO_OLD": "File workflow vibefix.yml trong repo nguồn là bản cũ, chưa sao chép được vào một repo chỉ đọc. Đang chờ khách hàng thêm lại bản mới nhất.",
+        "teamNO_ADMIN_PERMISSION": "Tài khoản GitHub của khách hàng không còn quyền admin repo nguồn. Đang chờ khách hàng lấy lại quyền.",
+        "teamExchangeBlob": "File workflow vibefix.yml trong repo nguồn khác bản vibefix công bố, nên GitHub Actions không được chạy việc sao chép. Đang chờ khách hàng thêm lại file.",
         "teamEXCHANGE_REFUSED": "GitHub chưa xác nhận được lần chạy này. vibefix đã báo quản trị viên; bạn chưa cần làm gì.",
-        "teamRUN_FAILED": "Lần chạy trên GitHub Actions chưa xong: sao chép dự án gốc. vibefix đã báo quản trị viên.",
-        "teamACTIONS_QUOTA": "GitHub Actions của dự án gốc đã hết số phút trong tháng, nên việc sao chép chưa chạy được.",
-        "teamUnknown": "Việc chuẩn bị kho mã đang tạm dừng.",
-        "failed": "Chưa tạo được kho mã. Quản trị viên đã được báo; bạn chưa cần làm gì.",
-        "ended": "Công việc không còn ở bước bắt đầu, nên việc chuẩn bị kho mã đã dừng.",
+        "teamRUN_FAILED": "Lần chạy trên GitHub Actions chưa xong: sao chép repo nguồn. vibefix đã báo quản trị viên.",
+        "teamACTIONS_QUOTA": "GitHub Actions của repo nguồn đã hết số phút trong tháng, nên việc sao chép chưa chạy được.",
+        "teamUnknown": "Việc chuẩn bị repo đang tạm dừng.",
+        "failed": "Chưa tạo được repo. Quản trị viên đã được báo; bạn chưa cần làm gì.",
+        "ended": "Công việc không còn ở bước bắt đầu, nên việc chuẩn bị repo đã dừng.",
         "retry": "Thử lại"
       },
       "actionsRun": {
-        "purposeCopy": "Sao chép dự án gốc",
-        "purposeFinalMerge": "Hợp nhất cuối",
+        "purposeCopy": "Sao chép repo nguồn",
+        "purposeFinalMerge": "Merge cuối",
         "statePrefix": "Trạng thái lần chạy:",
         "stateWAITING": "Đang chờ GitHub",
         "stateRUNNING": "Đang chạy",
@@ -1575,7 +1575,7 @@
       "stateOPEN": "Đang tìm người hướng dẫn",
       "stateSELECTING": "Chờ người hướng dẫn ký cam kết bảo mật",
       "stateAGREEMENT": "Đang thống nhất thỏa thuận",
-      "stateSTARTING": "Đang chuẩn bị kho mã",
+      "stateSTARTING": "Đang chuẩn bị repo",
       "stateACTIVE": "Đang thực hiện",
       "stateCLOSING": "Đang kết thúc",
       "stateCLOSED": "Đã hoàn thành",
@@ -1583,7 +1583,7 @@
       "mentorStateOPEN": "Đang nhận ứng tuyển",
       "mentorStateSELECTING": "Chờ bạn ký cam kết bảo mật",
       "mentorStateAGREEMENT": "Đang soạn thỏa thuận · chọn nhóm thực hiện",
-      "mentorStateSTARTING": "Đang chuẩn bị kho mã",
+      "mentorStateSTARTING": "Đang chuẩn bị repo",
       "mentorStateACTIVE": "Đang thực hiện",
       "mentorStateCLOSING": "Đang kết thúc",
       "mentorStateCLOSED": "Đã hoàn thành",
@@ -1668,7 +1668,7 @@
         "test": "THỬ NGHIỆM",
         "deadline": "Mong muốn xong trước {date}",
         "openedOn": "đăng {date}",
-        "publicCode": "Mã của sản phẩm nằm trong kho mã công khai, nên người hướng dẫn đọc được mã trước khi ứng tuyển. Đừng để khóa bí mật hay dữ liệu khách hàng trong kho mã.",
+        "publicCode": "Mã của sản phẩm nằm trong repo công khai, nên người hướng dẫn đọc được mã trước khi ứng tuyển. Đừng để secret hay dữ liệu khách hàng trong repo.",
         "upcoming": "Hạn sắp tới",
         "lapses": "Tin hết hạn",
         "product": "Sản phẩm",
@@ -1820,7 +1820,7 @@
         "approach": "Cách bạn sẽ làm",
         "approachHint": "Viết bằng lời cho khách hàng không rành kỹ thuật. Không dán mã.",
         "approachRequired": "Hãy viết cách bạn sẽ làm.",
-        "n5": "Tôi hiểu mã tôi và nhóm làm nằm trong kho làm việc riêng tư, và khách hàng đọc được từng phần đã bàn giao. vibefix không quét mã của nhóm, nên tôi không đưa khóa bí mật hay dữ liệu thật vào commit. Mỗi giai đoạn được khách hàng thanh toán trước khi bắt đầu.",
+        "n5": "Tôi hiểu mã tôi và nhóm làm nằm trong repo làm việc riêng tư, và khách hàng đọc được từng phần đã bàn giao. vibefix không quét mã của nhóm, nên tôi không đưa secret hay dữ liệu thật vào commit. Mỗi giai đoạn được khách hàng thanh toán trước khi bắt đầu.",
         "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi gửi chào giá.",
         "submit": "Gửi chào giá",
         "sending": "Đang gửi…",
@@ -2009,12 +2009,12 @@
       "version": "2.0",
       "meta": "{product} · {types} · khách hàng đã chọn đơn ứng tuyển của bạn ngày {date}",
       "title": "Cam kết bảo mật (NDA) · phiên bản {version}",
-      "n14": "Cam kết này bảo vệ mã nguồn của khách hàng trong các kho riêng tư, và thông tin kinh doanh khách hàng chia sẻ trong Trò chuyện, Trao đổi nhóm và tài liệu (dữ liệu, khóa truy cập, tệp). Khi công việc kết thúc, bạn xóa mọi bản sao mã và dữ liệu trên máy của mình, và xác nhận việc đó trên vibefix.",
+      "n14": "Cam kết này bảo vệ mã nguồn của khách hàng trong các repo riêng tư, và thông tin kinh doanh khách hàng chia sẻ trong Trò chuyện, Trao đổi nhóm và tài liệu (dữ liệu, khóa truy cập, tệp). Khi công việc kết thúc, bạn xóa mọi bản sao mã và dữ liệu trên máy của mình, và xác nhận việc đó trên vibefix.",
       "textLabel": "Toàn văn cam kết bảo mật",
       "article1": "Điều 1. Thông tin được bảo vệ",
       "article2": "Điều 2. Trách nhiệm với nhóm thực hiện",
       "pending": "[VĂN BẢN CAM KẾT BẢO MẬT · CHỜ DUYỆT PHÁP LÝ (OQ5)]",
-      "n23": "Mỗi commit bạn đẩy lên kho làm việc đều mang tên và email của bạn, và khách hàng của công việc đọc được chúng trong kho trung gian khi bạn bàn giao. Hãy dùng email ẩn của GitHub trước khi commit.",
+      "n23": "Mỗi commit bạn đẩy lên repo làm việc đều mang tên và email của bạn, và khách hàng của công việc đọc được chúng trong repo trung gian khi bạn bàn giao. Hãy dùng email ẩn của GitHub trước khi commit.",
       "n23Link": "Dùng email ẩn của GitHub",
       "understood": "Tôi đã hiểu",
       "decline": "Từ chối",
@@ -2067,7 +2067,7 @@
       "quote": "Báo giá trong đơn ứng tuyển: {price} · {days} ngày",
       "scope": "Phạm vi",
       "scopeHelp": "Viết bằng lời cho khách hàng không rành kỹ thuật: làm gì và không làm gì.",
-      "codeStatement": "Các thay đổi về cơ sở dữ liệu và cấu hình được bàn giao dưới dạng tệp trong kho mã (ví dụ tệp chuyển đổi dữ liệu và ghi chú cài đặt), để đi qua bước bàn giao của từng giai đoạn.",
+      "codeStatement": "Các thay đổi về database và cấu hình được bàn giao dưới dạng tệp trong repo (ví dụ tệp chuyển đổi dữ liệu và ghi chú cài đặt), để đi qua bước bàn giao của từng giai đoạn.",
       "price": "Giá thỏa thuận",
       "priceHelp": "đồng, gồm phần của bạn và của nhóm thực hiện",
       "skills": "Kỹ năng",
@@ -2081,7 +2081,7 @@
       "removeMilestone": "Bỏ giai đoạn {n}",
       "criterion": "Tiêu chí {n}",
       "steps": "Cách kiểm tra",
-      "stepsHelp": "Ghi từng bước để khách hàng tự kiểm tra, ví dụ: 1. Mở bản xem thử. 2. Bấm Đặt bàn.",
+      "stepsHelp": "Ghi từng bước để khách hàng tự kiểm tra, ví dụ: 1. Mở preview. 2. Bấm Đặt bàn.",
       "addCriterion": "Thêm tiêu chí",
       "removeCriterion": "Bỏ tiêu chí {n}",
       "technical": "Tiêu chí này chỉ có thuật ngữ kỹ thuật. Hãy viết lại để khách hàng tự kiểm tra được, ví dụ: Hai khách đặt cùng bàn, cùng giờ thì người thứ hai được báo.",
@@ -2094,14 +2094,14 @@
       "system": "Hệ thống",
       "purpose": "Để làm gì",
       "environment": "Môi trường",
-      "envNON_PRODUCTION": "Môi trường thử",
-      "envPRODUCTION": "Hệ thống thật",
+      "envNON_PRODUCTION": "Staging",
+      "envPRODUCTION": "Production",
       "externalGuide": {
         "customerTitle": "Cấp quyền cho người thực hiện",
         "teamTitle": "Tài khoản để khách hàng mời",
         "customerIntro": "Cấp quyền riêng cho từng người. Việc này không chặn công việc, nhưng nhóm cần quyền để làm Giai đoạn 1.",
         "teamIntro": "Gửi tài khoản của bạn trên từng dịch vụ để khách hàng mời bạn với quyền thấp nhất. Chỉ khách hàng thấy tài khoản này, cạnh đúng mục. Đừng nhập mật khẩu hay khóa.",
-        "step1": "Mời đúng các tài khoản dưới đây (người hướng dẫn và từng thành viên nhóm thực hiện) với quyền thấp nhất, trong môi trường thử.",
+        "step1": "Mời đúng các tài khoản dưới đây (người hướng dẫn và từng thành viên nhóm thực hiện) với quyền thấp nhất, trong staging.",
         "step2": "Nếu dịch vụ không cho mời, hãy tạo một khóa riêng chỉ cho công việc này. Đừng gửi mật khẩu của bạn qua Trò chuyện.",
         "noIdentifiers": "Người hướng dẫn và nhóm thực hiện chưa gửi tài khoản để mời.",
         "granted": "Đã cấp quyền",
@@ -2170,25 +2170,25 @@
         "downLabel": "Đưa {item} xuống",
         "reordered": "Bạn đã đổi thứ tự giai đoạn. Thứ tự mới được gửi kèm khi bạn yêu cầu sửa.",
         "resetOrder": "Trả lại thứ tự cũ",
-        "liveToggle": "Đây là hệ thống thật đang dùng",
-        "n7Title": "Chọn hệ thống thật?",
+        "liveToggle": "Đây là production đang dùng",
+        "n7Title": "Chọn production?",
         "n7Body": "Người hướng dẫn và nhóm thực hiện sẽ có quyền vào hệ thống khách hàng của bạn đang dùng. Họ có thể thay đổi dữ liệu thật trước khi bạn nghiệm thu. Chỉ chọn khi thật cần.",
-        "n7Test": "Dùng môi trường thử",
-        "n7Live": "Vẫn chọn hệ thống thật",
-        "n6": "Từ lúc công việc bắt đầu đến khi tôi nhận mã, tôi sẽ không thay đổi dự án gốc, kể cả việc Lovable hay công cụ AI khác tự đồng bộ, và không gỡ ứng dụng vibefix hay file workflow. Nếu có thay đổi, việc hợp nhất cuối có thể thất bại; khi đó tôi tự tải mã đã hoàn thiện từ kho trung gian trên GitHub.",
+        "n7Test": "Dùng staging",
+        "n7Live": "Vẫn chọn production",
+        "n6": "Từ lúc công việc bắt đầu đến khi tôi nhận mã, tôi sẽ không thay đổi repo nguồn, kể cả việc Lovable hay công cụ AI khác tự đồng bộ, và không gỡ app vibefix hay file workflow. Nếu có thay đổi, việc merge cuối có thể thất bại; khi đó tôi tự tải mã đã hoàn thiện từ repo trung gian trên GitHub.",
         "pauseLink": "Cách tạm dừng đồng bộ",
-        "pauseLead": "Trong lúc công việc đang chạy, đừng để công cụ nào thay đổi dự án gốc:",
+        "pauseLead": "Trong lúc công việc đang chạy, đừng để công cụ nào thay đổi repo nguồn:",
         "pauseDraft": "Hướng dẫn chi tiết cho từng công cụ đang được hoàn thiện.",
         "pauseHelp": {
           "LOVABLE": "Lovable: đừng sửa dự án trong lúc công việc chạy; nếu cần, tạm ngắt kết nối GitHub trong phần GitHub của dự án.",
-          "BOLT": "Bolt.new: đừng mở hay sửa dự án, vì mỗi thay đổi có thể được đẩy lên kho mã.",
-          "REPLIT": "Replit: tạm dừng đồng bộ với GitHub, hoặc đừng sửa dự án cho đến khi hợp nhất xong.",
-          "V0": "v0: đừng sửa dự án, vì v0 đẩy mỗi thay đổi lên kho mã đã kết nối.",
+          "BOLT": "Bolt.new: đừng mở hay sửa dự án, vì mỗi thay đổi có thể được đẩy lên repo.",
+          "REPLIT": "Replit: tạm dừng đồng bộ với GitHub, hoặc đừng sửa dự án cho đến khi merge xong.",
+          "V0": "v0: đừng sửa dự án, vì v0 đẩy mỗi thay đổi lên repo đã kết nối.",
           "BASE44": "Base44: đừng sửa ứng dụng trong lúc công việc chạy.",
-          "CURSOR": "Cursor: đừng đẩy mã mới lên kho mã gốc.",
-          "CLAUDE_CODE": "Claude Code: đừng đẩy mã mới lên kho mã gốc.",
-          "CODEX": "Codex: đừng đẩy mã mới hay đề xuất thay đổi lên kho mã gốc.",
-          "OTHER": "Công cụ khác: đừng để công cụ nào đẩy mã lên kho mã gốc cho đến khi hợp nhất xong."
+          "CURSOR": "Cursor: đừng đẩy mã mới lên repo gốc.",
+          "CLAUDE_CODE": "Claude Code: đừng đẩy mã mới lên repo gốc.",
+          "CODEX": "Codex: đừng đẩy mã mới hay đề xuất thay đổi lên repo gốc.",
+          "OTHER": "Công cụ khác: đừng để công cụ nào đẩy mã lên repo gốc cho đến khi merge xong."
         },
         "afterApprove": "Sau khi bạn duyệt, người hướng dẫn xác nhận thì thỏa thuận có hiệu lực.",
         "requestChanges": "Yêu cầu sửa",
@@ -2206,8 +2206,8 @@
         "approveWhatMentor": "Người hướng dẫn được báo để xác nhận thỏa thuận.",
         "approveWhatEffect": "Thỏa thuận có hiệu lực khi người hướng dẫn xác nhận. Công việc bắt đầu khi có ít nhất một thành viên nhóm đã ký.",
         "approveWhatPay": "Sau đó bạn thanh toán Giai đoạn 1 để nhóm bắt đầu làm.",
-        "approveWhatFreeze": "Bạn giữ nguyên dự án gốc từ lúc công việc bắt đầu đến khi hợp nhất xong.",
-        "approveWhatLive": "Người thực hiện được vào {n} hệ thống thật bạn đã chọn.",
+        "approveWhatFreeze": "Bạn giữ nguyên repo nguồn từ lúc công việc bắt đầu đến khi merge xong.",
+        "approveWhatLive": "Người thực hiện được vào {n} production bạn đã chọn.",
         "approveConfirm": "Duyệt",
         "back": "Quay lại",
         "approved": "Đã duyệt bản nháp. Người hướng dẫn được báo để xác nhận.",
@@ -2253,11 +2253,11 @@
       "leave": {
         "action": "Rời công việc",
         "title": "Rời công việc {job}?",
-        "repository": "Quyền ghi vào kho làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.",
+        "repository": "Quyền write vào repo làm việc của bạn bị thu hồi ngay, và bạn không vào lại công việc này được.",
         "noRepository": "Bạn không vào lại công việc này được.",
         "split": "Bạn vẫn là một bên trong phần chia tiền của Giai đoạn {n}, và vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.",
         "duties": "Bạn vẫn làm các việc sau công việc như mọi thành viên: xóa dữ liệu của khách hàng, chấm sao, đánh giá kín.",
-        "customer": "Khách hàng chỉ được báo tên tài khoản GitHub của bạn để thu hồi quyền.",
+        "customer": "Khách hàng chỉ được báo GitHub username của bạn để thu hồi quyền.",
         "reason": "Lý do (không bắt buộc)",
         "reasonHint": "Chỉ người hướng dẫn đọc được.",
         "back": "Quay lại",
@@ -2271,7 +2271,7 @@
         "title": "Nhóm thực hiện",
         "none": "Chưa có thành viên nào ký · người hướng dẫn đang tìm nhóm thực hiện.",
         "carriesOn": "Không còn thành viên nào trong nhóm · người hướng dẫn vẫn tiếp tục thực hiện.",
-        "note": "Tên tài khoản GitHub của các thành viên đã ký, để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
+        "note": "GitHub username của các thành viên đã ký, để bạn cấp quyền khi cần. Người hướng dẫn chọn và chịu trách nhiệm về nhóm thực hiện."
       },
       "mentor": {
         "title": "Nhóm thực hiện",
@@ -2281,7 +2281,7 @@
         "recruit": "Tuyển thành viên",
         "empty": "Chưa có thành viên nào ký cam kết. Bạn chọn người từ đơn xin vào nhóm ở mục Tuyển thành viên.",
         "joined": "Tham gia từ {date}",
-        "note": "Khách hàng chỉ thấy tên tài khoản GitHub của các thành viên đã ký. Sau khi ký, không ai bị bỏ khỏi nhóm; chỉ họ tự rời."
+        "note": "Khách hàng chỉ thấy GitHub username của các thành viên đã ký. Sau khi ký, không ai bị bỏ khỏi nhóm; chỉ họ tự rời."
       },
       "student": {
         "activeTitle": "Đang tham gia",
@@ -2345,16 +2345,16 @@
       "tab": "Thanh toán",
       "title": "Thanh toán · {job}",
       "n13Title": "Giao dịch thử nghiệm — không dùng tiền thật",
-      "n13Body": "vibefix đang chạy thử với môi trường thử nghiệm của VNPay.",
+      "n13Body": "vibefix đang chạy thử với staging nghiệm của VNPay.",
       "n13Help": "Cách thanh toán thử",
-      "helpLead": "Trên trang VNPay, chọn thẻ ngân hàng nội địa và nhập thẻ thử VNPay công bố cho môi trường thử nghiệm:",
+      "helpLead": "Trên trang VNPay, chọn thẻ ngân hàng nội địa và nhập thẻ thử VNPay công bố cho staging nghiệm:",
       "helpBank": "Ngân hàng: {value}",
       "helpNumber": "Số thẻ: {value}",
       "helpHolder": "Tên chủ thẻ: {value}",
       "helpIssued": "Ngày phát hành: {value}",
       "helpOtp": "Mã OTP: {value}",
       "helpNote": "Đây là thẻ thử, không phải thẻ thật, và không có tiền thật nào được chuyển.",
-      "helpMissing": "Môi trường này chưa có thẻ thử. Hãy xem trang hướng dẫn môi trường thử nghiệm của VNPay.",
+      "helpMissing": "Môi trường này chưa có thẻ thử. Hãy xem trang hướng dẫn staging nghiệm của VNPay.",
       "milestonesTitle": "Thanh toán theo giai đoạn",
       "milestone": "Giai đoạn",
       "amount": "Số tiền",
@@ -2546,9 +2546,9 @@
       "member": "Nhóm thực hiện: {name}",
       "product": "Sản phẩm",
       "nextAction": "Việc cần làm cho công việc này",
-      "assessmentCopy": "Mở kho trung gian (chỉ đọc) trên GitHub",
-      "assessmentCopyInvitation": "Mở lời mời đọc kho trung gian trên GitHub",
-      "assessmentCopyInviting": "vibefix đang gửi lời mời đọc kho trung gian cho bạn trên GitHub.",
+      "assessmentCopy": "Mở repo trung gian (chỉ đọc) trên GitHub",
+      "assessmentCopyInvitation": "Mở lời mời đọc repo trung gian trên GitHub",
+      "assessmentCopyInviting": "vibefix đang gửi lời mời đọc repo trung gian cho bạn trên GitHub.",
       "overdue": "Trễ hạn từ {date}",
       "overdueOptions": "Giai đoạn này đã quá hạn. Bạn có thể:",
       "overdueWait": "chờ thêm",
@@ -2580,8 +2580,8 @@
         "auto": "Đã tự nghiệm thu"
       },
       "acceptance": {
-        "merging": "Đang hợp nhất bàn giao Giai đoạn {n}. Tiền được chuyển ngay khi hợp nhất xong.",
-        "failed": "Chưa hợp nhất được. Quản trị viên đã được báo; bạn chưa cần làm gì."
+        "merging": "Đang merge bàn giao Giai đoạn {n}. Tiền được chuyển ngay khi merge xong.",
+        "failed": "Chưa merge được. Quản trị viên đã được báo; bạn chưa cần làm gì."
       },
       "voided": {
         "moneyHeld": "Tiền của giai đoạn vẫn được giữ."
@@ -2652,34 +2652,34 @@
       "code": {
         "sensitiveNone": "Không có tệp nào có thể tự chạy chương trình khi dự án được xây dựng.",
         "kindCI_CONFIG": "Cấu hình cho dịch vụ tự động dựng, kiểm thử hoặc đưa ứng dụng lên mạng. Dịch vụ của bạn sẽ chạy theo tệp này.",
-        "kindDEPENDENCIES": "Danh sách thư viện mà ứng dụng dùng. Thư viện mới có thể chạy chương trình khi được cài đặt.",
+        "kindDEPENDENCIES": "Danh sách dependency mà ứng dụng dùng. Dependency mới có thể chạy chương trình khi được cài đặt.",
         "kindBUILD_SCRIPT": "Tập lệnh dựng hoặc cài đặt. Nó có thể chạy chương trình trên máy chủ của bạn.",
         "kindBINARY": "Tệp chương trình đã đóng gói sẵn, không đọc được như mã nguồn.",
         "technical": "Chi tiết kỹ thuật",
-        "technicalLead": "Danh sách các lần lưu thay đổi, dành cho người hỗ trợ kỹ thuật của bạn.",
+        "technicalLead": "Danh sách các commit, dành cho người hỗ trợ kỹ thuật của bạn.",
         "openDiff": "Xem thay đổi trên GitHub",
         "openBranch": "Xem nhánh bàn giao",
-        "linksCustomer": "Hai liên kết trên chỉ mở được sau khi bạn chấp nhận lời mời đọc kho trung gian trên GitHub.",
-        "openInvitation": "Mở lời mời đọc kho trung gian",
-        "pull": "Yêu cầu hợp nhất #{n} trong kho trung gian",
-        "unattributed": "{n} lần lưu không gắn với tài khoản GitHub nào.",
-        "truncated": "GitHub chỉ liệt kê một phần các lần lưu và tệp đã đổi.",
-        "formCommits": "Sẽ bàn giao {n} lần lưu thay đổi mới.",
+        "linksCustomer": "Hai liên kết trên chỉ mở được sau khi bạn chấp nhận lời mời đọc repo trung gian trên GitHub.",
+        "openInvitation": "Mở lời mời đọc repo trung gian",
+        "pull": "Yêu cầu merge #{n} trong repo trung gian",
+        "unattributed": "{n} commit không gắn với tài khoản GitHub nào.",
+        "truncated": "GitHub chỉ liệt kê một phần các commit và tệp đã đổi.",
+        "formCommits": "Sẽ bàn giao {n} commit mới.",
         "formSensitiveLead": "Khách hàng sẽ thấy các tệp dưới đây cùng lời giải thích."
       },
       "preview": {
-        "url": "Đường dẫn bản xem thử (https)",
+        "url": "Đường dẫn preview (https)",
         "urlHelper": "Bản chạy thử trên tài khoản lưu trữ của bạn hoặc nhóm. vibefix kiểm tra đường dẫn này phản hồi trước khi gửi.",
         "check": "Kiểm tra đường dẫn",
-        "reachable": "Bản xem thử phản hồi ({domain}).",
-        "required": "Công việc này thay đổi ứng dụng đang chạy, nên cần bản xem thử, hoặc lý do kèm video quay màn hình.",
-        "impossible": "Không thể làm bản xem thử",
-        "reason": "Vì sao không làm được bản xem thử",
+        "reachable": "Preview phản hồi ({domain}).",
+        "required": "Công việc này thay đổi ứng dụng đang chạy, nên cần preview, hoặc lý do kèm video quay màn hình.",
+        "impossible": "Không thể làm preview",
+        "reason": "Vì sao không làm được preview",
         "noPreviewHelper": "Thêm video quay màn hình vào phần Liên kết kèm bàn giao bên dưới, loại \"Bản ghi / video\". Đưa video lên dịch vụ khác, như YouTube hoặc Loom: vibefix không nhận tệp video.",
-        "open": "Mở bản xem thử",
+        "open": "Mở preview",
         "warning": "Trang này nằm ngoài vibefix ({domain}). Đừng nhập mật khẩu GitHub hoặc vibefix ở đó.",
         "checkedAt": "phản hồi lúc {time}",
-        "reasonLabel": "Lý do không có bản xem thử",
+        "reasonLabel": "Lý do không có preview",
         "screenshots": "Hình ảnh",
         "screenshotsHelper": "Tối đa 5 hình ảnh, mỗi hình tối đa 10 MB.",
         "personalData": "Hãy che tên, số điện thoại và thông tin cá nhân của khách hàng bạn trước khi tải ảnh lên.",
@@ -2749,8 +2749,8 @@
         "mine": "Xác nhận đã xóa dữ liệu",
         "lead": "Công việc đã kết thúc. Hãy xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của bạn, cùng dữ liệu của họ, rồi đánh dấu từng mục.",
         "notYet": "Bạn đánh dấu được sau khi công việc bắt đầu kết thúc.",
-        "NON_CODE_DATA": "Đã xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của tôi, cùng dữ liệu của họ: khóa, bản sao cơ sở dữ liệu, tệp",
-        "PREVIEWS": "Đã xóa các bản xem thử tôi đã triển khai",
+        "NON_CODE_DATA": "Đã xóa mọi bản clone và bản sao mã riêng tư của khách hàng trên máy của tôi, cùng dữ liệu của họ: khóa, bản sao database, tệp",
+        "PREVIEWS": "Đã xóa các preview tôi đã triển khai",
         "confirmedAt": "Đã xác nhận {time}",
         "dialogTitle": "Xác nhận đã xóa?",
         "dialogBody": "Xác nhận này được ghi lại cùng tên bạn và thời gian, và không sửa được.",
@@ -2761,35 +2761,35 @@
       "choice": {
         "deadline": "Chọn trước {date}",
         "finalMerge": {
-          "lead": "GitHub Actions trong {repo} chép mã đã nghiệm thu vào một nhánh mới, vibefix/final-…. Bạn tự hợp nhất nhánh đó trên GitHub.",
-          "action": "Xem bước hợp nhất cuối"
+          "lead": "GitHub Actions trong {repo} chép mã đã nghiệm thu vào một nhánh mới, vibefix/final-…. Bạn tự merge nhánh đó trên GitHub.",
+          "action": "Xem bước merge cuối"
         },
         "selfDownload": {
-          "lead": "Tải mã từ kho trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây.",
-          "open": "Mở kho trung gian",
+          "lead": "Tải mã từ repo trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây.",
+          "open": "Mở repo trung gian",
           "stepsTitle": "Cách tải mã về:",
-          "step1": "Mở kho trung gian trên GitHub bằng đường dẫn ở trên.",
+          "step1": "Mở repo trung gian trên GitHub bằng đường dẫn ở trên.",
           "step2": "Bấm nút “Code”, rồi chọn “Download ZIP”. GitHub tải về máy bạn một tệp nén chứa toàn bộ mã.",
-          "step3": "Giải nén tệp đó và lưu lại. Nếu bạn quen dùng Git, bạn có thể clone kho này thay vì tải tệp nén.",
+          "step3": "Giải nén tệp đó và lưu lại. Nếu bạn quen dùng Git, bạn có thể clone repo này thay vì tải tệp nén.",
           "step4": "Quay lại đây và bấm “Tôi đã tự tải / clone từ GitHub”.",
           "noRun": "Bạn không cần chạy lệnh nào.",
-          "invitation": "Hãy chấp nhận lời mời đọc kho trung gian trên GitHub để mở đường dẫn này.",
+          "invitation": "Hãy chấp nhận lời mời đọc repo trung gian trên GitHub để mở đường dẫn này.",
           "action": "Tôi đã tự tải / clone từ GitHub"
         },
         "dialogTitle": "Bạn đã có bản mã cuối cùng?",
-        "dialogBody": "Kho trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa. Bước này không hoàn tác được.",
-        "dialogBodyUntilDeletion": "Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa. Bước này không hoàn tác được.",
+        "dialogBody": "Repo trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa. Bước này không hoàn tác được.",
+        "dialogBodyUntilDeletion": "Repo trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa. Bước này không hoàn tác được.",
         "done": "Bạn đã xác nhận đã nhận mã lúc {time}.",
         "unconfirmed": {
           "title": "Bạn chưa xác nhận đã nhận mã",
-          "lead": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa.",
-          "leadUntilDeletion": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa.",
-          "leadDeleted": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Kho trung gian đã bị xóa, nên không tải mã từ vibefix được nữa."
+          "lead": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Repo trung gian vẫn mở cho bạn đọc và tải đến {date}; sau ngày đó mã bị xóa.",
+          "leadUntilDeletion": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Repo trung gian vẫn mở cho bạn đọc và tải đến khi nó bị xóa, 30 ngày sau khi công việc kết thúc; sau đó mã bị xóa.",
+          "leadDeleted": "Công việc đã kết thúc khi bạn chưa chọn cách nhận mã. Repo trung gian đã bị xóa, nên không tải mã từ vibefix được nữa."
         },
         "mentor": {
           "open": "Khách hàng đang chọn cách nhận mã (hạn {date})",
           "MERGED": "Mã đã được chép vào một nhánh mới của dự án khách hàng.",
-          "SELF_DOWNLOAD": "Khách hàng đã tự tải mã từ kho trung gian.",
+          "SELF_DOWNLOAD": "Khách hàng đã tự tải mã từ repo trung gian.",
           "UNCONFIRMED": "Khách hàng chưa xác nhận đã nhận code."
         }
       },
@@ -2799,43 +2799,43 @@
         "checking": "Đang kiểm tra mã đã nghiệm thu…",
         "wait": {
           "REVOCATION": "Đang chờ thu hồi quyền truy cập của nhóm trên GitHub.",
-          "CUSTOMER": "Đang chờ bạn sửa dự án gốc: vibefix chưa đọc được dự án gốc trên GitHub.",
+          "CUSTOMER": "Đang chờ bạn sửa repo nguồn: vibefix chưa đọc được repo nguồn trên GitHub.",
           "FROZEN": "Công việc đang tạm dừng vì có tranh chấp.",
           "afterRevocation": "vibefix kiểm tra mã ngay khi thu hồi xong.",
           "recheckAt": "vibefix kiểm tra lại lúc {time}.",
           "openProduct": "Mở trang sản phẩm"
         },
-        "reviewLead": "Các tệp dưới đây có thể chạy chương trình khi dự án của bạn được xây dựng. Sau khi bạn hợp nhất nhánh vibefix/final-… trên GitHub, công cụ tự động và dịch vụ lưu trữ của bạn sẽ chạy mã mới.",
+        "reviewLead": "Các tệp dưới đây có thể chạy chương trình khi dự án của bạn được xây dựng. Sau khi bạn merge nhánh vibefix/final-… trên GitHub, công cụ tự động và dịch vụ lưu trữ của bạn sẽ chạy mã mới.",
         "workflowsTitle": "Mã đã nghiệm thu có thay đổi trong thư mục .github/workflows",
-        "workflowsLead": "GitHub không cho bước hợp nhất cuối ghi các tệp này, nên vibefix không chạy được bước này. Hãy tự tải mã từ kho trung gian trên GitHub.",
+        "workflowsLead": "GitHub không cho bước merge cuối ghi các tệp này, nên vibefix không chạy được bước này. Hãy tự tải mã từ repo trung gian trên GitHub.",
         "agree": "Tôi đã xem và muốn chép mã vào dự án của tôi.",
         "confirm": "Chép mã vào dự án của tôi",
         "branchReady": "Nhánh {branch} đã sẵn sàng",
-        "branchReadyLead": "GitHub Actions trong dự án của bạn đã chép mã đã nghiệm thu vào nhánh này. vibefix không ghi gì vào dự án của bạn: hãy mở trang hợp nhất trên GitHub và tự hợp nhất nhánh.",
-        "openCompare": "Mở trang hợp nhất trên GitHub",
+        "branchReadyLead": "GitHub Actions trong dự án của bạn đã chép mã đã nghiệm thu vào nhánh này. vibefix không ghi gì vào dự án của bạn: hãy mở trang merge trên GitHub và tự merge nhánh.",
+        "openCompare": "Mở trang merge trên GitHub",
         "viewBranch": "Xem nhánh",
         "failed": "Chưa chép được mã vào dự án của bạn: {reason}",
         "reason": {
           "WORKFLOW_FILES_CHANGED": "mã đã nghiệm thu có thay đổi trong thư mục .github/workflows, mà GitHub không cho bước này ghi",
-          "ACTIONS_QUOTA": "GitHub Actions của dự án gốc đã hết số phút trong tháng. Bạn vẫn có thể tự tải mã về từ kho trung gian",
+          "ACTIONS_QUOTA": "GitHub Actions của repo nguồn đã hết số phút trong tháng. Bạn vẫn có thể tự tải mã về từ repo trung gian",
           "EXCHANGE_REFUSED": "GitHub chưa xác nhận được lần chạy này; vibefix đã báo quản trị viên",
           "RUN_FAILED": "lần chạy trên GitHub Actions của bạn không chạy xong",
           "BRANCH_EXISTS": "dự án của bạn đã có một nhánh cùng tên, nên bước này không ghi lên nó",
-          "J9_GUARD": "mã trong kho trung gian không khớp với các lần bàn giao đã nghiệm thu",
+          "J9_GUARD": "mã trong repo trung gian không khớp với các lần bàn giao đã nghiệm thu",
           "OTHER": "GitHub từ chối bước này"
         },
         "post": "Đăng công việc ghép mã",
         "prefill": {
           "title": "Ghép mã đã hoàn thiện vào dự án",
-          "problem": "Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào dự án gốc. Mã đã hoàn thiện nằm trong kho trung gian của công việc đó trên GitHub, tôi tự tải về được.",
-          "expected": "Mã đã hoàn thiện được ghép vào dự án gốc, và ứng dụng chạy như trước với các thay đổi đã nghiệm thu."
+          "problem": "Một công việc trước đã hoàn thiện mã nhưng không chép tự động được vào repo nguồn. Mã đã hoàn thiện nằm trong repo trung gian của công việc đó trên GitHub, tôi tự tải về được.",
+          "expected": "Mã đã hoàn thiện được ghép vào repo nguồn, và ứng dụng chạy như trước với các thay đổi đã nghiệm thu."
         }
       },
       "revocation": {
         "title": "Thu hồi quyền ngoài GitHub",
-        "lead": "Công việc đã kết thúc. Hãy gỡ quyền hoặc đổi khóa ở từng dịch vụ bạn đã cấp, rồi đánh dấu từng mục. Công việc không chờ danh sách này.",
+        "lead": "Công việc đã kết thúc. Hãy gỡ quyền hoặc rotate key ở từng dịch vụ bạn đã cấp, rồi đánh dấu từng mục. Công việc không chờ danh sách này.",
         "memberTitle": "Thu hồi quyền của người đã rời nhóm",
-        "memberLead": "Nền tảng không biết bạn đã cấp những quyền gì. Nếu bạn đã cấp cho người này, hãy gỡ quyền hoặc đổi khóa ở từng dịch vụ, rồi đánh dấu từng mục.",
+        "memberLead": "Nền tảng không biết bạn đã cấp những quyền gì. Nếu bạn đã cấp cho người này, hãy gỡ quyền hoặc rotate key ở từng dịch vụ, rồi đánh dấu từng mục.",
         "memberItem": "{system} của @{login}",
         "step": "Khách hàng: thu hồi quyền {system}",
         "level": {
@@ -2845,19 +2845,19 @@
         },
         "environment": {
           "NON_PRODUCTION": "Bản thử",
-          "PRODUCTION": "Hệ thống thật"
+          "PRODUCTION": "Production"
         },
         "identifiers": "Gỡ các tài khoản này:",
         "noIdentifiers": "Người hướng dẫn và nhóm chưa ghi tài khoản nào. Hãy gỡ mọi tài khoản hoặc khóa bạn đã tạo cho công việc này.",
-        "guidance": "Vào phần quản lý thành viên hoặc khóa của {system}, xóa các tài khoản đã mời cho công việc này. Nếu bạn đã đưa khóa bí mật hoặc mật khẩu, hãy đổi sang khóa mới.",
+        "guidance": "Vào phần quản lý thành viên hoặc khóa của {system}, xóa các tài khoản đã mời cho công việc này. Nếu bạn đã đưa secret hoặc mật khẩu, hãy đổi sang khóa mới.",
         "removed": "Đã gỡ quyền",
-        "rotated": "Đã đổi khóa",
+        "rotated": "Đã rotate key",
         "confirmTitle": "Xác nhận đã thu hồi quyền {system}?",
         "confirmBody": "Xác nhận này được ghi lại cùng thời gian và không sửa được.",
         "confirm": "Xác nhận",
         "cancel": "Quay lại",
         "doneRemoved": "Đã gỡ quyền {time}",
-        "doneRotated": "Đã đổi khóa {time}",
+        "doneRotated": "Đã rotate key {time}",
         "saved": "Đã ghi nhận."
       },
       "disputable": "Đề nghị kết thúc bị từ chối hoặc chưa được trả lời. Bạn có thể mở tranh chấp.",
@@ -3266,8 +3266,8 @@
         "asked": "Đã nhờ xem xét",
         "ask": "Nhờ quản trị viên xem xét",
         "dialogTitle": "Nhờ quản trị viên xem xét phân chia Giai đoạn {n}?",
-        "n31": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các lần lưu thay đổi (commit) của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa {cap}% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
-        "n31NoCap": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các lần lưu thay đổi (commit) của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "n31": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các commit của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa {cap}% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "n31NoCap": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các commit của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
         "reason": "Lý do bạn thấy phân chia chưa đúng",
         "reasonHint": "Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được. Khách hàng không thấy.",
         "send": "Gửi yêu cầu",
@@ -3301,7 +3301,7 @@
       "title": "Tuyển thành viên",
       "r7": "Công việc chỉ bắt đầu khi có ít nhất một thành viên đã ký. Trước đó khách hàng chưa thanh toán được Giai đoạn 1.",
       "settings": "Nhận đơn xin vào nhóm",
-      "n20": "Khách hàng chỉ thấy tên tài khoản GitHub của từng thành viên khi họ vào hoặc rời nhóm, để cấp và thu hồi quyền. Khách hàng không thấy đơn xin vào nhóm, hồ sơ hay phần chia tiền. Trước khi người được chọn ký, bạn có thể rút lựa chọn. Sau khi họ đã ký, bạn không bỏ họ khỏi nhóm được; chỉ họ tự rời.",
+      "n20": "Khách hàng chỉ thấy GitHub username của từng thành viên khi họ vào hoặc rời nhóm, để cấp và thu hồi quyền. Khách hàng không thấy đơn xin vào nhóm, hồ sơ hay phần chia tiền. Trước khi người được chọn ký, bạn có thể rút lựa chọn. Sau khi họ đã ký, bạn không bỏ họ khỏi nhóm được; chỉ họ tự rời.",
       "switch": "Nhận đơn xin vào nhóm",
       "summaryOn": "Đang nhận đơn · cần thêm {n} người",
       "summaryOff": "Đang không nhận đơn xin vào nhóm.",
@@ -3356,7 +3356,7 @@
       "pickWithdrawn": "Đã rút lựa chọn {name}.",
       "pickRefusal": {
         "APPLICANT_UNAVAILABLE": "{name} hiện không thể vào nhóm của công việc này. Hãy chọn người khác.",
-        "APPLICANT_IS_CONTRIBUTOR": "{name} đã từng đóng góp vào dự án gốc này nên không vào nhóm được.",
+        "APPLICANT_IS_CONTRIBUTOR": "{name} đã từng đóng góp vào repo nguồn này nên không vào nhóm được.",
         "CONFLICT_OF_INTEREST": "{name} không thể tham gia công việc này.",
         "NOT_PICKABLE": "Đơn này không còn chờ chọn. Danh sách đã tải lại.",
         "NOT_WITHDRAWABLE": "{name} đã ký cam kết nên không rút lựa chọn được nữa. Sau khi ký, chỉ họ tự rời.",
@@ -3428,8 +3428,8 @@
       },
       "refusal": {
         "ALREADY_APPLIED": "Bạn đã gửi đơn cho công việc này.",
-        "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá hay xin vào nhóm.",
-        "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn này. Việc này không do bạn; hãy thử lại sau.",
+        "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào repo nguồn này nên không thể chào giá hay xin vào nhóm.",
+        "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được repo của khách hàng nên chưa nhận đơn này. Việc này không do bạn; hãy thử lại sau.",
         "CONFLICT_OF_INTEREST": "Bạn không thể tham gia công việc này.",
         "PROOF_LIMIT": "Đơn có tối đa 5 bằng chứng, tính cả tệp và liên kết.",
         "PROOF_FILE_UNKNOWN": "Một tệp bằng chứng không còn trong đơn. Hãy tải lại trang rồi thêm lại tệp.",
@@ -3455,7 +3455,7 @@
       "ruleEdits": "Người hướng dẫn sửa phân chia tối đa {n} lần cho mỗi giai đoạn.",
       "textTitle": "Cam kết tham gia · phiên bản {version}",
       "textLabel": "Toàn văn cam kết tham gia",
-      "text": "Khi ký, bạn tham gia nhóm thực hiện công việc này. Khách hàng chỉ được biết tên tài khoản GitHub của bạn (@{login}) để cấp và thu hồi quyền truy cập, không biết tên, hồ sơ hay cách liên hệ với bạn. Hồ sơ công khai của bạn thì ai cũng xem được, nhưng không cho biết bạn đang làm công việc nào.",
+      "text": "Khi ký, bạn tham gia nhóm thực hiện công việc này. Khách hàng chỉ được biết GitHub username của bạn (@{login}) để cấp và thu hồi quyền truy cập, không biết tên, hồ sơ hay cách liên hệ với bạn. Hồ sơ công khai của bạn thì ai cũng xem được, nhưng không cho biết bạn đang làm công việc nào.",
       "sign": "Ký và tham gia",
       "decline": "Từ chối",
       "declineTitle": "Từ chối tham gia công việc này?",
@@ -3500,9 +3500,9 @@
       "version": "1.1",
       "versionLine": "Lưu ý khi liên kết GitHub · phiên bản {version}",
       "title": "Trước khi liên kết GitHub",
-      "body": "vibefix sẽ nhận từ GitHub tên tài khoản và mã số tài khoản của bạn, để cấp quyền vào kho mã và nhận ra các thao tác của bạn trên GitHub. Tên tài khoản GitHub hiện trên hồ sơ công khai và cho khách hàng của công việc bạn tham gia. Một tài khoản GitHub chỉ liên kết với một tài khoản vibefix. Bạn không bỏ liên kết được khi bạn đang có sản phẩm, có đơn chào giá đang mở, hoặc giữ một vai trong công việc chưa đóng hay chưa hủy. Liên kết lại phải dùng đúng tài khoản GitHub đã liên kết.",
+      "body": "vibefix sẽ nhận từ GitHub tên tài khoản và mã số tài khoản của bạn, để cấp quyền vào repo và nhận ra các thao tác của bạn trên GitHub. GitHub username hiện trên hồ sơ công khai và cho khách hàng của công việc bạn tham gia. Một tài khoản GitHub chỉ liên kết với một tài khoản vibefix. Bạn không bỏ liên kết được khi bạn đang có sản phẩm, có đơn chào giá đang mở, hoặc giữ một vai trong công việc chưa đóng hay chưa hủy. Liên kết lại phải dùng đúng tài khoản GitHub đã liên kết.",
       "emails": "vibefix cũng đọc các email bạn đã xác minh trên GitHub và chỉ giữ dấu mã hóa của chúng, để nhận ra hai tài khoản của cùng một người.",
-      "repository": "Từ nay, vibefix không giữ quyền GitHub nào của bạn. vibefix dùng quyền GitHub cấp đúng một lần, khi bạn quay lại từ GitHub, để đọc những thông tin trên, rồi thu hồi quyền đó ngay. Vì vậy mỗi lần liên kết, GitHub sẽ hỏi bạn đồng ý lại. Kho mã của bạn được đọc qua ứng dụng vibefix cài trên dự án gốc, không qua liên kết này.",
+      "repository": "Từ nay, vibefix không giữ quyền GitHub nào của bạn. vibefix dùng quyền GitHub cấp đúng một lần, khi bạn quay lại từ GitHub, để đọc những thông tin trên, rồi thu hồi quyền đó ngay. Vì vậy mỗi lần liên kết, GitHub sẽ hỏi bạn đồng ý lại. Repo của bạn được đọc qua app vibefix cài trên repo nguồn, không qua liên kết này.",
       "revokeYourself": "Nếu bạn đã liên kết GitHub với vibefix trước đây, vibefix có thể vẫn có quyền trong GitHub của bạn. Bạn gỡ được bất cứ lúc nào trong GitHub, ở mục Settings › Applications.",
       "button": "Liên kết GitHub ↗ (github.com)",
       "cancel": "Để sau"
@@ -3512,7 +3512,7 @@
       "versionLine": "Lưu ý khi xác minh email trường · phiên bản {version}",
       "title": "Trước khi xác minh email trường",
       "body": "vibefix gửi mã đến email trường bạn nhập để biết bạn đang học ở trường đó. “Trường” hiện trên hồ sơ là tên miền của email này, ví dụ hust.edu.vn.",
-      "kept": "vibefix không lưu địa chỉ email này. vibefix chỉ giữ tên miền, tháng xác minh, ngày hết hạn và một dấu vân tay một chiều của địa chỉ, tạo bằng khóa bí mật của vibefix nên không đổi ngược thành địa chỉ được. Dấu này được giữ như một tín hiệu nhận ra cùng một người, loại “email trường”: nhờ nó vibefix nhận ra các tài khoản đã xác minh bằng cùng một email, và một email chỉ xác minh cho một tài khoản tại một thời điểm. Dấu này còn được giữ 24 tháng sau khi bạn bỏ xác minh, khi xác minh hết hạn, hoặc khi tài khoản của bạn bị xóa.",
+      "kept": "vibefix không lưu địa chỉ email này. vibefix chỉ giữ tên miền, tháng xác minh, ngày hết hạn và một dấu vân tay một chiều của địa chỉ, tạo bằng secret của vibefix nên không đổi ngược thành địa chỉ được. Dấu này được giữ như một tín hiệu nhận ra cùng một người, loại “email trường”: nhờ nó vibefix nhận ra các tài khoản đã xác minh bằng cùng một email, và một email chỉ xác minh cho một tài khoản tại một thời điểm. Dấu này còn được giữ 24 tháng sau khi bạn bỏ xác minh, khi xác minh hết hạn, hoặc khi tài khoản của bạn bị xóa.",
       "locked": "Họ tên và ngành bạn khai ở đây sẽ được khóa sau khi xác minh.",
       "public": "Hồ sơ công khai hiện huy hiệu “Sinh viên đã xác minh” cùng trường, họ tên và ngành bạn khai, khi xác minh còn hiệu lực; bạn có thể ẩn các thông tin này trong hồ sơ. Email không bao giờ được hiện.",
       "button": "Đồng ý và tiếp tục",
@@ -3521,23 +3521,23 @@
     "product": {
       "version": "2.1",
       "versionLine": "Lưu ý khi đăng ký sản phẩm · phiên bản {version} · 22/11/2026",
-      "public": "Tôi hiểu vibefix giữ các bản sao riêng tư của dự án gốc trên GitHub. Chỉ người hướng dẫn và nhóm thực hiện của công việc tôi đặt, và tôi, được cấp quyền vào các bản sao đó. Việc sao chép và hợp nhất cuối chạy trên GitHub Actions của dự án gốc, dùng một ít số phút GitHub cho tôi (mỗi lần vài giây). vibefix không tải mã về máy chủ của mình và không quét mã.",
-      "copy": "Tôi là chủ sở hữu mã nguồn này hoặc có quyền cho phép người khác dùng nó. Chỉ để thực hiện các công việc tôi đặt cho sản phẩm này, tôi cho phép vibefix: chạy file workflow vibefix đã công bố trong dự án gốc để sao chép nó vào các kho riêng tư của vibefix trên GitHub; để người hướng dẫn tôi chọn và nhóm thực hiện của họ chỉnh sửa bản sao; và chép mã đã nghiệm thu vào một nhánh mới của dự án gốc chỉ khi tôi chọn hợp nhất cuối. Ứng dụng vibefix trên dự án gốc chỉ có quyền đọc mã, đọc thông tin kho và chạy file workflow (Contents: đọc, Metadata: đọc, Actions: ghi). Ứng dụng này báo cho vibefix khi một lần chạy trên GitHub Actions xong, và khi dự án gốc hoặc file workflow vibefix thay đổi: có thay đổi mới, đổi tên, chuyển đi, lưu trữ, xóa, bị bỏ khỏi danh sách dự án của ứng dụng, hoặc ứng dụng bị gỡ hay tạm ngưng. Quyền này không chuyển quyền sở hữu mã và kết thúc khi vibefix xóa các bản sao.",
-      "detection": "Tôi hiểu vibefix không quét mã. Trước khi mỗi công việc bắt đầu, tôi sẽ tự xác nhận dự án gốc đã sạch khóa bí mật và dữ liệu cá nhân.",
-      "guidance": "vibefix không quét mã của bạn. Trước khi người khác đọc mã, hãy tự kiểm tra toàn bộ lịch sử dự án: mọi khóa API và mật khẩu (ví dụ Supabase, Firebase, VNPay, OpenAI) phải được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng bạn (số điện thoại, email, số CCCD) phải được gỡ. Bạn có thể tự chạy công cụ miễn phí gitleaks trên GitHub Actions của dự án; vibefix không chạy và không đọc kết quả."
+      "public": "Tôi hiểu vibefix giữ các bản sao riêng tư của repo nguồn trên GitHub. Chỉ người hướng dẫn và nhóm thực hiện của công việc tôi đặt, và tôi, được cấp quyền vào các bản sao đó. Việc sao chép và merge cuối chạy trên GitHub Actions của repo nguồn, dùng một ít số phút GitHub cho tôi (mỗi lần vài giây). vibefix không tải mã về máy chủ của mình và không quét mã.",
+      "copy": "Tôi là chủ sở hữu mã nguồn này hoặc có quyền cho phép người khác dùng nó. Chỉ để thực hiện các công việc tôi đặt cho sản phẩm này, tôi cho phép vibefix: chạy file workflow vibefix đã công bố trong repo nguồn để sao chép nó vào các repo riêng tư của vibefix trên GitHub; để người hướng dẫn tôi chọn và nhóm thực hiện của họ chỉnh sửa bản sao; và chép mã đã nghiệm thu vào một nhánh mới của repo nguồn chỉ khi tôi chọn merge cuối. App vibefix trên repo nguồn chỉ có quyền đọc mã, đọc thông tin repo và chạy file workflow (Contents: đọc, Metadata: đọc, Actions: ghi). Ứng dụng này báo cho vibefix khi một lần chạy trên GitHub Actions xong, và khi repo nguồn hoặc file workflow vibefix thay đổi: có thay đổi mới, đổi tên, chuyển đi, lưu trữ, xóa, bị bỏ khỏi danh sách dự án của ứng dụng, hoặc ứng dụng bị gỡ hay tạm ngưng. Quyền này không chuyển quyền sở hữu mã và kết thúc khi vibefix xóa các bản sao.",
+      "detection": "Tôi hiểu vibefix không quét mã. Trước khi mỗi công việc bắt đầu, tôi sẽ tự xác nhận repo nguồn đã sạch secret và dữ liệu cá nhân.",
+      "guidance": "vibefix không quét mã của bạn. Trước khi người khác đọc mã, hãy tự kiểm tra toàn bộ lịch sử dự án: mọi API key và mật khẩu (ví dụ Supabase, Firebase, VNPay, OpenAI) phải được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng bạn (số điện thoại, email, số CCCD) phải được gỡ. Bạn có thể tự chạy công cụ miễn phí gitleaks trên GitHub Actions của dự án; vibefix không chạy và không đọc kết quả."
     },
     "selfConfirmation": {
       "version": "1.0",
-      "versionLine": "Lưu ý khi xác nhận dự án gốc · phiên bản {version}",
-      "title": "Xác nhận dự án gốc đã sạch",
-      "checkbox": "Tôi xác nhận: trong toàn bộ lịch sử của {repo} đến lần lưu {shortSha}, mọi khóa bí mật và mật khẩu đã được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng tôi đã được gỡ. Tôi hiểu vibefix không quét mã, và người hướng dẫn cùng nhóm thực hiện sẽ đọc toàn bộ lịch sử này."
+      "versionLine": "Lưu ý khi xác nhận repo nguồn · phiên bản {version}",
+      "title": "Xác nhận repo nguồn đã sạch",
+      "checkbox": "Tôi xác nhận: trong toàn bộ lịch sử của {repo} đến commit {shortSha}, mọi secret và mật khẩu đã được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng tôi đã được gỡ. Tôi hiểu vibefix không quét mã, và người hướng dẫn cùng nhóm thực hiện sẽ đọc toàn bộ lịch sử này."
     },
     "teamCode": {
       "version": "1.0",
       "versionLine": "Lưu ý về mã của nhóm · phiên bản {version}",
       "title": "Mã của nhóm không được vibefix quét",
-      "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các lần lưu thay đổi của bàn giao này không chứa khóa bí mật, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",
-      "customer": "vibefix không quét mã của nhóm. Người hướng dẫn {mentor} đã xác nhận bàn giao này không chứa khóa bí mật hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu."
+      "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các commit của bàn giao này không chứa secret, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",
+      "customer": "vibefix không quét mã của nhóm. Người hướng dẫn {mentor} đã xác nhận bàn giao này không chứa secret hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu."
     },
     "proofConfidentiality": "Tệp và liên kết bạn đính kèm chỉ {who} của công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai."
   },
@@ -3554,7 +3554,7 @@
     },
     "crew": {
       "label": "Nhóm thực hiện",
-      "hint": "Những thành viên cùng người hướng dẫn làm công việc này. Bạn chỉ thấy tên tài khoản GitHub của họ để cấp quyền khi cần."
+      "hint": "Những thành viên cùng người hướng dẫn làm công việc này. Bạn chỉ thấy GitHub username của họ để cấp quyền khi cần."
     },
     "assignee": {
       "label": "Người thực hiện",
@@ -3572,8 +3572,8 @@
       "hint": "Ứng dụng bạn đã làm bằng công cụ AI và đăng ký trên vibefix."
     },
     "sourceRepository": {
-      "label": "dự án gốc",
-      "labelTeam": "Source Repository (kho gốc)",
+      "label": "repo nguồn",
+      "labelTeam": "Source Repository (repo gốc)",
       "hint": "Nơi lưu mã nguồn ứng dụng của bạn trên GitHub. Lovable và các công cụ AI tự cập nhật vào đây."
     },
     "codeJob": {
@@ -3581,41 +3581,41 @@
       "hint": "Mọi loại công việc trừ Đánh giá: nhóm của người hướng dẫn thay đổi mã của bạn."
     },
     "intermediaryRepository": {
-      "label": "Kho trung gian",
+      "label": "Repo trung gian",
       "hint": "Bản sao dự án do vibefix quản lý. Chỉ hệ thống được ghi vào, và mã chỉ vào đây sau khi bạn nghiệm thu."
     },
     "workingRepository": {
-      "label": "kho làm việc",
+      "label": "repo làm việc",
       "labelTeam": "Working Repository",
-      "hint": "Nơi người hướng dẫn và nhóm thực hiện đẩy mã trong lúc làm. Không ảnh hưởng dự án gốc của bạn."
+      "hint": "Nơi người hướng dẫn và nhóm thực hiện đẩy mã trong lúc làm. Không ảnh hưởng repo nguồn của bạn."
     },
     "handoverCommit": {
       "label": "commit bàn giao"
     },
     "sensitiveChange": {
-      "label": "Thay đổi cần lưu ý",
-      "hint": "Tệp có thể chạy chương trình trên máy chủ hoặc dịch vụ của bạn, ví dụ danh sách thư viện hoặc tập lệnh cài đặt."
+      "label": "Thay đổi nhạy cảm",
+      "hint": "Tệp có thể chạy chương trình trên máy chủ hoặc dịch vụ của bạn, ví dụ danh sách dependency hoặc tập lệnh cài đặt."
     },
     "finalMerge": {
-      "label": "Hợp nhất vào dự án của bạn",
-      "hint": "Một cách nhận mã khi kết thúc: GitHub Actions trong dự án gốc của bạn chép toàn bộ mã đã nghiệm thu vào một nhánh mới (vibefix/final-…). Bạn tự hợp nhất nhánh đó trên GitHub; vibefix không ghi gì vào dự án của bạn.",
-      "labelShort": "hợp nhất cuối"
+      "label": "Merge vào repo nguồn",
+      "hint": "Một cách nhận mã khi kết thúc: GitHub Actions trong repo nguồn của bạn chép toàn bộ mã đã nghiệm thu vào một nhánh mới (vibefix/final-…). Bạn tự merge nhánh đó trên GitHub; vibefix không ghi gì vào dự án của bạn.",
+      "labelShort": "merge cuối"
     },
     "closingChoice": {
       "label": "Chọn cách nhận mã",
-      "hint": "Khi công việc kết thúc, bạn chọn một trong hai cách nhận mã trước hạn. Nếu bạn chưa chọn, công việc vẫn kết thúc, và bạn vẫn tải được mã từ kho trung gian đến khi nó bị xóa."
+      "hint": "Khi công việc kết thúc, bạn chọn một trong hai cách nhận mã trước hạn. Nếu bạn chưa chọn, công việc vẫn kết thúc, và bạn vẫn tải được mã từ repo trung gian đến khi nó bị xóa."
     },
     "selfDownload": {
       "label": "Tôi đã tự tải / clone từ GitHub",
-      "hint": "Bạn tải mã về từ kho trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây. Bạn không cần chạy lệnh nào."
+      "hint": "Bạn tải mã về từ repo trung gian bằng nút Download ZIP của GitHub, hoặc clone, rồi xác nhận ở đây. Bạn không cần chạy lệnh nào."
     },
     "driftWarning": {
-      "label": "Cảnh báo dự án gốc thay đổi",
-      "hint": "Dự án gốc vừa thay đổi trong lúc nhóm đang làm. Việc hợp nhất cuối có thể thất bại."
+      "label": "Cảnh báo repo nguồn thay đổi",
+      "hint": "Repo nguồn vừa thay đổi trong lúc nhóm đang làm. Việc merge cuối có thể thất bại."
     },
     "freezeCommitment": {
-      "label": "Cam kết không sửa dự án gốc",
-      "hint": "Bạn hứa không thay đổi dự án gốc, kể cả việc Lovable tự đồng bộ, từ lúc bắt đầu đến khi hợp nhất xong."
+      "label": "Cam kết không sửa repo nguồn",
+      "hint": "Bạn hứa không thay đổi repo nguồn, kể cả việc Lovable tự đồng bộ, từ lúc bắt đầu đến khi merge xong."
     },
     "externalAccess": {
       "label": "Quyền truy cập ngoài GitHub",
@@ -3623,7 +3623,7 @@
     },
     "revocationChecklist": {
       "label": "Danh sách thu hồi quyền",
-      "hint": "Danh sách để bạn gỡ quyền hoặc đổi khóa ở từng dịch vụ khi công việc kết thúc."
+      "hint": "Danh sách để bạn gỡ quyền hoặc rotate key ở từng dịch vụ khi công việc kết thúc."
     },
     "stage": {
       "label": "Bước"
@@ -3714,12 +3714,12 @@
       "label": "Báo cáo bàn giao"
     },
     "previewLink": {
-      "label": "Bản xem thử",
+      "label": "Preview",
       "hint": "Bản chạy thử do người hướng dẫn hoặc nhóm đưa lên mạng để bạn dùng thử thay đổi. Trang này nằm ngoài vibefix."
     },
     "screenRecordingLink": {
       "label": "Video quay màn hình",
-      "hint": "Video quay lại thao tác khi không thể làm bản xem thử."
+      "hint": "Video quay lại thao tác khi không thể làm preview."
     },
     "handoverLink": {
       "label": "Liên kết kèm bàn giao",
@@ -3727,7 +3727,7 @@
     },
     "accept": {
       "label": "Nghiệm thu",
-      "hint": "Xác nhận phần việc đạt yêu cầu. Khi đó mã được đưa vào kho trung gian và tiền được chuyển cho người hướng dẫn và nhóm."
+      "hint": "Xác nhận phần việc đạt yêu cầu. Khi đó mã được đưa vào repo trung gian và tiền được chuyển cho người hướng dẫn và nhóm."
     },
     "autoAcceptance": {
       "label": "Tự động nghiệm thu",
@@ -3790,81 +3790,81 @@
       "hint": "Dịch vụ lưu mã nguồn. Bạn dùng tài khoản GitHub để đăng nhập vibefix."
     },
     "khoMa": {
-      "label": "kho mã",
+      "label": "repo",
       "hint": "Nơi lưu toàn bộ mã nguồn và lịch sử thay đổi của một ứng dụng."
     },
     "congKhai": {
       "label": "công khai",
-      "hint": "Ai cũng xem được mã nguồn. vibefix nhận dự án gốc công khai hay riêng tư, và các bản sao vibefix tạo luôn riêng tư."
+      "hint": "Ai cũng xem được mã nguồn. vibefix nhận repo nguồn công khai hay riêng tư, và các bản sao vibefix tạo luôn riêng tư."
     },
     "ungDungVibefix": {
-      "label": "ứng dụng vibefix",
-      "hint": "Ứng dụng GitHub của vibefix mà bạn cài lên đúng dự án gốc. Nó chỉ đọc mã và thông tin của kho, và chạy file workflow của vibefix khi một công việc cần; nó không ghi gì vào dự án của bạn. Hãy giữ ứng dụng cho đến khi bạn xóa sản phẩm."
+      "label": "app vibefix",
+      "hint": "Ứng dụng GitHub của vibefix mà bạn cài lên đúng repo nguồn. Nó chỉ đọc mã và thông tin của repo, và chạy file workflow của vibefix khi một công việc cần; nó không ghi gì vào dự án của bạn. Hãy giữ ứng dụng cho đến khi bạn xóa sản phẩm."
     },
     "fileWorkflow": {
       "label": "file workflow",
       "labelAlt": "file workflow (vibefix.yml)",
-      "hint": "Một tệp hướng dẫn cho GitHub Actions do vibefix công bố. Bạn thêm nó vào dự án gốc một lần, đúng nội dung vibefix đưa. Nhờ nó, việc sao chép mã chạy ngay trên GitHub, không qua máy chủ của vibefix."
+      "hint": "Một tệp hướng dẫn cho GitHub Actions do vibefix công bố. Bạn thêm nó vào repo nguồn một lần, đúng nội dung vibefix đưa. Nhờ nó, việc sao chép mã chạy ngay trên GitHub, không qua máy chủ của vibefix."
     },
     "tuKiemTraKhoaBiMat": {
-      "label": "Tự kiểm tra khóa bí mật",
-      "hint": "Bạn có thể tự chạy công cụ miễn phí gitleaks trên GitHub Actions của dự án để tìm khóa bí mật còn sót. vibefix không chạy và không đọc kết quả; kết quả chỉ hiện trên GitHub của bạn."
+      "label": "Tự kiểm tra secret",
+      "hint": "Bạn có thể tự chạy công cụ miễn phí gitleaks trên GitHub Actions của dự án để tìm secret còn sót. vibefix không chạy và không đọc kết quả; kết quả chỉ hiện trên GitHub của bạn."
     },
     "quyenQuanTri": {
-      "label": "quyền quản trị",
-      "hint": "Quyền cao nhất trên một kho mã GitHub. Chủ kho luôn có quyền này."
+      "label": "quyền admin",
+      "hint": "Quyền cao nhất trên một repo GitHub. Chủ repo luôn có quyền này."
     },
     "doiKhoa": {
-      "label": "đổi khóa",
+      "label": "rotate key",
       "hint": "Tạo khóa mới và vô hiệu khóa cũ, để khóa đã lộ không còn tác dụng."
     },
     "coSoDuLieu": {
-      "label": "cơ sở dữ liệu",
+      "label": "database",
       "hint": "Nơi ứng dụng lưu dữ liệu như đơn hàng, khách hàng."
     },
     "tepCapNhatCoSoDuLieu": {
-      "label": "tệp cập nhật cơ sở dữ liệu",
-      "hint": "Tệp mô tả thay đổi cấu trúc dữ liệu, được giao trong kho mã để bạn kiểm soát."
+      "label": "migration",
+      "hint": "Tệp mô tả thay đổi cấu trúc dữ liệu, được giao trong repo để bạn kiểm soát."
     },
     "thuVien": {
-      "label": "thư viện",
+      "label": "dependency",
       "hint": "Phần mềm có sẵn mà ứng dụng của bạn dùng lại."
     },
     "moiTruongThu": {
-      "label": "môi trường thử",
+      "label": "staging",
       "hint": "Bản sao hệ thống dùng để thử, không có khách hàng thật."
     },
     "heThongThat": {
-      "label": "hệ thống thật",
+      "label": "production",
       "hint": "Hệ thống mà khách hàng của bạn đang dùng hằng ngày."
     },
     "dongBoTuDong": {
-      "label": "đồng bộ tự động",
+      "label": "auto-sync",
       "hint": "Lovable hoặc công cụ tương tự tự đẩy thay đổi lên GitHub mỗi khi bạn sửa ứng dụng."
     },
     "vnpayThuNghiem": {
       "label": "VNPay thử nghiệm",
-      "hint": "Môi trường thử của VNPay: không trừ tiền thật."
+      "hint": "Staging của VNPay: không trừ tiền thật."
     },
     "lanLuuThayDoi": {
-      "label": "lần lưu thay đổi",
+      "label": "commit",
       "hint": "Mỗi lần mã được lưu lên GitHub. Mã số ngắn giúp tìm lại đúng thay đổi đó."
     },
     "xacThucHaiLop": {
-      "label": "xác thực hai lớp",
-      "hint": "Bước bảo vệ thêm khi đăng nhập GitHub, ngoài mật khẩu. Người hướng dẫn và nhóm phải bật trước khi chấp nhận lời mời vào kho làm việc, và để được ghi mã."
+      "label": "2FA",
+      "hint": "Bước bảo vệ thêm khi đăng nhập GitHub, ngoài mật khẩu. Người hướng dẫn và nhóm phải bật trước khi chấp nhận lời mời vào repo làm việc, và để được ghi mã."
     },
     "quyenGhi": {
-      "label": "quyền ghi",
-      "hint": "Quyền đẩy mã lên kho làm việc. Người hướng dẫn và nhóm chỉ có quyền này khi công việc đang thực hiện."
+      "label": "quyền write",
+      "hint": "Quyền đẩy mã lên repo làm việc. Người hướng dẫn và nhóm chỉ có quyền này khi công việc đang thực hiện."
     },
     "khoaBiMat": {
-      "label": "khóa bí mật",
+      "label": "secret",
       "hint": "Chuỗi ký tự cho phép ứng dụng dùng một dịch vụ như Supabase. Ai có khóa thì dùng được dịch vụ đó.",
-      "labelAlt": "khóa API"
+      "labelAlt": "API key"
     },
     "tenTaiKhoanGithub": {
-      "label": "tên tài khoản GitHub",
+      "label": "GitHub username",
       "hint": "Tên dùng để cấp quyền cho người hướng dẫn và nhóm trên GitHub hoặc dịch vụ khác. Không phải cách để liên lạc."
     },
     "fundMilestone": {
@@ -3943,7 +3943,7 @@
       "link_github": "Liên kết tài khoản GitHub"
     },
     "product": {
-      "install_source_app": "Cài ứng dụng vibefix trên GitHub cho {repo}",
+      "install_source_app": "Cài app vibefix trên GitHub cho {repo}",
       "add_workflow": "Thêm file workflow vibefix vào {repo}"
     },
     "matching": {
@@ -3984,13 +3984,13 @@
       "approve_follow_ups": "Xem các công việc tiếp theo cho {job}"
     },
     "repo": {
-      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu, bản sao mã trên máy và bản xem thử của {job}",
-      "accept_github_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
-      "accept_intermediary_invitation": "Bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời đọc kho trung gian của {job} (không bắt buộc)",
-      "reconfirm_source": "Xác nhận lại dự án gốc của {job}",
-      "confirm_source_clean": "Xác nhận dự án gốc của {job} đã sạch khóa bí mật",
+      "confirm_data_deletion": "Xác nhận đã xóa dữ liệu, bản sao mã trên máy và preview của {job}",
+      "accept_github_invitation": "Bật 2FA trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
+      "accept_intermediary_invitation": "Bật 2FA trên GitHub (nếu chưa bật), rồi chấp nhận lời mời đọc repo trung gian của {job} (không bắt buộc)",
+      "reconfirm_source": "Xác nhận lại repo nguồn của {job}",
+      "confirm_source_clean": "Xác nhận repo nguồn của {job} đã sạch secret",
       "receive_code": "Chọn cách nhận mã của {job}",
-      "download_before_deletion": "Tải mã của {job} về trước {date}: sau ngày này kho trung gian bị xóa",
+      "download_before_deletion": "Tải mã của {job} về trước {date}: sau ngày này repo trung gian bị xóa",
       "revocation_item": "Thu hồi quyền {system}",
       "revocation_item_member": "Thu hồi quyền {system} của @{login}"
     },
@@ -4059,11 +4059,11 @@
         "title": "Không chắc token GitHub Actions ({operation}, mã {correlation}) đã được thu hồi sau khi vibefix khởi động lại"
       },
       "runner_run_failed": {
-        "title": "Lần sao chép bàn giao trên kho chạy thất bại: {job}, Giai đoạn {n}",
+        "title": "Lần sao chép bàn giao trên repo chạy thất bại: {job}, Giai đoạn {n}",
         "body": "Lý do: {reason}. Lần chạy: {run}"
       },
       "runner_minutes_80": {
-        "title": "Kho chạy đã dùng {used}/{budget} phút GitHub Actions tháng này"
+        "title": "Repo chạy đã dùng {used}/{budget} phút GitHub Actions tháng này"
       }
     },
     "identity": {
@@ -4152,7 +4152,7 @@
         "title": "{job} đã bắt đầu"
       },
       "job_starting": {
-        "title": "Đang chuẩn bị kho mã cho {job}"
+        "title": "Đang chuẩn bị repo cho {job}"
       },
       "milestone_submitted": {
         "title": "Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước ngày tự nghiệm thu {date}."
@@ -4359,7 +4359,7 @@
         "title": "Hãy chọn cách nhận mã của {job} trước {date}"
       },
       "final_branch_ready": {
-        "title": "Mã của {job} đã được chép vào nhánh {branch} của dự án bạn. Hãy hợp nhất nhánh này trên GitHub"
+        "title": "Mã của {job} đã được chép vào nhánh {branch} của dự án bạn. Hãy merge nhánh này trên GitHub"
       },
       "revocation_checklist_pending": {
         "title": "Hãy thu hồi quyền truy cập ngoài GitHub cho {job}"
@@ -4371,10 +4371,10 @@
         "title": "{job} đã kết thúc khi bạn chưa xác nhận đã nhận mã. Hãy tải mã về trước {date}"
       },
       "download_reminder": {
-        "title": "Kho trung gian của {job} sẽ bị xóa ngày {date}. Hãy tải mã về trước ngày đó"
+        "title": "Repo trung gian của {job} sẽ bị xóa ngày {date}. Hãy tải mã về trước ngày đó"
       },
       "final_merge_completed": {
-        "title": "Đã hợp nhất mã của {job} vào dự án gốc"
+        "title": "Đã merge mã của {job} vào repo nguồn"
       },
       "data_deletion_confirmation_pending": {
         "title": "Hãy xác nhận đã xóa dữ liệu của khách hàng ở {job}"
@@ -4383,25 +4383,25 @@
         "title": "Chưa thể bắt đầu {job}: {reason}"
       },
       "self_confirmation_due": {
-        "title": "Hãy xác nhận dự án gốc đã sạch để bắt đầu {job}",
-        "body": "Lần lưu mới nhất của dự án gốc: {sha}. vibefix không quét mã của bạn: hãy chắc rằng mọi khóa bí mật trong lịch sử dự án đã được thu hồi hoặc đổi, và dữ liệu cá nhân của người dùng đã được xóa, rồi xác nhận."
+        "title": "Hãy xác nhận repo nguồn đã sạch để bắt đầu {job}",
+        "body": "Commit mới nhất của repo nguồn: {sha}. vibefix không quét mã của bạn: hãy chắc rằng mọi secret trong lịch sử dự án đã được thu hồi hoặc đổi, và dữ liệu cá nhân của người dùng đã được xóa, rồi xác nhận."
       },
       "github_invitation_sent": {
-        "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}"
+        "title": "Hãy bật 2FA trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}"
       },
       "intermediary_invitation_sent": {
-        "title": "Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
-        "body": "Lời mời cho bạn quyền đọc kho trung gian trên GitHub: xem, tải và clone mã, không sửa được. Lời mời không bắt buộc: bạn vẫn xem và nghiệm thu bàn giao trên vibefix khi chưa chấp nhận. Bạn giữ quyền đọc khi vibefix còn giữ kho trung gian, thường đến 30 ngày sau khi công việc kết thúc."
+        "title": "Hãy bật 2FA trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}",
+        "body": "Lời mời cho bạn quyền đọc repo trung gian trên GitHub: xem, tải và clone mã, không sửa được. Lời mời không bắt buộc: bạn vẫn xem và nghiệm thu bàn giao trên vibefix khi chưa chấp nhận. Bạn giữ quyền đọc khi vibefix còn giữ repo trung gian, thường đến 30 ngày sau khi công việc kết thúc."
       },
       "read_invitation_sent": {
-        "title": "Chấp nhận lời mời đọc kho trung gian của {job} trên GitHub",
-        "body": "Lời mời cho bạn quyền đọc kho trung gian: xem, tải và clone mã, không sửa được. Ở công việc đánh giá này không ai có quyền ghi. Hãy bật xác thực hai lớp trên GitHub trước khi chấp nhận, rồi chấp nhận trong 7 ngày. Quyền đọc của bạn kết thúc khi công việc kết thúc."
+        "title": "Chấp nhận lời mời đọc repo trung gian của {job} trên GitHub",
+        "body": "Lời mời cho bạn quyền đọc repo trung gian: xem, tải và clone mã, không sửa được. Ở công việc đánh giá này không ai có quyền write. Hãy bật 2FA trên GitHub trước khi chấp nhận, rồi chấp nhận trong 7 ngày. Quyền đọc của bạn kết thúc khi công việc kết thúc."
       },
       "two_factor_required": {
-        "title": "Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}"
+        "title": "Bật 2FA trên GitHub để nhận quyền write ở {job}"
       },
       "two_factor_required_read": {
-        "title": "Bật xác thực hai lớp trên GitHub để đọc được kho trung gian của {job}"
+        "title": "Bật 2FA trên GitHub để đọc được repo trung gian của {job}"
       },
       "member_drift": {
         "title": "@{login} đã là thành viên tổ chức GitHub nên không mời được vào {job}"
@@ -4410,14 +4410,14 @@
         "title": "Lời mời GitHub của @{login} ở {job} đã gia hạn 3 lần mà chưa được chấp nhận"
       },
       "drift_detected": {
-        "title": "Dự án gốc của {job} vừa thay đổi"
+        "title": "Repo nguồn của {job} vừa thay đổi"
       },
       "workflow_check_failed": {
         "title": "Cần thêm lại file workflow vibefix cho {repo}: {problem}",
         "body": "Mở trang sản phẩm để sửa, rồi bấm “Kiểm tra lại”. Các công việc của sản phẩm chỉ bắt đầu hay kết thúc được khi kiểm tra đạt."
       },
       "access_revoked": {
-        "title": "Quyền của bạn trên kho làm việc của {job} đã được thu hồi"
+        "title": "Quyền của bạn trên repo làm việc của {job} đã được thu hồi"
       }
     },
     "reputation": {
@@ -4528,18 +4528,18 @@
       "CATEGORY_HAS_ACTIVE_SKILLS": "Nhóm này còn kỹ năng đang dùng; hãy ngừng dùng chúng trước."
     },
     "product": {
-      "NOT_GITHUB": "Đường dẫn này không phải kho mã GitHub.",
-      "SOURCE_APP_MISSING": "Ứng dụng vibefix chưa được cài trên {repo}. Hãy cài ứng dụng trên GitHub rồi quay lại.",
-      "SOURCE_APP_WRONG_REPOSITORY": "Ứng dụng vibefix phải được cài cho {repo}. Hãy chọn lại trên GitHub: chọn “Only select repositories”, rồi chọn {repo} trong danh sách. Các kho khác bạn đã chọn cứ để nguyên.",
-      "REPO_NOT_FOUND": "Không tìm thấy kho mã này trên GitHub. Hãy kiểm tra đường dẫn.",
-      "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị kho mã này, nên không thể đăng ký.",
+      "NOT_GITHUB": "Đường dẫn này không phải repo GitHub.",
+      "SOURCE_APP_MISSING": "App vibefix chưa được cài trên {repo}. Hãy cài ứng dụng trên GitHub rồi quay lại.",
+      "SOURCE_APP_WRONG_REPOSITORY": "App vibefix phải được cài cho {repo}. Hãy chọn lại trên GitHub: chọn “Only select repositories”, rồi chọn {repo} trong danh sách. Các repo khác bạn đã chọn cứ để nguyên.",
+      "REPO_NOT_FOUND": "Không tìm thấy repo này trên GitHub. Hãy kiểm tra đường dẫn.",
+      "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền admin repo này, nên không thể đăng ký.",
       "WORKFLOW_MISSING": "Chưa có file workflow .github/workflows/vibefix.yml trong {repo}. Hãy bấm “Thêm file workflow”, lưu trên GitHub, rồi bấm “Kiểm tra”.",
       "WORKFLOW_MISMATCH": "File workflow trong {repo} khác bản vibefix công bố. Hãy thêm lại file bằng nút “Thêm file workflow”, rồi bấm “Kiểm tra”.",
-      "REPO_ALREADY_LINKED": "Kho mã này đã được đăng ký cho một sản phẩm khác.",
-      "REPO_UNSUPPORTED_CONTENT": "Kho mã lưu tệp lớn ở nơi khác hoặc chứa kho mã con, vibefix chưa hỗ trợ.",
+      "REPO_ALREADY_LINKED": "Repo này đã được đăng ký cho một sản phẩm khác.",
+      "REPO_UNSUPPORTED_CONTENT": "Repo lưu tệp lớn ở nơi khác hoặc chứa repo con, vibefix chưa hỗ trợ.",
       "PRODUCT_HAS_ACTIVE_JOB": "Không thể xóa sản phẩm khi còn công việc đang thực hiện.",
-      "REPO_TOO_LARGE": "Kho mã lớn hơn giới hạn 250 MB.",
-      "GITHUB_UNAVAILABLE": "Chưa đọc được kho mã từ GitHub. Hãy thử lại sau ít phút.",
+      "REPO_TOO_LARGE": "Repo lớn hơn giới hạn 250 MB.",
+      "GITHUB_UNAVAILABLE": "Chưa đọc được repo từ GitHub. Hãy thử lại sau ít phút.",
       "NOTICE_REQUIRED": "Hãy đánh dấu đủ 3 lưu ý trước khi đăng ký. Nếu bạn đã đánh dấu đủ, hãy tải lại trang: các lưu ý vừa được cập nhật.",
       "PRODUCT_LIMIT": "Bạn đã đăng ký đủ 5 sản phẩm hôm nay. Hãy đăng ký tiếp vào ngày mai.",
       "CHECK_LIMIT": "Bạn đã bấm “Kiểm tra” quá nhiều lần trong một giờ. Hãy thử lại sau {time}."
@@ -4557,11 +4557,11 @@
       "AGREEMENT_INCOMPLETE": "bản nháp chưa đủ để gửi",
       "CONFLICT_OF_INTEREST": "người này không thể tham gia công việc này",
       "ROLE_TAKEN": "người này đã giữ một vai khác trong công việc này (mỗi người chỉ giữ một vai trong một công việc)",
-      "APPLICANT_IS_CONTRIBUTOR": "người này đã từng đóng góp vào dự án gốc này",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận được người này; việc này không do bạn, hãy thử lại sau",
+      "APPLICANT_IS_CONTRIBUTOR": "người này đã từng đóng góp vào repo nguồn này",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được repo của khách hàng nên chưa nhận được người này; việc này không do bạn, hãy thử lại sau",
       "AGREEMENT_APPROVED": "bạn đã duyệt bản nháp này",
       "CHANGES_REQUESTED": "bạn đã gửi góp ý cho bản nháp này, hãy chờ bản nháp mới",
-      "FREEZE_COMMITMENT_REQUIRED": "hãy đánh dấu cam kết không thay đổi dự án gốc",
+      "FREEZE_COMMITMENT_REQUIRED": "hãy đánh dấu cam kết không thay đổi repo nguồn",
       "AGREEMENT_NOT_APPROVED": "khách hàng chưa duyệt bản nháp mới nhất",
       "AGREEMENT_CONFIRMED": "thỏa thuận đã được xác nhận, chỉ thay đổi được qua đề nghị thay đổi",
       "DRAFT_CHANGED": "bản nháp có thay đổi chưa gửi cho khách hàng",
@@ -4569,16 +4569,16 @@
       "PRODUCT_HAS_RUNNING_JOB": "sản phẩm này đang có một công việc khác chạy",
       "MILESTONE_HELD": "một giai đoạn khác đang được giữ tiền",
       "MILESTONE_NOT_FUNDABLE": "giai đoạn này chưa đến lượt thanh toán",
-      "REPOSITORIES_NOT_READY": "kho mã của công việc chưa sẵn sàng",
+      "REPOSITORIES_NOT_READY": "repo của công việc chưa sẵn sàng",
       "REVISION_ROUNDS_USED": "Giai đoạn này đã hết lượt sửa.",
       "HANDOVER_CHANGED": "Người hướng dẫn vừa bàn giao lại. Hãy mở bản bàn giao mới nhất.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
-      "HANDOVER_NOT_MERGED": "Mã bàn giao cần được hợp nhất trước khi nghiệm thu giai đoạn.",
+      "HANDOVER_NOT_MERGED": "Mã bàn giao cần được merge trước khi nghiệm thu giai đoạn.",
       "CLOSURE_OPEN": "Đã có đề nghị kết thúc đang chờ trả lời.",
       "NO_CLOSURE_OPEN": "Không có đề nghị kết thúc nào đang chờ.",
       "CLOSURE_ANSWERED": "Bạn đã trả lời đề nghị này.",
       "MENTOR_ONLY": "Chỉ khách hàng và người hướng dẫn trả lời được.",
-      "FINAL_MERGE_PENDING": "Công việc sửa mã kết thúc sau khi hợp nhất mã.",
+      "FINAL_MERGE_PENDING": "Công việc sửa mã kết thúc sau khi merge mã.",
       "NO_CONFIRMED_AGREEMENT": "Bạn đề nghị đổi hạn được khi thỏa thuận đã xác nhận và công việc đang chạy.",
       "CHANGE_REQUEST_OPEN": "Đang có một đề nghị thay đổi chưa xong.",
       "MILESTONE_FINAL": "Giai đoạn đã nghiệm thu, đã hủy hoặc đã giải quyết thì không đổi hạn được.",
@@ -4589,7 +4589,7 @@
       "NO_CANCELLATION_OPEN": "Không có đề nghị hủy nào đang mở.",
       "CANCELLATION_PROPOSER": "Bên kia xác nhận đề nghị hủy; người đề nghị có thể rút lại.",
       "HAS_ACCEPTED_WORK": "Công việc đã có giai đoạn được nghiệm thu nên kết thúc qua bước đóng công việc.",
-      "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc khóa bí mật. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
+      "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc secret. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày.",
       "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm.",
@@ -4618,9 +4618,9 @@
       "ALREADY_APPLIED": "Bạn đã có đơn chào giá cho công việc này.",
       "MENTOR_JOB_LIMIT": "Bạn đang hướng dẫn đủ số công việc tối đa. Hãy hoàn thành bớt rồi chào giá tiếp.",
       "CONFLICT_OF_INTEREST": "Bạn không thể chào giá công việc này.",
-      "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào dự án gốc này nên không thể chào giá.",
-      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được kho mã của khách hàng nên chưa nhận đơn chào giá này. Có thể khách hàng cần sửa lại ứng dụng vibefix trên GitHub cho dự án của họ. Việc này không do bạn; hãy thử lại sau.",
-      "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về kho làm việc riêng tư.",
+      "APPLICANT_IS_CONTRIBUTOR": "Bạn đã từng đóng góp vào repo nguồn này nên không thể chào giá.",
+      "CONTRIBUTORS_UNKNOWN": "vibefix chưa kiểm tra được repo của khách hàng nên chưa nhận đơn chào giá này. Có thể khách hàng cần sửa lại app vibefix trên GitHub cho dự án của họ. Việc này không do bạn; hãy thử lại sau.",
+      "PUBLIC_CODE_NOT_ACKNOWLEDGED": "Hãy đánh dấu ô xác nhận về repo làm việc riêng tư.",
       "NOT_WITHDRAWABLE": "Đơn này không rút được nữa.",
       "NDA_VERSION_OUTDATED": "Cam kết bảo mật vừa có phiên bản mới. Hãy tải lại trang rồi ký lại.",
       "COMMIT_EMAIL_NOT_ACKNOWLEDGED": "Hãy đánh dấu \"Tôi đã hiểu\" trước khi ký.",
@@ -4656,7 +4656,7 @@
       "NOTICE_REQUIRED": "Lưu ý về mã của nhóm vừa được cập nhật. Hãy tải lại trang để đọc bản mới rồi gửi lại.",
       "MILESTONE_NOT_HELD": "Giai đoạn này chưa được thanh toán hoặc đã bàn giao.",
       "CRITERION_MARK_MISSING": "Hãy chọn Đạt hoặc Chưa đạt và ghi chú cho từng tiêu chí.",
-      "HANDOVER_COMMIT_MISSING": "Kho làm việc của công việc chưa sẵn sàng nên chưa thể bàn giao mã.",
+      "HANDOVER_COMMIT_MISSING": "Repo làm việc của công việc chưa sẵn sàng nên chưa thể bàn giao mã.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_DECIDED": "Lần bàn giao này đã được quyết định.",
       "REVISION_CRITERIA_MISSING": "Hãy chọn ít nhất một tiêu chí Chưa đạt để yêu cầu sửa.",
@@ -4664,44 +4664,44 @@
       "FOLLOW_UPS_SUBMITTED": "Các công việc tiếp theo đã được gửi cho khách hàng.",
       "NO_FOLLOW_UPS": "Hãy soạn ít nhất một công việc tiếp theo trước khi gửi.",
       "FOLLOW_UP_NOT_AWAITING": "Công việc tiếp theo này đã được mở hoặc bỏ qua.",
-      "NO_NEW_COMMITS": "Chưa có thay đổi mới nào được lưu vào kho làm việc kể từ lần bàn giao trước.",
+      "NO_NEW_COMMITS": "Chưa có thay đổi mới nào được lưu vào repo làm việc kể từ lần bàn giao trước.",
       "WORKFLOW_FILES_CHANGED": "Không thể bàn giao: có thay đổi trong thư mục .github/workflows. Hãy đặt tệp cấu hình tự động đề xuất ở thư mục khác, kèm hướng dẫn để khách hàng tự thêm.",
-      "REPOSITORY_UNREADABLE": "Chưa đọc được kho làm việc trên GitHub. Hãy thử lại sau ít phút.",
-      "PREVIEW_REQUIRED": "Công việc này thay đổi ứng dụng đang chạy, nên cần bản xem thử, hoặc lý do kèm video quay màn hình.",
-      "PREVIEW_OR_RECORDING": "Hãy chọn một: bản xem thử, hoặc lý do không làm được bản xem thử. Liên kết kèm bàn giao vẫn gửi được cùng bản xem thử.",
-      "RECORDING_REASON_MISSING": "Khi không làm được bản xem thử, hãy ghi lý do và thêm ít nhất một liên kết loại \"Bản ghi / video\".",
+      "REPOSITORY_UNREADABLE": "Chưa đọc được repo làm việc trên GitHub. Hãy thử lại sau ít phút.",
+      "PREVIEW_REQUIRED": "Công việc này thay đổi ứng dụng đang chạy, nên cần preview, hoặc lý do kèm video quay màn hình.",
+      "PREVIEW_OR_RECORDING": "Hãy chọn một: preview, hoặc lý do không làm được preview. Liên kết kèm bàn giao vẫn gửi được cùng preview.",
+      "RECORDING_REASON_MISSING": "Khi không làm được preview, hãy ghi lý do và thêm ít nhất một liên kết loại \"Bản ghi / video\".",
       "TOO_MANY_LINKS": "Mỗi lần bàn giao có tối đa 10 liên kết.",
       "REPORT_LINK_MISSING": "Bàn giao của công việc đánh giá cần ít nhất một liên kết loại \"Tài liệu\" dẫn tới báo cáo đánh giá.",
-      "PREVIEW_UNREACHABLE": "Bản xem thử không phản hồi. Hãy kiểm tra đường dẫn.",
+      "PREVIEW_UNREACHABLE": "Preview không phản hồi. Hãy kiểm tra đường dẫn.",
       "TOO_MANY_SCREENSHOTS": "Mỗi lần bàn giao có tối đa 5 hình ảnh.",
       "SCREENSHOT_UNKNOWN": "Có hình ảnh không còn trong danh sách. Hãy tải lại trang.",
       "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB.",
       "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.",
-      "HANDOVER_COPYING": "Một bàn giao khác đang được sao chép sang kho trung gian. Hãy đợi xong rồi gửi tiếp.",
+      "HANDOVER_COPYING": "Một bàn giao khác đang được sao chép sang repo trung gian. Hãy đợi xong rồi gửi tiếp.",
       "RUN_FAILED": "Lần sao chép bàn giao trên GitHub Actions không chạy xong.",
       "EXCHANGE_REFUSED": "Lần sao chép bàn giao không được vibefix cấp quyền.",
       "PATH_LIST_UNREADABLE": "Không đọc được danh sách tệp đã thay đổi, nên vibefix không tạo bàn giao."
     },
     "repo": {
-      "SETUP_NOT_BLOCKED": "Việc chuẩn bị kho mã không bị dừng, nên không cần thử lại.",
-      "SELF_CONFIRMATION_MISSING": "Bạn chưa xác nhận dự án gốc đã sạch khóa bí mật và dữ liệu cá nhân.",
-      "SETUP_NOT_CONFIRMING": "Việc chuẩn bị kho mã không còn chờ bạn xác nhận. Hãy tải lại trang.",
+      "SETUP_NOT_BLOCKED": "Việc chuẩn bị repo không bị dừng, nên không cần thử lại.",
+      "SELF_CONFIRMATION_MISSING": "Bạn chưa xác nhận repo nguồn đã sạch secret và dữ liệu cá nhân.",
+      "SETUP_NOT_CONFIRMING": "Việc chuẩn bị repo không còn chờ bạn xác nhận. Hãy tải lại trang.",
       "NOTICE_REQUIRED": "Hãy đọc và đánh dấu đồng ý với thông báo mới nhất rồi xác nhận lại.",
-      "GITHUB_UNAVAILABLE": "Chưa đọc được dự án gốc trên GitHub. Hãy thử lại sau ít phút.",
+      "GITHUB_UNAVAILABLE": "Chưa đọc được repo nguồn trên GitHub. Hãy thử lại sau ít phút.",
       "JOB_NOT_STARTING": "Công việc không còn ở bước chờ bắt đầu.",
       "JOB_FROZEN": "Công việc đang tranh chấp, nên chưa thử lại được.",
-      "NOTHING_TO_RECONFIRM": "Không có dự án gốc nào cần xác nhận lại.",
-      "SOURCE_APP_MISSING": "Ứng dụng vibefix chưa được cài trên dự án gốc ở tên mới. Hãy cài lại ứng dụng trên GitHub rồi xác nhận lại.",
-      "SOURCE_APP_WRONG_REPOSITORY": "Ứng dụng vibefix phải được cài cho đúng dự án gốc đã đăng ký. Hãy chọn lại trên GitHub rồi xác nhận lại.",
-      "WORKFLOW_MISSING": "Dự án gốc ở tên mới chưa có file workflow vibefix.yml. Hãy thêm lại file rồi xác nhận lại.",
-      "WORKFLOW_MISMATCH": "File workflow vibefix.yml trong dự án gốc khác bản vibefix công bố. Hãy thêm lại file rồi xác nhận lại.",
-      "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền quản trị dự án gốc ở tên mới.",
+      "NOTHING_TO_RECONFIRM": "Không có repo nguồn nào cần xác nhận lại.",
+      "SOURCE_APP_MISSING": "App vibefix chưa được cài trên repo nguồn ở tên mới. Hãy cài lại ứng dụng trên GitHub rồi xác nhận lại.",
+      "SOURCE_APP_WRONG_REPOSITORY": "App vibefix phải được cài cho đúng repo nguồn đã đăng ký. Hãy chọn lại trên GitHub rồi xác nhận lại.",
+      "WORKFLOW_MISSING": "Repo nguồn ở tên mới chưa có file workflow vibefix.yml. Hãy thêm lại file rồi xác nhận lại.",
+      "WORKFLOW_MISMATCH": "File workflow vibefix.yml trong repo nguồn khác bản vibefix công bố. Hãy thêm lại file rồi xác nhận lại.",
+      "NO_ADMIN_PERMISSION": "Tài khoản GitHub của bạn không có quyền admin repo nguồn ở tên mới.",
       "NO_CLOSING_CHOICE_OPEN": "Công việc này không còn bước chọn cách nhận mã đang mở, và cũng không còn mã để tải về.",
       "CODE_RECEIPT_RECORDED": "Bạn đã xác nhận đã nhận mã rồi.",
       "FINAL_MERGE_DONE": "Mã đã được chép vào một nhánh của dự án bạn, nên không cần xác nhận gì thêm.",
-      "FINAL_MERGE_NOT_READY": "Mã chưa được kiểm tra xong để hợp nhất. Hãy tải lại trang rồi thử lại.",
+      "FINAL_MERGE_NOT_READY": "Mã chưa được kiểm tra xong để merge. Hãy tải lại trang rồi thử lại.",
       "FINAL_MERGE_CONFIRMED": "Bạn đã cho chạy bước chép mã vào dự án, và bước đó đang chạy.",
-      "WORKFLOW_FILES_CHANGED": "Mã đã nghiệm thu có thay đổi trong thư mục .github/workflows. GitHub không cho bước hợp nhất cuối ghi các tệp này, nên hãy tự tải mã từ kho trung gian.",
+      "WORKFLOW_FILES_CHANGED": "Mã đã nghiệm thu có thay đổi trong thư mục .github/workflows. GitHub không cho bước merge cuối ghi các tệp này, nên hãy tự tải mã từ repo trung gian.",
       "JOB_NOT_ENDED": "Bạn xác nhận được sau khi công việc bắt đầu kết thúc.",
       "NOT_A_DUTY": "Chỉ người hướng dẫn và nhóm thực hiện xác nhận việc này."
     },

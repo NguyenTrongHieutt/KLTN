@@ -241,7 +241,7 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
 
-    const lines = await screen.findAllByText('Đang hợp nhất bàn giao Giai đoạn 1. Tiền được chuyển ngay khi hợp nhất xong.')
+    const lines = await screen.findAllByText('Đang merge bàn giao Giai đoạn 1. Tiền được chuyển ngay khi merge xong.')
     expect(lines.length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Kiểm tra từng tiêu chí' })).toBeNull()
   })
@@ -267,7 +267,7 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     })
     renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
 
-    expect(await screen.findByRole('link', { name: /Mở bản xem thử/ })).toHaveAttribute('href', 'https://vht-preview.vercel.app')
+    expect(await screen.findByRole('link', { name: /Mở preview/ })).toHaveAttribute('href', 'https://vht-preview.vercel.app')
     expect(screen.getByText('(vht-preview.vercel.app)')).toBeInTheDocument()
     expect(screen.getByText(/Trang này nằm ngoài vibefix \(vht-preview\.vercel\.app\)/)).toBeInTheDocument()
     // Story 24.3: beside "Cách kiểm tra", every link with its kind, label and domain -- the report among them.
@@ -301,9 +301,9 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     const recording = await screen.findByRole('link', { name: /Quay lại thao tác/ })
     const howTo = recording.closest('div')!
     expect(within(howTo).getByText('Cách kiểm tra')).toBeInTheDocument()
-    expect(within(howTo).getByText('Lý do không có bản xem thử')).toBeInTheDocument()
+    expect(within(howTo).getByText('Lý do không có preview')).toBeInTheDocument()
     expect(within(howTo).getByText('Ứng dụng chỉ chạy trên máy của quán')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Mở bản xem thử/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Mở preview/ })).toBeNull()
   })
 
   it('explains a Stale answer when an acceptance merge voided the handover meanwhile (UX-DR26)', { timeout: 25_000 }, async () => {

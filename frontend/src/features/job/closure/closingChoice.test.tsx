@@ -51,9 +51,9 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     renderChoice()
 
     expect(await screen.findByText('Chọn trước 13/11')).toBeInTheDocument()
-    expect(screen.getByText('Hợp nhất vào dự án của bạn')).toBeInTheDocument()
+    expect(screen.getByText('Merge vào repo nguồn')).toBeInTheDocument()
     expect(screen.getByText(/GitHub Actions trong quan-may\/so-dat-ban chép mã đã nghiệm thu/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Xem bước hợp nhất cuối' })).toHaveAttribute('href', '#hop-nhat-cuoi')
+    expect(screen.getByRole('link', { name: 'Xem bước merge cuối' })).toHaveAttribute('href', '#hop-nhat-cuoi')
     expect(screen.getByRole('heading', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeInTheDocument()
     expect(screen.queryByRole('radio')).toBeNull()
@@ -67,7 +67,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     })
     renderChoice()
 
-    expect(await screen.findByRole('link', { name: /Mở kho trung gian/ })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /Mở repo trung gian/ })).toHaveAttribute(
       'href',
       'https://github.com/vibefix-dev/job-7-intermediary',
     )
@@ -125,7 +125,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     renderChoice()
 
     expect(await screen.findByRole('button', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeInTheDocument()
-    expect(screen.queryByText('Hợp nhất vào dự án của bạn')).toBeNull()
+    expect(screen.queryByText('Merge vào repo nguồn')).toBeNull()
     expect(screen.queryByText(/Chọn trước/)).toBeNull()
   })
 
@@ -164,11 +164,11 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     renderChoice()
 
     expect(await screen.findByRole('heading', { name: 'Bạn chưa xác nhận đã nhận mã' })).toBeInTheDocument()
-    expect(screen.getByText(/Kho trung gian vẫn mở cho bạn đọc và tải đến 10\/12/)).toBeInTheDocument()
+    expect(screen.getByText(/Repo trung gian vẫn mở cho bạn đọc và tải đến 10\/12/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tôi đã tự tải / clone từ GitHub' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Mở kho trung gian/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Mở repo trung gian/ })).toBeInTheDocument()
     expect(screen.queryByText(/Chọn trước/)).toBeNull()
-    expect(screen.queryByText('Hợp nhất vào dự án của bạn')).toBeNull()
+    expect(screen.queryByText('Merge vào repo nguồn')).toBeNull()
   })
 
   /** The repositories went with the deletion: the ending still reads, and says the code is gone from vibefix. */
@@ -188,7 +188,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     renderChoice()
 
     expect(await screen.findByRole('heading', { name: 'Bạn chưa xác nhận đã nhận mã' })).toBeInTheDocument()
-    expect(screen.getByText(/Kho trung gian đã bị xóa/)).toBeInTheDocument()
+    expect(screen.getByText(/Repo trung gian đã bị xóa/)).toBeInTheDocument()
     expect(screen.queryByText(/vẫn mở cho bạn đọc/)).toBeNull()
     expect(screen.queryByRole('button')).toBeNull()
   })
@@ -264,7 +264,7 @@ describe('The Closing choice cards (FR-37, FR-38, D10, UX-DR116, Stories 23.10a 
     })
     renderChoice()
 
-    expect(await screen.findByText('Khách hàng đã tự tải mã từ kho trung gian.')).toBeInTheDocument()
+    expect(await screen.findByText('Khách hàng đã tự tải mã từ repo trung gian.')).toBeInTheDocument()
     expect(screen.queryByText(/Chọn trước/)).toBeNull()
   })
 })

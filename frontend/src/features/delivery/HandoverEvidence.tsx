@@ -265,7 +265,7 @@ function PreviewFields({
           )}
         </FormField>
       )}
-      <label className="flex min-h-tap-min items-center gap-2 text-body-sm">
+      <label className="flex min-h-tap-min md:min-h-control-compact items-center gap-2 text-body-sm">
         <input type="checkbox" checked={value.noPreview} onChange={(event) => set({ noPreview: event.target.checked })} />
         {t('screen.handover.preview.impossible')}
       </label>

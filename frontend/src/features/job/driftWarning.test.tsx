@@ -36,10 +36,10 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
     })
     renderWarning()
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Việc hợp nhất cuối có thể thất bại.')
-    expect(screen.getByText('Có 3 thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày 23/10).')).toBeInTheDocument()
-    expect(screen.getByText(/bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Xác nhận lại dự án gốc' })).toBeNull()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Việc merge cuối có thể thất bại.')
+    expect(screen.getByText('Có 3 thay đổi mới trong repo nguồn kể từ khi công việc bắt đầu (ghi nhận ngày 23/10).')).toBeInTheDocument()
+    expect(screen.getByText(/bạn vẫn tự tải mã đã hoàn thiện từ repo trung gian trên GitHub/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Xác nhận lại repo nguồn' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Cách tạm dừng đồng bộ' }))
     expect(screen.getByText(/Lovable:/)).toBeInTheDocument()
   })
@@ -60,27 +60,27 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
     })
     renderWarning()
 
-    expect(await screen.findByText('Dự án gốc đã đổi tên thành lan/so-dat-ban-v2 (ghi nhận ngày 23/10).')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Xác nhận lại dự án gốc' }))
-    expect(await screen.findByText(/không có quyền quản trị dự án gốc ở tên mới/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Xác nhận lại dự án gốc' }))
+    expect(await screen.findByText('Repo nguồn đã đổi tên thành lan/so-dat-ban-v2 (ghi nhận ngày 23/10).')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Xác nhận lại repo nguồn' }))
+    expect(await screen.findByText(/không có quyền admin repo nguồn ở tên mới/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Xác nhận lại repo nguồn' }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
-    await screen.findByText('Dự án gốc đã đổi tên thành lan/so-dat-ban-v2 (ghi nhận ngày 23/10).')
-    expect(screen.queryByRole('button', { name: 'Xác nhận lại dự án gốc' })).toBeNull()
+    await screen.findByText('Repo nguồn đã đổi tên thành lan/so-dat-ban-v2 (ghi nhận ngày 23/10).')
+    expect(screen.queryByRole('button', { name: 'Xác nhận lại repo nguồn' })).toBeNull()
   })
 
   it.each([
     [
       'GONE',
-      'Ứng dụng vibefix không còn đến được dự án gốc lan/so-dat-ban: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách kho của ứng dụng đã đổi (ghi nhận ngày 23/10). Cần sửa lại trên GitHub để ứng dụng có chọn dự án này.',
+      'App vibefix không còn đến được repo nguồn lan/so-dat-ban: dự án đã bị xóa hoặc chuyển đi, hoặc danh sách repo của ứng dụng đã đổi (ghi nhận ngày 23/10). Cần sửa lại trên GitHub để ứng dụng có chọn dự án này.',
     ],
     [
       'APP_UNINSTALLED',
-      'Ứng dụng vibefix trên dự án gốc đã bị gỡ, bị tạm ngưng hoặc thiếu quyền cần có, nên vibefix không còn đọc được dự án (ghi nhận ngày 23/10). Cần cài lại hoặc bật lại ứng dụng vibefix trên GitHub và chấp nhận đủ quyền.',
+      'App vibefix trên repo nguồn đã bị gỡ, bị tạm ngưng hoặc thiếu quyền cần có, nên vibefix không còn đọc được dự án (ghi nhận ngày 23/10). Cần cài lại hoặc bật lại app vibefix trên GitHub và chấp nhận đủ quyền.',
     ],
     [
       'WORKFLOW_CHANGED',
-      'File workflow vibefix.yml trong dự án gốc đã bị xóa hoặc sửa khác bản vibefix công bố (ghi nhận ngày 23/10). Cần thêm lại đúng file trên GitHub.',
+      'File workflow vibefix.yml trong repo nguồn đã bị xóa hoặc sửa khác bản vibefix công bố (ghi nhận ngày 23/10). Cần thêm lại đúng file trên GitHub.',
     ],
   ])('says in plain words what the Source App no longer finds: %s (Story 23.5b)', async (kind, text) => {
     fakeBackend(signedInUser, {
@@ -91,7 +91,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByText(text)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Xác nhận lại dự án gốc' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Xác nhận lại repo nguồn' })).toBeNull()
   })
 
   it('gives the sync advice for new commits only, not for an uninstalled Source App (Story 23.5b)', async () => {
@@ -100,8 +100,8 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
     })
     renderWarning()
 
-    expect(await screen.findByText(/^Ứng dụng vibefix trên dự án gốc đã bị gỡ, bị tạm ngưng hoặc thiếu quyền/)).toBeInTheDocument()
-    expect(screen.queryByText(/bạn vẫn tự tải mã đã hoàn thiện từ kho trung gian trên GitHub/)).toBeNull()
+    expect(await screen.findByText(/^App vibefix trên repo nguồn đã bị gỡ, bị tạm ngưng hoặc thiếu quyền/)).toBeInTheDocument()
+    expect(screen.queryByText(/bạn vẫn tự tải mã đã hoàn thiện từ repo trung gian trên GitHub/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cách tạm dừng đồng bộ' })).toBeNull()
   })
 
@@ -138,7 +138,7 @@ describe('The Drift Warning on JOB-H and JOB-1 (FR-20, UX-DR27)', () => {
     )
 
     expect(
-      await screen.findByText('Có 2 thay đổi mới trong dự án gốc kể từ khi công việc bắt đầu (ghi nhận ngày 23/10).'),
+      await screen.findByText('Có 2 thay đổi mới trong repo nguồn kể từ khi công việc bắt đầu (ghi nhận ngày 23/10).'),
     ).toBeInTheDocument()
   })
 })

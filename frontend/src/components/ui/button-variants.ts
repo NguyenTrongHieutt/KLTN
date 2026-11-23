@@ -17,7 +17,7 @@ export const buttonVariants = cva(
         link: 'h-auto px-0 text-primary underline-offset-4 hover:underline',
       },
       size: {
-        default: 'min-h-tap-min px-4 py-2',
+        default: 'min-h-tap-min px-4 py-2 md:min-h-control-compact md:px-3.5 md:py-1.5',
         compact: 'min-h-control-compact px-3 py-1.5',
       },
     },

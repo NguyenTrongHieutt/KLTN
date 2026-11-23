@@ -214,7 +214,7 @@ export function DeletionChecklist({ jobId, deletion }: { jobId: string; deletion
       {(deletion.mine ?? []).map((row) => {
         const item = row.item as 'NON_CODE_DATA' | 'PREVIEWS'
         return (
-          <label key={item} htmlFor={`${ids}-${item}`} className="flex min-h-tap-min items-center gap-2">
+          <label key={item} htmlFor={`${ids}-${item}`} className="flex min-h-tap-min md:min-h-control-compact items-center gap-2">
             <input
               id={`${ids}-${item}`}
               type="checkbox"

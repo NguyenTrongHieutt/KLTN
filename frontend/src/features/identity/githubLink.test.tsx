@@ -202,7 +202,7 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
 
     expect(await screen.findByText('Bước 2/5')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Liên kết GitHub để đăng ký sản phẩm' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Đường dẫn kho mã trên GitHub')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Đường dẫn repo trên GitHub')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Liên kết GitHub ↗/ }))
     const notice = await screen.findByRole('dialog', { name: 'Trước khi liên kết GitHub' })
     await user.click(within(notice).getByRole('button', { name: /Liên kết GitHub ↗/ }))
@@ -229,11 +229,11 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Lovable' }))
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
-    await user.type(await screen.findByLabelText('Đường dẫn kho mã trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
+    await user.type(await screen.findByLabelText('Đường dẫn repo trên GitHub'), 'https://github.com/lan-nguyen/shop-gom')
     await user.click(screen.getByRole('button', { name: 'Kiểm tra' }))
 
     expect(await screen.findByRole('heading', { name: 'Liên kết GitHub để đăng ký sản phẩm' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Đường dẫn kho mã trên GitHub')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Đường dẫn repo trên GitHub')).not.toBeInTheDocument()
     expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
   })
 
@@ -252,7 +252,7 @@ describe('The GitHub gate on CUS-3 step 2 (UX-DR95)', () => {
     })
     renderAt('/san-pham/moi')
 
-    expect(await screen.findByLabelText('Đường dẫn kho mã trên GitHub')).toHaveValue('https://github.com/lan-nguyen/shop-gom')
+    expect(await screen.findByLabelText('Đường dẫn repo trên GitHub')).toHaveValue('https://github.com/lan-nguyen/shop-gom')
     expect(screen.getByText('Bước 2/5')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Liên kết GitHub để/ })).not.toBeInTheDocument()
     expect(window.sessionStorage.getItem('vibefix.product.registration')).toBeNull()
