@@ -65,10 +65,12 @@ function Overview({ job }: { job: MentorJob }) {
           <JobStateBadge state={job.state} audience="mentor" />
           <JobPhaseBadge jobId={job.id} />
         </div>
-        <p className="text-caption text-muted-foreground break-words">
-          {t('screen.nda.meta', { product: job.productName, types, date: formatDayMonth(job.selectedAt) })}
-        </p>
-        <JobRoleLine jobId={job.id} />
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="text-caption text-muted-foreground break-words">
+            {t('screen.nda.meta', { product: job.productName, types, date: formatDayMonth(job.selectedAt) })}
+          </p>
+          <JobRoleLine jobId={job.id} />
+        </div>
         <StageStrip state={job.state} />
         <NoCrewBanner jobId={job.id} />
         <MentorJobTabs jobId={job.id} state={job.state} current="overview" payment={job.agreementConfirmed} />

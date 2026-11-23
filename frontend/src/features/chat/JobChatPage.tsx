@@ -17,6 +17,7 @@ import { ChatPanel } from './ChatPanel'
 import { hasChat, useJobChat } from './chatApi'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
+import { JobTabBody } from '@/features/job/progress/JobInfoAside'
 
 /**
  * JOB-4 "Trò chuyện" (`/cong-viec/{jobId}/tro-chuyen`, FR-46, UX-DR17): the Job Chat for its Customer
@@ -48,7 +49,9 @@ function CustomerChat({ jobId }: { jobId: string }) {
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <CustomerHeader job={job.data} />}
       </RegionState>
-      <JobChatPanel jobId={jobId} side="customer" />
+      <JobTabBody jobId={jobId} state={job.data?.state}>
+        <JobChatPanel jobId={jobId} side="customer" />
+      </JobTabBody>
     </Frame>
   )
 }
@@ -82,7 +85,9 @@ function MentorChat({ jobId }: { jobId: string }) {
       <RegionState query={job} skeleton={<Skeleton className="h-96 w-full" />}>
         {job.data && <MentorHeader job={job.data} />}
       </RegionState>
-      <JobChatPanel jobId={jobId} side="mentor" />
+      <JobTabBody jobId={jobId} state={job.data?.state}>
+        <JobChatPanel jobId={jobId} side="mentor" />
+      </JobTabBody>
     </Frame>
   )
 }

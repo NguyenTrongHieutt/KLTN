@@ -4,8 +4,6 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { Card } from '@/components/ui/card'
-import { DescriptionList } from '@/components/ui/description-list'
 import { FollowUpSection } from '@/features/delivery/FollowUpSection'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { DriftWarning } from '@/features/job/DriftWarning'
@@ -23,6 +21,7 @@ import { formatCalendarDayMonth, formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
+import { JobInfoCard } from './JobInfoAside'
 import { useJobProgress, type JobProgress, type MilestoneProgress } from './progressApi'
 
 export type ProgressAudience = 'customer' | 'mentor' | 'crew'
@@ -59,9 +58,6 @@ export function ProgressOverview({
 
 function Content({ jobId, audience, progress }: { jobId: string; audience: ProgressAudience; progress: JobProgress }) {
   const nextToFund = progress.milestones.find((milestone) => milestone.state === 'PLANNED')?.milestoneId
-  const nextDue = progress.milestones.find(
-    (milestone) => milestone.dueOn && !['ACCEPTED', 'CANCELLED', 'SETTLED'].includes(milestone.state),
-  )
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="flex min-w-0 flex-col gap-6">
@@ -129,35 +125,7 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
           </section>
         )}
       </div>
-      <aside aria-label={t('screen.progress.aside')}>
-        <Card as="section" className="flex flex-col gap-4">
-          <h2 className="text-h3">{t('screen.progress.aside')}</h2>
-          <DescriptionList
-            stacked
-            items={[
-              {
-                term: t('screen.progress.deadline'),
-                value: nextDue?.dueOn
-                  ? t('screen.progress.deadlineLine', { n: nextDue.number, date: formatCalendarDayMonth(nextDue.dueOn) })
-                  : t('screen.progress.noDeadline'),
-              },
-              {
-                term: t('screen.progress.people'),
-                value: (
-                  <span className="flex flex-col">
-                    <span>{t('screen.progress.mentor', { name: progress.mentorName })}</span>
-                    {audience === 'mentor' &&
-                      progress.crew
-                        .filter((member) => member.state !== 'RELEASED')
-                        .map((member) => <span key={member.accountId}>{t('screen.progress.member', { name: member.name })}</span>)}
-                  </span>
-                ),
-              },
-              { term: t('screen.progress.product'), value: progress.productName },
-            ]}
-          />
-        </Card>
-      </aside>
+      <JobInfoCard progress={progress} audience={audience} />
     </div>
   )
 }

@@ -15,6 +15,7 @@ import { isNotFound } from '@/lib/problemMessage'
 import { ChatPanel } from './ChatPanel'
 import { hasChat, useCrewChat, type CrewChat } from './chatApi'
 import { Page } from '@/components/ui/page'
+import { JobTabBody } from '@/features/job/progress/JobInfoAside'
 
 /**
  * JOB-8 "Trao đổi nhóm" (`/cong-viec/{jobId}/trao-doi-nhom`, FR-77, UX-DR17, UX-DR80): the Crew Chat
@@ -53,9 +54,11 @@ function MentorCrewChat({ jobId }: { jobId: string }) {
         )}
       </RegionState>
       {job.data && (
-        <RegionState query={chat} skeleton={<Skeleton className="h-96 w-full" />}>
-          {chat.data && <CrewThread jobId={jobId} chat={chat.data} />}
-        </RegionState>
+        <JobTabBody jobId={jobId} state={job.data.state}>
+          <RegionState query={chat} skeleton={<Skeleton className="h-96 w-full" />}>
+            {chat.data && <CrewThread jobId={jobId} chat={chat.data} />}
+          </RegionState>
+        </JobTabBody>
       )}
     </Frame>
   )

@@ -59,8 +59,10 @@ function Content({ me }: { me: CrewMe }) {
           {t('screen.crewChat.back')}
         </Link>
         <PageHeading>{me.title}</PageHeading>
-        <p className="text-caption text-muted-foreground break-words">{me.productName}</p>
-        <JobRoleLine jobId={jobId} />
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="text-caption text-muted-foreground break-words">{me.productName}</p>
+          <JobRoleLine jobId={jobId} />
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav aria-label={t('screen.job.detail.tabs')} className="flex flex-wrap gap-2">
             {jobLinks && !me.former && (

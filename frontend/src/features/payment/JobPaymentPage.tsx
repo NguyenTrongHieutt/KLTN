@@ -40,6 +40,7 @@ import { TestTag } from '@/components/TestTag'
 import { TestModeBanner } from './TestModeBanner'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
+import { JobTabBody } from '@/features/job/progress/JobInfoAside'
 
 const STATE_TONE: Record<string, string> = {
   PLANNED: 'bg-warning-soft text-warning',
@@ -139,10 +140,12 @@ function MentorPayment({ jobId }: { jobId: string }) {
           </JobHeader>
         )}
       </RegionState>
-      <TestModeBanner />
-      <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
-        {funding.data && <MentorFunding funding={funding.data} />}
-      </RegionState>
+      <JobTabBody jobId={jobId} state={job.data?.state}>
+        <TestModeBanner />
+        <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
+          {funding.data && <MentorFunding funding={funding.data} />}
+        </RegionState>
+      </JobTabBody>
     </Page>
   )
 }
@@ -273,10 +276,12 @@ function CustomerPayment({ jobId }: { jobId: string }) {
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && <Header job={job.data} />}
       </RegionState>
-      <TestModeBanner />
-      <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
-        {funding.data && <Funding funding={funding.data} />}
-      </RegionState>
+      <JobTabBody jobId={jobId} state={job.data?.state}>
+        <TestModeBanner />
+        <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
+          {funding.data && <Funding funding={funding.data} />}
+        </RegionState>
+      </JobTabBody>
     </Page>
   )
 }
@@ -346,19 +351,19 @@ function Funding({ funding }: { funding: JobFunding }) {
           <table className="w-full min-w-[760px] text-left text-body-sm">
             <thead className="text-caption text-muted-foreground">
               <tr className="border-b border-border">
-                <th scope="col" className="px-4 py-2 font-semibold">
+                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.milestone')}
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold">
+                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.amount')}
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold">
+                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.funded')}
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold">
+                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.released')}
                 </th>
-                <th scope="col" className="px-4 py-2 font-semibold">
+                <th scope="col" className="px-4 py-2 font-semibold whitespace-nowrap">
                   {t('screen.payment.status')}
                 </th>
                 <th scope="col" className="px-4 py-2">
@@ -387,7 +392,7 @@ function Funding({ funding }: { funding: JobFunding }) {
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={cn('rounded-full px-2.5 py-0.5 text-caption font-semibold', STATE_TONE[key] ?? 'bg-muted')}>
                         {t(`screen.payment.milestoneState.${key}` as MessageKey)}
                       </span>

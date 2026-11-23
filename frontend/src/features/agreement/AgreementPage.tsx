@@ -33,6 +33,7 @@ import { ExternalAccessSection } from './ExternalAccessSection'
 import { ConfirmCard, ConfirmedView, CustomerFeedback } from './MentorReview'
 import { inOrder } from './reviewTargets'
 import { Page } from '@/components/ui/page'
+import { JobTabBody } from '@/features/job/progress/JobInfoAside'
 
 /**
  * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-17, FR-75, AD-29, UX-DR34, UX-DR60):
@@ -89,22 +90,24 @@ function MentorAgreement({ jobId }: { jobId: string }) {
           </JobHeader>
         )}
       </RegionState>
-      <RegionState query={draft} skeleton={<Skeleton className="h-96 w-full" />}>
-        {draft.data &&
-          (draft.data.confirmed ? (
-            <ConfirmedView confirmed={draft.data.confirmed} />
-          ) : (
-            <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
-          ))}
-      </RegionState>
-      {draft.data?.confirmed && <ExternalAccessSection jobId={jobId} />}
-      {draft.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
-      <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
-        {crew.data && <MentorCrewSection jobId={jobId} crew={crew.data} />}
-      </RegionState>
-      {job.data && draft.data && crew.data && !draft.data.confirmed && (
-        <ConfirmCard job={job.data} draft={draft.data} crewVersion={crew.data.crewVersion} />
-      )}
+      <JobTabBody jobId={jobId} state={job.data?.state}>
+        <RegionState query={draft} skeleton={<Skeleton className="h-96 w-full" />}>
+          {draft.data &&
+            (draft.data.confirmed ? (
+              <ConfirmedView confirmed={draft.data.confirmed} />
+            ) : (
+              <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
+            ))}
+        </RegionState>
+        {draft.data?.confirmed && <ExternalAccessSection jobId={jobId} />}
+        {draft.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
+        <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
+          {crew.data && <MentorCrewSection jobId={jobId} crew={crew.data} />}
+        </RegionState>
+        {job.data && draft.data && crew.data && !draft.data.confirmed && (
+          <ConfirmCard job={job.data} draft={draft.data} crewVersion={crew.data.crewVersion} />
+        )}
+      </JobTabBody>
     </Frame>
   )
 }
@@ -187,7 +190,7 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
   const last = draft.versions.at(-1)
 
   return (
-    <div className="flex w-full max-w-reading-max flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       <CustomerFeedback
         review={draft.review}
         content={content}

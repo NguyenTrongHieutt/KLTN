@@ -95,10 +95,12 @@ function Overview({ job }: { job: Job }) {
               <JobStateBadge state={job.state} />
               <JobPhaseBadge jobId={job.id} />
             </div>
-            <p className="text-caption text-muted-foreground break-words">
-              {job.productName} · {types}
-            </p>
-            <JobRoleLine jobId={job.id} />
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <p className="text-caption text-muted-foreground break-words">
+                {job.productName} · {types}
+              </p>
+              <JobRoleLine jobId={job.id} />
+            </div>
           </div>
           {job.state === 'OPEN' && <Withdraw job={job} />}
         </div>

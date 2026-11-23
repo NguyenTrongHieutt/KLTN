@@ -87,6 +87,22 @@ describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
     await waitFor(() => expect(read).toBe(true))
   })
 
+  it('keeps the thread in its own focusable scroll area, and shows the Job information once the Job runs', { timeout: 20_000 }, async () => {
+    customerChat({
+      'GET /api/v1/jobs/j1': () => json({ ...agreementJob, state: 'ACTIVE', agreementShared: true, agreementConfirmed: true }),
+      'GET /api/v1/jobs/j1/chat/messages': () => json({ items: [message()], hasOlder: false }),
+      'GET /api/v1/boards/j1/progress': () =>
+        json({ state: 'ACTIVE', assessment: false, mentorName: 'Đỗ Mạnh Hùng', productName: 'Sổ đặt bàn Quán Mây', milestones: [], crew: [] }),
+    })
+    renderAt('/cong-viec/j1/tro-chuyen')
+
+    const thread = await screen.findByRole('region', { name: 'Các tin nhắn' })
+    expect(thread).toHaveAttribute('tabindex', '0')
+    expect(await within(thread).findByText('Chị cần tài khoản thử của Supabase không?')).toBeInTheDocument()
+    const aside = await screen.findByRole('complementary', { name: 'Thông tin công việc' })
+    expect(aside).toHaveTextContent('Sổ đặt bàn Quán Mây')
+  })
+
   it('sends a credential-like text once, as typed, with no dialog (Story 24.4a)', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const typed = `Khóa thử là ${'sk' + '_test_' + 'a1B2c3D4'.repeat(3)}`
