@@ -19,6 +19,7 @@ import { CrewJobCard } from './CrewJobCard'
 import { useJobs, type JobState, type JobSummary } from './jobApi'
 import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
+import { JobSummaryList } from './JobSummaryList'
 import { Page } from '@/components/ui/page'
 
 /** CUS-7's segments (UX-DR86), as `?vai-tro=` keeps them: the Jobs the user posts, mentors, and joins. */
@@ -36,12 +37,12 @@ const PENDING: ApplicationStatus[] = ['SUBMITTED', 'SELECTED', 'ON_HOLD']
 /**
  * CUS-7 "Công việc" (`/cong-viec`, FR-9, UX-DR66, UX-DR86, Story 20.6), the one list of every Job the user holds a
  * role in, which MEN-4 and STU-4 merged into: the Toggle Group "Việc tôi đăng" · "Việc tôi hướng dẫn" · "Việc tôi
- * tham gia". Each segment counts its open to-dos, a to-do counting for the role it carries or else for the user's
- * role in its Job, "Việc tôi hướng dẫn" also counts the pending bids, and "Việc tôi tham gia" the pending Crew
- * Applications (Story 21.4). A segment with nothing is hidden, and so is the control when one is left; "Việc tôi hướng
- * dẫn" shows while the user mentors a Job or has any bid, closed ones included, and "Việc tôi tham gia" while they are
- * on a Crew or have any Crew Application. The URL keeps the segment (`?vai-tro=`); without one, the segment of the most
- * urgent to-do opens, once the to-dos are read. "Việc tôi tham gia" lists the Crew Applications with their state, the
+ * tham gia". Each segment counts its open to-dos in red, a to-do counting for the role it carries or else for the
+ * user's role in its Job; beside it, in a neutral count, "Việc tôi hướng dẫn" shows the pending bids and "Việc tôi tham
+ * gia" the pending Crew Applications (Story 21.4), which wait on someone else. A segment with nothing is hidden, and
+ * so is the control when one is left; "Việc tôi hướng dẫn" shows while the user mentors a Job or has any bid, closed
+ * ones included, and "Việc tôi tham gia" while they are on a Crew or have any Crew Application. The URL keeps the
+ * segment (`?vai-tro=`); without one, the segment of the most urgent to-do opens, once the to-dos are read. "Việc tôi tham gia" lists the Crew Applications with their state, the
  * running Jobs and then the past ones, those left included. With no Job, no bid and no Crew Application, "Bạn chưa có
  * công việc nào." leads to "Tìm việc". Nothing shows until the Jobs, the bids and the Crew Applications are read, and
  * a failed read shows its error.
@@ -94,11 +95,16 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
     const role = todo.role ?? jobs.find((job) => job.jobId === todo.jobId)?.role
     return role === undefined ? undefined : SEGMENT_OF[role]
   }
+  // Red counts only what waits on the user (their to-dos); bids and Crew Applications that wait on someone else get a
+  // neutral count, so the badge never says "việc cần làm" where Tổng quan says there is none.
   const counts = Object.fromEntries(
     SEGMENTS.map((segment) => [segment, todos.filter((todo) => segmentOf(todo) === segment).length]),
   ) as Record<Segment, number>
-  counts['huong-dan'] += pending.length
-  counts['tham-gia'] += crew.filter((application) => application.status === 'PENDING').length
+  const waiting: Record<Segment, number> = {
+    dang: 0,
+    'huong-dan': pending.length,
+    'tham-gia': crew.filter((application) => application.status === 'PENDING').length,
+  }
   const asked = params.get('vai-tro') as Segment | null
   const chosen = asked !== null && shown.includes(asked)
   if (!chosen && todoQuery.isPending) {
@@ -130,6 +136,12 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
                 <span className="rounded-full bg-destructive px-1.5 text-tag text-destructive-foreground">
                   <span className="sr-only">{t('screen.job.segments.todos', { n: counts[segment] })}</span>
                   <span aria-hidden="true">{counts[segment]}</span>
+                </span>
+              )}
+              {waiting[segment] > 0 && (
+                <span className="rounded-full bg-border px-1.5 text-tag text-muted-foreground">
+                  <span className="sr-only">{t('screen.job.segments.waiting', { n: waiting[segment] })}</span>
+                  <span aria-hidden="true">{waiting[segment]}</span>
                 </span>
               )}
             </button>
@@ -192,30 +204,7 @@ function JobGroup({ group, jobs }: { group: Group; jobs: JobSummary[] }) {
       {jobs.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">{t('screen.job.groupEmpty')}</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
-          {jobs.map((job) => (
-            <li key={job.id}>
-              <Link
-                to={job.state === 'DRAFT' ? `/cong-viec/${job.id}/sua` : `/cong-viec/${job.id}`}
-                className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
-              >
-                <span className="flex min-w-60 grow flex-col gap-0.5">
-                  <span className="text-label font-semibold break-words">{job.title}</span>
-                  <span className="text-caption text-muted-foreground break-words">
-                    {[
-                      job.productName,
-                      job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', '),
-                      t('screen.job.editedOn', { date: formatDayMonth(job.updatedAt) }),
-                    ]
-                      .filter((part) => part !== '')
-                      .join(' · ')}
-                  </span>
-                </span>
-                <JobStateBadge state={job.state} />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <JobSummaryList jobs={jobs} />
       )}
     </section>
   )

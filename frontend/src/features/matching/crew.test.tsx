@@ -595,7 +595,8 @@ describe('CUS-7 "Việc tôi tham gia" counts the pending Crew Applications (UX-
     renderAt('/cong-viec')
 
     const segment = await screen.findByRole('button', { name: /Việc tôi tham gia/ })
-    expect(within(segment).getByText('1 việc cần làm')).toBeInTheDocument()
+    expect(within(segment).getByText('1 đơn đang chờ')).toBeInTheDocument()
+    expect(within(segment).queryByText(/việc cần làm/)).not.toBeInTheDocument()
   })
 })
 
