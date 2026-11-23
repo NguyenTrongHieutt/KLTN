@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { TestTag } from '@/components/TestTag'
+import { TestColumn, TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
 import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
@@ -362,7 +362,7 @@ function Lines({ card, version }: { card: SplitCard; version: SplitVersion | und
               {t('screen.split.column.percent')}
             </th>
             <th scope="col" className="border-b border-border py-2 pr-3 font-normal">
-              {t('screen.split.column.amount')}
+              <TestColumn>{t('screen.split.column.amount')}</TestColumn>
             </th>
             {current && (
               <th scope="col" className="border-b border-border py-2 font-normal">
@@ -380,9 +380,7 @@ function Lines({ card, version }: { card: SplitCard; version: SplitVersion | und
                   <PartyName party={party} />
                 </td>
                 <td className="border-b border-border py-2 pr-3">{line.percent}%</td>
-                <td className="border-b border-border py-2 pr-3 whitespace-nowrap">
-                  {formatVnd(line.amountVnd)} <TestTag />
-                </td>
+                <td className="border-b border-border py-2 pr-3 whitespace-nowrap tabular-nums">{formatVnd(line.amountVnd)}</td>
                 {current && (
                   <td className="border-b border-border py-2 text-caption">{lineStatus(card, party, line, raiser)}</td>
                 )}

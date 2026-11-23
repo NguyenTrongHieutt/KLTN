@@ -46,7 +46,8 @@
     "myData": "Dữ liệu của tôi",
     "theme": "Giao diện",
     "signOut": "Đăng xuất",
-    "testMoney": "tiền thử nghiệm, không phải tiền thật"
+    "testMoney": "tiền thử nghiệm, không phải tiền thật",
+    "testColumn": "thử nghiệm"
   },
   "screen": {
     "verification": {

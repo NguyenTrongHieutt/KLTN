@@ -3,7 +3,7 @@ import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
-import { TestTag } from '@/components/TestTag'
+import { TestColumn, TestTag } from '@/components/TestTag'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
@@ -96,7 +96,7 @@ function History({ history }: { history: CustomerHistory }) {
                     {t('screen.payment.history.item')}
                   </th>
                   <th scope="col" className="px-4 py-2 font-semibold">
-                    {t('screen.payment.history.amount')}
+                    <TestColumn>{t('screen.payment.history.amount')}</TestColumn>
                   </th>
                   <th scope="col" className="px-4 py-2 font-semibold">
                     {t('screen.payment.history.status')}
@@ -108,9 +108,7 @@ function History({ history }: { history: CustomerHistory }) {
                   <tr key={`${row.paymentOrderId}-${row.kind}-${index}`} className="border-b border-border last:border-b-0">
                     <td className="px-4 py-2.5">{formatDayMonthTime(row.at)}</td>
                     <td className="px-4 py-2.5">{rowItem(row)}</td>
-                    <td className="px-4 py-2.5 tabular-nums">
-                      {formatVnd(row.amountVnd)} <TestTag />
-                    </td>
+                    <td className="px-4 py-2.5 tabular-nums">{formatVnd(row.amountVnd)}</td>
                     <td className="px-4 py-2.5">{rowStatus(row)}</td>
                   </tr>
                 ))}
