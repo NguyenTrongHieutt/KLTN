@@ -38,6 +38,8 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
   const saveTheme = useSaveTheme()
   // A Google account has no GitHub username until Story 19.2 links it: its Google name stands in.
   const login = session.githubLogin ?? session.displayName ?? ''
+  // The avatar's letters come from the name the menu shows, not from the GitHub username.
+  const letters = initials(session.displayName ?? login)
   const theme = session.account?.theme ?? DEFAULT_THEME
 
   function chooseTheme(choice: ThemeChoice) {
@@ -51,7 +53,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
         aria-label={t('shell.accountMenu', { login })}
         className="flex size-10 items-center justify-center rounded-full bg-primary-soft text-label font-bold text-primary"
       >
-        {initials(login)}
+        {letters}
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
@@ -61,7 +63,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
                 aria-hidden="true"
                 className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-label font-bold text-primary"
               >
-                {initials(login)}
+                {letters}
               </span>
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-label font-semibold">{session.displayName ?? login}</span>

@@ -129,7 +129,7 @@ export function SkillPicker({
       >
         <Combobox.InputGroup
           className={cn(
-            'flex min-h-tap-min md:min-h-control-compact w-full cursor-text flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
+            'flex min-h-tap-min md:min-h-control-compact w-full cursor-text flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 md:py-1 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
             invalid && 'border-destructive',
           )}
         >
@@ -168,7 +168,7 @@ export function SkillPicker({
                 composing.current = false
                 setQuery(event.currentTarget.value)
               }}
-              className="min-h-8 min-w-24 flex-1 border-0 bg-transparent px-1 text-body outline-none placeholder:text-muted-foreground"
+              className="min-h-6 min-w-24 flex-1 border-0 bg-transparent px-1 text-body outline-none placeholder:text-muted-foreground md:text-body-sm"
             />
           </Combobox.Chips>
         </Combobox.InputGroup>
