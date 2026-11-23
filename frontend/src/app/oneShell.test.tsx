@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -168,7 +168,11 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
     // A Job's to-do without a stored role names the Job alone, its title from "Công việc".
     expect(items[2]).toHaveTextContent(/^Việc A tôi đăng/)
     expect(items[2]).not.toHaveTextContent('Bạn là')
-    const strip = screen.getByRole('region', { name: 'Việc cần làm tiếp theo' })
+    // Trang chủ's list starts with the strip's to-do, so the strip is elsewhere.
+    expect(screen.queryByRole('region', { name: 'Việc cần làm tiếp theo' })).not.toBeInTheDocument()
+    cleanup()
+    renderAt('/thong-bao')
+    const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
     expect(strip).toHaveTextContent('Tài khoản')
   })
 
@@ -222,7 +226,7 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
           total: 1,
         }),
     })
-    renderAt('/viec-can-lam')
+    renderAt('/thong-bao')
 
     const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
     expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('min-h-tap-min')

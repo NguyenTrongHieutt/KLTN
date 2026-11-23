@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -83,7 +83,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
           total: 2,
         }),
     })
-    renderAt('/viec-can-lam')
+    renderAt('/thong-bao')
 
     const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
     expect(strip).toHaveTextContent('Liên kết tài khoản GitHub')
@@ -91,7 +91,11 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/ho-so/xac-minh')
     expect(within(strip).getByRole('link', { name: 'và 1 việc khác' })).toHaveAttribute('href', '/viec-can-lam')
 
-    const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
+    // Trang chủ lists them all, and no strip repeats the first.
+    cleanup()
+    renderAt('/viec-can-lam')
+    const list = await screen.findByRole('list', { name: 'Việc cần làm của bạn' })
+    expect(screen.queryByRole('region', { name: 'Việc cần làm tiếp theo' })).not.toBeInTheDocument()
     expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual([
       expect.stringContaining('Liên kết tài khoản GitHub'),
       expect.stringContaining('Cài app vibefix trên GitHub cho lan-nguyen/so-dat-ban'),
@@ -142,13 +146,15 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
           total: 2,
         }),
     })
-    renderAt('/viec-can-lam')
+    renderAt('/thong-bao')
 
     const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
     expect(strip).toHaveTextContent('Thêm file workflow vibefix vào lan-nguyen/shop-gom')
     expect(strip).toHaveTextContent('Hạn 25/01')
     expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveAttribute('href', '/san-pham/p1')
-    const list = screen.getByRole('list', { name: 'Việc cần làm của bạn' })
+    cleanup()
+    renderAt('/viec-can-lam')
+    const list = await screen.findByRole('list', { name: 'Việc cần làm của bạn' })
     expect(within(list).getByRole('link', { name: /Cài app vibefix trên GitHub cho lan-nguyen\/quan-may/ })).toHaveAttribute(
       'href',
       '/san-pham/p2',
@@ -160,7 +166,7 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/todos': () => json({ items: [todo('identity.link_github', { tier: 1 })], total: 1 }),
     })
-    renderAt('/viec-can-lam')
+    renderAt('/thong-bao')
 
     expect(await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })).toBeInTheDocument()
     // The bell is the one icon-only "Thông báo" link; the navigations name it with their text.

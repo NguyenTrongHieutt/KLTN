@@ -12,7 +12,7 @@ import { todoText } from './texts'
  * holds, outside a Job with its context line ("{job} · Bạn là {role}" or "Tài khoản"), its deadline chip, a button
  * to the exact surface, and "và N việc khác" to the to-do list. Inside a Job it shows that Job's to-dos only, with
  * no context line. It is hidden when nothing is open (never filler), while loading, and while the poll fails; it
- * cannot be dismissed.
+ * cannot be dismissed. It runs edge to edge under the top bar, its content on the page's left edge.
  * @param jobId the Job whose screen is open, if any
  */
 export function NextActionStrip({ jobId }: { jobId?: string }) {
@@ -25,7 +25,7 @@ export function NextActionStrip({ jobId }: { jobId?: string }) {
   return (
     <section
       aria-label={t('screen.shared.todo.stripLabel')}
-      className="rounded-md border-b border-primary-border border-l-4 border-l-primary bg-primary-soft"
+      className="border-b border-primary-border bg-primary-soft"
     >
       <div className="mx-auto flex min-h-strip-min-height max-w-content-max flex-wrap items-center gap-x-4 gap-y-2 px-gutter-mobile py-2 md:px-gutter-desktop">
         <div className="flex min-w-0 grow flex-col gap-0.5">

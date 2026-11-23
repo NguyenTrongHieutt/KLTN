@@ -201,6 +201,8 @@
     color-scheme: light;
     /* The page keeps its place whether or not it scrolls, so nothing shifts sideways between screens. */
     scrollbar-gutter: stable;
+    /* The signed-in top bar is sticky: scrolling to an anchor or a focused control stops below it (WCAG 2.4.11). */
+    scroll-padding-top: calc(var(--spacing-header-height) + 0.5rem);
   }
 
   html.dark {

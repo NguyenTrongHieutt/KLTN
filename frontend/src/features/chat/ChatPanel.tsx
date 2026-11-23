@@ -60,15 +60,23 @@ export function ChatPanel({
   const items = [...pages].reverse().flatMap((page) => page.items)
   const newest = items.at(-1)?.id
   const { mutate: read } = markRead
+  const scroller = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (newest) {
       read()
     }
   }, [newest, read])
+  // A new newest message scrolls the thread to the bottom; loading older ones above leaves the place as it is.
+  useEffect(() => {
+    const thread = scroller.current
+    if (newest && thread) {
+      thread.scrollTop = thread.scrollHeight
+    }
+  }, [newest])
   return (
     <section
       aria-label={t('screen.chat.message')}
-      className="flex w-full max-w-reading-max flex-col gap-3.5 rounded-lg border border-border bg-card p-4 md:p-5"
+      className="flex w-full flex-col gap-3.5 rounded-lg border border-border bg-card p-4 md:p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <h2 className="text-h3">{heading}</h2>
@@ -78,38 +86,48 @@ export function ChatPanel({
         </p>
       </div>
       <RegionState query={messages} skeleton={<Skeleton className="h-48 w-full" />}>
-        {messages.hasNextPage && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="compact"
-            className="self-center"
-            disabled={messages.isFetchingNextPage}
-            onClick={() => void messages.fetchNextPage()}
-          >
-            {t('screen.chat.older')}
-          </Button>
-        )}
-        {items.length === 0 ? (
-          <p className="py-6 text-center text-body-sm text-muted-foreground">{empty}</p>
-        ) : (
-          <ol className="flex flex-col gap-3">
-            {items.map((message, index) => {
-              const day = dayLabel(message.sentAt)
-              const separator = index === 0 || dayLabel(items[index - 1].sentAt) !== day
-              return (
-                <Fragment key={message.id}>
-                  {separator && (
-                    <li aria-hidden="true" className="text-center text-caption text-muted-foreground">
-                      {day}
-                    </li>
-                  )}
-                  <Bubble message={message} kind={target.kind === 'job' ? 'JOB_CHAT_MESSAGE' : 'CREW_CHAT_MESSAGE'} />
-                </Fragment>
-              )
-            })}
-          </ol>
-        )}
+        {/* The thread scrolls on its own, at most about two thirds of the window tall, so the composer stays in view
+            under the Job header; it is focusable so the keyboard can scroll it. */}
+        <div
+          ref={scroller}
+          role="region"
+          aria-label={t('screen.chat.thread')}
+          tabIndex={0}
+          className="-mx-1 flex max-h-[min(65dvh,40rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-1"
+        >
+          {messages.hasNextPage && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="compact"
+              className="self-center"
+              disabled={messages.isFetchingNextPage}
+              onClick={() => void messages.fetchNextPage()}
+            >
+              {t('screen.chat.older')}
+            </Button>
+          )}
+          {items.length === 0 ? (
+            <p className="py-6 text-center text-body-sm text-muted-foreground">{empty}</p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {items.map((message, index) => {
+                const day = dayLabel(message.sentAt)
+                const separator = index === 0 || dayLabel(items[index - 1].sentAt) !== day
+                return (
+                  <Fragment key={message.id}>
+                    {separator && (
+                      <li aria-hidden="true" className="text-center text-caption text-muted-foreground">
+                        {day}
+                      </li>
+                    )}
+                    <Bubble message={message} kind={target.kind === 'job' ? 'JOB_CHAT_MESSAGE' : 'CREW_CHAT_MESSAGE'} />
+                  </Fragment>
+                )
+              })}
+            </ol>
+          )}
+        </div>
       </RegionState>
       <hr className="border-border" />
       {readOnlyNote ? (

@@ -43,7 +43,8 @@ const NARROW = '(max-width: 359px)'
 /**
  * The shell of every signed-in user (UX-DR10 to UX-DR14, UX-DR85, UX-DR88, UX-DR111): the five destinations as
  * top-bar links from 768 px and as a bottom tab bar with counts on phones, the bell, the avatar menu, the
- * next-action strip, the offline line, and the toasts. Inside a Job the strip shows that Job's to-dos only, and it
+ * next-action strip (not on Trang chủ, whose list starts with the same to-do), the offline line, and the toasts. The
+ * top bar sticks to the top of the window. Inside a Job the strip shows that Job's to-dos only, and it
  * is dense only where the user is the Job's Mentor or a Crew member; nothing is sized by the account.
  */
 export function AppLayout() {
@@ -64,6 +65,8 @@ function SignedInShell() {
   const { offline } = usePollHealth()
   const narrow = useMatchMedia(NARROW)
   const jobId = useMatch('/cong-viec/:jobId/*')?.params.jobId
+  // Trang chủ lists the same to-dos first, so the strip would only repeat its first row there.
+  const home = useMatch('/viec-can-lam') !== null
   // The account's theme while signed in; light again after signing out (UX-DR5).
   useEffect(() => {
     if (!theme) {
@@ -93,7 +96,9 @@ function SignedInShell() {
       >
         {t('shell.skipToContent')}
       </a>
-      <header className="border-b border-border bg-card">
+      {/* The top bar stays in view while long pages (a Job, an Agreement) scroll; html's scroll-padding-top keeps
+          a focused control from sliding under it (WCAG 2.4.11). */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card">
         <div className="mx-auto flex min-h-header-height max-w-content-max flex-wrap items-center gap-x-6 gap-y-2 px-gutter-mobile py-2 md:px-gutter-desktop">
           <Link to={landingPath(current)} className="text-h3 font-bold text-primary" aria-label={t('shell.home')}>
             {t('app.name')}
@@ -128,7 +133,7 @@ function SignedInShell() {
           {t('state.offline')}
         </p>
       )}
-      <NextActionStrip jobId={jobId} />
+      {!home && <NextActionStrip jobId={jobId} />}
       <main id={MAIN_ID} tabIndex={-1} className="grow pb-tab-bar-height focus:outline-none md:pb-0">
         <Outlet />
       </main>

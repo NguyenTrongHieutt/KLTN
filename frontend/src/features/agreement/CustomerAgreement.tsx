@@ -36,6 +36,7 @@ import { draftDays, inOrder, moved } from './reviewTargets'
 import { hasStarted } from '@/features/job/jobState'
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { JobTabBody } from '@/features/job/progress/JobInfoAside'
 
 /**
  * The Customer's JOB-6 (FR-16, FR-17, UX-DR34): the shared versions with "Góp ý", "Lên"/"Xuống", the
@@ -58,31 +59,33 @@ export function CustomerAgreement({ jobId }: { jobId: string }) {
       <RegionState query={job} skeleton={<Skeleton className="h-24 w-full" />}>
         {job.data && <CustomerHeader job={job.data} />}
       </RegionState>
-      <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
-        {agreement.data && job.data && (
-          <div className="flex w-full max-w-reading-max flex-col gap-5">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              {agreement.data.versions.length > 1 && (
-                <VersionPicker
-                  versions={agreement.data.versions}
-                  value={agreement.data.versionNo}
-                  confirmed={agreement.data.confirmed}
-                  onChange={setVersion}
-                />
-              )}
-              <p className="text-body-sm text-muted-foreground">
-                {t('screen.agreement.sentBy', {
-                  n: agreement.data.versionNo,
-                  time: formatDayMonthTime(agreement.data.sharedAt),
-                })}
-              </p>
+      <JobTabBody jobId={jobId} state={job.data?.state}>
+        <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
+          {agreement.data && job.data && (
+            <div className="flex w-full flex-col gap-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                {agreement.data.versions.length > 1 && (
+                  <VersionPicker
+                    versions={agreement.data.versions}
+                    value={agreement.data.versionNo}
+                    confirmed={agreement.data.confirmed}
+                    onChange={setVersion}
+                  />
+                )}
+                <p className="text-body-sm text-muted-foreground">
+                  {t('screen.agreement.sentBy', {
+                    n: agreement.data.versionNo,
+                    time: formatDayMonthTime(agreement.data.sharedAt),
+                  })}
+                </p>
+              </div>
+              <Review key={`${agreement.data.versionNo}-${job.data.version}`} job={job.data} agreement={agreement.data} />
+              {agreement.data.confirmed && <ExternalAccessSection jobId={jobId} />}
             </div>
-            <Review key={`${agreement.data.versionNo}-${job.data.version}`} job={job.data} agreement={agreement.data} />
-            {agreement.data.confirmed && <ExternalAccessSection jobId={jobId} />}
-          </div>
-        )}
-      </RegionState>
-      {agreement.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
+          )}
+        </RegionState>
+        {agreement.data?.confirmed && <ChangeRequestSection jobId={jobId} />}
+      </JobTabBody>
     </Page>
   )
 }

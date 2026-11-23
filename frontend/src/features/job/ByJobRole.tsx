@@ -57,7 +57,7 @@ export function JobRoleLine({ jobId }: { jobId: string | undefined }) {
     <>
       <p className="text-caption font-semibold text-foreground">{youAreText(role.data)}</p>
       {role.data.crewKind === 'FORMER' && (
-        <p role="status" className="rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
+        <p role="status" className="w-full rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           {t('screen.progress.former')}
         </p>
       )}
