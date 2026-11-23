@@ -220,6 +220,73 @@
     outline-offset: 2px;
   }
 
+  /*
+   * Motion (DESIGN.md, 2026-11-23; ui-ux-pro-max state-transition, modal-motion, exit-faster-than-enter): two
+   * durations and one curve, used only where a state changes. No decorative or attention-seeking motion.
+   */
+  :root {
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  }
+
+  /* Controls answer hover and press in colour, not in size. */
+  :where(a, button, summary, [role='tab'], [role='menuitem'], [role='menuitemradio'], [role='option']) {
+    transition-property: color, background-color, border-color, text-decoration-color, box-shadow;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+
+  /* Base UI popups (dialogs, sheets, menus, lists) fade and grow slightly in, and leave faster. */
+  :is([role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox']):not([class*='animate-']):is([data-open], [data-closed]) {
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      scale var(--duration-base) var(--ease-out);
+  }
+  :is([role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox']):not([class*='animate-'])[data-starting-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+  :is([role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox']):not([class*='animate-'])[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-in);
+  }
+
+  /* The dimmed layer behind a dialog fades with it. */
+  [role='presentation']:is([data-open], [data-closed]) {
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+  [role='presentation']:is([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+  }
+
+  /* Disclosures: a chevron that turns when the section opens, instead of the browser's marker. */
+  details > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    list-style: none;
+  }
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+  details > summary::before {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    flex-shrink: 0;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    rotate: -45deg;
+    transition: rotate var(--duration-fast) var(--ease-out);
+  }
+  details[open] > summary::before {
+    rotate: 45deg;
+  }
+
   /* Accessibility Floor: reduced motion stops animations and long transitions. */
   @media (prefers-reduced-motion: reduce) {
     *,

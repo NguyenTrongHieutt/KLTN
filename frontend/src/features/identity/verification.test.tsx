@@ -465,7 +465,7 @@ describe('CUS-1 without the student banner (UX-DR88, Story 20.6)', () => {
     const seen = fakeBackend(signedInUser)
     renderAt('/viec-can-lam')
 
-    await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })
+    await screen.findByRole('heading', { level: 1, name: 'Trang chủ' })
     expect(screen.queryByRole('link', { name: 'Xác minh ngay' })).not.toBeInTheDocument()
     expect(seen.some((request) => request.url.endsWith('/api/v1/verification'))).toBe(false)
   })

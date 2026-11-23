@@ -52,9 +52,9 @@ describe('route guards (AD-19)', () => {
     fakeBackend(session)
     const router = renderAt('/dang-nhap')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Trang chủ' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/viec-can-lam')
-    const five = ['Việc cần làm', 'Công việc', 'Tìm việc', 'Sản phẩm', 'Thông báo']
+    const five = ['Trang chủ', 'Công việc', 'Tìm việc', 'Sản phẩm', 'Thông báo']
     for (const [name, links] of [
       ['Điều hướng chính', five.slice(0, 4)],
       ['Điều hướng nhanh', five],
@@ -89,7 +89,7 @@ describe('route guards (AD-19)', () => {
 
     const tabs = await screen.findByRole('navigation', { name: 'Điều hướng nhanh' })
     expect(within(tabs).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Việc cần làm',
+      'Trang chủ',
       'Công việc',
       'Tìm việc',
       'Sản phẩm',
@@ -196,7 +196,7 @@ describe('route guards (AD-19)', () => {
     fakeBackend(signedInUser)
     const router = renderAt('/dang-nhap')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Trang chủ' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/viec-can-lam')
   })
 
@@ -309,10 +309,10 @@ describe('signed-in shell (UX-DR10 to UX-DR12, UX-DR26)', () => {
     })
     const router = renderAt('/viec-can-lam')
 
-    await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })
+    await screen.findByRole('heading', { level: 1, name: 'Trang chủ' })
     for (const name of ['Điều hướng chính', 'Điều hướng nhanh']) {
       const nav = screen.getByRole('navigation', { name })
-      expect(within(nav).getByRole('link', { name: 'Việc cần làm' })).toHaveAttribute('aria-current', 'page')
+      expect(within(nav).getByRole('link', { name: 'Trang chủ' })).toHaveAttribute('aria-current', 'page')
     }
     await user.click(screen.getByRole('button', { name: 'Tài khoản của octo-cat' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Đăng xuất' }))
@@ -337,7 +337,7 @@ describe('signed-in shell (UX-DR10 to UX-DR12, UX-DR26)', () => {
       '/oauth2/authorization/google?quay-lai=%2Fviec-can-lam',
     )
     // The screen stays behind the modal dialog, hidden from assistive technology meanwhile.
-    expect(screen.getByRole('heading', { level: 1, name: 'Việc cần làm', hidden: true })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Trang chủ', hidden: true })).toBeInTheDocument()
   })
 
   it('injects no style element at run time with the menu and the dialog open', async () => {

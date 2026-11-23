@@ -60,7 +60,7 @@ function ProductList() {
             </Link>
           </div>
         ) : (
-          <ul aria-label={t('screen.product.listLabel')} className="flex flex-col gap-3">
+          <ul aria-label={t('screen.product.listLabel')} className="grid gap-3 md:grid-cols-2">
             {items.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -73,7 +73,7 @@ function ProductList() {
 
 function ProductCard({ product }: { product: Product }) {
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-border bg-card p-5">
+    <li className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link to={`/san-pham/${product.id}`} className="w-fit text-h3 break-words text-primary underline-offset-4 hover:underline">
           {product.name}

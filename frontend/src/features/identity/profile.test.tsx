@@ -272,7 +272,7 @@ describe('the Theme toggle (UX-DR5)', () => {
     fakeBackend({ ...signedInUser, account: { ...signedInUser.account!, theme: 'DARK' } })
     renderAt('/viec-can-lam')
 
-    await screen.findByRole('heading', { level: 1, name: 'Việc cần làm' })
+    await screen.findByRole('heading', { level: 1, name: 'Trang chủ' })
     expect(document.documentElement).toHaveClass('dark')
   })
 })

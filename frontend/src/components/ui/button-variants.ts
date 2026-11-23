@@ -1,12 +1,13 @@
 import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '@/lib/utils'
 
 /**
  * Button styles (DESIGN.md button-primary, button-secondary, button-destructive): 44 px tall on
  * Customer screens, `compact` (36 px) on dense ones, `rounded-md`, and the 2 px focus ring of the
  * Accessibility Floor. Links that look like buttons use these classes too.
  */
-export const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent text-label font-semibold text-center transition-colors select-none disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-5',
+const variants = cva(
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent text-label font-semibold text-center transition-[color,background-color,border-color,translate] duration-(--duration-fast) select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-5',
   {
     variants: {
       variant: {
@@ -28,4 +29,12 @@ export const buttonVariants = cva(
   },
 )
 
-export type ButtonVariantProps = VariantProps<typeof buttonVariants>
+export type ButtonVariantProps = VariantProps<typeof variants>
+
+/**
+ * The button classes, merged: a variant's border or text color replaces the base one even where the classes are used
+ * directly on a link, without `cn` (a secondary link lost its border before 2026-11-23).
+ */
+export function buttonVariants(props?: Parameters<typeof variants>[0]): string {
+  return cn(variants(props))
+}

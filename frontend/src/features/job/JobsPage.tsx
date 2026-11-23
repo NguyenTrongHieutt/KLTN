@@ -169,9 +169,14 @@ function PostedJobs() {
   const items = jobs.data ?? []
   return (
     <RegionState query={jobs} skeleton={<Skeleton className="h-48 w-full" />}>
-      {GROUPS.map((group) => (
-        <JobGroup key={group} group={group} jobs={items.filter((job) => GROUP_OF[job.state] === group)} />
-      ))}
+      {/* Only the groups that hold a Job (2026-11-23): empty groups no longer stack above the real ones. */}
+      {items.length === 0 ? (
+        <p className="text-body-sm text-muted-foreground">{t('screen.job.groupEmpty')}</p>
+      ) : (
+        GROUPS.filter((group) => items.some((job) => GROUP_OF[job.state] === group)).map((group) => (
+          <JobGroup key={group} group={group} jobs={items.filter((job) => GROUP_OF[job.state] === group)} />
+        ))
+      )}
     </RegionState>
   )
 }

@@ -262,10 +262,12 @@ function ToolStep({ tools, onChange, onNext }: { tools: Tool[]; onChange: (tools
                   onChange(on ? tools.filter((other) => other !== tool) : [...tools, tool])
                 }}
                 className={cn(
-                  'min-h-control-compact rounded-full border px-3 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                  on ? 'border-primary bg-primary-soft text-foreground' : 'border-border bg-card text-muted-foreground hover:bg-muted',
+                  // A toggle, so a rounded rectangle: the pill shape means read-only status (DESIGN.md, Shapes).
+                  'inline-flex min-h-tap-min items-center gap-1.5 rounded-md border px-3 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:min-h-control-compact',
+                  on ? 'border-primary bg-primary-soft text-foreground' : 'border-input bg-card text-foreground hover:bg-muted',
                 )}
               >
+                {on && <Check aria-hidden="true" className="size-4 text-primary" />}
                 {t(`screen.product.tools.${tool}` as MessageKey)}
               </button>
             )

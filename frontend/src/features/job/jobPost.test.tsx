@@ -113,7 +113,8 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     expect(within(row).getByText('Supabase')).toBeInTheDocument()
     expect(within(row).getByText('Hạn 10/11')).toBeInTheDocument()
     expect(within(row).getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
-    expect(within(row).getByText('Cần người hướng dẫn')).toBeInTheDocument()
+    // The phase badge says a Mentor is sought; the need line is left for the Crew's open places (2026-11-23).
+    expect(within(row).queryByText('Cần người hướng dẫn')).not.toBeInTheDocument()
     expect(await within(row).findByText('Khách hàng: Cá nhân · từ 07/2026 · 4,8 sao (5 lượt)')).toBeInTheDocument()
     expect(within(row).queryByRole('button')).toBeNull()
 
