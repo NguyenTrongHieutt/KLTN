@@ -235,3 +235,50 @@ describe('JOB-1 for the Customer while Selecting (FR-15)', () => {
     expect(screen.queryByRole('button', { name: 'Hủy lựa chọn' })).toBeNull()
   })
 })
+
+describe('JOB-1 while the Agreement is open: what comes next', () => {
+  const card = (title: string) => within(screen.getByRole('heading', { level: 2, name: title }).closest('section') as HTMLElement)
+
+  it('sends the Mentor to the draft and the recruitment, then to the recruitment alone once confirmed', { timeout: 20_000 }, async () => {
+    let confirmed = false
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () =>
+        json(mentorJob({ state: 'AGREEMENT', ndaDueAt: undefined, agreementConfirmed: confirmed })),
+    })
+    renderAt('/cong-viec/j1')
+
+    await screen.findByRole('heading', { level: 2, name: 'Bạn đã ký cam kết bảo mật' })
+    const signed = card('Bạn đã ký cam kết bảo mật')
+    expect(signed.getByRole('link', { name: 'Soạn thỏa thuận' })).toHaveAttribute('href', '/cong-viec/j1/thoa-thuan')
+    expect(signed.getByRole('link', { name: 'Tuyển thành viên' })).toHaveAttribute('href', '/cong-viec/j1/tuyen-thanh-vien')
+
+    confirmed = true
+    renderAt('/cong-viec/j1')
+    await screen.findByRole('heading', { level: 2, name: 'Thỏa thuận đã có hiệu lực' })
+    const after = card('Thỏa thuận đã có hiệu lực')
+    expect(after.getByText(/ít nhất một thành viên nhóm đã ký cam kết và khách hàng thanh toán Giai đoạn 1/)).toBeInTheDocument()
+    expect(after.getByRole('link', { name: 'Tuyển thành viên' })).toHaveAttribute('href', '/cong-viec/j1/tuyen-thanh-vien')
+    expect(after.queryByRole('link', { name: 'Soạn thỏa thuận' })).toBeNull()
+  })
+
+  it.each([
+    [{}, 'Người hướng dẫn đang soạn thỏa thuận', ['/cong-viec/j1/tro-chuyen']],
+    [{ agreementShared: true }, 'Thỏa thuận đang chờ hai bên thống nhất', ['/cong-viec/j1/thoa-thuan', '/cong-viec/j1/tro-chuyen']],
+    [
+      { agreementShared: true, agreementConfirmed: true },
+      'Thỏa thuận đã có hiệu lực',
+      ['/cong-viec/j1/thanh-toan', '/cong-viec/j1/thoa-thuan'],
+    ],
+  ])('tells the Customer where the Agreement stands (%j)', { timeout: 20_000 }, async (flags, title, links) => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(selectingJob({ state: 'AGREEMENT', ndaDueAt: undefined, ...flags })),
+    })
+    renderAt('/cong-viec/j1')
+
+    await screen.findByRole('heading', { level: 2, name: title })
+    expect(card(title).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(links)
+    expect(screen.queryByText('Trang này của công việc sẽ có khi công việc đến bước tiếp theo.')).toBeNull()
+  })
+})

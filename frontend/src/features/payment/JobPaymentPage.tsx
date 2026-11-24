@@ -105,7 +105,7 @@ function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
         <JobRoleLine jobId={jobId} />
       </div>
       <TestModeBanner />
-      <section aria-labelledby="crew-parts-heading" className="flex flex-col gap-2.5">
+      <section aria-labelledby="crew-parts-heading" className="flex flex-col gap-3">
         <h2 id="crew-parts-heading" className="text-h2">
           {t('screen.payment.history.partsTitle')}
         </h2>
@@ -204,16 +204,19 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
           {t(`screen.payment.milestoneState.${milestone.state}` as MessageKey)}
         </span>
       </div>
-      <p className="flex flex-wrap gap-x-5 gap-y-1 tabular-nums">
+      <p className="flex flex-wrap items-center gap-x-5 gap-y-1 tabular-nums">
+        {/* One tag for the row of amounts, as each column of the Customer's table carries one note (2026-11-24). It
+            leads the row, so on a phone, where the amounts stack, it reads as theirs and not the last one's. */}
+        <TestTag />
         <span>
-          {t('screen.payment.amount')}: {formatVnd(milestone.priceVnd)} <TestTag />
+          {t('screen.payment.amount')}: {formatVnd(milestone.priceVnd)}
         </span>
         <span>
-          {t('screen.payment.funded')}: {formatVnd(milestone.fundedVnd + milestone.topUpVnd)} <TestTag />
+          {t('screen.payment.funded')}: {formatVnd(milestone.fundedVnd + milestone.topUpVnd)}
         </span>
         {!pending && (
           <span>
-            {t('screen.payment.released')}: {formatVnd(milestone.releasedTotalVnd)} <TestTag />
+            {t('screen.payment.released')}: {formatVnd(milestone.releasedTotalVnd)}
           </span>
         )}
       </p>
@@ -328,7 +331,10 @@ function blockedText(funding: JobFunding, milestone: FundingMilestone): string |
 function Funding({ funding }: { funding: JobFunding }) {
   const create = useCreatePaymentOrder(funding.jobId)
   const toasts = useToasts()
-  const next = funding.milestones.find((milestone) => milestone.state === 'PLANNED')?.milestoneId
+  const nextMilestone = funding.milestones.find((milestone) => milestone.state === 'PLANNED')
+  const next = nextMilestone?.milestoneId
+  // Why the next Milestone cannot be paid yet: one line under the table, where it has the room its cell lacks.
+  const blocked = nextMilestone ? blockedText(funding, nextMilestone) : undefined
   const pay = (milestone: FundingMilestone) =>
     create.mutate(
       { milestoneId: milestone.milestoneId, version: funding.version },
@@ -344,7 +350,7 @@ function Funding({ funding }: { funding: JobFunding }) {
     )
   return (
     <>
-      <section aria-labelledby="funding-heading" className="flex flex-col gap-2.5">
+      <section aria-labelledby="funding-heading" className="flex flex-col gap-3">
         <h2 id="funding-heading" className="text-h2">
           {t('screen.payment.milestonesTitle')}
         </h2>
@@ -375,7 +381,6 @@ function Funding({ funding }: { funding: JobFunding }) {
             <tbody>
               {funding.milestones.map((milestone) => {
                 const key = stateKey(milestone, next)
-                const blocked = milestone.milestoneId === next ? blockedText(funding, milestone) : undefined
                 return (
                   <tr key={milestone.milestoneId} className="border-b border-border align-top last:border-b-0">
                     <td className="px-4 py-3 break-words">{t('screen.payment.row', { n: milestone.number, title: milestone.title })}</td>
@@ -396,23 +401,17 @@ function Funding({ funding }: { funding: JobFunding }) {
                     </td>
                     <td className="px-4 py-3">
                       {milestone.milestoneId === next && (
-                        <div className="flex flex-col items-start gap-1">
-                          <Button
-                            type="button"
-                            size="compact"
-                            aria-label={t('screen.payment.payLabel', { n: milestone.number })}
-                            aria-describedby={blocked ? `blocked-${milestone.milestoneId}` : undefined}
-                            disabled={!milestone.fundable || !funding.configured || create.isPending}
-                            onClick={() => pay(milestone)}
-                          >
-                            {create.isPending ? t('screen.payment.paying') : t('screen.payment.pay')}
-                          </Button>
-                          {blocked && (
-                            <p id={`blocked-${milestone.milestoneId}`} className="text-caption text-muted-foreground">
-                              {blocked}
-                            </p>
-                          )}
-                        </div>
+                        <Button
+                          type="button"
+                          size="compact"
+                          className="whitespace-nowrap"
+                          aria-label={t('screen.payment.payLabel', { n: milestone.number })}
+                          aria-describedby={blocked ? `blocked-${milestone.milestoneId}` : undefined}
+                          disabled={!milestone.fundable || !funding.configured || create.isPending}
+                          onClick={() => pay(milestone)}
+                        >
+                          {create.isPending ? t('screen.payment.paying') : t('screen.payment.pay')}
+                        </Button>
                       )}
                     </td>
                   </tr>
@@ -420,6 +419,11 @@ function Funding({ funding }: { funding: JobFunding }) {
               })}
             </tbody>
           </table>
+          {blocked && (
+            <p id={`blocked-${next}`} className="sticky left-0 border-t border-border px-4 py-3 text-body-sm text-muted-foreground">
+              {blocked}
+            </p>
+          )}
         </Card>
       </section>
       <Card as="section" aria-labelledby="orders-heading" className="flex flex-col gap-2">

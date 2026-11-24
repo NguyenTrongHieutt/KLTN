@@ -1,4 +1,5 @@
 import { FileText, Info } from 'lucide-react'
+import { jobAside } from '@/features/job/jobFrame'
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -220,7 +221,10 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
           <PhaseBadge phase={post.phase} />
           <ReportAbuseMenu targets={reportTargets} label={t('screen.report.postMore')} />
         </div>
-        <p className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</p>
+        {/* The phase badge already says a Mentor is sought; the line stays only for the Crew's open places. */}
+        {post.need !== 'MENTOR' && (
+          <p className="text-body-sm font-semibold">{needText(post.need, post.recruitment?.openSlots)}</p>
+        )}
         <p className="text-caption text-muted-foreground break-words">{meta.join(' · ')}</p>
       </div>
       {invitation?.status === 'OPEN' && (
@@ -277,7 +281,7 @@ function Post({ post, invitation }: { post: JobPost; invitation: MentorInvitatio
           </Card>
           <ActionArea post={post} />
         </div>
-        <aside className="flex flex-col gap-4">
+        <aside className={jobAside}>
           <CustomerCard postId={post.id} />
           <Card as="section" aria-labelledby="post-product" className="flex flex-col gap-1.5 text-body-sm">
             <h3 id="post-product" className="text-h3">

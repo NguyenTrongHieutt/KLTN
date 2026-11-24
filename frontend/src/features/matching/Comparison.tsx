@@ -116,7 +116,7 @@ export function ComparisonView<T extends { id: string }>({
     <div className="flex flex-col gap-4">
       <ul
         aria-label={heading}
-        className="sticky top-0 z-10 flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-border bg-card px-4 py-2 text-label font-semibold shadow-sm"
+        className="sticky top-0 z-10 flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-border bg-card px-4 py-2 text-label font-semibold shadow-raised"
       >
         {items.map((item) => (
           <li key={item.id} className="break-words">

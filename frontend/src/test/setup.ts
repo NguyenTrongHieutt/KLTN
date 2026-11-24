@@ -21,3 +21,6 @@ if (!window.matchMedia) {
       dispatchEvent: () => false,
     }) as MediaQueryList
 }
+
+/** jsdom has no scrollTo. The layouts restore the scroll position on navigation; in tests there is nothing to scroll. */
+window.scrollTo = () => {}

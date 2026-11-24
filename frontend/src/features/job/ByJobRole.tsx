@@ -67,5 +67,12 @@ export function JobRoleLine({ jobId }: { jobId: string | undefined }) {
 
 /** JOB-H's phase badge beside the state's (X6), for the Mentor and the Customer: "Đang tìm nhóm thực hiện", … */
 export function JobPhaseBadge({ jobId }: { jobId: string | undefined }) {
-  return <PhaseBadge phase={useJobRole(jobId).data?.phase} />
+  const phase = useJobRole(jobId).data?.phase
+  // While a Mentor is still sought the state badge beside it says so already ("Đang tìm người hướng dẫn"), or says
+  // more ("Chờ người hướng dẫn ký cam kết bảo mật"): the phase would only repeat or contradict it (seen 2026-11-24).
+  // "Đang thống nhất" likewise repeats "Đang thống nhất thỏa thuận" once the Crew is found.
+  if (phase === 'FINDING_MENTOR' || phase === 'AGREEING') {
+    return null
+  }
+  return <PhaseBadge phase={phase} />
 }

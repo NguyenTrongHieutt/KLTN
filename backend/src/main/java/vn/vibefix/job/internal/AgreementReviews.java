@@ -505,9 +505,9 @@ class AgreementReviews {
 		return UUID.nameUUIDFromBytes((jobId + ":" + fact).getBytes(java.nio.charset.StandardCharsets.UTF_8));
 	}
 
-	/** "2.000.000 ₫", as UX-DR20 writes whole VND. */
+	/** "2.000.000 VND", as UX-DR20 writes whole VND. */
 	static String vnd(long amount) {
-		return String.format(Locale.ROOT, "%,d", amount).replace(',', '.') + " ₫";
+		return String.format(Locale.ROOT, "%,d", amount).replace(',', '.') + " VND";
 	}
 
 	private static List<UUID> uuids(Array array) throws SQLException {

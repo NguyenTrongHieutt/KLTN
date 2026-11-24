@@ -134,7 +134,7 @@ export function AdminJobsPage() {
           {jobId ? (
             <JobPanel key={jobId} jobId={jobId} />
           ) : (
-            <Card as="p" className="border-dashed text-body-sm text-muted-foreground">
+            <Card as="p" dashed className="text-body-sm text-muted-foreground">
               {t('screen.admin.jobs.pick')}
             </Card>
           )}

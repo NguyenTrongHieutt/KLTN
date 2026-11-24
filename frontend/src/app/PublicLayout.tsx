@@ -1,4 +1,4 @@
-import { Link, Outlet, useMatch } from 'react-router'
+import { Link, Outlet, ScrollRestoration, useMatch } from 'react-router'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { landingPath } from '@/features/identity/api'
 import { useSession } from '@/features/identity/useSession'
@@ -37,10 +37,10 @@ export function PublicLayout() {
       >
         {t('shell.skipToContent')}
       </a>
-      <header className="border-b border-border bg-card">
+      <header className="sticky top-0 z-40 border-b border-border bg-card">
         {/* Wraps instead of overflowing when the text is enlarged at narrow widths (WCAG 1.4.10). */}
         <div className="mx-auto flex min-h-header-height max-w-content-max flex-wrap items-center gap-x-4 gap-y-2 px-gutter-mobile py-2 md:px-gutter-desktop">
-          <Link to="/" className="text-h3 font-bold text-primary" aria-label={t('shell.home')}>
+          <Link to="/" className="text-h2 font-bold tracking-tight text-primary no-underline" aria-label={t('shell.home')}>
             {t('app.name')}
           </Link>
           <span className="grow" />
@@ -75,6 +75,7 @@ export function PublicLayout() {
           )}
         </div>
       </footer>
+      <ScrollRestoration />
     </div>
   )
 }

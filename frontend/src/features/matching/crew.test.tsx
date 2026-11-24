@@ -169,7 +169,9 @@ describe('JOB-9, the Mentor recruits the Crew (UX-DR102, Story 21.4)', () => {
     )
     renderAt('/cong-viec/j1/tuyen-thanh-vien')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Tuyển thành viên' })).toBeInTheDocument()
+    // The Job's title heads this tab as it does the others; the tab says "Tuyển thành viên".
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sửa lỗi đặt bàn' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tuyển thành viên', current: 'page' })).toBeInTheDocument()
     expect(screen.getByText(/Công việc chỉ bắt đầu khi có ít nhất một thành viên đã ký/)).toBeInTheDocument()
     expect(screen.getByText(/Khách hàng không thấy đơn xin vào nhóm, hồ sơ hay phần chia tiền/)).toBeInTheDocument()
     expect(screen.getByText('Đang không nhận đơn xin vào nhóm.')).toBeInTheDocument()
@@ -584,6 +586,21 @@ describe('CUS-7 "Việc tôi tham gia" counts the pending Crew Applications (UX-
     expect(await screen.findByRole('heading', { name: /Đơn xin vào nhóm/ })).toBeInTheDocument()
     expect(screen.getByText('Đã gửi · chờ người hướng dẫn xem · hết hạn ngày 03/11')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Sửa lỗi đặt bàn/ })).toHaveAttribute('href', '/tim-viec/j1')
+  })
+
+  it('does not list an application a second time once its Job is under "Đang tham gia"', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi đặt bàn', role: 'CREW', crewKind: 'ACTIVE' }),
+      'GET /api/v1/mentor/crew-applications': () =>
+        json([crewApplication(), crewApplication({ id: 'c2', jobId: 'j2', jobTitle: 'Thêm đăng nhập Zalo' })]),
+      'GET /api/v1/team-issues': () => json([]),
+    })
+    renderAt('/cong-viec')
+
+    const applications = (await screen.findByRole('heading', { name: /Đơn xin vào nhóm/ })).closest('section')!
+    expect(within(applications).getByRole('link', { name: /Thêm đăng nhập Zalo/ })).toBeInTheDocument()
+    expect(within(applications).queryByRole('link', { name: /Sửa lỗi đặt bàn/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Đang tham gia' })).toBeInTheDocument()
   })
 
   it('counts a pending application beside the Jobs the user mentors', { timeout: 15_000 }, async () => {

@@ -11,7 +11,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #F5F8FC;
+  --background: #F0F4F9;
   --foreground: #0F1B2D;
   --card: #FFFFFF;
   --card-foreground: #0F1B2D;
@@ -21,9 +21,9 @@
   --primary-foreground: #FFFFFF;
   --primary-soft: #E3EEFA;
   --primary-border: #BCD3F0;
-  --secondary: #EEF3F9;
+  --secondary: #E8EEF6;
   --secondary-foreground: #0F1B2D;
-  --muted: #EEF3F9;
+  --muted: #E8EEF6;
   --muted-foreground: #4A5B72;
   --accent: #E3EEFA;
   --accent-foreground: #0F1B2D;
@@ -124,6 +124,50 @@
   --color-ai-soft: var(--ai-soft);
 }
 
+/*
+ * Elevation (the layout of 2026-11-23; ui-ux-pro-max elevation-consistent): three steps and no others. A card rests
+ * on the canvas with `shadow-card` and no border, a card that is a link rises to `shadow-raised` on hover, and
+ * anything floating over the page (menus, popovers, sticky bars) uses `shadow-float`. The dark theme's shadows are
+ * black and stronger, and its cards keep a hairline border, since a shadow barely shows on a dark canvas.
+ */
+:root {
+  --shadow-card-value: 0 0 0 1px rgb(15 27 45 / 0.04), 0 1px 2px rgb(15 27 45 / 0.08);
+  --shadow-raised-value: 0 0 0 1px rgb(15 27 45 / 0.05), 0 6px 16px rgb(15 27 45 / 0.12);
+  --shadow-float-value: 0 0 0 1px rgb(15 27 45 / 0.06), 0 12px 32px rgb(15 27 45 / 0.16);
+}
+
+.dark {
+  --shadow-card-value: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-raised-value: 0 6px 16px rgb(0 0 0 / 0.5);
+  --shadow-float-value: 0 12px 32px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --shadow-card: var(--shadow-card-value);
+  --shadow-raised: var(--shadow-raised-value);
+  --shadow-float: var(--shadow-float-value);
+}
+
+/*
+ * A page arriving (ui-ux-pro-max continuity, hierarchy-motion; agreed 2026-11-24): its content fades in and rises
+ * 6 px, once, in the base duration. Opacity and transform only, so nothing is laid out again, and it leaves no
+ * transform behind. Reduced motion cuts it to nothing with every other animation (see the Accessibility Floor below).
+ */
+@theme {
+  --animate-page-in: page-in 180ms cubic-bezier(0.2, 0, 0, 1) backwards;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
 /* DESIGN.md Shapes: set directly, never derived from shadcn's single --radius. */
 @theme inline {
   --radius-sm: 4px;
@@ -220,6 +264,17 @@
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+
+  /*
+   * Tick boxes and radio buttons: one size and the primary colour on every form, where the browser's own 13 px grey box
+   * read as a different control from screen to screen. A size utility on the input still wins.
+   */
+  :where(input[type='checkbox'], input[type='radio']) {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    accent-color: var(--primary);
   }
 
   /*

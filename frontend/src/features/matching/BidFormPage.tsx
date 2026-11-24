@@ -342,7 +342,7 @@ function BidForm({ post }: { post: JobPost }) {
               className={cn(inputClass, 'pr-10')}
             />
             <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground">
-              ₫
+              VND
             </span>
           </div>
           <p className="text-caption text-muted-foreground">

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '@/app/queryClient'
 import { routes } from '@/app/routes'
-import { fakeBackend, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
+import { fakeBackend, heldJobs, json, signedInUser, inEveryJob } from '@/test/fakeBackend'
 import { PAYLOADS } from '@/test/payloads'
 import { emptyMetrics, personReputation, publicPerson, shortHistory, verifiedFacts } from '@/test/people'
 
@@ -188,6 +188,25 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     expect(screen.getByText(/Bạn chưa nhận công việc nào/)).toBeInTheDocument()
   })
 
+  it('does not list a chosen bid a second time once its Job is among "Công việc của bạn"', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('MENTOR'),
+      ...heldJobs({ jobId: 'j1', title: 'Sửa lỗi mất đơn hàng', role: 'MENTOR' }),
+      'GET /api/v1/mentor/applications': () =>
+        json([
+          application({ status: 'SELECTED' }),
+          application({ id: 'a2', jobId: 'j2', jobTitle: 'Thêm đăng nhập Zalo', status: 'SELECTED' }),
+        ]),
+    })
+    renderAt('/cong-viec')
+
+    // j2 was chosen but is not a Job of the user yet: its bid still waits. j1 is the Job listed above.
+    const waiting = (await screen.findByRole('heading', { level: 2, name: /Đơn đang chờ/ })).closest('section')!
+    expect(within(waiting).getByRole('link', { name: /Thêm đăng nhập Zalo/ })).toBeInTheDocument()
+    expect(within(waiting).queryByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toBeNull()
+    expect(screen.getAllByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toHaveLength(1)
+  })
+
   it('lists the Bid cards oldest first in the fixed order, with "Đã mời" only as a chip (UX-DR100)', { timeout: 20_000 }, async () => {
     const seen = fakeBackend(signedInUser, bidHandlers())
     renderAt('/cong-viec/j1/ung-tuyen')
@@ -205,7 +224,7 @@ describe('"Việc tôi hướng dẫn" on CUS-7, and CUS-8 (UX-DR78, UX-DR66, UX
     expect(within(hung).getByText('Xác minh qua email trường · 09/2026')).toBeInTheDocument()
     expect(within(hung).getByText(/Đại học Bách khoa Hà Nội · Đỗ Mạnh Hùng · Phần mềm/)).toBeInTheDocument()
     expect(within(ha).getAllByText('Chưa xác minh')).toHaveLength(2)
-    expect(within(hung).getByText('3.500.000 ₫')).toBeInTheDocument()
+    expect(within(hung).getByText('3.500.000 VND')).toBeInTheDocument()
     expect(within(hung).getByText('2 bằng chứng')).toBeInTheDocument()
     expect(within(hung).getByText('3 công việc hoàn thành · 2 mục hồ sơ năng lực')).toBeInTheDocument()
     expect(within(hung).getByText('1 công việc hoàn thành · 1 mục hồ sơ năng lực')).toBeInTheDocument()

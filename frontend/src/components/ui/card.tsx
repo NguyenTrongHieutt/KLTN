@@ -1,22 +1,26 @@
 import { createElement, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import { cn } from '@/lib/utils'
+import { cardDashed, cardSurface } from './card-surface'
 
 type CardElement = 'div' | 'section' | 'article' | 'li' | 'aside' | 'ul' | 'ol' | 'p'
 
 /**
- * DESIGN.md card: `{colors.card}` on the canvas, a 1 px `{colors.border}`, `{rounded.lg}`, no shadow. One padding
- * for every card (16 px on phones, 20 px from 768 px), so cards line up wherever they sit. `padding="none"` is for
- * cards whose rows run edge to edge (lists, tables).
+ * The card (the layout of 2026-11-23): `{colors.card}` on the canvas, `{rounded.lg}`, the resting shadow and no
+ * border (see `cardSurface`). One padding for every card (16 px on phones, 20 px from 768 px), so cards line up
+ * wherever they sit. `padding="none"` is for cards whose rows run edge to edge (lists, tables). `dashed` is the
+ * placeholder card: an empty slot or a drop zone, outlined and flat.
  */
 export function Card({
   as = 'div',
   padding = 'default',
+  dashed = false,
   className,
   children,
   ...props
 }: HTMLAttributes<HTMLElement> & {
   as?: CardElement
   padding?: 'default' | 'none'
+  dashed?: boolean
   ref?: Ref<HTMLElement>
   children?: ReactNode
 }) {
@@ -24,7 +28,9 @@ export function Card({
     as,
     {
       className: cn(
-        'min-w-0 rounded-lg border border-border bg-card text-card-foreground',
+        'min-w-0',
+        cardSurface,
+        dashed && cardDashed,
         padding === 'default' && 'p-4 md:p-5',
         className,
       ),

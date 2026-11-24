@@ -153,11 +153,11 @@ function Review({ job, agreement }: { job: Job; agreement: AgreementVersion }) {
               {t('screen.agreement.review.approve')}
             </Button>
           </div>
-          {blocked && (
-            <p id="approve-why" className="text-caption text-muted-foreground">
-              {t(blocked === 'order' ? 'screen.agreement.review.approveBlockedOrder' : 'screen.agreement.review.approveBlockedFreeze')}
-            </p>
-          )}
+          {/* The line keeps its height once the approval is unblocked: at the foot of the page, removing it moved the buttons under the pointer. */}
+          <p id="approve-why" className="min-h-4.5 text-caption text-muted-foreground">
+            {blocked &&
+              t(blocked === 'order' ? 'screen.agreement.review.approveBlockedOrder' : 'screen.agreement.review.approveBlockedFreeze')}
+          </p>
         </>
       )}
       {!agreement.confirmed && !decidable && <p className="text-body-sm text-muted-foreground">{t('screen.agreement.next')}</p>}

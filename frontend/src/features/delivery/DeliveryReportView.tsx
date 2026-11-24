@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonth, formatDayMonthTime } from '@/lib/dates'
+import { cardSurface } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import type { DeliveryReport } from './deliveryApi'
 import { HandoverLinkList } from './HandoverLinkList'
@@ -66,9 +67,10 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
       )}
       {/*
         N-33 (FR-33, R28, Story 23.8b): a statement of fact above the decision, shown and never acknowledged, and
-        only where the handover really holds the Mentor's confirmation.
+        only where the handover really holds the Mentor's confirmation. It speaks of what to do "trước khi nghiệm
+        thu", so it goes once the Customer has decided (seen 2026-11-24 under "Đã nghiệm thu").
       */}
-      {customer && report.code?.teamCodeConfirmedAt && (
+      {customer && report.decision && report.code?.teamCodeConfirmedAt && (
         <Alert tone="info">
           <p className="break-words">
             {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
@@ -212,7 +214,7 @@ function CodeSections({ report, code }: { report: DeliveryReport; code: Code }) 
   return (
     <>
       <SensitiveChangeList changes={code.sensitiveChanges} headingId="delivery-sensitive" />
-      <details className="rounded-lg border border-border bg-card text-body-sm p-4 md:p-5">
+      <details className={cn('p-4 text-body-sm md:p-5', cardSurface)}>
         <summary className="cursor-pointer font-semibold">{t('screen.handover.code.technical')}</summary>
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-caption text-muted-foreground">{t('screen.handover.code.technicalLead')}</p>

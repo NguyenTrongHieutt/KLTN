@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { headerCard } from '@/components/ui/card-surface'
 import { Link, Navigate, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -72,15 +73,15 @@ function StudentCrewChat({ jobId }: { jobId: string }) {
   }
   return (
     <Frame>
-      <div className="flex flex-col gap-1">
+      <div className={headerCard}>
         <Link
           to="/cong-viec?vai-tro=tham-gia"
           className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
         >
           {t('screen.crewChat.back')}
         </Link>
+        {/* The thread's own heading says "Trao đổi trong nhóm thực hiện": no second line for it under the title. */}
         <PageHeading>{chat.data?.title ?? t('screen.crewChat.tab')}</PageHeading>
-        <p className="text-body-sm text-muted-foreground">{t('screen.crewChat.tab')}</p>
         <JobRoleLine jobId={jobId} />
       </div>
       <RegionState query={chat} skeleton={<Skeleton className="h-96 w-full" />}>

@@ -3,9 +3,24 @@ import { t, type MessageKey } from '@/i18n/t'
 import vi from '@/i18n/vi.json'
 import type { NotificationItem, TodoItem } from './api'
 
-/** A to-do's strip and list sentence: `todo.{key}` with its parameters (EXPERIENCE.md, To-do Items). */
-export function todoText(todo: Pick<TodoItem, 'key' | 'params'>): string {
-  return t(`todo.${todo.key}` as MessageKey, todo.params)
+/**
+ * A to-do's strip and list sentence: `todo.{key}` with its parameters (EXPERIENCE.md, To-do Items). A Job's to-do is
+ * always read beside the Job's name -- the context line above it, or the Job's own page around the strip -- so its
+ * sentence says "công việc này" where the title would stand a second time (seen 2026-11-24: one title on two lines
+ * running). A to-do with no Job beside it keeps the title it was given.
+ */
+export function todoText(todo: Pick<TodoItem, 'key' | 'params' | 'jobId'>): string {
+  const params = todo.jobId && todo.params.job ? { ...todo.params, job: t('screen.shared.todo.thisJob') } : todo.params
+  return t(`todo.${todo.key}` as MessageKey, params)
+}
+
+/**
+ * Whether a to-do shows its deadline chip beside its sentence. A sentence that already says the date ("… · tự nghiệm
+ * thu 01/12", "… trước 01/12") is not followed by "Hạn 01/12" as well (seen 2026-11-24), unless the deadline is near:
+ * then the chip's warning colour is what it adds.
+ */
+export function showsDeadlineChip(todo: Pick<TodoItem, 'params' | 'deadlineAt' | 'deadlineNear'>): boolean {
+  return todo.deadlineAt !== undefined && (todo.params.date === undefined || todo.deadlineNear)
 }
 
 /**

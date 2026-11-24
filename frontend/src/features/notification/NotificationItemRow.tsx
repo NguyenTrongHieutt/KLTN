@@ -18,9 +18,16 @@ const ICONS: Record<string, LucideIcon> = {
   users: Users,
 }
 
+/** The circle behind a type's icon: a warning for alerts, done for confirmations, the brand tint for the rest. */
+const TONES: Record<string, string> = {
+  bell: 'bg-primary-soft text-primary',
+  alert: 'bg-warning-soft text-warning',
+  check: 'bg-success-soft text-success',
+}
+
 /**
- * A notification list item (DESIGN.md, UX-DR16): the type icon, the title, the body line, and the
- * time; unread items carry a dot and a tinted fill, and a chevron says the row opens. It is a link to its surface, so
+ * A notification list item (DESIGN.md, UX-DR16): the type icon in a circle, the title, the body line, and the
+ * time; unread items carry a dot, a bolder title and a tinted fill, and a chevron says the row opens. It is a link to its surface, so
  * it opens in a new tab too; following it marks it read;
  * offline it only opens it, because commands wait for the connection (UX-DR26).
  */
@@ -53,18 +60,20 @@ export function NotificationItemRow({
         !item.read && 'bg-primary-soft/50',
       )}
     >
-      <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+      <span aria-hidden="true" className={cn('flex size-10 shrink-0 items-center justify-center rounded-full', TONES[item.icon] ?? TONES.bell)}>
+        <Icon className="size-5" />
+      </span>
       <span className="flex min-w-0 grow flex-col gap-0.5">
-        <span className="text-label">{notificationTitle(item)}</span>
+        <span className={cn('text-label', !item.read && 'font-semibold')}>{notificationTitle(item)}</span>
         {body && <span className="text-body-sm text-muted-foreground">{body}</span>}
         <span className="text-caption text-muted-foreground">{formatDayMonthTime(item.createdAt)}</span>
       </span>
       {!item.read && (
-        <span className="mt-2 size-2 shrink-0 rounded-full bg-primary">
+        <span className="mt-4 size-2.5 shrink-0 rounded-full bg-primary">
           <span className="sr-only">{t('screen.shared.notifications.unread')}</span>
         </span>
       )}
-      <ChevronRight aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <ChevronRight aria-hidden="true" className="mt-3 size-4 shrink-0 text-muted-foreground" />
     </Link>
   )
 }

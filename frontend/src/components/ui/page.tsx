@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
  * - `reading` keeps the same frame but caps its column at `{spacing.reading-max}`, left-aligned: profiles, forms,
  *   notifications;
  * - `focused` centers one reading column, for the focused task routes whose header is centered the same way.
+ *
+ * A page fades in and rises a little when it arrives (`animate-page-in`), so a change of screen reads as one.
  */
 export function Page({
   width = 'content',
@@ -21,7 +23,7 @@ export function Page({
   return (
     <div
       className={cn(
-        'mx-auto w-full px-gutter-mobile py-section-gap md:px-gutter-desktop',
+        'mx-auto w-full animate-page-in px-gutter-mobile py-section-gap md:px-gutter-desktop',
         width === 'focused' ? 'max-w-reading-frame' : 'max-w-content-max',
       )}
     >

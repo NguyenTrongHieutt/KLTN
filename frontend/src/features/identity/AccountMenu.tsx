@@ -57,7 +57,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50">
-          <Menu.Popup className="w-72 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+          <Menu.Popup className="w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-float">
             <div className="flex items-center gap-3 px-3 pt-2 pb-3">
               <span
                 aria-hidden="true"
@@ -93,7 +93,7 @@ export function AccountMenu({ session, offline }: { session: Session; offline: b
                     key={choice.value}
                     value={choice.value}
                     disabled={offline}
-                    className="flex min-h-tap-min flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-sm px-1 text-caption text-muted-foreground data-checked:bg-card data-checked:font-semibold data-checked:text-primary data-checked:shadow-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:text-foreground data-highlighted:outline-2 data-highlighted:outline-ring"
+                    className="flex min-h-tap-min flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-sm px-1 text-center text-caption whitespace-nowrap text-muted-foreground data-checked:bg-card data-checked:font-semibold data-checked:text-primary data-checked:shadow-sm data-disabled:cursor-not-allowed data-disabled:opacity-50 data-highlighted:text-foreground data-highlighted:outline-2 data-highlighted:outline-ring"
                   >
                     <choice.icon aria-hidden="true" className="size-4" />
                     {t(choice.label)}

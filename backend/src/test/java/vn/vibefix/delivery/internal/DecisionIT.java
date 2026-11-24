@@ -162,7 +162,7 @@ class DecisionIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT (params ->> 'n') || ':' || (params ->> 'amount') FROM notification.notification
 				WHERE type = 'job.milestone_awaiting_funding' AND account_id = :lan
-				""").param("lan", this.lan).query(String.class).single()).isEqualTo("2:500.000 ₫");
+				""").param("lan", this.lan).query(String.class).single()).isEqualTo("2:500.000 VND");
 		assertThat(this.jdbc.sql("SELECT kind || ':' || generation || ':' || pausable FROM timers.deadline WHERE subject_id = :next")
 			.param("next", this.next).query(String.class).single())
 			.isEqualTo("job.milestone_unfunded:" + this.milestone + ":true");

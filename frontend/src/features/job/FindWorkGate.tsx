@@ -16,7 +16,7 @@ import { Page } from '@/components/ui/page'
 export function FindWorkGate({ returnTo }: { returnTo: string }) {
   return (
     <Page>
-      <PageHeading>{t('screen.jobPost.heading')}</PageHeading>
+      <PageHeading inNavigation>{t('screen.jobPost.heading')}</PageHeading>
       <GitHubGate
         action={t('screen.githubGate.action.findWork')}
         returnTo={returnTo}

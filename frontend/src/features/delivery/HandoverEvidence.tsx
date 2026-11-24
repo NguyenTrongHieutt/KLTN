@@ -362,7 +362,8 @@ function ScreenshotFields({
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-h3">{t('screen.handover.preview.screenshots')}</h3>
+      {/* The same size as "Liên kết kèm bàn giao" beside it: both are parts of the card "Kèm theo bàn giao". */}
+      <h3 className="text-label font-semibold">{t('screen.handover.preview.screenshots')}</h3>
       <p className="text-caption text-muted-foreground">{t('screen.handover.preview.screenshotsHelper')}</p>
       <p className="text-caption text-warning">{t('screen.handover.preview.personalData')}</p>
       {(uploads.length > 0 || uploading) && (

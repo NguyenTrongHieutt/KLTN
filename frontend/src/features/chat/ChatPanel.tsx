@@ -168,8 +168,9 @@ function Bubble({ message, kind }: { message: ChatMessage; kind: 'JOB_CHAT_MESSA
       </div>
       <div
         className={cn(
-          'flex max-w-[80%] flex-col gap-1.5 rounded-lg px-3 py-2 text-body-sm',
-          message.mine ? 'bg-primary-soft' : 'border border-border bg-background',
+          'flex max-w-[80%] flex-col gap-1.5 rounded-xl px-3.5 py-2 text-body-sm',
+          // The corner beside the writer is tighter, like a speech bubble's tail.
+          message.mine ? 'rounded-br-sm bg-primary-soft' : 'rounded-bl-sm bg-muted',
         )}
       >
         {message.body && (

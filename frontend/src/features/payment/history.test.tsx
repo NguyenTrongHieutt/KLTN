@@ -123,16 +123,16 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Lịch sử thanh toán' })).toBeInTheDocument()
     expect(screen.getByText('Giao dịch thử nghiệm — không dùng tiền thật')).toBeInTheDocument()
-    expect(screen.getByText(/với vai trò khách hàng, và mọi phần bạn nhận/)).toBeInTheDocument()
-    expect((await screen.findByText('vibefix đang giữ')).parentElement).toHaveTextContent('2.000.000 ₫')
+    expect(screen.getByText(/được hoàn với vai trò khách hàng, theo từng công việc/)).toBeInTheDocument()
+    expect((await screen.findByText('vibefix đang giữ')).parentElement).toHaveTextContent('2.000.000 VND')
     expect(screen.getByText('Đã chuyển cho người hướng dẫn và nhóm thực hiện').parentElement).toHaveTextContent(
-      '1.200.000 ₫',
+      '1.200.000 VND',
     )
-    expect(screen.getByText('Đã hoàn lại').parentElement).toHaveTextContent('500.000 ₫')
+    expect(screen.getByText('Đã hoàn lại').parentElement).toHaveTextContent('500.000 VND')
     const table = screen.getByRole('table')
     expect(within(table).getByText('Hoàn tiền mô phỏng · Giai đoạn 1')).toBeInTheDocument()
     expect(within(table).getByText('Đã thanh toán')).toBeInTheDocument()
-    expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng giờ: đã chuyển 1.200.000 ₫')).toBeInTheDocument()
+    expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng giờ: đã chuyển 1.200.000 VND')).toBeInTheDocument()
     // Under the test-mode banner the table says it once, in its amount column's header; amounts outside it keep the tag.
     expect(within(table).getByRole('columnheader', { name: 'Số tiền (thử nghiệm)' })).toBeInTheDocument()
     expect(within(table).queryByText('tiền thử nghiệm, không phải tiền thật')).toBeNull()
@@ -140,7 +140,7 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
     expect(screen.queryByRole('heading', { name: 'Phần của bạn' })).toBeNull()
   })
 
-  it('shows a Customer of one Job who is a party of another both sections', { timeout: 15_000 }, async () => {
+  it('keeps what the user received on "Số dư thử nghiệm" alone, and links there (2026-11-24)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),
       'GET /api/v1/payments/history': () => json(customerHistory([customerJob])),
@@ -159,17 +159,16 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Bạn thanh toán với vai trò khách hàng' }),
     ).toBeInTheDocument()
-    const parts = (await screen.findByRole('heading', { level: 2, name: 'Phần của bạn' })).closest('section')!
-    expect(within(parts).getByText('Báo cáo bảo mật')).toBeInTheDocument()
-    expect(within(parts).getByText('Sửa lỗi đặt bàn')).toBeInTheDocument()
-    expect(within(parts).getAllByText('Bạn là: Thành viên nhóm')).toHaveLength(2)
-    expect(within(parts).getByText('Bạn là: Người hướng dẫn')).toBeInTheDocument()
-    expect(within(parts).getByText('Chờ phân chia')).toBeInTheDocument()
-    expect(within(parts).queryByRole('columnheader', { name: 'Nhóm thực hiện' })).toBeNull()
-    expect(within(parts).queryByText(/Trần Quang Minh/)).toBeNull()
+    // The same lines stood here a second time as "Phần của bạn"; they are MEN-7's, with the Crew's parts.
+    expect(screen.queryByRole('heading', { name: 'Phần của bạn' })).toBeNull()
+    expect(screen.queryByText('Báo cáo bảo mật')).toBeNull()
+    expect(screen.queryByText('Chờ phân chia')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Phần bạn nhận khi hướng dẫn hoặc tham gia nhóm nằm ở Số dư thử nghiệm.' }),
+    ).toHaveAttribute('href', '/so-du')
   })
 
-  it('hides the Customer section for a user who funded nothing', { timeout: 15_000 }, async () => {
+  it('says a user who funded nothing has no payment, whatever they received', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       'GET /api/v1/payments/history': () => json(customerHistory()),
@@ -177,9 +176,10 @@ describe('CUS-10 "Lịch sử thanh toán": two sections (FR-44, UX-DR85)', () =
     })
     renderAt('/lich-su-thanh-toan')
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Phần của bạn' })).toBeInTheDocument()
+    expect(await screen.findByText('Bạn chưa có khoản thanh toán nào.')).toBeInTheDocument()
     expect(screen.queryByText('vibefix đang giữ')).toBeNull()
-    expect(screen.queryByText('Bạn chưa có khoản thanh toán nào.')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Phần của bạn' })).toBeNull()
+    expect(screen.getByRole('link', { name: /nằm ở Số dư thử nghiệm/ })).toHaveAttribute('href', '/so-du')
   })
 
   it('says so when there is nothing at all', { timeout: 15_000 }, async () => {
@@ -205,7 +205,7 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Số dư thử nghiệm' })).toBeInTheDocument()
     expect(screen.getByText(/Số dư này không rút được/)).toBeInTheDocument()
-    expect((await screen.findByText('Đã chuyển cho nhóm thực hiện')).parentElement).toHaveTextContent('960.000 ₫')
+    expect((await screen.findByText('Đã chuyển cho nhóm thực hiện')).parentElement).toHaveTextContent('960.000 VND')
     expect(screen.getByRole('columnheader', { name: 'Nhóm thực hiện' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Phiên bản phân chia' })).toBeInTheDocument()
     expect(screen.getByText(/Trần Quang Minh/)).toBeInTheDocument()
@@ -222,11 +222,11 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
     })
     renderAt('/so-du')
 
-    expect((await screen.findByText('Đang giữ chờ nghiệm thu')).parentElement).toHaveTextContent('3.000.000 ₫')
+    expect((await screen.findByText('Đang giữ chờ nghiệm thu')).parentElement).toHaveTextContent('3.000.000 VND')
     expect(screen.getByText(/chuyển theo phân chia đã chốt của giai đoạn đó/)).toBeInTheDocument()
     expect(screen.queryByText(/phần của bạn về số dư khi phân chia đã chốt/)).toBeNull()
     expect(screen.getByText(/không thấy phần của từng người/)).toBeInTheDocument()
-    expect(screen.getByText(/Tiền được chuyển khi phân chia của giai đoạn đã chốt/)).toBeInTheDocument()
+    expect(screen.getByText('Chưa có lần chuyển tiền nào.')).toBeInTheDocument()
   })
 
   it('shows a Crew member only their own parts', { timeout: 15_000 }, async () => {
@@ -289,8 +289,8 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
     renderAt('/so-du')
 
     expect(await screen.findByText('Chờ phân chia')).toBeInTheDocument()
-    expect(screen.getByText(/của Giai đoạn 2 đang chờ phân chia/)).toHaveTextContent('3.086.420 ₫')
-    expect(screen.getByText('Số dư của bạn').parentElement).toHaveTextContent('0 ₫')
+    expect(screen.getByText(/của Giai đoạn 2 đang chờ phân chia/)).toHaveTextContent('3.086.420 VND')
+    expect(screen.getByText('Số dư của bạn').parentElement).toHaveTextContent('0 VND')
     expect(screen.getByRole('link', { name: 'Xem phân chia' })).toHaveAttribute('href', '/cong-viec/j2/phan-chia/m7')
     expect(screen.queryByText(/Đã chốt ngày/)).toBeNull()
   })
@@ -304,7 +304,7 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
 
     expect(await screen.findByText('Đang chờ quản trị viên xem xét')).toBeInTheDocument()
     expect(screen.queryByText('Chờ phân chia')).toBeNull()
-    expect(screen.getByText(/của Giai đoạn 2 đang chờ phân chia/)).toHaveTextContent('3.086.420 ₫')
+    expect(screen.getByText(/của Giai đoạn 2 đang chờ phân chia/)).toHaveTextContent('3.086.420 VND')
   })
 
   it('keeps a final split waiting for its payout pending', { timeout: 15_000 }, async () => {
@@ -319,7 +319,7 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
     expect(screen.queryByText(/Đã chốt ngày/)).toBeNull()
   })
 
-  it('shows a zero part at 0 ₫ with the split final', { timeout: 15_000 }, async () => {
+  it('shows a zero part at 0 VND with the split final', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       'GET /api/v1/balance': () =>
@@ -385,7 +385,7 @@ describe('MEN-7: the test Balance (FR-44, AD-15, AD-20, UX-DR106)', () => {
     })
     renderAt('/so-du')
 
-    expect((await screen.findByText('Người đã xóa tài khoản')).parentElement).toHaveTextContent('480.000 ₫')
+    expect((await screen.findByText('Người đã xóa tài khoản')).parentElement).toHaveTextContent('480.000 VND')
     expect(screen.getByText('Một thành viên')).toBeInTheDocument()
   })
 })
@@ -461,7 +461,7 @@ describe('JOB-7 for the Mentor: each split pending, then each party by part (FR-
     expect(screen.getByText('Nhóm thực hiện')).toBeInTheDocument()
     expect(screen.queryByText(/Điều khoản phiên bản/)).not.toBeInTheDocument()
     expect(screen.getByText('80%')).toBeInTheDocument()
-    expect(screen.getByText(/^Đã chuyển:/)).toHaveTextContent('2.000.000 ₫')
+    expect(screen.getByText(/^Đã chuyển:/)).toHaveTextContent('2.000.000 VND')
     expect(screen.getByText(/^Đã chốt ngày .* · mọi người đã xác nhận$/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Thanh toán' })).toHaveAttribute('aria-current', 'page')
   })
@@ -471,7 +471,7 @@ describe('JOB-7 for the Mentor: each split pending, then each party by part (FR-
     renderAt('/cong-viec/j1/thanh-toan')
 
     expect(await screen.findByText('Chờ phân chia')).toBeInTheDocument()
-    expect(screen.getByText(/của Giai đoạn 1 đang chờ phân chia/)).toHaveTextContent('2.000.000 ₫')
+    expect(screen.getByText(/của Giai đoạn 1 đang chờ phân chia/)).toHaveTextContent('2.000.000 VND')
     expect(screen.queryByText(/^Đã chuyển:/)).toBeNull()
     expect(screen.queryByText('Chưa chuyển tiền')).toBeNull()
     expect(screen.getByRole('link', { name: 'Xem phân chia' })).toHaveAttribute('href', '/cong-viec/j1/phan-chia/m1')
@@ -514,7 +514,7 @@ describe('JOB-7 for the Mentor: each split pending, then each party by part (FR-
     )
     renderAt('/cong-viec/j1/thanh-toan')
 
-    expect((await screen.findByText('Người đã xóa tài khoản')).parentElement).toHaveTextContent('1.600.000 ₫')
+    expect((await screen.findByText('Người đã xóa tài khoản')).parentElement).toHaveTextContent('1.600.000 VND')
   })
 })
 
@@ -548,7 +548,7 @@ describe("JOB-7 for a Crew member: their own lines of the Job (D1, UX-DR106)", (
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Thanh toán · Sửa lỗi đặt bàn' })).toBeInTheDocument()
     expect(await screen.findByText('Chờ phân chia')).toBeInTheDocument()
-    expect(screen.getByText(/^700\.000 ₫/)).toBeInTheDocument()
+    expect(screen.getByText(/^700\.000 VND/)).toBeInTheDocument()
     expect(screen.queryByText(/555\.000/)).toBeNull()
     expect(screen.queryByText('Việc khác')).toBeNull()
     expect(screen.getByText('Giao dịch thử nghiệm — không dùng tiền thật')).toBeInTheDocument()

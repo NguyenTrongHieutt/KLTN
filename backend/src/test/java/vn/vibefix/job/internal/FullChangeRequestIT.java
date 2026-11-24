@@ -55,10 +55,10 @@ class FullChangeRequestIT extends IntegrationTest {
 
 	private UUID product;
 
-	/** Funded, 800.000 ₫, with criterion {@link #c1}. */
+	/** Funded, 800.000 VND, with criterion {@link #c1}. */
 	private UUID first;
 
-	/** Planned, 800.000 ₫, with criterion {@link #c2}. */
+	/** Planned, 800.000 VND, with criterion {@link #c2}. */
 	private UUID second;
 
 	private UUID c1;
@@ -157,7 +157,7 @@ class FullChangeRequestIT extends IntegrationTest {
 		command(this.lan, Role.CUSTOMER, request, "approve", "{\"version\":" + version() + "}")
 			.andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("IMPACT_MISSING"));
-		command(this.hung, Role.MENTOR, request, "impact", "{\"impact\":\"Thêm 300.000 ₫ và 5 ngày\"}").andExpect(status().isOk());
+		command(this.hung, Role.MENTOR, request, "impact", "{\"impact\":\"Thêm 300.000 VND và 5 ngày\"}").andExpect(status().isOk());
 		command(this.lan, Role.CUSTOMER, request, "approve", "{\"version\":" + version() + "}").andExpect(status().isOk());
 		command(this.hung, Role.MENTOR, request, "confirm", "{\"version\":" + version() + "}").andExpect(status().isOk());
 
@@ -214,7 +214,7 @@ class FullChangeRequestIT extends IntegrationTest {
 	}
 
 	private ResultActions propose(UUID account, Role role, String changes) throws Exception {
-		String impact = role == Role.MENTOR ? "\"impact\":\"Bớt 800.000 ₫ và giai đoạn 1\"," : "";
+		String impact = role == Role.MENTOR ? "\"impact\":\"Bớt 800.000 VND và giai đoạn 1\"," : "";
 		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/change-requests").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"description\":\"Cần đổi phạm vi\"," + impact + "\"items\":[],\"version\":" + version() + "," + changes + "}"));

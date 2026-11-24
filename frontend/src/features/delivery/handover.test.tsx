@@ -346,6 +346,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
         json(
           report({
             assessment: false,
+            // The handover still waits for the Customer: N-33 stands above the decision it is about.
+            decision: { releaseVnd: 1_000_000, revisionAllowed: true },
             code: {
               handoverCommit: '9c41a02' + '0'.repeat(33),
               pullNumber: 101,

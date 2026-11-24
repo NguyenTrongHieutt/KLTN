@@ -54,7 +54,7 @@ export function ReportAbuseMenu({ targets, label }: { targets: ReportTarget[]; l
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner align="end" sideOffset={4} className="z-[60]">
-            <Menu.Popup className="min-w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+            <Menu.Popup className="min-w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-float">
               {targets.map((target) => (
                 <Menu.Item
                   key={`${target.kind}-${target.targetId ?? target.targetLogin}`}

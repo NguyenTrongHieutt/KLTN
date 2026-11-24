@@ -145,7 +145,7 @@ describe('JOB-7 for the Customer: fund a Milestone (FR-41, N-13)', () => {
     expect(screen.getByRole('button', { name: 'Thanh toán Giai đoạn 1' })).toBeDisabled()
     expect(screen.getByText('Hết hạn')).toBeInTheDocument()
     expect(screen.getByText('Chờ hoàn tiền')).toBeInTheDocument()
-    expect(screen.getByText('Đang hoàn 500.000 ₫')).toBeInTheDocument()
+    expect(screen.getByText('Đang hoàn 500.000 VND')).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Xem kết quả' })[0]).toHaveAttribute('href', '/thanh-toan/o1')
   })
 })
@@ -180,7 +180,7 @@ describe('CUS-9: the payment result, read from the server only (AD-14)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Đã nhận tiền nhưng chưa áp dụng được' })).toBeInTheDocument()
     expect(screen.getByText('Hoàn tiền mô phỏng ·')).toBeInTheDocument()
-    expect(screen.getByText('Đã hoàn 2.000.000 ₫')).toBeInTheDocument()
+    expect(screen.getByText('Đã hoàn 2.000.000 VND')).toBeInTheDocument()
     expect(screen.getByText(/Nhóm thực hiện thay đổi trước khi bắt đầu/)).toBeInTheDocument()
     expect(screen.getByText(/chỉ được ghi trên vibefix/)).toBeInTheDocument()
   })
@@ -195,7 +195,7 @@ describe('CUS-9: the payment result, read from the server only (AD-14)', () => {
     })
     renderAt('/thanh-toan/o1')
 
-    expect(await screen.findByText('Đã hoàn 2.000.000 ₫')).toBeInTheDocument()
+    expect(await screen.findByText('Đã hoàn 2.000.000 VND')).toBeInTheDocument()
     expect(screen.getByText(/Số tiền đã trả khác số tiền của giai đoạn/)).toBeInTheDocument()
     expect(screen.queryByText(/Hoàn tiền mô phỏng/)).not.toBeInTheDocument()
     expect(screen.queryByText(/chỉ được ghi trên vibefix/)).not.toBeInTheDocument()
@@ -218,6 +218,6 @@ describe('JOB-7 after a price cut (FR-36, Story 14.2)', () => {
     })
     renderAt('/cong-viec/j1/thanh-toan')
 
-    expect(await screen.findByText('Sẽ hoàn 200.000 ₫ THỬ NGHIỆM khi giai đoạn kết thúc')).toBeInTheDocument()
+    expect(await screen.findByText('Sẽ hoàn 200.000 VND THỬ NGHIỆM khi giai đoạn kết thúc')).toBeInTheDocument()
   })
 })

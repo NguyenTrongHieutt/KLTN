@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { jobHeaderCard } from '@/features/job/jobFrame'
 import { Dialog } from '@base-ui/react/dialog'
 import { Link, useParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -9,7 +10,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestColumn, TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
-import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
+import { MentorTabHeader } from '@/features/matching/MentorTabHeader'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { DeadlineChip } from '@/features/notification/DeadlineChip'
 import { TestModeBanner } from '@/features/payment/TestModeBanner'
@@ -58,24 +59,30 @@ export function SplitPage() {
   const { jobId, milestoneId } = useParams()
   const splits = useJobSplits(jobId, true)
   usePageTitle(t('screen.split.title'))
+  const cards = splits.data ?? []
+  const mentor = splits.isSuccess && (cards.length === 0 || cards[0].viewerIsMentor)
+  // The Mentor of a Job that still has its row reads this as one of the Job's tabs, under the same top as the others.
+  // A party of the split, or a Mentor whose Job is gone, has no tabs: the page then names itself.
+  const job = useMentorJob(mentor ? jobId : undefined)
   if (splits.isError && isNotFound(splits.error)) {
     return <NotFoundScreen />
   }
-  const cards = splits.data ?? []
-  const mentor = splits.isSuccess && (cards.length === 0 || cards[0].viewerIsMentor)
   return (
     <Page>
-      <div className="flex flex-col gap-3">
-        <Link
-          to={cards.length > 0 && !cards[0].jobLive ? '/cong-viec' : `/cong-viec/${jobId ?? ''}`}
-          className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
-        >
-          {t('screen.split.back')}
-        </Link>
-        <PageHeading>{t('screen.split.title')}</PageHeading>
-        {cards[0]?.jobTitle && <p className="text-caption text-muted-foreground break-words">{cards[0].jobTitle}</p>}
-        {mentor && jobId && <MentorTabs jobId={jobId} />}
-      </div>
+      {job.data ? (
+        <MentorTabHeader job={job.data} current="split" />
+      ) : (
+        <div className={jobHeaderCard}>
+          <Link
+            to={cards.length > 0 && !cards[0].jobLive ? '/cong-viec' : `/cong-viec/${jobId ?? ''}`}
+            className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline"
+          >
+            {t('screen.split.back')}
+          </Link>
+          <PageHeading>{t('screen.split.title')}</PageHeading>
+          {cards[0]?.jobTitle && <p className="text-caption text-muted-foreground break-words">{cards[0].jobTitle}</p>}
+        </div>
+      )}
       <TestModeBanner />
       {/* A failed poll keeps the cards and the Mentor's typed percentages; only a failed first load shows. */}
       <RegionState
@@ -94,15 +101,6 @@ export function SplitPage() {
       </RegionState>
     </Page>
   )
-}
-
-/** The Mentor's tabs while the Job still has its row; a bare one has no other screen to link to. */
-function MentorTabs({ jobId }: { jobId: string }) {
-  const job = useMentorJob(jobId)
-  if (!job.data) {
-    return null
-  }
-  return <MentorJobTabs jobId={jobId} state={job.data.state} current="split" payment={job.data.agreementConfirmed} />
 }
 
 function Card({ jobId, card, focused }: { jobId: string; card: SplitCard; focused: boolean }) {
@@ -151,11 +149,13 @@ function Chip({ card }: { card: SplitCard }) {
       </span>
     )
   }
-  if (card.status === 'AWAITING_DRAFT' && !card.draftLate) {
-    return <DeadlineChip deadlineAt={card.draftDueAt} near={card.draftNear} />
+  // The state badge beside the card's title already says this date ("Soạn phân chia trước 01/12", "… hạn 27/11"),
+  // so the chip stands only when the deadline is near, where its warning colour says something new (2026-11-24).
+  if (card.status === 'AWAITING_DRAFT' && !card.draftLate && card.draftNear) {
+    return <DeadlineChip deadlineAt={card.draftDueAt} near />
   }
-  if (card.status === 'PROPOSED' && card.confirmationDueAt && !card.pastDue) {
-    return <DeadlineChip deadlineAt={card.confirmationDueAt} near={card.confirmationNear} />
+  if (card.status === 'PROPOSED' && card.confirmationDueAt && !card.pastDue && card.confirmationNear) {
+    return <DeadlineChip deadlineAt={card.confirmationDueAt} near />
   }
   return null
 }
@@ -602,7 +602,8 @@ function Draft({
                 />
                 <span aria-hidden="true">%</span>
               </span>
-              <span className="min-w-32 text-body-sm whitespace-nowrap">
+              {/* Wide enough for any amount with its tag, so the percentage fields of every row line up. */}
+              <span className="min-w-52 text-right text-body-sm whitespace-nowrap tabular-nums">
                 {amount !== undefined && valid && (
                   <>
                     {formatVnd(amount)} <TestTag />
@@ -626,9 +627,7 @@ function Draft({
       >
         {t('screen.split.sum', { sum })}
       </p>
-      <p className="text-caption text-muted-foreground">
-        {t('screen.split.editsLeft', { k: card.editsLeft, n: card.editLimit })}
-      </p>
+      {/* N-29 says how many edits are left, so no line of its own repeats the count above it. */}
       <p className="text-body-sm">{n29(card)}</p>
       {save.isError && !stale && (
         <p role="alert" className="text-body-sm text-destructive">

@@ -22,6 +22,7 @@ import { ApiError } from '@/lib/apiClient'
 import { fieldMessage, zodFieldErrors } from '@/lib/formErrors'
 import { problemMessage } from '@/lib/problemMessage'
 import { redirectTo } from '@/lib/redirect'
+import { cardInteractive, cardSurface } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import {
   useRegisterProduct,
@@ -900,7 +901,7 @@ function NoticeStep({
       </div>
       <div className="flex flex-col gap-3">
         {items.map((item) => (
-          <label key={item.key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+          <label key={item.key} className={cn('flex cursor-pointer items-start gap-3 p-4 md:p-5', cardSurface, cardInteractive)}>
             <input
               type="checkbox"
               checked={ticked[item.key]}

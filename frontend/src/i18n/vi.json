@@ -47,7 +47,18 @@
     "theme": "Giao diện",
     "signOut": "Đăng xuất",
     "testMoney": "tiền thử nghiệm, không phải tiền thật",
-    "testColumn": "thử nghiệm"
+    "testColumn": "thử nghiệm",
+    "search": "Tìm công việc trên vibefix",
+    "searchPlaceholder": "Tìm công việc",
+    "create": "Tạo",
+    "createJob": "Đăng công việc",
+    "createProduct": "Đăng ký sản phẩm",
+    "sidebar": "Thanh bên",
+    "collapseSidebar": "Thu nhỏ thanh bên",
+    "expandSidebar": "Mở rộng thanh bên",
+    "runningNav": "Việc đang chạy",
+    "runningAll": "Xem tất cả công việc",
+    "accountNav": "Tài khoản"
   },
   "screen": {
     "verification": {
@@ -151,7 +162,7 @@
       },
       "typed": {
         "heading": "Bạn tự nhập",
-        "lead": "Những gì bạn tự viết về mình. Hồ sơ công khai (sắp có) sẽ hiện chúng với nhãn “Tự khai”. Lưu là xong, không cần ai duyệt.",
+        "lead": "Những gì bạn tự viết về mình. Hồ sơ công khai hiện chúng với nhãn “Tự khai”. Lưu là xong, không cần ai duyệt.",
         "kind": "Bạn là",
         "individual": "Cá nhân",
         "business": "Doanh nghiệp",
@@ -320,7 +331,8 @@
         "stripLabel": "Việc cần làm tiếp theo",
         "account": "Tài khoản",
         "context": "{job} · Bạn là {role}",
-        "contextRole": "Bạn là {role}"
+        "contextRole": "Bạn là {role}",
+        "thisJob": "công việc này"
       },
       "sessionExpired": {
         "title": "Phiên đăng nhập đã hết",
@@ -1277,7 +1289,6 @@
     "product": {
       "title": "Sản phẩm",
       "heading": "Sản phẩm",
-      "lead": "Ứng dụng bạn đã làm bằng công cụ AI và đăng ký trên vibefix.",
       "register": "Đăng ký sản phẩm",
       "empty": "Chưa có sản phẩm nào.",
       "emptyHint": "Đăng ký ứng dụng bạn đã làm bằng công cụ AI để tìm người hướng dẫn.",
@@ -1526,6 +1537,8 @@
         "announce": "{step}: {state}",
         "allDone": "Đã chuẩn bị xong repo",
         "nothingToDo": "Bạn không cần làm gì.",
+        "compactStep": "Bước {n}/{total}: {step}",
+        "seeSteps": "Xem các bước",
         "ownInvitedHint": "Bật 2FA trên GitHub trước (nếu chưa bật), rồi chấp nhận lời mời. Khi chưa bật, GitHub làm mờ nút chấp nhận.",
         "enableTwoFactor": "Bật 2FA",
         "githubDomain": "(github.com)",
@@ -1640,10 +1653,10 @@
         "skillsCount": "{n}/10 kỹ năng. Mỗi kỹ năng có một câu giải thích ngắn.",
         "budgetLabel": "Ngân sách dự kiến",
         "budgetNone": "Chọn khoảng ngân sách",
-        "budgetUNDER_2M": "Dưới 2 triệu ₫",
-        "budgetFROM_2M_TO_5M": "2–5 triệu ₫",
-        "budgetFROM_5M_TO_10M": "5–10 triệu ₫",
-        "budgetOVER_10M": "Trên 10 triệu ₫",
+        "budgetUNDER_2M": "Dưới 2.000.000 VND",
+        "budgetFROM_2M_TO_5M": "2.000.000–5.000.000 VND",
+        "budgetFROM_5M_TO_10M": "5.000.000–10.000.000 VND",
+        "budgetOVER_10M": "Trên 10.000.000 VND",
         "budgetNote": "Tiền thử nghiệm, không phải tiền thật.",
         "deadlineLabel": "Mong muốn xong trước",
         "screenshotsLabel": "Ảnh chụp màn hình (không bắt buộc)",
@@ -1709,7 +1722,15 @@
         "withdrawCancel": "Giữ tin",
         "withdrawing": "Đang rút…",
         "withdrawn": "Đã rút tin. Tin đã trở về bản nháp.",
-        "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo."
+        "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo.",
+        "agreementDraftingTitle": "Người hướng dẫn đang soạn thỏa thuận",
+        "agreementDraftingBody": "Bạn được báo khi có bản nháp để xem. Trong lúc chờ, bạn có thể trò chuyện với người hướng dẫn.",
+        "agreementSharedTitle": "Thỏa thuận đang chờ hai bên thống nhất",
+        "agreementSharedBody": "Xem bản nháp, góp ý hoặc duyệt ở mục Thỏa thuận.",
+        "agreementConfirmedTitle": "Thỏa thuận đã có hiệu lực",
+        "agreementConfirmedBody": "Công việc bắt đầu khi có ít nhất một thành viên nhóm đã ký cam kết và bạn thanh toán Giai đoạn 1.",
+        "crewWaitingTitle": "Bạn đã vào nhóm thực hiện",
+        "crewWaitingBody": "Công việc bắt đầu khi thỏa thuận được xác nhận và khách hàng thanh toán Giai đoạn 1. Trong lúc chờ, bạn có thể vào Trao đổi nhóm để nói chuyện với người hướng dẫn và nhóm."
       },
       "role": {
         "CUSTOMER": "Khách hàng",
@@ -1741,7 +1762,6 @@
     "jobPost": {
       "title": "Tìm việc",
       "heading": "Tìm việc",
-      "lead": "Công việc đang cần người hướng dẫn hoặc thành viên nhóm thực hiện.",
       "filters": "Bộ lọc tin công việc",
       "phaseFilter": "Tình trạng",
       "phaseAll": "Mọi tình trạng",
@@ -1820,7 +1840,7 @@
       },
       "searchLabel": "Tìm tin công việc",
       "searchPlaceholder": "Ví dụ: ban hang, supabase, đăng nhập",
-      "searchHelper": "Gõ có dấu hoặc không dấu đều được, ví dụ: ban hang.",
+      "searchHelper": "Gõ có dấu hoặc không dấu đều được.",
       "searchButton": "Tìm",
       "clearKeyword": "Xóa từ khóa",
       "resultsHeading": "Kết quả cho “{q}” ({n})",
@@ -1851,7 +1871,7 @@
         "lead": "Khách hàng sẽ thấy giá, thời gian, cách làm và bằng chứng năng lực của bạn. Bạn tuyển thành viên nhóm thực hiện sau khi được chọn.",
         "price": "Giá đề xuất",
         "priceHint": "gồm phần của bạn và của nhóm thực hiện",
-        "priceInvalid": "Hãy nhập giá từ 1.000 ₫ đến 1.000.000.000 ₫.",
+        "priceInvalid": "Hãy nhập giá từ 1.000 VND đến 1.000.000.000 VND.",
         "days": "Thời gian làm (ngày)",
         "daysInvalid": "Hãy nhập từ 1 đến 365 ngày.",
         "approach": "Cách bạn sẽ làm",
@@ -1978,7 +1998,7 @@
         "limitDaily": "Hôm nay bạn đã gửi đủ 30 lời mời. Bạn có thể mời tiếp sau 00:00. Bạn vẫn tìm và xem hồ sơ được.",
         "searchLabel": "Tìm người hướng dẫn",
         "searchPlaceholder": "Ví dụ: supabase, bảo mật",
-        "searchHelper": "Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.",
+        "searchHelper": "Tìm theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.",
         "skills": "Kỹ năng",
         "skillsHint": "Bộ lọc áp dụng cho cả đề xuất và kết quả tìm.",
         "results": "Kết quả cho “{q}” ({n})",
@@ -2044,7 +2064,7 @@
     },
     "nda": {
       "version": "2.0",
-      "meta": "{product} · {types} · khách hàng đã chọn đơn ứng tuyển của bạn ngày {date}",
+      "meta": "{product} · {types} · khách hàng đã chọn đơn chào giá của bạn ngày {date}",
       "title": "Cam kết bảo mật (NDA) · phiên bản {version}",
       "n14": "Cam kết này bảo vệ mã nguồn của khách hàng trong các repo riêng tư, và thông tin kinh doanh khách hàng chia sẻ trong Trò chuyện, Trao đổi nhóm và tài liệu (dữ liệu, khóa truy cập, tệp). Khi công việc kết thúc, bạn xóa mọi bản sao mã và dữ liệu trên máy của mình, và xác nhận việc đó trên vibefix.",
       "textLabel": "Toàn văn cam kết bảo mật",
@@ -2070,7 +2090,10 @@
       "customerSeesTitle": "Khách hàng thấy",
       "customerSees": "\"Chờ người hướng dẫn ký cam kết bảo mật\" cho đến khi bạn ký hoặc hết hạn.",
       "signedTitle": "Bạn đã ký cam kết bảo mật",
-      "signedBody": "Trò chuyện, thỏa thuận và nhóm thực hiện đến ở bước tiếp theo."
+      "signedBody": "Việc tiếp theo: soạn thỏa thuận gửi khách hàng và tuyển thành viên nhóm.",
+      "openDraft": "Soạn thỏa thuận",
+      "confirmedTitle": "Thỏa thuận đã có hiệu lực",
+      "confirmedBody": "Công việc bắt đầu khi có ít nhất một thành viên nhóm đã ký cam kết và khách hàng thanh toán Giai đoạn 1."
     },
     "chat": {
       "tab": "Trò chuyện",
@@ -2102,7 +2125,7 @@
     "agreement": {
       "tab": "Thỏa thuận",
       "title": "Thỏa thuận · {job}",
-      "quote": "Báo giá trong đơn ứng tuyển: {price} · {days} ngày",
+      "quote": "Báo giá trong đơn chào giá: {price} · {days} ngày",
       "scope": "Phạm vi",
       "scopeHelp": "Viết bằng lời cho khách hàng không rành kỹ thuật: làm gì và không làm gì.",
       "codeStatement": "Các thay đổi về database và cấu hình được bàn giao dưới dạng tệp trong repo (ví dụ tệp chuyển đổi dữ liệu và ghi chú cài đặt), để đi qua bước bàn giao của từng giai đoạn.",
@@ -2467,10 +2490,10 @@
       "released": "Đã chuyển",
       "history": {
         "title": "Lịch sử thanh toán",
-        "lead": "Mọi khoản bạn thanh toán và được hoàn với vai trò khách hàng, và mọi phần bạn nhận với vai trò người hướng dẫn hoặc thành viên nhóm, theo từng công việc.",
+        "lead": "Mọi khoản bạn thanh toán và được hoàn với vai trò khách hàng, theo từng công việc.",
         "customerTitle": "Bạn thanh toán với vai trò khách hàng",
         "partsTitle": "Phần của bạn",
-        "partsLead": "Phần bạn nhận ở mỗi giai đoạn, với vai trò bạn giữ trong công việc đó.",
+        "partsLink": "Phần bạn nhận khi hướng dẫn hoặc tham gia nhóm nằm ở Số dư thử nghiệm.",
         "held": "vibefix đang giữ",
         "released": "Đã chuyển cho người hướng dẫn và nhóm thực hiện",
         "refunded": "Đã hoàn lại",
@@ -2497,7 +2520,7 @@
         "releasesTitle": "Các lần chuyển tiền",
         "mentorLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia và chuyển theo phân chia đã chốt của giai đoạn đó. Phần lẻ dưới 1 đồng thuộc về người hướng dẫn.",
         "studentLead": "Mỗi lần khách hàng nghiệm thu một giai đoạn, số tiền được giữ chờ phân chia; phần của bạn về số dư khi phân chia đã chốt.",
-        "empty": "Chưa có lần chuyển tiền nào. Tiền được chuyển khi phân chia của giai đoạn đã chốt.",
+        "empty": "Chưa có lần chuyển tiền nào.",
         "job": "Công việc · giai đoạn",
         "date": "Ngày",
         "milestone": "Giai đoạn",
@@ -2582,8 +2605,6 @@
       "people": "Người tham gia",
       "mentor": "Người hướng dẫn: {name}",
       "member": "Nhóm thực hiện: {name}",
-      "product": "Sản phẩm",
-      "nextAction": "Việc cần làm cho công việc này",
       "assessmentCopy": "Mở repo trung gian (chỉ đọc) trên GitHub",
       "assessmentCopyInvitation": "Mở lời mời đọc repo trung gian trên GitHub",
       "assessmentCopyInviting": "vibefix đang gửi lời mời đọc repo trung gian cho bạn trên GitHub.",
@@ -3252,7 +3273,7 @@
         "defaultParty": "Hệ thống đã chia đều · chờ bạn xác nhận trước {date}",
         "inResolution": "Đang chờ quản trị viên xem xét",
         "pastDue": "Đã hết hạn xác nhận · đang chốt theo bản hiện tại",
-        "final": "Đã chốt ngày {date}",
+        "final": "Đã chốt",
         "mentorOnly": "Không cần phân chia · bạn nhận 100%"
       },
       "how": {
@@ -3986,7 +4007,7 @@
       "add_workflow": "Thêm file workflow vibefix vào {repo}"
     },
     "matching": {
-      "choose_assignee": "Chọn người hướng dẫn ({n} đơn ứng tuyển)",
+      "choose_assignee": "Chọn người hướng dẫn ({n} đơn chào giá)",
       "sign_nda": "Ký cam kết bảo mật cho {job}",
       "answer_invitation_to_apply": "Xem lời mời ứng tuyển cho {job}",
       "open_crew_recruitment": "Mở tuyển thành viên nhóm cho {job}",

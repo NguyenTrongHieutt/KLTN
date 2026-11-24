@@ -170,7 +170,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
 
       expect(await screen.findByRole('heading', { name: 'Sửa lỗi đặt bàn' })).toBeInTheDocument()
       expect(screen.getByRole('link', { name: 'Phân chia tiền' })).toHaveAttribute('aria-current', 'page')
-      expect(screen.getByText(/2\.000\.000 ₫ của cả giai đoạn/)).toBeInTheDocument()
+      expect(screen.getByText(/2\.000\.000 VND của cả giai đoạn/)).toBeInTheDocument()
       expect(screen.getByText('3 ngày chưa quyết định')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Nhận xử lý' })).toBeInTheDocument()
       expect(screen.queryByText('Lý do')).not.toBeInTheDocument()
@@ -477,7 +477,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
       fireEvent.change(screen.getByRole('textbox', { name: /Nguyễn Văn Minh/ }), { target: { value: '25' } })
       expect(
         await screen.findByText(
-          /Sau quyết định: Đỗ Mạnh Hùng 25% · 500\.000 ₫, Trần Thảo Vy 50% · 1\.000\.000 ₫, Nguyễn Văn Minh 25% · 500\.000 ₫\. Tổng vẫn 2\.000\.000 ₫/,
+          /Sau quyết định: Đỗ Mạnh Hùng 25% · 500\.000 VND, Trần Thảo Vy 50% · 1\.000\.000 VND, Nguyễn Văn Minh 25% · 500\.000 VND\. Tổng vẫn 2\.000\.000 VND/,
         ),
       ).toBeInTheDocument()
       expect(send).toBeDisabled()
@@ -502,7 +502,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
         stepUpCode: '123456',
       })
       expect(await screen.findByText('Vy làm phần lớn việc')).toBeInTheDocument()
-      expect(screen.getByText(/Trần Thảo Vy 50% · 1\.000\.000 ₫/)).toBeInTheDocument()
+      expect(screen.getByText(/Trần Thảo Vy 50% · 1\.000\.000 VND/)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Ghi quyết định' })).not.toBeInTheDocument()
     },
   )
@@ -674,9 +674,9 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     const dialog = await screen.findByRole('dialog')
 
     for (const line of [
-      /Đỗ Mạnh Hùng 25% · 500\.000 ₫/,
-      /Trần Thảo Vy 50% · 1\.000\.000 ₫/,
-      /Nguyễn Văn Minh 25% · 500\.000 ₫/,
+      /Đỗ Mạnh Hùng 25% · 500\.000 VND/,
+      /Trần Thảo Vy 50% · 1\.000\.000 VND/,
+      /Nguyễn Văn Minh 25% · 500\.000 VND/,
     ]) {
       expect(within(dialog).getByText(line).closest('li')).toHaveTextContent('THỬ NGHIỆM')
     }
@@ -786,7 +786,7 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
 
       expect(await screen.findByText('Vy làm phần lớn việc')).toBeInTheDocument()
       expect(screen.getByText(/Bản 2 · quyết định lúc/)).toBeInTheDocument()
-      expect(screen.getByText(/Trần Thảo Vy 50% · 1\.000\.000 ₫/)).toBeInTheDocument()
+      expect(screen.getByText(/Trần Thảo Vy 50% · 1\.000\.000 VND/)).toBeInTheDocument()
       expect(screen.queryByText('Lý do')).not.toBeInTheDocument()
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Nhận xử lý' })).not.toBeInTheDocument()

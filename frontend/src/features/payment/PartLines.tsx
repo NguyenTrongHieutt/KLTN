@@ -10,9 +10,8 @@ import { finalText, hasMentorLine, partyName, pendingText, pendingTone } from '.
 import { Card } from '@/components/ui/card'
 
 /**
- * The reader's own lines (FR-44, AD-15, AD-20, UX-DR106): MEN-7's, the second section of "Lịch sử thanh toán", and a
- * Crew member's JOB-7. Each line is a Job and Milestone with the role held there: the reader's part with its
- * percentage, a zero part at 0 ₫, or a split still pending, whose pooled amount shows as "Chờ phân chia" and counts in
+ * The reader's own lines (FR-44, AD-15, AD-20, UX-DR106): MEN-7's and a Crew member's JOB-7. Each line is a Job and Milestone with the role held there: the reader's part with its
+ * percentage, a zero part at 0 VND, or a split still pending, whose pooled amount shows as "Chờ phân chia" and counts in
  * no Balance, with the way to JOB-10. The Crew's parts show only on a line whose split names the reader its Mentor,
  * and only with `crew`. With `left`, for one Job's lines, each role reads as JOB-H's for a member who left ("· đã
  * rời"). The page computes no money: every figure is the server's.

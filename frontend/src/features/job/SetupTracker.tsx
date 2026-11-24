@@ -109,12 +109,52 @@ const TONES: Record<string, string> = {
  * Mentor's and the Crew's own pages mount it on an Assessment Job in any state, while `JobHeader` and `JobPage` keep
  * the Customer's to a Starting Job, because the Customer's read of that copy is optional and has a page of its own.
  */
-export function SetupTracker({ jobId }: { jobId: string }) {
+export function SetupTracker({ jobId, compact = false }: { jobId: string; compact?: boolean }) {
   const setup = useSetup(jobId, trackerSettled)
   if (!setup.data || !shown(setup.data)) {
     return null
   }
-  return <Steps setup={setup.data} />
+  return compact ? <StepLine setup={setup.data} /> : <Steps setup={setup.data} />
+}
+
+/**
+ * The tracker on a Job's other tabs (`compact`, the layout of 2026-11-24): one line with the step the Setup is at and
+ * a link to Tổng quan, where the steps are. The whole tracker above a chat, an Agreement or the payments pushed the
+ * tab's own content below the fold on every tab; what the viewer has to do in it still reaches them through the
+ * next-action strip, on every page.
+ */
+function StepLine({ setup }: { setup: Setup }) {
+  const index = setup.steps.findIndex((step) => step.state !== 'DONE')
+  const current = index === -1 ? undefined : setup.steps[index]
+  const state = current?.state ?? 'DONE'
+  const Icon = ICONS[state as keyof typeof ICONS] ?? Circle
+  return (
+    <Card as="section" aria-labelledby="job-setup" className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <h2 id="job-setup" className="text-label font-semibold">
+        {t('screen.job.setup.title')}
+      </h2>
+      <p aria-live="polite" className="flex min-w-0 grow basis-0 flex-wrap items-center gap-x-2 gap-y-1 text-body-sm">
+        <Icon aria-hidden="true" className={`size-5 shrink-0 ${TONES[state] ?? ''}`} />
+        <span className="break-words">
+          {current
+            ? t('screen.job.setup.compactStep', {
+                n: index + 1,
+                total: setup.steps.length,
+                step: stepLabel(current.key, setup.viewer === 'CUSTOMER', setup.assessment),
+              })
+            : t('screen.job.setup.allDone')}
+        </span>
+        {current && (
+          <span className="text-caption text-muted-foreground">
+            · {t(`screen.job.setup.state${current.state}` as MessageKey)}
+          </span>
+        )}
+      </p>
+      <Link to={`/cong-viec/${setup.jobId}`} className="text-body-sm text-primary underline-offset-4 hover:underline">
+        {t('screen.job.setup.seeSteps')}
+      </Link>
+    </Card>
+  )
 }
 
 /** Whether the tracker belongs on the page: the Setup itself says which state the Job is in. */
@@ -595,9 +635,10 @@ function personName(person: Person, customer: boolean): string {
  */
 function People({ people, customer }: { people: Person[]; customer: boolean }) {
   return (
-    <ul className="flex w-full flex-col gap-1 pl-7">
+    <ul className="flex w-full flex-col gap-2 pl-7">
       {people.map((person, index) => (
-        <li key={`${person.role}-${index}`} className="flex flex-wrap items-center gap-1.5 text-caption">
+        // Lines of one person sit closer together than two people do, so a hint reads as its own row's.
+        <li key={`${person.role}-${index}`} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-caption">
           <span className="font-semibold break-words">{personName(person, customer)}</span>
           {person.role === 'CUSTOMER' && (
             <span className="text-muted-foreground">· {t('screen.job.setup.customerRead')}</span>

@@ -109,7 +109,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     const link = await screen.findByRole('link', { name: 'Sửa lỗi mất đơn hàng' })
     expect(link).toHaveAttribute('href', '/tim-viec/j1')
     const row = link.closest('li') as HTMLElement
-    expect(within(row).getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2–5 triệu ₫ · đăng 15/10')).toBeInTheDocument()
+    expect(within(row).getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2.000.000–5.000.000 VND · đăng 15/10')).toBeInTheDocument()
     expect(within(row).getByText('Supabase')).toBeInTheDocument()
     expect(within(row).getByText('Hạn 10/11')).toBeInTheDocument()
     expect(within(row).getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
@@ -150,7 +150,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     })
     const router = renderAt('/tim-viec')
 
-    await user.selectOptions(await screen.findByLabelText('Tình trạng'), 'Đang tuyển thêm thành viên')
+    await user.click(await screen.findByRole('radio', { name: 'Đang tuyển thêm thành viên' }))
     await user.selectOptions(screen.getByLabelText('Loại công việc'), 'Sửa lỗi')
     await user.selectOptions(screen.getByLabelText('Hạn'), 'Trong 2 tuần')
     await user.type(screen.getByRole('combobox', { name: 'Kỹ năng' }), 'giao')
@@ -198,7 +198,7 @@ describe('MEN-2, browsing Job Posts (FR-12)', () => {
     renderAt('/tim-viec?tinh-trang=tim-nhom')
 
     expect(await screen.findByRole('link', { name: 'Hoàn thiện trang bán hàng' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Tình trạng')).toHaveValue('FINDING_CREW')
+    expect(screen.getByRole('radio', { name: 'Đang tìm nhóm thực hiện' })).toBeChecked()
     const last = seen.filter((request) => request.url.includes('/api/v1/mentor/job-posts')).at(-1)
     expect(new URL(last?.url ?? '', 'http://localhost').searchParams.get('phase')).toBe('FINDING_CREW')
   })
@@ -315,9 +315,10 @@ describe('MEN-3, one Job Post (FR-12)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: post.title })).toBeInTheDocument()
     expect(screen.getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
-    expect(screen.getByText('Cần người hướng dẫn')).toBeInTheDocument()
+    // The phase badge says it; the line under the title is only for a Crew's open places.
+    expect(screen.queryByText('Cần người hướng dẫn')).toBeNull()
     expect(
-      screen.getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2–5 triệu ₫ · mong xong trước 10/11 · đăng 15/10'),
+      screen.getByText('Shop Gốm Bát Tràng · Sửa lỗi · 2.000.000–5.000.000 VND · mong xong trước 10/11 · đăng 15/10'),
     ).toBeInTheDocument()
     expect(screen.getByText('Khách hàng muốn nó hoạt động thế nào?')).toBeInTheDocument()
     expect(screen.getByText(post.expected)).toBeInTheDocument()
@@ -553,7 +554,7 @@ describe('MEN-2, searching by keyword (FR-12, UX-DR47)', () => {
 
     const input = await screen.findByLabelText('Tìm tin công việc')
     expect(input).toHaveAttribute('maxLength', '100')
-    expect(screen.getByText('Gõ có dấu hoặc không dấu đều được, ví dụ: ban hang.')).toBeInTheDocument()
+    expect(screen.getByText('Gõ có dấu hoặc không dấu đều được.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tìm' })).toBeDisabled()
     await user.type(input, 'ban hang')
     expect(seen.some((request) => keywordOf(request) !== null)).toBe(false)
@@ -608,6 +609,41 @@ describe('MEN-2, searching by keyword (FR-12, UX-DR47)', () => {
 
     expect(await screen.findByText('Bạn đang tìm hơi nhanh. Hãy đợi 42 giây rồi tìm lại.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toBeInTheDocument()
-    expect(screen.queryByText('Gõ có dấu hoặc không dấu đều được, ví dụ: ban hang.')).toBeNull()
+    expect(screen.queryByText('Gõ có dấu hoặc không dấu đều được.')).toBeNull()
+  })
+
+  it('from 768 px has no Search bar of its own: the top bar searches, and the wait stands under the filters', { timeout: 20_000 }, async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) =>
+        ({
+          matches: Number(/\(min-width: (\d+)px\)/.exec(query)?.[1] ?? Infinity) <= 768,
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    )
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts': (request) =>
+        keywordOf(request) === 'zalo'
+          ? new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED' }), {
+              status: 429,
+              headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '42' },
+            })
+          : page([summary]),
+      'GET /api/v1/mentor/capacity': () => capacity(),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/tim-viec')
+
+    expect(await screen.findByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Tìm tin công việc')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Tìm' })).toBeNull()
+    expect(screen.getByLabelText('Loại công việc')).toBeInTheDocument()
+    await user.type(screen.getByRole('searchbox', { name: 'Tìm công việc trên vibefix' }), 'zalo{Enter}')
+
+    expect(await screen.findByText('Bạn đang tìm hơi nhanh. Hãy đợi 42 giây rồi tìm lại.')).toHaveAttribute('role', 'status')
+    expect(screen.getByRole('link', { name: /Sửa lỗi mất đơn hàng/ })).toBeInTheDocument()
   })
 })

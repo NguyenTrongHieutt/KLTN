@@ -99,6 +99,30 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
     expect(screen.queryByRole('group', { name: 'Vai trò của bạn trong công việc' })).not.toBeInTheDocument()
   })
 
+  it("shows on each tile where the Job stands among the seven stages, as Trang chủ's card does (2026-11-24)", async () => {
+    const job = (id: string, state: string, title: string) => ({
+      id,
+      productId: 'p1',
+      productName: 'Sổ đặt bàn Quán Mây',
+      state,
+      title,
+      jobTypes: ['BUG_FIX'],
+      updatedAt: '2026-10-20T03:00:00Z',
+    })
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () =>
+        json([held('a', 'Việc đang chạy', 'CUSTOMER'), held('c', 'Việc đã hủy', 'CUSTOMER', { state: 'CANCELLED' })]),
+      'GET /api/v1/jobs': () => json([job('a', 'ACTIVE', 'Việc đang chạy'), job('c', 'CANCELLED', 'Việc đã hủy')]),
+    })
+    renderAt('/cong-viec')
+
+    const running = await screen.findByRole('link', { name: /Việc đang chạy/ })
+    expect(within(running).getByText('Bước 5/7: Làm và theo dõi')).toBeInTheDocument()
+    // A cancelled Job stands at no stage: its tile keeps the state badge alone.
+    const cancelled = screen.getByRole('link', { name: /Việc đã hủy/ })
+    expect(within(cancelled).queryByText(/Bước \d\/7/)).toBeNull()
+  })
+
   it('shows two segments to the Customer of one Job and the Mentor of another, with their to-do counts', async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
@@ -235,7 +259,7 @@ describe('CUS-6, drafting a Job (FR-9)', () => {
     await user.type(screen.getByLabelText('Điều gì đang chưa đúng?'), 'Khách đặt rồi không đến.')
     await user.click(screen.getByRole('checkbox', { name: /Chưa rõ — đánh giá trước/ }))
     expect(screen.getByRole('checkbox', { name: /Sửa lỗi/ })).toBeDisabled()
-    await user.selectOptions(screen.getByLabelText('Ngân sách dự kiến'), '2–5 triệu ₫')
+    await user.selectOptions(screen.getByLabelText('Ngân sách dự kiến'), '2.000.000–5.000.000 VND')
     await user.click(screen.getByRole('button', { name: 'Lưu nháp' }))
 
     await waitFor(() =>
@@ -459,7 +483,7 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     const post = screen.getByRole('region', { name: 'Tin công việc' })
     expect(within(post).getByText(openJob.expected)).toBeInTheDocument()
     expect(within(post).getByText('React')).toBeInTheDocument()
-    expect(within(post).getByText(/Ngân sách: 2–5 triệu ₫/)).toBeInTheDocument()
+    expect(within(post).getByText(/Ngân sách: 2.000.000–5.000.000 VND/)).toBeInTheDocument()
     expect(within(post).getByText(/đăng 16\/10/)).toBeInTheDocument()
     expect(screen.getByText(/Mã của sản phẩm nằm trong repo công khai/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Sổ đặt bàn Quán Mây' })).toHaveAttribute('href', '/san-pham/p1')
