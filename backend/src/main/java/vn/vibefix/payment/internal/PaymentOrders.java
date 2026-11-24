@@ -534,9 +534,9 @@ class PaymentOrders {
 		return UUID.nameUUIDFromBytes(fact.getBytes(StandardCharsets.UTF_8));
 	}
 
-	/** "2.000.000 ₫", as UX-DR20 writes whole VND. */
+	/** "2.000.000 VND", as UX-DR20 writes whole VND. */
 	static String vnd(long amount) {
-		return String.format(Locale.ROOT, "%,d", amount).replace(',', '.') + " ₫";
+		return String.format(Locale.ROOT, "%,d", amount).replace(',', '.') + " VND";
 	}
 
 	private static Order order(java.sql.ResultSet rs, int n) throws java.sql.SQLException {

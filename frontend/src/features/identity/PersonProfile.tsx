@@ -1,4 +1,6 @@
 import { useId } from 'react'
+import { cardSurface } from '@/components/ui/card-surface'
+import { cn } from '@/lib/utils'
 import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { RegionState } from '@/components/RegionState'
@@ -80,10 +82,17 @@ function Person({
           </Link>
         </div>
       )}
-      <section className="flex flex-wrap items-start gap-4">
+      {/* On its own page the profile opens like a cover: a tinted band, and the avatar overlapping it. */}
+      <section className={cn('flex flex-wrap items-start gap-4', onPage && cn('relative overflow-hidden p-4 pt-16 md:p-5 md:pt-20', cardSurface))}>
+        {onPage && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-12 bg-primary-soft md:h-16" />}
         <span
           aria-hidden="true"
-          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-soft text-h3 text-primary"
+          className={cn(
+            'relative flex shrink-0 items-center justify-center rounded-full',
+            onPage
+              ? '-mt-12 size-20 border-4 border-card bg-primary text-h1 text-primary-foreground md:-mt-14'
+              : 'size-14 bg-primary-soft text-h3 text-primary',
+          )}
         >
           {initials(name)}
         </span>

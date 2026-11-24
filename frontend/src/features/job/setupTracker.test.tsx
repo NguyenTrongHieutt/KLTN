@@ -797,3 +797,38 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   })
 })
+
+describe("the tracker's one line on a Job's other tabs (the layout of 2026-11-24)", () => {
+  function renderLine() {
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={createQueryClient()}>
+          <SetupTracker jobId="j1" compact />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  it("names the step the Setup is at and links to Tổng quan, with none of the steps or the Customer's card", async () => {
+    fakeBackend(signedInUser, { 'GET /api/v1/jobs/j1/setup': () => json(confirming()) })
+    renderLine()
+
+    expect(await screen.findByRole('heading', { name: 'Chuẩn bị repo' })).toBeInTheDocument()
+    expect(screen.getByText('Bước 2/6: Bạn xác nhận repo nguồn đã sạch')).toBeInTheDocument()
+    expect(screen.getByText('· Đang làm')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Xem các bước' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryByText('Kiểm tra app vibefix và file workflow')).toBeNull()
+  })
+
+  it('shows nothing once the Job has left Starting', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/jobs/j1/setup': () => json(setup('DONE', ['DONE', 'DONE', 'DONE', 'DONE', 'DONE', 'DONE'], { jobState: 'ACTIVE' })),
+    })
+    renderLine()
+
+    await waitFor(() => expect(screen.queryByText('Chuẩn bị repo')).toBeNull())
+    expect(screen.queryByRole('link', { name: 'Xem các bước' })).toBeNull()
+  })
+})

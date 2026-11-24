@@ -29,7 +29,7 @@ export function Sheet({
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
         <DialogBackdrop />
-        <Dialog.Popup className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[560px] flex-col bg-popover text-popover-foreground shadow-md">
+        <Dialog.Popup className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[560px] flex-col bg-popover text-popover-foreground shadow-float">
           <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
             <div className="flex min-w-0 flex-col gap-1">
               <Dialog.Title className="text-h2 break-words">{title}</Dialog.Title>

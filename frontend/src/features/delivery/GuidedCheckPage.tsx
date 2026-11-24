@@ -10,6 +10,7 @@ import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
+import { rich } from '@/i18n/rich'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatVnd } from '@/lib/money'
@@ -364,7 +365,14 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
                 t('screen.handover.check.reviseBody', { r: Math.max(0, report.roundsLeft - 1) })
               ) : (
                 <>
-                  {t('screen.handover.check.acceptBody', { amount: formatVnd(decision.releaseVnd) })} <TestTag />
+                  {/* The tag stands beside the amount it marks, not after the sentence's last word. */}
+                  {rich('screen.handover.check.acceptBody', {
+                    amount: (
+                      <span className="whitespace-nowrap">
+                        {formatVnd(decision.releaseVnd)} <TestTag />
+                      </span>
+                    ),
+                  })}
                   {/*
                     N-33 (FR-33, R28, Story 23.8b): shown before the Customer accepts, never acknowledged, and only
                     where the handover really holds the Mentor's confirmation.

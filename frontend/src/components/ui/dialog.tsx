@@ -30,7 +30,7 @@ export function DialogPopup({
   return (
     <Dialog.Popup
       className={cn(
-        'fixed top-[10dvh] left-1/2 z-50 flex max-h-[80dvh] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-md',
+        'fixed top-[10dvh] left-1/2 z-50 flex max-h-[80dvh] -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-lg bg-popover p-6 text-popover-foreground shadow-float',
         SIZES[size],
         TONES[tone],
         className,

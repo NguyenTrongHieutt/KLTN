@@ -69,6 +69,18 @@ export function formatDayMonth(instant: string): string {
   return `${day}/${month}`
 }
 
+/**
+ * "08/12" for a deadline: the last day on which the action is still in time. A deadline at the end of a day is the
+ * instant 00:00 of the next day in Vietnam, and read as that next day it would promise one day too many: a Milestone
+ * due on 08/12 read "Hạn 09/12" (seen 2026-11-24).
+ */
+export function formatDeadlineDay(instant: string): string {
+  const at = new Date(instant)
+  const { hour, minute } = fields(instant)
+  const endOfDay = hour === '00' && minute === '00' && at.getTime() % 60_000 === 0
+  return formatDayMonth(endOfDay ? new Date(at.getTime() - 1).toISOString() : instant)
+}
+
 /** "14:05 23/10", as vi-VN writes a time and a date. */
 export function formatDayMonthTime(instant: string): string {
   const { day, month, hour, minute } = fields(instant)

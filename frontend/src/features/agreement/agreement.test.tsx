@@ -94,7 +94,7 @@ describe('JOB-6 for the Mentor: draft the Agreement (FR-16)', () => {
     renderAt('/cong-viec/j1/thoa-thuan')
 
     expect(await screen.findByRole('link', { name: 'Thỏa thuận' })).toHaveAttribute('aria-current', 'page')
-    expect(await screen.findByText(/Báo giá trong đơn ứng tuyển: 800.000 ₫ · 7 ngày/)).toBeInTheDocument()
+    expect(await screen.findByText(/Báo giá trong đơn chào giá: 800.000 VND · 7 ngày/)).toBeInTheDocument()
     expect(screen.getByText(/Các thay đổi về database và cấu hình/)).toBeInTheDocument()
     expect(screen.getByText('Quyền đối với mã')).toBeInTheDocument()
     const alert = screen.getByRole('alert')

@@ -174,7 +174,7 @@ export function SkillPicker({
         </Combobox.InputGroup>
         <Combobox.Portal>
           <Combobox.Positioner sideOffset={4} className="z-50">
-            <Combobox.Popup className="max-h-[min(var(--available-height),24rem)] w-[var(--anchor-width)] max-w-[var(--available-width)] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md">
+            <Combobox.Popup className="max-h-[min(var(--available-height),24rem)] w-[var(--anchor-width)] max-w-[var(--available-width)] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-float">
               {atLimit && (
                 <p className="px-3 py-2 text-caption text-muted-foreground">{t('screen.shared.skillPicker.limit', { n: max })}</p>
               )}

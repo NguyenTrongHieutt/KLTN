@@ -188,7 +188,7 @@ describe('JOB-6 full Change Requests (FR-36, Story 14.1)', () => {
       addedCriteria: [{ milestoneId: 'm3', statement: 'Có biểu đồ', checkSteps: '1. Xem biểu đồ.' }],
       description: 'Thêm biểu đồ vào báo cáo',
     })
-    expect(await within(section).findByText('Giai đoạn 3: giá từ 500.000 ₫ thành 600.000 ₫')).toBeInTheDocument()
+    expect(await within(section).findByText('Giai đoạn 3: giá từ 500.000 VND thành 600.000 VND')).toBeInTheDocument()
     expect(within(section).getByText('Giai đoạn 3: thêm tiêu chí Có biểu đồ')).toBeInTheDocument()
   })
 
@@ -223,7 +223,7 @@ describe('JOB-6 top-ups (FR-36, Story 14.2)', () => {
     const sent: unknown[] = []
     const waiting = open({
       status: 'AWAITING_TOP_UP',
-      impact: 'Thêm 200.000 ₫',
+      impact: 'Thêm 200.000 VND',
       customerApprovedAt: '2026-10-21T03:00:00Z',
       mentorConfirmedAt: '2026-10-21T04:00:00Z',
       topUpVnd: 200000,
@@ -244,7 +244,7 @@ describe('JOB-6 top-ups (FR-36, Story 14.2)', () => {
     renderAt('/cong-viec/j1/thoa-thuan')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Đề nghị thay đổi' })).closest('section')!
-    expect(await within(section).findByText('Bạn cần thanh toán thêm 200.000 ₫ THỬ NGHIỆM trước khi thay đổi có hiệu lực')).toBeInTheDocument()
+    expect(await within(section).findByText('Bạn cần thanh toán thêm 200.000 VND THỬ NGHIỆM trước khi thay đổi có hiệu lực')).toBeInTheDocument()
     expect(within(section).queryByRole('button', { name: 'Duyệt hạn mới' })).toBeNull()
     await user.click(within(section).getByRole('button', { name: 'Thanh toán thêm' }))
 

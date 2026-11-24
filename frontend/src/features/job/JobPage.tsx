@@ -1,4 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog'
+import { TestTag } from '@/components/TestTag'
+import { jobAside, jobHeaderCard } from '@/features/job/jobFrame'
 import { Clock, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
@@ -8,6 +10,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { personPath } from '@/features/identity/personText'
 import { t, type MessageKey } from '@/i18n/t'
@@ -83,7 +86,7 @@ function Overview({ job }: { job: Job }) {
   const open = job.state === 'OPEN' && job.lapsesAt != null
   return (
     <>
-      <div className="flex flex-col gap-3">
+      <div className={jobHeaderCard}>
         <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
           <Link to="/cong-viec" className="text-primary underline-offset-4 hover:underline">
             {t('screen.job.detail.breadcrumb')}
@@ -143,7 +146,7 @@ function Overview({ job }: { job: Job }) {
                     <li key={application.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-body-sm">
                       <span className="break-words">{application.mentor.displayName}</span>
                       <span className="text-caption text-muted-foreground">
-                        {formatVnd(application.priceVnd)} {t('screen.matching.test')} ·{' '}
+                        {formatVnd(application.priceVnd)} <TestTag /> ·{' '}
                         {t('screen.matching.days', { n: application.timelineDays })}
                       </span>
                     </li>
@@ -169,7 +172,11 @@ function Overview({ job }: { job: Job }) {
         <ProgressOverview jobId={job.id} audience="customer" optional={job.state === 'CANCELLED'} />
       ) : (
         <>
-          <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
+          {job.state === 'AGREEMENT' && <AgreementStep job={job} />}
+          {/* While Starting, the step tracker below is the page: it says what is being prepared and who acts next. */}
+          {job.state !== 'AGREEMENT' && job.state !== 'STARTING' && (
+            <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
+          )}
           {job.state === 'STARTING' && <SetupTracker jobId={job.id} />}
           {(job.state === 'AGREEMENT' || job.state === 'STARTING') && (
             <>
@@ -180,6 +187,55 @@ function Overview({ job }: { job: Job }) {
         </>
       )}
     </>
+  )
+}
+
+/**
+ * While the Agreement is open: where it stands for the Customer and the tab to open next. The Mentor is still drafting,
+ * a draft waits for the Customer, or the Agreement is confirmed and the Job waits for a signed Crew member and
+ * Milestone 1 (R7).
+ */
+function AgreementStep({ job }: { job: Job }) {
+  const base = `/cong-viec/${job.id}`
+  const step = job.agreementConfirmed
+    ? {
+        title: t('screen.job.detail.agreementConfirmedTitle'),
+        body: t('screen.job.detail.agreementConfirmedBody'),
+        links: [
+          { to: `${base}/thanh-toan`, label: t('screen.payment.tab') },
+          { to: `${base}/thoa-thuan`, label: t('screen.agreement.tab') },
+        ],
+      }
+    : job.agreementShared
+      ? {
+          title: t('screen.job.detail.agreementSharedTitle'),
+          body: t('screen.job.detail.agreementSharedBody'),
+          links: [
+            { to: `${base}/thoa-thuan`, label: t('screen.agreement.tab') },
+            { to: `${base}/tro-chuyen`, label: t('screen.chat.tab') },
+          ],
+        }
+      : {
+          title: t('screen.job.detail.agreementDraftingTitle'),
+          body: t('screen.job.detail.agreementDraftingBody'),
+          links: [{ to: `${base}/tro-chuyen`, label: t('screen.chat.tab') }],
+        }
+  return (
+    <Card as="section" className="flex flex-col gap-2">
+      <h2 className="text-h3">{step.title}</h2>
+      <p className="text-body-sm text-muted-foreground">{step.body}</p>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {step.links.map((link, index) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className={buttonVariants({ variant: index === 0 && step.links.length > 1 ? 'primary' : 'secondary', size: 'compact' })}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </Card>
   )
 }
 
@@ -292,7 +348,7 @@ function JobPost({ job }: { job: Job }) {
 
 function Aside({ job, lapsesAt }: { job: Job; lapsesAt: string }) {
   return (
-    <aside className="flex flex-col gap-4">
+    <aside className={jobAside}>
       <Card as="section" aria-labelledby="job-upcoming" className="flex flex-col gap-2">
         <h3 id="job-upcoming" className="text-h3">
           {t('screen.job.detail.upcoming')}

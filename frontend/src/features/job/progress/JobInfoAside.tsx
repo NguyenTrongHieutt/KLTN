@@ -36,8 +36,9 @@ function JobInfoAside({ jobId }: { jobId: string }) {
 }
 
 /**
- * "Thông tin công việc" (UX-DR19): the next due date, the people (the Mentor, and for the Mentor the Crew still on it),
- * and the Product. It sticks under the top bar while the main column scrolls.
+ * "Thông tin công việc" (UX-DR19): the next due date and the people (the Mentor, and for the Mentor the Crew still on
+ * it). The Product is in the Job's header on every tab, so it is not said here a second time (2026-11-24). It sticks
+ * under the top bar while the main column scrolls.
  */
 export function JobInfoCard({ progress, audience }: { progress: JobProgress; audience: ProgressAudience }) {
   const nextDue = progress.milestones.find(
@@ -68,7 +69,6 @@ export function JobInfoCard({ progress, audience }: { progress: JobProgress; aud
                 </span>
               ),
             },
-            { term: t('screen.progress.product'), value: progress.productName },
           ]}
         />
       </Card>

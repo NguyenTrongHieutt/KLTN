@@ -2,7 +2,7 @@ import { Dialog } from '@base-ui/react/dialog'
 import { Menu } from '@base-ui/react/menu'
 import { Menu as MenuIcon, X } from 'lucide-react'
 import { useState } from 'react'
-import { Navigate, NavLink, Outlet, useNavigate } from 'react-router'
+import { Navigate, NavLink, Outlet, ScrollRestoration, useNavigate } from 'react-router'
 import { MAIN_ID } from '@/app/PublicLayout'
 import { useFocusHeadingOnNavigate } from '@/app/useFocusHeadingOnNavigate'
 import { Toaster } from '@/components/Toaster'
@@ -64,11 +64,11 @@ function AdminShell({ session }: { session: Session }) {
         >
           {t('shell.skipToContent')}
         </a>
-        <aside className="hidden w-60 shrink-0 border-r border-border bg-card lg:block">
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start overflow-y-auto border-r border-border bg-card lg:block">
           <Sidebar />
         </aside>
         <div className="flex min-w-0 grow flex-col">
-          <header className="flex min-h-14 items-center gap-3 border-b border-border bg-card px-gutter-mobile md:px-gutter-desktop">
+          <header className="sticky top-0 z-40 flex min-h-header-height items-center gap-3 border-b border-border bg-card px-gutter-mobile md:px-gutter-desktop">
             <Dialog.Root open={sheet} onOpenChange={setSheet}>
               <Dialog.Trigger
                 aria-label={t('screen.admin.shell.openMenu')}
@@ -99,6 +99,7 @@ function AdminShell({ session }: { session: Session }) {
         </div>
         <AdminSessionWatcher />
         <SessionExpiredDialog />
+        <ScrollRestoration />
       </div>
     </Toaster>
   )
@@ -109,7 +110,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label={t('screen.admin.shell.navLabel')} className="flex flex-col gap-0.5 px-3 py-4">
       <p className="flex items-center gap-2 px-3 pb-4">
-        <span className="text-h3 font-bold text-primary">{t('app.name')}</span>
+        <span className="text-h2 font-bold tracking-tight text-primary">{t('app.name')}</span>
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-caption font-semibold">{t('screen.admin.badge')}</span>
       </p>
       {ADMIN_DESTINATIONS.map((destination) => (
@@ -120,12 +121,12 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'flex min-h-control-compact items-center gap-2 rounded-md px-3 text-label',
-              isActive ? 'bg-primary-soft text-foreground shadow-[inset_3px_0_0_var(--primary)]' : 'hover:bg-muted',
+              'flex min-h-10 items-center gap-3 rounded-lg px-3 text-label no-underline',
+              isActive ? 'bg-primary-soft font-semibold text-primary' : 'text-foreground hover:bg-muted',
             )
           }
         >
-          <destination.icon aria-hidden="true" className="size-4" />
+          <destination.icon aria-hidden="true" className="size-4.5 shrink-0" />
           {t(destination.label)}
           {destination.count && <QueueCount count={overview.data?.[destination.count]?.count} />}
         </NavLink>
@@ -168,7 +169,7 @@ function AdminAccountMenu({ name }: { name: string }) {
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={8} className="z-50">
-          <Menu.Popup className="min-w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
+          <Menu.Popup className="min-w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-float">
             <p className="px-3 py-2 text-caption text-muted-foreground">{name}</p>
             <Menu.Item
               onClick={() => signOut.mutate(undefined, { onSettled: () => navigate('/quan-tri/dang-nhap', { replace: true }) })}

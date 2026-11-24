@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
-import { buttonVariants } from '@/components/ui/button-variants'
 import { FollowUpSection } from '@/features/delivery/FollowUpSection'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { DriftWarning } from '@/features/job/DriftWarning'
@@ -11,8 +10,6 @@ import { CancellationSection } from '@/features/job/cancellation/CancellationSec
 import { ClosureSection } from '@/features/job/closure/ClosureSection'
 import { milestoneStateText, milestoneTone } from '@/features/job/jobStateText'
 import { ownGitHubLink, ownLinkSettled, ownRow, useSetup } from '@/features/job/setupApi'
-import { useTodos } from '@/features/notification/hooks'
-import { todoText } from '@/features/notification/texts'
 import { JobPortfolioSection } from '@/features/reputation/JobPortfolioSection'
 import { RatingSection } from '@/features/reputation/RatingSection'
 import { JobTeamIssues } from '@/features/teamIssue/JobTeamIssues'
@@ -30,7 +27,8 @@ export type ProgressAudience = 'customer' | 'mentor' | 'crew'
 
 /**
  * JOB-1 from Active on (FR-28, AD-33, UX-DR14, UX-DR19, UX-DR32, UX-DR68, UX-DR71): each Milestone's card
- * with its status text, price, and due date; the Job's most urgent to-do; and a side column with the next due
+ * with its status text, price, and due date (the Job's most urgent to-do is the strip's, above every tab, and is
+ * not said here a second time since 2026-11-24); and a side column with the next due
  * date, the people, and the Product. No card carries a progress figure: the platform no longer tracks the
  * team's tasks (Story 24.2a), and the per-criterion detail the Customer decides on is in each Delivery Report.
  * The Mentor also sees the Crew with each member's state. On an Assessment Job the Mentor and the Crew get N-12
@@ -73,7 +71,6 @@ function Content({ jobId, audience, progress }: { jobId: string; audience: Progr
         {!progress.assessment && <DriftWarning jobId={jobId} />}
         <DisputeSection jobId={jobId} />
         {audience === 'mentor' && <JobTeamIssues jobId={jobId} />}
-        <JobNextAction jobId={jobId} />
         {/* While Closing the closure is the next decision; otherwise the Milestones lead and the closure follows. */}
         {progress.state === 'CLOSING' && <ClosureSection jobId={jobId} />}
         {/* FR-11: the Customer answers the follow-ups here, and `assessment` is false for them by design, so the
@@ -199,7 +196,7 @@ function MilestoneCard({
   const textAudience = audience === 'customer' ? 'customer' : 'mentor'
   const text = milestoneStateText(milestone.state, textAudience, {
     nextToFund,
-    dueOn: milestone.dueOn,
+    // The due date has its own line in this card, so the badge does not say it a second time.
     roundsLeft: milestone.roundsLeft,
     revisionCriteria: milestone.revisionCriteria,
     autoAccepted: milestone.autoAccepted,
@@ -238,22 +235,3 @@ function crewStateTone(state: string): string {
   return state === 'ACTIVE' ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'
 }
 
-/** The Job's most urgent to-do (UX-DR14), when the viewer has one on this Job. */
-function JobNextAction({ jobId }: { jobId: string }) {
-  const todos = useTodos(jobId)
-  const first = todos.data?.items[0]
-  if (!first || todos.isError) {
-    return null
-  }
-  return (
-    <section
-      aria-label={t('screen.progress.nextAction')}
-      className="flex flex-wrap items-center justify-between gap-3 rounded-md border-l-4 border-info bg-info-soft p-4"
-    >
-      <span className="text-label">{todoText(first)}</span>
-      <Link to={first.link} className={buttonVariants({ size: 'compact' })}>
-        {t('screen.shared.todo.open')}
-      </Link>
-    </section>
-  )
-}

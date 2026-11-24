@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { jobHeaderCard } from '@/features/job/jobFrame'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { RegionState } from '@/components/RegionState'
@@ -19,6 +20,7 @@ import { RatingSection } from '@/features/reputation/RatingSection'
 import { hasStarted } from '@/features/job/jobState'
 import { ProgressOverview } from './ProgressOverview'
 import { Page } from '@/components/ui/page'
+import { Card } from '@/components/ui/card'
 
 /**
  * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before
@@ -54,7 +56,7 @@ function Content({ me }: { me: CrewMe }) {
   const splits = useJobSplits(jobId)
   return (
     <>
-      <div className="flex flex-col gap-3">
+      <div className={jobHeaderCard}>
         <Link to="/cong-viec" className="w-fit text-label text-muted-foreground underline-offset-4 hover:underline">
           {t('screen.crewChat.back')}
         </Link>
@@ -95,8 +97,15 @@ function Content({ me }: { me: CrewMe }) {
           <SetupTracker jobId={jobId} />
           {started ? (
             <ProgressOverview jobId={jobId} audience="crew" />
+          ) : me.state === 'AGREEMENT' ? (
+            // Signed, and waiting for the Agreement and Milestone 1: what happens next ("Trao đổi nhóm" is in the header).
+            <Card as="section" className="flex flex-col gap-2">
+              <h2 className="text-h3">{t('screen.job.detail.crewWaitingTitle')}</h2>
+              <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.crewWaitingBody')}</p>
+            </Card>
           ) : (
-            <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
+            // While Starting, the step tracker above is the page.
+            me.state !== 'STARTING' && <p className="text-body-sm text-muted-foreground">{t('screen.job.detail.notYet')}</p>
           )}
         </>
       )}

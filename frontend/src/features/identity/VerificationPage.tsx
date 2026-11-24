@@ -1,4 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
+import { headerCard } from '@/components/ui/card-surface'
 import { CircleAlert, CircleCheck, ExternalLink, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
@@ -47,10 +48,10 @@ export function VerificationPage() {
   }, [params, setParams])
   return (
     <Page width="reading">
-      <div className="flex flex-col gap-3">
+      <div className={headerCard}>
         <PageHeading>{t('screen.verification.heading')}</PageHeading>
-        <ProfileTabs />
         <p className="text-body-sm text-muted-foreground">{t('screen.verification.lead')}</p>
+        <ProfileTabs />
       </div>
       {result !== null && RESULTS.includes(result) && (
         <div role="status" className="flex gap-3 rounded-md border-l-4 border-success bg-success-soft p-4">

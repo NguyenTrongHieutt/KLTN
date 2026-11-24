@@ -1,4 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
+import { jobAside, jobHeaderCard } from '@/features/job/jobFrame'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -8,6 +9,7 @@ import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { useToasts } from '@/components/toasts'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { NoCrewBanner } from '@/features/crew/NoCrew'
 import { JobPhaseBadge, JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
@@ -54,7 +56,7 @@ function Overview({ job }: { job: MentorJob }) {
   const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   return (
     <>
-      <div className="flex flex-col gap-3">
+      <div className={jobHeaderCard}>
         <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
           <Link to="/cong-viec" className="text-primary underline-offset-4 hover:underline">
             {t('screen.job.detail.breadcrumb')}
@@ -79,7 +81,7 @@ function Overview({ job }: { job: MentorJob }) {
       {job.state === 'SELECTING' ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
           <NdaPanel job={job} />
-          <aside className="flex flex-col gap-4">
+          <aside className={jobAside}>
             <Card as="section" aria-labelledby="after-signing" className="flex flex-col gap-2">
               <h3 id="after-signing" className="text-h3">
                 {t('screen.nda.afterTitle')}
@@ -106,10 +108,7 @@ function Overview({ job }: { job: MentorJob }) {
         </>
       ) : (
         <>
-          <Card as="section" className="flex flex-col gap-2">
-            <h2 className="text-h3">{t('screen.nda.signedTitle')}</h2>
-            <p className="text-body-sm text-muted-foreground">{t('screen.nda.signedBody')}</p>
-          </Card>
+          {job.state === 'AGREEMENT' && <AgreementStep job={job} />}
           {/* The Mentor reads the same step tracker the Customer and the Crew do, and with it why a start is blocked. */}
           <SetupTracker jobId={job.id} />
           {(job.state === 'AGREEMENT' || job.state === 'STARTING') && (
@@ -121,6 +120,33 @@ function Overview({ job }: { job: MentorJob }) {
         </>
       )}
     </>
+  )
+}
+
+/**
+ * While the Agreement is open: what the Mentor does next, and the tabs it happens in. Until the Agreement is confirmed,
+ * drafting it and recruiting the Crew; after that, only the Crew is missing (R7).
+ */
+function AgreementStep({ job }: { job: MentorJob }) {
+  const confirmed = job.agreementConfirmed
+  return (
+    <Card as="section" className="flex flex-col gap-2">
+      <h2 className="text-h3">{t(confirmed ? 'screen.nda.confirmedTitle' : 'screen.nda.signedTitle')}</h2>
+      <p className="text-body-sm text-muted-foreground">{t(confirmed ? 'screen.nda.confirmedBody' : 'screen.nda.signedBody')}</p>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {!confirmed && (
+          <Link to={`/cong-viec/${job.id}/thoa-thuan`} className={buttonVariants({ size: 'compact' })}>
+            {t('screen.nda.openDraft')}
+          </Link>
+        )}
+        <Link
+          to={`/cong-viec/${job.id}/tuyen-thanh-vien`}
+          className={buttonVariants({ variant: confirmed ? 'primary' : 'secondary', size: 'compact' })}
+        >
+          {t('screen.recruitment.tab')}
+        </Link>
+      </div>
+    </Card>
   )
 }
 

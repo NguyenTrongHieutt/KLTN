@@ -138,7 +138,7 @@ describe('CUS-8 "Tìm người hướng dẫn" (FR-14)', () => {
     expect(
       await screen.findByText('Chưa có đề xuất cho công việc này. Hãy tìm theo kỹ năng, ví dụ: React hoặc Supabase.'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Tìm người hướng dẫn theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.')).toBeInTheDocument()
+    expect(screen.getByText('Tìm theo kỹ năng hoặc tên. Gõ có dấu hoặc không dấu đều được.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tìm' })).toBeDisabled()
     await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Tìm người hướng dẫn' })).toHaveFocus())
     expect(seen.some((request) => request.url.includes('/mentors'))).toBe(false)

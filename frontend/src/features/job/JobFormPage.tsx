@@ -575,7 +575,7 @@ function ScreenshotUpload({ job, labelledBy }: { job: Job; labelledBy: string })
   }
   return (
     <>
-      <Card padding="none" className="flex flex-col items-center gap-1.5 border-dashed p-5 text-center">
+      <Card padding="none" dashed className="flex flex-col items-center gap-1.5 p-5 text-center">
         <input
           ref={input}
           type="file"

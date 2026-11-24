@@ -11,4 +11,4 @@ export function fieldProps(id: string, error?: string, helper?: string) {
 
 /** The text input of the design system (44 px on Customer forms). */
 export const inputClass =
-  'min-h-tap-min w-full rounded-md border border-input bg-card px-3 py-2 text-body md:min-h-control-compact md:py-1.5 md:text-body-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive'
+  'min-h-tap-min w-full rounded-lg border border-input bg-card px-3 py-2 text-body md:min-h-control-compact md:py-1.5 md:text-body-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive'

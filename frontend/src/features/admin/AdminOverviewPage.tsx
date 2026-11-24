@@ -9,6 +9,7 @@ import type { NotificationItem } from '@/features/notification/api'
 import { notificationTitle } from '@/features/notification/texts'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonth, formatDayMonthTime, formatTime } from '@/lib/dates'
+import { cardInteractive, cardSurface } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import { useAdminAlerts, useAdminOverview } from './adminApi'
 import { Card } from '@/components/ui/card'
@@ -21,6 +22,9 @@ const CATEGORY: Record<string, { label: MessageKey; tone: string }> = {
 }
 
 const INFO = { label: 'screen.admin.overview.info' as MessageKey, tone: 'bg-muted text-muted-foreground' }
+
+/** A queue's tile: a card that is a link, so it rises on hover. */
+const tile = cn('flex flex-col gap-1 p-4 text-inherit no-underline md:p-5', cardSurface, cardInteractive)
 
 /**
  * ADM-1 (`/quan-tri`, UX-DR13, UX-DR69): the queues that exist so far with their oldest item, and
@@ -59,7 +63,7 @@ export function AdminOverviewPage() {
           {lowFeedback && (
             <Link
               to="/quan-tri/nguoi-dung?status=LOW_FEEDBACK"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
+              className={tile}
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.lowFeedback')}</p>
               <p className={cn('text-h1', lowFeedback.count > 0 && 'text-warning')}>{lowFeedback.count}</p>
@@ -69,7 +73,7 @@ export function AdminOverviewPage() {
           {overview.data?.teamIssues && (
             <Link
               to="/quan-tri/khieu-nai-noi-bo"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
+              className={tile}
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.teamIssues')}</p>
               <p className={cn('text-h1', overview.data.teamIssues.count > 0 && 'text-warning')}>{overview.data.teamIssues.count}</p>
@@ -83,7 +87,7 @@ export function AdminOverviewPage() {
           {overview.data?.splitResolutions && (
             <Link
               to="/quan-tri/tranh-chap/phan-chia"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
+              className={tile}
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.splitResolutions')}</p>
               <p className={cn('text-h1', overview.data.splitResolutions.count > 0 && 'text-warning')}>
@@ -99,7 +103,7 @@ export function AdminOverviewPage() {
           {overview.data?.skillSuggestions && (
             <Link
               to="/quan-tri/ky-nang?tab=de-xuat"
-              className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5"
+              className={tile}
             >
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.skillSuggestions')}</p>
               <p className="text-h1">{overview.data.skillSuggestions.count}</p>
@@ -111,7 +115,7 @@ export function AdminOverviewPage() {
             </Link>
           )}
           {failed && (
-            <Link to="/quan-tri/thao-tac-loi" className="flex flex-col gap-1 rounded-lg border border-border bg-card hover:border-primary p-4 md:p-5">
+            <Link to="/quan-tri/thao-tac-loi" className={tile}>
               <p className="text-caption text-muted-foreground">{t('screen.admin.overview.failedOperations')}</p>
               <p className={cn('text-h1', failed.count > 0 && 'text-destructive')}>{failed.count}</p>
               <p className="text-caption text-muted-foreground">

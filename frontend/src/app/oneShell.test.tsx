@@ -207,7 +207,7 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
     twoRoles({
       'GET /api/v1/todos': () =>
         json({
-          items: [todo('job.answer_closure', { params: { job: jobA.title, date: '2026-11-01' }, link: '/cong-viec/a', jobId: 'a', role: 'CUSTOMER' })],
+          items: [todo('payment.fund_milestone', { params: { n: '1', amount: '800.000 VND' }, link: '/cong-viec/a/thanh-toan', jobId: 'a', role: 'CUSTOMER' })],
           total: 1,
         }),
     })
@@ -216,6 +216,22 @@ describe('the to-dos of every role (UX-DR88, AD-27, Story 20.6)', () => {
     expect(await screen.findByText('Bạn là: Khách hàng')).toBeInTheDocument()
     const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
     expect(within(strip).getByRole('link', { name: 'Làm ngay' })).toHaveClass('min-h-tap-min')
+  })
+
+  it('says the to-do without "Làm ngay" on the very page it opens, and "công việc này" for the Job (2026-11-24)', { timeout: 15_000 }, async () => {
+    twoRoles({
+      'GET /api/v1/todos': () =>
+        json({
+          items: [todo('job.answer_closure', { params: { job: jobA.title, date: '01/11' }, link: '/cong-viec/a', jobId: 'a', role: 'CUSTOMER' })],
+          total: 1,
+        }),
+    })
+    renderAt('/cong-viec/a')
+
+    expect(await screen.findByText('Bạn là: Khách hàng')).toBeInTheDocument()
+    const strip = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
+    expect(within(strip).getByText('Xác nhận kết thúc công việc này · trước 01/11')).toBeInTheDocument()
+    expect(within(strip).queryByRole('link', { name: 'Làm ngay' })).toBeNull()
   })
 
   it('keeps the Customer sizes in the strip outside a Job (UX-DR111)', { timeout: 15_000 }, async () => {

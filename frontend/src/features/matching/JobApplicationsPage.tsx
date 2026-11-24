@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { jobHeaderCard } from '@/features/job/jobFrame'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -83,7 +84,7 @@ function BidList({ job }: { job: Job }) {
   const full = compared.length >= MAX_COMPARED
   return (
     <>
-      <div className="flex flex-col gap-3">
+      <div className={jobHeaderCard}>
         <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
           <Link to="/cong-viec" className="text-primary underline-offset-4 hover:underline">
             {t('screen.job.detail.breadcrumb')}
@@ -169,7 +170,7 @@ function CompareBar({ job, ids, onClear }: { job: Job; ids: string[]; onClear: (
     <div
       role="region"
       aria-label={t('screen.matching.compare.toggle')}
-      className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-sm"
+      className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-raised"
     >
       <span className="text-body-sm text-muted-foreground">
         {ids.length >= MAX_COMPARED ? t('screen.matching.compare.full') : t('screen.matching.compare.barHint')}

@@ -16,11 +16,14 @@ import { rich } from '@/i18n/rich'
 import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth, formatDayMonth, formatMonthYear } from '@/lib/dates'
+import { cardInteractive, cardSurface } from '@/components/ui/card-surface'
+import { useMatchMedia } from '@/lib/useMatchMedia'
 import { cn } from '@/lib/utils'
 import { isLive, useMyApplications } from '@/features/matching/applicationApi'
 import { useJobPostRecommendations, type RecommendedPost } from '@/features/matching/recommendationApi'
 import { SignalChips } from '@/features/matching/SignalChips'
 import { FindWorkGate } from './FindWorkGate'
+import { KEYWORD_PARAM, MAX_KEYWORD, PAGE_PARAM, TOP_SEARCH_QUERY } from './findWorkUrl'
 import { BUDGETS, JOB_TYPES, type Budget, type JobType } from './jobApi'
 import {
   useCustomerRatings,
@@ -39,14 +42,14 @@ import { StatusBadge } from '@/components/ui/status-badge'
 
 /** MEN-2's keyword and filters in the URL (UX-DR47, UX-DR72, UX-DR97): shareable, and kept by the back button. */
 const PARAMS = {
-  q: 'q',
+  q: KEYWORD_PARAM,
   phase: 'tinh-trang',
   type: 'loai',
   skills: 'ky-nang',
   categories: 'nhom-ky-nang',
   budget: 'ngan-sach',
   within: 'han',
-  page: 'trang',
+  page: PAGE_PARAM,
 }
 
 /** "Tình trạng" in the URL: the three phases of a Job that needs people (UX-DR97). */
@@ -57,9 +60,6 @@ const PHASE_SLUGS: Record<ListedPhase, string> = {
 }
 
 const PHASES = Object.keys(PHASE_SLUGS) as ListedPhase[]
-
-/** The Search bar's limit (EXPERIENCE.md, Search bar). */
-const MAX_KEYWORD = 100
 
 function readFilter(params: URLSearchParams): JobPostFilter {
   const list = (key: string) => (params.get(key) ?? '').split(',').filter((value) => value !== '')
@@ -134,6 +134,8 @@ function JobPostList() {
   const update = (next: Partial<JobPostFilter>) => setParams(writeFilter({ ...filter, page: 0, ...next }), { replace: true })
   // Searching too fast keeps the earlier results on screen (UX-DR27).
   const limited = posts.error instanceof ApiError && posts.error.status === 429 ? posts.error : undefined
+  const retryAfter = limited ? (limited.retryAfter ?? 60) : undefined
+  const topSearch = useMatchMedia(TOP_SEARCH_QUERY)
   const results = (data: NonNullable<typeof posts.data>) => (
     <Results
       data={data}
@@ -147,21 +149,28 @@ function JobPostList() {
   )
   return (
     <Page>
-      <div className="flex flex-col gap-1">
-        <PageHeading>{t('screen.jobPost.heading')}</PageHeading>
-        <p className="text-body-sm text-muted-foreground">{t('screen.jobPost.lead')}</p>
-      </div>
-      {/* One panel: the keyword on top, the filters under it. The keyword still runs on Enter or "Tìm" only, since
-          searching as one types would run into the search rate limit (UX-DR27, UX-DR47). */}
+      <PageHeading inNavigation>{t('screen.jobPost.heading')}</PageHeading>
+      {/* From 768 px the top bar's field is this page's Search bar, so the panel holds the filters alone and the
+          rate-limit message stands under it. Below that the top bar has no search, and the keyword is the panel's
+          first row. It runs on Enter or "Tìm" only, since searching as one types would run into the search rate limit
+          (UX-DR27, UX-DR47). */}
       <Card padding="none" className="flex flex-col divide-y divide-border">
-        <SearchBar
-          key={filter.q ?? ''}
-          keyword={filter.q}
-          retryAfter={limited ? (limited.retryAfter ?? 60) : undefined}
-          search={(q) => update({ q })}
-        />
+        {!topSearch && (
+          <SearchBar
+            key={filter.q ?? ''}
+            keyword={filter.q}
+            retryAfter={retryAfter}
+            search={(q) => update({ q })}
+          />
+        )}
         <Filters filter={filter} update={update} />
       </Card>
+      {topSearch && retryAfter !== undefined && (
+        <p role="status" className="text-body-sm text-warning">
+          {t('screen.jobPost.tooFast', { seconds: retryAfter })}
+        </p>
+      )}
+      <PhaseChips phase={filter.phase} choose={(phase) => update({ phase })} />
       {filter.q === undefined && recommendations.data && recommendations.data.length > 0 && (
         <Recommended posts={recommendations.data} />
       )}
@@ -201,7 +210,8 @@ function SearchBar({
   }
   return (
     <form role="search" onSubmit={submit} className="flex flex-col gap-1.5 px-4 py-3">
-      <label htmlFor={`${ids}-q`} className="text-label font-semibold">
+      {/* The page's heading, the magnifier and "Tìm" already say what the field is for: its label is for a screen reader. */}
+      <label htmlFor={`${ids}-q`} className="sr-only">
         {t('screen.jobPost.searchLabel')}
       </label>
       <div className="flex gap-2">
@@ -299,13 +309,45 @@ function Results({
           <span className="font-normal text-muted-foreground">{t('screen.jobPost.count', { n: data.total })}</span>
         </h2>
       )}
-      <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
+      <ul className="grid gap-3 lg:grid-cols-2">
         {data.items.map((post) => (
           <PostItem key={post.id} post={post} applied={applied.has(post.id)} rating={ratingOf.get(post.id)} />
         ))}
-      </Card>
+      </ul>
       <Pager page={data.page} pages={Math.ceil(data.total / data.size)} go={go} />
     </section>
+  )
+}
+
+/**
+ * "Tình trạng" as a row of chips over the list (the layout of 2026-11-23): "Mọi tình trạng" and the three phases of
+ * a Job that needs people, one of them chosen. They are radio buttons, so the arrow keys move between them, and the
+ * row wraps on narrow screens instead of scrolling sideways. The choice applies at once, like every filter.
+ */
+function PhaseChips({ phase, choose }: { phase: ListedPhase | undefined; choose: (phase: ListedPhase | undefined) => void }) {
+  const ids = useId()
+  const options: { value: ListedPhase | undefined; label: string }[] = [
+    { value: undefined, label: t('screen.jobPost.phaseAll') },
+    ...PHASES.map((value) => ({ value, label: phaseText(value) })),
+  ]
+  return (
+    <fieldset className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0">
+      <legend className="sr-only">{t('screen.jobPost.phaseFilter')}</legend>
+      {options.map((option) => (
+        <label key={option.value ?? 'all'} className="cursor-pointer">
+          <input
+            type="radio"
+            name={`${ids}-phase`}
+            checked={phase === option.value}
+            onChange={() => choose(option.value)}
+            className="peer sr-only"
+          />
+          <span className="inline-flex min-h-tap-min items-center rounded-lg bg-card px-3.5 text-label text-foreground shadow-card transition-colors peer-checked:bg-primary peer-checked:font-semibold peer-checked:text-primary-foreground peer-hover:bg-muted peer-checked:peer-hover:bg-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring md:min-h-control-compact">
+            {option.label}
+          </span>
+        </label>
+      ))}
+    </fieldset>
   )
 }
 
@@ -315,25 +357,7 @@ function Filters({ filter, update }: { filter: JobPostFilter; update: (next: Par
   return (
     <div role="group" aria-label={t('screen.jobPost.filters')} className="flex flex-col gap-3 px-4 py-3">
       {/* One compact row from 1024 px, the Skill field twice as wide; two columns from 640 px (2026-11-23). */}
-      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor={`${ids}-phase`} className="text-caption">
-            {t('screen.jobPost.phaseFilter')}
-          </label>
-          <select
-            id={`${ids}-phase`}
-            value={filter.phase ?? ''}
-            onChange={(event) => update({ phase: (event.target.value || undefined) as ListedPhase | undefined })}
-            className={inputClass}
-          >
-            <option value="">{t('screen.jobPost.phaseAll')}</option>
-            {PHASES.map((phase) => (
-              <option key={phase} value={phase}>
-                {phaseText(phase)}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={`${ids}-type`} className="text-caption">
             {t('screen.jobPost.type')}
@@ -425,7 +449,7 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
             <li key={post.id}>
               <Link
                 to={`/tim-viec/${post.id}`}
-                className="flex h-full flex-col gap-2 rounded-lg border border-border bg-card text-inherit no-underline hover:bg-muted/50 p-4 md:p-5"
+                className={cn('flex h-full flex-col gap-2 p-4 text-inherit no-underline md:p-5', cardSurface, cardInteractive)}
               >
                 <span className="flex flex-wrap items-start justify-between gap-2">
                   <span className="text-h3 break-words">{post.title}</span>
@@ -437,7 +461,9 @@ function Recommended({ posts }: { posts: RecommendedPost[] }) {
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
                   <PhaseBadge phase={post.phase} />
-                  <span className="text-body-sm font-semibold">{needText(post.need, post.openSlots)}</span>
+                  {post.need !== 'MENTOR' && (
+                    <span className="text-body-sm font-semibold">{needText(post.need, post.openSlots)}</span>
+                  )}
                 </span>
                 <span className="text-caption text-muted-foreground break-words">{postMeta(post)}</span>
                 <SignalChips signals={post.signals} />
@@ -503,7 +529,7 @@ function customerText(post: JobPostSummary, rating: PostCustomerRating | undefin
 }
 
 /**
- * One row (UX-DR97): the title opens MEN-3, and the whole row with it; the Mentor's name, once there is one, opens
+ * One card of the list (UX-DR97; a card since the layout of 2026-11-23): the title opens MEN-3, and the whole card with it; the Mentor's name, once there is one, opens
  * their public profile. No action is taken from the list.
  */
 function PostItem({
@@ -517,12 +543,12 @@ function PostItem({
 }) {
   const customer = customerText(post, rating)
   return (
-    <li className="relative flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-muted/50">
-      <div className="flex min-w-60 grow basis-0 flex-col gap-1">
+    <Card as="li" className={cn('relative flex h-full flex-wrap items-start gap-3', cardInteractive)}>
+      <div className="flex min-w-60 grow basis-0 flex-col gap-1.5">
         <span className="flex flex-wrap items-center gap-2">
           <Link
             to={`/tim-viec/${post.id}`}
-            className="text-label font-semibold break-words text-inherit no-underline after:absolute after:inset-0 hover:underline"
+            className="text-h3 break-words text-inherit no-underline after:absolute after:inset-0 after:rounded-lg hover:underline"
           >
             {post.title}
           </Link>
@@ -581,6 +607,6 @@ function PostItem({
           </span>
         )
       )}
-    </li>
+    </Card>
   )
 }

@@ -133,11 +133,12 @@ describe('JOB-10, the Mentor', () => {
     renderAt('/cong-viec/j1/phan-chia')
 
     expect(await screen.findByText('Soạn phân chia trước 10/11')).toBeInTheDocument()
-    expect(screen.getByText(/2\.000\.000 ₫/)).toBeInTheDocument()
+    expect(screen.getByText(/2\.000\.000 VND/)).toBeInTheDocument()
     expect(screen.getByText('của Giai đoạn 2', { exact: false })).toBeInTheDocument()
     expect(screen.getByText('Đã rời 02/11')).toBeInTheDocument()
     expect(screen.getByText('Tối đa 30%')).toBeInTheDocument()
-    expect(screen.getByText('Còn 3/3 lần sửa')).toBeInTheDocument()
+    // N-29 says how many edits are left: the draft form has no line of its own for the count.
+    expect(screen.queryByText('Còn 3/3 lần sửa')).toBeNull()
     expect(
       screen.getByText(
         'Mỗi thành viên xác nhận trước 06/11, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn 3/3 lần sửa. Phần của bạn tối đa 30%. Khách hàng không thấy phần chia.',
@@ -154,7 +155,7 @@ describe('JOB-10, the Mentor', () => {
     expect(seen.some((request) => request.url.endsWith('/preview'))).toBe(false)
 
     typePercent(/Nguyễn Văn Minh/, '30')
-    expect(await screen.findByText(/800\.000 ₫/)).toBeInTheDocument()
+    expect(await screen.findByText(/800\.000 VND/)).toBeInTheDocument()
     expect(send).toBeEnabled()
     await sendThroughTheDialog('Gửi để xác nhận')
 
@@ -605,12 +606,13 @@ describe('JOB-10, for everyone in the split', () => {
 describe('JOB-10, the deadline chip', () => {
   const chip = (text: string) => screen.queryByText(text)?.closest('span')
 
-  it('reads the draft deadline while a draft is awaited', { timeout: 20_000 }, async () => {
+  it('leaves the draft deadline to the state badge while it is not near', { timeout: 20_000 }, async () => {
     backend([card({ ...member })])
     renderAt('/cong-viec/j1/phan-chia')
 
-    expect(await screen.findByText('Hạn 10/11')).toBeInTheDocument()
-    expect(chip('Hạn 10/11')).toHaveClass('bg-muted')
+    // The badge says the date; a chip beside it would only repeat it (2026-11-24).
+    expect(await screen.findByText('Chờ người hướng dẫn soạn phân chia (hạn 10/11)')).toBeInTheDocument()
+    expect(chip('Hạn 10/11')).toBeUndefined()
   })
 
   it('warns when the draft deadline is near', { timeout: 20_000 }, async () => {
@@ -842,7 +844,7 @@ describe('JOB-10, the refusals of a draft', () => {
       }),
     ]
     await vi.advanceTimersByTimeAsync(30_000)
-    await waitFor(() => expect(screen.getByText('Còn 2/3 lần sửa')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/bạn còn 2.3 lần sửa/)).toBeInTheDocument())
     expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveValue('35')
 
     await sendThroughTheDialog('Gửi để xác nhận')

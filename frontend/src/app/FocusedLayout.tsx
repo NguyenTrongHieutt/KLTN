@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { Link, Outlet, useParams, type Params } from 'react-router'
+import { Link, Outlet, ScrollRestoration, useParams, type Params } from 'react-router'
 import { Toaster } from '@/components/Toaster'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { t } from '@/i18n/t'
@@ -20,9 +20,9 @@ export function FocusedLayout({ title, closeTo }: { title: string; closeTo: stri
     <RequireSignedIn>
       <Toaster>
         <div className="flex min-h-dvh flex-col">
-          <header className="border-b border-border bg-card">
+          <header className="sticky top-0 z-40 border-b border-border bg-card">
             <div className="mx-auto flex min-h-header-height max-w-reading-frame items-center gap-3 px-gutter-mobile py-2 md:px-gutter-desktop">
-              <span className="text-h3 font-bold text-primary">{t('app.name')}</span>
+              <span className="text-h2 font-bold tracking-tight text-primary">{t('app.name')}</span>
               <span className="grow truncate text-label text-muted-foreground">{title}</span>
               <Link to={typeof closeTo === 'string' ? closeTo : closeTo(params)} className={cn(buttonVariants({ variant: 'ghost', size: 'compact' }), 'gap-1')}>
                 <X aria-hidden="true" className="size-4" />
@@ -33,6 +33,7 @@ export function FocusedLayout({ title, closeTo }: { title: string; closeTo: stri
           <main id={MAIN_ID} tabIndex={-1} className="grow focus:outline-none">
             <Outlet />
           </main>
+          <ScrollRestoration />
         </div>
       </Toaster>
     </RequireSignedIn>

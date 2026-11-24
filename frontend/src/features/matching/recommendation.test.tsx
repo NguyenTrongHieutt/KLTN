@@ -160,7 +160,7 @@ describe('MEN-2 "Đề xuất cho bạn" (FR-14, AD-17)', () => {
     expect(within(card).getByText('Hợp với Supabase')).toBeInTheDocument()
     // Story 21.1: each shows its phase and what it needs.
     expect(within(card).getByText('Đang tìm người hướng dẫn')).toBeInTheDocument()
-    expect(within(card).getByText('Cần người hướng dẫn')).toBeInTheDocument()
+    expect(within(card).queryByText('Cần người hướng dẫn')).toBeNull()
     const crew = within(section).getByRole('link', { name: /Hoàn thiện trang thanh toán/ })
     expect(crew).toHaveAttribute('href', '/tim-viec/j8')
     expect(within(crew).getByText('Đang tuyển thêm thành viên')).toBeInTheDocument()

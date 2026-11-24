@@ -158,7 +158,7 @@ export function AdminUsersPage() {
           {accountId ? (
             <UserPanel key={accountId} accountId={accountId} />
           ) : (
-            <Card as="p" className="border-dashed text-body-sm text-muted-foreground">
+            <Card as="p" dashed className="text-body-sm text-muted-foreground">
               {t('screen.admin.users.pick')}
             </Card>
           )}

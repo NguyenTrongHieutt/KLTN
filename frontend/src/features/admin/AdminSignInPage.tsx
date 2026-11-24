@@ -12,6 +12,7 @@ import { useSession } from '@/features/identity/useSession'
 import { identityReason, verificationMessage } from '@/features/identity/verificationMessages'
 import { t } from '@/i18n/t'
 import { fieldMessage, zodFieldErrors } from '@/lib/formErrors'
+import { cardSurface } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import { useAdminSignIn } from './adminApi'
 
@@ -74,7 +75,7 @@ export function AdminSignInPage() {
         <form
           noValidate
           onSubmit={submit}
-          className="flex w-full max-w-[420px] flex-col gap-4 self-start rounded-lg border border-border bg-card p-4 md:p-5"
+          className={cn('flex w-full max-w-[420px] flex-col gap-4 self-start p-5 md:p-6', cardSurface)}
         >
           <div className="flex flex-col gap-2">
             <PageHeading>{t('screen.admin.signIn.heading')}</PageHeading>

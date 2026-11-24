@@ -1,4 +1,5 @@
 import { BriefcaseBusiness } from 'lucide-react'
+import { TestTag } from '@/components/TestTag'
 import { Link, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -20,6 +21,8 @@ import { useJobs, type JobState, type JobSummary } from './jobApi'
 import { useMyJobs, type MyJob, type RoleInJob } from './jobRoleApi'
 import { JobStateBadge } from './JobStateBadge'
 import { JobSummaryList } from './JobSummaryList'
+import { StageStrip } from './StageStrip'
+import { jobGrid, jobTile } from './jobTile'
 import { Page } from '@/components/ui/page'
 import { Card } from '@/components/ui/card'
 
@@ -61,7 +64,7 @@ export function JobsPage() {
   }
   return (
     <Page>
-      <PageHeading>{t('screen.job.heading')}</PageHeading>
+      <PageHeading inNavigation>{t('screen.job.heading')}</PageHeading>
       <RegionState query={both} skeleton={<Skeleton className="h-48 w-full" />}>
         {mine.data && bids.data && crew.data && <Segments jobs={mine.data} bids={bids.data} crew={crew.data} />}
       </RegionState>
@@ -119,7 +122,7 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
         <div
           role="group"
           aria-label={t('screen.job.segments.label')}
-          className="flex flex-wrap gap-1 self-start rounded-md bg-muted p-1"
+          className="flex flex-wrap gap-1 self-start rounded-lg bg-card p-1 shadow-card"
         >
           {shown.map((segment) => (
             <button
@@ -129,7 +132,7 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
               onClick={() => setParams({ 'vai-tro': segment }, { replace: true })}
               className={cn(
                 'inline-flex min-h-tap-min md:min-h-control-compact items-center gap-2 rounded-md px-3 text-label',
-                segment === current ? 'bg-card font-semibold text-foreground shadow-sm' : 'text-muted-foreground',
+                segment === current ? 'bg-primary-soft font-semibold text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
               {t(`screen.job.segments.${segment}` as MessageKey)}
@@ -197,7 +200,7 @@ function PostedJobs() {
 function JobGroup({ group, jobs }: { group: Group; jobs: JobSummary[] }) {
   const id = `jobs-${group}`
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-2.5">
+    <section aria-labelledby={id} className="flex flex-col gap-3">
       <h2 id={id} className="text-h2">
         {t(`screen.job.group${group}` as MessageKey)}{' '}
         <span className="font-normal text-muted-foreground">{t('screen.job.groupCount', { n: jobs.length })}</span>
@@ -226,9 +229,13 @@ const BID_GROUP_OF: Record<ApplicationStatus, BidGroup> = {
  * by where they stand (waiting, on hold, ended), each linking to its Job Post.
  */
 function MentoredJobs({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
+  // A chosen bid whose Job is listed above is that Job now: its row under "Đơn đang chờ" would list the Job twice,
+  // and nothing about it still waits (seen 2026-11-24).
+  const mentored = new Set(jobs.map((job) => job.jobId))
+  const open = bids.filter((bid) => !(bid.status === 'SELECTED' && mentored.has(bid.jobId)))
   return (
     <>
-      <section aria-labelledby="mentor-jobs" className="flex flex-col gap-2">
+      <section aria-labelledby="mentor-jobs" className="flex flex-col gap-3">
         <h2 id="mentor-jobs" className="text-h2">
           {t('screen.matching.mentor.jobs')}
         </h2>
@@ -239,7 +246,7 @@ function MentoredJobs({ jobs, bids }: { jobs: MyJob[]; bids: Application[] }) {
         )}
       </section>
       {(['waiting', 'held', 'ended'] as const).map((group) => (
-        <BidGroupSection key={group} group={group} items={bids.filter((bid) => BID_GROUP_OF[bid.status] === group)} />
+        <BidGroupSection key={group} group={group} items={open.filter((bid) => BID_GROUP_OF[bid.status] === group)} />
       ))}
     </>
   )
@@ -251,7 +258,7 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
   }
   const id = `applications-${group}`
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-2">
+    <section aria-labelledby={id} className="flex flex-col gap-3">
       <h2 id={id} className="text-h2">
         {t(`screen.matching.mentor.group_${group}` as MessageKey)}{' '}
         <span className="font-normal text-muted-foreground">· {items.length}</span>
@@ -266,7 +273,7 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
               <span className="flex min-w-60 grow flex-col gap-0.5">
                 <span className="text-label font-semibold break-words">{application.jobTitle}</span>
                 <span className="text-caption text-muted-foreground">
-                  {formatVnd(application.priceVnd)} {t('screen.matching.test')} ·{' '}
+                  {formatVnd(application.priceVnd)} <TestTag /> ·{' '}
                   {t('screen.matching.days', { n: application.timelineDays })} ·{' '}
                   {t('screen.matching.list.sent', { date: formatDayMonth(application.submittedAt) })}
                 </span>
@@ -295,16 +302,20 @@ function BidGroupSection({ group, items }: { group: BidGroup; items: Application
 function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) {
   const active = jobs.filter((job) => job.crewKind === 'ACTIVE')
   const past = jobs.filter((job) => job.crewKind === 'FORMER')
+  // An application that ended in joining is the Job under "Đang tham gia" now: listed here too, the Job stood twice
+  // on the page (seen 2026-11-24).
+  const joined = new Set(active.map((job) => job.jobId))
+  const applications = crew.filter((application) => !joined.has(application.jobId))
   return (
     <>
-      {crew.length > 0 && (
-        <section aria-labelledby="crew-applications" className="flex flex-col gap-2">
+      {applications.length > 0 && (
+        <section aria-labelledby="crew-applications" className="flex flex-col gap-3">
           <h2 id="crew-applications" className="text-h2">
             {t('screen.job.segments.applicationsTitle')}{' '}
-            <span className="font-normal text-muted-foreground">· {crew.length}</span>
+            <span className="font-normal text-muted-foreground">· {applications.length}</span>
           </h2>
           <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
-            {crew.map((application) => (
+            {applications.map((application) => (
               <li key={application.id}>
                 <Link
                   to={`/tim-viec/${application.jobId}`}
@@ -326,7 +337,7 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
         </section>
       )}
       {active.length > 0 && (
-        <section aria-labelledby="jobs-joined" className="flex flex-col gap-2.5">
+        <section aria-labelledby="jobs-joined" className="flex flex-col gap-3">
           <h2 id="jobs-joined" className="text-h2">
             {t('screen.crew.student.activeTitle')}
           </h2>
@@ -336,7 +347,7 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
         </section>
       )}
       {past.length > 0 && (
-        <section aria-labelledby="jobs-past" className="flex flex-col gap-2">
+        <section aria-labelledby="jobs-past" className="flex flex-col gap-3">
           <h2 id="jobs-past" className="text-h2">
             {t('screen.job.segments.pastTitle')}
           </h2>
@@ -348,26 +359,28 @@ function JoinedJobs({ jobs, crew }: { jobs: MyJob[]; crew: CrewApplication[] }) 
   )
 }
 
-/** Jobs as rows to their JOB-1, in the Mentor's and the Crew's words; one the user left marked "· đã rời". */
+/** Jobs as tiles to their JOB-1, in the Mentor's and the Crew's words; one the user left marked "· đã rời". */
 function JobRows({ jobs }: { jobs: MyJob[] }) {
   return (
-    <Card as="ul" padding="none" className="flex flex-col divide-y divide-border">
+    <ul className={jobGrid}>
       {jobs.map((job) => (
         <li key={job.jobId}>
-          <Link
-            to={`/cong-viec/${job.jobId}`}
-            className="flex flex-wrap items-center gap-3 px-4 py-3 text-inherit no-underline hover:bg-muted/50"
-          >
-            <span className="flex min-w-60 grow flex-col gap-0.5">
+          <Link to={`/cong-viec/${job.jobId}`} className={jobTile}>
+            <span className="flex min-w-0 flex-col gap-1">
               <span className="text-label font-semibold break-words">
                 {job.left ? t('screen.job.segments.left', { job: job.title }) : job.title}
               </span>
               <span className="text-caption text-muted-foreground break-words">{job.productName}</span>
             </span>
-            <JobStateBadge state={job.state} audience="mentor" />
+            <span className="mt-auto flex flex-col gap-3">
+              <span>
+                <JobStateBadge state={job.state} audience="mentor" />
+              </span>
+              <StageStrip state={job.state} compact />
+            </span>
           </Link>
         </li>
       ))}
-    </Card>
+    </ul>
   )
 }

@@ -4,6 +4,7 @@ import { ExternalAccessSection } from '@/features/agreement/ExternalAccessSectio
 import { hasStarted } from '@/features/job/jobState'
 import { t } from '@/i18n/t'
 import type { MyJob } from './jobRoleApi'
+import { StageStrip } from './StageStrip'
 import { Card } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
 
@@ -24,6 +25,7 @@ export function CrewJobCard({ job }: { job: MyJob }) {
           {t('screen.crew.student.activeBadge')}
         </StatusBadge>
       </div>
+      <StageStrip state={job.state} compact />
       <ExternalAccessSection jobId={job.jobId} level={3} />
       <div className="flex flex-wrap gap-2">
         {hasStarted(job.state) && (

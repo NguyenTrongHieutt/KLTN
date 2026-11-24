@@ -1,4 +1,6 @@
 import { Package } from 'lucide-react'
+import { cardInteractive } from '@/components/ui/card-surface'
+import { cn } from '@/lib/utils'
 import { Link, useLocation } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -34,17 +36,14 @@ function ProductList() {
   const deleted = (useLocation().state as { deleted?: DeletedProduct } | null)?.deleted
   return (
     <Page>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <PageHeading>{t('screen.product.heading')}</PageHeading>
-          <p className="text-body-sm text-muted-foreground">{t('screen.product.lead')}</p>
-        </div>
-        {items.length > 0 && (
+      <PageHeading inNavigation>{t('screen.product.heading')}</PageHeading>
+      {items.length > 0 && (
+        <div className="flex justify-end">
           <Link to="/san-pham/moi" className={buttonVariants()}>
             {t('screen.product.register')}
           </Link>
-        )}
-      </div>
+        </div>
+      )}
       {deleted?.sourceApp && (
         <section role="status" className="flex flex-col gap-2 rounded-md border-l-4 border-info bg-info-soft p-4">
           <p className="text-label font-semibold break-words">
@@ -55,7 +54,7 @@ function ProductList() {
       )}
       <RegionState query={products} skeleton={<Skeleton className="h-48 w-full" />}>
         {items.length === 0 ? (
-          <Card padding="none" className="flex flex-col items-center gap-3 border-dashed text-center px-4 py-10">
+          <Card padding="none" dashed className="flex flex-col items-center gap-3 px-4 py-10 text-center">
             <Package aria-hidden="true" className="size-8 text-muted-foreground" />
             <p className="text-h3">{t('screen.product.empty')}</p>
             <p className="max-w-md text-body-sm text-muted-foreground">{t('screen.product.emptyHint')}</p>
@@ -64,7 +63,7 @@ function ProductList() {
             </Link>
           </Card>
         ) : (
-          <ul aria-label={t('screen.product.listLabel')} className="grid gap-3 md:grid-cols-2">
+          <ul aria-label={t('screen.product.listLabel')} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {items.map((product) => (
               <ProductCard key={product.id} product={product} jobs={jobs.data} />
             ))}
@@ -77,12 +76,21 @@ function ProductList() {
 
 function ProductCard({ product, jobs }: { product: Product; jobs?: JobSummary[] }) {
   return (
-    <Card as="li" className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to={`/san-pham/${product.id}`} className="w-fit text-h3 break-words text-primary underline-offset-4 hover:underline">
-          {product.name}
-        </Link>
-        <SourceStatusBadge status={product.sourceStatus} />
+    <Card as="li" className={cn('relative flex h-full flex-col gap-2', cardInteractive)}>
+      <div className="flex items-start gap-3">
+        <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+          <Package className="size-5" />
+        </span>
+        <div className="flex min-w-0 grow flex-col items-start gap-1">
+          {/* The whole card opens the Product: the link's hit area covers it. */}
+          <Link
+            to={`/san-pham/${product.id}`}
+            className="text-h3 break-words text-inherit no-underline after:absolute after:inset-0 after:rounded-lg hover:underline"
+          >
+            {product.name}
+          </Link>
+          <SourceStatusBadge status={product.sourceStatus} />
+        </div>
       </div>
       <p className="text-body-sm break-words text-muted-foreground">{product.description}</p>
       <p className="text-caption text-muted-foreground">

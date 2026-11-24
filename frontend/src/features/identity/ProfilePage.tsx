@@ -1,4 +1,5 @@
 import { BadgeCheck, Plus, Trash2 } from 'lucide-react'
+import { headerCard } from '@/components/ui/card-surface'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { z } from 'zod'
@@ -106,7 +107,7 @@ export function ProfilePage() {
   const profile = useProfile()
   return (
     <Page width="reading">
-      <div className="flex flex-col gap-3">
+      <div className={headerCard}>
         <PageHeading>{t('screen.profile.heading')}</PageHeading>
         <ProfileTabs />
       </div>

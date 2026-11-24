@@ -63,7 +63,7 @@ function Content({ balance }: { balance: Balance }) {
           </Card>
         )}
       </div>
-      <section aria-labelledby="releases-heading" className="flex flex-col gap-2.5">
+      <section aria-labelledby="releases-heading" className="flex flex-col gap-3">
         <h2 id="releases-heading" className="text-h2">
           {t('screen.payment.balance.releasesTitle')}
         </h2>

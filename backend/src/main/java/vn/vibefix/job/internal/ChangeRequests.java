@@ -867,9 +867,9 @@ class ChangeRequests {
 		this.todos.closeAll(FUND_TOP_UP, requestId);
 	}
 
-	/** "1.000.000 ₫", as notifications write money. */
+	/** "1.000.000 VND", as notifications write money. */
 	static String vnd(long amount) {
-		return String.format(java.util.Locale.ROOT, "%,d", amount).replace(',', '.') + " ₫";
+		return String.format(java.util.Locale.ROOT, "%,d", amount).replace(',', '.') + " VND";
 	}
 
 	private static List<Recipient> both(Job job) {

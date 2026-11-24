@@ -113,7 +113,7 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
             {
               id: 't1',
               key: 'payment.fund_milestone',
-              params: { n: '2', amount: '1.500.000 ₫' },
+              params: { n: '2', amount: '1.500.000 VND' },
               link: '/cong-viec/j1/thanh-toan',
               openedAt: '2026-10-20T03:00:00Z',
               deadlineNear: false,
@@ -134,8 +134,10 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(second).getByText('Chưa thanh toán')).toBeInTheDocument()
     const third = screen.getByRole('heading', { level: 3, name: 'Giai đoạn 3 · Báo cáo' }).closest('li')!
     expect(within(third).getByText('Chưa bắt đầu')).toBeInTheDocument()
-    const next = await screen.findByRole('region', { name: 'Việc cần làm cho công việc này' })
+    // The Job's to-do is the strip's, on every tab: the page does not say it a second time.
+    const next = await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })
     expect(within(next).getByText(/Thanh toán Giai đoạn 2/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Thanh toán Giai đoạn 2/)).toHaveLength(1)
     const aside = screen.getByRole('complementary', { name: 'Thông tin công việc' })
     expect(within(aside).getByText('Người hướng dẫn: Đỗ Mạnh Hùng')).toBeInTheDocument()
     expect(within(aside).getByText('Giai đoạn 1: 20/11')).toBeInTheDocument()
@@ -241,7 +243,9 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     })
     renderAt('/cong-viec/j1')
 
-    expect(await screen.findByText('Đang làm · hạn 20/11')).toBeInTheDocument()
+    // The card's own line says the due date, so the badge says only the state.
+    expect(await screen.findByText('Đang làm')).toBeInTheDocument()
+    expect(screen.getByText('Hạn 20/11')).toBeInTheDocument()
     const crew = screen.getByRole('heading', { level: 2, name: 'Nhóm thực hiện' }).closest('section')!
     expect(within(crew).getByText('Trần Thảo Vy')).toBeInTheDocument()
     expect(within(crew).queryByText('SDB-2')).toBeNull()
@@ -269,7 +273,8 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sửa lỗi đặt bàn và thêm nhắc lịch' })).toBeInTheDocument()
     expect(await screen.findByText(/có thể chứa phần mềm độc hại/)).toBeInTheDocument()
-    expect(screen.getByText('Đang làm · hạn 20/11')).toBeInTheDocument()
+    expect(screen.getByText('Đang làm')).toBeInTheDocument()
+    expect(screen.getByText('Hạn 20/11')).toBeInTheDocument()
     expect(screen.getByText('Chờ khách thanh toán')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: 'Việc của tôi' })).toBeNull()
     // Story 24.2: the Board is retired, so JOB-1 offers the handovers and the Crew Chat, never a Board.

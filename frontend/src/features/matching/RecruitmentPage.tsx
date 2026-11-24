@@ -2,7 +2,6 @@ import { Dialog } from '@base-ui/react/dialog'
 import { TriangleAlert, X } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
-import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { FormField } from '@/components/FormField'
 import { fieldProps, inputClass } from '@/components/formField-props'
@@ -15,8 +14,6 @@ import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { PersonProfileContent } from '@/features/identity/PersonProfile'
 import { VerifiedFactLines } from '@/features/identity/VerifiedFacts'
-import { JobPhaseBadge, JobRoleLine } from '@/features/job/ByJobRole'
-import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { useReputationHistories, type Histories } from '@/features/reputation/historyApi'
 import { HistoryRegion, RoleSummaryLine } from '@/features/reputation/RoleHistories'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
@@ -40,7 +37,7 @@ import { compareApplicantsPath, MAX_COMPARED } from './compare'
 import { PickDialog, WithdrawPickDialog } from './PickDialogs'
 import { SkillChips } from './SkillChips'
 import { FitMetricsList } from './FitMetrics'
-import { MentorJobTabs } from './MentorJobTabs'
+import { MentorTabHeader } from './MentorTabHeader'
 import { useMentorJob, type MentorJob } from './mentorJobApi'
 import { ProofList } from './ProofList'
 import { Page } from '@/components/ui/page'
@@ -87,22 +84,7 @@ export function RecruitmentPage() {
 function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruitment }) {
   return (
     <>
-      <div className="flex flex-col gap-3">
-        <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
-          <Link to="/cong-viec" className="text-primary underline-offset-4 hover:underline">
-            {t('screen.job.detail.breadcrumb')}
-          </Link>{' '}
-          / <span className="break-words">{job.title}</span>
-        </nav>
-        <div className="flex flex-wrap items-center gap-2">
-          <PageHeading>{t('screen.recruitment.title')}</PageHeading>
-          <JobStateBadge state={job.state} audience="mentor" />
-          <JobPhaseBadge jobId={job.id} />
-        </div>
-        <p className="text-body-sm break-words text-muted-foreground">{job.title}</p>
-        <JobRoleLine jobId={job.id} />
-        <MentorJobTabs jobId={job.id} state={job.state} current="recruitment" payment={job.agreementConfirmed} />
-      </div>
+      <MentorTabHeader job={job} current="recruitment" />
       {recruitment.state === 'AGREEMENT' && !recruitment.signedMember && (
         <div role="alert" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
@@ -196,14 +178,14 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
       <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
         {t('screen.recruitment.n20')}
       </div>
+      {/* A full Crew is why no application is taken: that one sentence says both, where two stood before. */}
       <p role="status" className="text-label font-semibold">
         {recruitment.recruiting
           ? t('screen.recruitment.summaryOn', { n: recruitment.openSlots })
-          : t('screen.recruitment.summaryOff')}
+          : full
+            ? t('screen.recruitment.full', { n: recruitment.cap })
+            : t('screen.recruitment.summaryOff')}
       </p>
-      {full && !recruitment.recruiting && (
-        <p className="text-body-sm text-muted-foreground">{t('screen.recruitment.full', { n: recruitment.cap })}</p>
-      )}
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         <label className="flex items-center gap-3 text-body-sm">
           <input

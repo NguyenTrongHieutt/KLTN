@@ -135,7 +135,7 @@ public class HarnessController {
 	@GetMapping("/api/v1/fixture/leak-amount")
 	Map<String, Object> leakAmount() {
 		long amount = Long.parseLong(Canaries.load().get("CREW_SHARE").value());
-		return Map.of("part", String.format(java.util.Locale.ROOT, "%,d", amount).replace(',', '.') + " ₫");
+		return Map.of("part", String.format(java.util.Locale.ROOT, "%,d", amount).replace(',', '.') + " VND");
 	}
 
 	/** A second Job's Crew Chat message: the cross-role person is that Job's Customer. */

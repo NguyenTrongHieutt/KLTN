@@ -163,14 +163,25 @@ describe('the next-action strip and the to-do list (FR-28, UX-DR14)', () => {
   })
 
   it('gives a Mentor the strip and the bell, since no Mentor waits for an approval (Story 19.7)', async () => {
+    // From 768 px: under it the tab bar's "Thông báo" is the one door, and the bell is not shown a second time.
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) =>
+        ({
+          matches: query === '(min-width: 768px)',
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    )
     fakeBackend(signedInUser, {
       'GET /api/v1/todos': () => json({ items: [todo('identity.link_github', { tier: 1 })], total: 1 }),
     })
     renderAt('/thong-bao')
 
     expect(await screen.findByRole('region', { name: 'Việc cần làm tiếp theo' })).toBeInTheDocument()
-    // The bell is the one icon-only "Thông báo" link; the navigations name it with their text.
-    expect(screen.getAllByRole('link', { name: 'Thông báo' }).filter((link) => link.textContent === '')).toHaveLength(1)
+    // From 768 px the bell opens the latest notifications: one button named "Thông báo".
+    expect(screen.getByRole('button', { name: 'Thông báo' })).toBeInTheDocument()
   })
 })
 

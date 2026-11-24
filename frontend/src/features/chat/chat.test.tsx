@@ -100,7 +100,9 @@ describe('JOB-4 "Trò chuyện" (FR-46, UX-DR25, UX-DR40)', () => {
     expect(thread).toHaveAttribute('tabindex', '0')
     expect(await within(thread).findByText('Chị cần tài khoản thử của Supabase không?')).toBeInTheDocument()
     const aside = await screen.findByRole('complementary', { name: 'Thông tin công việc' })
-    expect(aside).toHaveTextContent('Sổ đặt bàn Quán Mây')
+    expect(aside).toHaveTextContent('Người hướng dẫn: Đỗ Mạnh Hùng')
+    // The Product is in the Job's header on every tab, so the side column does not say it a second time.
+    expect(aside).not.toHaveTextContent('Sổ đặt bàn Quán Mây')
   })
 
   it('sends a credential-like text once, as typed, with no dialog (Story 24.4a)', { timeout: 20_000 }, async () => {

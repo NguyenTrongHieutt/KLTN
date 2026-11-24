@@ -1,6 +1,6 @@
 import { Clock } from 'lucide-react'
 import { t } from '@/i18n/t'
-import { formatDayMonth } from '@/lib/dates'
+import { formatDeadlineDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 /**
@@ -12,12 +12,13 @@ export function DeadlineChip({ deadlineAt, near, text }: { deadlineAt: string; n
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-caption',
+        // `w-fit`: as a column's own item it would otherwise stretch into a bar as wide as the card.
+        'inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-caption',
         near ? 'bg-warning-soft text-warning' : 'bg-muted text-muted-foreground',
       )}
     >
       <Clock aria-hidden="true" className="size-3.5" />
-      {text ?? t('screen.shared.todo.deadline', { date: formatDayMonth(deadlineAt) })}
+      {text ?? t('screen.shared.todo.deadline', { date: formatDeadlineDay(deadlineAt) })}
     </span>
   )
 }

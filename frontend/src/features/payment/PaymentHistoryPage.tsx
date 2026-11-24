@@ -7,36 +7,42 @@ import { TestColumn, TestTag } from '@/components/TestTag'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
-import { useBalance, usePaymentHistory, type BalanceLine, type CustomerHistory } from './paymentApi'
-import { PartLines } from './PartLines'
+import { usePaymentHistory, type CustomerHistory } from './paymentApi'
 import { TestModeBanner } from './TestModeBanner'
 import { Page } from '@/components/ui/page'
 import { Card } from '@/components/ui/card'
 
 /**
- * "Lịch sử thanh toán" (`/lich-su-thanh-toan`, FR-44, FR-45, UX-DR85, Story 22.5), in two sections from two separate
- * DTOs (AD-20): CUS-10's, every funding and refund per Job the user posted with per Milestone the released total, never
- * what each person received; and "Phần của bạn", MEN-7's own lines, each with its Job and the role held there. Each
- * section hides when it holds nothing.
+ * "Lịch sử thanh toán" (`/lich-su-thanh-toan`, FR-44, FR-45, UX-DR85, Story 22.5): CUS-10's, every funding and refund
+ * per Job the user posted with per Milestone the released total, never what each person received. What the user
+ * received as a Mentor or a Crew member is MEN-7's ("Số dư thử nghiệm"), where each line also lists the Crew's parts
+ * for its Mentor: until 2026-11-24 the same lines stood here a second time as "Phần của bạn", and now the lead links
+ * there.
  */
 export function PaymentHistoryPage() {
   usePageTitle(t('screen.payment.history.title'))
   const history = usePaymentHistory()
-  const balance = useBalance()
-  const empty = history.data?.jobs.length === 0 && balance.data?.lines.length === 0
   return (
     <Page>
       <div className="flex flex-col gap-0.5">
         <PageHeading>{t('screen.payment.history.title')}</PageHeading>
-        <p className="text-body-sm text-muted-foreground">{t('screen.payment.history.lead')}</p>
+        <p className="text-body-sm text-muted-foreground">
+          {t('screen.payment.history.lead')}{' '}
+          <Link to="/so-du" className="text-primary underline-offset-4 hover:underline">
+            {t('screen.payment.history.partsLink')}
+          </Link>
+        </p>
       </div>
       <TestModeBanner />
-      {empty && <p className="text-body-sm text-muted-foreground">{t('screen.payment.history.empty')}</p>}
       <RegionState query={history} skeleton={<Skeleton className="h-64 w-full" />}>
-        {history.data && history.data.jobs.length > 0 && <History history={history.data} />}
-      </RegionState>
-      <RegionState query={balance} skeleton={<Skeleton className="h-32 w-full" />}>
-        {balance.data && balance.data.lines.length > 0 && <Parts lines={balance.data.lines} />}
+        {history.data &&
+          (history.data.jobs.length > 0 ? (
+            <History history={history.data} />
+          ) : (
+            <Card as="p" className="text-body-sm text-muted-foreground">
+              {t('screen.payment.history.empty')}
+            </Card>
+          ))}
       </RegionState>
     </Page>
   )
@@ -79,7 +85,7 @@ function History({ history }: { history: CustomerHistory }) {
         <Stat label="screen.payment.history.refunded" amount={history.refundedVnd} />
       </div>
       {history.jobs.map((job) => (
-        <section key={job.jobId} aria-labelledby={`history-${job.jobId}`} className="flex flex-col gap-2.5">
+        <section key={job.jobId} aria-labelledby={`history-${job.jobId}`} className="flex flex-col gap-3">
           <h3 id={`history-${job.jobId}`} className="text-h3 break-words">
             <Link to={`/cong-viec/${job.jobId}/thanh-toan`} className="text-foreground underline-offset-4 hover:underline">
               {job.title}
@@ -134,15 +140,3 @@ function History({ history }: { history: CustomerHistory }) {
   )
 }
 
-/** "Phần của bạn": the user's parts as a Mentor or a Crew member, each with its Job and role (FR-44, UX-DR85). */
-function Parts({ lines }: { lines: BalanceLine[] }) {
-  return (
-    <section aria-labelledby="history-parts" className="flex flex-col gap-2.5">
-      <h2 id="history-parts" className="text-h2">
-        {t('screen.payment.history.partsTitle')}
-      </h2>
-      <p className="text-body-sm text-muted-foreground">{t('screen.payment.history.partsLead')}</p>
-      <PartLines lines={lines} crew={false} />
-    </section>
-  )
-}

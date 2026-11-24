@@ -14,6 +14,7 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDate, formatDayMonthTime, formatTime } from '@/lib/dates'
 import { zodFieldErrors } from '@/lib/formErrors'
+import { cardSurface } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import { useAdministrators, useCreateAdministrator, type AdministratorRow } from './adminApi'
 import { StepUpDialog } from './StepUpDialog'
@@ -127,7 +128,7 @@ function CreateAdministrator() {
 
   return (
     <>
-      <form noValidate onSubmit={review} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:p-5">
+      <form noValidate onSubmit={review} className={cn('flex flex-col gap-3 p-4 md:p-5', cardSurface)}>
         <h2 className="text-h3">{t('screen.admin.administrators.formHeading')}</h2>
         <FormField id="newDisplayName" label={t('screen.admin.administrators.displayName')} error={errors.displayName}>
           <input

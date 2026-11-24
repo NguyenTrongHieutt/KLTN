@@ -1,4 +1,5 @@
 import { Check, Clock, Search, Send, X } from 'lucide-react'
+import { jobHeaderCard } from '@/features/job/jobFrame'
 import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -133,7 +134,7 @@ function FindMentors({ job }: { job: Job }) {
   }, [noRecommendation])
   return (
     <>
-      <div className="flex flex-col gap-3">
+      <div className={jobHeaderCard}>
         <nav aria-label={t('screen.job.detail.breadcrumb')} className="text-caption text-muted-foreground">
           <Link to="/cong-viec" className="text-primary underline-offset-4 hover:underline">
             {t('screen.job.detail.breadcrumb')}
@@ -147,6 +148,8 @@ function FindMentors({ job }: { job: Job }) {
         <JobRoleLine jobId={job.id} />
         <JobTabs jobId={job.id} current="find" applications={applications.data?.length ?? 0} />
       </div>
+      {/* The quota, the keyword and the Skill filter are one panel, like Tìm việc's (2026-11-24). */}
+      <Card className="flex flex-col gap-4">
       <QuotaLine quota={quota} />
       <SearchBar
         key={filter.q ?? ''}
@@ -171,6 +174,7 @@ function FindMentors({ job }: { job: Job }) {
           {t('screen.matching.find.skillsHint')}
         </span>
       </div>
+      </Card>
       {filter.q === undefined ? (
         <RegionState query={recommendations} skeleton={<Skeleton className="h-48 w-full" />}>
           {noRecommendation ? (
@@ -303,7 +307,8 @@ function SearchBar({
   }
   return (
     <form role="search" onSubmit={submit} className="flex flex-col gap-1.5">
-      <label htmlFor={`${ids}-q`} className="text-label font-semibold">
+      {/* The tab already reads "Tìm người hướng dẫn": the field's label is for a screen reader. */}
+      <label htmlFor={`${ids}-q`} className="sr-only">
         {t('screen.matching.find.searchLabel')}
       </label>
       <div className="flex gap-2">

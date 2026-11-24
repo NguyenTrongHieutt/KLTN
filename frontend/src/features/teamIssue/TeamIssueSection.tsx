@@ -27,7 +27,7 @@ export function TeamIssueSection() {
     return null
   }
   return (
-    <section aria-labelledby="team-issue-title" className="flex flex-col gap-2.5">
+    <section aria-labelledby="team-issue-title" className="flex flex-col gap-3">
       <h2 id="team-issue-title" className="text-h2">
         {t('screen.teamIssue.title')}
       </h2>

@@ -11,8 +11,9 @@ import { NotificationItemRow } from './NotificationItemRow'
 const DESKTOP = '(min-width: 768px)'
 
 /**
- * The top-bar bell (UX-DR11, UX-DR85): the unread count, a popover of the 10 latest from 768 px, and ALL-1
- * itself on phones; under 360 px it is the only way to "Thông báo", whose tab-bar cell gives way.
+ * The top-bar bell (UX-DR11, UX-DR85): the unread count and a popover of the 10 latest from 768 px. Under 360 px it
+ * is a link to ALL-1 and the only way to "Thông báo", whose tab-bar cell gives way; from 360 to 767 px the shell does
+ * not show it, since the tab bar's cell is that same link (2026-11-24).
  */
 export function NotificationBell({ offline }: { offline: boolean }) {
   const unread = useUnreadCount()

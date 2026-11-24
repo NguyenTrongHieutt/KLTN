@@ -10,6 +10,7 @@ import { HistoryRegion, RoleSummaryLine } from '@/features/reputation/RoleHistor
 import { t } from '@/i18n/t'
 import { formatDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
+import { cardSurface } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import type { JobApplication } from './applicationApi'
 import { FitMetricsList } from './FitMetrics'
@@ -54,7 +55,7 @@ export function BidCard({
   return (
     <li
       aria-labelledby={`${ids}-name`}
-      className={cn('flex flex-col gap-4 rounded-lg border bg-card p-4', compared ? 'border-primary' : 'border-border')}
+      className={cn('flex flex-col gap-4 p-4 md:p-5', cardSurface, compared && 'border-primary dark:border-primary')}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="flex flex-wrap items-center gap-2">
