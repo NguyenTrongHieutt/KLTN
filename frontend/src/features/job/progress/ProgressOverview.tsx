@@ -234,4 +234,3 @@ function MilestoneCard({
 function crewStateTone(state: string): string {
   return state === 'ACTIVE' ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'
 }
-

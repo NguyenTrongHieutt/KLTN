@@ -139,4 +139,3 @@ function History({ history }: { history: CustomerHistory }) {
     </section>
   )
 }
-
