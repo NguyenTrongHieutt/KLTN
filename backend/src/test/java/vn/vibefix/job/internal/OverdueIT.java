@@ -24,11 +24,13 @@ import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
@@ -63,6 +65,12 @@ class OverdueIT extends IntegrationTest {
 
 	@Autowired
 	private MilestoneHandovers handovers;
+
+	@Autowired
+	private MilestoneFunding funding;
+
+	@Autowired
+	private TransactionTemplate transactions;
 
 	private UUID lan;
 
@@ -227,6 +235,102 @@ class OverdueIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-02-20"))
 			.andExpect(jsonPath("$.milestones[0].agreedDueOn").value(NEW_DUE.toString()));
+	}
+
+	/**
+	 * FR-87, AD-48 (Story 25.1): Milestone 2 was planned to start when Milestone 1 was due, on 20/01. Funded on 24/01, 4
+	 * days late, it is due 4 days after its agreed 10/02. The pair of Deadlines waits for the date in force, the three
+	 * sides are told with the days, the move is audited, and the Agreement still shows the agreed date.
+	 */
+	@Test
+	void aMilestoneFundedLateIsDueLaterByTheSameDays() throws Exception {
+		UUID job = world();
+		UUID second = second(job, NEW_DUE);
+		this.clock.setInstant(Instant.parse("2026-01-24T03:00:00Z"));
+
+		assertThat(fund(job, second)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + second + "'")).isEqualTo("2026-02-14");
+		assertThat(count("SELECT count(*) FROM timers.deadline WHERE subject_id = '" + second
+				+ "' AND generation = '2026-02-14' AND status = 'PENDING'")).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM timers.deadline WHERE subject_id = '" + second + "'")).isEqualTo(2);
+		assertThat(notifications(job, "job.milestone_due_moved")).isEqualTo(3);
+		assertThat(text("SELECT params ->> 'days' FROM notification.notification WHERE type = 'job.milestone_due_moved'"
+				+ " AND job_id = '" + job + "' AND account_id = '" + this.lan + "'")).isEqualTo("4");
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE job_id = '" + job
+				+ "' AND action = 'job.milestone_due_moved.late_funding'")).isEqualTo(1);
+		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[1].state").value("FUNDED"))
+			.andExpect(jsonPath("$.milestones[1].dueOn").value("2026-02-14"))
+			.andExpect(jsonPath("$.milestones[1].agreedDueOn").value(NEW_DUE.toString()));
+	}
+
+	/** FR-87: funded on the day it was planned to start, or before it, a Milestone keeps its agreed due date. */
+	@Test
+	void aMilestoneFundedOnItsPlannedStartKeepsItsDueDate() throws Exception {
+		UUID job = world();
+		UUID second = second(job, NEW_DUE);
+		// 23:30 on 20/01 in Vietnam: still the planned day.
+		this.clock.setInstant(Instant.parse("2026-01-20T16:30:00Z"));
+
+		assertThat(fund(job, second)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + second + "'")).isEqualTo(NEW_DUE.toString());
+		assertThat(notifications(job, "job.milestone_due_moved")).isZero();
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE job_id = '" + job
+				+ "' AND action LIKE 'job.milestone_due_moved.%'")).isZero();
+	}
+
+	/** FR-87: a Milestone with no due date is not moved, however late it is funded. */
+	@Test
+	void aMilestoneWithNoDueDateIsNotMovedByLateFunding() throws Exception {
+		UUID job = world();
+		UUID second = second(job, null);
+		this.clock.setInstant(Instant.parse("2026-01-24T03:00:00Z"));
+
+		assertThat(fund(job, second)).isTrue();
+
+		assertThat(count("SELECT count(*) FROM job.milestone WHERE id = '" + second + "' AND due_on IS NULL")).isEqualTo(1);
+		assertThat(notifications(job, "job.milestone_due_moved")).isZero();
+	}
+
+	/**
+	 * Milestone 1 accepted, and a second Milestone added to the world's Agreement and its live rows, Planned and due on
+	 * {@code dueOn}; returns the second Milestone's ID.
+	 */
+	private UUID second(UUID job, LocalDate dueOn) {
+		UUID second = UUID.randomUUID();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("UPDATE job.milestone SET state = 'ACCEPTED', accepted_at = :now WHERE id = :id")
+			.param("now", now)
+			.param("id", this.milestone)
+			.update();
+		String due = dueOn == null ? "" : ",\"dueOn\":\"" + dueOn + "\"";
+		String content = """
+				{"scope":"Sửa lỗi","priceVnd":1600000,"codeJob":true,"assessment":false,"skills":[],"externalAccess":[],
+				 "milestones":[
+				   {"id":"%s","title":"Sửa lỗi trùng giờ","priceVnd":800000,"dueOn":"%s","revisionRounds":2,"criteria":[]},
+				   {"id":"%s","title":"Nhắc lịch","priceVnd":800000%s,"revisionRounds":2,"criteria":[]}]}
+				""".formatted(this.milestone, DUE, second, due);
+		this.jdbc.sql("UPDATE job.agreement_version SET content = CAST(:content AS JSONB) WHERE job_id = :job")
+			.param("content", content)
+			.param("job", job)
+			.update();
+		this.jdbc.sql("UPDATE job.confirmed_agreement SET content = CAST(:content AS JSONB) WHERE job_id = :job")
+			.param("content", content)
+			.param("job", job)
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state)
+				VALUES (:id, :job, 1, 'Nhắc lịch', 800000, :due, 2, :now, 'PLANNED')
+				""").param("id", second).param("job", job).param("due", dueOn).param("now", now).update();
+		return second;
+	}
+
+	/** M1 as the verified payment applies it, with a stand-in Payment Order. */
+	private boolean fund(UUID job, UUID milestone) {
+		return Boolean.TRUE
+			.equals(this.transactions.execute(status -> this.funding.tryFund(job, milestone, UUID.randomUUID()).isPresent()));
 	}
 
 	/** The world's Milestone handed over, as M2 leaves the Milestone row; returns the handover's ID. */

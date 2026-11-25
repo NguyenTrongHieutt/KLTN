@@ -7,7 +7,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.vibefix.audit.AuditEntry;
 import vn.vibefix.audit.AuditLog;
 import vn.vibefix.audit.AuditObject;
+import vn.vibefix.job.AgreementCriteria;
+import vn.vibefix.job.AgreementCriteria.CriteriaInForce;
+import vn.vibefix.job.AgreementCriteria.MilestoneInForce;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
@@ -67,10 +72,13 @@ class DueDates {
 	/** FR-63: the Audit Log holds no values, so the cause of a due-date move is the action's last part. */
 	static final String AUDIT_MOVED = "job.milestone_due_moved.";
 
-	/** Why a due date moved (FR-87): a revision request (M4), or a voided handover (M3). */
+	/** FR-87: a Milestone funded later than its planned start is due later by the same days, for the three sides. */
+	static final String DUE_MOVED = "job.milestone_due_moved";
+
+	/** Why a due date moved (FR-87): a revision request (M4), a voided handover (M3), or funding later than planned (M1). */
 	enum Cause {
 
-		REVISION, VOID
+		REVISION, VOID, LATE_FUNDING
 
 	}
 
@@ -93,10 +101,13 @@ class DueDates {
 
 	private final AuditLog auditLog;
 
+	private final AgreementCriteria criteria;
+
 	private final Clock clock;
 
 	DueDates(JdbcClient jdbc, CrewService crews, Deadlines deadlines, Notifications notifications, JobRules rules,
-			AuditLog auditLog, Clock clock) {
+			AuditLog auditLog, AgreementCriteria criteria, Clock clock) {
+		this.criteria = criteria;
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.deadlines = deadlines;
@@ -189,18 +200,79 @@ class DueDates {
 	 * pair ends {@code OBSOLETE} by its generation), the three sides are told, and the move is audited with its cause.
 	 */
 	void reworked(Applying applying) {
+		if (applying.factOf("dueCause") == null) {
+			return;
+		}
+		schedule(applying.job().id(), applying.milestoneId());
+		announce(applying);
+	}
+
+	/**
+	 * In the {@code apply} of M1 (FR-87, AD-48): a Milestone funded later than its planned start is due later by the
+	 * same number of days. The planned start is the previous Milestone's due date in the Agreement in force, or for its
+	 * first Milestone the day the Agreement was first confirmed, in Vietnam time. Funded on or before it, or with no due
+	 * date or no planned start to tell, nothing moves. The facts {@code dueFrom}, {@code dueTo}, {@code dueCause} and
+	 * {@code dueDays} say what moved; M1's {@code afterWrite} arms the Deadlines for the date in force and calls
+	 * {@link #announce}.
+	 */
+	void fundedLate(Applying applying) {
+		Row row = row(applying.milestoneId());
+		LocalDate planned = plannedStart(applying.job().id(), applying.milestoneId()).orElse(null);
+		if (row == null || row.dueOn() == null || planned == null) {
+			return;
+		}
+		long late = ChronoUnit.DAYS.between(planned, LocalDate.ofInstant(applying.now(), VIETNAM));
+		if (late <= 0) {
+			return;
+		}
+		LocalDate moved = row.dueOn().plusDays(late);
+		applying.set("due_on", moved);
+		applying.fact("dueFrom", row.dueOn().toString());
+		applying.fact("dueTo", moved.toString());
+		applying.fact("dueCause", Cause.LATE_FUNDING.name());
+		applying.fact("dueDays", String.valueOf(late));
+	}
+
+	/** When the Agreement in force planned the Milestone's work to start (FR-87); empty when it cannot be told. */
+	private Optional<LocalDate> plannedStart(UUID jobId, UUID milestoneId) {
+		List<MilestoneInForce> milestones = this.criteria.inForce(jobId).map(CriteriaInForce::milestones).orElse(List.of());
+		for (int index = 0; index < milestones.size(); index++) {
+			if (!milestones.get(index).milestoneId().equals(milestoneId)) {
+				continue;
+			}
+			if (index > 0) {
+				return Optional.ofNullable(milestones.get(index - 1).dueOn());
+			}
+			return this.jdbc.sql("SELECT min(confirmed_at) FROM job.confirmed_agreement WHERE job_id = :job")
+				.param("job", jobId)
+				.query((rs, n) -> Optional.ofNullable(rs.getTimestamp(1)))
+				.single()
+				.map(confirmed -> LocalDate.ofInstant(confirmed.toInstant(), VIETNAM));
+		}
+		return Optional.empty();
+	}
+
+	/**
+	 * After the write of a transition that moved the due date (FR-87): the Customer, the Mentor and the active Crew are
+	 * told, and the move is audited with its cause (FR-63). Does nothing when the transition moved no date.
+	 */
+	void announce(Applying applying) {
 		String cause = applying.factOf("dueCause");
 		if (cause == null) {
 			return;
 		}
 		Job job = applying.job();
 		UUID milestoneId = applying.milestoneId();
-		schedule(job.id(), milestoneId);
 		Row row = Objects.requireNonNull(row(milestoneId));
 		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER)));
 		everyone.addAll(team(job));
-		this.notifications.send(new NotificationRequest(REWORK_DUE, applying.transitionId(), everyone, params(job, row),
-				"/cong-viec/" + job.id(), job.id(), null));
+		Map<String, String> params = new HashMap<>(params(job, row));
+		String days = applying.factOf("dueDays");
+		if (days != null) {
+			params.put("days", days);
+		}
+		this.notifications.send(new NotificationRequest(days == null ? REWORK_DUE : DUE_MOVED, applying.transitionId(), everyone,
+				params, "/cong-viec/" + job.id(), job.id(), null));
 		this.auditLog.record(AuditEntry
 			.of(applying.actor().audit(), AUDIT_MOVED + cause.toLowerCase(Locale.ROOT), AuditObject.of("job.milestone", milestoneId))
 			.forJob(job.id()));

@@ -1,0 +1,5 @@
+subject: Giai đoạn {n} của {job} được thanh toán trễ {days} ngày, nên hạn dời sang {date}
+---
+Xin chào,
+
+Giai đoạn {n} của công việc {job} được thanh toán trễ {days} ngày so với dự kiến trong thỏa thuận, nên hạn của giai đoạn dời đúng {days} ngày, sang {date}. Nhắc hạn và việc đánh dấu quá hạn tính theo ngày này. Thỏa thuận vẫn ghi ngày hai bên đã thống nhất.
