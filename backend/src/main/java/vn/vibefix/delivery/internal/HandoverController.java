@@ -436,7 +436,7 @@ class HandoverController {
 			}
 		}
 		if (mentor.job().assessment()) {
-			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId(), null), null);
+			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId(), null), null, null);
 			return new HandoverSubmissionView(handover.id(), jobId, handover.milestoneId(), handover.number(), "DONE", null,
 					null, handover.id(), null, null);
 		}

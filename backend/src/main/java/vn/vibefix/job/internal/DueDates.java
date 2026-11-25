@@ -127,8 +127,13 @@ class DueDates {
 	/**
 	 * FR-68, AD-48: when the Milestone's due date in force really ends. It is the end of {@code dueOn} in Vietnam time,
 	 * or later when a freeze pushed the Milestone's overdue Deadline back by the time it was paused: the pending
-	 * Deadline's due time, or, once that Deadline has run, the due time it left in {@code overdueSince}. A Deadline of
-	 * an earlier due date adds nothing: the flag is cleared whenever the due date moves.
+	 * Deadline's due time, or, once that Deadline has run, the due time it left in {@code overdueSince}, which a later
+	 * freeze pushes back too ({@code JobFreezing#unfreeze}). A Deadline of an earlier due date adds nothing: the flag is
+	 * cleared whenever the due date moves.
+	 * <p>
+	 * One limit: {@code timers} keeps no original due time for a Deadline whose run failed, and makes it due again
+	 * seconds later. While the overdue check keeps failing, this reads that retry time, so a handover in those hours
+	 * counts as on time. A failing Deadline is on the Administrator's failures page; the figure moves no money.
 	 */
 	Instant effectiveDueAt(UUID milestoneId, LocalDate dueOn, @Nullable Instant overdueSince) {
 		Instant plain = dueAt(dueOn);
@@ -184,8 +189,8 @@ class DueDates {
 	}
 
 	/**
-	 * FR-87, AD-48: how many days late a handover at {@code at} is: the started 24-hour periods after the Milestone's
-	 * due date in force ended, and 0 when it is not after it or the Milestone has no due date.
+	 * FR-87, AD-48: how many days late a handover sent at {@code at} is: the started 24-hour periods after the
+	 * Milestone's due date in force ended, and 0 when it is not after it or the Milestone has no due date.
 	 */
 	int daysLate(UUID milestoneId, Instant at) {
 		Row row = row(milestoneId);
@@ -381,8 +386,9 @@ class DueDates {
 	/**
 	 * The effective due time passed with the Milestone still Funded or Revision Requested on that date:
 	 * the flag is recorded once, and the Customer, the Mentor, and the active Crew are told. The flag holds the
-	 * Deadline's own due time {@code dueAt}, not the moment the poller ran it, so that a handover's days late are
-	 * counted from the time a freeze really left ({@link #effectiveDueAt}).
+	 * Deadline's due time {@code dueAt} as the poller claimed it, not the moment the poller ran it, so that a handover's
+	 * days late are counted from the time a freeze really left ({@link #effectiveDueAt}, which states the limit after
+	 * a failed run).
 	 * @return whether it applied
 	 */
 	@Transactional

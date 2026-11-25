@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -71,7 +72,7 @@ class HandoverSubmissions {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, customer_account_id, job_version,
-			range_start, handover_commit, draft::text AS draft, status, reason, reason_module
+			range_start, handover_commit, draft::text AS draft, status, reason, reason_module, created_at
 			""";
 
 	/**
@@ -80,7 +81,7 @@ class HandoverSubmissions {
 	 */
 	record Submission(UUID id, UUID jobId, UUID productId, UUID milestoneId, int milestoneNumber, UUID mentorId,
 			UUID customerId, long jobVersion, String rangeStart, String handoverCommit, Pending draft, String status,
-			@Nullable String reason, @Nullable String reasonModule) {
+			@Nullable String reason, @Nullable String reasonModule, Instant createdAt) {
 	}
 
 	private final JdbcClient jdbc;
@@ -279,7 +280,8 @@ class HandoverSubmissions {
 					""").param("now", Timestamp.from(this.clock.instant())).param("id", submission.id()).update() != 1) {
 				return;
 			}
-			this.handovers.record(submission.draft(), code);
+			// FR-87: the handover's days late count from "Gửi bàn giao", not from the end of the copy.
+			this.handovers.record(submission.draft(), code, submission.createdAt());
 		});
 	}
 
@@ -342,7 +344,8 @@ class HandoverSubmissions {
 				rs.getInt("milestone_number"), rs.getObject("mentor_account_id", UUID.class),
 				rs.getObject("customer_account_id", UUID.class), rs.getLong("job_version"), rs.getString("range_start"),
 				rs.getString("handover_commit"), JSON.readValue(rs.getString("draft"), Pending.class),
-				rs.getString("status"), rs.getString("reason"), rs.getString("reason_module"));
+				rs.getString("status"), rs.getString("reason"), rs.getString("reason_module"),
+				rs.getTimestamp("created_at").toInstant());
 	}
 
 }

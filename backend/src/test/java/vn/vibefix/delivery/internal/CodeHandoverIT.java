@@ -1380,6 +1380,30 @@ class CodeHandoverIT extends IntegrationTest {
 			.andExpect(jsonPath("$.milestones[0].daysLate").value(0));
 	}
 
+	/**
+	 * FR-87 (Story 25.1 part 3): "Gửi bàn giao" at 23:58 on the due date, and the runner finishes the copy at 00:01.
+	 * The overdue check ran in between and flagged the Milestone, but the handover counts from when it was sent: it
+	 * is on time, on its own row and in the Milestone's on-time record.
+	 */
+	@Test
+	void aHandoverSentBeforeTheDueDateEndedIsOnTimeHoweverLongItsCopyTakes() throws Exception {
+		due(LocalDate.parse("2026-01-05"));
+		this.clock.setInstant(Instant.parse("2026-01-05T16:58:00Z"));
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		preflight();
+		UUID submission = UUID.fromString(JsonPath.read(handOver(version())
+			.andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		this.clock.setInstant(Instant.parse("2026-01-05T17:01:00Z"));
+
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		assertThat(daysLate(submission)).isZero();
+		assertThat(firstDaysLate()).isZero();
+	}
+
 	/** FR-87: the Job's own copy of {@code REWORK_DAYS} decides, never today's setting (AD-7). */
 	@Test
 	void theReworkDueDateRunsByTheJobsCopiedRule() throws Exception {
@@ -1812,17 +1836,17 @@ class CodeHandoverIT extends IntegrationTest {
 	}
 
 	/** How many days late the Milestone's first handover was, as M2 recorded it once (FR-87). */
-	/** The days late {@code delivery} stored with the handover (FR-87). */
-	private int daysLate(UUID handover) {
-		return this.jdbc.sql("SELECT days_late FROM delivery.handover WHERE id = :id")
-			.param("id", handover)
+	private int firstDaysLate() {
+		return this.jdbc.sql("SELECT first_days_late FROM job.milestone WHERE id = :id")
+			.param("id", this.milestone)
 			.query(Integer.class)
 			.single();
 	}
 
-	private int firstDaysLate() {
-		return this.jdbc.sql("SELECT first_days_late FROM job.milestone WHERE id = :id")
-			.param("id", this.milestone)
+	/** The days late {@code delivery} stored with the handover (FR-87). */
+	private int daysLate(UUID handover) {
+		return this.jdbc.sql("SELECT days_late FROM delivery.handover WHERE id = :id")
+			.param("id", handover)
 			.query(Integer.class)
 			.single();
 	}

@@ -30,6 +30,7 @@ import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.JobFreezes;
 import vn.vibefix.job.MilestoneFunding;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.support.IntegrationTest;
@@ -68,6 +69,9 @@ class OverdueIT extends IntegrationTest {
 
 	@Autowired
 	private MilestoneFunding funding;
+
+	@Autowired
+	private JobFreezes freezes;
 
 	@Autowired
 	private TransactionTemplate transactions;
@@ -255,7 +259,47 @@ class OverdueIT extends IntegrationTest {
 
 	/** M2 by the Mentor on the world's Milestone, with a stand-in handover and Handover Commit. */
 	private MilestoneHandovers.Submitted handOver(UUID job) {
-		return this.handovers.submit(job, this.milestone, this.hung, version(job), UUID.randomUUID(), "a".repeat(40));
+		return this.handovers.submit(job, this.milestone, this.hung, version(job), UUID.randomUUID(), "a".repeat(40), null);
+	}
+
+	/**
+	 * FR-68, FR-87 (Story 25.1 part 3): the Milestone is flagged overdue when 20/01 ends, and a Dispute then freezes
+	 * the Job from 22/01 to 06/02. No handover is possible meanwhile, so those 15 days never count: a handover on
+	 * 07/02 is 3 days late (34 hours before the freeze and 24 after it), not 18.
+	 */
+	@Test
+	void theTimeAJobWasFrozenAfterTheFlagNeverCountsAsLate() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		this.clock.setInstant(Instant.parse("2026-01-21T03:00:00Z"));
+		this.poller.runDue();
+		this.clock.setInstant(Instant.parse("2026-01-22T03:00:00Z"));
+		this.freezes.freeze(job);
+		this.clock.setInstant(Instant.parse("2026-02-06T03:00:00Z"));
+		this.freezes.unfreeze(job);
+		assertThat(text("SELECT to_char(overdue_since AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') FROM job.milestone"
+				+ " WHERE id = '" + this.milestone + "'")).isEqualTo("2026-02-04T17:00:00Z");
+		this.clock.setInstant(Instant.parse("2026-02-07T03:00:00Z"));
+
+		assertThat(handOver(job).daysLate()).isEqualTo(3);
+	}
+
+	/**
+	 * FR-87 (Story 25.1 part 3): a Code Job's M2 applies when the runner has copied the Handover Commit. Sent ten
+	 * minutes before the due date ended and copied twenty minutes later, the handover is on time.
+	 */
+	@Test
+	void aHandoverCountsFromWhenItWasSentNotFromWhenItsCopyFinished() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		this.clock.setInstant(Instant.parse("2026-01-20T17:10:00Z"));
+
+		MilestoneHandovers.Submitted submitted = this.handovers.submit(job, this.milestone, this.hung, version(job),
+				UUID.randomUUID(), "a".repeat(40), Instant.parse("2026-01-20T16:50:00Z"));
+
+		assertThat(submitted.daysLate()).isZero();
+		assertThat(text("SELECT days_late || ' ' || first_days_late FROM job.milestone WHERE id = '" + this.milestone + "'"))
+			.isEqualTo("0 0");
 	}
 
 	/**

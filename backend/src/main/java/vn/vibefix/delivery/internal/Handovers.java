@@ -121,8 +121,8 @@ class Handovers {
 	record TeamCodeConfirmation(UUID accountId, String noticeVersion, Instant confirmedAt) {
 	}
 
-	/** @param auto accepted by Auto-acceptance (FR-35) */
 	/**
+	 * @param auto accepted by Auto-acceptance (FR-35)
 	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, AD-48), as
 	 * {@code job} counted it at M2; {@code null} for a handover made before the figure was recorded
 	 */
@@ -417,15 +417,16 @@ class Handovers {
 	/**
 	 * "Gửi bàn giao", last step: M2 on {@code version} with the drafted handover, then its rows; a Code
 	 * Job's with its Handover Commit, range, and Sensitive Changes.
+	 * @param sentAt when the Mentor sent it, for a Code Job whose copy ran since; {@code null} when that is now
 	 * @throws ApiException M2's refusals, {@code STALE} among them; nothing is written then
 	 */
 	@Transactional
-	Handover record(Pending pending, @Nullable Code code) {
+	Handover record(Pending pending, @Nullable Code code, @Nullable Instant sentAt) {
 		UUID jobId = pending.jobId();
 		UUID id = pending.id();
 		UUID milestoneId = pending.milestoneId();
 		Submitted submitted = this.jobs.submit(jobId, milestoneId, pending.mentorId(), pending.version(), id,
-				code == null ? null : code.commit());
+				code == null ? null : code.commit(), sentAt);
 		TeamCodeConfirmation teamCode = pending.teamCode();
 		int round = this.jdbc.sql("SELECT count(*) FROM delivery.handover WHERE milestone_id = :milestone")
 			.param("milestone", milestoneId)

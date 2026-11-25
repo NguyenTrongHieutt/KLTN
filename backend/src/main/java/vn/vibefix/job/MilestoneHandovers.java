@@ -49,9 +49,12 @@ public interface MilestoneHandovers {
 	/**
 	 * M2 with a Code Job's Handover Commit as its evidence (FR-32, AD-11): the SHA the copy run put on
 	 * {@code handover/{handoverId}}; {@code null} for an Assessment Job.
+	 * @param sentAt when the Mentor sent the handover, which for a Code Job is before its copy ran; the days late count
+	 * from it, so the time the copy takes is never the team's lateness (FR-87). {@code null}, or a time after now, is
+	 * now
 	 */
 	Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId,
-			@Nullable String handoverCommit);
+			@Nullable String handoverCommit, @Nullable Instant sentAt);
 
 	/**
 	 * M3 by the System (FR-33, AD-11): the acceptance merge answered 409 because the handover branch no

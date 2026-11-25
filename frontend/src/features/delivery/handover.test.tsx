@@ -99,6 +99,7 @@ const report = (overrides: object = {}) => ({
   round: 1,
   status: 'SUBMITTED',
   mentorName: 'Đỗ Mạnh Hùng',
+  daysLate: 0,
   createdAt: '2026-10-20T03:00:00Z',
   checkBy: '2026-10-27T03:00:00Z',
   assessment: true,
@@ -288,7 +289,8 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     )!
     expect(within(article).getByText('Đã tự nghiệm thu')).toBeInTheDocument()
     expect(within(screen.getByRole('navigation', { name: 'Các lần bàn giao' })).getByText('Đã tự nghiệm thu')).toBeInTheDocument()
-    expect(within(article).queryByText(/Bàn giao trễ/)).toBeNull()
+    // On time: the server sends 0, and the report says nothing.
+    expect(within(article).queryByText(/bàn giao trễ/i)).toBeNull()
   })
 
   /** FR-87, UX-DR129: the report keeps how late the handover came, for every reader, also after it is accepted. */
@@ -303,7 +305,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     const article = (await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).closest(
       'article',
     )!
-    expect(within(article).getByText(/Người hướng dẫn Đỗ Mạnh Hùng · .* · lần thứ 1 · Bàn giao trễ 2 ngày/)).toBeInTheDocument()
+    expect(within(article).getByText(/Người hướng dẫn Đỗ Mạnh Hùng · .* · lần thứ 1 · bàn giao trễ 2 ngày/)).toBeInTheDocument()
   })
 
   /** Story 24.2: every audience reads the same Report -- the criteria with the Mentor's marks and notes. */

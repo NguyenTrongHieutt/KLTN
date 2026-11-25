@@ -2654,7 +2654,7 @@
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
         "meta": "Người hướng dẫn {mentor} · {date} · lần thứ {round}",
-        "daysLate": "Bàn giao trễ {n} ngày",
+        "daysLate": "bàn giao trễ {n} ngày",
         "criteria": "Tiêu chí nghiệm thu",
         "criterion": "Tiêu chí {n}: {statement}",
         "selfMet": "Người hướng dẫn tự nhận xét: Đạt",
