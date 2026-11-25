@@ -312,14 +312,18 @@ class OverdueIT extends IntegrationTest {
 				   {"id":"%s","title":"Sửa lỗi trùng giờ","priceVnd":800000,"dueOn":"%s","revisionRounds":2,"criteria":[]},
 				   {"id":"%s","title":"Nhắc lịch","priceVnd":800000%s,"revisionRounds":2,"criteria":[]}]}
 				""".formatted(this.milestone, DUE, second, due);
-		this.jdbc.sql("UPDATE job.agreement_version SET content = CAST(:content AS JSONB) WHERE job_id = :job")
-			.param("content", content)
-			.param("job", job)
-			.update();
-		this.jdbc.sql("UPDATE job.confirmed_agreement SET content = CAST(:content AS JSONB) WHERE job_id = :job")
-			.param("content", content)
-			.param("job", job)
-			.update();
+		// The Agreement's rows are never rewritten: a second version, confirmed now, is the one in force.
+		this.jdbc.sql("""
+				INSERT INTO job.agreement_version (job_id, version_no, status, content, author_account_id, created_at)
+				VALUES (:job, 2, 'SHARED', CAST(:content AS JSONB), :mentor, :now)
+				""").param("job", job).param("content", content).param("mentor", this.hung).param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames,
+				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
+				VALUES (:job, 2, 2, CAST(:content AS JSONB), '{}', true, :owner, :now, :mentor, :now)
+				""").param("job", job).param("content", content).param("owner", this.lan).param("mentor", this.hung)
+			.param("now", now).update();
+		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 2 WHERE id = :id").param("id", job).update();
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state)
 				VALUES (:id, :job, 1, 'Nhắc lịch', 800000, :due, 2, :now, 'PLANNED')
