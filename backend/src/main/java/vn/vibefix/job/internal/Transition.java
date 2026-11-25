@@ -102,7 +102,9 @@ enum Transition {
 			"Verified payment of its Payment Order (FR-41)",
 			List.of(new Guard("FR-41", "No other Held Milestone on the Job"),
 					new Guard("FR-17", "The Job is in Agreement (Milestone 1, after FR-17) or Active")),
-			List.of(new Effect("job", "The Milestone records when it was funded, which bounds its split's parties (FR-42)")),
+			List.of(new Effect("job", "The Milestone records when it was funded, which bounds its split's parties (FR-42)"),
+					new Effect("job",
+							"Funded later than its planned start, the Milestone is due later by the same number of days (FR-87)")),
 			true, true),
 
 	M2(Machine.MILESTONE, milestone(MilestoneState.FUNDED, MilestoneState.REVISION_REQUESTED),

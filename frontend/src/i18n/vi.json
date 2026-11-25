@@ -4304,6 +4304,9 @@
       "milestone_rework_due": {
         "title": "Giai đoạn {n} của {job} có hạn mới để sửa: {date}"
       },
+      "milestone_due_moved": {
+        "title": "Giai đoạn {n} của {job} được thanh toán trễ {days} ngày, nên hạn dời sang {date}"
+      },
       "milestone_unfunded_reminder": {
         "title": "Giai đoạn {n} của {job} chưa được thanh toán sau {days} ngày"
       },

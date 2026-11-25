@@ -76,6 +76,7 @@ class M1Fund implements JobLifecycle.Step {
 	public void apply(Applying applying) {
 		UUID job = applying.job().id();
 		applying.set("funded_at", applying.now());
+		this.dueDates.fundedLate(applying);
 		applying.fact("milestoneId", applying.milestoneId().toString());
 		applying.fact("paymentOrderId", String.valueOf(applying.input("paymentOrderId")));
 		applying.fact("number", String.valueOf(number(job, applying.milestoneId())));
@@ -93,6 +94,7 @@ class M1Fund implements JobLifecycle.Step {
 				Map.of("job", job.title(), "n", String.valueOf(number(job.id(), applying.milestoneId()))), "/cong-viec/" + job.id(),
 				job.id(), null));
 		this.dueDates.schedule(job.id(), applying.milestoneId());
+		this.dueDates.announce(applying);
 	}
 
 	private UUID firstMilestone(UUID jobId) {
