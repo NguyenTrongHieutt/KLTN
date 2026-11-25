@@ -9,8 +9,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -18,6 +20,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
+import vn.vibefix.job.JobRules;
+import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.NotificationRequest;
@@ -32,6 +39,10 @@ import vn.vibefix.timers.Deadlines;
  * pausable, so a freeze pushes them back by the paused time (FR-68's effective due time). The generation
  * is the due date, so a pair a new due date superseded is {@code OBSOLETE}. Overdue is a flag, not a
  * state: it moves no money, and a handover (M2) or a later due date clears it. No automatic penalty.
+ * <p>
+ * FR-87, AD-48 (Story 25.1): {@code job.milestone.due_on} is the due date in force. A revision request (M4) or a
+ * voided handover (M3) moves it to the rework due date when that is later ({@link #rework}, {@link #reworked}); the
+ * confirmed Agreement keeps the date the parties agreed, and no Agreement version is written.
  */
 @Component
 class DueDates {
@@ -43,6 +54,25 @@ class DueDates {
 	static final String DUE_SOON = "job.milestone_due_soon";
 
 	static final String OVERDUE = "job.milestone_overdue";
+
+	/** FR-87: a revision request or a voided handover gave the Milestone a later due date, for the three sides. */
+	static final String REWORK_DUE = "job.milestone_rework_due";
+
+	/** The rule value's name on {@code job.job.rules} (FR-61). */
+	static final String REWORK_RULE = "REWORK_DAYS";
+
+	/** {@code REWORK_DAYS} for a Job published before the rule existed. */
+	static final int DEFAULT_REWORK_DAYS = 5;
+
+	/** FR-63: the Audit Log holds no values, so the cause of a due-date move is the action's last part. */
+	static final String AUDIT_MOVED = "job.milestone_due_moved.";
+
+	/** Why a due date moved (FR-87): a revision request (M4), or a voided handover (M3). */
+	enum Cause {
+
+		REVISION, VOID
+
+	}
 
 	private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
 
@@ -59,19 +89,92 @@ class DueDates {
 
 	private final Notifications notifications;
 
+	private final JobRules rules;
+
+	private final AuditLog auditLog;
+
 	private final Clock clock;
 
-	DueDates(JdbcClient jdbc, CrewService crews, Deadlines deadlines, Notifications notifications, Clock clock) {
+	DueDates(JdbcClient jdbc, CrewService crews, Deadlines deadlines, Notifications notifications, JobRules rules,
+			AuditLog auditLog, Clock clock) {
 		this.jdbc = jdbc;
 		this.crews = crews;
 		this.deadlines = deadlines;
 		this.notifications = notifications;
+		this.rules = rules;
+		this.auditLog = auditLog;
 		this.clock = clock;
 	}
 
 	/** When a Milestone due on {@code dueOn} becomes overdue: the end of that day in Vietnam time. */
 	static Instant dueAt(LocalDate dueOn) {
 		return dueOn.plusDays(1).atStartOfDay(VIETNAM).toInstant();
+	}
+
+	/**
+	 * FR-87, AD-48: the due date a Milestone due on {@code dueOn} has once it is sent back for rework at {@code event}:
+	 * the later of {@code dueOn} and the event's day in Vietnam time plus {@code reworkDays}. Never earlier than
+	 * {@code dueOn}.
+	 */
+	static LocalDate reworkDue(LocalDate dueOn, Instant event, int reworkDays) {
+		LocalDate rework = LocalDate.ofInstant(event, VIETNAM).plusDays(reworkDays);
+		return rework.isAfter(dueOn) ? rework : dueOn;
+	}
+
+	/** The due date in force a rework at {@code event} would give the Milestone; {@code null} when it has no due date. */
+	@Nullable LocalDate reworkDue(UUID jobId, @Nullable LocalDate dueOn, Instant event) {
+		return dueOn == null ? null : reworkDue(dueOn, event, this.rules.value(jobId, REWORK_RULE, DEFAULT_REWORK_DAYS));
+	}
+
+	/**
+	 * The due date in force a Milestone would have if it were sent back for rework now, for the revision dialog
+	 * (UX-DR128); empty when it has no due date. The date the dialog shows is the date {@link #rework} writes.
+	 */
+	@Transactional(readOnly = true)
+	Optional<LocalDate> reworkDueOn(UUID milestoneId) {
+		Row row = row(milestoneId);
+		return row == null ? Optional.empty() : Optional.ofNullable(reworkDue(row.jobId(), row.dueOn(), this.clock.instant()));
+	}
+
+	/**
+	 * In the {@code apply} of M3 or M4 (FR-87, AD-48): when the rework due date is later than the Milestone's due date,
+	 * the transition's own statement writes it and clears the overdue flag, and the facts {@code dueFrom}, {@code dueTo}
+	 * and {@code dueCause} say so. Otherwise nothing moves. A Milestone with no due date gets none.
+	 */
+	void rework(Applying applying, Cause cause) {
+		Row row = row(applying.milestoneId());
+		LocalDate dueOn = row == null ? null : row.dueOn();
+		LocalDate moved = reworkDue(applying.job().id(), dueOn, applying.now());
+		if (dueOn == null || moved == null || !moved.isAfter(dueOn)) {
+			return;
+		}
+		applying.set("due_on", moved);
+		applying.set("overdue_since", null);
+		applying.fact("dueFrom", dueOn.toString());
+		applying.fact("dueTo", moved.toString());
+		applying.fact("dueCause", cause.name());
+	}
+
+	/**
+	 * In the {@code afterWrite} of M3 or M4, once {@link #rework} moved the date: the new pair of Deadlines (the earlier
+	 * pair ends {@code OBSOLETE} by its generation), the three sides are told, and the move is audited with its cause.
+	 */
+	void reworked(Applying applying) {
+		String cause = applying.factOf("dueCause");
+		if (cause == null) {
+			return;
+		}
+		Job job = applying.job();
+		UUID milestoneId = applying.milestoneId();
+		schedule(job.id(), milestoneId);
+		Row row = Objects.requireNonNull(row(milestoneId));
+		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER)));
+		everyone.addAll(team(job));
+		this.notifications.send(new NotificationRequest(REWORK_DUE, applying.transitionId(), everyone, params(job, row),
+				"/cong-viec/" + job.id(), job.id(), null));
+		this.auditLog.record(AuditEntry
+			.of(applying.actor().audit(), AUDIT_MOVED + cause.toLowerCase(Locale.ROOT), AuditObject.of("job.milestone", milestoneId))
+			.forJob(job.id()));
 	}
 
 	/** M1, or a held Milestone's new due date: the due-soon reminder (unless already past) and the overdue check. */

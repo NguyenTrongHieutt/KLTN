@@ -1262,6 +1262,93 @@ class CodeHandoverIT extends IntegrationTest {
 		preflight().andExpect(jsonPath("$.problems").value(Matchers.contains("REPOSITORY_UNREADABLE")));
 	}
 
+	/**
+	 * FR-87, AD-48 (Story 25.1): a revision requested two days after the due date gives the Milestone a rework due
+	 * date five days on; the three sides are told, the move is audited with its cause, a new pair of Deadlines waits for
+	 * the new date, and the progress page shows the date in force beside the agreed one.
+	 */
+	@Test
+	void aRevisionAfterTheDueDateGivesTheMilestoneAReworkDueDate() throws Exception {
+		due(LocalDate.parse("2026-11-20"));
+		UUID handover = handedOver();
+		this.clock.setInstant(Instant.parse("2026-11-22T03:00:00Z"));
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-11-20"))
+			.andExpect(jsonPath("$.milestones[0].agreedDueOn").doesNotExist())
+			.andExpect(jsonPath("$.milestones[0].reworkDueOn").value("2026-11-27"));
+
+		requestRevision(handover).andExpect(status().isOk());
+
+		assertThat(dueOn()).isEqualTo(LocalDate.parse("2026-11-27"));
+		assertThat(pendingDueDeadlines("2026-11-27")).isEqualTo(2);
+		assertThat(dueMoves("job.milestone_due_moved.revision")).isOne();
+		awaitPublications();
+		assertThat(notifications("job.milestone_rework_due", this.lan)).isOne();
+		assertThat(notifications("job.milestone_rework_due", this.hung)).isOne();
+		assertThat(notifications("job.milestone_rework_due", this.vy)).isOne();
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].state").value("REVISION_REQUESTED"))
+			.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-11-27"))
+			.andExpect(jsonPath("$.milestones[0].agreedDueOn").value("2026-11-20"))
+			.andExpect(jsonPath("$.milestones[0].reworkDueOn").doesNotExist());
+
+		// The rework due date passes with no new handover: flagged again, as for the original date (FR-68).
+		this.clock.setInstant(Instant.parse("2026-11-27T17:00:01Z"));
+		this.poller.runDue();
+		assertThat(this.jdbc.sql("SELECT overdue_since IS NOT NULL FROM job.milestone WHERE id = :id")
+			.param("id", this.milestone)
+			.query(Boolean.class)
+			.single()).isTrue();
+	}
+
+	/** FR-87: a revision requested while the due date is further away than the rework days moves nothing. */
+	@Test
+	void aRevisionWellBeforeTheDueDateMovesNothing() throws Exception {
+		due(LocalDate.parse("2026-11-20"));
+		UUID handover = handedOver();
+
+		requestRevision(handover).andExpect(status().isOk());
+
+		assertThat(dueOn()).isEqualTo(LocalDate.parse("2026-11-20"));
+		assertThat(dueMoves("job.milestone_due_moved.%")).isZero();
+		awaitPublications();
+		assertThat(notifications("job.milestone_rework_due", this.hung)).isZero();
+	}
+
+	/** FR-87: the Job's own copy of {@code REWORK_DAYS} decides, never today's setting (AD-7). */
+	@Test
+	void theReworkDueDateRunsByTheJobsCopiedRule() throws Exception {
+		due(LocalDate.parse("2026-11-20"));
+		this.jdbc.sql("UPDATE job.job SET rules = rules || '{\"REWORK_DAYS\": 3}'::jsonb WHERE id = :id")
+			.param("id", this.job)
+			.update();
+		this.jdbc.sql("UPDATE settings.rule_value SET value = 30 WHERE rule_key = 'REWORK_DAYS'").update();
+		UUID handover = handedOver();
+		this.clock.setInstant(Instant.parse("2026-11-19T03:00:00Z"));
+
+		requestRevision(handover).andExpect(status().isOk());
+
+		assertThat(dueOn()).isEqualTo(LocalDate.parse("2026-11-22"));
+	}
+
+	/** FR-87: a voided handover (M3) sets the rework due date the same way, with its own cause. */
+	@Test
+	void aVoidedHandoverGivesTheMilestoneAReworkDueDate() throws Exception {
+		due(LocalDate.parse("2026-11-20"));
+		UUID handover = handedOver();
+		this.clock.setInstant(Instant.parse("2026-11-22T03:00:00Z"));
+
+		voidAtAcceptance(handover);
+
+		assertThat(milestoneState()).isEqualTo("FUNDED");
+		assertThat(dueOn()).isEqualTo(LocalDate.parse("2026-11-27"));
+		assertThat(pendingDueDeadlines("2026-11-27")).isEqualTo(2);
+		assertThat(dueMoves("job.milestone_due_moved.void")).isOne();
+		awaitPublications();
+		assertThat(notifications("job.milestone_rework_due", this.lan)).isOne();
+		assertThat(notifications("job.milestone_rework_due", this.vy)).isOne();
+	}
+
 	@Test
 	void aRevisionClosesTheOlderPullRequestWithItsCommentAndRoundAndKeepsItsBranch() throws Exception {
 		UUID handover = handedOver();
@@ -1644,6 +1731,36 @@ class CodeHandoverIT extends IntegrationTest {
 		accept(handover, version()).andExpect(status().isOk());
 		this.worker.runDue(Lane.GITHUB_SHORT);
 		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> "VOIDED".equals(handoverStatus(handover)));
+	}
+
+	/** Gives the world's Milestone a due date in force, as M1 would have from the Agreement. */
+	private void due(LocalDate dueOn) {
+		this.jdbc.sql("UPDATE job.milestone SET due_on = :due WHERE id = :id").param("due", dueOn).param("id", this.milestone)
+			.update();
+	}
+
+	private LocalDate dueOn() {
+		return this.jdbc.sql("SELECT due_on FROM job.milestone WHERE id = :id")
+			.param("id", this.milestone)
+			.query(LocalDate.class)
+			.single();
+	}
+
+	/** The due-soon and overdue Deadlines waiting for the Milestone's due date {@code generation}. */
+	private long pendingDueDeadlines(String generation) {
+		return this.jdbc.sql("""
+				SELECT count(*) FROM timers.deadline WHERE subject_id = :id AND generation = :generation AND status = 'PENDING'
+				  AND kind IN ('job.milestone_due_soon', 'job.milestone_overdue')
+				""").param("id", this.milestone).param("generation", generation).query(Long.class).single();
+	}
+
+	/** The Audit Log's entries for a due-date move of the world's Job (FR-63). */
+	private long dueMoves(String action) {
+		return this.jdbc.sql("SELECT count(*) FROM audit.audit_entry WHERE job_id = :job AND action LIKE :action")
+			.param("job", this.job)
+			.param("action", action)
+			.query(Long.class)
+			.single();
 	}
 
 	/** Waits for the close that M3 or M4 requested, then runs it. */

@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -69,10 +70,12 @@ class JobProgressController {
 	 * @param autoAccepted accepted by Auto-acceptance (FR-35)
 	 * @param refunded cancelled with its held money refunded (FR-40)
 	 * @param overdueSince when the Funded or Revision Requested Milestone became overdue (FR-48)
+	 * @param dueOn the due date in force (FR-87, AD-48); the Agreement's date for a Milestone with no live row
+	 * @param agreedDueOn the date the Agreement holds, only when the due date in force differs from it
 	 */
 	record MilestoneProgressView(UUID milestoneId, int number, String title, String state, @Nullable Long priceVnd,
 			@Nullable LocalDate dueOn, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted,
-			boolean refunded, @Nullable Instant overdueSince) {
+			boolean refunded, @Nullable Instant overdueSince, @Nullable LocalDate agreedDueOn) {
 	}
 
 	/**
@@ -160,11 +163,13 @@ class JobProgressController {
 		List<MilestoneProgressView> milestones = new ArrayList<>();
 		for (MilestoneInForce milestone : this.criteria.inForce(job.id()).map(found -> found.milestones()).orElse(List.of())) {
 			MilestoneDetail detail = live.get(milestone.milestoneId());
+			LocalDate agreed = milestone.dueOn();
+			LocalDate inForce = detail == null || detail.dueOn() == null ? agreed : detail.dueOn();
 			milestones.add(new MilestoneProgressView(milestone.milestoneId(), milestone.number(), milestone.title(),
-					detail == null ? "PLANNED" : detail.state(), milestone.priceVnd(), milestone.dueOn(),
+					detail == null ? "PLANNED" : detail.state(), milestone.priceVnd(), inForce,
 					detail == null ? 0 : detail.roundsLeft(), detail == null ? null : detail.revisionCriteria(),
 					detail != null && detail.autoAccepted(), detail != null && detail.refunded(),
-					detail == null ? null : detail.overdueSince()));
+					detail == null ? null : detail.overdueSince(), Objects.equals(agreed, inForce) ? null : agreed));
 		}
 		return header(viewer, milestones, crew(viewer), viewer.audience() != Audience.CUSTOMER && !job.code());
 	}

@@ -223,7 +223,18 @@ function MilestoneCard({
             {formatVnd(milestone.priceVnd)} <TestTag />
           </span>
         )}
-        {milestone.dueOn && <span>{t('screen.progress.due', { date: formatCalendarDayMonth(milestone.dueOn) })}</span>}
+        {milestone.dueOn && (
+          <span>
+            {t('screen.progress.due', { date: formatCalendarDayMonth(milestone.dueOn) })}
+            {/* FR-87: the date in force leads; the agreed date follows only when a rework or late funding moved it. */}
+            {milestone.agreedDueOn && (
+              <span className="text-muted-foreground">
+                {' · '}
+                {t('screen.progress.agreedDue', { date: formatCalendarDayMonth(milestone.agreedDueOn) })}
+              </span>
+            )}
+          </span>
+        )}
       </p>
       {milestone.overdueSince && audience === 'customer' && <OverdueOptions jobId={jobId} />}
     </Card>

@@ -13,6 +13,7 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { rich } from '@/i18n/rich'
 import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
+import { formatCalendarDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { useDecideHandover, useHandover, type DeliveryReport } from './deliveryApi'
@@ -362,7 +363,15 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
             </Dialog.Title>
             <Dialog.Description className="text-body-sm">
               {confirming === 'revision' ? (
-                t('screen.handover.check.reviseBody', { r: Math.max(0, report.roundsLeft - 1) })
+                <>
+                  {t('screen.handover.check.reviseBody', { r: Math.max(0, report.roundsLeft - 1) })}
+                  {/* FR-87: what the request does to the due date, said before the Customer confirms. The server computes it. */}
+                  {decision.reworkDueOn && (
+                    <span className="mt-2 block font-semibold tabular-nums">
+                      {t('screen.handover.check.reviseDue', { date: formatCalendarDayMonth(decision.reworkDueOn) })}
+                    </span>
+                  )}
+                </>
               ) : (
                 <>
                   {/* The tag stands beside the amount it marks, not after the sentence's last word. */}

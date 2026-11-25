@@ -1,6 +1,7 @@
 package vn.vibefix.job;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,9 +24,10 @@ public interface MilestoneStates {
 	 * @param autoAccepted accepted by Auto-acceptance
 	 * @param refunded cancelled after it was funded, so its held money was refunded in full (FR-40)
 	 * @param overdueSince when a Funded or Revision Requested Milestone became overdue (FR-48); a flag, not a state
+	 * @param dueOn the due date in force (FR-87, AD-48), which a rework can move later than the date the Agreement holds
 	 */
 	record MilestoneDetail(String state, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted,
-			boolean refunded, @Nullable Instant overdueSince) {
+			boolean refunded, @Nullable Instant overdueSince, @Nullable LocalDate dueOn) {
 	}
 
 	/** Each live Milestone of the Job by its ID, with its rounds and decision. */

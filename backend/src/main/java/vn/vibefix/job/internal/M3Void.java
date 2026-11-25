@@ -25,7 +25,8 @@ import vn.vibefix.shared.ErrorCode;
  * Revision Requested once a Revision Round was used, Funded before that. The Customer and the Mentor get
  * {@code job.handover_voided}; {@code delivery} voids the handover, moves its to-dos, alerts the
  * Administrators, and closes the handover's pull request, and Auto-acceptance ends through its generation
- * check.
+ * check. The Milestone gets its rework due date when that is later than its due date (FR-87,
+ * {@link DueDates#rework}).
  */
 @Component
 class M3Void implements JobLifecycle.Step {
@@ -38,10 +39,13 @@ class M3Void implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	M3Void(JdbcClient jdbc, M1Fund numbers, Notifications notifications) {
+	private final DueDates dueDates;
+
+	M3Void(JdbcClient jdbc, M1Fund numbers, Notifications notifications, DueDates dueDates) {
 		this.jdbc = jdbc;
 		this.numbers = numbers;
 		this.notifications = notifications;
+		this.dueDates = dueDates;
 	}
 
 	@Override
@@ -75,6 +79,7 @@ class M3Void implements JobLifecycle.Step {
 		applying.fact("milestoneId", applying.milestoneId().toString());
 		applying.fact("handoverId", applying.input("handoverId").toString());
 		applying.fact("number", String.valueOf(this.numbers.number(applying.job().id(), applying.milestoneId())));
+		this.dueDates.rework(applying, DueDates.Cause.VOID);
 	}
 
 	@Override
@@ -87,6 +92,7 @@ class M3Void implements JobLifecycle.Step {
 		this.notifications.send(new NotificationRequest(VOIDED, applying.transitionId(), both,
 				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId()))),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+		this.dueDates.reworked(applying);
 	}
 
 }

@@ -1,6 +1,7 @@
 package vn.vibefix.job;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -74,6 +75,13 @@ public interface MilestoneHandovers {
 	}
 
 	Optional<Rounds> rounds(UUID milestoneId);
+
+	/**
+	 * The due date in force the Milestone would have if its handover were sent back now (FR-87, AD-48): the later of
+	 * its due date and today plus the Job's {@code REWORK_DAYS}. The revision dialog shows it.
+	 * @return empty for a Milestone with no due date
+	 */
+	Optional<LocalDate> reworkDueOn(UUID milestoneId);
 
 	/**
 	 * M5 by the Customer on the loaded version, for the Milestone's current handover; {@code payment}

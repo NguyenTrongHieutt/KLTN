@@ -102,6 +102,39 @@ const assessmentSetup = (own?: Record<string, unknown>) => ({
 })
 
 describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
+  it('shows the due date in force, with the agreed date beside it once a rework moved it (FR-87)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(
+          progress({
+            milestones: [
+              {
+                milestoneId: 'm1',
+                number: 1,
+                title: 'Sửa lỗi trùng giờ',
+                state: 'REVISION_REQUESTED',
+                priceVnd: 1500000,
+                dueOn: '2026-11-27',
+                agreedDueOn: '2026-11-20',
+              },
+              { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', state: 'PLANNED', priceVnd: 1500000, dueOn: '2026-12-10' },
+            ],
+          }),
+        ),
+      'GET /api/v1/todos': () => json({ items: [], total: 0 }),
+    })
+    renderAt('/cong-viec/j1')
+
+    const first = (await screen.findByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ' })).closest('li')!
+    expect(within(first).getByText(/Hạn 27\/11/)).toBeInTheDocument()
+    expect(within(first).getByText(/theo thỏa thuận 20\/11/)).toBeInTheDocument()
+    const second = screen.getByRole('heading', { level: 3, name: 'Giai đoạn 2 · Email nhắc lịch' }).closest('li')!
+    expect(within(second).getByText('Hạn 10/12')).toBeInTheDocument()
+    expect(within(second).queryByText(/theo thỏa thuận/)).toBeNull()
+  })
+
   it("tells the Customer each Milestone's own state, with no progress figure", { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),

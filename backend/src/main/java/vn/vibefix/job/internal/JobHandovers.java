@@ -2,6 +2,7 @@ package vn.vibefix.job.internal;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,7 +30,10 @@ class JobHandovers implements MilestoneHandovers {
 
 	private final M1Fund numbers;
 
-	JobHandovers(JdbcClient jdbc, JobLifecycle lifecycle, M1Fund numbers) {
+	private final DueDates dueDates;
+
+	JobHandovers(JdbcClient jdbc, JobLifecycle lifecycle, M1Fund numbers, DueDates dueDates) {
+		this.dueDates = dueDates;
 		this.jdbc = jdbc;
 		this.lifecycle = lifecycle;
 		this.numbers = numbers;
@@ -117,6 +121,11 @@ class JobHandovers implements MilestoneHandovers {
 			.param("id", milestoneId)
 			.query((rs, n) -> new Rounds(rs.getInt("revision_rounds"), rs.getInt("revision_rounds_used")))
 			.optional();
+	}
+
+	@Override
+	public Optional<LocalDate> reworkDueOn(UUID milestoneId) {
+		return this.dueDates.reworkDueOn(milestoneId);
 	}
 
 	@Override
