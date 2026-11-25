@@ -158,6 +158,29 @@ class EvidencePackageIT extends IntegrationTest {
 			.param("sha", SHA).param("at", at).update();
 	}
 
+	/**
+	 * FR-87, AD-48 (Story 25.1): the Package shows each handover's days late, and beside the Agreement in force the due
+	 * date a rework or late funding moved a Milestone to, which no Agreement version records.
+	 */
+	@Test
+	void thePackageShowsEachHandoversDaysLateAndTheDueDateInForce() throws Exception {
+		UUID dispute = open();
+		take(this.ha.accountId(), dispute);
+		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].milestones[0].dueInForce").doesNotExist());
+		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].daysLate").doesNotExist());
+		this.jdbc.sql("UPDATE delivery.handover SET days_late = 2 WHERE id = :id").param("id", this.handover).update();
+		this.jdbc.sql("UPDATE job.milestone SET due_on = DATE '2027-03-31' WHERE id = :id")
+			.param("id", this.world.milestone())
+			.update();
+
+		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].milestones[0].dueInForce").value("2027-03-31"));
+		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].daysLate").value(2));
+	}
+
 	@Test
 	void theAssigneeReadsEveryTabUnderTheGrantAndEveryViewIsAudited() throws Exception {
 		UUID dispute = open();

@@ -68,8 +68,12 @@ class JobHandovers implements MilestoneHandovers {
 		Instant checkBy = after(milestoneId, "AUTO_ACCEPTANCE_DAYS", M2Submit.DEFAULT_AUTO_ACCEPTANCE_DAYS);
 		Instant first = after(milestoneId, "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", DEFAULT_FIRST_REMINDER_DAY);
 		Instant second = after(milestoneId, "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", DEFAULT_SECOND_REMINDER_DAY);
+		int daysLate = this.jdbc.sql("SELECT coalesce(days_late, 0) FROM job.milestone WHERE id = :id")
+			.param("id", milestoneId)
+			.query(Integer.class)
+			.single();
 		return new Submitted(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version(), checkBy,
-				first, second);
+				first, second, daysLate);
 	}
 
 	@Override

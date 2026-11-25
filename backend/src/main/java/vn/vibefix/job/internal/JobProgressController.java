@@ -72,10 +72,12 @@ class JobProgressController {
 	 * @param overdueSince when the Funded or Revision Requested Milestone became overdue (FR-48)
 	 * @param dueOn the due date in force (FR-87, AD-48); the Agreement's date for a Milestone with no live row
 	 * @param agreedDueOn the date the Agreement holds, only when the due date in force differs from it
+	 * @param daysLate how many days late the current handover of a Submitted, Accepted or Settled Milestone came
+	 * (FR-87, UX-DR129); the page shows it when above 0
 	 */
 	record MilestoneProgressView(UUID milestoneId, int number, String title, String state, @Nullable Long priceVnd,
 			@Nullable LocalDate dueOn, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted,
-			boolean refunded, @Nullable Instant overdueSince, @Nullable LocalDate agreedDueOn) {
+			boolean refunded, @Nullable Instant overdueSince, @Nullable LocalDate agreedDueOn, @Nullable Integer daysLate) {
 	}
 
 	/**
@@ -169,7 +171,8 @@ class JobProgressController {
 					detail == null ? "PLANNED" : detail.state(), milestone.priceVnd(), inForce,
 					detail == null ? 0 : detail.roundsLeft(), detail == null ? null : detail.revisionCriteria(),
 					detail != null && detail.autoAccepted(), detail != null && detail.refunded(),
-					detail == null ? null : detail.overdueSince(), Objects.equals(agreed, inForce) ? null : agreed));
+					detail == null ? null : detail.overdueSince(), Objects.equals(agreed, inForce) ? null : agreed,
+					detail == null ? null : detail.daysLate()));
 		}
 		return header(viewer, milestones, crew(viewer), viewer.audience() != Audience.CUSTOMER && !job.code());
 	}

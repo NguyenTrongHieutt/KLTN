@@ -49,11 +49,14 @@ public interface DeliveryEvidence {
 	 * @param noPreviewReason why a preview was impossible, in the Mentor's words; {@code null} beside a preview
 	 * @param images the images in the Mentor's order
 	 * @param links the links in the Mentor's order
+	 * @param daysLate how many days after the Milestone's due date in force the handover came, 0 when on time (FR-87,
+	 * AD-48); {@code null} for a handover made before the figure was recorded
 	 */
 	record Report(UUID handoverId, UUID milestoneId, int milestoneNumber, String milestoneTitle, int round, String status,
 			Instant submittedAt, @Nullable Instant decidedAt, boolean auto, @Nullable Instant voidedAt,
 			@Nullable String handoverCommit, List<CriterionStatus> criteria, @Nullable String previewUrl,
-			@Nullable String previewDomain, @Nullable String noPreviewReason, List<Image> images, List<Link> links) {
+			@Nullable String previewDomain, @Nullable String noPreviewReason, List<Image> images, List<Link> links,
+			@Nullable Integer daysLate) {
 
 		public Report {
 			criteria = List.copyOf(criteria);

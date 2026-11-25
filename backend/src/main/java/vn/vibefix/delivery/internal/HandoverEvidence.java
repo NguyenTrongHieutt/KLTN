@@ -39,7 +39,7 @@ class HandoverEvidence implements DeliveryEvidence {
 	public List<Report> reports(UUID jobId) {
 		return this.jdbc.sql("""
 				SELECT id, milestone_id, milestone_number, milestone_title, round, status, created_at, decided_at, auto,
-				       voided_at, handover_commit, preview_url, no_preview_reason
+				       voided_at, handover_commit, preview_url, no_preview_reason, days_late
 				FROM delivery.handover WHERE job_id = :job ORDER BY created_at, seq
 				""").param("job", jobId).query((rs, n) -> {
 			UUID handover = rs.getObject("id", UUID.class);
@@ -49,7 +49,7 @@ class HandoverEvidence implements DeliveryEvidence {
 					rs.getTimestamp("created_at").toInstant(), instant(rs.getTimestamp("decided_at")), rs.getBoolean("auto"),
 					instant(rs.getTimestamp("voided_at")), rs.getString("handover_commit"), criteria(handover), preview,
 					preview == null ? null : PreviewChecks.domain(preview), rs.getString("no_preview_reason"), images(handover),
-					links(handover));
+					links(handover), (Integer) rs.getObject("days_late"));
 		}).list();
 	}
 

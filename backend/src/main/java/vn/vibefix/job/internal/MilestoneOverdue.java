@@ -47,8 +47,9 @@ class MilestoneOverdue implements DeadlineHandler {
 		if (job.frozenAt() != null) {
 			return DeadlineOutcome.REPAUSE;
 		}
-		return this.dueDates.getObject().overdue(job, deadline.subjectId(), deadline.generation(), deadline.id())
-				? DeadlineOutcome.FIRED : DeadlineOutcome.OBSOLETE;
+		return this.dueDates.getObject()
+			.overdue(job, deadline.subjectId(), deadline.generation(), deadline.id(), deadline.dueAt()) ? DeadlineOutcome.FIRED
+					: DeadlineOutcome.OBSOLETE;
 	}
 
 }

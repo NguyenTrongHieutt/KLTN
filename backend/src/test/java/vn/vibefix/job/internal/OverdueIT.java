@@ -103,7 +103,7 @@ class OverdueIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.milestones[0].state").value("FUNDED"))
-			.andExpect(jsonPath("$.milestones[0].overdueSince").value("2026-01-21T03:00:00Z"));
+			.andExpect(jsonPath("$.milestones[0].overdueSince").value("2026-01-20T17:00:00Z"));
 		assertThat(text("SELECT state FROM job.job WHERE id = '" + job + "'")).isEqualTo("ACTIVE");
 	}
 
@@ -206,6 +206,56 @@ class OverdueIT extends IntegrationTest {
 		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("2026-01-20");
 		assertThat(dueAt("job.milestone_overdue")).isEqualTo(Instant.parse("2026-01-30T17:00:00Z"));
 		assertThat(notifications(job, "job.milestone_rework_due")).isZero();
+	}
+
+	/**
+	 * FR-68, FR-87 (Story 25.1 part 3): a freeze pushed the overdue check of 20/01 back ten days, to the end of 30/01.
+	 * A handover nine days after 20/01 ended is on time: its days late count from the time the freeze left.
+	 */
+	@Test
+	void aHandoverBeforeTheTimeAFreezeLeftIsNotLate() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		pushOverdueCheckTo(Instant.parse("2026-01-30T17:00:00Z"));
+		this.clock.setInstant(Instant.parse("2026-01-29T18:00:00Z"));
+
+		assertThat(handOver(job).daysLate()).isZero();
+
+		assertThat(text("SELECT days_late || ' ' || first_days_late FROM job.milestone WHERE id = '" + this.milestone + "'"))
+			.isEqualTo("0 0");
+	}
+
+	/**
+	 * FR-68, FR-87 (Story 25.1 part 3): the same pushed-back check has already run, ten hours before the handover. The
+	 * flag keeps the check's own due time, so the handover is 1 day late, not the 11 days since 20/01 ended.
+	 */
+	@Test
+	void aHandoverAfterThePushedBackCheckRanIsLateFromThatTime() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		pushOverdueCheckTo(Instant.parse("2026-01-30T17:00:00Z"));
+		this.clock.setInstant(Instant.parse("2026-01-31T03:00:00Z"));
+		this.poller.runDue();
+		assertThat(text("SELECT to_char(overdue_since AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') FROM job.milestone"
+				+ " WHERE id = '" + this.milestone + "'")).isEqualTo("2026-01-30T17:00:00Z");
+
+		assertThat(handOver(job).daysLate()).isEqualTo(1);
+
+		assertThat(text("SELECT days_late || ' ' || first_days_late FROM job.milestone WHERE id = '" + this.milestone + "'"))
+			.isEqualTo("1 1");
+	}
+
+	/** A freeze's effect on the world's Milestone: its pending overdue check is due at {@code due} instead. */
+	private void pushOverdueCheckTo(Instant due) {
+		this.jdbc.sql("UPDATE timers.deadline SET due_at = :due WHERE kind = 'job.milestone_overdue' AND subject_id = :id")
+			.param("due", Timestamp.from(due))
+			.param("id", this.milestone)
+			.update();
+	}
+
+	/** M2 by the Mentor on the world's Milestone, with a stand-in handover and Handover Commit. */
+	private MilestoneHandovers.Submitted handOver(UUID job) {
+		return this.handovers.submit(job, this.milestone, this.hung, version(job), UUID.randomUUID(), "a".repeat(40));
 	}
 
 	/**

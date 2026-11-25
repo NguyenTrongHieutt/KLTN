@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +51,13 @@ class AdminEvidenceController {
 	record EvidenceCriterion(UUID criterionId, int number, String statement, String checkSteps) {
 	}
 
+	/**
+	 * @param dueOn the date this version of the Agreement holds
+	 * @param dueInForce on the latest version only, the Milestone's due date in force when it differs from
+	 * {@code dueOn}: a rework or late funding moved it without a new version (FR-87, AD-48)
+	 */
 	record EvidenceMilestone(UUID milestoneId, int number, String title, @Nullable Long priceVnd, @Nullable LocalDate dueOn,
-			List<EvidenceCriterion> criteria) {
+			List<EvidenceCriterion> criteria, @Nullable LocalDate dueInForce) {
 	}
 
 	record EvidenceAgreementVersion(int versionNo, Instant approvedAt, Instant confirmedAt, String scope,
@@ -123,8 +129,15 @@ class AdminEvidenceController {
 	@GetMapping("/agreement")
 	List<EvidenceAgreementVersion> agreement(@PathVariable UUID disputeId) {
 		Dispute dispute = view(disputeId, Tab.AGREEMENT);
-		return this.agreements.confirmedVersions(dispute.jobId())
-			.stream()
+		List<ConfirmedVersion> versions = this.agreements.confirmedVersions(dispute.jobId());
+		int latest = versions.stream().mapToInt(ConfirmedVersion::versionNo).max().orElse(0);
+		// FR-87, AD-48: the live Milestones hold the due dates in force, which no Agreement version records.
+		Map<UUID, LocalDate> inForce = new HashMap<>();
+		this.jobs.job(dispute.jobId())
+			.map(JobOversight.JobLine::milestones)
+			.orElse(List.of())
+			.forEach(milestone -> inForce.put(milestone.id(), milestone.dueOn()));
+		return versions.stream()
 			.map(version -> new EvidenceAgreementVersion(version.versionNo(), version.approvedAt(), version.confirmedAt(),
 					version.scope(), version.priceVnd(), version.milestones()
 						.stream()
@@ -133,9 +146,16 @@ class AdminEvidenceController {
 									.stream()
 									.map(criterion -> new EvidenceCriterion(criterion.criterionId(), criterion.number(),
 											criterion.statement(), criterion.checkSteps()))
-									.toList()))
+									.toList(),
+								version.versionNo() == latest ? moved(milestone.dueOn(), inForce.get(milestone.milestoneId()))
+										: null))
 						.toList()))
 			.toList();
+	}
+
+	/** The due date in force when it is not the agreed one; {@code null} when they are the same or none is in force. */
+	private static @Nullable LocalDate moved(@Nullable LocalDate agreed, @Nullable LocalDate inForce) {
+		return inForce == null || inForce.equals(agreed) ? null : inForce;
 	}
 
 	/**

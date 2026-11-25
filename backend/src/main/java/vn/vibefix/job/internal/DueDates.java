@@ -87,7 +87,8 @@ class DueDates {
 
 	private static final List<String> OPEN = List.of("FUNDED", "REVISION_REQUESTED");
 
-	private record Row(UUID jobId, String state, @Nullable LocalDate dueOn, int number) {
+	/** @param overdueSince when the overdue Deadline of {@code dueOn} was due, once it has run ({@link #overdue}) */
+	private record Row(UUID jobId, String state, @Nullable LocalDate dueOn, int number, @Nullable Instant overdueSince) {
 	}
 
 	private final JdbcClient jdbc;
@@ -125,12 +126,14 @@ class DueDates {
 
 	/**
 	 * FR-68, AD-48: when the Milestone's due date in force really ends. It is the end of {@code dueOn} in Vietnam time,
-	 * or later when a freeze pushed the Milestone's pending overdue Deadline back by the time it was paused. A Deadline
-	 * that already ran, or one of an earlier due date, adds nothing: the plain end of the day then stands.
+	 * or later when a freeze pushed the Milestone's overdue Deadline back by the time it was paused: the pending
+	 * Deadline's due time, or, once that Deadline has run, the due time it left in {@code overdueSince}. A Deadline of
+	 * an earlier due date adds nothing: the flag is cleared whenever the due date moves.
 	 */
-	Instant effectiveDueAt(UUID milestoneId, LocalDate dueOn) {
+	Instant effectiveDueAt(UUID milestoneId, LocalDate dueOn, @Nullable Instant overdueSince) {
 		Instant plain = dueAt(dueOn);
-		return this.deadlines.dueAt(MilestoneOverdue.KEY, milestoneId).filter(pending -> pending.isAfter(plain)).orElse(plain);
+		Instant due = this.deadlines.dueAt(MilestoneOverdue.KEY, milestoneId).filter(pending -> pending.isAfter(plain)).orElse(plain);
+		return overdueSince != null && overdueSince.isAfter(due) ? overdueSince : due;
 	}
 
 	/**
@@ -139,13 +142,15 @@ class DueDates {
 	 * later than its due date in force does ({@link #effectiveDueAt}), so that a rework never shortens the time a
 	 * freeze gave back.
 	 */
-	private Optional<LocalDate> reworkMove(UUID jobId, UUID milestoneId, @Nullable LocalDate dueOn, Instant event) {
-		if (dueOn == null) {
+	private Optional<LocalDate> reworkMove(UUID milestoneId, @Nullable Row row, Instant event) {
+		LocalDate dueOn = row == null ? null : row.dueOn();
+		if (row == null || dueOn == null) {
 			return Optional.empty();
 		}
 		LocalDate rework = LocalDate.ofInstant(event, VIETNAM)
-			.plusDays(this.rules.value(jobId, REWORK_RULE, DEFAULT_REWORK_DAYS));
-		return dueAt(rework).isAfter(effectiveDueAt(milestoneId, dueOn)) ? Optional.of(rework) : Optional.empty();
+			.plusDays(this.rules.value(row.jobId(), REWORK_RULE, DEFAULT_REWORK_DAYS));
+		return dueAt(rework).isAfter(effectiveDueAt(milestoneId, dueOn, row.overdueSince())) ? Optional.of(rework)
+				: Optional.empty();
 	}
 
 	/**
@@ -155,8 +160,7 @@ class DueDates {
 	 */
 	@Transactional(readOnly = true)
 	Optional<LocalDate> reworkDueOn(UUID milestoneId) {
-		Row row = row(milestoneId);
-		return row == null ? Optional.empty() : reworkMove(row.jobId(), milestoneId, row.dueOn(), this.clock.instant());
+		return reworkMove(milestoneId, row(milestoneId), this.clock.instant());
 	}
 
 	/**
@@ -168,7 +172,7 @@ class DueDates {
 	void rework(Applying applying, Cause cause) {
 		Row row = row(applying.milestoneId());
 		LocalDate dueOn = row == null ? null : row.dueOn();
-		LocalDate moved = reworkMove(applying.job().id(), applying.milestoneId(), dueOn, applying.now()).orElse(null);
+		LocalDate moved = reworkMove(applying.milestoneId(), row, applying.now()).orElse(null);
 		if (dueOn == null || moved == null) {
 			return;
 		}
@@ -188,7 +192,7 @@ class DueDates {
 		if (row == null || row.dueOn() == null) {
 			return 0;
 		}
-		Instant due = effectiveDueAt(milestoneId, row.dueOn());
+		Instant due = effectiveDueAt(milestoneId, row.dueOn(), row.overdueSince());
 		if (!at.isAfter(due)) {
 			return 0;
 		}
@@ -376,18 +380,20 @@ class DueDates {
 
 	/**
 	 * The effective due time passed with the Milestone still Funded or Revision Requested on that date:
-	 * the flag is recorded once, and the Customer, the Mentor, and the active Crew are told.
+	 * the flag is recorded once, and the Customer, the Mentor, and the active Crew are told. The flag holds the
+	 * Deadline's own due time {@code dueAt}, not the moment the poller ran it, so that a handover's days late are
+	 * counted from the time a freeze really left ({@link #effectiveDueAt}).
 	 * @return whether it applied
 	 */
 	@Transactional
-	boolean overdue(Job job, UUID milestoneId, String generation, UUID deadlineId) {
+	boolean overdue(Job job, UUID milestoneId, String generation, UUID deadlineId, Instant dueAt) {
 		Row row = current(milestoneId, generation);
 		if (row == null) {
 			return false;
 		}
-		int flagged = this.jdbc.sql("UPDATE job.milestone SET overdue_since = :now WHERE id = :id AND overdue_since IS NULL")
+		int flagged = this.jdbc.sql("UPDATE job.milestone SET overdue_since = :since WHERE id = :id AND overdue_since IS NULL")
 			.param("id", milestoneId)
-			.param("now", Timestamp.from(this.clock.instant()))
+			.param("since", Timestamp.from(dueAt))
 			.update();
 		if (flagged == 0) {
 			return false;
@@ -409,15 +415,19 @@ class DueDates {
 
 	private @Nullable Row row(UUID milestoneId) {
 		return this.jdbc.sql("""
-				SELECT job_id, state, due_on, n FROM (
-				    SELECT id, job_id, state, due_on, row_number() OVER (PARTITION BY job_id ORDER BY position, created_at, id) AS n
+				SELECT job_id, state, due_on, n, overdue_since FROM (
+				    SELECT id, job_id, state, due_on, overdue_since,
+				           row_number() OVER (PARTITION BY job_id ORDER BY position, created_at, id) AS n
 				    FROM job.milestone WHERE removed_at IS NULL
 				      AND job_id = (SELECT job_id FROM job.milestone WHERE id = :id)) numbered
 				WHERE id = :id
 				""")
 			.param("id", milestoneId)
-			.query((rs, n) -> new Row(rs.getObject("job_id", UUID.class), rs.getString("state"),
-					rs.getObject("due_on", LocalDate.class), rs.getInt("n")))
+			.query((rs, n) -> {
+				Timestamp overdue = rs.getTimestamp("overdue_since");
+				return new Row(rs.getObject("job_id", UUID.class), rs.getString("state"), rs.getObject("due_on", LocalDate.class),
+						rs.getInt("n"), overdue == null ? null : overdue.toInstant());
+			})
 			.optional()
 			.orElse(null);
 	}

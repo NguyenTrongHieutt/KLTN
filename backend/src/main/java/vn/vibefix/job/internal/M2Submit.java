@@ -89,15 +89,19 @@ class M2Submit implements JobLifecycle.Step {
 		applying.set("submitted_at", applying.now());
 		applying.set("handover_id", handover);
 		applying.set("overdue_since", null);
-		// FR-87, AD-48: the first handover decides "on time", against the due date in force at this moment; a later
-		// handover or a later due date never rewrites it.
+		// FR-87, AD-48: every handover records its days late against the due date in force at this moment, read before
+		// this statement clears the overdue flag. The first handover decides "on time"; a later handover or a later due
+		// date never rewrites that.
+		int daysLate = this.dueDates.daysLate(applying.milestoneId(), applying.now());
+		applying.set("days_late", daysLate);
+		applying.fact("daysLate", String.valueOf(daysLate));
 		Boolean first = this.jdbc.sql("SELECT first_submitted_at IS NULL FROM job.milestone WHERE id = :id")
 			.param("id", applying.milestoneId())
 			.query(Boolean.class)
 			.single();
 		if (first) {
 			applying.set("first_submitted_at", applying.now());
-			applying.set("first_days_late", this.dueDates.daysLate(applying.milestoneId(), applying.now()));
+			applying.set("first_days_late", daysLate);
 		}
 		applying.fact("milestoneId", applying.milestoneId().toString());
 		applying.fact("handoverId", handover.toString());

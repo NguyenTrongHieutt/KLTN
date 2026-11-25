@@ -43,11 +43,12 @@ final class EvidenceReports {
 	 * @param status {@code SUBMITTED}, {@code ACCEPTED}, {@code REVISION_REQUESTED}, or {@code VOIDED}
 	 * @param preview absent when the Mentor gave a reason instead
 	 * @param noPreviewReason why a preview was impossible, in the Mentor's words
+	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, AD-48)
 	 */
 	record EvidenceReport(UUID handoverId, int milestoneNumber, String milestoneTitle, int round, String status,
 			Instant submittedAt, @Nullable Instant decidedAt, boolean auto, @Nullable String handoverCommit,
 			List<EvidenceReportCriterion> criteria, @Nullable EvidencePreview preview, @Nullable String noPreviewReason,
-			List<EvidenceImage> images, List<EvidenceLink> links) {
+			List<EvidenceImage> images, List<EvidenceLink> links, @Nullable Integer daysLate) {
 	}
 
 	private EvidenceReports() {
@@ -71,7 +72,8 @@ final class EvidenceReports {
 				report.links()
 					.stream()
 					.map(link -> new EvidenceLink(link.kind(), link.label(), link.url(), link.domain()))
-					.toList());
+					.toList(),
+				report.daysLate());
 	}
 
 	private static @Nullable EvidencePreview preview(Report report) {

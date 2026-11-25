@@ -122,9 +122,13 @@ class Handovers {
 	}
 
 	/** @param auto accepted by Auto-acceptance (FR-35) */
+	/**
+	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, AD-48), as
+	 * {@code job} counted it at M2; {@code null} for a handover made before the figure was recorded
+	 */
 	record Handover(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, String milestoneTitle, int round,
 			@Nullable UUID mentorId, String status, long jobVersion, Instant checkBy, Instant createdAt,
-			@Nullable Instant decidedAt, boolean auto) {
+			@Nullable Instant decidedAt, boolean auto, @Nullable Integer daysLate) {
 	}
 
 	record Criterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
@@ -239,7 +243,7 @@ class Handovers {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, milestone_title, round, mentor_account_id, status,
-			job_version, check_by, created_at, decided_at, auto
+			job_version, check_by, created_at, decided_at, auto, days_late
 			""";
 
 	private final JdbcClient jdbc;
@@ -433,10 +437,10 @@ class Handovers {
 				    mentor_account_id, status, job_version, transition_id, check_by, created_at,
 				    handover_commit, range_start, pull_number, unattributed_commits, commits_truncated,
 				    sensitive_change_count, preview_url, preview_checked_at, no_preview_reason,
-				    team_code_account_id, team_code_notice_version, team_code_confirmed_at)
+				    team_code_account_id, team_code_notice_version, team_code_confirmed_at, days_late)
 				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :mentor, 'SUBMITTED', :version, :transition,
 				    :checkBy, :now, :commit, :start, :pull, :unattributed, :truncated, :sensitiveCount,
-				    :preview, :previewChecked, :reason, :teamCodeAccount, :teamCodeVersion, :teamCodeAt)
+				    :preview, :previewChecked, :reason, :teamCodeAccount, :teamCodeVersion, :teamCodeAt, :daysLate)
 				""")
 			.param("id", id)
 			.param("job", jobId)
@@ -464,6 +468,8 @@ class Handovers {
 			.param("teamCodeAccount", teamCode == null ? null : teamCode.accountId())
 			.param("teamCodeVersion", teamCode == null ? null : teamCode.noticeVersion())
 			.param("teamCodeAt", teamCode == null ? null : Timestamp.from(teamCode.confirmedAt()))
+			// FR-87, AD-48: the days late job counted at M2, kept with the handover and never changed.
+			.param("daysLate", submitted.daysLate())
 			.update();
 		this.screenshots.attach(id, jobId, pending.mentorId(), pending.screenshotIds());
 		// D3 (AD-32): stored as the Mentor wrote them, in their order, and never requested.
@@ -676,7 +682,7 @@ class Handovers {
 				rs.getInt("milestone_number"), rs.getString("milestone_title"), rs.getInt("round"),
 				rs.getObject("mentor_account_id", UUID.class), rs.getString("status"), rs.getLong("job_version"),
 				Objects.requireNonNull(rs.getTimestamp("check_by")).toInstant(), rs.getTimestamp("created_at").toInstant(),
-				decided == null ? null : decided.toInstant(), rs.getBoolean("auto"));
+				decided == null ? null : decided.toInstant(), rs.getBoolean("auto"), (Integer) rs.getObject("days_late"));
 	}
 
 }

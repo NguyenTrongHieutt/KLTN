@@ -29,9 +29,11 @@ public interface MilestoneHandovers {
 	 * @param checkBy when the Customer should have checked by: the handover plus the Auto-acceptance days
 	 * @param firstReminderAt the handover plus the first reminder's days (FR-35)
 	 * @param secondReminderAt the handover plus the second reminder's days
+	 * @param daysLate how many days after the Milestone's due date in force the handover came, 0 when on time or when
+	 * the Milestone has no due date (FR-87, AD-48)
 	 */
 	record Submitted(UUID transitionId, int number, long version, Instant checkBy, Instant firstReminderAt,
-			Instant secondReminderAt) {
+			Instant secondReminderAt, int daysLate) {
 	}
 
 	Optional<HandoverJob> job(UUID jobId);
