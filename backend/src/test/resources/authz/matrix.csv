@@ -2057,8 +2057,9 @@ GET /api/v1/jobs/{jobId}/agreement,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,CROSS_ROLE,job=crew,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/agreement,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 # The Agreement read-only for the Crew (FR-75, FR-81, AD-41, UX-DR125, Story 25.1b): a picked applicant and an active
-# member read it on an endpoint of their own; a former member, an applicant not picked, the Job's Customer and its
-# Mentor, who keep their own endpoints, and everyone else find nothing there.
+# member read it on an endpoint of their own; a former member, the Job's Customer and its Mentor, who keep their own
+# endpoints, and everyone else find nothing there. An applicant not picked has no Crew row, so `job` knows them as it
+# knows USER; the rule on job=recruit keeps that caller to JOB-9.
 GET /api/v1/crew/jobs/{jobId}/agreement,ANONYMOUS,,,401
 GET /api/v1/crew/jobs/{jobId}/agreement,USER_UNVERIFIED,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,USER,job=crew,,404 NOT_FOUND
@@ -2067,7 +2068,6 @@ GET /api/v1/crew/jobs/{jobId}/agreement,CUSTOMER,,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,CUSTOMER,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,MENTOR,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,BIDDER,job=crew,,404 NOT_FOUND
-GET /api/v1/crew/jobs/{jobId}/agreement,CREW_APPLICANT,job=recruit,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ASSIGNED,job=crew,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE,job=crew,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER,job=crew,,404 NOT_FOUND
