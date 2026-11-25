@@ -57,11 +57,11 @@ public interface CrewPicks {
 
 	/**
 	 * The assignment projection a picked person reads before signing (AD-41, UX-DR103): the Job's title, its scope and
-	 * Milestones with their prices, from the Agreement in force or, before the confirmation, the live draft; nothing
-	 * else of the Job.
+	 * Milestones with their prices, from the Agreement in force or, before the confirmation, the latest version the
+	 * Mentor shared with the Customer, never the Mentor's unshared draft (R54); nothing else of the Job.
 	 * @param rowId the person's {@code ASSIGNED} Crew row
 	 * @param state the Job state's name
-	 * @param scope the scope, absent before the Mentor drafted the Agreement
+	 * @param scope the scope, absent before the Mentor shared a version of the Agreement
 	 * @param codeJob a Code Job, whose signature needs N-23 (FR-18)
 	 */
 	record Assignment(UUID jobId, UUID rowId, String title, String state, @Nullable String scope, boolean codeJob,

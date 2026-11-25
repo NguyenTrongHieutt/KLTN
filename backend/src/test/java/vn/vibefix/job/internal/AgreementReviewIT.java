@@ -481,6 +481,12 @@ class AgreementReviewIT extends IntegrationTest {
 		assertThat(read).doesNotContain("Giá này hơi cao").doesNotContain("Hãy thêm nhắc lịch").doesNotContain("Bản nháp riêng")
 			.doesNotContain("quote").doesNotContain("comments").doesNotContain("changeRequest").doesNotContain("approvedAt")
 			.doesNotContain("crew").doesNotContain("timelineDays");
+		// R54: the Commitment panel's projection reads the same shared version, never the Mentor's unshared draft.
+		assertThat(this.picks.assignment(this.job, this.vy)).hasValueSatisfying(assignment -> {
+			assertThat(assignment.scope()).isEqualTo("Sửa lỗi hai khách đặt trùng bàn.");
+			assertThat(assignment.milestones()).singleElement()
+				.satisfies(milestone -> assertThat(milestone.priceVnd()).isEqualTo(800000L));
+		});
 
 		share(2).andExpect(status().isOk());
 		crewAgreement(this.vy, "").andExpect(status().isOk())
@@ -492,7 +498,11 @@ class AgreementReviewIT extends IntegrationTest {
 		// An earlier shared draft is nobody's to read but the Customer's and the Mentor's.
 		crewAgreement(this.vy, "?version=1&confirmed=false").andExpect(status().isNotFound());
 		crewAgreement(this.vy, "?version=2&confirmed=true").andExpect(status().isNotFound());
+		// A version is named by both parameters together.
 		crewAgreement(this.vy, "?confirmed=false").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "?version=2").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "?version=abc&confirmed=false").andExpect(status().isBadRequest());
+		crewAgreement(this.vy, "?version=-1&confirmed=false").andExpect(status().isNotFound());
 
 		activate(row);
 		crewAgreement(this.vy, "").andExpect(status().isOk())
@@ -513,6 +523,11 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.content").doesNotExist())
 			.andExpect(jsonPath("$.reworkDays").value(5));
 		crewAgreement(this.vy, "?version=1&confirmed=false").andExpect(status().isNotFound());
+		// R54: the Mentor's draft exists (saved in the set-up), and the Commitment panel shows nothing of it.
+		assertThat(this.picks.assignment(this.job, this.vy)).hasValueSatisfying(assignment -> {
+			assertThat(assignment.scope()).isNull();
+			assertThat(assignment.milestones()).isEmpty();
+		});
 	}
 
 	/**
@@ -534,7 +549,11 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(jsonPath("$.liveAccessIds[0]").value(ACCESS.toString()))
 			.andReturn().getResponse().getContentAsString();
 		assertThat(read).doesNotContain("approvedAt").doesNotContain("freeze").doesNotContain("draftVersionNo")
-			.doesNotContain("crew").doesNotContain("quote");
+			.doesNotContain("crew").doesNotContain("quote")
+			// By value too: the confirmed version names the member's GitHub username, and the Crew's read never does.
+			.doesNotContain(TestPeople.login(this.jdbc, this.vy));
+		assertThat(this.jdbc.sql("SELECT crew_usernames[1] FROM job.confirmed_agreement WHERE job_id = :job")
+			.param("job", this.job).query(String.class).single()).isEqualTo(TestPeople.login(this.jdbc, this.vy));
 		crewAgreement(this.vy, "?version=1&confirmed=false").andExpect(status().isNotFound());
 		crewAgreement(this.vy, "?version=2&confirmed=true").andExpect(status().isNotFound());
 
@@ -580,6 +599,12 @@ class AgreementReviewIT extends IntegrationTest {
 		// "Rút lựa chọn": the pick ended before any signature, so no role was ever held.
 		new TransactionTemplate(this.transactions)
 			.executeWithoutResult(status -> this.picks.releasePick(this.job, row, CrewPicks.PickEnd.WITHDRAWN));
+		crewAgreement(this.vy, "").andExpect(status().isNotFound());
+		// "Từ chối": a pick the person declined ends the same way.
+		UUID declined = picked(this.vy);
+		crewAgreement(this.vy, "").andExpect(status().isOk());
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.picks.releasePick(this.job, declined, CrewPicks.PickEnd.DECLINED));
 		crewAgreement(this.vy, "").andExpect(status().isNotFound());
 
 		// A member who left reads nothing of the Agreement any more (AD-41).

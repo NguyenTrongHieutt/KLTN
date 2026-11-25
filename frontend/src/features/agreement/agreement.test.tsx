@@ -339,7 +339,7 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
   it('says nothing is shared yet to a picked applicant, who goes back to the commitment', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW', 'ASSIGNED'),
-      'GET /api/v1/crew/jobs/j1/agreement': () => json(read({ versions: [], shown: undefined, content: undefined })),
+      'GET /api/v1/crew/jobs/j1/agreement': () => json(read({ versions: [], shown: null, content: null })),
     })
     renderAt('/cong-viec/j1/thoa-thuan')
 

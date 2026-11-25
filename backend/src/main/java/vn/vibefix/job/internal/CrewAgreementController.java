@@ -34,7 +34,8 @@ import vn.vibefix.shared.Gate;
  * JOB-6 read-only for the Crew (FR-75, FR-81, AD-41, UX-DR125, Story 25.1b): a picked applicant and an active member
  * read the Agreement they sign for and work under. Until the Agreement is confirmed that is the latest version the
  * Mentor shared with the Customer; from then on, every confirmed version. Never the Mentor's live draft, an earlier
- * shared draft, a comment, the quote, an approval, or a Change Request in progress.
+ * shared draft, a comment, the quote, or a Change Request in progress, and nothing of the Customer's approval but the
+ * systems it marked as live.
  * <p>
  * Every record here is this endpoint's own, copied field by field from what an Agreement says: a field added later to
  * the Customer's or the Mentor's view, or to a stored version, reaches the Crew only when it is added here too.
@@ -106,27 +107,38 @@ class CrewAgreementController {
 	}
 
 	/**
-	 * The version asked for, or the newest the reader may open.
-	 * @param version with {@code confirmed}, the number of the version to show
+	 * The version asked for, or the newest the reader may open. A version is named by both parameters together; with
+	 * neither, the newest is shown.
+	 * @param version the number of the version to show
 	 * @param confirmed whether {@code version} names a confirmed version or the shared draft
-	 * @throws ApiException {@code NOT_FOUND} for anyone but a picked applicant or an active member of the Job, and for a
-	 * version the reader may not open
+	 * @throws ApiException {@code NOT_FOUND} for anyone but a picked applicant or an active member of the Job, for a
+	 * version the reader may not open, and for one parameter given without the other; {@code FORBIDDEN ACCOUNT_LOCKED}
+	 * for such a reader whose account is locked
 	 */
 	@GetMapping("/api/v1/crew/jobs/{jobId}/agreement")
 	CrewAgreementView crewAgreement(@PathVariable UUID jobId, @RequestParam(required = false) @Nullable Integer version,
 			@RequestParam(required = false) @Nullable Boolean confirmed) {
-		String title = readerJob(jobId);
+		String title = readerJobTitle(jobId);
 		List<CrewAgreementOption> options = options(jobId);
 		int reworkDays = this.rules.value(jobId, DueDates.REWORK_RULE, DueDates.DEFAULT_REWORK_DAYS);
-		if (version == null && confirmed == null && options.isEmpty()) {
-			return new CrewAgreementView(title, List.of(), null, null, List.of(), reworkDays);
+		CrewAgreementOption shown;
+		if (version == null && confirmed == null) {
+			if (options.isEmpty()) {
+				return new CrewAgreementView(title, List.of(), null, null, List.of(), reworkDays);
+			}
+			shown = options.getLast();
 		}
-		CrewAgreementOption shown = version == null && confirmed == null ? options.getLast()
-				: options.stream()
-					.filter(option -> version != null && option.versionNo() == version
-							&& option.confirmed() == Boolean.TRUE.equals(confirmed))
-					.findFirst()
-					.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		else if (version == null || confirmed == null) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		else {
+			int number = version;
+			boolean ofConfirmed = confirmed;
+			shown = options.stream()
+				.filter(option -> option.versionNo() == number && option.confirmed() == ofConfirmed)
+				.findFirst()
+				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		}
 		if (shown.confirmed()) {
 			Confirmed found = this.reviews.confirmed(jobId, shown.versionNo())
 				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
@@ -159,7 +171,7 @@ class CrewAgreementController {
 	 * unlocked. A former member, an applicant not picked, the Job's Customer, its Mentor and anyone else find nothing
 	 * here.
 	 */
-	private String readerJob(UUID jobId) {
+	private String readerJobTitle(UUID jobId) {
 		Caller caller = this.callers.get();
 		JobRole role = this.roles.roleOf(jobId, caller);
 		Relationship kind = role.crewKind();

@@ -15,6 +15,7 @@ import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { isNotFound } from '@/lib/problemMessage'
+import { cn } from '@/lib/utils'
 import { AgreementContentView } from './AgreementContent'
 import { useCrewAgreement, type CrewAgreement as CrewAgreementData, type CrewAgreementOption } from './agreementApi'
 
@@ -52,13 +53,27 @@ export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind 
         </div>
       </div>
       <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
-        {agreement.data && <Versions agreement={agreement.data} onPick={setPick} />}
+        {agreement.data && (
+          <Versions agreement={agreement.data} pick={pick} loading={agreement.isPlaceholderData} onPick={setPick} />
+        )}
       </RegionState>
     </Page>
   )
 }
 
-function Versions({ agreement, onPick }: { agreement: CrewAgreementData; onPick: (option: CrewAgreementOption) => void }) {
+function Versions({
+  agreement,
+  pick,
+  loading,
+  onPick,
+}: {
+  agreement: CrewAgreementData
+  /** The version picked in the selector, which may still be loading. */
+  pick?: CrewAgreementOption
+  /** The picked version is loading, and the one before it is still shown. */
+  loading: boolean
+  onPick: (option: CrewAgreementOption) => void
+}) {
   const ids = useId()
   const { shown, content } = agreement
   if (!shown || !content) {
@@ -69,7 +84,7 @@ function Versions({ agreement, onPick }: { agreement: CrewAgreementData; onPick:
     )
   }
   return (
-    <div className="flex w-full max-w-reading-max flex-col gap-5">
+    <div aria-busy={loading} className={cn('flex w-full max-w-reading-max flex-col gap-5', loading && 'opacity-60')}>
       {agreement.versions.length > 1 && (
         <div className="flex flex-col gap-1">
           <label htmlFor={`${ids}-version`} className="text-label">
@@ -77,7 +92,7 @@ function Versions({ agreement, onPick }: { agreement: CrewAgreementData; onPick:
           </label>
           <select
             id={`${ids}-version`}
-            value={shown.versionNo}
+            value={pick?.versionNo ?? shown.versionNo}
             onChange={(event) => {
               const option = agreement.versions.find((version) => version.versionNo === Number(event.target.value))
               if (option) {

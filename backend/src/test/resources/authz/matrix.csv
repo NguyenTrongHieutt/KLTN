@@ -2070,11 +2070,15 @@ GET /api/v1/crew/jobs/{jobId}/agreement,MENTOR,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,BIDDER,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ASSIGNED,job=crew,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE,job=crew,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE_PARTY,job=crew,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER_PARTY,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,CROSS_ROLE,job=crew,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,ADMINISTRATOR,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_DISPUTE_GRANT,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_TEAM_ISSUE_GRANT,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_ABUSE_REPORT_GRANT,job=crew,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
 # JOB-6's Crew list for the Mentor (FR-75, AD-41, Story 21.5): the crew Job's Mentor reads its members (job=crew);
 # the Customer, every Crew state and everyone else find nothing. There is no Crew command here, and none removes a
 # member who signed (FR-75): picks, their withdrawal and the Crew Applications live on JOB-9.
