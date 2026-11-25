@@ -29,6 +29,7 @@ import com.jayway.jsonpath.JsonPath;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.TestPeople;
 import vn.vibefix.timers.internal.DeadlinePoller;
@@ -59,6 +60,9 @@ class OverdueIT extends IntegrationTest {
 
 	@Autowired
 	private DeadlinePoller poller;
+
+	@Autowired
+	private MilestoneHandovers handovers;
 
 	private UUID lan;
 
@@ -140,6 +144,98 @@ class OverdueIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].dueOn").value(NEW_DUE.toString()))
 			.andExpect(jsonPath("$.milestones[0].overdueSince").doesNotExist());
+	}
+
+	/**
+	 * FR-87, AD-48 (Story 25.1): a revision requested on 22/01, after the due date of 20/01, moves the due date to
+	 * 27/01. The pair that waited for 20/01 ends obsolete without flagging anything, the three sides are told, and the
+	 * Milestone is reminded and flagged on the new date as it would have been on the first.
+	 */
+	@Test
+	void aRevisionAfterTheDueDateLeavesTheOldPairObsoleteAndFlagsOnTheNewDate() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		UUID handover = submitted();
+		this.clock.setInstant(Instant.parse("2026-01-22T03:00:00Z"));
+
+		this.handovers.requestRevision(job, this.milestone, this.lan, version(job), handover, 1);
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("2026-01-27");
+		assertThat(notifications(job, "job.milestone_rework_due")).isEqualTo(3);
+		this.poller.runDue();
+		assertThat(count("SELECT count(*) FROM timers.deadline WHERE subject_id = '" + this.milestone
+				+ "' AND generation = '2026-01-20' AND status = 'OBSOLETE'")).isEqualTo(2);
+		assertThat(count("SELECT count(*) FROM timers.deadline WHERE subject_id = '" + this.milestone
+				+ "' AND generation = '2026-01-27' AND status = 'PENDING'")).isEqualTo(2);
+		assertThat(notifications(job, "job.milestone_overdue")).isZero();
+		assertThat(count("SELECT count(*) FROM job.milestone WHERE id = '" + this.milestone + "' AND overdue_since IS NULL"))
+			.isEqualTo(1);
+
+		this.clock.setInstant(Instant.parse("2026-01-27T17:00:01Z"));
+		this.poller.runDue();
+		assertThat(notifications(job, "job.milestone_due_soon")).isEqualTo(2);
+		assertThat(notifications(job, "job.milestone_overdue")).isEqualTo(3);
+		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("REVISION_REQUESTED");
+	}
+
+	/**
+	 * FR-68, FR-87: a freeze pushed the overdue check of 20/01 back to the end of 30/01. A revision on 18/01 would give
+	 * 23/01, which ends earlier than that, so nothing moves: a rework never takes back the time a freeze gave.
+	 */
+	@Test
+	void aReworkNeverShortensTheTimeAFreezeGaveBack() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		this.jdbc.sql("UPDATE timers.deadline SET due_at = :due WHERE kind = 'job.milestone_overdue' AND subject_id = :id")
+			.param("due", Timestamp.from(Instant.parse("2026-01-30T17:00:00Z")))
+			.param("id", this.milestone)
+			.update();
+		UUID handover = submitted();
+		this.clock.setInstant(Instant.parse("2026-01-18T03:00:00Z"));
+
+		this.handovers.requestRevision(job, this.milestone, this.lan, version(job), handover, 1);
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("2026-01-20");
+		assertThat(dueAt("job.milestone_overdue")).isEqualTo(Instant.parse("2026-01-30T17:00:00Z"));
+		assertThat(notifications(job, "job.milestone_rework_due")).isZero();
+	}
+
+	/**
+	 * FR-87: a Change Request to 10/02 was proposed against the due date of 20/01; before it is confirmed a rework moves
+	 * the due date to 20/02. Confirming it must not pull the date in force back to 10/02: the Agreement records 10/02,
+	 * and the Milestone stays due on 20/02.
+	 */
+	@Test
+	void aChangeRequestProposedBeforeAReworkNeverPullsTheDueDateEarlier() throws Exception {
+		UUID job = world();
+		this.dueDates.schedule(job, this.milestone);
+		String body = """
+				{"description":"Cần thêm thời gian","impact":"Thêm ba tuần","items":[{"milestoneId":"%s","newDueOn":"%s"}],
+				 "version":%d}
+				""".formatted(this.milestone, NEW_DUE, version(job));
+		this.mvc.perform(post("/api/v1/boards/" + job + "/change-requests").with(as(this.hung, Role.MENTOR)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body)).andExpect(status().isCreated());
+		String request = JsonPath.read(this.mvc.perform(get("/api/v1/boards/" + job + "/change-requests")
+			.with(as(this.lan, Role.CUSTOMER))).andReturn().getResponse().getContentAsString(), "$.open.id");
+		this.jdbc.sql("UPDATE job.milestone SET due_on = DATE '2026-02-20' WHERE id = :id").param("id", this.milestone).update();
+
+		command(this.lan, Role.CUSTOMER, request, "approve", job).andExpect(status().isOk());
+		command(this.hung, Role.MENTOR, request, "confirm", job).andExpect(status().isOk());
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("2026-02-20");
+		this.mvc.perform(get("/api/v1/boards/" + job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-02-20"))
+			.andExpect(jsonPath("$.milestones[0].agreedDueOn").value(NEW_DUE.toString()));
+	}
+
+	/** The world's Milestone handed over, as M2 leaves the Milestone row; returns the handover's ID. */
+	private UUID submitted() {
+		UUID handover = UUID.randomUUID();
+		this.jdbc.sql("""
+				UPDATE job.milestone SET state = 'SUBMITTED', submitted_at = now(), handover_id = :handover WHERE id = :id
+				""").param("id", this.milestone).param("handover", handover).update();
+		return handover;
 	}
 
 	/** An Active Job with a confirmed Agreement: its one Milestone, due 20/01, Funded. */

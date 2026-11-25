@@ -475,9 +475,17 @@ class ChangeRequests {
 			.param("now", Timestamp.from(now))
 			.update();
 		for (Item item : request.items()) {
-			this.jdbc.sql("UPDATE job.milestone SET due_on = :due WHERE id = :id AND job_id = :job")
+			// FR-87: a rework may have moved the date since the request was proposed. The parties then agreed to their
+			// new date against a date that no longer stands, so it applies only where it is not earlier than the date in
+			// force; the confirmed Agreement still records the date they agreed.
+			this.jdbc.sql("""
+					UPDATE job.milestone
+					SET due_on = CASE WHEN due_on IS NOT DISTINCT FROM :old THEN :due ELSE GREATEST(due_on, :due) END
+					WHERE id = :id AND job_id = :job
+					""")
 				.param("id", item.milestoneId())
 				.param("job", job.id())
+				.param("old", item.oldDueOn())
 				.param("due", item.newDueOn())
 				.update();
 			this.dueDates.rescheduled(job.id(), item.milestoneId());

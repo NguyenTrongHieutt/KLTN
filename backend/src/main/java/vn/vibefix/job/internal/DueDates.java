@@ -112,40 +112,52 @@ class DueDates {
 	}
 
 	/**
-	 * FR-87, AD-48: the due date a Milestone due on {@code dueOn} has once it is sent back for rework at {@code event}:
-	 * the later of {@code dueOn} and the event's day in Vietnam time plus {@code reworkDays}. Never earlier than
-	 * {@code dueOn}.
+	 * FR-68, AD-48: when the Milestone's due date in force really ends. It is the end of {@code dueOn} in Vietnam time,
+	 * or later when a freeze pushed the Milestone's pending overdue Deadline back by the time it was paused. A Deadline
+	 * that already ran, or one of an earlier due date, adds nothing: the plain end of the day then stands.
 	 */
-	static LocalDate reworkDue(LocalDate dueOn, Instant event, int reworkDays) {
-		LocalDate rework = LocalDate.ofInstant(event, VIETNAM).plusDays(reworkDays);
-		return rework.isAfter(dueOn) ? rework : dueOn;
-	}
-
-	/** The due date in force a rework at {@code event} would give the Milestone; {@code null} when it has no due date. */
-	@Nullable LocalDate reworkDue(UUID jobId, @Nullable LocalDate dueOn, Instant event) {
-		return dueOn == null ? null : reworkDue(dueOn, event, this.rules.value(jobId, REWORK_RULE, DEFAULT_REWORK_DAYS));
+	Instant effectiveDueAt(UUID milestoneId, LocalDate dueOn) {
+		Instant plain = dueAt(dueOn);
+		return this.deadlines.dueAt(MilestoneOverdue.KEY, milestoneId).filter(pending -> pending.isAfter(plain)).orElse(plain);
 	}
 
 	/**
-	 * The due date in force a Milestone would have if it were sent back for rework now, for the revision dialog
-	 * (UX-DR128); empty when it has no due date. The date the dialog shows is the date {@link #rework} writes.
+	 * FR-87, AD-48: the due date a rework at {@code event} moves the Milestone to, which is the event's day in Vietnam
+	 * time plus the Job's {@code REWORK_DAYS}; empty when the Milestone has no due date, or when that day does not end
+	 * later than its due date in force does ({@link #effectiveDueAt}), so that a rework never shortens the time a
+	 * freeze gave back.
+	 */
+	private Optional<LocalDate> reworkMove(UUID jobId, UUID milestoneId, @Nullable LocalDate dueOn, Instant event) {
+		if (dueOn == null) {
+			return Optional.empty();
+		}
+		LocalDate rework = LocalDate.ofInstant(event, VIETNAM)
+			.plusDays(this.rules.value(jobId, REWORK_RULE, DEFAULT_REWORK_DAYS));
+		return dueAt(rework).isAfter(effectiveDueAt(milestoneId, dueOn)) ? Optional.of(rework) : Optional.empty();
+	}
+
+	/**
+	 * The due date a revision request made now would move the Milestone to, for the revision dialog (UX-DR128); empty
+	 * when the request would move nothing, so the dialog never announces a "new" date that is the current one. It is
+	 * the date {@link #rework} writes, unless the day changes in Vietnam between the two.
 	 */
 	@Transactional(readOnly = true)
 	Optional<LocalDate> reworkDueOn(UUID milestoneId) {
 		Row row = row(milestoneId);
-		return row == null ? Optional.empty() : Optional.ofNullable(reworkDue(row.jobId(), row.dueOn(), this.clock.instant()));
+		return row == null ? Optional.empty() : reworkMove(row.jobId(), milestoneId, row.dueOn(), this.clock.instant());
 	}
 
 	/**
-	 * In the {@code apply} of M3 or M4 (FR-87, AD-48): when the rework due date is later than the Milestone's due date,
-	 * the transition's own statement writes it and clears the overdue flag, and the facts {@code dueFrom}, {@code dueTo}
-	 * and {@code dueCause} say so. Otherwise nothing moves. A Milestone with no due date gets none.
+	 * In the {@code apply} of M3 or M4 (FR-87, AD-48): when the rework due date ends later than the Milestone's due
+	 * date in force, the transition's own statement writes it and clears the overdue flag, and the facts
+	 * {@code dueFrom}, {@code dueTo} and {@code dueCause} say so. Otherwise nothing moves. A Milestone with no due date
+	 * gets none.
 	 */
 	void rework(Applying applying, Cause cause) {
 		Row row = row(applying.milestoneId());
 		LocalDate dueOn = row == null ? null : row.dueOn();
-		LocalDate moved = reworkDue(applying.job().id(), dueOn, applying.now());
-		if (dueOn == null || moved == null || !moved.isAfter(dueOn)) {
+		LocalDate moved = reworkMove(applying.job().id(), applying.milestoneId(), dueOn, applying.now()).orElse(null);
+		if (dueOn == null || moved == null) {
 			return;
 		}
 		applying.set("due_on", moved);
@@ -153,6 +165,23 @@ class DueDates {
 		applying.fact("dueFrom", dueOn.toString());
 		applying.fact("dueTo", moved.toString());
 		applying.fact("dueCause", cause.name());
+	}
+
+	/**
+	 * FR-87, AD-48: how many days late a handover at {@code at} is: the started 24-hour periods after the Milestone's
+	 * due date in force ended, and 0 when it is not after it or the Milestone has no due date.
+	 */
+	int daysLate(UUID milestoneId, Instant at) {
+		Row row = row(milestoneId);
+		if (row == null || row.dueOn() == null) {
+			return 0;
+		}
+		Instant due = effectiveDueAt(milestoneId, row.dueOn());
+		if (!at.isAfter(due)) {
+			return 0;
+		}
+		long millis = Duration.between(due, at).toMillis();
+		return (int) Math.min(Integer.MAX_VALUE, (millis + 86_399_999L) / 86_400_000L);
 	}
 
 	/**

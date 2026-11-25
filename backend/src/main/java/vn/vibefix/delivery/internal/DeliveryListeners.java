@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.job.AgreementCriteria.MilestoneInForce;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.job.MilestoneHandovers;
+import vn.vibefix.job.MilestoneStates;
+import vn.vibefix.job.MilestoneStates.MilestoneDetail;
 import vn.vibefix.notification.Audience;
 import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
@@ -20,8 +22,8 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * M1, M3, and M4 make a Milestone wait for its handover (FR-32, UX-DR15): the Mentor gets
- * {@code delivery.hand_over}, due at the end of the Milestone's due date in Vietnam time, which stands
- * for {@code effectiveDueAt} until FR-68's extensions exist. M2 closes it in {@link Handovers}. Each is
+ * {@code delivery.hand_over}, due at the end of the Milestone's due date in force in Vietnam time (FR-87,
+ * AD-48), without the time a freeze adds. M2 closes it in {@link Handovers}. Each is
  * replay-safe through {@link ProcessedEvents}. M5 on an Assessment Job opens the Mentor's follow-up to-do
  * (FR-11).
  */
@@ -40,8 +42,11 @@ class DeliveryListeners {
 
 	private final ProcessedEvents processedEvents;
 
+	private final MilestoneStates states;
+
 	DeliveryListeners(Handovers handovers, FollowUps followUps, MilestoneHandovers jobs, Todos todos,
-			ProcessedEvents processedEvents) {
+			ProcessedEvents processedEvents, MilestoneStates states) {
+		this.states = states;
 		this.handovers = handovers;
 		this.followUps = followUps;
 		this.jobs = jobs;
@@ -67,8 +72,12 @@ class DeliveryListeners {
 			if (inForce == null) {
 				return;
 			}
+			// FR-87, AD-48: the to-do is due by the due date in force, which the M3 or M4 that reopens it may just have
+			// moved; the Agreement's date stands only for a Milestone with no live row.
+			MilestoneDetail live = this.states.detailsOf(job.jobId()).get(milestone);
+			LocalDate dueOn = live == null || live.dueOn() == null ? inForce.dueOn() : live.dueOn();
 			this.todos.open(new TodoRequest(Handovers.HAND_OVER, job.mentorId(), Audience.MENTOR, milestone,
-					Map.of("n", String.valueOf(inForce.number())), "/cong-viec/" + job.jobId() + "/ban-giao", due(inForce.dueOn()),
+					Map.of("n", String.valueOf(inForce.number())), "/cong-viec/" + job.jobId() + "/ban-giao", due(dueOn),
 					job.jobId()));
 		});
 	}

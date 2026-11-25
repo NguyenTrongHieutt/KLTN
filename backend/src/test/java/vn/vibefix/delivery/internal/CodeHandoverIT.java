@@ -1271,11 +1271,13 @@ class CodeHandoverIT extends IntegrationTest {
 	void aRevisionAfterTheDueDateGivesTheMilestoneAReworkDueDate() throws Exception {
 		due(LocalDate.parse("2026-11-20"));
 		UUID handover = handedOver();
-		this.clock.setInstant(Instant.parse("2026-11-22T03:00:00Z"));
+		// 01:30 on 22/11 in Vietnam, and still 21/11 in UTC: the rework days count from the Vietnam day.
+		this.clock.setInstant(Instant.parse("2026-11-21T18:30:00Z"));
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-11-20"))
-			.andExpect(jsonPath("$.milestones[0].agreedDueOn").doesNotExist())
-			.andExpect(jsonPath("$.milestones[0].reworkDueOn").value("2026-11-27"));
+			.andExpect(jsonPath("$.milestones[0].agreedDueOn").doesNotExist());
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.decision.reworkDueOn").value("2026-11-27"));
 
 		requestRevision(handover).andExpect(status().isOk());
 
@@ -1289,10 +1291,23 @@ class CodeHandoverIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(jsonPath("$.milestones[0].state").value("REVISION_REQUESTED"))
 			.andExpect(jsonPath("$.milestones[0].dueOn").value("2026-11-27"))
-			.andExpect(jsonPath("$.milestones[0].agreedDueOn").value("2026-11-20"))
-			.andExpect(jsonPath("$.milestones[0].reworkDueOn").doesNotExist());
+			.andExpect(jsonPath("$.milestones[0].agreedDueOn").value("2026-11-20"));
+		// The Mentor's hand-over to-do, reopened by the same request, is due by the date in force, not the agreed one.
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> openTodos("delivery.hand_over", this.hung) == 1);
+		assertThat(this.jdbc.sql("""
+				SELECT deadline_at FROM notification.todo
+				WHERE todo_key = 'delivery.hand_over' AND account_id = :id AND closed_at IS NULL
+				""").param("id", this.hung).query((rs, n) -> rs.getTimestamp("deadline_at").toInstant()).single())
+			.isEqualTo(Instant.parse("2026-11-27T17:00:00Z"));
 
-		// The rework due date passes with no new handover: flagged again, as for the original date (FR-68).
+		// The rework due date passes with no new handover: flagged again, as for the original date (FR-68), and not
+		// one second before the end of that day in Vietnam.
+		this.clock.setInstant(Instant.parse("2026-11-27T16:59:59Z"));
+		this.poller.runDue();
+		assertThat(this.jdbc.sql("SELECT overdue_since IS NULL FROM job.milestone WHERE id = :id")
+			.param("id", this.milestone)
+			.query(Boolean.class)
+			.single()).isTrue();
 		this.clock.setInstant(Instant.parse("2026-11-27T17:00:01Z"));
 		this.poller.runDue();
 		assertThat(this.jdbc.sql("SELECT overdue_since IS NOT NULL FROM job.milestone WHERE id = :id")
@@ -1301,11 +1316,18 @@ class CodeHandoverIT extends IntegrationTest {
 			.single()).isTrue();
 	}
 
-	/** FR-87: a revision requested while the due date is further away than the rework days moves nothing. */
+	/**
+	 * FR-87: a revision requested when the rework days end on the due date itself moves nothing (15/11 plus 5 days is
+	 * 20/11, which is not later), and the dialog is offered no "new" date.
+	 */
 	@Test
-	void aRevisionWellBeforeTheDueDateMovesNothing() throws Exception {
+	void aRevisionWhoseReworkDaysEndOnTheDueDateMovesNothing() throws Exception {
 		due(LocalDate.parse("2026-11-20"));
 		UUID handover = handedOver();
+		this.clock.setInstant(Instant.parse("2026-11-15T03:00:00Z"));
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.decision.revisionAllowed").value(true))
+			.andExpect(jsonPath("$.decision.reworkDueOn").doesNotExist());
 
 		requestRevision(handover).andExpect(status().isOk());
 
@@ -1313,6 +1335,29 @@ class CodeHandoverIT extends IntegrationTest {
 		assertThat(dueMoves("job.milestone_due_moved.%")).isZero();
 		awaitPublications();
 		assertThat(notifications("job.milestone_rework_due", this.hung)).isZero();
+	}
+
+	/**
+	 * FR-87, FR-62, AD-48: the first handover decides "on time". It came 34 hours after the due date ended, so it is 2
+	 * days late; the rework that follows moves the due date and the second handover meets it, and the Milestone is
+	 * still late.
+	 */
+	@Test
+	void aLateFirstHandoverStaysLateAfterAReworkAndASecondHandover() throws Exception {
+		due(LocalDate.parse("2026-01-03"));
+		UUID first = handedOver();
+		assertThat(firstDaysLate()).isEqualTo(2);
+
+		requestRevision(first).andExpect(status().isOk());
+		assertThat(dueOn()).isEqualTo(LocalDate.parse("2026-01-10"));
+		closePullRequests(first);
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = 'again';\n", "Sửa theo yêu cầu", "hung@example.test");
+		preflight();
+		copied(version(), head, List.of("src/booking.js"));
+
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		assertThat(firstDaysLate()).as("the second handover meets 10/01, and the Milestone is still late").isEqualTo(2);
 	}
 
 	/** FR-87: the Job's own copy of {@code REWORK_DAYS} decides, never today's setting (AD-7). */
@@ -1743,6 +1788,14 @@ class CodeHandoverIT extends IntegrationTest {
 		return this.jdbc.sql("SELECT due_on FROM job.milestone WHERE id = :id")
 			.param("id", this.milestone)
 			.query(LocalDate.class)
+			.single();
+	}
+
+	/** How many days late the Milestone's first handover was, as M2 recorded it once (FR-87). */
+	private int firstDaysLate() {
+		return this.jdbc.sql("SELECT first_days_late FROM job.milestone WHERE id = :id")
+			.param("id", this.milestone)
+			.query(Integer.class)
 			.single();
 	}
 

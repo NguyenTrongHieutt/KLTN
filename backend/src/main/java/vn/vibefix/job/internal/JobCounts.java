@@ -15,10 +15,11 @@ import vn.vibefix.shared.PlatformCounts;
 class JobCounts implements PlatformCounts {
 
 	/**
-	 * FR-62's on-time formula, defined once (Story 17.2, X12): the accepted handover of {@code job.milestone m} was
-	 * submitted before the end of its due day, Vietnam time.
+	 * FR-62's on-time formula, defined once (Story 17.2, X12; FR-87, AD-48 since Story 25.1): the first handover of
+	 * {@code job.milestone m} came by the end of the due date in force at that moment. M2 records it once as
+	 * {@code first_days_late}, so a later handover or a due date a rework moved never changes the answer.
 	 */
-	static final String ON_TIME = "m.submitted_at < ((m.due_on + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')";
+	static final String ON_TIME = "m.first_days_late = 0";
 
 	/** The Milestones {@link #ON_TIME} counts over: live, accepted, and with a due date. */
 	static final String ACCEPTED_DATED = "m.removed_at IS NULL AND m.accepted_at IS NOT NULL AND m.due_on IS NOT NULL";

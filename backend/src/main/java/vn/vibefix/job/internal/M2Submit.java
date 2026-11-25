@@ -49,7 +49,10 @@ class M2Submit implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	M2Submit(JdbcClient jdbc, M1Fund numbers, MentorDirectory mentors, Notifications notifications) {
+	private final DueDates dueDates;
+
+	M2Submit(JdbcClient jdbc, M1Fund numbers, MentorDirectory mentors, Notifications notifications, DueDates dueDates) {
+		this.dueDates = dueDates;
 		this.jdbc = jdbc;
 		this.numbers = numbers;
 		this.mentors = mentors;
@@ -86,6 +89,16 @@ class M2Submit implements JobLifecycle.Step {
 		applying.set("submitted_at", applying.now());
 		applying.set("handover_id", handover);
 		applying.set("overdue_since", null);
+		// FR-87, AD-48: the first handover decides "on time", against the due date in force at this moment; a later
+		// handover or a later due date never rewrites it.
+		Boolean first = this.jdbc.sql("SELECT first_submitted_at IS NULL FROM job.milestone WHERE id = :id")
+			.param("id", applying.milestoneId())
+			.query(Boolean.class)
+			.single();
+		if (first) {
+			applying.set("first_submitted_at", applying.now());
+			applying.set("first_days_late", this.dueDates.daysLate(applying.milestoneId(), applying.now()));
+		}
 		applying.fact("milestoneId", applying.milestoneId().toString());
 		applying.fact("handoverId", handover.toString());
 		if (applying.has("handoverCommit")) {
