@@ -241,10 +241,11 @@ class JobCrewPicks implements CrewPicks {
 			return Optional.empty();
 		}
 		Job job = this.crews.current(jobId);
-		// The Agreement in force, or before the confirmation the live draft (AD-41): its scope and Milestones only.
+		// The Agreement in force, or before the confirmation the latest version the Mentor shared with the Customer, as
+		// the Agreement read gives it (CrewAgreementController); never the Mentor's live draft (AD-41, R54).
 		Content content = this.reviews.confirmed(jobId)
 			.map(AgreementReviews.Confirmed::content)
-			.or(() -> this.agreements.draft(job).map(Agreements.Draft::content))
+			.or(() -> this.agreements.version(jobId, null).map(Agreements.Version::content))
 			.orElse(null);
 		List<AssignmentMilestone> milestones = content == null ? List.of()
 				: content.milestones()

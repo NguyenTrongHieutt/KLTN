@@ -162,7 +162,7 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
 }
 
 /** The confirmed Agreement, read-only, in place of the editor (FR-17, AD-29). */
-export function ConfirmedView({ confirmed }: { confirmed: ConfirmedAgreement }) {
+export function ConfirmedView({ confirmed, reworkDays }: { confirmed: ConfirmedAgreement; reworkDays: number }) {
   return (
     <div className="flex w-full max-w-reading-max flex-col gap-5">
       <Card as="section" role="status" className="flex flex-col gap-1 text-body-sm">
@@ -181,6 +181,7 @@ export function ConfirmedView({ confirmed }: { confirmed: ConfirmedAgreement }) 
       </Card>
       <AgreementContentView
         content={confirmed.content}
+        reworkDays={reworkDays}
         review={{
           jobId: '',
           versionNo: confirmed.draftVersionNo,

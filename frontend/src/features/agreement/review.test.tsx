@@ -56,6 +56,7 @@ const job = {
 }
 
 const shared = (overrides: object = {}) => ({
+  reworkDays: 5,
   versionNo: 1,
   sharedAt: '2026-10-20T09:20:00Z',
   versions: [{ versionNo: 1, sharedAt: '2026-10-20T09:20:00Z' }],
@@ -224,6 +225,7 @@ const mentorJob = {
 }
 
 const draft = (review: object = {}, overrides: object = {}) => ({
+  reworkDays: 5,
   revision: 4,
   state: 'AGREEMENT',
   versions: [{ versionNo: 1, sharedAt: '2026-10-20T09:20:00Z' }],

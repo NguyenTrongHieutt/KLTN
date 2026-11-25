@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
 import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
 import { apiClient, unwrap } from '@/lib/apiClient'
@@ -12,6 +12,8 @@ export type AgreementComment = components['schemas']['AgreementCommentView']
 export type CommentTarget = AgreementComment['targetKind']
 export type AgreementReview = components['schemas']['AgreementReviewView']
 export type ConfirmedAgreement = components['schemas']['ConfirmedAgreementView']
+export type CrewAgreement = components['schemas']['CrewAgreementView']
+export type CrewAgreementOption = components['schemas']['CrewAgreementOption']
 
 const key = (jobId: string) => ['agreement', jobId] as const
 
@@ -51,6 +53,24 @@ export function useCustomerAgreement(jobId: string, version: number | undefined)
     queryFn: () =>
       unwrap(apiClient.GET('/api/v1/jobs/{jobId}/agreement', { params: { path: { jobId }, query: { version } } })),
     retry: false,
+  })
+}
+
+/**
+ * The Agreement as a picked applicant or an active member reads it (FR-75, Story 25.1b): the newest version they may
+ * open, or the one picked. The version shown stays in place while another loads.
+ */
+export function useCrewAgreement(jobId: string, pick: CrewAgreementOption | undefined) {
+  return useQuery({
+    queryKey: [...key(jobId), 'crew', pick?.confirmed, pick?.versionNo],
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/v1/crew/jobs/{jobId}/agreement', {
+          params: { path: { jobId }, query: { version: pick?.versionNo, confirmed: pick?.confirmed } },
+        }),
+      ),
+    retry: false,
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -25,6 +25,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.job.JobRules;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Content;
 import vn.vibefix.job.internal.Agreements.CriterionInput;
@@ -127,10 +128,13 @@ class AgreementController {
 	record QuoteView(long priceVnd, int timelineDays) {
 	}
 
-	/** The Mentor's editor: the live draft, what keeps it from being shared, and the Customer's review. */
+	/**
+	 * The Mentor's editor: the live draft, what keeps it from being shared, and the Customer's review.
+	 * @param reworkDays the Job's copied {@code REWORK_DAYS}, for the note on due dates (FR-87)
+	 */
 	record AgreementDraftView(int revision, Content content, List<Problem> problems, @Nullable QuoteView quote,
 			List<VersionSummary> versions, JobState state, AgreementReviewView review,
-			@Nullable ConfirmedAgreementView confirmed) {
+			@Nullable ConfirmedAgreementView confirmed, int reworkDays) {
 	}
 
 	/**
@@ -140,11 +144,13 @@ class AgreementController {
 	 * @param agreementStartedAt J4's time, from which the timeline is compared with the quote
 	 * @param changeRequested an open change request names this version
 	 * @param approvedAt when the Customer approved this version, if they did
+	 * @param reworkDays the Job's copied {@code REWORK_DAYS}, for the note on due dates (FR-87)
 	 */
 	record AgreementVersionView(int versionNo, Instant sharedAt, Content content,
 			List<VersionSummary> versions, @Nullable QuoteView quote, List<String> crew,
 			int latestVersionNo, @Nullable Instant agreementStartedAt, List<AgreementCommentView> comments,
-			boolean changeRequested, @Nullable Instant approvedAt, @Nullable ConfirmedAgreementView confirmed) {
+			boolean changeRequested, @Nullable Instant approvedAt, @Nullable ConfirmedAgreementView confirmed,
+			int reworkDays) {
 	}
 
 	private final Agreements agreements;
@@ -163,9 +169,12 @@ class AgreementController {
 
 	private final JobRoleReader roles;
 
+	private final JobRules rules;
+
 	AgreementController(Agreements agreements, Jobs jobs, ActiveAccount gate, CurrentCaller callers, JdbcClient jdbc,
-			CrewService crews, AgreementReviews reviews, JobRoleReader roles) {
+			CrewService crews, AgreementReviews reviews, JobRoleReader roles, JobRules rules) {
 		this.roles = roles;
+		this.rules = rules;
 		this.crews = crews;
 		this.reviews = reviews;
 		this.agreements = agreements;
@@ -252,7 +261,7 @@ class AgreementController {
 				startedAt(job.id()), this.reviews.comments(job.id(), shared.versionNo()).stream().map(this::commentView).toList(),
 				this.reviews.openChangeRequest(job.id()).filter(request -> request.versionNo() == shared.versionNo()).isPresent(),
 				this.reviews.approval(job.id(), shared.versionNo()).map(Approval::approvedAt).orElse(null),
-				this.reviews.confirmed(job.id()).map(this::confirmedView).orElse(null));
+				this.reviews.confirmed(job.id()).map(this::confirmedView).orElse(null), reworkDays(job.id()));
 	}
 
 	private AgreementDraftView view(Job job, Draft draft) {
@@ -265,7 +274,12 @@ class AgreementController {
 				shared != null && this.reviews.draftMatchesShared(job, shared));
 		return new AgreementDraftView(draft.revision(), draft.content(), this.agreements.problems(draft.content()),
 				quote(job.id()), this.agreements.versions(job.id()), job.state(), review,
-				this.reviews.confirmed(job.id()).map(this::confirmedView).orElse(null));
+				this.reviews.confirmed(job.id()).map(this::confirmedView).orElse(null), reworkDays(job.id()));
+	}
+
+	/** The days a rework gets at least (FR-87), as the Job was published with them. */
+	private int reworkDays(UUID jobId) {
+		return this.rules.value(jobId, DueDates.REWORK_RULE, DueDates.DEFAULT_REWORK_DAYS);
 	}
 
 	private AgreementCommentView commentView(Comment comment) {

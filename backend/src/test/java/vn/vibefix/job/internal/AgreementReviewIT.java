@@ -451,6 +451,193 @@ class AgreementReviewIT extends IntegrationTest {
 			.query(Long.class).single();
 	}
 
+	/**
+	 * FR-75, FR-81, AD-41, Story 25.1b: a picked applicant reads the latest draft the Mentor shared with the Customer, in
+	 * full, and nothing of the review, the quote or the Mentor's live draft; an active member reads the same.
+	 */
+	@Test
+	void aPickedApplicantAndAnActiveMemberReadTheLatestSharedDraftAndNothingOfItsReview() throws Exception {
+		comment(1, "SCOPE", null).andExpect(status().isCreated());
+		changes(jobVersion(), 1).andExpect(status().isNoContent());
+		save(1, "Bản nháp riêng của người hướng dẫn.").andExpect(status().isOk());
+		UUID row = picked(this.vy);
+
+		String read = crewAgreement(this.vy, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.jobTitle").value("Sửa lỗi đặt bàn"))
+			.andExpect(jsonPath("$.versions.length()").value(1))
+			.andExpect(jsonPath("$.shown.confirmed").value(false))
+			.andExpect(jsonPath("$.shown.versionNo").value(1))
+			.andExpect(jsonPath("$.content.scope").value("Sửa lỗi hai khách đặt trùng bàn."))
+			.andExpect(jsonPath("$.content.priceVnd").value(800000))
+			.andExpect(jsonPath("$.content.milestones[0].title").value("Sửa lỗi trùng giờ"))
+			.andExpect(jsonPath("$.content.milestones[0].priceVnd").value(800000))
+			.andExpect(jsonPath("$.content.milestones[0].dueOn").value("2026-11-20"))
+			.andExpect(jsonPath("$.content.milestones[0].revisionRounds").value(2))
+			.andExpect(jsonPath("$.content.milestones[0].criteria[0].checkSteps").value("1. Mở. 2. Đặt."))
+			.andExpect(jsonPath("$.content.externalAccess[0].system").value("Supabase"))
+			.andExpect(jsonPath("$.liveAccessIds.length()").value(0))
+			.andExpect(jsonPath("$.reworkDays").value(5))
+			.andReturn().getResponse().getContentAsString();
+		assertThat(read).doesNotContain("Giá này hơi cao").doesNotContain("Hãy thêm nhắc lịch").doesNotContain("Bản nháp riêng")
+			.doesNotContain("quote").doesNotContain("comments").doesNotContain("changeRequest").doesNotContain("approvedAt")
+			.doesNotContain("crew").doesNotContain("timelineDays");
+		// R54: the Commitment panel's projection reads the same shared version, never the Mentor's unshared draft.
+		assertThat(this.picks.assignment(this.job, this.vy)).hasValueSatisfying(assignment -> {
+			assertThat(assignment.scope()).isEqualTo("Sửa lỗi hai khách đặt trùng bàn.");
+			assertThat(assignment.milestones()).singleElement()
+				.satisfies(milestone -> assertThat(milestone.priceVnd()).isEqualTo(800000L));
+		});
+
+		share(2).andExpect(status().isOk());
+		crewAgreement(this.vy, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.versions.length()").value(1))
+			.andExpect(jsonPath("$.shown.versionNo").value(2))
+			.andExpect(jsonPath("$.content.scope").value("Bản nháp riêng của người hướng dẫn."));
+		crewAgreement(this.vy, "?version=2&confirmed=false").andExpect(status().isOk())
+			.andExpect(jsonPath("$.shown.versionNo").value(2));
+		// An earlier shared draft is nobody's to read but the Customer's and the Mentor's.
+		crewAgreement(this.vy, "?version=1&confirmed=false").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "?version=2&confirmed=true").andExpect(status().isNotFound());
+		// A version is named by both parameters together.
+		crewAgreement(this.vy, "?confirmed=false").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "?version=2").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "?version=abc&confirmed=false").andExpect(status().isBadRequest());
+		crewAgreement(this.vy, "?version=-1&confirmed=false").andExpect(status().isNotFound());
+
+		activate(row);
+		crewAgreement(this.vy, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.shown.confirmed").value(false))
+			.andExpect(jsonPath("$.shown.versionNo").value(2));
+	}
+
+	/** Story 25.1b: before the Mentor shared anything, the Crew's read answers with no version. */
+	@Test
+	void beforeAnyShareTheCrewReadsNoVersion() throws Exception {
+		this.jdbc.sql("DELETE FROM job.agreement_version WHERE job_id = :job").param("job", this.job).update();
+		picked(this.vy);
+
+		crewAgreement(this.vy, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.jobTitle").value("Sửa lỗi đặt bàn"))
+			.andExpect(jsonPath("$.versions.length()").value(0))
+			.andExpect(jsonPath("$.shown").doesNotExist())
+			.andExpect(jsonPath("$.content").doesNotExist())
+			.andExpect(jsonPath("$.reworkDays").value(5));
+		crewAgreement(this.vy, "?version=1&confirmed=false").andExpect(status().isNotFound());
+		// R54: the Mentor's draft exists (saved in the set-up), and the Commitment panel shows nothing of it.
+		assertThat(this.picks.assignment(this.job, this.vy)).hasValueSatisfying(assignment -> {
+			assertThat(assignment.scope()).isNull();
+			assertThat(assignment.milestones()).isEmpty();
+		});
+	}
+
+	/**
+	 * Story 25.1b: once the Agreement is confirmed the Crew reads every confirmed version, each as it was confirmed, with
+	 * the systems the Customer marked as live, and no shared draft any more; nothing of the approval or the Crew's names.
+	 */
+	@Test
+	void afterTheConfirmationTheCrewReadsEveryConfirmedVersion() throws Exception {
+		confirmedCrew(this.vy, 0);
+		approve(jobVersion(), 1, true, List.of(ACCESS)).andExpect(status().isNoContent());
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+
+		String read = crewAgreement(this.vy, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.versions.length()").value(1))
+			.andExpect(jsonPath("$.versions[0].confirmed").value(true))
+			.andExpect(jsonPath("$.shown.confirmed").value(true))
+			.andExpect(jsonPath("$.shown.versionNo").value(1))
+			.andExpect(jsonPath("$.content.scope").value("Sửa lỗi hai khách đặt trùng bàn."))
+			.andExpect(jsonPath("$.liveAccessIds[0]").value(ACCESS.toString()))
+			.andReturn().getResponse().getContentAsString();
+		assertThat(read).doesNotContain("approvedAt").doesNotContain("freeze").doesNotContain("draftVersionNo")
+			.doesNotContain("crew").doesNotContain("quote")
+			// By value too: the confirmed version names the member's GitHub username, and the Crew's read never does.
+			.doesNotContain(TestPeople.login(this.jdbc, this.vy));
+		assertThat(this.jdbc.sql("SELECT crew_usernames[1] FROM job.confirmed_agreement WHERE job_id = :job")
+			.param("job", this.job).query(String.class).single()).isEqualTo(TestPeople.login(this.jdbc, this.vy));
+		crewAgreement(this.vy, "?version=1&confirmed=false").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "?version=2&confirmed=true").andExpect(status().isNotFound());
+
+		// A Change Request's confirmation adds version 2 (FR-36, AD-29).
+		this.jdbc.sql("""
+				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames, live_access_ids,
+				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
+				SELECT job_id, 2, draft_version_no, jsonb_set(content, '{scope}', '"Phạm vi sau yêu cầu thay đổi."'), crew_usernames,
+				       CAST('{}' AS UUID[]), freeze_committed, customer_account_id, approved_at, mentor_account_id, :now
+				FROM job.confirmed_agreement WHERE job_id = :job AND version_no = 1
+				""").param("job", this.job).param("now", Timestamp.from(this.clock.instant().plus(Duration.ofDays(1)))).update();
+		crewAgreement(this.vy, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.versions.length()").value(2))
+			.andExpect(jsonPath("$.shown.versionNo").value(2))
+			.andExpect(jsonPath("$.content.scope").value("Phạm vi sau yêu cầu thay đổi."))
+			.andExpect(jsonPath("$.liveAccessIds.length()").value(0));
+		crewAgreement(this.vy, "?version=1&confirmed=true").andExpect(status().isOk())
+			.andExpect(jsonPath("$.shown.versionNo").value(1))
+			.andExpect(jsonPath("$.content.scope").value("Sửa lỗi hai khách đặt trùng bàn."))
+			.andExpect(jsonPath("$.liveAccessIds[0]").value(ACCESS.toString()));
+	}
+
+	/**
+	 * Story 25.1b, AD-41: the Crew's read is nobody else's. The Customer and the Mentor keep their own endpoints, and a
+	 * stranger, a pick that ended and a member who left find nothing.
+	 */
+	@Test
+	void nobodyButAPickedApplicantOrAnActiveMemberReadsTheCrewsAgreement() throws Exception {
+		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/agreement").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/agreement")).andExpect(status().isUnauthorized());
+		UUID minh = member("Trần Quang Minh");
+		crewAgreement(minh, "").andExpect(status().isNotFound());
+		crewAgreement(this.vy, "").andExpect(status().isNotFound());
+
+		UUID row = picked(this.vy);
+		crewAgreement(this.vy, "").andExpect(status().isOk());
+		crewAgreement(minh, "").andExpect(status().isNotFound());
+		this.mvc.perform(get("/api/v1/crew/jobs/" + UUID.randomUUID() + "/agreement").with(as(this.vy, Role.STUDENT)))
+			.andExpect(status().isNotFound());
+		// "Rút lựa chọn": the pick ended before any signature, so no role was ever held.
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.picks.releasePick(this.job, row, CrewPicks.PickEnd.WITHDRAWN));
+		crewAgreement(this.vy, "").andExpect(status().isNotFound());
+		// "Từ chối": a pick the person declined ends the same way.
+		UUID declined = picked(this.vy);
+		crewAgreement(this.vy, "").andExpect(status().isOk());
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.picks.releasePick(this.job, declined, CrewPicks.PickEnd.DECLINED));
+		crewAgreement(this.vy, "").andExpect(status().isNotFound());
+
+		// A member who left reads nothing of the Agreement any more (AD-41).
+		activate(picked(minh));
+		crewAgreement(minh, "").andExpect(status().isOk());
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/crew/leave").with(as(minh, Role.STUDENT)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isNoContent());
+		crewAgreement(minh, "").andExpect(status().isNotFound());
+
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.reworkDays").value(5));
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/agreement").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.reworkDays").value(5));
+	}
+
+	/** FR-87, Story 25.1b: every reader's note on due dates carries the days the Job was published with. */
+	@Test
+	void theThreeAgreementViewsCarryTheJobsOwnReworkDays() throws Exception {
+		this.jdbc.sql("UPDATE job.job SET rules = rules || '{\"REWORK_DAYS\":7}'::jsonb WHERE id = :id").param("id", this.job)
+			.update();
+		picked(this.vy);
+
+		crewAgreement(this.vy, "").andExpect(status().isOk()).andExpect(jsonPath("$.reworkDays").value(7));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.reworkDays").value(7));
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + this.job + "/agreement").with(as(this.hung, Role.MENTOR)))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.reworkDays").value(7));
+	}
+
+	private ResultActions crewAgreement(UUID account, String query) throws Exception {
+		return this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/agreement" + query).with(as(account, Role.STUDENT)));
+	}
+
 	private ResultActions save(int revision, String scope) throws Exception {
 		return this.mvc.perform(put("/api/v1/mentor/jobs/" + this.job + "/agreement").with(as(this.hung, Role.MENTOR)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)

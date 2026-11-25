@@ -24,9 +24,10 @@ import { formatVnd, groupDigits } from '@/lib/money'
 import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { TestTag } from '@/components/TestTag'
-import { CodeRights } from './AgreementContent'
+import { CodeRights, DueRulesNote } from './AgreementContent'
 import { useMentorAgreement, useSaveAgreement, useShareAgreement, type AgreementContent, type AgreementDraft } from './agreementApi'
 import { digits, problemsOf, technicalOnly, type DraftAccess, type DraftMilestone, type DraftProblem } from './agreementChecks'
+import { CrewAgreement } from './CrewAgreement'
 import { CustomerAgreement } from './CustomerAgreement'
 import { ChangeRequestSection } from './ChangeRequestSection'
 import { ExternalAccessSection } from './ExternalAccessSection'
@@ -40,7 +41,8 @@ import { Card } from '@/components/ui/card'
  * JOB-6 "Thỏa thuận" (`/cong-viec/{jobId}/thoa-thuan`, FR-16, FR-17, FR-75, AD-29, UX-DR34, UX-DR60):
  * the Mentor drafts and shares the Agreement with the Customer's comments in view, sees the Crew who signed below the
  * editor (recruited on JOB-9, Story 21.5), and confirms once the Customer approved, with no Crew condition (R7); the
- * Customer reviews the shared versions (`CustomerAgreement`). The caller's role in the Job picks which (Story 20.6).
+ * Customer reviews the shared versions (`CustomerAgreement`); a picked applicant and an active Crew member read it
+ * (`CrewAgreement`, Story 25.1b). The caller's role in the Job picks which (Story 20.6).
  */
 export function AgreementPage() {
   const { jobId = '' } = useParams()
@@ -49,6 +51,10 @@ export function AgreementPage() {
       jobId={jobId || undefined}
       customer={() => <CustomerAgreement jobId={jobId} />}
       mentor={() => <MentorAgreement jobId={jobId} />}
+      // A member who left reads the Agreement no more (AD-41): the API answers not-found, so nothing is asked.
+      crew={(role) =>
+        role.crewKind === 'FORMER' ? <NotFoundScreen /> : <CrewAgreement key={jobId} jobId={jobId} kind={role.crewKind} />
+      }
     />
   )
 }
@@ -95,7 +101,7 @@ function MentorAgreement({ jobId }: { jobId: string }) {
         <RegionState query={draft} skeleton={<Skeleton className="h-96 w-full" />}>
           {draft.data &&
             (draft.data.confirmed ? (
-              <ConfirmedView confirmed={draft.data.confirmed} />
+              <ConfirmedView confirmed={draft.data.confirmed} reworkDays={draft.data.reworkDays} />
             ) : (
               <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
             ))}
@@ -321,6 +327,7 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
             </Button>
           )}
         </div>
+        <DueRulesNote days={draft.reworkDays} />
       </section>
 
       {!assessment && <AccessEditor access={access} onChange={touch(setAccess)} />}

@@ -885,6 +885,8 @@ describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.
     expect(n19).toHaveTextContent('(@minh-dev)')
     expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn cùng giờ.')).toBeInTheDocument()
     expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng bàn')).toBeInTheDocument()
+    // FR-81, UX-DR125, Story 25.1b: the one other thing of the Job a pick opens before signing.
+    expect(screen.getByRole('link', { name: 'Đọc thỏa thuận' })).toHaveAttribute('href', '/cong-viec/j1/thoa-thuan')
     expect(screen.getByText(/Phần của người hướng dẫn tối đa 30%/)).toBeInTheDocument()
     expect(screen.getByText(/Mỗi bản phân chia có 3 ngày/)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Cam kết tham gia · phiên bản 1.0' })).toBeInTheDocument()

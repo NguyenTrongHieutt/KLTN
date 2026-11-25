@@ -1,6 +1,7 @@
 package vn.vibefix.job.internal;
 
 import java.sql.Array;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -92,6 +93,10 @@ class AgreementReviews {
 	/** The confirmed Agreement: who confirmed when, the usernames of that moment, never a share. */
 	record Confirmed(int versionNo, int draftVersionNo, List<String> crew, List<UUID> liveAccessIds, boolean freezeCommitted,
 			Instant approvedAt, Instant confirmedAt, Content content) {
+	}
+
+	/** One confirmed version in a list of them. */
+	record ConfirmedSummary(int versionNo, Instant confirmedAt) {
 	}
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -419,21 +424,47 @@ class AgreementReviews {
 		return JSON.readValue(json, Content.class);
 	}
 
-	/** The confirmed Agreement, once the Mentor confirmed. */
+	private static final String CONFIRMED_COLUMNS = """
+			version_no, draft_version_no, crew_usernames, live_access_ids, freeze_committed, approved_at, confirmed_at,
+			content::text AS content""";
+
+	/** The confirmed Agreement, once the Mentor confirmed: its latest version. */
 	@Transactional(readOnly = true)
 	Optional<Confirmed> confirmed(UUID jobId) {
-		return this.jdbc.sql("""
-				SELECT version_no, draft_version_no, crew_usernames, live_access_ids, freeze_committed, approved_at, confirmed_at,
-				       content::text AS content
-				FROM job.confirmed_agreement WHERE job_id = :job ORDER BY version_no DESC LIMIT 1
-				""")
+		return this.jdbc
+			.sql("SELECT " + CONFIRMED_COLUMNS + " FROM job.confirmed_agreement WHERE job_id = :job ORDER BY version_no DESC LIMIT 1")
 			.param("job", jobId)
-			.query((rs, n) -> new Confirmed(rs.getInt("version_no"), rs.getInt("draft_version_no"),
-					Arrays.stream((Object[]) rs.getArray("crew_usernames").getArray()).map(String.class::cast).toList(),
-					uuids(rs.getArray("live_access_ids")), rs.getBoolean("freeze_committed"),
-					rs.getTimestamp("approved_at").toInstant(), rs.getTimestamp("confirmed_at").toInstant(),
-					JSON.readValue(rs.getString("content"), Content.class)))
+			.query(AgreementReviews::confirmedRow)
 			.optional();
+	}
+
+	/** One confirmed version as it was confirmed, whatever came after it (AD-29). */
+	@Transactional(readOnly = true)
+	Optional<Confirmed> confirmed(UUID jobId, int versionNo) {
+		return this.jdbc
+			.sql("SELECT " + CONFIRMED_COLUMNS + " FROM job.confirmed_agreement WHERE job_id = :job AND version_no = :no")
+			.param("job", jobId)
+			.param("no", versionNo)
+			.query(AgreementReviews::confirmedRow)
+			.optional();
+	}
+
+	/** Every confirmed version, oldest first. */
+	@Transactional(readOnly = true)
+	List<ConfirmedSummary> confirmedVersions(UUID jobId) {
+		return this.jdbc
+			.sql("SELECT version_no, confirmed_at FROM job.confirmed_agreement WHERE job_id = :job ORDER BY version_no")
+			.param("job", jobId)
+			.query((rs, n) -> new ConfirmedSummary(rs.getInt("version_no"), rs.getTimestamp("confirmed_at").toInstant()))
+			.list();
+	}
+
+	private static Confirmed confirmedRow(ResultSet rs, int n) throws SQLException {
+		return new Confirmed(rs.getInt("version_no"), rs.getInt("draft_version_no"),
+				Arrays.stream((Object[]) rs.getArray("crew_usernames").getArray()).map(String.class::cast).toList(),
+				uuids(rs.getArray("live_access_ids")), rs.getBoolean("freeze_committed"),
+				rs.getTimestamp("approved_at").toInstant(), rs.getTimestamp("confirmed_at").toInstant(),
+				JSON.readValue(rs.getString("content"), Content.class));
 	}
 
 	// ---- Helpers ------------------------------------------------------------------------------

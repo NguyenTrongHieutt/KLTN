@@ -25,7 +25,7 @@ import { Card } from '@/components/ui/card'
 /**
  * JOB-1 for a Crew member (FR-77, UX-DR68, UX-DR87, Story 21.6), in every state from their signature on, so before
  * the Job starts too: the Job's title and Product, "Bạn là: Thành viên nhóm", the ways to its handovers and its
- * Crew Chat, "Rời công việc" until Closing, the step tracker while it has anything to show (UX-DR23), and the progress
+ * Crew Chat, the Agreement read-only (Story 25.1b), "Rời công việc" until Closing, the step tracker while it has anything to show (UX-DR23), and the progress
  * overview with N-12. A former member, one whose lock counted as leaving included, reads
  * JOB-H's banner and gets their post-Job duties instead, with no way to the handovers (AD-41). "Phân chia tiền"
  * (JOB-10) shows for a party of a split, active or former: only the party's own splits answer (Story 22.2); beside
@@ -75,6 +75,12 @@ function Content({ me }: { me: CrewMe }) {
             <Link to={`/cong-viec/${jobId}/trao-doi-nhom`} className={tab}>
               {t('screen.crewChat.tab')}
             </Link>
+            {/* Read-only, for an active member (FR-75, Story 25.1b); a member who left reads it no more (AD-41). */}
+            {!me.former && (
+              <Link to={`/cong-viec/${jobId}/thoa-thuan`} className={tab}>
+                {t('screen.agreement.tab')}
+              </Link>
+            )}
             {splits.data && splits.data.length > 0 && (
               <>
                 <Link to={`/cong-viec/${jobId}/phan-chia`} className={tab}>

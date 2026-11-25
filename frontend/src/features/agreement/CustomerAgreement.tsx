@@ -115,6 +115,7 @@ function Review({ job, agreement }: { job: Job; agreement: AgreementVersion }) {
         content={agreement.content}
         quotePrice={agreement.quote?.priceVnd}
         milestones={inOrder(agreement.content.milestones, order)}
+        reworkDays={agreement.reworkDays}
         review={{
           jobId: job.id,
           versionNo: agreement.versionNo,

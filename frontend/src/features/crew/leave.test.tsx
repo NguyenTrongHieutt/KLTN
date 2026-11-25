@@ -103,6 +103,8 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     expect(await screen.findByText('Bạn là: Thành viên nhóm')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Rời công việc' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Trao đổi nhóm' })).toBeInTheDocument()
+    // FR-75, Story 25.1b: an active member reads the Agreement they work under.
+    expect(screen.getByRole('link', { name: 'Thỏa thuận' })).toHaveAttribute('href', '/cong-viec/j1/thoa-thuan')
     expect(screen.queryByRole('link', { name: 'Bảng công việc' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
   })
@@ -229,6 +231,7 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     await waitFor(() => expect(confirmed).toEqual(['PREVIEWS']))
     expect(screen.queryByRole('button', { name: 'Rời công việc' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Bàn giao' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Thỏa thuận' })).toBeNull()
   })
 
   it('leaves a former member nothing but their duties on a cancelled Job', { timeout: 20_000 }, async () => {
