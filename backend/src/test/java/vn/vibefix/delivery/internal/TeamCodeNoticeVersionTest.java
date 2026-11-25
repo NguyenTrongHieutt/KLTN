@@ -36,7 +36,8 @@ class TeamCodeNoticeVersionTest {
 
 	/** Each N-33 version's text: the SHA-256 of its title, a line feed, and its checkbox, as {@code vi.json} holds them. */
 	private static final Map<String, String> TEXTS = Map.of("1.0",
-			"e60f3f273b80b76ba8c18d1bfbc424227a00c240f810c8fcdafe94dbd8912160");
+			"e60f3f273b80b76ba8c18d1bfbc424227a00c240f810c8fcdafe94dbd8912160", "1.1",
+			"a3348e447d8f00c4ae1b44daf0fb8a58d266464a660bdcd3d64a1d2b118852a8");
 
 	@Test
 	@SuppressWarnings("unchecked")

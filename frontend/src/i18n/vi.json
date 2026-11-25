@@ -3596,7 +3596,7 @@
       "checkbox": "Tôi xác nhận: trong toàn bộ lịch sử của {repo} đến commit {shortSha}, mọi secret và mật khẩu đã được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng tôi đã được gỡ. Tôi hiểu vibefix không quét mã, và người hướng dẫn cùng nhóm thực hiện sẽ đọc toàn bộ lịch sử này."
     },
     "teamCode": {
-      "version": "1.0",
+      "version": "1.1",
       "versionLine": "Lưu ý về mã của nhóm · phiên bản {version}",
       "title": "Mã của nhóm không được vibefix quét",
       "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các commit của bàn giao này không chứa secret, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",

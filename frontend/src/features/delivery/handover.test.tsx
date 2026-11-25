@@ -916,7 +916,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     expect(await screen.findByText('Đang sao chép bàn giao Giai đoạn 1…')).toBeInTheDocument()
     expect(send).toBeDisabled()
-    expect(sent).toMatchObject({ teamCodeNoticeVersion: '1.0' })
+    expect(sent).toMatchObject({ teamCodeNoticeVersion: '1.1' })
     // Story 23.8b: the Actions run status row says where the runner's run stands, and links nothing.
     const row = await screen.findByRole('group', { name: 'Sao chép bàn giao Giai đoạn 1' })
     expect(within(row).getByText('Đang chạy')).toBeInTheDocument()

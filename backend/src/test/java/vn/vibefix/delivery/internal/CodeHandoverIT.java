@@ -98,7 +98,7 @@ class CodeHandoverIT extends IntegrationTest {
 	private static final String TUNNEL = "https://exchange.example.test";
 
 	/** N-33's version in force, which "Gửi bàn giao" names and the handover records (FR-25, R28, Story 23.8b). */
-	private static final String TEAM_CODE_NOTICE = "1.0";
+	private static final String TEAM_CODE_NOTICE = "1.1";
 
 	/** The Platform App's webhook secret (Story 24.5a), fake and built at run time. */
 	private static final byte[] PLATFORM_SECRET;
