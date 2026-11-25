@@ -132,7 +132,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
     expect(screen.getByText('Bạn không cần làm gì.')).toBeInTheDocument()
   })
 
-  it('shows the Customer the SHA confirmation card, enabled once ticked, and records the head with N-32 1.0', async () => {
+  it('shows the Customer the SHA confirmation card, enabled once ticked, and records the head with N-32 1.1', async () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     fakeBackend(signedInUser, {
@@ -168,7 +168,7 @@ describe('JOB-H step tracker (UX-DR114, AD-11, Stories 23.6c and 23.11b)', () =>
 
     expect(await screen.findByText(/Đã xác nhận commit/)).toHaveTextContent('Đã xác nhận commit e4f5a6b lúc 14:05 13/11')
     expect(sent).toEqual([{ sha: HEAD, noticeVersion: '1.1' }])
-    expect(messages.notice.selfConfirmation.version).toBe('1.0')
+    expect(messages.notice.selfConfirmation.version).toBe('1.1')
     expect(screen.getByText('Sao chép trên GitHub Actions của bạn')).toBeInTheDocument()
     expect(within(copyRow()).getByText('Đang chờ GitHub')).toHaveTextContent('Trạng thái lần chạy: Đang chờ GitHub')
   })

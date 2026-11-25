@@ -1002,7 +1002,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     await user.click(await screen.findByRole('radio', { name: 'Đạt' }))
     await user.type(screen.getByRole('textbox', { name: /Ghi chú cho tiêu chí 1/ }), 'Đã thử.')
-    expect(await screen.findByText(/Lưu ý về mã của nhóm · phiên bản 1\.0/)).toBeInTheDocument()
+    expect(await screen.findByText(/Lưu ý về mã của nhóm · phiên bản 1\.1/)).toBeInTheDocument()
     await user.click(teamCode())
     await user.click(screen.getByRole('button', { name: 'Gửi bàn giao' }))
 
