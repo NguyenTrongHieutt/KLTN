@@ -170,7 +170,16 @@ class EvidencePackageIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].milestones[0].dueInForce").doesNotExist());
 		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].daysLate").doesNotExist());
-		this.jdbc.sql("UPDATE delivery.handover SET days_late = 2 WHERE id = :id").param("id", this.handover).update();
+		// The figure is written with the handover and never after: the runtime role may not update the column.
+		UUID late = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, no_preview_reason, days_late)
+				VALUES (:id, :job, :product, :milestone, 1, 'Giai đoạn 1', 2, :mentor, 'SUBMITTED', 6, :transition, :at, :at,
+				    'Ứng dụng chỉ chạy trên máy của quán', 2)
+				""").param("id", late).param("job", this.world.job()).param("product", this.world.product())
+			.param("milestone", this.world.milestone()).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
+			.param("at", Timestamp.from(this.clock.instant())).update();
 		this.jdbc.sql("UPDATE job.milestone SET due_on = DATE '2027-03-31' WHERE id = :id")
 			.param("id", this.world.milestone())
 			.update();
@@ -178,7 +187,9 @@ class EvidencePackageIT extends IntegrationTest {
 		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].milestones[0].dueInForce").value("2027-03-31"));
 		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].daysLate").value(2));
+			.andExpect(jsonPath("$[?(@.handoverId == '" + late + "')].daysLate").value(2))
+			.andExpect(jsonPath("$[?(@.handoverId == '" + this.handover + "')].daysLate")
+				.value(Matchers.contains(Matchers.nullValue())));
 	}
 
 	@Test
