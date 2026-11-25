@@ -24,6 +24,18 @@ export function CodeRights() {
   )
 }
 
+/**
+ * FR-87: the two cases in which a Milestone's due date moves later with no new Agreement version, for every reader of
+ * the Agreement, with the days a rework gets at least in this Job.
+ */
+export function DueRulesNote({ days }: { days: number }) {
+  return (
+    <p role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
+      {t('screen.agreement.dueRules', { days })}
+    </p>
+  )
+}
+
 type AgreementMilestone = AgreementContent['milestones'][number]
 
 /** What the Customer may do on the version shown (FR-16): comment, reorder, mark live systems. */
@@ -51,11 +63,14 @@ export function AgreementContentView({
   quotePrice,
   milestones = content.milestones,
   review,
+  reworkDays,
 }: {
   content: AgreementContent
   quotePrice?: number
   milestones?: AgreementMilestone[]
   review?: ReviewControls
+  /** The Job's rework days, for the note on due dates (FR-87). */
+  reworkDays?: number
 }) {
   const total = milestones.reduce((sum, milestone) => sum + (milestone.priceVnd ?? 0), 0)
   return (
@@ -94,6 +109,7 @@ export function AgreementContentView({
             </>
           )}
         </p>
+        {reworkDays !== undefined && <DueRulesNote days={reworkDays} />}
       </section>
       {content.externalAccess.length > 0 && (
         <Card as="section" className="flex flex-col gap-3">

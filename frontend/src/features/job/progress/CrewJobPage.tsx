@@ -75,6 +75,12 @@ function Content({ me }: { me: CrewMe }) {
             <Link to={`/cong-viec/${jobId}/trao-doi-nhom`} className={tab}>
               {t('screen.crewChat.tab')}
             </Link>
+            {/* Read-only, for an active member (FR-75, Story 25.1b); a member who left reads it no more (AD-41). */}
+            {!me.former && (
+              <Link to={`/cong-viec/${jobId}/thoa-thuan`} className={tab}>
+                {t('screen.agreement.tab')}
+              </Link>
+            )}
             {splits.data && splits.data.length > 0 && (
               <>
                 <Link to={`/cong-viec/${jobId}/phan-chia`} className={tab}>

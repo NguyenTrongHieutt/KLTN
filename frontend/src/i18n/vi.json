@@ -2137,6 +2137,15 @@
       "priceHelp": "đồng, gồm phần của bạn và của nhóm thực hiện",
       "skills": "Kỹ năng",
       "milestones": "Các giai đoạn",
+      "dueRules": "Hạn của một giai đoạn có thể dời muộn hơn trong hai trường hợp: khi khách hàng thanh toán giai đoạn trễ hơn dự kiến, hạn dời đúng số ngày trễ; khi khách hàng yêu cầu sửa hoặc bàn giao bị hủy, giai đoạn có ít nhất {days} ngày để sửa. Thỏa thuận vẫn ghi ngày hai bên đã thống nhất.",
+      "crew": {
+        "backJob": "Về trang công việc",
+        "backPost": "Về cam kết tham gia",
+        "readOnly": "Bạn chỉ đọc được thỏa thuận này",
+        "readOnlyPicked": "Bạn đọc thỏa thuận này trước khi ký cam kết; bạn chỉ đọc được.",
+        "empty": "Chưa có bản thỏa thuận nào được chia sẻ.",
+        "shared": "Bản nháp {n}, người hướng dẫn gửi cho khách hàng lúc {time}. Nội dung còn có thể thay đổi cho đến khi khách hàng duyệt và người hướng dẫn xác nhận."
+      },
       "milestone": "Giai đoạn {n}",
       "milestoneTitle": "Tên giai đoạn",
       "milestonePrice": "Giá",
@@ -3516,6 +3525,7 @@
       "milestone": "Giai đoạn {n} · {title}",
       "milestoneDue": "hạn {date}",
       "noShare": "Không có phần chia để xác nhận lúc này: sau mỗi giai đoạn được nghiệm thu, người hướng dẫn đề xuất phần trăm cho từng người.",
+      "readAgreement": "Đọc thỏa thuận",
       "splitRules": "Quy tắc phân chia tiền",
       "ruleCap": "Phần của người hướng dẫn tối đa {n}% số tiền mỗi giai đoạn khi trong nhóm còn thành viên.",
       "ruleDraft": "Người hướng dẫn soạn phân chia trong {n} ngày sau khi giai đoạn được nghiệm thu; quá hạn thì phần chia mặc định được dùng.",

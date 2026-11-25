@@ -42,6 +42,7 @@ const milestone = (overrides: object = {}) => ({
 const draft = (overrides: object = {}, content: object = {}) => ({
   revision: 1,
   state: 'AGREEMENT',
+  reworkDays: 5,
   review: { comments: [], draftMatchesShared: false },
   quote: { priceVnd: 800000, timelineDays: 7 },
   versions: [],
@@ -97,6 +98,8 @@ describe('JOB-6 for the Mentor: draft the Agreement (FR-16)', () => {
     expect(await screen.findByText(/Báo giá trong đơn chào giá: 800.000 VND · 7 ngày/)).toBeInTheDocument()
     expect(screen.getByText(/Các thay đổi về database và cấu hình/)).toBeInTheDocument()
     expect(screen.getByText('Quyền đối với mã')).toBeInTheDocument()
+    // FR-87, Story 25.1b: every reader of the Agreement sees the two due-date rules with the Job's rework days.
+    expect(screen.getByText(/Hạn của một giai đoạn có thể dời muộn hơn trong hai trường hợp.*có ít nhất 5 ngày để sửa/)).toBeInTheDocument()
     const alert = screen.getByRole('alert')
     expect(within(alert).getByText('Tiêu chí 1 của Giai đoạn 1 chưa có nội dung hoặc cách kiểm tra.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gửi cho khách hàng' })).toBeDisabled()
@@ -166,6 +169,7 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
   }
   const version = (versionNo: number) => ({
     versionNo,
+    reworkDays: 7,
     sharedAt: '2026-10-20T09:20:00Z',
     versions: [
       { versionNo: 1, sharedAt: '2026-10-19T03:00:00Z' },
@@ -260,6 +264,7 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ đặt bàn' })).toBeInTheDocument()
     expect(screen.getByText('· 3 bước kiểm tra')).toBeInTheDocument()
     expect(screen.getByText('khớp báo giá')).toBeInTheDocument()
+    expect(screen.getByText(/Hạn của một giai đoạn có thể dời muộn hơn trong hai trường hợp.*có ít nhất 7 ngày để sửa/)).toBeInTheDocument()
     expect(screen.getByText('Staging')).toBeInTheDocument()
     expect(screen.getByText('minhtq')).toBeInTheDocument()
     // Story 21.5: the Customer sees the usernames of the members who signed, with no Crew confirmation to wait for.
@@ -283,5 +288,100 @@ describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
     const router = renderAt('/cong-viec/j1/thoa-thuan')
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/cong-viec/j1'))
+  })
+})
+
+describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', () => {
+  const content = {
+    scope: 'Sửa lỗi hai khách đặt trùng bàn.',
+    priceVnd: 800000,
+    codeJob: true,
+    assessment: false,
+    skills: [{ id: 's1', name: 'React' }],
+    milestones: [milestone({ criteria: [{ id: 'c1', statement: 'Hai khách không đặt trùng bàn', checkSteps: '1. Mở. 2. Đặt.' }] })],
+    externalAccess: [{ id: 'a1', system: 'Supabase', purpose: 'Đọc bảng đặt bàn', environment: 'NON_PRODUCTION', accessLevel: 'READ' }],
+  }
+  const sharedDraft = { confirmed: false, versionNo: 2, at: '2026-10-20T03:00:00Z' }
+  const read = (overrides: object = {}) => ({
+    jobTitle: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+    versions: [sharedDraft],
+    shown: sharedDraft,
+    content,
+    liveAccessIds: [],
+    reworkDays: 5,
+    ...overrides,
+  })
+
+  it('shows an active member the shared draft with nothing to act on', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/crew/jobs/j1/agreement': () => json(read()),
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sửa lỗi đặt bàn và thêm nhắc lịch' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Về trang công việc' })).toHaveAttribute('href', '/cong-viec/j1')
+    expect(screen.getByText('Bạn chỉ đọc được thỏa thuận này')).toBeInTheDocument()
+    expect(await screen.findByText('Bạn là: Thành viên nhóm')).toBeInTheDocument()
+    expect(screen.getByText(/^Bản nháp 2, người hướng dẫn gửi cho khách hàng lúc .* Nội dung còn có thể thay đổi/)).toBeInTheDocument()
+    expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ đặt bàn' })).toBeInTheDocument()
+    expect(screen.getByText('Staging')).toBeInTheDocument()
+    expect(screen.getByText(/có ít nhất 5 ngày để sửa/)).toBeInTheDocument()
+    // One version to read: no selector, and nothing of the Customer's review or the quote.
+    expect(screen.queryByRole('combobox', { name: 'Phiên bản' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Góp ý/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Duyệt thỏa thuận' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Yêu cầu sửa' })).toBeNull()
+    expect(screen.queryByText(/báo giá/)).toBeNull()
+  })
+
+  it('says nothing is shared yet to a picked applicant, who goes back to the commitment', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/agreement': () => json(read({ versions: [], shown: undefined, content: undefined })),
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Chưa có bản thỏa thuận nào được chia sẻ.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Về cam kết tham gia' })).toHaveAttribute('href', '/tim-viec/j1')
+    expect(screen.getByText('Bạn đọc thỏa thuận này trước khi ký cam kết; bạn chỉ đọc được.')).toBeInTheDocument()
+    // A pick not yet signed is not called a member.
+    expect(screen.queryByText('Bạn là: Thành viên nhóm')).toBeNull()
+    expect(screen.queryByText(/Hạn của một giai đoạn/)).toBeNull()
+  })
+
+  it('lets a member open every confirmed version, with the live systems marked', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const first = { confirmed: true, versionNo: 1, at: '2026-10-21T03:00:00Z' }
+    const second = { confirmed: true, versionNo: 2, at: '2026-11-02T03:00:00Z' }
+    const seen = fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/crew/jobs/j1/agreement': (request) => {
+        const query = new URL(request.url).searchParams
+        return query.get('version') === '1'
+          ? json(read({ versions: [first, second], shown: first, liveAccessIds: ['a1'] }))
+          : json(read({ versions: [first, second], shown: second, content: { ...content, scope: 'Phạm vi sau yêu cầu thay đổi.' } }))
+      },
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Thỏa thuận · phiên bản 2')).toBeInTheDocument()
+    expect(screen.getByText('Phạm vi sau yêu cầu thay đổi.')).toBeInTheDocument()
+    expect(screen.getByText('Staging')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Phiên bản' }), '1')
+
+    expect(await screen.findByText('Thỏa thuận · phiên bản 1')).toBeInTheDocument()
+    expect(seen.some((request) => request.url.includes('version=1') && request.url.includes('confirmed=true'))).toBe(true)
+    expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn.')).toBeInTheDocument()
+    expect(screen.getByText('Production')).toBeInTheDocument()
+  })
+
+  it('shows a member who left the not-found screen', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, { ...inEveryJob('CREW', 'FORMER') })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
   })
 })

@@ -3659,6 +3659,48 @@
         "tags" : [ "crew-chat-controller" ]
       }
     },
+    "/api/v1/crew/jobs/{jobId}/agreement" : {
+      "get" : {
+        "operationId" : "crewAgreement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "version",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirmed",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CrewAgreementView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crew-agreement-controller" ]
+      }
+    },
     "/api/v1/crew/jobs/{jobId}/commitment" : {
       "get" : {
         "operationId" : "commitment",
@@ -9144,6 +9186,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "reworkDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "state" : {
             "type" : "string",
             "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
@@ -9155,7 +9201,7 @@
             }
           }
         },
-        "required" : [ "content", "problems", "review", "revision", "state", "versions" ]
+        "required" : [ "content", "problems", "review", "revision", "reworkDays", "state", "versions" ]
       },
       "AgreementReviewView" : {
         "type" : "object",
@@ -9222,6 +9268,10 @@
           "quote" : {
             "$ref" : "#/components/schemas/QuoteView"
           },
+          "reworkDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "sharedAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -9237,7 +9287,7 @@
             }
           }
         },
-        "required" : [ "changeRequested", "comments", "content", "crew", "latestVersionNo", "sharedAt", "versionNo", "versions" ]
+        "required" : [ "changeRequested", "comments", "content", "crew", "latestVersionNo", "reworkDays", "sharedAt", "versionNo", "versions" ]
       },
       "AnswerTeamIssueRequest" : {
         "type" : "object",
@@ -10866,6 +10916,176 @@
           }
         },
         "required" : [ "id" ]
+      },
+      "CrewAgreementAccess" : {
+        "type" : "object",
+        "properties" : {
+          "accessLevel" : {
+            "type" : "string",
+            "enum" : [ "READ", "WRITE", "ADMIN" ]
+          },
+          "environment" : {
+            "type" : "string",
+            "enum" : [ "NON_PRODUCTION", "PRODUCTION" ]
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "purpose" : {
+            "type" : "string"
+          },
+          "system" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessLevel", "environment", "id", "purpose", "system" ]
+      },
+      "CrewAgreementContent" : {
+        "type" : "object",
+        "properties" : {
+          "assessment" : {
+            "type" : "boolean"
+          },
+          "codeJob" : {
+            "type" : "boolean"
+          },
+          "externalAccess" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewAgreementAccess"
+            }
+          },
+          "milestones" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewAgreementMilestone"
+            }
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "skills" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewAgreementSkill"
+            }
+          }
+        },
+        "required" : [ "assessment", "codeJob", "externalAccess", "milestones", "scope", "skills" ]
+      },
+      "CrewAgreementCriterion" : {
+        "type" : "object",
+        "properties" : {
+          "checkSteps" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checkSteps", "id", "statement" ]
+      },
+      "CrewAgreementMilestone" : {
+        "type" : "object",
+        "properties" : {
+          "criteria" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewAgreementCriterion"
+            }
+          },
+          "dueOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "priceVnd" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "revisionRounds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "criteria", "id", "revisionRounds", "title" ]
+      },
+      "CrewAgreementOption" : {
+        "type" : "object",
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "confirmed" : {
+            "type" : "boolean"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "at", "confirmed", "versionNo" ]
+      },
+      "CrewAgreementSkill" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ]
+      },
+      "CrewAgreementView" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "$ref" : "#/components/schemas/CrewAgreementContent"
+          },
+          "jobTitle" : {
+            "type" : "string"
+          },
+          "liveAccessIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "reworkDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "shown" : {
+            "$ref" : "#/components/schemas/CrewAgreementOption"
+          },
+          "versions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CrewAgreementOption"
+            }
+          }
+        },
+        "required" : [ "jobTitle", "liveAccessIds", "reworkDays", "versions" ]
       },
       "CrewApplicationSkillView" : {
         "type" : "object",

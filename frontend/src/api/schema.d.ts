@@ -1700,6 +1700,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crew/jobs/{jobId}/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["crewAgreement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crew/jobs/{jobId}/commitment": {
         parameters: {
             query?: never;
@@ -4195,6 +4211,8 @@ export interface components {
             review: components["schemas"]["AgreementReviewView"];
             /** Format: int32 */
             revision: number;
+            /** Format: int32 */
+            reworkDays: number;
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
             versions: components["schemas"]["VersionSummary"][];
@@ -4221,6 +4239,8 @@ export interface components {
             /** Format: int32 */
             latestVersionNo: number;
             quote?: components["schemas"]["QuoteView"];
+            /** Format: int32 */
+            reworkDays: number;
             /** Format: date-time */
             sharedAt: string;
             /** Format: int32 */
@@ -4804,6 +4824,65 @@ export interface components {
         CreatedView: {
             /** Format: uuid */
             id: string;
+        };
+        CrewAgreementAccess: {
+            /** @enum {string} */
+            accessLevel: "READ" | "WRITE" | "ADMIN";
+            /** @enum {string} */
+            environment: "NON_PRODUCTION" | "PRODUCTION";
+            /** Format: uuid */
+            id: string;
+            purpose: string;
+            system: string;
+        };
+        CrewAgreementContent: {
+            assessment: boolean;
+            codeJob: boolean;
+            externalAccess: components["schemas"]["CrewAgreementAccess"][];
+            milestones: components["schemas"]["CrewAgreementMilestone"][];
+            /** Format: int64 */
+            priceVnd?: number;
+            scope: string;
+            skills: components["schemas"]["CrewAgreementSkill"][];
+        };
+        CrewAgreementCriterion: {
+            checkSteps: string;
+            /** Format: uuid */
+            id: string;
+            statement: string;
+        };
+        CrewAgreementMilestone: {
+            criteria: components["schemas"]["CrewAgreementCriterion"][];
+            /** Format: date */
+            dueOn?: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            priceVnd?: number;
+            /** Format: int32 */
+            revisionRounds: number;
+            title: string;
+        };
+        CrewAgreementOption: {
+            /** Format: date-time */
+            at: string;
+            confirmed: boolean;
+            /** Format: int32 */
+            versionNo: number;
+        };
+        CrewAgreementSkill: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        CrewAgreementView: {
+            content?: components["schemas"]["CrewAgreementContent"];
+            jobTitle: string;
+            liveAccessIds: string[];
+            /** Format: int32 */
+            reworkDays: number;
+            shown?: components["schemas"]["CrewAgreementOption"];
+            versions: components["schemas"]["CrewAgreementOption"][];
         };
         CrewApplicationSkillView: {
             /** Format: uuid */
@@ -10386,6 +10465,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    crewAgreement: {
+        parameters: {
+            query?: {
+                version?: number;
+                confirmed?: boolean;
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrewAgreementView"];
+                };
             };
         };
     };

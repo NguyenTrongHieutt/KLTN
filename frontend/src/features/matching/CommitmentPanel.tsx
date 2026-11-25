@@ -144,6 +144,12 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
           </ol>
         )}
         <p className="text-caption text-muted-foreground">{t('screen.commitment.noShare')}</p>
+        <Link
+          to={`/cong-viec/${commitment.jobId}/thoa-thuan`}
+          className={cn(buttonVariants({ variant: 'secondary', size: 'compact' }), 'w-fit')}
+        >
+          {t('screen.commitment.readAgreement')}
+        </Link>
       </div>
       <div className="flex flex-col gap-2">
         <h3 className="text-label font-semibold">{t('screen.commitment.splitRules')}</h3>
