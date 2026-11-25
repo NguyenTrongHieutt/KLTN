@@ -46,7 +46,8 @@ import vn.vibefix.timers.Deadlines;
  * state: it moves no money, and a handover (M2) or a later due date clears it. No automatic penalty.
  * <p>
  * FR-87, AD-48 (Story 25.1): {@code job.milestone.due_on} is the due date in force. A revision request (M4) or a
- * voided handover (M3) moves it to the rework due date when that is later ({@link #rework}, {@link #reworked}); the
+ * voided handover (M3) moves it to the rework due date when that is later ({@link #rework}, {@link #reworked}), and
+ * funding later than the planned start (M1) moves it by the days funding was late ({@link #fundedLate}); the
  * confirmed Agreement keeps the date the parties agreed, and no Agreement version is written.
  */
 @Component
@@ -72,7 +73,7 @@ class DueDates {
 	/** FR-63: the Audit Log holds no values, so the cause of a due-date move is the action's last part. */
 	static final String AUDIT_MOVED = "job.milestone_due_moved.";
 
-	/** FR-87: a Milestone funded later than its planned start is due later by the same days, for the three sides. */
+	/** FR-87: a Milestone whose work started later than planned is due later by the same days, for the three sides. */
 	static final String DUE_MOVED = "job.milestone_due_moved";
 
 	/** Why a due date moved (FR-87): a revision request (M4), a voided handover (M3), or funding later than planned (M1). */
@@ -208,17 +209,19 @@ class DueDates {
 	}
 
 	/**
-	 * In the {@code apply} of M1 (FR-87, AD-48): a Milestone funded later than its planned start is due later by the
-	 * same number of days. The planned start is the previous Milestone's due date in the Agreement in force, or for its
-	 * first Milestone the day the Agreement was first confirmed, in Vietnam time. Funded on or before it, or with no due
-	 * date or no planned start to tell, nothing moves. The facts {@code dueFrom}, {@code dueTo}, {@code dueCause} and
+	 * In the {@code apply} of M1 (FR-87, AD-48): a Milestone funded later than its planned start ({@link #plannedStart})
+	 * is due later by the same number of days, in Vietnam time. Funded on or before it, or with no due date or no
+	 * planned start to tell, nothing moves. The facts {@code dueFrom}, {@code dueTo}, {@code dueCause} and
 	 * {@code dueDays} say what moved; M1's {@code afterWrite} arms the Deadlines for the date in force and calls
 	 * {@link #announce}.
 	 */
 	void fundedLate(Applying applying) {
 		Row row = row(applying.milestoneId());
+		if (row == null || row.dueOn() == null) {
+			return;
+		}
 		LocalDate planned = plannedStart(applying.job().id(), applying.milestoneId()).orElse(null);
-		if (row == null || row.dueOn() == null || planned == null) {
+		if (planned == null) {
 			return;
 		}
 		long late = ChronoUnit.DAYS.between(planned, LocalDate.ofInstant(applying.now(), VIETNAM));
@@ -233,23 +236,65 @@ class DueDates {
 		applying.fact("dueDays", String.valueOf(late));
 	}
 
-	/** When the Agreement in force planned the Milestone's work to start (FR-87); empty when it cannot be told. */
+	/**
+	 * When the Milestone's work was planned to start (FR-87), in Vietnam time; empty when it cannot be told.
+	 * <ul>
+	 * <li>A Milestone after another: the previous Milestone's agreed due date in the Agreement in force.</li>
+	 * <li>The Job's first funding: the day the first of its counted Crew members signed, before which the Customer
+	 * could not pay (J6 needs a signed member), so the wait for a Crew is never counted as late funding.</li>
+	 * <li>Never earlier than the day the Agreement in force was confirmed: a Change Request confirmed after the
+	 * previous Milestone's due date stated the dates again, knowing the calendar, so only the days after it count.</li>
+	 * <li>A Milestone that is first only because a Change Request removed the ones before it has no planned start,
+	 * and is not moved.</li>
+	 * </ul>
+	 */
 	private Optional<LocalDate> plannedStart(UUID jobId, UUID milestoneId) {
-		List<MilestoneInForce> milestones = this.criteria.inForce(jobId).map(CriteriaInForce::milestones).orElse(List.of());
-		for (int index = 0; index < milestones.size(); index++) {
-			if (!milestones.get(index).milestoneId().equals(milestoneId)) {
-				continue;
-			}
-			if (index > 0) {
-				return Optional.ofNullable(milestones.get(index - 1).dueOn());
-			}
-			return this.jdbc.sql("SELECT min(confirmed_at) FROM job.confirmed_agreement WHERE job_id = :job")
-				.param("job", jobId)
-				.query((rs, n) -> Optional.ofNullable(rs.getTimestamp(1)))
-				.single()
-				.map(confirmed -> LocalDate.ofInstant(confirmed.toInstant(), VIETNAM));
+		CriteriaInForce inForce = this.criteria.inForce(jobId).orElse(null);
+		if (inForce == null) {
+			return Optional.empty();
 		}
-		return Optional.empty();
+		List<MilestoneInForce> milestones = inForce.milestones();
+		int index = 0;
+		while (index < milestones.size() && !milestones.get(index).milestoneId().equals(milestoneId)) {
+			index++;
+		}
+		if (index == milestones.size()) {
+			return Optional.empty();
+		}
+		LocalDate start = index > 0 ? milestones.get(index - 1).dueOn() : firstSignedOn(jobId, milestoneId);
+		if (start == null) {
+			return Optional.empty();
+		}
+		LocalDate confirmed = this.jdbc
+			.sql("SELECT confirmed_at FROM job.confirmed_agreement WHERE job_id = :job AND version_no = :version")
+			.param("job", jobId)
+			.param("version", inForce.agreementVersionNo())
+			.query((rs, n) -> LocalDate.ofInstant(rs.getTimestamp(1).toInstant(), VIETNAM))
+			.single();
+		return Optional.of(start.isBefore(confirmed) ? confirmed : start);
+	}
+
+	/**
+	 * For the Job's first funding, the day the first of its counted Crew members signed; {@code null} when another
+	 * Milestone of the Job was funded before, one a Change Request removed since included, or no member has signed.
+	 */
+	private @Nullable LocalDate firstSignedOn(UUID jobId, UUID milestoneId) {
+		Boolean fundedBefore = this.jdbc
+			.sql("SELECT EXISTS (SELECT 1 FROM job.milestone WHERE job_id = :job AND id <> :id AND funded_at IS NOT NULL)")
+			.param("job", jobId)
+			.param("id", milestoneId)
+			.query(Boolean.class)
+			.single();
+		if (fundedBefore) {
+			return null;
+		}
+		return this.crews.countedActive(jobId)
+			.stream()
+			.map(CrewService.Row::signedAt)
+			.filter(Objects::nonNull)
+			.min(Instant::compareTo)
+			.map(signed -> LocalDate.ofInstant(signed, VIETNAM))
+			.orElse(null);
 	}
 
 	/**
@@ -267,11 +312,11 @@ class DueDates {
 		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER)));
 		everyone.addAll(team(job));
 		Map<String, String> params = new HashMap<>(params(job, row));
-		String days = applying.factOf("dueDays");
-		if (days != null) {
-			params.put("days", days);
+		boolean lateFunding = Cause.LATE_FUNDING.name().equals(cause);
+		if (lateFunding) {
+			params.put("days", Objects.requireNonNull(applying.factOf("dueDays")));
 		}
-		this.notifications.send(new NotificationRequest(days == null ? REWORK_DUE : DUE_MOVED, applying.transitionId(), everyone,
+		this.notifications.send(new NotificationRequest(lateFunding ? DUE_MOVED : REWORK_DUE, applying.transitionId(), everyone,
 				params, "/cong-viec/" + job.id(), job.id(), null));
 		this.auditLog.record(AuditEntry
 			.of(applying.actor().audit(), AUDIT_MOVED + cause.toLowerCase(Locale.ROOT), AuditObject.of("job.milestone", milestoneId))

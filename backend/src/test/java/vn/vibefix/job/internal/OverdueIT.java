@@ -246,11 +246,21 @@ class OverdueIT extends IntegrationTest {
 	void aMilestoneFundedLateIsDueLaterByTheSameDays() throws Exception {
 		UUID job = world();
 		UUID second = second(job, NEW_DUE);
+		// A rework moved Milestone 1's due date in force to 27/01: the planned start is still its agreed 20/01.
+		this.jdbc.sql("UPDATE job.milestone SET due_on = DATE '2026-01-27' WHERE id = :id").param("id", this.milestone).update();
 		this.clock.setInstant(Instant.parse("2026-01-24T03:00:00Z"));
 
 		assertThat(fund(job, second)).isTrue();
 
 		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + second + "'")).isEqualTo("2026-02-14");
+		// The Mentor's hand-over to-do, opened by the same funding, is due by the date in force.
+		org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> count("""
+				SELECT count(*) FROM notification.todo WHERE todo_key = 'delivery.hand_over' AND closed_at IS NULL
+				AND account_id = '%s'""".formatted(this.hung)) == 1);
+		assertThat(text("""
+				SELECT to_char(deadline_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') FROM notification.todo
+				WHERE todo_key = 'delivery.hand_over' AND closed_at IS NULL AND account_id = '%s'""".formatted(this.hung)))
+			.isEqualTo("2026-02-14T17:00:00Z");
 		assertThat(count("SELECT count(*) FROM timers.deadline WHERE subject_id = '" + second
 				+ "' AND generation = '2026-02-14' AND status = 'PENDING'")).isEqualTo(2);
 		assertThat(count("SELECT count(*) FROM timers.deadline WHERE subject_id = '" + second + "'")).isEqualTo(2);
@@ -279,6 +289,109 @@ class OverdueIT extends IntegrationTest {
 		assertThat(notifications(job, "job.milestone_due_moved")).isZero();
 		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE job_id = '" + job
 				+ "' AND action LIKE 'job.milestone_due_moved.%'")).isZero();
+	}
+
+	/** FR-87: the funding day is the day in Vietnam. 00:30 on 21/01 there is still 20/01 in UTC, and is 1 day late. */
+	@Test
+	void aMilestoneFundedJustAfterMidnightInVietnamIsOneDayLate() throws Exception {
+		UUID job = world();
+		UUID second = second(job, NEW_DUE);
+		this.clock.setInstant(Instant.parse("2026-01-20T17:30:00Z"));
+
+		assertThat(fund(job, second)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + second + "'")).isEqualTo("2026-02-11");
+		assertThat(text("SELECT params ->> 'days' FROM notification.notification WHERE type = 'job.milestone_due_moved'"
+				+ " AND job_id = '" + job + "' AND account_id = '" + this.lan + "'")).isEqualTo("1");
+	}
+
+	/**
+	 * FR-87: an Agreement confirmed after the previous Milestone's due date stated the dates again, so only the days
+	 * after that confirmation count. Version 2 is confirmed on 22/01 and Milestone 2 funded on 24/01: 2 days, not 4.
+	 */
+	@Test
+	void anAgreementConfirmedAfterThePreviousDueDateIsThePlannedStart() throws Exception {
+		UUID job = world();
+		this.clock.setInstant(Instant.parse("2026-01-22T03:00:00Z"));
+		UUID second = second(job, NEW_DUE);
+		this.clock.setInstant(Instant.parse("2026-01-24T03:00:00Z"));
+
+		assertThat(fund(job, second)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + second + "'")).isEqualTo("2026-02-12");
+		assertThat(text("SELECT params ->> 'days' FROM notification.notification WHERE type = 'job.milestone_due_moved'"
+				+ " AND job_id = '" + job + "' AND account_id = '" + this.lan + "'")).isEqualTo("2");
+	}
+
+	/**
+	 * FR-87: a Milestone that is first only because a Change Request removed the one before it has no planned start,
+	 * and is not moved: the day the Agreement was confirmed says nothing about when its work was to begin.
+	 */
+	@Test
+	void aMilestoneLeftFirstByAChangeRequestIsNotMoved() throws Exception {
+		UUID job = world();
+		UUID second = second(job, NEW_DUE);
+		this.jdbc.sql("UPDATE job.milestone SET removed_at = :now WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("id", this.milestone)
+			.update();
+		confirm(job, 3, """
+				{"scope":"Sửa lỗi","priceVnd":800000,"codeJob":true,"assessment":false,"skills":[],"externalAccess":[],
+				 "milestones":[
+				   {"id":"%s","title":"Nhắc lịch","priceVnd":800000,"dueOn":"%s","revisionRounds":2,"criteria":[]}]}
+				""".formatted(second, NEW_DUE));
+		this.clock.setInstant(Instant.parse("2026-01-24T03:00:00Z"));
+
+		assertThat(fund(job, second)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + second + "'")).isEqualTo(NEW_DUE.toString());
+		assertThat(notifications(job, "job.milestone_due_moved")).isZero();
+	}
+
+	/**
+	 * FR-87: the Job's first funding starts it (J6, then M1). The Customer could not pay before a Crew member signed,
+	 * so the planned start is the day of that signature, 07/01, not the Agreement's 05/01: funded on 08/01, Milestone 1
+	 * is due 1 day later, not 3.
+	 */
+	@Test
+	void theFirstMilestoneFundedAfterTheCrewSignedIsDueLaterByTheDaysSinceTheSignature() throws Exception {
+		UUID job = unstarted(Instant.parse("2026-01-07T03:00:00Z"));
+		this.clock.setInstant(Instant.parse("2026-01-08T03:00:00Z"));
+
+		assertThat(fund(job, this.milestone)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("2026-01-21");
+		assertThat(text("SELECT params ->> 'days' FROM notification.notification WHERE type = 'job.milestone_due_moved'"
+				+ " AND job_id = '" + job + "' AND account_id = '" + this.lan + "'")).isEqualTo("1");
+	}
+
+	/** FR-87: funded on the day the first Crew member signed, the first Milestone keeps its agreed due date. */
+	@Test
+	void theFirstMilestoneFundedOnTheDayTheCrewSignedKeepsItsDueDate() throws Exception {
+		UUID job = unstarted(Instant.parse("2026-01-07T03:00:00Z"));
+		this.clock.setInstant(Instant.parse("2026-01-07T10:00:00Z"));
+
+		assertThat(fund(job, this.milestone)).isTrue();
+
+		assertThat(text("SELECT due_on::text FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo(DUE.toString());
+		assertThat(notifications(job, "job.milestone_due_moved")).isZero();
+	}
+
+	/**
+	 * The world before the Job starts: in Agreement, its Milestone Planned, and its Crew member signed at
+	 * {@code signedAt}.
+	 */
+	private UUID unstarted(Instant signedAt) {
+		UUID job = world();
+		this.jdbc.sql("UPDATE job.job SET state = 'AGREEMENT' WHERE id = :id").param("id", job).update();
+		this.jdbc.sql("UPDATE job.milestone SET state = 'PLANNED', funded_at = NULL WHERE id = :id")
+			.param("id", this.milestone)
+			.update();
+		this.jdbc.sql("UPDATE job.crew_row SET signed_at = :signed, activated_at = :signed WHERE job_id = :job")
+			.param("signed", Timestamp.from(signedAt))
+			.param("job", job)
+			.update();
+		return job;
 	}
 
 	/** FR-87: a Milestone with no due date is not moved, however late it is funded. */
@@ -312,23 +425,32 @@ class OverdueIT extends IntegrationTest {
 				   {"id":"%s","title":"Sửa lỗi trùng giờ","priceVnd":800000,"dueOn":"%s","revisionRounds":2,"criteria":[]},
 				   {"id":"%s","title":"Nhắc lịch","priceVnd":800000%s,"revisionRounds":2,"criteria":[]}]}
 				""".formatted(this.milestone, DUE, second, due);
-		// The Agreement's rows are never rewritten: a second version, confirmed now, is the one in force.
-		this.jdbc.sql("""
-				INSERT INTO job.agreement_version (job_id, version_no, status, content, author_account_id, created_at)
-				VALUES (:job, 2, 'SHARED', CAST(:content AS JSONB), :mentor, :now)
-				""").param("job", job).param("content", content).param("mentor", this.hung).param("now", now).update();
-		this.jdbc.sql("""
-				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames,
-				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
-				VALUES (:job, 2, 2, CAST(:content AS JSONB), '{}', true, :owner, :now, :mentor, :now)
-				""").param("job", job).param("content", content).param("owner", this.lan).param("mentor", this.hung)
-			.param("now", now).update();
-		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 2 WHERE id = :id").param("id", job).update();
+		confirm(job, 2, content);
 		this.jdbc.sql("""
 				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state)
 				VALUES (:id, :job, 1, 'Nhắc lịch', 800000, :due, 2, :now, 'PLANNED')
 				""").param("id", second).param("job", job).param("due", dueOn).param("now", now).update();
 		return second;
+	}
+
+	/** The Agreement's rows are never rewritten: version {@code version}, confirmed now, becomes the one in force. */
+	private void confirm(UUID job, int version, String content) {
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO job.agreement_version (job_id, version_no, status, content, author_account_id, created_at)
+				VALUES (:job, :version, 'SHARED', CAST(:content AS JSONB), :mentor, :now)
+				""").param("job", job).param("version", version).param("content", content).param("mentor", this.hung)
+			.param("now", now).update();
+		this.jdbc.sql("""
+				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames,
+				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
+				VALUES (:job, :version, :version, CAST(:content AS JSONB), '{}', true, :owner, :now, :mentor, :now)
+				""").param("job", job).param("version", version).param("content", content).param("owner", this.lan)
+			.param("mentor", this.hung).param("now", now).update();
+		this.jdbc.sql("UPDATE job.job SET agreement_version_no = :version WHERE id = :id")
+			.param("version", version)
+			.param("id", job)
+			.update();
 	}
 
 	/** M1 as the verified payment applies it, with a stand-in Payment Order. */
