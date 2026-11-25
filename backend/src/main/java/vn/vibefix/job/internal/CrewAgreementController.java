@@ -7,12 +7,19 @@ import java.util.List;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobRole;
@@ -39,6 +46,9 @@ import vn.vibefix.shared.Gate;
  * <p>
  * Every record here is this endpoint's own, copied field by field from what an Agreement says: a field added later to
  * the Customer's or the Mentor's view, or to a stored version, reaches the Crew only when it is added here too.
+ * <p>
+ * The reader's screen says which version it shows ({@code agreement/read}); a reader who opened one is told when a
+ * newer one becomes readable ({@link AgreementReads}).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -76,9 +86,15 @@ class CrewAgreementController {
 	 * @param shown the version {@code content} is, {@code null} before the first share
 	 * @param liveAccessIds the External Access entries the Customer marked as live systems, for a confirmed version
 	 * @param reworkDays the Job's copied {@code REWORK_DAYS}, for the note on due dates (FR-87)
+	 * @param changedSinceRead the reader opened a version before, and a newer one than that is readable now: "Bản nháp
+	 * thỏa thuận đã thay đổi từ lần bạn đọc trước." (UX-DR125)
 	 */
 	record CrewAgreementView(String jobTitle, List<CrewAgreementOption> versions, @Nullable CrewAgreementOption shown,
-			@Nullable CrewAgreementContent content, List<UUID> liveAccessIds, int reworkDays) {
+			@Nullable CrewAgreementContent content, List<UUID> liveAccessIds, int reworkDays, boolean changedSinceRead) {
+	}
+
+	/** The version the reader has in front of them, named as {@link CrewAgreementOption} names it. */
+	record CrewAgreementReadRequest(@NotNull Boolean confirmed, @NotNull @Min(1) Integer versionNo) {
 	}
 
 	private final Agreements agreements;
@@ -95,8 +111,11 @@ class CrewAgreementController {
 
 	private final CurrentCaller callers;
 
+	private final AgreementReads reads;
+
 	CrewAgreementController(Agreements agreements, AgreementReviews reviews, JdbcClient jdbc, JobRoleReader roles, JobRules rules,
-			ActiveAccount gate, CurrentCaller callers) {
+			ActiveAccount gate, CurrentCaller callers, AgreementReads reads) {
+		this.reads = reads;
 		this.agreements = agreements;
 		this.reviews = reviews;
 		this.jdbc = jdbc;
@@ -121,10 +140,13 @@ class CrewAgreementController {
 		String title = readerJobTitle(jobId);
 		List<CrewAgreementOption> options = options(jobId);
 		int reworkDays = this.rules.value(jobId, DueDates.REWORK_RULE, DueDates.DEFAULT_REWORK_DAYS);
+		boolean changed = !options.isEmpty() && this.reads.of(jobId, this.callers.get().requireAccountId())
+			.filter(read -> mark(options.getLast()).newerThan(read))
+			.isPresent();
 		CrewAgreementOption shown;
 		if (version == null && confirmed == null) {
 			if (options.isEmpty()) {
-				return new CrewAgreementView(title, List.of(), null, null, List.of(), reworkDays);
+				return new CrewAgreementView(title, List.of(), null, null, List.of(), reworkDays, false);
 			}
 			shown = options.getLast();
 		}
@@ -142,12 +164,33 @@ class CrewAgreementController {
 		if (shown.confirmed()) {
 			Confirmed found = this.reviews.confirmed(jobId, shown.versionNo())
 				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-			return new CrewAgreementView(title, options, shown, content(found.content()), found.liveAccessIds(),
-					reworkDays);
+			return new CrewAgreementView(title, options, shown, content(found.content()), found.liveAccessIds(), reworkDays,
+					changed);
 		}
 		Version shared = this.agreements.version(jobId, shown.versionNo())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		return new CrewAgreementView(title, options, shown, content(shared.content()), List.of(), reworkDays);
+		return new CrewAgreementView(title, options, shown, content(shared.content()), List.of(), reworkDays, changed);
+	}
+
+	/**
+	 * The reader has this version in front of them (Story 25.1b): what they are later told about is anything newer than
+	 * the newest version they opened. Opening an older version changes nothing.
+	 * @throws ApiException {@code NOT_FOUND} for anyone but a picked applicant or an active member of the Job, and for a
+	 * version the reader may not open
+	 */
+	@PostMapping("/api/v1/crew/jobs/{jobId}/agreement/read")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void crewAgreementRead(@PathVariable UUID jobId, @Valid @RequestBody CrewAgreementReadRequest body) {
+		readerJobTitle(jobId);
+		AgreementReads.Mark opened = new AgreementReads.Mark(body.confirmed(), body.versionNo());
+		if (options(jobId).stream().noneMatch(option -> mark(option).equals(opened))) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		this.reads.opened(jobId, this.callers.get().requireAccountId(), opened);
+	}
+
+	private static AgreementReads.Mark mark(CrewAgreementOption option) {
+		return new AgreementReads.Mark(option.confirmed(), option.versionNo());
 	}
 
 	/**

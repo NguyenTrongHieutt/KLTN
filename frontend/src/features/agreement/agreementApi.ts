@@ -74,6 +74,17 @@ export function useCrewAgreement(jobId: string, pick: CrewAgreementOption | unde
   })
 }
 
+/**
+ * The Crew reader has this version in front of them (Story 25.1b), so they are told of a newer one later. Nothing
+ * reloads: "đã thay đổi từ lần bạn đọc trước" stays on the page for this visit.
+ */
+export function useMarkCrewAgreementRead(jobId: string) {
+  return useMutation({
+    mutationFn: (body: { confirmed: boolean; versionNo: number }) =>
+      unwrap(apiClient.POST('/api/v1/crew/jobs/{jobId}/agreement/read', { params: { path: { jobId } }, body })),
+  })
+}
+
 /** A Customer decision changes the Job's version, so the Job and every Agreement view reload. */
 function useCustomerDecision<T>(jobId: string, run: (body: T) => Promise<unknown>) {
   const queryClient = useQueryClient()

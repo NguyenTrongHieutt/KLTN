@@ -103,6 +103,8 @@ class AgreementReviews {
 
 	private final JdbcClient jdbc;
 
+	private final AgreementReads reads;
+
 	private final Agreements agreements;
 
 	private final CrewService crews;
@@ -120,7 +122,8 @@ class AgreementReviews {
 	private final ApplicationEventPublisher events;
 
 	AgreementReviews(JdbcClient jdbc, Agreements agreements, CrewService crews, Notifications notifications, Todos todos,
-			AuditLog auditLog, IdGenerator ids, Clock clock, ApplicationEventPublisher events) {
+			AuditLog auditLog, IdGenerator ids, Clock clock, ApplicationEventPublisher events, AgreementReads reads) {
+		this.reads = reads;
 		this.events = events;
 		this.jdbc = jdbc;
 		this.agreements = agreements;
@@ -344,6 +347,8 @@ class AgreementReviews {
 					milestone.priceVnd() == null ? 0 : milestone.priceVnd()));
 		}
 		this.events.publishEvent(new AgreementConfirmed(this.ids.newId(), jobId, job.productId(), job.customerId(), job.title(), 1, milestones));
+		// Story 25.1b: version 1 says what the approved draft said, so its Crew readers have read it and are told nothing.
+		this.reads.confirmedFromDraft(jobId, latest.versionNo(), 1);
 		return new Confirmed(1, latest.versionNo(), usernames, approval.liveAccessIds(), approval.freezeCommitted(),
 				approval.approvedAt(), now, latest.content());
 	}

@@ -634,6 +634,93 @@ class AgreementReviewIT extends IntegrationTest {
 			.andExpect(status().isOk()).andExpect(jsonPath("$.reworkDays").value(7));
 	}
 
+	/**
+	 * FR-75, FR-81, AD-41, Story 25.1b: a picked applicant who opened a version is told once when a newer draft is
+	 * shared, and the tab says so until they open it; someone who never opened a version is told nothing. The first
+	 * confirmation says what the approved draft said, so its readers have read version 1 and are told nothing.
+	 */
+	@Test
+	void aReaderOfAnEarlierVersionIsToldOnceWhenANewerOneIsSharedAndNotAtTheFirstConfirmation() throws Exception {
+		UUID minh = member("Trần Quang Minh");
+		picked(this.vy);
+		picked(minh);
+		crewAgreement(this.vy, "").andExpect(status().isOk()).andExpect(jsonPath("$.changedSinceRead").value(false));
+
+		crewRead(this.vy, Role.STUDENT, false, 1).andExpect(status().isNoContent());
+		// Only a version the reader may open, and only by a reader.
+		crewRead(this.vy, Role.STUDENT, false, 2).andExpect(status().isNotFound());
+		crewRead(this.vy, Role.STUDENT, true, 1).andExpect(status().isNotFound());
+		crewRead(member("Phạm Gia Bảo"), Role.STUDENT, false, 1).andExpect(status().isNotFound());
+		crewRead(this.lan, Role.CUSTOMER, false, 1).andExpect(status().isNotFound());
+		crewRead(this.hung, Role.MENTOR, false, 1).andExpect(status().isNotFound());
+		this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/agreement/read").with(as(this.vy, Role.STUDENT)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"confirmed\":false,\"versionNo\":0}"))
+			.andExpect(status().isBadRequest());
+		assertThat(readMark(this.vy)).isEqualTo("false:1");
+		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(false));
+
+		save(1, "Sửa lỗi hai khách đặt trùng bàn, và nhắc lịch.").andExpect(status().isOk());
+		assertThat(notifications("job.agreement_draft_changed", this.vy)).as("a save shares nothing").isZero();
+		share(2).andExpect(status().isOk());
+
+		assertThat(notifications("job.agreement_draft_changed", this.vy)).isOne();
+		assertThat(notifications("job.agreement_draft_changed", minh)).as("never opened a version").isZero();
+		assertThat(notifications("job.agreement_draft_changed", this.lan)).isZero();
+		assertThat(notifications("job.agreement_draft_changed", this.hung)).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT link FROM notification.notification WHERE type = 'job.agreement_draft_changed' AND account_id = :account
+				""").param("account", this.vy).query(String.class).single()).isEqualTo("/cong-viec/" + this.job + "/thoa-thuan");
+		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(true))
+			.andExpect(jsonPath("$.shown.versionNo").value(2));
+		crewAgreement(minh, "").andExpect(jsonPath("$.changedSinceRead").value(false));
+		assertThat(readMark(this.vy)).as("reading the page records nothing by itself").isEqualTo("false:1");
+
+		crewRead(this.vy, Role.STUDENT, false, 2).andExpect(status().isNoContent());
+		crewRead(this.vy, Role.STUDENT, false, 2).andExpect(status().isNoContent());
+		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(false));
+
+		approve(jobVersion(), 2, true, List.of()).andExpect(status().isNoContent());
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+
+		assertThat(notifications("job.agreement_draft_changed", this.vy)).as("version 1 says what draft 2 said").isOne();
+		assertThat(readMark(this.vy)).isEqualTo("true:1");
+		crewAgreement(this.vy, "").andExpect(jsonPath("$.shown.confirmed").value(true))
+			.andExpect(jsonPath("$.changedSinceRead").value(false));
+		crewRead(this.vy, Role.STUDENT, true, 1).andExpect(status().isNoContent());
+		assertThat(readMark(this.vy)).isEqualTo("true:1");
+	}
+
+	/** Story 25.1b: a reader who stayed behind the approved draft stays behind version 1, and is not told twice. */
+	@Test
+	void aReaderBehindTheApprovedDraftStaysBehindAfterTheConfirmation() throws Exception {
+		picked(this.vy);
+		crewRead(this.vy, Role.STUDENT, false, 1).andExpect(status().isNoContent());
+		save(1, "Sửa lỗi hai khách đặt trùng bàn, và nhắc lịch.").andExpect(status().isOk());
+		share(2).andExpect(status().isOk());
+		approve(jobVersion(), 2, true, List.of()).andExpect(status().isNoContent());
+		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
+
+		assertThat(notifications("job.agreement_draft_changed", this.vy)).isOne();
+		assertThat(readMark(this.vy)).isEqualTo("false:1");
+		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(true));
+		crewRead(this.vy, Role.STUDENT, true, 1).andExpect(status().isNoContent());
+		assertThat(readMark(this.vy)).isEqualTo("true:1");
+		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(false));
+	}
+
+	private ResultActions crewRead(UUID account, Role role, boolean confirmed, int versionNo) throws Exception {
+		return this.mvc.perform(post("/api/v1/crew/jobs/" + this.job + "/agreement/read").with(as(account, role)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"confirmed\":%s,\"versionNo\":%d}".formatted(confirmed, versionNo)));
+	}
+
+	/** The reader's row as "confirmed:version". */
+	private String readMark(UUID account) {
+		return this.jdbc.sql("""
+				SELECT confirmed || ':' || version_no FROM job.agreement_read WHERE job_id = :job AND account_id = :account
+				""").param("job", this.job).param("account", account).query(String.class).single();
+	}
+
 	private ResultActions crewAgreement(UUID account, String query) throws Exception {
 		return this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/agreement" + query).with(as(account, Role.STUDENT)));
 	}

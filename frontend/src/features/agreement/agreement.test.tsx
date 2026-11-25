@@ -309,13 +309,21 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     content,
     liveAccessIds: [],
     reworkDays: 5,
+    changedSinceRead: false,
     ...overrides,
   })
+  const READ = 'POST /api/v1/crew/jobs/j1/agreement/read'
+  const noted = () => new Response(null, { status: 204 })
 
   it('shows an active member the shared draft with nothing to act on', { timeout: 20_000 }, async () => {
+    const opened: unknown[] = []
     fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       'GET /api/v1/crew/jobs/j1/agreement': () => json(read()),
+      [READ]: async (request) => {
+        opened.push(await request.json())
+        return noted()
+      },
     })
     renderAt('/cong-viec/j1/thoa-thuan')
 
@@ -334,10 +342,31 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     expect(screen.queryByRole('button', { name: 'Duyệt thỏa thuận' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Yêu cầu sửa' })).toBeNull()
     expect(screen.queryByText(/báo giá/)).toBeNull()
+    // The page says which version it shows, once, so the reader is told of a newer one later.
+    await waitFor(() => expect(opened).toEqual([{ confirmed: false, versionNo: 2 }]))
+    expect(screen.queryByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeNull()
+  })
+
+  it('tells a reader of an earlier version that the Agreement changed, and notes the newer one as read', { timeout: 15_000 }, async () => {
+    const opened: unknown[] = []
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/agreement': () => json(read({ changedSinceRead: true })),
+      [READ]: async (request) => {
+        opened.push(await request.json())
+        return noted()
+      },
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeInTheDocument()
+    await waitFor(() => expect(opened).toEqual([{ confirmed: false, versionNo: 2 }]))
+    // The line stays for this visit: noting the read reloads nothing.
+    expect(screen.getByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeInTheDocument()
   })
 
   it('says nothing is shared yet to a picked applicant, who goes back to the commitment', { timeout: 15_000 }, async () => {
-    fakeBackend(signedInUser, {
+    const asked = fakeBackend(signedInUser, {
       ...inEveryJob('CREW', 'ASSIGNED'),
       'GET /api/v1/crew/jobs/j1/agreement': () => json(read({ versions: [], shown: null, content: null })),
     })
@@ -349,14 +378,21 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     // A pick not yet signed is not called a member.
     expect(screen.queryByText('Bạn là: Thành viên nhóm')).toBeNull()
     expect(screen.queryByText(/Hạn của một giai đoạn/)).toBeNull()
+    // Nothing was shown, so nothing is noted as read.
+    expect(asked.some((request) => request.method === 'POST')).toBe(false)
   })
 
   it('lets a member open every confirmed version, with the live systems marked', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     const first = { confirmed: true, versionNo: 1, at: '2026-10-21T03:00:00Z' }
     const second = { confirmed: true, versionNo: 2, at: '2026-11-02T03:00:00Z' }
+    const opened: unknown[] = []
     const seen = fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
+      [READ]: async (request) => {
+        opened.push(await request.json())
+        return noted()
+      },
       'GET /api/v1/crew/jobs/j1/agreement': (request) => {
         const query = new URL(request.url).searchParams
         return query.get('version') === '1'
@@ -376,6 +412,12 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     expect(seen.some((request) => request.url.includes('version=1') && request.url.includes('confirmed=true'))).toBe(true)
     expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn.')).toBeInTheDocument()
     expect(screen.getByText('Production')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(opened).toEqual([
+        { confirmed: true, versionNo: 2 },
+        { confirmed: true, versionNo: 1 },
+      ]),
+    )
   })
 
   it('shows a member who left the not-found screen', { timeout: 15_000 }, async () => {

@@ -178,9 +178,12 @@ class ChangeRequests {
 
 	private final CrewService crews;
 
+	private final AgreementReads reads;
+
 	ChangeRequests(JdbcClient jdbc, Jobs jobs, AgreementReviews reviews, Notifications notifications, Todos todos,
 			AuditLog auditLog, IdGenerator ids, Clock clock, DueDates dueDates, Agreements agreements, JobLifecycle lifecycle,
-			ApplicationEventPublisher events, CrewService crews) {
+			ApplicationEventPublisher events, CrewService crews, AgreementReads reads) {
+		this.reads = reads;
 		this.crews = crews;
 		this.agreements = agreements;
 		this.lifecycle = lifecycle;
@@ -510,6 +513,8 @@ class ChangeRequests {
 		this.todos.closeAll(ANSWER, requestId);
 		this.notifications.send(new NotificationRequest(APPLIED, requestId, both(job), Map.of("job", job.title()),
 				"/cong-viec/" + job.id() + "/thoa-thuan", job.id(), null));
+		// FR-75, Story 25.1b: the Crew reads every confirmed version, so whoever read an earlier one is told.
+		this.reads.newer(job.id(), job.title(), new AgreementReads.Mark(true, next));
 		return find(requestId).orElseThrow();
 	}
 

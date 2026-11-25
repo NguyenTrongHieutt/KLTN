@@ -153,9 +153,13 @@ class Agreements {
 
 	private final Clock clock;
 
+	private final AgreementReads reads;
+
 	private final Template template;
 
-	Agreements(JdbcClient jdbc, Catalog catalog, Notifications notifications, Todos todos, AuditLog auditLog, Clock clock) {
+	Agreements(JdbcClient jdbc, Catalog catalog, Notifications notifications, Todos todos, AuditLog auditLog, Clock clock,
+			AgreementReads reads) {
+		this.reads = reads;
 		this.jdbc = jdbc;
 		this.catalog = catalog;
 		this.notifications = notifications;
@@ -340,6 +344,8 @@ class Agreements {
 		this.notifications.send(new NotificationRequest(DRAFT_READY, UUID.nameUUIDFromBytes((locked.id() + ":" + next).getBytes()),
 				List.of(new Recipient(locked.customerId(), Audience.CUSTOMER)), Map.of("job", locked.title()),
 				agreementLink(locked.id()), locked.id(), null));
+		// FR-75, Story 25.1b: the Crew reads the latest shared draft, so whoever read an earlier one is told.
+		this.reads.newer(locked.id(), locked.title(), new AgreementReads.Mark(false, next));
 		this.jdbc.sql("UPDATE job.agreement_change_request SET resolved_at = :now WHERE job_id = :job AND resolved_at IS NULL")
 			.param("job", locked.id())
 			.param("now", Timestamp.from(now))

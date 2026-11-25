@@ -1,5 +1,5 @@
-import { CircleCheck, Info } from 'lucide-react'
-import { useId, useState } from 'react'
+import { CircleCheck, Info, TriangleAlert } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
@@ -17,18 +17,34 @@ import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { AgreementContentView } from './AgreementContent'
-import { useCrewAgreement, type CrewAgreement as CrewAgreementData, type CrewAgreementOption } from './agreementApi'
+import {
+  useCrewAgreement,
+  useMarkCrewAgreementRead,
+  type CrewAgreement as CrewAgreementData,
+  type CrewAgreementOption,
+} from './agreementApi'
 
 /**
  * JOB-6 read-only for the Crew (FR-75, FR-81, AD-41, UX-DR125, Story 25.1b): a picked applicant, coming from "Đọc thỏa
  * thuận" in the Commitment panel, and an active member read the Agreement they sign for and work under. Until the
  * Agreement is confirmed that is the latest draft the Mentor shared with the Customer; then every confirmed version.
- * Never a comment, the quote, or a Change Request in progress, and nothing to act on. A member who left, and anyone
+ * Never a comment, the quote, or a Change Request in progress, and nothing to act on. The page says which version it
+ * shows, and tells a reader who opened an earlier one that the Agreement changed since. A member who left, and anyone
  * else, sees the not-found screen, as the API answers.
  */
 export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind }) {
   const [pick, setPick] = useState<CrewAgreementOption>()
   const agreement = useCrewAgreement(jobId, pick)
+  // The version on screen is the one read: a reader who opened one is told when a newer one becomes readable.
+  const { mutate: markRead } = useMarkCrewAgreementRead(jobId)
+  const shown = agreement.isPlaceholderData ? undefined : agreement.data?.shown
+  const shownConfirmed = shown?.confirmed
+  const shownVersion = shown?.versionNo
+  useEffect(() => {
+    if (shownConfirmed !== undefined && shownVersion !== undefined) {
+      markRead({ confirmed: shownConfirmed, versionNo: shownVersion })
+    }
+  }, [markRead, shownConfirmed, shownVersion])
   usePageTitle(agreement.data ? t('screen.agreement.title', { job: agreement.data.jobTitle }) : t('screen.agreement.tab'))
   if (agreement.isError && isNotFound(agreement.error)) {
     return <NotFoundScreen />
@@ -85,6 +101,12 @@ function Versions({
   }
   return (
     <div aria-busy={loading} className={cn('flex w-full max-w-reading-max flex-col gap-5', loading && 'opacity-60')}>
+      {agreement.changedSinceRead && (
+        <p role="status" className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
+          <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
+          {t('screen.agreement.crew.changed')}
+        </p>
+      )}
       {agreement.versions.length > 1 && (
         <div className="flex flex-col gap-1">
           <label htmlFor={`${ids}-version`} className="text-label">
