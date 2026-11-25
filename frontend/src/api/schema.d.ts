@@ -4993,6 +4993,8 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             criteria: components["schemas"]["HandoverCriterionView"][];
+            /** Format: int32 */
+            daysLate?: number;
             /** Format: date-time */
             decidedAt?: string;
             decision?: components["schemas"]["HandoverDecisionView"];
@@ -5171,6 +5173,8 @@ export interface components {
         EvidenceMilestone: {
             criteria: components["schemas"]["EvidenceCriterion"][];
             /** Format: date */
+            dueInForce?: string;
+            /** Format: date */
             dueOn?: string;
             /** Format: uuid */
             milestoneId: string;
@@ -5218,6 +5222,8 @@ export interface components {
         EvidenceReport: {
             auto: boolean;
             criteria: components["schemas"]["EvidenceReportCriterion"][];
+            /** Format: int32 */
+            daysLate?: number;
             /** Format: date-time */
             decidedAt?: string;
             handoverCommit?: string;
@@ -6114,6 +6120,8 @@ export interface components {
             /** Format: date */
             agreedDueOn?: string;
             autoAccepted: boolean;
+            /** Format: int32 */
+            daysLate?: number;
             /** Format: date */
             dueOn?: string;
             /** Format: uuid */
