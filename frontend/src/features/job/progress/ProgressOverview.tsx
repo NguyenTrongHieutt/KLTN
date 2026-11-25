@@ -235,6 +235,10 @@ function MilestoneCard({
             )}
           </span>
         )}
+        {/* FR-87, UX-DR129: a record of the current handover, never a problem colour, and nothing when on time. */}
+        {milestone.daysLate != null && milestone.daysLate > 0 && (
+          <span className="text-muted-foreground">{t('screen.progress.daysLate', { n: milestone.daysLate })}</span>
+        )}
       </p>
       {milestone.overdueSince && audience === 'customer' && <OverdueOptions jobId={jobId} />}
     </Card>

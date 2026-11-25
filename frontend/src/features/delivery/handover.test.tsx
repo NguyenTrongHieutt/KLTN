@@ -288,6 +288,22 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
     )!
     expect(within(article).getByText('Đã tự nghiệm thu')).toBeInTheDocument()
     expect(within(screen.getByRole('navigation', { name: 'Các lần bàn giao' })).getByText('Đã tự nghiệm thu')).toBeInTheDocument()
+    expect(within(article).queryByText(/Bàn giao trễ/)).toBeNull()
+  })
+
+  /** FR-87, UX-DR129: the report keeps how late the handover came, for every reader, also after it is accepted. */
+  it('says how many days late the handover came, beside its date (FR-87)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/boards/j1/handovers': () => json(list({ audience: 'CREW' })),
+      'GET /api/v1/handovers/h1': () => json(report({ audience: 'CREW', status: 'ACCEPTED', daysLate: 2 })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1')
+
+    const article = (await screen.findByRole('heading', { level: 2, name: 'Báo cáo bàn giao · Giai đoạn 1 · Báo cáo' })).closest(
+      'article',
+    )!
+    expect(within(article).getByText(/Người hướng dẫn Đỗ Mạnh Hùng · .* · lần thứ 1 · Bàn giao trễ 2 ngày/)).toBeInTheDocument()
   })
 
   /** Story 24.2: every audience reads the same Report -- the criteria with the Mentor's marks and notes. */

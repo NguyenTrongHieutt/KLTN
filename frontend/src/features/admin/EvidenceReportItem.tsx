@@ -37,6 +37,10 @@ export function EvidenceReportItem({ report }: { report: EvidenceReport }) {
               ? t('screen.admin.disputes.evidence.autoAccepted')
               : t(`screen.admin.disputes.evidence.reportStatus.${report.status}` as MessageKey),
             formatDayMonthTime(report.submittedAt),
+            // FR-87: the handover's days late against the due date in force at its moment.
+            report.daysLate != null && report.daysLate > 0
+              ? t('screen.admin.disputes.evidence.daysLate', { n: report.daysLate })
+              : '',
             report.decidedAt
               ? t('screen.admin.disputes.evidence.decidedAt', { time: formatDayMonthTime(report.decidedAt) })
               : '',

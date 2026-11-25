@@ -150,6 +150,7 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
                 title: 'Báo cáo',
                 priceVnd: 800000,
                 dueOn: '2026-11-20',
+                dueInForce: '2026-11-27',
                 criteria: [{ criterionId: 'c1', number: 1, statement: 'Báo cáo nêu đủ lỗi', checkSteps: 'Đọc' }],
               },
             ],
@@ -185,6 +186,8 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
 
     expect(await screen.findByText('Mỗi lần xem hồ sơ được ghi vào nhật ký kiểm toán.')).toBeInTheDocument()
     expect(await screen.findByText('Báo cáo nêu đủ lỗi')).toBeInTheDocument()
+    // FR-87, AD-48: the agreed date, and the date in force a rework or late funding moved the Milestone to.
+    expect(screen.getByText('Hạn theo thỏa thuận 20/11 · hạn đang có hiệu lực 27/11')).toBeInTheDocument()
     expect(screen.getAllByRole('tab')).toHaveLength(7)
     expect(seen.some((request) => request.url.includes('/evidence/payments'))).toBe(false)
     await user.click(screen.getByRole('tab', { name: 'Thanh toán' }))
@@ -226,6 +229,7 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
             status: 'REVISION_REQUESTED',
             submittedAt: '2026-10-18T03:00:00Z',
             decidedAt: '2026-10-19T03:00:00Z',
+            daysLate: 2,
             auto: false,
             criteria: [criterion],
             preview: { url: 'https://so-dat-ban.vercel.app/dat-ban', domain: 'so-dat-ban.vercel.app' },
@@ -308,7 +312,9 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(within(second).getByRole('link', { name: 'Video quay màn hình' })).toHaveAttribute('href', 'https://youtu.be/quay')
     expect(within(second).queryByRole('img')).toBeNull()
     expect(within(second).queryByText(/quyết định lúc/)).toBeNull()
-    expect(within(first).getByText(/Yêu cầu sửa · .* · quyết định lúc /)).toBeInTheDocument()
+    // FR-87: the handover's days late sit between when it came and when it was decided.
+    expect(within(first).getByText(/Yêu cầu sửa · .* · bàn giao trễ 2 ngày · quyết định lúc /)).toBeInTheDocument()
+    expect(within(second).queryByText(/bàn giao trễ/)).toBeNull()
 
     // A round the System accepted when the check period ran out says so beside its unchecked criteria.
     const auto = screen.getByText('Giai đoạn 2: Bản sửa · lần 1').closest('li') as HTMLElement
