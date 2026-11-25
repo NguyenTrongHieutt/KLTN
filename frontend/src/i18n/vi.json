@@ -845,7 +845,8 @@
           "SPLIT_DRAFT_DAYS": "Số ngày người hướng dẫn soạn phân chia tiền sau khi giai đoạn được nghiệm thu",
           "SPLIT_CONFIRMATION_DAYS": "Số ngày thành viên xác nhận mỗi bản phân chia tiền",
           "SPLIT_EDIT_LIMIT": "Số lần người hướng dẫn được sửa phân chia tiền của một giai đoạn",
-          "SPLIT_UNDECIDED_FLAG_DAYS": "Số ngày chờ trước khi đánh dấu yêu cầu xem xét phân chia chưa được quyết định"
+          "SPLIT_UNDECIDED_FLAG_DAYS": "Số ngày chờ trước khi đánh dấu yêu cầu xem xét phân chia chưa được quyết định",
+          "REWORK_DAYS": "Số ngày để sửa sau khi bị yêu cầu sửa hoặc bàn giao bị hủy"
         },
         "bounds": "Từ {min} đến {max}",
         "domains": "Danh sách trường",
@@ -2590,6 +2591,7 @@
       "milestones": "Các giai đoạn",
       "milestone": "Giai đoạn {n} · {title}",
       "due": "Hạn {date}",
+      "agreedDue": "theo thỏa thuận {date}",
       "crew": "Nhóm thực hiện",
       "noCrew": "Chưa có thành viên nào đang làm.",
       "crewState": {
@@ -2700,6 +2702,7 @@
         "acceptBody": "Khi nghiệm thu, {amount} được chuyển cho người hướng dẫn và nhóm thực hiện. Bước này không hoàn tác được.",
         "reviseTitle": "Yêu cầu sửa {n} tiêu chí?",
         "reviseBody": "Người hướng dẫn sẽ sửa rồi bàn giao lại. Yêu cầu này dùng một lượt sửa, còn {r} lượt sau đó.",
+        "reviseDue": "Hạn mới của giai đoạn: {date}",
         "confirm": "Xác nhận",
         "cancel": "Quay lại",
         "accepted": "Đã nghiệm thu Giai đoạn {n}.",
@@ -3587,13 +3590,13 @@
       "guidance": "vibefix không quét mã của bạn. Trước khi người khác đọc mã, hãy tự kiểm tra toàn bộ lịch sử dự án: mọi API key và mật khẩu (ví dụ Supabase, Firebase, VNPay, OpenAI) phải được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng bạn (số điện thoại, email, số CCCD) phải được gỡ. Bạn có thể tự chạy công cụ miễn phí gitleaks trên GitHub Actions của dự án; vibefix không chạy và không đọc kết quả."
     },
     "selfConfirmation": {
-      "version": "1.0",
+      "version": "1.1",
       "versionLine": "Lưu ý khi xác nhận repo nguồn · phiên bản {version}",
       "title": "Xác nhận repo nguồn đã sạch",
       "checkbox": "Tôi xác nhận: trong toàn bộ lịch sử của {repo} đến commit {shortSha}, mọi secret và mật khẩu đã được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng tôi đã được gỡ. Tôi hiểu vibefix không quét mã, và người hướng dẫn cùng nhóm thực hiện sẽ đọc toàn bộ lịch sử này."
     },
     "teamCode": {
-      "version": "1.0",
+      "version": "1.1",
       "versionLine": "Lưu ý về mã của nhóm · phiên bản {version}",
       "title": "Mã của nhóm không được vibefix quét",
       "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các commit của bàn giao này không chứa secret, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",
@@ -4297,6 +4300,9 @@
       },
       "milestone_overdue": {
         "title": "Giai đoạn {n} của {job} đã quá hạn ngày {date}"
+      },
+      "milestone_rework_due": {
+        "title": "Giai đoạn {n} của {job} có hạn mới để sửa: {date}"
       },
       "milestone_unfunded_reminder": {
         "title": "Giai đoạn {n} của {job} chưa được thanh toán sau {days} ngày"

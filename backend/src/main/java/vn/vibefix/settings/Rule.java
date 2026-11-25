@@ -67,7 +67,10 @@ public enum Rule {
 	SPLIT_EDIT_LIMIT(1, 10),
 
 	/** Days a Split Resolution stays undecided before it is flagged (FR-61, FR-84, Story 22.3); 7. */
-	SPLIT_UNDECIDED_FLAG_DAYS(1, 30);
+	SPLIT_UNDECIDED_FLAG_DAYS(1, 30),
+
+	/** Days a Milestone gets for rework after a revision request or a voided handover (FR-61, FR-87, Story 25.1); 5. */
+	REWORK_DAYS(1, 30);
 
 	private final int min;
 

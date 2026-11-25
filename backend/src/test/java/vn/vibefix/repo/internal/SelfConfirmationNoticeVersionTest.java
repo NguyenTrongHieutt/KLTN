@@ -32,7 +32,8 @@ class SelfConfirmationNoticeVersionTest {
 
 	/** Each N-32 version's text: the SHA-256 of its title, a line feed, and its checkbox, as {@code vi.json} holds them. */
 	private static final Map<String, String> TEXTS = Map.of("1.0",
-			"72fb3c756e3860d132a12f9ad08dd763543d8a4cfdba0a8a312c4de7eaec8816");
+			"72fb3c756e3860d132a12f9ad08dd763543d8a4cfdba0a8a312c4de7eaec8816", "1.1",
+			"1f9c6af8c3dc39af0cb649fbec8fdbe66a3b8dc6fe83510a273960b6b8b75314");
 
 	@Test
 	@SuppressWarnings("unchecked")

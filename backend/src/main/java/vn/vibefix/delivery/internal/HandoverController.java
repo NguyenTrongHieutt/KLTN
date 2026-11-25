@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -224,8 +225,10 @@ class HandoverController {
 	 * What the Customer decides with, while the handover waits for them.
 	 * @param releaseVnd what acceptance releases to the Mentor's Crew, in test-mode VND
 	 * @param revisionAllowed a Revision Round is left (FR-34)
+	 * @param reworkDueOn the due date in force a revision request made now would give the Milestone (FR-87); the
+	 * dialog shows it and computes no date itself; absent for a Milestone with no due date
 	 */
-	record HandoverDecisionView(long releaseVnd, boolean revisionAllowed) {
+	record HandoverDecisionView(long releaseVnd, boolean revisionAllowed, @Nullable LocalDate reworkDueOn) {
 	}
 
 	record HandoverCheckRequest(@NotNull UUID criterionId, boolean met, @Nullable @Size(max = Handovers.MAX_NOTE) String comment) {
@@ -505,7 +508,8 @@ class HandoverController {
 				: null;
 		HandoverDecisionView decision = viewer.kind() == Kind.CUSTOMER && "SUBMITTED".equals(handover.status())
 				&& !"MERGING".equals(acceptance) && !"VOIDED".equals(acceptance)
-						? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0)
+						? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0,
+								this.jobs.reworkDueOn(handover.milestoneId()).orElse(null))
 						: null;
 		return new DeliveryReportView(handover.id(), handover.jobId(), viewer.job().title(), handover.number(),
 				handover.milestoneTitle(), handover.round(), handover.status(), mentor, handover.createdAt(),

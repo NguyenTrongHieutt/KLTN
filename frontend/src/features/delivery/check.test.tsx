@@ -67,7 +67,7 @@ const report = (overrides: object = {}) => ({
   criteria: [criterion('c1', 1, 'Báo cáo nêu đủ chín mục'), criterion('c2', 2, 'Có giải thích thuật ngữ')],
   version: 13,
   roundsLeft: 2,
-  decision: { releaseVnd: 1000001, revisionAllowed: true },
+  decision: { releaseVnd: 1000001, revisionAllowed: true, reworkDueOn: '2026-11-27' },
   checks: [],
   preview: {},
   screenshots: [],
@@ -116,6 +116,8 @@ describe('JOB-5 guided check (FR-33, FR-34, UX-DR33)', () => {
     await user.click(screen.getByRole('button', { name: 'Yêu cầu sửa (1 tiêu chí)' }))
     const dialog = await screen.findByRole('dialog', { name: 'Yêu cầu sửa 1 tiêu chí?' })
     expect(within(dialog).getByText(/còn 1 lượt sau đó/)).toBeInTheDocument()
+    // FR-87: the request's effect on the due date, from the server's own figure.
+    expect(within(dialog).getByText('Hạn mới của giai đoạn: 27/11')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }))
 
     await waitFor(() =>

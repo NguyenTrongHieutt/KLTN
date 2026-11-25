@@ -228,6 +228,11 @@ class JobLifecycle {
 			this.facts.put(key, value);
 		}
 
+		/** A fact its own {@code apply} recorded, for its {@code afterWrite}; {@code null} when it recorded none. */
+		@Nullable String factOf(String key) {
+			return this.facts.get(key);
+		}
+
 	}
 
 	/** What an apply did. */

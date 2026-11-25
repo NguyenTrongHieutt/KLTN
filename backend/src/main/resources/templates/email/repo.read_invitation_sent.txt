@@ -1,4 +1,4 @@
-subject: Chấp nhận lời mời đọc kho trung gian của {job} trên GitHub
+subject: Chấp nhận lời mời đọc repo trung gian của {job} trên GitHub
 ---
 Xin chào,
 

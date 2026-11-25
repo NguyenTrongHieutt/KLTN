@@ -1,4 +1,4 @@
-subject: Lần sao chép bàn giao trên kho chạy thất bại: {job}, Giai đoạn {n}
+subject: Lần sao chép bàn giao trên repo chạy thất bại: {job}, Giai đoạn {n}
 ---
 Xin chào,
 

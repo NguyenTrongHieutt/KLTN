@@ -443,7 +443,7 @@ class HandoverIT extends IntegrationTest {
 				+ (this.legacySensitive == null ? "" : ",\"sensitive\":\"" + this.legacySensitive + "\"")
 				+ (this.noPreviewReason == null ? "" : ",\"noPreviewReason\":\"" + this.noPreviewReason + "\"")
 				// N-33 (FR-25, R28, Story 23.8b): a Code Job's handover names the version in force; an Assessment's none.
-				+ (this.assessment ? "" : ",\"teamCodeNoticeVersion\":\"1.0\"")
+				+ (this.assessment ? "" : ",\"teamCodeNoticeVersion\":\"1.1\"")
 				+ (this.previewUrl == null ? "" : ",\"previewUrl\":\"" + this.previewUrl + "\"")
 				+ (this.links == null ? "" : ",\"links\":" + this.links)
 				+ (this.screenshotIds == null ? "" : ",\"screenshotIds\":" + this.screenshotIds) + "}";

@@ -238,12 +238,12 @@ vibefix:
     platform-sweep: PT10M
     # R4 (Story 23.6b): N-32's current version, which the Customer's J7 self-confirmation names and records; the SPA
     # shows the same one (Story 23.6c).
-    self-confirmation-notice-version: "1.0"
+    self-confirmation-notice-version: "1.1"
   # FR-25, R28 (Story 23.8b): N-33's current version, the Mentor's duty confirmation that a handover's commits hold
   # no credential and no real data, since vibefix scans no team code. The SPA shows the same one
   # (frontend/src/i18n/vi.json notice.teamCode.version), and each handover records the version it was sent under.
   delivery:
-    team-code-notice-version: "1.0"
+    team-code-notice-version: "1.1"
   # AD-9: shared.internal.EventPublicationMaintenance resubmits, stalls and purges publications.
   events:
     resubmit-after: 5m

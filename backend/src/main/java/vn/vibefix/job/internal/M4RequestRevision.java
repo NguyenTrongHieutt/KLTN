@@ -21,6 +21,7 @@ import vn.vibefix.shared.ErrorCode;
  * M4 (FR-33, FR-34): the Customer asks for a revision of the current handover, naming criteria. It needs
  * a Revision Round left and uses one; the Milestone records how many criteria were named, and the Mentor
  * gets {@code job.revision_requested} with the rounds left. {@code delivery} reopens the handover to-do.
+ * The Milestone gets its rework due date when that is later than its due date (FR-87, {@link DueDates#rework}).
  */
 @Component
 class M4RequestRevision implements JobLifecycle.Step {
@@ -33,10 +34,13 @@ class M4RequestRevision implements JobLifecycle.Step {
 
 	private final Notifications notifications;
 
-	M4RequestRevision(JdbcClient jdbc, M1Fund numbers, Notifications notifications) {
+	private final DueDates dueDates;
+
+	M4RequestRevision(JdbcClient jdbc, M1Fund numbers, Notifications notifications, DueDates dueDates) {
 		this.jdbc = jdbc;
 		this.numbers = numbers;
 		this.notifications = notifications;
+		this.dueDates = dueDates;
 	}
 
 	@Override
@@ -67,6 +71,7 @@ class M4RequestRevision implements JobLifecycle.Step {
 		applying.fact("handoverId", applying.input("handoverId").toString());
 		applying.fact("number", String.valueOf(this.numbers.number(applying.job().id(), applying.milestoneId())));
 		applying.fact("roundsLeft", String.valueOf(rounds.total() - rounds.used() - 1));
+		this.dueDates.rework(applying, DueDates.Cause.REVISION);
 	}
 
 	@Override
@@ -78,6 +83,7 @@ class M4RequestRevision implements JobLifecycle.Step {
 				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "count",
 						String.valueOf(applying.input("criteria")), "rounds", String.valueOf(rounds.total() - rounds.used())),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+		this.dueDates.reworked(applying);
 	}
 
 	/** The Milestone's Revision Rounds and how many are used. */

@@ -219,6 +219,12 @@ class BidCardsIT extends IntegrationTest {
 			.param("handover", handedOver == null ? null : UUID.randomUUID())
 			.param("accepted", "ACCEPTED".equals(state) ? Timestamp.from(handedOver.plus(Duration.ofDays(1))) : null)
 			.update();
+		// As M2 records it (FR-87, AD-48): the first handover's time and its days late against the due date.
+		this.jdbc.sql("""
+				UPDATE job.milestone SET first_submitted_at = submitted_at, first_days_late = GREATEST(0, CEIL(EXTRACT(EPOCH FROM
+				    (submitted_at - ((due_on + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'))) / 86400.0))::INTEGER
+				WHERE job_id = :job AND submitted_at IS NOT NULL AND first_submitted_at IS NULL
+				""").param("job", job).update();
 	}
 
 	private ResultActions cards() throws Exception {

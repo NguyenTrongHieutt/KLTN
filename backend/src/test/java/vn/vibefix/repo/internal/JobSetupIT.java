@@ -3211,7 +3211,7 @@ class JobSetupIT extends IntegrationTest {
 		});
 		assertThat(this.jdbc.sql("""
 				SELECT account_id || ' ' || head_sha || ' ' || notice_version FROM repo.source_confirmation WHERE setup_id = :setup
-				""").param("setup", confirmed.id()).query(String.class).list()).containsExactly(this.customer + " " + head + " 1.0");
+				""").param("setup", confirmed.id()).query(String.class).list()).containsExactly(this.customer + " " + head + " 1.1");
 		assertThat(openConfirmTodos()).as("the to-do closes").isZero();
 
 		run();
@@ -3371,8 +3371,8 @@ class JobSetupIT extends IntegrationTest {
 			.andExpect(jsonPath("$.reason").value("SETUP_NOT_CONFIRMING"));
 		String head = waitForTheCustomer();
 
-		confirm(this.mentor, Role.MENTOR, head, "1.0").andExpect(status().isNotFound());
-		confirm(this.crew, Role.STUDENT, head, "1.0").andExpect(status().isNotFound());
+		confirm(this.mentor, Role.MENTOR, head, "1.1").andExpect(status().isNotFound());
+		confirm(this.crew, Role.STUDENT, head, "1.1").andExpect(status().isNotFound());
 		confirm(this.customer, Role.CUSTOMER, head, "0.9").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION"))
 			.andExpect(jsonPath("$.reason").value("NOTICE_REQUIRED"));
@@ -4455,7 +4455,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(section.data()).extractingByKey("sourceSelfConfirmations")
 			.asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
 			.singleElement()
-			.isEqualTo(Map.of("jobId", this.job.toString(), "headSha", head, "noticeVersion", "1.0", "at",
+			.isEqualTo(Map.of("jobId", this.job.toString(), "headSha", head, "noticeVersion", "1.1", "at",
 					this.clock.instant().toString()));
 		assertThat(this.personalData.export(this.mentor).map(PersonalDataSection::data).orElse(Map.of()))
 			.doesNotContainKey("sourceSelfConfirmations");
@@ -4466,7 +4466,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT coalesce(account_id::text, 'none') || ' ' || head_sha || ' ' || notice_version FROM repo.source_confirmation
 				WHERE job_id = :job
-				""").param("job", this.job).query(String.class).list()).containsExactly("none " + head + " 1.0");
+				""").param("job", this.job).query(String.class).list()).containsExactly("none " + head + " 1.1");
 		assertThat(this.personalData.export(this.customer).map(PersonalDataSection::data).orElse(Map.of()))
 			.doesNotContainKey("sourceSelfConfirmations");
 	}
@@ -4871,7 +4871,7 @@ class JobSetupIT extends IntegrationTest {
 
 	/** The Customer's self-confirmation of {@code sha} under N-32's current version. */
 	private ResultActions confirm(String sha) throws Exception {
-		return confirm(this.customer, Role.CUSTOMER, sha, "1.0");
+		return confirm(this.customer, Role.CUSTOMER, sha, "1.1");
 	}
 
 	private ResultActions confirm(UUID account, Role role, String sha, String noticeVersion) throws Exception {

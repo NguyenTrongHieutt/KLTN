@@ -118,14 +118,16 @@ enum Transition {
 					new Effect("notification", "The Customer and the Mentor are notified"),
 					new Effect("delivery", "Every Administrator is alerted (repo.acceptance_head_moved)"),
 					new Effect("delivery",
-							"The handover's pull request is closed with a reason comment and \"(lần {n})\" in its title")),
+							"The handover's pull request is closed with a reason comment and \"(lần {n})\" in its title"),
+					new Effect("job", "The Milestone's rework due date is set (FR-87)")),
 			true, true),
 
 	M4(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED), milestone(MilestoneState.REVISION_REQUESTED),
 			Set.of(USER), "The Customer requests a revision (FR-33)",
 			List.of(new Guard("FR-34", "A Revision Round remains")),
 			List.of(new Effect("delivery",
-					"The handover's pull request is closed with a reason comment and \"(lần {n})\" in its title")),
+					"The handover's pull request is closed with a reason comment and \"(lần {n})\" in its title"),
+					new Effect("job", "The Milestone's rework due date is set (FR-87)")),
 			true, true),
 
 	M5(Machine.MILESTONE, milestone(MilestoneState.SUBMITTED), milestone(MilestoneState.ACCEPTED), Set.of(USER, AUTO),
