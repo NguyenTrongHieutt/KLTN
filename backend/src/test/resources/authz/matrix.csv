@@ -2085,7 +2085,6 @@ POST /api/v1/crew/jobs/{jobId}/agreement/read,ANONYMOUS,,agreement-read.json,401
 POST /api/v1/crew/jobs/{jobId}/agreement/read,USER_UNVERIFIED,job=crew,agreement-read.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/agreement/read,USER,job=crew,agreement-read.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/agreement/read,LOCKED,job=crew,agreement-read.json,401
-POST /api/v1/crew/jobs/{jobId}/agreement/read,CUSTOMER,,agreement-read.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/agreement/read,CUSTOMER,job=crew,agreement-read.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/agreement/read,MENTOR,job=crew,agreement-read.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/agreement/read,BIDDER,job=crew,agreement-read.json,404 NOT_FOUND
