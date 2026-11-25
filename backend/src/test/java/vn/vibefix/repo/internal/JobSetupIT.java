@@ -3211,7 +3211,7 @@ class JobSetupIT extends IntegrationTest {
 		});
 		assertThat(this.jdbc.sql("""
 				SELECT account_id || ' ' || head_sha || ' ' || notice_version FROM repo.source_confirmation WHERE setup_id = :setup
-				""").param("setup", confirmed.id()).query(String.class).list()).containsExactly(this.customer + " " + head + " 1.0");
+				""").param("setup", confirmed.id()).query(String.class).list()).containsExactly(this.customer + " " + head + " 1.1");
 		assertThat(openConfirmTodos()).as("the to-do closes").isZero();
 
 		run();
@@ -4466,7 +4466,7 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("""
 				SELECT coalesce(account_id::text, 'none') || ' ' || head_sha || ' ' || notice_version FROM repo.source_confirmation
 				WHERE job_id = :job
-				""").param("job", this.job).query(String.class).list()).containsExactly("none " + head + " 1.0");
+				""").param("job", this.job).query(String.class).list()).containsExactly("none " + head + " 1.1");
 		assertThat(this.personalData.export(this.customer).map(PersonalDataSection::data).orElse(Map.of()))
 			.doesNotContainKey("sourceSelfConfirmations");
 	}
