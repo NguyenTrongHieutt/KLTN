@@ -3701,6 +3701,36 @@
         "tags" : [ "crew-agreement-controller" ]
       }
     },
+    "/api/v1/crew/jobs/{jobId}/agreement/read" : {
+      "post" : {
+        "operationId" : "crewAgreementRead",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CrewAgreementReadRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "crew-agreement-controller" ]
+      }
+    },
     "/api/v1/crew/jobs/{jobId}/commitment" : {
       "get" : {
         "operationId" : "commitment",
@@ -11042,6 +11072,20 @@
         },
         "required" : [ "at", "confirmed", "versionNo" ]
       },
+      "CrewAgreementReadRequest" : {
+        "type" : "object",
+        "properties" : {
+          "confirmed" : {
+            "type" : "boolean"
+          },
+          "versionNo" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        },
+        "required" : [ "confirmed", "versionNo" ]
+      },
       "CrewAgreementSkill" : {
         "type" : "object",
         "properties" : {
@@ -11058,6 +11102,9 @@
       "CrewAgreementView" : {
         "type" : "object",
         "properties" : {
+          "changedSinceRead" : {
+            "type" : "boolean"
+          },
           "content" : {
             "$ref" : "#/components/schemas/CrewAgreementContent"
           },
@@ -11085,7 +11132,7 @@
             }
           }
         },
-        "required" : [ "jobTitle", "liveAccessIds", "reworkDays", "versions" ]
+        "required" : [ "changedSinceRead", "jobTitle", "liveAccessIds", "reworkDays", "versions" ]
       },
       "CrewApplicationSkillView" : {
         "type" : "object",
