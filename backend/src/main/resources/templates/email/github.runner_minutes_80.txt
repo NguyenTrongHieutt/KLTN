@@ -1,4 +1,4 @@
-subject: Kho chạy đã dùng {used}/{budget} phút GitHub Actions tháng này
+subject: Repo chạy đã dùng {used}/{budget} phút GitHub Actions tháng này
 ---
 Xin chào,
 

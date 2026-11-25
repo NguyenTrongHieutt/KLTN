@@ -1,4 +1,4 @@
-subject: Hãy bật xác thực hai lớp trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}
+subject: Hãy bật 2FA trên GitHub (nếu chưa bật), rồi chấp nhận lời mời cho {job}
 ---
 Xin chào,
 

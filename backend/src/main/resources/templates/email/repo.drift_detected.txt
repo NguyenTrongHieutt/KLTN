@@ -1,4 +1,4 @@
-subject: Dự án gốc của {job} vừa thay đổi
+subject: Repo nguồn của {job} vừa thay đổi
 ---
 Xin chào,
 

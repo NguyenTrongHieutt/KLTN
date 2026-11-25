@@ -1,4 +1,4 @@
-subject: Quyền của bạn trên kho làm việc của {job} đã được thu hồi
+subject: Quyền của bạn trên repo làm việc của {job} đã được thu hồi
 ---
 Xin chào,
 

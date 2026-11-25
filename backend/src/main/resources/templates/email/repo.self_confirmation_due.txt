@@ -1,4 +1,4 @@
-subject: Hãy xác nhận dự án gốc đã sạch để bắt đầu {job}
+subject: Hãy xác nhận repo nguồn đã sạch để bắt đầu {job}
 ---
 Xin chào,
 

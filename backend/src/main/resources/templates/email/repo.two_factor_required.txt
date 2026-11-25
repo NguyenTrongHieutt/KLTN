@@ -1,4 +1,4 @@
-subject: Bật xác thực hai lớp trên GitHub để nhận quyền ghi ở {job}
+subject: Bật 2FA trên GitHub để nhận quyền write ở {job}
 ---
 Xin chào,
 

@@ -1,4 +1,4 @@
-subject: Bật xác thực hai lớp trên GitHub để đọc được kho trung gian của {job}
+subject: Bật 2FA trên GitHub để đọc được repo trung gian của {job}
 ---
 Xin chào,
 

@@ -1,4 +1,4 @@
-subject: Mã của {job} đã được chép vào nhánh {branch} của dự án bạn. Hãy hợp nhất nhánh này trên GitHub
+subject: Mã của {job} đã được chép vào nhánh {branch} của dự án bạn. Hãy merge nhánh này trên GitHub
 ---
 Xin chào,
 

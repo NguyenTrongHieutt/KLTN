@@ -1,4 +1,4 @@
-subject: Kho trung gian của {job} sẽ bị xóa ngày {date}. Hãy tải mã về trước ngày đó
+subject: Repo trung gian của {job} sẽ bị xóa ngày {date}. Hãy tải mã về trước ngày đó
 ---
 Xin chào,
 

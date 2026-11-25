@@ -1,4 +1,4 @@
-subject: Đã hợp nhất mã của {job} vào dự án gốc
+subject: Đã merge mã của {job} vào repo nguồn
 ---
 Xin chào,
 
