@@ -255,13 +255,16 @@ class HandoverController {
 	 * @param acceptance a Code Job's acceptance while the handover waits: {@code MERGING} under the busy
 	 * marker, {@code FAILED} when its merge did not go through (FR-33), or {@code VOIDED} when its merge
 	 * answered 409 and M3 applied, until the handover itself shows {@code VOIDED}
+	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, UX-DR129); the
+	 * report says so when above 0, to every reader
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
 			List<HandoverCriterionView> criteria, long version, int roundsLeft,
 			@Nullable HandoverDecisionView decision, @Nullable Instant decidedAt, List<HandoverCheckView> checks,
 			boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
-			List<HandoverScreenshotView> screenshots, List<HandoverEvidenceLinkView> links, @Nullable String acceptance) {
+			List<HandoverScreenshotView> screenshots, List<HandoverEvidenceLinkView> links, @Nullable String acceptance,
+			@Nullable Integer daysLate) {
 	}
 
 	private final DeliveryAccess access;
@@ -433,7 +436,7 @@ class HandoverController {
 			}
 		}
 		if (mentor.job().assessment()) {
-			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId(), null), null);
+			Handover handover = this.handovers.record(Pending.of(mentor, draft, body.version(), this.ids.newId(), null), null, null);
 			return new HandoverSubmissionView(handover.id(), jobId, handover.milestoneId(), handover.number(), "DONE", null,
 					null, handover.id(), null, null);
 		}
@@ -530,7 +533,8 @@ class HandoverController {
 					.orElse(null),
 				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null))),
 				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(),
-				this.handovers.links(handover.id()).stream().map(HandoverController::linkView).toList(), acceptance);
+				this.handovers.links(handover.id()).stream().map(HandoverController::linkView).toList(), acceptance,
+				handover.daysLate());
 	}
 
 	/** N-11 needs the domain beside each link; the check's time is for the Mentor and the Crew. */

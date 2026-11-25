@@ -135,6 +135,31 @@ describe('JOB-1 progress (FR-28, AD-33, UX-DR68)', () => {
     expect(within(second).queryByText(/theo thỏa thuận/)).toBeNull()
   })
 
+  it('keeps "Bàn giao trễ" on the card of a late handover, and says nothing for one on time (FR-87)', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () =>
+        json(
+          progress({
+            milestones: [
+              { milestoneId: 'm1', number: 1, title: 'Sửa lỗi trùng giờ', state: 'ACCEPTED', priceVnd: 1500000, dueOn: '2026-11-20', daysLate: 2 },
+              { milestoneId: 'm2', number: 2, title: 'Email nhắc lịch', state: 'SUBMITTED', priceVnd: 1500000, dueOn: '2026-12-10', daysLate: 0 },
+            ],
+          }),
+        ),
+      'GET /api/v1/todos': () => json({ items: [], total: 0 }),
+    })
+    renderAt('/cong-viec/j1')
+
+    const first = (await screen.findByRole('heading', { level: 3, name: 'Giai đoạn 1 · Sửa lỗi trùng giờ' })).closest('li')!
+    const late = within(first).getByText('Bàn giao trễ 2 ngày')
+    // A record, not a problem: the muted text colour, never the destructive one.
+    expect(late).toHaveClass('text-muted-foreground')
+    const second = screen.getByRole('heading', { level: 3, name: 'Giai đoạn 2 · Email nhắc lịch' }).closest('li')!
+    expect(within(second).queryByText(/Bàn giao trễ/)).toBeNull()
+  })
+
   it("tells the Customer each Milestone's own state, with no progress figure", { timeout: 20_000 }, async () => {
     fakeBackend(signedInUser, {
       ...inEveryJob('CUSTOMER'),

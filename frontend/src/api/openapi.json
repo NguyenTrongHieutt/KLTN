@@ -11397,6 +11397,10 @@
               "$ref" : "#/components/schemas/HandoverCriterionView"
             }
           },
+          "daysLate" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "decidedAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -11893,6 +11897,10 @@
               "$ref" : "#/components/schemas/EvidenceCriterion"
             }
           },
+          "dueInForce" : {
+            "type" : "string",
+            "format" : "date"
+          },
           "dueOn" : {
             "type" : "string",
             "format" : "date"
@@ -12019,6 +12027,10 @@
             "items" : {
               "$ref" : "#/components/schemas/EvidenceReportCriterion"
             }
+          },
+          "daysLate" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "decidedAt" : {
             "type" : "string",
@@ -14570,6 +14582,10 @@
           },
           "autoAccepted" : {
             "type" : "boolean"
+          },
+          "daysLate" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "dueOn" : {
             "type" : "string",

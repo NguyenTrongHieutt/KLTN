@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
 import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
-import { formatDayMonthTime } from '@/lib/dates'
+import { formatCalendarDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import type { AdminDispute } from './adminDisputesApi'
@@ -100,6 +100,18 @@ function AgreementTab({ disputeId }: { disputeId: string }) {
                     </>
                   )}
                 </p>
+                {/* FR-87, AD-48: the agreed date, and on the version in force the date a rework or late funding moved it to. */}
+                {milestone.dueOn && (
+                  <p className="text-caption text-muted-foreground">
+                    {t('screen.admin.disputes.evidence.due', { date: formatCalendarDayMonth(milestone.dueOn) })}
+                    {milestone.dueInForce && (
+                      <>
+                        {' · '}
+                        {t('screen.admin.disputes.evidence.dueInForce', { date: formatCalendarDayMonth(milestone.dueInForce) })}
+                      </>
+                    )}
+                  </p>
+                )}
                 <ol className="list-decimal pl-5 text-caption">
                   {milestone.criteria.map((criterion) => (
                     <li key={criterion.criterionId} className="break-words">

@@ -42,14 +42,15 @@ class JobMilestoneStates implements MilestoneStates {
 		this.jdbc.sql("""
 				SELECT id, state, revision_rounds - revision_rounds_used AS left_rounds, revision_criteria, auto_accepted,
 				       state = 'CANCELLED' AND funded_at IS NOT NULL AS refunded,
-				       CASE WHEN state IN ('FUNDED', 'REVISION_REQUESTED') THEN overdue_since END AS overdue_since, due_on
+				       CASE WHEN state IN ('FUNDED', 'REVISION_REQUESTED') THEN overdue_since END AS overdue_since, due_on,
+				       CASE WHEN state IN ('SUBMITTED', 'ACCEPTED', 'SETTLED') THEN days_late END AS days_late
 				FROM job.milestone WHERE job_id = :job AND removed_at IS NULL
 				""")
 			.param("job", jobId)
 			.query((rs, n) -> details.put(rs.getObject("id", UUID.class), new MilestoneDetail(rs.getString("state"),
 					Math.max(0, rs.getInt("left_rounds")), (Integer) rs.getObject("revision_criteria"),
 					rs.getBoolean("auto_accepted"), rs.getBoolean("refunded"), overdueSince(rs.getTimestamp("overdue_since")),
-					rs.getObject("due_on", LocalDate.class))))
+					rs.getObject("due_on", LocalDate.class), (Integer) rs.getObject("days_late"))))
 			.list();
 		return details;
 	}

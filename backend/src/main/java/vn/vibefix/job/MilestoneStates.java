@@ -25,9 +25,11 @@ public interface MilestoneStates {
 	 * @param refunded cancelled after it was funded, so its held money was refunded in full (FR-40)
 	 * @param overdueSince when a Funded or Revision Requested Milestone became overdue (FR-48); a flag, not a state
 	 * @param dueOn the due date in force (FR-87, AD-48), which a rework can move later than the date the Agreement holds
+	 * @param daysLate how many days late the current handover of a Submitted, Accepted or Settled Milestone came
+	 * (FR-87); {@code null} in any other state, and for a handover made before the figure was recorded
 	 */
 	record MilestoneDetail(String state, int roundsLeft, @Nullable Integer revisionCriteria, boolean autoAccepted,
-			boolean refunded, @Nullable Instant overdueSince, @Nullable LocalDate dueOn) {
+			boolean refunded, @Nullable Instant overdueSince, @Nullable LocalDate dueOn, @Nullable Integer daysLate) {
 	}
 
 	/** Each live Milestone of the Job by its ID, with its rounds and decision. */

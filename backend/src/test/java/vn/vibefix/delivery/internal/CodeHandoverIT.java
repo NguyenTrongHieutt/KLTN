@@ -1347,17 +1347,61 @@ class CodeHandoverIT extends IntegrationTest {
 		due(LocalDate.parse("2026-01-03"));
 		UUID first = handedOver();
 		assertThat(firstDaysLate()).isEqualTo(2);
+		// FR-87 (Story 25.1 part 3): the handover keeps its own days late, and every reader of the report sees them.
+		assertThat(daysLate(first)).isEqualTo(2);
+		for (Map.Entry<UUID, Role> reader : Map.of(this.lan, Role.CUSTOMER, this.hung, Role.MENTOR, this.vy, Role.STUDENT)
+			.entrySet()) {
+			this.mvc.perform(get("/api/v1/handovers/" + first).with(as(reader.getKey(), reader.getValue())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.daysLate").value(2));
+		}
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].state").value("SUBMITTED"))
+			.andExpect(jsonPath("$.milestones[0].daysLate").value(2));
 
 		requestRevision(first).andExpect(status().isOk());
 		assertThat(dueOn()).isEqualTo(LocalDate.parse("2026-01-10"));
+		// Sent back, the Milestone has no current handover to be late.
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].daysLate").doesNotExist());
 		closePullRequests(first);
 		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
 				"export const free = 'again';\n", "Sửa theo yêu cầu", "hung@example.test");
 		preflight();
-		copied(version(), head, List.of("src/booking.js"));
+		UUID second = copied(version(), head, List.of("src/booking.js"));
 
 		assertThat(milestoneState()).isEqualTo("SUBMITTED");
 		assertThat(firstDaysLate()).as("the second handover meets 10/01, and the Milestone is still late").isEqualTo(2);
+		assertThat(daysLate(second)).as("the second handover is on time on its own row").isZero();
+		assertThat(daysLate(first)).as("the first handover's figure never changes").isEqualTo(2);
+		this.mvc.perform(get("/api/v1/handovers/" + second).with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.daysLate").value(0));
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/progress").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.milestones[0].daysLate").value(0));
+	}
+
+	/**
+	 * FR-87 (Story 25.1 part 3): "Gửi bàn giao" at 23:58 on the due date, and the runner finishes the copy at 00:01.
+	 * The overdue check ran in between and flagged the Milestone, but the handover counts from when it was sent: it
+	 * is on time, on its own row and in the Milestone's on-time record.
+	 */
+	@Test
+	void aHandoverSentBeforeTheDueDateEndedIsOnTimeHoweverLongItsCopyTakes() throws Exception {
+		due(LocalDate.parse("2026-01-05"));
+		this.clock.setInstant(Instant.parse("2026-01-05T16:58:00Z"));
+		String head = GITHUB.push(GitHubStub.ORGANIZATION, this.working, "main", "src/booking.js",
+				"export const free = true;\n", "Sửa lỗi", "hung@example.test");
+		preflight();
+		UUID submission = UUID.fromString(JsonPath.read(handOver(version())
+			.andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString(), "$.id"));
+		dispatchCopy();
+		this.clock.setInstant(Instant.parse("2026-01-05T17:01:00Z"));
+
+		copyRunSucceeds(submission, head, List.of("src/booking.js"));
+
+		assertThat(milestoneState()).isEqualTo("SUBMITTED");
+		assertThat(daysLate(submission)).isZero();
+		assertThat(firstDaysLate()).isZero();
 	}
 
 	/** FR-87: the Job's own copy of {@code REWORK_DAYS} decides, never today's setting (AD-7). */
@@ -1795,6 +1839,14 @@ class CodeHandoverIT extends IntegrationTest {
 	private int firstDaysLate() {
 		return this.jdbc.sql("SELECT first_days_late FROM job.milestone WHERE id = :id")
 			.param("id", this.milestone)
+			.query(Integer.class)
+			.single();
+	}
+
+	/** The days late {@code delivery} stored with the handover (FR-87). */
+	private int daysLate(UUID handover) {
+		return this.jdbc.sql("SELECT days_late FROM delivery.handover WHERE id = :id")
+			.param("id", handover)
 			.query(Integer.class)
 			.single();
 	}

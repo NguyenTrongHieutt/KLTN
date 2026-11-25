@@ -40,6 +40,13 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         </h2>
         <p className="text-body-sm text-muted-foreground">
           {t('screen.handover.report.meta', { mentor: report.mentorName, date: formatDate(report.createdAt), round: report.round })}
+          {/* FR-87, UX-DR129: how many days after the due date in force this handover came; a record, for every reader. */}
+          {report.daysLate != null && report.daysLate > 0 && (
+            <>
+              {' · '}
+              {t('screen.handover.report.daysLate', { n: report.daysLate })}
+            </>
+          )}
         </p>
         <StatusBadge tone={handoverTone(report.status, report.auto, customer)}>
           {report.auto

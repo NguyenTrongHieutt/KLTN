@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,22 +55,31 @@ class JobHandovers implements MilestoneHandovers {
 	@Override
 	@Transactional
 	public Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId) {
-		return submit(jobId, milestoneId, mentorId, expectedVersion, handoverId, null);
+		return submit(jobId, milestoneId, mentorId, expectedVersion, handoverId, null, null);
 	}
 
 	@Override
 	@Transactional
 	public Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId,
-			@Nullable String handoverCommit) {
-		Map<String, Object> input = handoverCommit == null ? Map.of("handoverId", handoverId)
-				: Map.of("handoverId", handoverId, "handoverCommit", handoverCommit);
+			@Nullable String handoverCommit, @Nullable Instant sentAt) {
+		Map<String, Object> input = new HashMap<>(Map.of("handoverId", handoverId));
+		if (handoverCommit != null) {
+			input.put("handoverCommit", handoverCommit);
+		}
+		if (sentAt != null) {
+			input.put("sentAt", sentAt);
+		}
 		Applied applied = this.lifecycle.applyMilestone(Transition.M2, jobId, milestoneId, Actor.user(mentorId), Trigger.USER,
 				expectedVersion, input);
 		Instant checkBy = after(milestoneId, "AUTO_ACCEPTANCE_DAYS", M2Submit.DEFAULT_AUTO_ACCEPTANCE_DAYS);
 		Instant first = after(milestoneId, "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", DEFAULT_FIRST_REMINDER_DAY);
 		Instant second = after(milestoneId, "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", DEFAULT_SECOND_REMINDER_DAY);
+		int daysLate = this.jdbc.sql("SELECT coalesce(days_late, 0) FROM job.milestone WHERE id = :id")
+			.param("id", milestoneId)
+			.query(Integer.class)
+			.single();
 		return new Submitted(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version(), checkBy,
-				first, second);
+				first, second, daysLate);
 	}
 
 	@Override

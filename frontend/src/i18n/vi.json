@@ -634,6 +634,9 @@
           "unchecked": "Chưa kiểm tra",
           "autoAccepted": "Tự động chấp nhận khi hết hạn kiểm tra",
           "decidedAt": "quyết định lúc {time}",
+          "daysLate": "bàn giao trễ {n} ngày",
+          "due": "Hạn theo thỏa thuận {date}",
+          "dueInForce": "hạn đang có hiệu lực {date}",
           "carried": "Kèm theo bàn giao",
           "preview": "Preview",
           "openPreview": "Mở preview",
@@ -2592,6 +2595,7 @@
       "milestone": "Giai đoạn {n} · {title}",
       "due": "Hạn {date}",
       "agreedDue": "theo thỏa thuận {date}",
+      "daysLate": "Bàn giao trễ {n} ngày",
       "crew": "Nhóm thực hiện",
       "noCrew": "Chưa có thành viên nào đang làm.",
       "crewState": {
@@ -2650,6 +2654,7 @@
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
         "meta": "Người hướng dẫn {mentor} · {date} · lần thứ {round}",
+        "daysLate": "bàn giao trễ {n} ngày",
         "criteria": "Tiêu chí nghiệm thu",
         "criterion": "Tiêu chí {n}: {statement}",
         "selfMet": "Người hướng dẫn tự nhận xét: Đạt",

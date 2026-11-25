@@ -158,6 +158,40 @@ class EvidencePackageIT extends IntegrationTest {
 			.param("sha", SHA).param("at", at).update();
 	}
 
+	/**
+	 * FR-87, AD-48 (Story 25.1): the Package shows each handover's days late, and beside the Agreement in force the due
+	 * date a rework or late funding moved a Milestone to, which no Agreement version records.
+	 */
+	@Test
+	void thePackageShowsEachHandoversDaysLateAndTheDueDateInForce() throws Exception {
+		UUID dispute = open();
+		take(this.ha.accountId(), dispute);
+		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].milestones[0].dueInForce").doesNotExist());
+		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].daysLate").doesNotExist());
+		// The figure is written with the handover and never after: the runtime role may not update the column.
+		UUID late = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, no_preview_reason, days_late)
+				VALUES (:id, :job, :product, :milestone, 1, 'Giai đoạn 1', 2, :mentor, 'SUBMITTED', 6, :transition, :at, :at,
+				    'Ứng dụng chỉ chạy trên máy của quán', 2)
+				""").param("id", late).param("job", this.world.job()).param("product", this.world.product())
+			.param("milestone", this.world.milestone()).param("mentor", this.world.hung()).param("transition", UUID.randomUUID())
+			.param("at", Timestamp.from(this.clock.instant())).update();
+		this.jdbc.sql("UPDATE job.milestone SET due_on = DATE '2027-03-31' WHERE id = :id")
+			.param("id", this.world.milestone())
+			.update();
+
+		evidence(this.ha.accountId(), dispute, "agreement").andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].milestones[0].dueInForce").value("2027-03-31"));
+		evidence(this.ha.accountId(), dispute, "criteria").andExpect(status().isOk())
+			.andExpect(jsonPath("$[?(@.handoverId == '" + late + "')].daysLate").value(2))
+			.andExpect(jsonPath("$[?(@.handoverId == '" + this.handover + "')].daysLate")
+				.value(Matchers.contains(Matchers.nullValue())));
+	}
+
 	@Test
 	void theAssigneeReadsEveryTabUnderTheGrantAndEveryViewIsAudited() throws Exception {
 		UUID dispute = open();

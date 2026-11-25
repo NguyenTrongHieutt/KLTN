@@ -29,9 +29,11 @@ public interface MilestoneHandovers {
 	 * @param checkBy when the Customer should have checked by: the handover plus the Auto-acceptance days
 	 * @param firstReminderAt the handover plus the first reminder's days (FR-35)
 	 * @param secondReminderAt the handover plus the second reminder's days
+	 * @param daysLate how many days after the Milestone's due date in force the handover came, 0 when on time or when
+	 * the Milestone has no due date (FR-87, AD-48)
 	 */
 	record Submitted(UUID transitionId, int number, long version, Instant checkBy, Instant firstReminderAt,
-			Instant secondReminderAt) {
+			Instant secondReminderAt, int daysLate) {
 	}
 
 	Optional<HandoverJob> job(UUID jobId);
@@ -47,9 +49,12 @@ public interface MilestoneHandovers {
 	/**
 	 * M2 with a Code Job's Handover Commit as its evidence (FR-32, AD-11): the SHA the copy run put on
 	 * {@code handover/{handoverId}}; {@code null} for an Assessment Job.
+	 * @param sentAt when the Mentor sent the handover, which for a Code Job is before its copy ran; the days late count
+	 * from it, so the time the copy takes is never the team's lateness (FR-87). {@code null}, or a time after now, is
+	 * now
 	 */
 	Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId,
-			@Nullable String handoverCommit);
+			@Nullable String handoverCommit, @Nullable Instant sentAt);
 
 	/**
 	 * M3 by the System (FR-33, AD-11): the acceptance merge answered 409 because the handover branch no
