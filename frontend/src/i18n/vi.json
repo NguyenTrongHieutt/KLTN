@@ -3590,7 +3590,7 @@
       "guidance": "vibefix không quét mã của bạn. Trước khi người khác đọc mã, hãy tự kiểm tra toàn bộ lịch sử dự án: mọi API key và mật khẩu (ví dụ Supabase, Firebase, VNPay, OpenAI) phải được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng bạn (số điện thoại, email, số CCCD) phải được gỡ. Bạn có thể tự chạy công cụ miễn phí gitleaks trên GitHub Actions của dự án; vibefix không chạy và không đọc kết quả."
     },
     "selfConfirmation": {
-      "version": "1.0",
+      "version": "1.1",
       "versionLine": "Lưu ý khi xác nhận repo nguồn · phiên bản {version}",
       "title": "Xác nhận repo nguồn đã sạch",
       "checkbox": "Tôi xác nhận: trong toàn bộ lịch sử của {repo} đến commit {shortSha}, mọi secret và mật khẩu đã được đổi hoặc thu hồi, và dữ liệu cá nhân của khách hàng tôi đã được gỡ. Tôi hiểu vibefix không quét mã, và người hướng dẫn cùng nhóm thực hiện sẽ đọc toàn bộ lịch sử này."
