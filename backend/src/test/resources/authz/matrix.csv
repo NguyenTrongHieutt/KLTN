@@ -2079,6 +2079,26 @@ GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_DISPUTE_GRANT,job=crew,,404 NOT_FO
 GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_TEAM_ISSUE_GRANT,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_ABUSE_REPORT_GRANT,job=crew,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,,404 NOT_FOUND
+# The reader's screen says which version it shows, so they are told of a newer one later (Story 25.1b): the crew Job's
+# confirmed version 1, for the same callers as the read.
+POST /api/v1/crew/jobs/{jobId}/agreement/read,ANONYMOUS,,agreement-read.json,401
+POST /api/v1/crew/jobs/{jobId}/agreement/read,USER_UNVERIFIED,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,USER,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,LOCKED,job=crew,agreement-read.json,401
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CUSTOMER,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,MENTOR,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,BIDDER,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ASSIGNED,job=crew,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ACTIVE,job=crew,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ACTIVE_PARTY,job=crew,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_FORMER,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_FORMER_PARTY,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CROSS_ROLE,job=crew,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,ADMINISTRATOR,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,ADMIN_DISPUTE_GRANT,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,ADMIN_TEAM_ISSUE_GRANT,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,ADMIN_ABUSE_REPORT_GRANT,job=crew,agreement-read.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,ADMIN_SPLIT_RESOLUTION_GRANT,job=crew,agreement-read.json,404 NOT_FOUND
 # JOB-6's Crew list for the Mentor (FR-75, AD-41, Story 21.5): the crew Job's Mentor reads its members (job=crew);
 # the Customer, every Crew state and everyone else find nothing. There is no Crew command here, and none removes a
 # member who signed (FR-75): picks, their withdrawal and the Crew Applications live on JOB-9.

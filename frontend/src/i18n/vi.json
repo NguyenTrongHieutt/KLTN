@@ -2144,6 +2144,7 @@
         "readOnly": "Bạn chỉ đọc được thỏa thuận này",
         "readOnlyPicked": "Bạn đọc thỏa thuận này trước khi ký cam kết; bạn chỉ đọc được.",
         "empty": "Chưa có bản thỏa thuận nào được chia sẻ.",
+        "changed": "Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.",
         "shared": "Bản nháp {n}, người hướng dẫn gửi cho khách hàng lúc {time}. Nội dung còn có thể thay đổi cho đến khi khách hàng duyệt và người hướng dẫn xác nhận."
       },
       "milestone": "Giai đoạn {n}",
@@ -4318,6 +4319,9 @@
       },
       "milestone_rework_due": {
         "title": "Giai đoạn {n} của {job} có hạn mới để sửa: {date}"
+      },
+      "agreement_draft_changed": {
+        "title": "Bản nháp thỏa thuận của {job} đã thay đổi"
       },
       "milestone_due_moved": {
         "title": "Giai đoạn {n} của {job} được thanh toán trễ {days} ngày, nên hạn dời sang {date}"

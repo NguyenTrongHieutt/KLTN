@@ -1716,6 +1716,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crew/jobs/{jobId}/agreement/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["crewAgreementRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crew/jobs/{jobId}/commitment": {
         parameters: {
             query?: never;
@@ -4870,12 +4886,18 @@ export interface components {
             /** Format: int32 */
             versionNo: number;
         };
+        CrewAgreementReadRequest: {
+            confirmed: boolean;
+            /** Format: int32 */
+            versionNo: number;
+        };
         CrewAgreementSkill: {
             /** Format: uuid */
             id: string;
             name: string;
         };
         CrewAgreementView: {
+            changedSinceRead: boolean;
             content?: components["schemas"]["CrewAgreementContent"];
             jobTitle: string;
             liveAccessIds: string[];
@@ -10490,6 +10512,30 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CrewAgreementView"];
                 };
+            };
+        };
+    };
+    crewAgreementRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrewAgreementReadRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

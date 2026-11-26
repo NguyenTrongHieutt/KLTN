@@ -31,7 +31,8 @@ import vn.vibefix.shared.PersonalDataSection;
 /**
  * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, the External
  * Access identifiers a Mentor or a Crew member entered (FR-66), the Crew recruitments a Mentor set, with their note
- * to applicants (Story 21.4), and the reasons a member gave when leaving (Story 21.6). Erasure and Product deletion delete
+ * to applicants (Story 21.4), the reasons a member gave when leaving (Story 21.6), and the Agreement version a picked
+ * applicant or a member last opened (Story 25.1b), which erasure and the retention run delete. Erasure and Product deletion delete
  * the Jobs and their screenshot files, and erasure deletes the person's identifiers and clears those reasons; a running
  * Job blocks the erasure of
  * its Customer, its Mentor, and its unreleased Crew, and a Milestone a former member will be a split party of
@@ -81,7 +82,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.external_access", "job.agreement_version", "job.crew_row", "job.agreement_comment",
 				"job.agreement_change_request", "job.agreement_approval",
 				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
-				"job.external_access_identifier", "job.admin_read_grant", "job.milestone_split", "job.milestone_split_party",
+				"job.external_access_identifier", "job.agreement_read", "job.admin_read_grant", "job.milestone_split",
+				"job.milestone_split_party",
 				"job.milestone_split_version", "job.milestone_split_share", "job.milestone_split_confirmation");
 	}
 
@@ -145,8 +147,21 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			note.put("leftAt", rs.getTimestamp("window_end").toInstant().toString());
 			return note;
 		}).list();
+		// The Agreement version the person last opened as a picked applicant or a Crew member (Story 25.1b).
+		List<Map<String, Object>> reads = this.jdbc.sql("""
+				SELECT job_id, confirmed, version_no, read_at FROM job.agreement_read WHERE account_id = :id
+				ORDER BY read_at, job_id
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> read = new LinkedHashMap<>();
+			read.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			read.put("confirmedVersion", rs.getBoolean("confirmed"));
+			read.put("versionNo", rs.getInt("version_no"));
+			read.put("readAt", rs.getTimestamp("read_at").toInstant().toString());
+			return read;
+		}).list();
 		List<Map<String, Object>> parts = splitParts(accountId);
-		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty() && leftNotes.isEmpty() && parts.isEmpty()) {
+		if (jobs.isEmpty() && identifiers.isEmpty() && recruitments.isEmpty() && leftNotes.isEmpty() && reads.isEmpty()
+				&& parts.isEmpty()) {
 			return Optional.empty();
 		}
 		Map<String, Object> data = new LinkedHashMap<>();
@@ -161,6 +176,9 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		}
 		if (!leftNotes.isEmpty()) {
 			data.put("crewLeftNotes", leftNotes);
+		}
+		if (!reads.isEmpty()) {
+			data.put("agreementReads", reads);
 		}
 		if (!parts.isEmpty()) {
 			data.put("milestoneSplitParts", parts);
@@ -203,6 +221,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	@Override
 	public void eraseAccount(UUID accountId) {
 		this.jdbc.sql("DELETE FROM job.external_access_identifier WHERE account_id = :id").param("id", accountId).update();
+		this.jdbc.sql("DELETE FROM job.agreement_read WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM job.admin_read_grant WHERE admin_account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE job.crew_row SET left_note = NULL WHERE member_account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE job.closure_proposal SET proposer_account_id = NULL WHERE proposer_account_id = :id")
@@ -267,7 +286,9 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		this.jdbc.sql("""
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.product_id = :id
 				""").param("id", productId).query(UUID.class).list().forEach(this.files::delete);
-		for (String table : List.of("job.job_screenshot", "job.external_access_identifier", "job.agreement_comment")) {
+		// The Agreement reads go too (Story 25.1b): a row names who read which version, and nothing refers to it.
+		for (String table : List.of("job.job_screenshot", "job.external_access_identifier", "job.agreement_read",
+				"job.agreement_comment")) {
 			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE product_id = :id)".formatted(table))
 				.param("id", productId)
 				.update();
@@ -306,6 +327,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.agreement_change_request",
 				"job.confirmed_agreement",
 				"job.agreement_approval", "job.acceptance_criterion", "job.milestone", "job.external_access_identifier",
+				"job.agreement_read",
 				"job.external_access",
 				"job.agreement_version", "job.agreement_draft", "job.crew_row")) {
 			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (:jobs)".formatted(table)).param("jobs", jobs).update();

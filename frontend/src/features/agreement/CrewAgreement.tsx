@@ -1,11 +1,12 @@
 import { CircleCheck, Info } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
 import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { Alert } from '@/components/ui/alert'
 import { Card } from '@/components/ui/card'
 import { Page } from '@/components/ui/page'
 import { JobRoleLine } from '@/features/job/ByJobRole'
@@ -17,18 +18,40 @@ import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { isNotFound } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { AgreementContentView } from './AgreementContent'
-import { useCrewAgreement, type CrewAgreement as CrewAgreementData, type CrewAgreementOption } from './agreementApi'
+import {
+  useCrewAgreement,
+  useMarkCrewAgreementRead,
+  type CrewAgreement as CrewAgreementData,
+  type CrewAgreementOption,
+} from './agreementApi'
 
 /**
  * JOB-6 read-only for the Crew (FR-75, FR-81, AD-41, UX-DR125, Story 25.1b): a picked applicant, coming from "Đọc thỏa
  * thuận" in the Commitment panel, and an active member read the Agreement they sign for and work under. Until the
  * Agreement is confirmed that is the latest draft the Mentor shared with the Customer; then every confirmed version.
- * Never a comment, the quote, or a Change Request in progress, and nothing to act on. A member who left, and anyone
+ * Never a comment, the quote, or a Change Request in progress, and nothing to act on. The page says which version it
+ * shows, and tells a reader who opened an earlier one that the Agreement changed since. A member who left, and anyone
  * else, sees the not-found screen, as the API answers.
  */
 export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind }) {
   const [pick, setPick] = useState<CrewAgreementOption>()
   const agreement = useCrewAgreement(jobId, pick)
+  // The version on screen is the one read: a reader who opened one is told when a newer one becomes readable.
+  const { mutate: markRead } = useMarkCrewAgreementRead(jobId)
+  const shown = agreement.isPlaceholderData ? undefined : agreement.data?.shown
+  const shownConfirmed = shown?.confirmed
+  const shownVersion = shown?.versionNo
+  useEffect(() => {
+    if (shownConfirmed !== undefined && shownVersion !== undefined) {
+      markRead({ confirmed: shownConfirmed, versionNo: shownVersion })
+    }
+  }, [markRead, shownConfirmed, shownVersion])
+  // "Đã thay đổi từ lần bạn đọc trước" stays for the visit (UX-DR125): once the read above is noted, a reload or
+  // another version answers that nothing changed, which would take the line away while the reader still compares.
+  const [changed, setChanged] = useState(false)
+  if (!changed && !agreement.isPlaceholderData && agreement.data?.changedSinceRead) {
+    setChanged(true)
+  }
   usePageTitle(agreement.data ? t('screen.agreement.title', { job: agreement.data.jobTitle }) : t('screen.agreement.tab'))
   if (agreement.isError && isNotFound(agreement.error)) {
     return <NotFoundScreen />
@@ -54,7 +77,13 @@ export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind 
       </div>
       <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
         {agreement.data && (
-          <Versions agreement={agreement.data} pick={pick} loading={agreement.isPlaceholderData} onPick={setPick} />
+          <Versions
+            agreement={agreement.data}
+            pick={pick}
+            loading={agreement.isPlaceholderData}
+            changed={changed}
+            onPick={setPick}
+          />
         )}
       </RegionState>
     </Page>
@@ -65,6 +94,7 @@ function Versions({
   agreement,
   pick,
   loading,
+  changed,
   onPick,
 }: {
   agreement: CrewAgreementData
@@ -72,6 +102,8 @@ function Versions({
   pick?: CrewAgreementOption
   /** The picked version is loading, and the one before it is still shown. */
   loading: boolean
+  /** The reader opened an earlier version before this visit, and a newer one became readable since. */
+  changed: boolean
   onPick: (option: CrewAgreementOption) => void
 }) {
   const ids = useId()
@@ -85,6 +117,7 @@ function Versions({
   }
   return (
     <div aria-busy={loading} className={cn('flex w-full max-w-reading-max flex-col gap-5', loading && 'opacity-60')}>
+      {changed && <Alert tone="warning">{t('screen.agreement.crew.changed')}</Alert>}
       {agreement.versions.length > 1 && (
         <div className="flex flex-col gap-1">
           <label htmlFor={`${ids}-version`} className="text-label">
