@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -147,6 +147,36 @@ describe('JOB-6 for the Mentor: draft the Agreement (FR-16)', () => {
     expect(screen.getByText('Báo cáo mô tả hiện trạng')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Thêm giai đoạn' })).toBeNull()
     expect(screen.getByRole('textbox', { name: 'Giá' })).toBeEnabled()
+  })
+})
+
+describe('JOB-6 and JOB-4 for the Customer of a Self-mentored Job (AD-47, Story 25.2a)', () => {
+  it('opens the editor, as the one who drafts, and says who they are', { timeout: 20_000 }, async () => {
+    mentorBackend(draft(), inEveryJob('CUSTOMER_MENTOR'))
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Bạn là: Khách hàng · tự hướng dẫn')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Lưu bản nháp' })).toBeInTheDocument()
+  })
+
+  it('has no Job Chat: the screen is not found', { timeout: 15_000 }, async () => {
+    // The Customer's and the Mentor's chat screens would both load here: only the explicit "none" is not found.
+    const chatScreens = {
+      'GET /api/v1/jobs/j1': () => json({ id: 'j1', title: 'Sửa lỗi đặt bàn', state: 'AGREEMENT', jobTypes: [], skills: [], screenshots: [] }),
+      'GET /api/v1/mentor/jobs/j1': () => json(mentorJob),
+      'GET /api/v1/jobs/j1/chat': () => json({ chatId: 'c1', unread: false }),
+    }
+    fakeBackend(signedInUser, { ...inEveryJob('CUSTOMER'), ...chatScreens })
+    const asCustomer = renderAt('/cong-viec/j1/tro-chuyen')
+    expect(await screen.findByText('Bạn là: Khách hàng')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Không tìm thấy nội dung này.' })).toBeNull()
+    asCustomer.dispose()
+    cleanup()
+
+    fakeBackend(signedInUser, { ...inEveryJob('CUSTOMER_MENTOR'), ...chatScreens })
+    renderAt('/cong-viec/j1/tro-chuyen')
+
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
   })
 })
 

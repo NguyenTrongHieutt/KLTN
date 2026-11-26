@@ -68,12 +68,18 @@ class Jobs {
 	record SkillOnJob(UUID id, String name, boolean active) {
 	}
 
+	/**
+	 * One Job row.
+	 * @param selfMentored the Job's mode (FR-85, AD-47): the Customer is also the Mentor, from J11 or J12 on; on a Draft
+	 * the mode is only a choice, and the Job has no Mentor yet
+	 */
 	record Job(UUID id, UUID productId, UUID customerId, JobState state, String title, @Nullable String problem,
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<UUID> skillIds, List<String> skillNames, @Nullable Budget budget, @Nullable LocalDate deadline,
 			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
 			@Nullable Instant frozenAt, @Nullable Integer agreementVersionNo, @Nullable Instant hiddenAt,
-			@Nullable UUID mentorId, @Nullable UUID selectedApplicationId, @Nullable Instant selectedAt) {
+			@Nullable UUID mentorId, @Nullable UUID selectedApplicationId, @Nullable Instant selectedAt,
+			boolean selfMentored) {
 
 		/** A Code Job: one whose Job Types are not Assessment alone (FR-8). */
 		boolean code() {
@@ -91,7 +97,7 @@ class Jobs {
 	static final String COLUMNS = """
 			id, product_id, customer_account_id, state, title, problem, expected, app_users, done_check, job_types,
 			skill_ids, skill_names, budget, deadline, created_at, updated_at, version, opened_at, lapses_at, frozen_at,
-			agreement_version_no, hidden_at, mentor_account_id, selected_application_id, selected_at
+			agreement_version_no, hidden_at, mentor_account_id, selected_application_id, selected_at, self_mentored
 			""";
 
 	private final JdbcClient jdbc;
@@ -347,7 +353,7 @@ class Jobs {
 				instant(rs.getTimestamp("lapses_at")), instant(rs.getTimestamp("frozen_at")),
 				rs.getObject("agreement_version_no", Integer.class), instant(rs.getTimestamp("hidden_at")),
 				rs.getObject("mentor_account_id", UUID.class), rs.getObject("selected_application_id", UUID.class),
-				instant(rs.getTimestamp("selected_at")));
+				instant(rs.getTimestamp("selected_at")), rs.getBoolean("self_mentored"));
 	}
 
 	private static @Nullable Instant instant(@Nullable Timestamp timestamp) {

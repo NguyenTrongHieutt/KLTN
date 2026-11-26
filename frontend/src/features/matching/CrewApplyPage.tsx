@@ -129,7 +129,7 @@ function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
   const text =
     role.crewKind === 'FORMER'
       ? t('reason.matching.CREW_REJOIN_REFUSED')
-      : role.role === 'CUSTOMER'
+      : role.role === 'CUSTOMER' || role.role === 'CUSTOMER_MENTOR'
         ? t('reason.matching.ROLE_TAKEN')
         : t('reason.matching.ROLE_IN_JOB_TAKEN', { role: roleLabel(role.role) })
   return (

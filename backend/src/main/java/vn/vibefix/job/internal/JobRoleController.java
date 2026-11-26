@@ -39,7 +39,7 @@ class JobRoleController {
 	/** The role in one Job (AD-43). */
 	enum RoleInJob {
 
-		CUSTOMER, MENTOR, CREW
+		CUSTOMER, MENTOR, CUSTOMER_MENTOR, CREW
 
 	}
 
@@ -148,6 +148,7 @@ class JobRoleController {
 		return switch (role) {
 			case JobRole.Customer customer -> RoleInJob.CUSTOMER;
 			case JobRole.Mentor mentor -> RoleInJob.MENTOR;
+			case JobRole.CustomerMentor both -> RoleInJob.CUSTOMER_MENTOR;
 			case JobRole.Crew crew -> RoleInJob.CREW;
 			case JobRole.None none -> null;
 		};

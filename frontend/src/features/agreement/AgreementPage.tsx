@@ -51,6 +51,8 @@ export function AgreementPage() {
       jobId={jobId || undefined}
       customer={() => <CustomerAgreement jobId={jobId} />}
       mentor={() => <MentorAgreement jobId={jobId} />}
+      // The Customer of a Self-mentored Job drafts the Agreement: the Mentor's side.
+      customerMentor={() => <MentorAgreement jobId={jobId} />}
       // A member who left reads the Agreement no more (AD-41): the API answers not-found, so nothing is asked.
       crew={(role) =>
         role.crewKind === 'FORMER' ? <NotFoundScreen /> : <CrewAgreement key={jobId} jobId={jobId} kind={role.crewKind} />

@@ -4,7 +4,10 @@ import { t, type MessageKey } from '@/i18n/t'
 import { apiClient, unwrap } from '@/lib/apiClient'
 import { JOBS_QUERY_KEY } from './jobApi'
 
-/** The caller's role in one Job (AD-43): `CUSTOMER`, `MENTOR`, or `CREW` with its Crew relationship. */
+/**
+ * The caller's role in one Job (AD-43): `CUSTOMER`, `MENTOR`, `CUSTOMER_MENTOR` (the Customer of a Self-mentored Job,
+ * who is also its Mentor, AD-47), or `CREW` with its Crew relationship.
+ */
 export type JobRoleView = components['schemas']['JobRoleView']
 export type RoleInJob = JobRoleView['role']
 export type CrewKind = NonNullable<JobRoleView['crewKind']>
@@ -38,10 +41,14 @@ export function useMyJobs(enabled = true) {
 const ROLE_LABEL: Record<RoleInJob, MessageKey> = {
   CUSTOMER: 'screen.job.role.CUSTOMER',
   MENTOR: 'screen.job.role.MENTOR',
+  CUSTOMER_MENTOR: 'screen.job.role.CUSTOMER_MENTOR',
   CREW: 'screen.job.role.CREW',
 }
 
-/** The R16 word for a role in a Job (UX-DR109): "Khách hàng", "Người hướng dẫn", "Thành viên nhóm". */
+/**
+ * The R16 word for a role in a Job (UX-DR109): "Khách hàng", "Người hướng dẫn", "Thành viên nhóm", and for the
+ * combined role "Khách hàng · tự hướng dẫn".
+ */
 export function roleLabel(role: RoleInJob): string {
   return t(ROLE_LABEL[role])
 }

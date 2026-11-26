@@ -2,6 +2,7 @@ package vn.vibefix.support;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -44,6 +45,11 @@ public final class PostgresTestDatabase {
 	public static final String APP = "vibefix_app";
 
 	static final String TEMPLATE = "vibefix_template";
+
+	/** How often a reset tries to connect when the machine has no socket to give, and the pause that grows between tries. */
+	private static final int CONNECT_ATTEMPTS = 5;
+
+	private static final long CONNECT_PAUSE_MS = 500;
 
 	/** The token key of test applications (AD-22): random per JVM, like the database passwords. */
 	public static final String TEST_TOKEN_KEY = (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "");
@@ -217,13 +223,41 @@ public final class PostgresTestDatabase {
 	}
 
 	private void executeAsSuperuser(String database, String... statements) {
-		try (Connection connection = superuserConnection(database); Statement statement = connection.createStatement()) {
+		try (Connection connection = patientSuperuserConnection(database);
+				Statement statement = connection.createStatement()) {
 			for (String sql : statements) {
 				statement.execute(sql);
 			}
 		}
 		catch (SQLException ex) {
 			throw new IllegalStateException("Test database setup failed", ex);
+		}
+	}
+
+	/**
+	 * The superuser connection for a reset, tried again when the machine cannot open a socket. The suite opens one such
+	 * connection per test, several thousand in a run, and on Windows a late one sometimes fails with "No buffer space
+	 * available (maximum connections reached?)" while closed sockets still wait to be freed (seen in two full runs on
+	 * 2026-11-26). Nothing has run on the database when the connection itself fails, so trying again is safe; any other
+	 * failure is thrown at once.
+	 */
+	private Connection patientSuperuserConnection(String database) throws SQLException {
+		for (int attempt = 1;; attempt++) {
+			try {
+				return superuserConnection(database);
+			}
+			catch (SQLException ex) {
+				if (!(ex.getCause() instanceof SocketException) || attempt == CONNECT_ATTEMPTS) {
+					throw ex;
+				}
+				try {
+					Thread.sleep(CONNECT_PAUSE_MS * attempt);
+				}
+				catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					throw ex;
+				}
+			}
 		}
 	}
 

@@ -1739,6 +1739,7 @@
       "role": {
         "CUSTOMER": "Khách hàng",
         "MENTOR": "Người hướng dẫn",
+        "CUSTOMER_MENTOR": "Khách hàng · tự hướng dẫn",
         "CREW": "Thành viên nhóm",
         "youAre": "Bạn là: {role}",
         "youAreFormer": "Bạn là: {role} · đã rời"

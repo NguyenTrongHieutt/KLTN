@@ -8,7 +8,7 @@ export type JobAudience = 'customer' | 'mentor'
 
 /** The words a role in the Job reads (UX-DR87): the Customer's, or the Mentor's and the Crew's. */
 export function audienceOf(role: RoleInJob): JobAudience {
-  return role === 'CUSTOMER' ? 'customer' : 'mentor'
+  return role === 'CUSTOMER' || role === 'CUSTOMER_MENTOR' ? 'customer' : 'mentor'
 }
 
 /**

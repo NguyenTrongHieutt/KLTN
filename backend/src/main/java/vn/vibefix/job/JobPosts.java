@@ -23,10 +23,12 @@ public interface JobPosts {
 	 * @param mentorId the Mentor J3 recorded, while there is one
 	 * @param jobTypes the Job Types' names, for example {@code BUG_FIX}
 	 * @param skillIds the Skills the Job Post asks for, in its order
+	 * @param selfMentored a Self-mentored Job (FR-85, AD-47): its Customer is also its Mentor. Code that holds only IDs
+	 * reads the mode here, never from {@code mentorId} equalling {@code customerId}
 	 */
 	record JobPostState(UUID jobId, UUID customerId, UUID productId, String title, String state, boolean open,
 			boolean hidden, @Nullable Instant lapsesAt, boolean codeJob, @Nullable UUID mentorId, List<String> jobTypes,
-			List<UUID> skillIds) {
+			List<UUID> skillIds, boolean selfMentored) {
 
 		public JobPostState {
 			jobTypes = List.copyOf(jobTypes);

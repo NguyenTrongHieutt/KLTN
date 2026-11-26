@@ -39,6 +39,8 @@ export function HandoverPage() {
       jobId={jobId}
       customer={() => <CustomerHandovers jobId={jobId ?? ''} handoverId={handoverId} />}
       mentor={() => <MentorHandovers jobId={jobId ?? ''} handoverId={handoverId} />}
+      // The handover decision is the Customer's (acceptance, revision request, return): the Customer's side.
+      customerMentor={() => <CustomerHandovers jobId={jobId ?? ''} handoverId={handoverId} />}
       crew={() => <Content jobId={jobId ?? ''} handoverId={handoverId} header={null} />}
     />
   )

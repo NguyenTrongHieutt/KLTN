@@ -286,7 +286,7 @@ class JobPostQueries implements JobPosts {
 	private static JobPostState state(Job job) {
 		return new JobPostState(job.id(), job.customerId(), job.productId(), job.title(), job.state().name(),
 				job.state() == JobState.OPEN, job.hiddenAt() != null, job.lapsesAt(), job.code(), job.mentorId(),
-				job.jobTypes().stream().map(Enum::name).toList(), job.skillIds());
+				job.jobTypes().stream().map(Enum::name).toList(), job.skillIds(), job.selfMentored());
 	}
 
 	@Override

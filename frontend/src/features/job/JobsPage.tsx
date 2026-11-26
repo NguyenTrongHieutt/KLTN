@@ -31,9 +31,13 @@ type Segment = 'dang' | 'huong-dan' | 'tham-gia'
 
 const SEGMENTS: Segment[] = ['dang', 'huong-dan', 'tham-gia']
 
-const ROLE_OF: Record<Segment, RoleInJob> = { dang: 'CUSTOMER', 'huong-dan': 'MENTOR', 'tham-gia': 'CREW' }
-
-const SEGMENT_OF: Record<RoleInJob, Segment> = { CUSTOMER: 'dang', MENTOR: 'huong-dan', CREW: 'tham-gia' }
+// A Self-mentored Job is listed with the Jobs the user posts, never with the ones they mentor (AD-47).
+const SEGMENT_OF: Record<RoleInJob, Segment> = {
+  CUSTOMER: 'dang',
+  MENTOR: 'huong-dan',
+  CUSTOMER_MENTOR: 'dang',
+  CREW: 'tham-gia',
+}
 
 /** A bid still in play counts in "Việc tôi hướng dẫn" (UX-DR86): sent, picked, or on hold. */
 const PENDING: ApplicationStatus[] = ['SUBMITTED', 'SELECTED', 'ON_HOLD']
@@ -79,7 +83,7 @@ function Segments({ jobs, bids, crew }: { jobs: MyJob[]; bids: Application[]; cr
   const pending = bids.filter((bid) => PENDING.includes(bid.status))
   const shown = SEGMENTS.filter(
     (segment) =>
-      jobs.some((job) => job.role === ROLE_OF[segment]) ||
+      jobs.some((job) => SEGMENT_OF[job.role] === segment) ||
       (segment === 'huong-dan' && bids.length > 0) ||
       (segment === 'tham-gia' && crew.length > 0),
   )

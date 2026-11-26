@@ -292,6 +292,7 @@ class OneRolePerJobPropertyIT extends IntegrationTest {
 				    SELECT id AS job_id, customer_account_id AS account_id, 'CUSTOMER' AS kind FROM job.job
 				    UNION ALL
 				    SELECT id, mentor_account_id, 'MENTOR' FROM job.job WHERE mentor_account_id IS NOT NULL
+				        AND NOT (self_mentored AND mentor_account_id = customer_account_id)
 				    UNION ALL
 				    SELECT DISTINCT job_id, member_account_id, 'CREW' FROM job.crew_row
 				    WHERE status <> 'RELEASED' OR activated_at IS NOT NULL
