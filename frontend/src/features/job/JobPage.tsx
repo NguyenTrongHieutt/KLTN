@@ -220,6 +220,8 @@ function AgreementStep({ job }: { job: Job }) {
         links: [
           { to: `${base}/thanh-toan`, label: t('screen.payment.tab') },
           { to: `${base}/thoa-thuan`, label: t('screen.agreement.tab') },
+          // The Job waits for a signed member, and in a Self-mentored Job the Customer recruits them (FR-85).
+          ...(job.selfMentored ? [{ to: `${base}/tuyen-thanh-vien`, label: t('screen.recruitment.tab') }] : []),
         ],
       }
     : job.agreementShared

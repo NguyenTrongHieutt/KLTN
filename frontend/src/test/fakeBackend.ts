@@ -16,7 +16,8 @@ export function capabilities(overrides: Partial<Capabilities> = {}): Capabilitie
 /** A signed-in Google account: a `USER` with no role and nothing verified yet (Stories 19.1, 20.1). */
 export const signedInWithGoogle: Session = {
   status: 'SIGNED_IN',
-  privacyNoticeVersion: '3.1', selfMentoredJobs: false,
+  privacyNoticeVersion: '3.1',
+  selfMentoredJobs: false,
   displayName: 'Nguyễn Thị Lan',
   account: { id: '00000000-0000-7000-8000-000000000002', kind: 'USER', capabilities: capabilities(), theme: 'LIGHT' },
 }
@@ -27,7 +28,8 @@ export const signedInWithGoogle: Session = {
  */
 export const signedInUser: Session = {
   status: 'SIGNED_IN',
-  privacyNoticeVersion: '2.0', selfMentoredJobs: false,
+  privacyNoticeVersion: '2.0',
+  selfMentoredJobs: false,
   githubLogin: 'octo-cat',
   account: {
     id: '00000000-0000-7000-8000-000000000001',

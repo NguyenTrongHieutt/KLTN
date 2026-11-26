@@ -200,9 +200,13 @@ function JobForm({
   // N-34's own checkbox, asked again for each publication (FR-85).
   const [understood, setUnderstood] = useState(false)
   const [noticeMissing, setNoticeMissing] = useState(false)
+  const notice = useRef<HTMLInputElement>(null)
   // The mode is offered while the platform has it on; the Draft's own choice decides nothing by itself.
-  const offered = useSession().data?.selfMentoredJobs === true
+  const session = useSession().data
+  const offered = session?.selfMentoredJobs === true
   const selfMentored = offered && values.selfMentored
+  // A Draft that took the mode while it was on: saving or publishing it now makes it a normal Job, and the form says so.
+  const modeOff = session !== undefined && !offered && job?.selfMentored === true
   const save = useSaveJob(job?.id)
   const publish = usePublishJob()
   const toasts = useToasts()
@@ -244,6 +248,8 @@ function JobForm({
     setNoticeMissing(unread)
     if (unanswered.length === 0 && !unread) {
       setConfirming(true)
+    } else if (unanswered.length === 0) {
+      notice.current?.focus()
     }
   }
   const confirmPublish = async () => {
@@ -455,6 +461,8 @@ function JobForm({
                   checked={values.selfMentored === own}
                   onChange={() => {
                     set('selfMentored', own)
+                    // The acknowledgement belongs to the choice just made: choosing again asks again.
+                    setUnderstood(false)
                     setNoticeMissing(false)
                   }}
                 />
@@ -471,6 +479,8 @@ function JobForm({
           </fieldset>
         )}
 
+        {modeOff && <Alert tone="warning">{t('screen.job.form.selfMentored.off')}</Alert>}
+
         {selfMentored && (
           <Alert tone="info" title={t('screen.job.form.selfMentored.noticeTitle')}>
             <p>{t('screen.job.form.selfMentored.notice')}</p>
@@ -478,7 +488,9 @@ function JobForm({
               <input
                 type="checkbox"
                 className="mt-1"
+                ref={notice}
                 checked={understood}
+                aria-invalid={noticeMissing || undefined}
                 aria-describedby={noticeMissing ? `${ids}-noticeMissing` : undefined}
                 onChange={(event) => {
                   setUnderstood(event.target.checked)

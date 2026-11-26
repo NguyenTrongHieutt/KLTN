@@ -23,7 +23,8 @@ const minutes = (n: number) => new Date(Date.now() + n * 60_000).toISOString()
 
 const administrator: Session = {
   status: 'SIGNED_IN',
-  privacyNoticeVersion: '2.0', selfMentoredJobs: false,
+  privacyNoticeVersion: '2.0',
+  selfMentoredJobs: false,
   account: administratorAccount,
   administrator: {
     email: 'ha.phuong@vibefix.vn',

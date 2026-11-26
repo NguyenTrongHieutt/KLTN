@@ -414,6 +414,41 @@ describe('MEN-3, one Job Post (FR-12)', () => {
     })
   })
 
+  // A Customer with no profile is named by their username, and has no profile page to link to.
+  const own = { selfMentored: true, mentor: { displayName: '@lan-nguyen' } }
+
+  it('names the Customer who mentors a Self-mentored Job on the list (FR-85)', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts': () => page([{ ...recruitingSummary, ...own }]),
+      'GET /api/v1/mentor/customer-ratings': () => json([]),
+      'GET /api/v1/catalog': catalog,
+    })
+    renderAt('/tim-viec')
+
+    expect(await screen.findByText('Khách hàng tự hướng dẫn: @lan-nguyen')).toBeInTheDocument()
+    expect(screen.queryByText(/^Người hướng dẫn:/)).toBeNull()
+  })
+
+  it('names the Customer who mentors a Self-mentored Job in "Xin vào nhóm" (FR-85)', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/mentor/job-posts/j1': () =>
+        json({
+          ...post,
+          lapsesAt: undefined,
+          phase: 'RECRUITING',
+          need: 'CREW',
+          recruitment: { openSlots: 2, skills: [], note: '' },
+          ...own,
+        }),
+      'GET /api/v1/mentor/job-posts/j1/customer-rating': () => json({ count: 0 }),
+    })
+    renderAt('/tim-viec/j1')
+
+    const area = await screen.findByRole('region', { name: 'Xin vào nhóm' })
+    expect(within(area).getByText('Khách hàng tự hướng dẫn: @lan-nguyen')).toBeInTheDocument()
+    expect(within(area).queryByRole('link', { name: '@lan-nguyen' })).toBeNull()
+  })
+
   it('shows what a recruiting Mentor seeks in "Xin vào nhóm", with no bid (UX-DR98)', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       'GET /api/v1/mentor/job-posts/j1': () =>

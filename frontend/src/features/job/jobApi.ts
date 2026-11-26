@@ -107,8 +107,9 @@ function useJobChanged() {
     queryClient.setQueryData([...JOBS_QUERY_KEY, 'detail', job.id], job)
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'list'] }),
-      // Publishing a Self-mentored Job changes the user's role in it (FR-85).
-      queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'role', job.id] }),
+      // Publishing a Self-mentored Job changes the user's role in it (FR-85). No screen may be reading the role at
+      // that moment, and the Job's page must not open on the role cached before: it is read again in any case.
+      queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'role', job.id], refetchType: 'all' }),
       queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'mine'] }),
     ])
   }

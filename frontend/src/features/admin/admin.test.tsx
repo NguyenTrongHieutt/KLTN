@@ -24,7 +24,8 @@ const minutes = (n: number) => new Date(Date.now() + n * 60_000).toISOString()
 function administrator(idleIn = 30, absoluteIn = 480): Session {
   return {
     status: 'SIGNED_IN',
-    privacyNoticeVersion: '2.0', selfMentoredJobs: false,
+    privacyNoticeVersion: '2.0',
+    selfMentoredJobs: false,
     account: administratorAccount,
     administrator: {
       email: 'ha.phuong@vibefix.vn',
