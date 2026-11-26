@@ -320,7 +320,8 @@ class JobRolesIT extends IntegrationTest {
 		assertRefused("a self-mentored Draft with a Mentor", () -> this.jdbc
 			.sql("UPDATE job.job SET mentor_account_id = customer_account_id WHERE id = :id").param("id", draft).update());
 		assertRefused("a self-mentored Job past its Draft with no Mentor", () -> this.jdbc
-			.sql("UPDATE job.job SET state = 'AGREEMENT' WHERE id = :id").param("id", draft).update());
+			.sql("UPDATE job.job SET state = 'AGREEMENT', rules = '{}'::jsonb, selection_days = 14 WHERE id = :id")
+			.param("id", draft).update());
 		assertRefused("a self-mentored Job with another Mentor", () -> this.jdbc
 			.sql("UPDATE job.job SET mentor_account_id = :mentor WHERE id = :id").param("mentor", mentor).param("id", running)
 			.update());
@@ -358,12 +359,15 @@ class JobRolesIT extends IntegrationTest {
 				    job_types, budget, deadline, rules, selection_days, mentor_account_id, selected_at, self_mentored, version,
 				    created_at, updated_at)
 				VALUES (:id, :product, :customer, :state, 'Việc tự hướng dẫn', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
-				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :mentor, :selected, TRUE, 1, :at, :at)
+				    'UNDER_2M', DATE '2026-12-01', CAST(:rules AS JSONB), :days, :mentor, :selected, TRUE, 1, :at, :at)
 				""")
 			.param("id", id)
 			.param("product", product(customer))
 			.param("customer", customer)
 			.param("state", state)
+			// A Draft copied no rule value yet; publication copies them (AD-7).
+			.param("rules", draft ? null : "{}")
+			.param("days", draft ? null : 14)
 			.param("mentor", draft ? null : customer)
 			.param("selected", draft ? null : Timestamp.from(at))
 			.param("at", Timestamp.from(at))
