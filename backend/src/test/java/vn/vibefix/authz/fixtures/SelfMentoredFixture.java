@@ -230,8 +230,9 @@ public class SelfMentoredFixture implements MatrixFixture {
 		UUID file = storedFile("matching.crew_application_proof", applicant, "bang-chung.pdf");
 		this.jdbc.sql("""
 				INSERT INTO matching.crew_application_proof (id, crew_application_id, job_id, product_id,
-				    applicant_account_id, position, kind, file_id, file_name, size_bytes, added_at)
-				VALUES (:id, :application, :job, :product, :applicant, :position, 'FILE', :file, 'bang-chung.pdf', 100, :at)
+				    applicant_account_id, position, kind, file_id, file_name, size_bytes, caption, added_at)
+				VALUES (:id, :application, :job, :product, :applicant, :position, 'FILE', :file, 'bang-chung.pdf', 100,
+				    :caption, :at)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("application", application)
@@ -239,6 +240,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("product", product)
 			.param("applicant", applicant)
 			.param("position", position)
+			.param("caption", application == null ? null : "Bài mình đã làm")
 			.param("file", file)
 			.param("at", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(2))))
 			.update();
