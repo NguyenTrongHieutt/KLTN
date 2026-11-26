@@ -50,7 +50,16 @@ class MatrixFilesTest {
 	/** A Job-scoped endpoint's callers on top of {@link #GLOBAL}. */
 	static final Set<MatrixCaller> PER_JOB = EnumSet.of(MatrixCaller.CUSTOMER, MatrixCaller.MENTOR, MatrixCaller.BIDDER,
 			MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CROSS_ROLE,
-			MatrixCaller.LOCKED);
+			MatrixCaller.LOCKED, MatrixCaller.CUSTOMER_MENTOR);
+
+	/**
+	 * The callers of the mode world (AD-20, AD-47): the Customer who mentors, and the Crew, the locked member and the
+	 * grant holders on the families whose policy has a mode branch.
+	 */
+	static final Set<MatrixCaller> IN_THE_MODE_WORLD = EnumSet.of(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CREW_ASSIGNED,
+			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CREW_ACTIVE_PARTY,
+			MatrixCaller.CREW_FORMER_PARTY, MatrixCaller.LOCKED, MatrixCaller.ADMIN_DISPUTE_GRANT,
+			MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT);
 
 	/**
 	 * The callers whose relation is to the crew Job only, never to the Customer's Draft, so their rows on an
@@ -354,8 +363,44 @@ class MatrixFilesTest {
 		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, 3,150 since Story 21.4
 		// added the recruitment, the Crew Applications and their proof files, 3,200 since Story 22.2 added JOB-10's
 		// endpoints with the split's party callers, and 3,450 since Story 22.3 added the Split Resolutions, their queue and
-		// their evidence with the grant's caller on every read of Job content.
-		assertThat(MatrixRow.loadMatrix()).as("3,450 rows or fewer").hasSizeLessThanOrEqualTo(3_450);
+		// their evidence with the grant's caller on every read of Job content, and 3,800 since Story 25.2a added the
+		// mode world (AD-20: about 200 rows for CUSTOMER_MENTOR and 150 for its Crew and grant callers).
+		assertThat(MatrixRow.loadMatrix()).as("3,800 rows or fewer").hasSizeLessThanOrEqualTo(3_800);
+	}
+
+	/**
+	 * AD-20, AD-47: {@code CUSTOMER_MENTOR} lives in the mode world alone, so each of its rows carries {@code job=self},
+	 * whatever the endpoint names; no caller without a relation there runs in it; and {@code CROSS_ROLE_SELF} runs on
+	 * the normal Job where the same person is a member, never with {@code job=self}.
+	 */
+	@Test
+	void theModeWorldRunsItsOwnCallersAndTheCustomerWhoMentorsRunsNowhereElse() {
+		assertThat(MatrixRow.loadMatrix())
+			.filteredOn(row -> row.caller() == MatrixCaller.CUSTOMER_MENTOR)
+			.isNotEmpty()
+			.allSatisfy(row -> assertThat(row.selfWorld()).as("%s runs in the mode world", row).isTrue());
+		assertThat(MatrixRow.loadMatrix()).filteredOn(MatrixRow::selfWorld)
+			.allSatisfy(row -> assertThat(IN_THE_MODE_WORLD).as("%s has a relation in the mode world", row)
+				.contains(row.caller()));
+	}
+
+	@Test
+	void aPendingRowNamesItsStoryAndRunsInTheModeWorld() {
+		MatrixRow pending = MatrixRow.parse(HEADER
+				+ "GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending=25.5,,200\n").getFirst();
+		assertThat(pending.pending()).isEqualTo("25.5");
+		assertThat(pending.callerState()).isEmpty();
+		assertThat(pending.rebound()).containsEntry("boardId", "selfBoardId");
+		assertThatThrownBy(() -> MatrixRow
+			.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER,job=crew;pending=25.5,,200\n"))
+			.hasMessageContaining("only a job=self row is pending");
+		assertThatThrownBy(() -> MatrixRow
+			.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending=soon,,200\n"))
+			.hasMessageContaining("pending names a story");
+		// Another binding's value reads its mode twin, and a constant keeps its one value.
+		MatrixRow file = MatrixRow.parse(HEADER + "GET /api/v1/files/{fileId},CUSTOMER_MENTOR,job=self;file=chat,,200\n")
+			.getFirst();
+		assertThat(file.rebound()).containsEntry("fileId", "selfChatFileId");
 	}
 
 	@Test
@@ -410,7 +455,7 @@ class MatrixFilesTest {
 
 	@Test
 	void everyCallerOfTheCrewJobRunsTheJobEndpointsOnIt() {
-		assertThat(jobBindingViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(jobBindingViolations(MatrixRow.loadNormal())).isEmpty();
 	}
 
 	@Test
@@ -504,7 +549,7 @@ class MatrixFilesTest {
 
 	@Test
 	void someCallerPassesEveryJobScopedEndpointsPolicy() {
-		assertThat(livenessViolations(MatrixRow.loadMatrix(), UNREACHABLE)).isEmpty();
+		assertThat(livenessViolations(MatrixRow.loadNormal(), UNREACHABLE)).isEmpty();
 	}
 
 	@Test
@@ -542,7 +587,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theEscalatedTeamIssuesAdministratorsReadTheIssueTheyTook() {
-		assertThat(teamIssueBindingViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(teamIssueBindingViolations(MatrixRow.loadNormal())).isEmpty();
 	}
 
 	@Test
@@ -564,7 +609,7 @@ class MatrixFilesTest {
 
 	@Test
 	void eachGrantCallerRunsItsCaseAndEveryContentReadAndGetsItsOwnScope() {
-		assertThat(grantViolations(MatrixRow.loadMatrix(), GRANT_SCOPES, CONTENT_READS)).isEmpty();
+		assertThat(grantViolations(MatrixRow.loadNormal(), GRANT_SCOPES, CONTENT_READS)).isEmpty();
 	}
 
 	@Test
@@ -607,7 +652,7 @@ class MatrixFilesTest {
 	@Test
 	void everyFileReadPolicyRunsThroughItsBindingOrIsListedUnreachable() {
 		assertThat(filePolicies()).as("the file read policies").hasSizeGreaterThanOrEqualTo(5);
-		assertThat(fileViolations(MatrixRow.loadMatrix(), filePolicies(), FILE_POLICIES, UNREACHABLE_FILE_POLICIES))
+		assertThat(fileViolations(MatrixRow.loadNormal(), filePolicies(), FILE_POLICIES, UNREACHABLE_FILE_POLICIES))
 			.isEmpty();
 	}
 
@@ -643,7 +688,7 @@ class MatrixFilesTest {
 			world.put(value, value + "-file");
 			assertThat(world.expand(row.path(), row.rebound())).as(state).isEqualTo("/api/v1/files/" + value + "-file");
 		});
-		assertThat(bindingPlaceholderViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(bindingPlaceholderViolations(MatrixRow.loadNormal())).isEmpty();
 		assertThat(bindingPlaceholderViolations(MatrixRow.parse(HEADER + """
 				DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},MENTOR,file=upload,,204
 				GET /api/v1/files/{fileId},MENTOR,,,404 NOT_FOUND
@@ -655,7 +700,7 @@ class MatrixFilesTest {
 
 	@Test
 	void anUnrelatedCallerIsToldNothingOnTheCrewJob() {
-		assertThat(unrelatedViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(unrelatedViolations(MatrixRow.loadNormal())).isEmpty();
 	}
 
 	@Test
@@ -679,7 +724,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theCrossRolePersonReadsTheCrewJobAsAnActiveMember() {
-		assertThat(crossRoleViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(crossRoleViolations(MatrixRow.loadNormal())).isEmpty();
 		assertThat(crossRoleViolations(MatrixRow.parse(HEADER + """
 				GET /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,,,200
 				GET /api/v1/boards/{boardId}/handovers,CROSS_ROLE,,,404 NOT_FOUND
@@ -702,12 +747,12 @@ class MatrixFilesTest {
 
 	@Test
 	void everyListOfJobContentRunsEveryCallerOfTheCrewJob() {
-		assertThat(callerViolations(MatrixRow.loadMatrix(), JOB_LISTS::contains, IN_THE_CREW_JOB)).isEmpty();
+		assertThat(callerViolations(MatrixRow.loadNormal(), JOB_LISTS::contains, IN_THE_CREW_JOB)).isEmpty();
 	}
 
 	@Test
 	void everyEndpointOfTheProductRunsTheCrewJobsMentorAndCrew() {
-		assertThat(callerViolations(MatrixRow.loadMatrix(), MatrixFilesTest::onTheProduct, ON_THE_PRODUCT)).isEmpty();
+		assertThat(callerViolations(MatrixRow.loadNormal(), MatrixFilesTest::onTheProduct, ON_THE_PRODUCT)).isEmpty();
 	}
 
 	@Test
@@ -727,7 +772,7 @@ class MatrixFilesTest {
 
 	@Test
 	void anUnrelatedCallerIsNeverToldThatAHiddenObjectExists() {
-		assertThat(sg31Violations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(sg31Violations(MatrixRow.loadNormal())).isEmpty();
 	}
 
 	@Test
@@ -926,7 +971,7 @@ class MatrixFilesTest {
 	void theCallersAreAd20s() {
 		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "USER_UNVERIFIED",
 				"USER", "LOCKED", "CUSTOMER", "MENTOR", "BIDDER", "CREW_APPLICANT", "CREW_ASSIGNED", "CREW_ACTIVE", "CREW_FORMER",
-				"CREW_ACTIVE_PARTY", "CREW_FORMER_PARTY", "CROSS_ROLE", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
+				"CREW_ACTIVE_PARTY", "CREW_FORMER_PARTY", "CROSS_ROLE", "CUSTOMER_MENTOR", "CROSS_ROLE_SELF", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
 				"ADMIN_ABUSE_REPORT_GRANT", "ADMIN_SPLIT_RESOLUTION_GRANT", "ACTIONS_RUN", "AUTHOR");
 	}
 

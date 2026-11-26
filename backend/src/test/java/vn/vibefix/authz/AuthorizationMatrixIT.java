@@ -27,8 +27,13 @@ class AuthorizationMatrixIT extends IntegrationTest {
 
 	private MatrixRowRunner runner;
 
+	/**
+	 * Every row; with {@code -Dmatrix.rows=<text>}, only the rows whose description holds the text, for building a
+	 * part of the matrix (a verify runs them all).
+	 */
 	static List<MatrixRow> rows() {
-		return MatrixRow.loadMatrix();
+		String only = System.getProperty("matrix.rows", "");
+		return MatrixRow.loadMatrix().stream().filter(row -> row.toString().contains(only)).toList();
 	}
 
 	@BeforeEach

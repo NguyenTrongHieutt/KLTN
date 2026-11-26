@@ -16,6 +16,20 @@ public final class MatrixWorld {
 
 	private final Map<String, String> values = new HashMap<>();
 
+	private boolean selfMode;
+
+	/**
+	 * Whether the row runs in the mode world (AD-47): the runner says so before the fixtures seed, the mode world's
+	 * fixture seeds only then, and it, not the crew Job's, realizes the Crew and grant callers.
+	 */
+	public boolean selfMode() {
+		return this.selfMode;
+	}
+
+	public void selfMode(boolean selfMode) {
+		this.selfMode = selfMode;
+	}
+
 	public void put(String name, Object value) {
 		if (this.values.putIfAbsent(name, String.valueOf(value)) != null) {
 			throw new IllegalStateException("Two fixtures seed the value " + name);

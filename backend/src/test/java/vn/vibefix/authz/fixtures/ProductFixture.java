@@ -216,7 +216,8 @@ public class ProductFixture implements MatrixFixture {
 			case BIDDER -> Optional.of(IdentityTestSupport.signedIn(this.sessions, this.bidder, Role.MENTOR,
 					MutableClock.DEFAULT_INSTANT));
 			case CREW_APPLICANT -> this.recruitingJob.realize(caller);
-			default -> this.crewJob.realize(caller);
+			// In the mode world its own people are the Crew and the grant holders (SelfMentoredFixture).
+			default -> world.selfMode() ? Optional.empty() : this.crewJob.realize(caller);
 		};
 	}
 

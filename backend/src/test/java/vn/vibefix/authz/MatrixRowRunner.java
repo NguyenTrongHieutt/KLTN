@@ -27,6 +27,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.util.ClassUtils;
 
 import tools.jackson.databind.JsonNode;
@@ -101,7 +102,12 @@ public final class MatrixRowRunner {
 	}
 
 	public void run(MatrixRow row) throws Exception {
+		// R63: a pending row holds the finished mode's decision, which its story makes pass; it is not sent.
+		if (row.pending() != null) {
+			Assumptions.abort("pending Story " + row.pending() + ": " + row);
+		}
 		MatrixWorld world = new MatrixWorld();
+		world.selfMode(row.selfWorld());
 		this.fixtures.forEach(fixture -> fixture.seed(world));
 		boolean upload = row.body() != null && !row.body().endsWith(".json");
 		AbstractMockHttpServletRequestBuilder<?> request = (upload

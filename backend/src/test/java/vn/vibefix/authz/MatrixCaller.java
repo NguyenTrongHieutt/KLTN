@@ -78,6 +78,21 @@ public enum MatrixCaller {
 	 */
 	CROSS_ROLE,
 
+	/**
+	 * The Customer of a Self-mentored Job, who is its Mentor too (AD-47, Story 25.2a): the one role {@code job.roleOf}
+	 * answers {@code CUSTOMER_MENTOR} for. Its rows carry {@code job=self} and run in the mode world
+	 * ({@code SelfMentoredFixture}), never on a normal Job; {@link #CUSTOMER} and {@link #MENTOR} keep meaning a normal
+	 * Job's.
+	 */
+	CUSTOMER_MENTOR,
+
+	/**
+	 * The same person as {@link #CUSTOMER_MENTOR}, called on the normal Job of the mode world where they are an
+	 * {@code ACTIVE} member: there they answer as a member does, and nothing of being a Customer who mentors another
+	 * Job reaches that Job (AD-20, AD-47).
+	 */
+	CROSS_ROLE_SELF,
+
 	/** The account the row's record names: the recipient, the profile owner, the suggester. */
 	SUBJECT,
 

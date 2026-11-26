@@ -84,6 +84,28 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
 
 	/**
+	 * The placeholders a {@code job=self} row reads from the mode world: a Job's own objects, and the Product, the
+	 * Customer and the Rating that belong to that world's people. Every other placeholder (a constant such as
+	 * {@code {item}}) keeps its one value.
+	 */
+	public static final Set<String> SELF_WORLD;
+
+	static {
+		Set<String> names = new TreeSet<>(JOB_SCOPED);
+		names.addAll(Set.of("productId", "customerId", "ratingId", "username"));
+		SELF_WORLD = Set.copyOf(names);
+	}
+
+	/**
+	 * {@code pending=25.x} (R63): the row holds the decision the finished mode gives, which Story 25.x makes pass. The
+	 * suite does not send a pending row and reports it as skipped; the story removes the mark. Only a {@code job=self}
+	 * row carries it.
+	 */
+	public static final String PENDING = "pending";
+
+	private static final Pattern PENDING_STORY = Pattern.compile("25\\.(2b|[3-8])");
+
+	/**
 	 * A world-binding key of {@code subject_state} (Story 20.5, review iteration 1): {@code key=value} makes the
 	 * placeholder name the world's value {@code worldValue} instead of its own.
 	 */
@@ -91,6 +113,13 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 		/** {@code job=crew}: {@code {jobId}} names the crew Job, where every caller of a Job holds its role. */
 		CREW_JOB("job", "crew", "jobId", "crewJobId"),
+
+		/**
+		 * {@code job=self}: the row runs in the mode world (AD-20, AD-47, Story 25.2a). {@code {jobId}} names its first
+		 * Self-mentored Job, and every other placeholder of {@link MatrixRow#SELF_WORLD} names the mode world's object
+		 * of that name ({@link MatrixRow#rebound()}).
+		 */
+		SELF_JOB("job", "self", "jobId", "selfJobId"),
 
 		/**
 		 * {@code job=post}: {@code {jobId}} names the Open Job Post's Job, where the bid {@code {applicationId}} and its
@@ -236,6 +265,13 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 						+ bindings.stream().map(Binding::state).toList() + ", not " + key + "=" + value);
 			}
 		});
+		String pending = state.get(PENDING);
+		if (pending != null && !PENDING_STORY.matcher(pending).matches()) {
+			throw new IllegalArgumentException("pending names a story from 25.2b to 25.8, not " + pending);
+		}
+		if (pending != null && !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
+			throw new IllegalArgumentException("only a " + Binding.SELF_JOB.state() + " row is pending");
+		}
 		if (!path.startsWith("/")) {
 			throw new IllegalArgumentException("A path starts with '/': " + path);
 		}
@@ -269,17 +305,47 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		return binding.value().equals(this.state.get(binding.key()));
 	}
 
-	/** The placeholders the row rebinds, each to the name of the world's value it takes. */
+	/**
+	 * The placeholders the row rebinds, each to the name of the world's value it takes. A {@code job=self} row reads
+	 * the mode world: every placeholder of {@link #SELF_WORLD} it names takes the mode world's value of that name
+	 * ({@code {handoverId}} reads {@code selfHandoverId}), and another binding's value its mode twin ({@code file=chat}
+	 * reads {@code selfChatFileId}).
+	 */
 	public Map<String, String> rebound() {
 		Map<String, String> rebound = new LinkedHashMap<>();
 		bindings().forEach(binding -> rebound.put(binding.placeholder(), binding.worldValue()));
+		if (selfWorld()) {
+			rebound.replaceAll((placeholder, value) -> selfName(value));
+			placeholders().stream()
+				.filter(SELF_WORLD::contains)
+				.forEach(placeholder -> rebound.putIfAbsent(placeholder, selfName(placeholder)));
+		}
 		return rebound;
 	}
 
-	/** The row's {@code subject_state} without its world-binding keys: what the caller's realizer sees. */
+	/** The mode world's name of the world value {@code name}: {@code handoverId} is {@code selfHandoverId}. */
+	public static String selfName(String name) {
+		return name.startsWith("self") ? name : "self" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
+	}
+
+	/** Whether the row runs in the mode world ({@code job=self}). */
+	public boolean selfWorld() {
+		return binds(Binding.SELF_JOB);
+	}
+
+	/** The story that makes the row pass ({@link #PENDING}), or {@code null} for a row the suite runs. */
+	public @Nullable String pending() {
+		return this.state.get(PENDING);
+	}
+
+	/**
+	 * The row's {@code subject_state} without its world-binding keys and its pending mark: what the caller's realizer
+	 * sees.
+	 */
 	public Map<String, String> callerState() {
 		Map<String, String> callerState = new LinkedHashMap<>(this.state);
 		bindings().forEach(binding -> callerState.remove(binding.key()));
+		callerState.remove(PENDING);
 		return callerState;
 	}
 
@@ -320,6 +386,14 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	public String toString() {
 		return endpoint() + " as " + this.caller + (this.state.isEmpty() ? "" : " " + this.state) + " -> "
 				+ this.expect;
+	}
+
+	/**
+	 * The rows of the normal world: every row but the mode world's ({@code job=self}), whose own rules
+	 * {@code MatrixFilesTest} keeps apart. The rules written for the crew Job, the post and the Draft read these.
+	 */
+	public static List<MatrixRow> loadNormal() {
+		return loadMatrix().stream().filter(row -> !row.selfWorld()).toList();
 	}
 
 	/** Every row of the matrix file. */

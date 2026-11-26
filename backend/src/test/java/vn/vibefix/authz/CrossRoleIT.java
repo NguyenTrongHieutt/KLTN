@@ -109,7 +109,7 @@ class CrossRoleIT extends IntegrationTest {
 	 * The Mentor's own reads of a Job, every {@code GET} under {@code /api/v1/mentor/jobs/{jobId}}: each answers
 	 * {@code NOT_FOUND} through every Job where the person is not the Mentor.
 	 */
-	private static final List<String> MENTOR_ONLY = MatrixRow.loadMatrix()
+	private static final List<String> MENTOR_ONLY = MatrixRow.loadNormal()
 		.stream()
 		.filter(row -> row.method() == HttpMethod.GET
 				&& (row.path().equals("/api/v1/mentor/jobs/{jobId}") || row.path().startsWith("/api/v1/mentor/jobs/{jobId}/")))
@@ -531,7 +531,7 @@ class CrossRoleIT extends IntegrationTest {
 	 */
 	private static List<String> customerOnly() {
 		Map<String, List<MatrixRow>> byPath = new LinkedHashMap<>();
-		for (MatrixRow row : MatrixRow.loadMatrix()) {
+		for (MatrixRow row : MatrixRow.loadNormal()) {
 			if (row.method() == HttpMethod.GET && row.path().contains("{jobId}") && row.binds(MatrixRow.Binding.CREW_JOB)) {
 				byPath.computeIfAbsent(row.path(), key -> new ArrayList<>()).add(row);
 			}
@@ -558,7 +558,7 @@ class CrossRoleIT extends IntegrationTest {
 	 */
 	private static List<String> crewOnly() {
 		Map<String, List<MatrixRow>> byPath = new LinkedHashMap<>();
-		for (MatrixRow row : MatrixRow.loadMatrix()) {
+		for (MatrixRow row : MatrixRow.loadNormal()) {
 			boolean jobOrBoard = row.path().contains("{jobId}") || row.path().contains("{boardId}");
 			boolean crewJob = row.path().contains("{jobId}") ? row.binds(MatrixRow.Binding.CREW_JOB) : row.state().isEmpty();
 			if (row.method() == HttpMethod.GET && jobOrBoard && crewJob) {
@@ -587,7 +587,7 @@ class CrossRoleIT extends IntegrationTest {
 		notSwept.put("/api/v1/crew/jobs/{jobId}/commitment", "a picked person's own read of their Crew Application"
 				+ " (Story 21.5): the sweep's Crew rows are seeded without one, and AuthorizationMatrixIT's CREW_ASSIGNED"
 				+ " world reads it");
-		for (MatrixRow row : MatrixRow.loadMatrix()) {
+		for (MatrixRow row : MatrixRow.loadNormal()) {
 			if (row.method() == HttpMethod.GET && row.path().startsWith("/api/v1/admin/")) {
 				notSwept.putIfAbsent(row.path(), "an Administrator's read: none of the three people is an Administrator");
 			}
@@ -598,7 +598,7 @@ class CrossRoleIT extends IntegrationTest {
 	/** Every {@code GET} endpoint of the matrix whose path names a Job or an object of one. */
 	private static List<String> jobScopedReads() {
 		Set<String> endpoints = new LinkedHashSet<>();
-		for (MatrixRow row : MatrixRow.loadMatrix()) {
+		for (MatrixRow row : MatrixRow.loadNormal()) {
 			if (row.method() == HttpMethod.GET
 					&& MatrixRow.placeholders(row.path()).stream().anyMatch(MatrixRow.JOB_SCOPED::contains)) {
 				endpoints.add(row.path());
