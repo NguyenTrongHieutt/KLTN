@@ -1,9 +1,12 @@
 package vn.vibefix.job.internal;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.IntSupplier;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +30,19 @@ class JobSelections implements JobSelection {
 			long expectedVersion) {
 		return this.lifecycle.apply(Transition.J3, jobId, Actor.user(customerId), Trigger.USER, expectedVersion,
 				Map.of("mentorId", mentorId, "applicationId", applicationId, "quote", quote)).version();
+	}
+
+	@Override
+	@Transactional
+	public long selfMentor(UUID jobId, UUID customerId, @Nullable String noticeVersion, IntSupplier openApplications,
+			long expectedVersion) {
+		Map<String, Object> input = new HashMap<>();
+		input.put(J12SwitchToSelfMentored.OPEN_APPLICATIONS, openApplications);
+		if (noticeVersion != null) {
+			input.put("noticeVersion", noticeVersion);
+		}
+		return this.lifecycle.apply(Transition.J12, jobId, Actor.user(customerId), Trigger.USER, expectedVersion, input)
+			.version();
 	}
 
 	@Override

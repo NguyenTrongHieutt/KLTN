@@ -92,6 +92,18 @@ class SelectionIT extends IntegrationTest {
 		select(other, 2).andExpect(status().isConflict());
 	}
 
+	/** FR-85, Story 25.2b: with {@code features.selfMentoredJobs} off, as here, J12 is refused and the Job stays Open. */
+	@Test
+	void theSwitchToSelfMentoredIsRefusedWhileTheModeIsOff() throws Exception {
+		this.mvc.perform(post("/api/v1/jobs/" + this.job + "/self-mentored").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1,\"selfMentoredNoticeVersion\":\"1.0\"}"))
+			.andExpect(status().is(422))
+			.andExpect(jsonPath("$.reason").value("SELF_MENTORED_OFF"));
+
+		assertThat(this.jdbc.sql("SELECT state || ' ' || self_mentored FROM job.job WHERE id = :id").param("id", this.job)
+			.query(String.class).single()).isEqualTo("OPEN false");
+	}
+
 	@Test
 	void aDecisionOnAnOlderVersionIsStaleAndChangesNothing() throws Exception {
 		UUID chosen = application(mentor("Đỗ Mạnh Hùng"));

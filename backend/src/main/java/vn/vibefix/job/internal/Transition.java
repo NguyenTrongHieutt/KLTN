@@ -112,12 +112,13 @@ enum Transition {
 
 	J12(Machine.JOB, job(JobState.OPEN), job(JobState.AGREEMENT), Set.of(USER),
 			"The Customer switches an Open Job to self-mentored (FR-85)",
-			List.of(new Guard("FR-85", "The Job has no open Application, and N-34 is acknowledged")),
+			List.of(new Guard("FR-85", "The Job has no open Application, N-34 is acknowledged, and the mode is offered"),
+					new Guard("FR-80", "The Customer has a linked GitHub account and is not locked")),
 			List.of(new Effect("matching", "Invitations to Apply lapse, and a bid racing the switch is withdrawn"),
 					new Effect("timers", "The FR-9 selection period ends"),
 					new Effect("job", "Then as J11: the Customer is the Mentor, drafting and the Agreement stall start"),
 					new Effect("chat", "The Crew Chat opens; there is no Job Chat (FR-77)")),
-			false, false),
+			false, true),
 
 	M1(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.FUNDED), Set.of(SYSTEM),
 			"Verified payment of its Payment Order (FR-41)",

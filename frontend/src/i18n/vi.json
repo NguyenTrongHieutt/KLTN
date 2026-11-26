@@ -1741,6 +1741,15 @@
         "withdrawCancel": "Giữ tin",
         "withdrawing": "Đang rút…",
         "withdrawn": "Đã rút tin. Tin đã trở về bản nháp.",
+        "selfMentorSwitch": "Chuyển sang tự hướng dẫn",
+        "selfMentorSwitchBlocked": "Đã có chào giá nên không chuyển sang tự hướng dẫn được.",
+        "selfMentorSwitchExtra": "Các lời mời chào giá đang mở sẽ hết hiệu lực và bạn không chuyển lại thành công việc thường được.",
+        "selfMentorSwitchConfirm": "Tự hướng dẫn công việc này",
+        "selfMentorSwitchBack": "Quay lại",
+        "selfMentorSwitchUnread": "Hãy đánh dấu vào ô xác nhận ở trên để chuyển sang tự hướng dẫn.",
+        "selfMentorSwitchOff": "Hiện chưa thể chuyển công việc sang tự hướng dẫn. Hãy tải lại trang.",
+        "selfMentorSwitching": "Đang chuyển…",
+        "selfMentorSwitched": "Đã chuyển sang tự hướng dẫn. Bạn có thể soạn thỏa thuận và mở tuyển thành viên nhóm.",
         "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo.",
         "selfMentoredTitle": "Bạn đang hướng dẫn công việc này",
         "selfMentoredBody": "Hãy soạn thỏa thuận và mở tuyển thành viên nhóm. Công việc bắt đầu khi thỏa thuận có hiệu lực, có ít nhất một thành viên nhóm đã ký cam kết và bạn thanh toán Giai đoạn 1.",
@@ -1959,7 +1968,8 @@
         "end_WITHDRAWN": "Bạn đã rút",
         "end_MENTOR_UNAVAILABLE": "Hệ thống đã rút",
         "end_JOB_WITHDRAWN": "Khách hàng đã rút tin",
-        "end_JOB_LAPSED": "Tin đã hết hạn"
+        "end_JOB_LAPSED": "Tin đã hết hạn",
+        "end_JOB_SELF_MENTORED": "Khách hàng đã chuyển sang tự hướng dẫn"
       },
       "compare": {
         "lead": "Các đơn xếp theo thứ tự gửi, đơn gửi trước đứng trước. vibefix không chấm điểm hay xếp hạng người chào giá: bạn tự so sánh.",
@@ -4200,6 +4210,9 @@
       "job_post_lapsed": {
         "title": "Tin {job} đã hết hạn và trở về bản nháp"
       },
+      "switched_to_self_mentored": {
+        "title": "Khách hàng đã chuyển {job} sang tự hướng dẫn nên lời mời chào giá không còn hiệu lực"
+      },
       "assignee_selected": {
         "title": "Bạn được chọn cho {job}. Hãy ký cam kết bảo mật."
       },
@@ -4387,6 +4400,9 @@
       },
       "invited_to_apply": {
         "title": "Khách hàng đã mời bạn ứng tuyển {job}"
+      },
+      "application_job_self_mentored": {
+        "title": "Khách hàng đã chuyển {job} sang tự hướng dẫn nên chào giá của bạn không còn hiệu lực"
       },
       "crew_application_received": {
         "title": "{name} xin vào nhóm thực hiện {job}"
@@ -4659,6 +4675,7 @@
       "SELF_MENTORED_OFF": "Hiện chưa thể đăng công việc tự hướng dẫn. Hãy tải lại trang; bản nháp sẽ được đăng như công việc tìm người hướng dẫn.",
       "SELF_MENTORED_NOTICE": "Hãy đọc và xác nhận thông báo về công việc tự hướng dẫn rồi đăng lại.",
       "JOB_MODE_MISMATCH": "Cách hướng dẫn của công việc vừa thay đổi. Hãy tải lại trang rồi đăng lại.",
+      "OPEN_APPLICATIONS": "Đã có chào giá nên không chuyển sang tự hướng dẫn được.",
       "JOB_FILE_QUOTA": "Ảnh chụp màn hình của một công việc tối đa 200 MB.",
       "JOB_INCOMPLETE": "còn câu hỏi chưa trả lời, hoặc chưa chọn loại công việc, ngân sách hay ngày mong muốn xong sau hôm nay",
       "STATE_CHANGED": "công việc vừa đổi trạng thái",

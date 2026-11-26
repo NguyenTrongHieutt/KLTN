@@ -148,6 +148,24 @@ export function useSelectApplication(jobId: string) {
   })
 }
 
+/**
+ * "Chuyển sang tự hướng dẫn" (FR-85, UX-DR121): J12 at the Job version the screen loaded, naming the version of notice
+ * N-34 the Customer acknowledged. The Job, the caller's role in it and its bids are read again whatever the answer: a
+ * refusal for an open bid means a bid arrived since the page loaded.
+ */
+export function useSwitchToSelfMentored(jobId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { version: number; selfMentoredNoticeVersion: string }) =>
+      unwrap(apiClient.POST('/api/v1/jobs/{jobId}/self-mentored', { params: { path: { jobId } }, body })),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        queryClient.invalidateQueries({ queryKey: ['job'], refetchType: 'all' }),
+      ]),
+  })
+}
+
 /** MEN-3's "Rút" before selection (FR-13): the Customer is told. */
 export function useWithdrawApplication() {
   const queryClient = useQueryClient()

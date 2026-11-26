@@ -139,6 +139,13 @@ class ApplicationController {
 	record SelectedView(long version) {
 	}
 
+	/**
+	 * "Chuyển sang tự hướng dẫn" (FR-85): the Job version the screen loaded (AD-23) and the version of notice N-34 the
+	 * Customer acknowledged in the dialog.
+	 */
+	record SelfMentorRequest(@NotNull Long version, @Nullable @Size(max = 20) String selfMentoredNoticeVersion) {
+	}
+
 	/** The NDA panel's "Ký cam kết": the text version shown and, for a Code Job, N-23 ticked. */
 	record NdaRequest(@NotBlank String ndaVersion, boolean commitEmailNoticeAcknowledged) {
 	}
@@ -310,6 +317,19 @@ class ApplicationController {
 		return new SelectedView(
 				this.selection.select(jobId, customer, application.mentorId(), applicationId,
 						new SelectedQuote(application.priceVnd(), application.timelineDays()), body.version()));
+	}
+
+	/**
+	 * JOB-1 and CUS-8 "Chuyển sang tự hướng dẫn" (FR-85, UX-DR121): J12 for the Customer's Open Job with no open bid,
+	 * after N-34, at the version the screen loaded. It is asked here because the guard counts this module's
+	 * Applications; the count is read under the Job's lock. GitHub must be linked, as for publishing (FR-80). One-way.
+	 */
+	@PostMapping("/api/v1/jobs/{jobId}/self-mentored")
+	SelectedView selfMentor(@PathVariable UUID jobId, @Valid @RequestBody SelfMentorRequest body) {
+		UUID customer = customerOf(jobId);
+		this.gitHub.requireGitHubLinked(customer);
+		return new SelectedView(this.selection.selfMentor(jobId, customer, body.selfMentoredNoticeVersion(),
+				() -> this.applications.openOfJob(jobId).size(), body.version()));
 	}
 
 	/**

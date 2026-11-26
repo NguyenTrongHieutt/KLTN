@@ -92,7 +92,7 @@ class MatrixFilesTest {
 	/** The post's bid and invitation endpoints, whose Customer and Bidder rows run on the post ({@code job=post}, B5). */
 	static final Set<String> ON_THE_POST = Set.of("GET /api/v1/jobs/{jobId}/applications",
 			"GET /api/v1/jobs/{jobId}/invitations", "POST /api/v1/jobs/{jobId}/invitations",
-			"GET /api/v1/jobs/{jobId}/recommendations");
+			"GET /api/v1/jobs/{jobId}/recommendations", "POST /api/v1/jobs/{jobId}/self-mentored");
 
 	/**
 	 * The Customer's commands on a Draft or an Open Job Post (B4): their Customer keeps a row on that Job beside the
@@ -104,7 +104,8 @@ class MatrixFilesTest {
 			"POST /api/v1/jobs/{jobId}/publish", "publishes the Draft (J1)",
 			"POST /api/v1/jobs/{jobId}/withdraw", "returns an Open Job Post to Draft (J2)",
 			"POST /api/v1/jobs/{jobId}/selection/cancel", "cancels the post's selection before the NDA",
-			"POST /api/v1/jobs/{jobId}/invitations", "invites a Mentor to bid on the post (FR-14)");
+			"POST /api/v1/jobs/{jobId}/invitations", "invites a Mentor to bid on the post (FR-14)",
+			"POST /api/v1/jobs/{jobId}/self-mentored", "switches the Open Job Post to self-mentored (J12)");
 
 	/**
 	 * The Job-scoped endpoints no reachable fixture world lets any caller past, each with why (review iterations 2-4,

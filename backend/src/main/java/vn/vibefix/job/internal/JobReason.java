@@ -12,11 +12,14 @@ enum JobReason {
 	/** The Self-mentored mode is switched off on this platform ({@code features.selfMentoredJobs}, FR-85). */
 	SELF_MENTORED_OFF,
 
-	/** J11: the publication does not name the current version of notice N-34 (FR-85). */
+	/** J11, J12: the publication or the switch does not name the current version of notice N-34 (FR-85). */
 	SELF_MENTORED_NOTICE,
 
 	/** J1 publishes a normal Job's Draft and J11 a Self-mentored Job's: this Draft holds the other mode (FR-85). */
 	JOB_MODE_MISMATCH,
+
+	/** J12: the Open Job has an open Application, so it is not switched to self-mentored (FR-85); with {@code count}. */
+	OPEN_APPLICATIONS,
 
 	/** The Job's screenshots would pass 200 MB (AD-34). */
 	JOB_FILE_QUOTA,

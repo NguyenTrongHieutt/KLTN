@@ -83,6 +83,9 @@ class Applications {
 
 	static final String REOPENED_NOTICE = "matching.applications_reopened";
 
+	/** J12 withdrew a bid that raced the switch to self-mentored: its bidder learns it (FR-85, B-18). */
+	static final String SELF_MENTORED_NOTICE = "matching.application_job_self_mentored";
+
 	static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
 	enum Status {
@@ -90,7 +93,10 @@ class Applications {
 	}
 
 	enum EndReason {
-		WITHDRAWN, MENTOR_UNAVAILABLE, JOB_WITHDRAWN, JOB_LAPSED, NOT_SELECTED, DECLINED, NOT_SIGNED
+		WITHDRAWN, MENTOR_UNAVAILABLE, JOB_WITHDRAWN, JOB_LAPSED, NOT_SELECTED, DECLINED, NOT_SIGNED,
+
+		/** The Customer switched the Job to self-mentored (J12) while this bid was being sent (FR-85, B-18). */
+		JOB_SELF_MENTORED
 	}
 
 	/** What the Mentor offers. */
@@ -205,6 +211,11 @@ class Applications {
 			.param("now", Timestamp.from(now))
 			.update();
 		this.proofs.attach(id, jobId, post.productId(), mentorId, proof);
+		// The Job is read again now that the bid is written: a Job that left Open meanwhile, by a selection, a withdrawal
+		// or the switch to self-mentored (J12, B-18), takes no bid. It narrows the race; SelfMentoredBids closes it.
+		if (!this.posts.post(jobId).filter(JobPostState::open).isPresent()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.JOB_POST_NOT_OPEN);
+		}
 		this.auditLog.record(AuditEntry.of(AuditActor.user(mentorId), "matching.application_submitted",
 				AuditObject.of("matching.application", id)).forJob(jobId));
 		this.invitations.markApplied(jobId, mentorId);
@@ -350,6 +361,39 @@ class Applications {
 			.param("due", Timestamp.from(now.plus(BidProofs.RETENTION)))
 			.update();
 		this.todos.closeAll(CHOOSE_ASSIGNEE, jobId);
+	}
+
+	/**
+	 * J12, and the sweep after it (FR-85, B-18): a Self-mentored Job takes no bid, so every bid of the Job still
+	 * submitted is withdrawn with {@code JOB_SELF_MENTORED} and its bidder told, and the Customer's to-do to choose a
+	 * Mentor closes. The switch is refused while a bid is open, so only a bid that raced it is found here; withdrawing
+	 * again finds none.
+	 * @return how many bids were withdrawn
+	 */
+	@Transactional
+	int withdrawForSelfMentored(UUID jobId) {
+		List<Application> open = this.jdbc.sql("SELECT " + COLUMNS + """
+				 FROM matching.application WHERE job_id = :job AND status = 'SUBMITTED' ORDER BY submitted_at, id FOR UPDATE
+				""").param("job", jobId).query(Applications::application).list();
+		String title = this.posts.post(jobId).map(JobPostState::title).orElse("");
+		for (Application application : open) {
+			end(application.id(), Status.WITHDRAWN, EndReason.JOB_SELF_MENTORED);
+			this.auditLog.record(AuditEntry.of(AuditActor.system(), "matching.application_job_self_mentored",
+					AuditObject.of("matching.application", application.id())).forJob(jobId));
+			this.notifications.send(new NotificationRequest(SELF_MENTORED_NOTICE, application.id(),
+					List.of(new Recipient(application.mentorId(), Audience.SUBJECT)), Map.of("job", title),
+					"/cong-viec?vai-tro=huong-dan", null, application.id()));
+		}
+		this.todos.closeAll(CHOOSE_ASSIGNEE, jobId);
+		return open.size();
+	}
+
+	/** The Jobs that hold a submitted bid, for the sweep that looks for a Self-mentored Job among them (B-18). */
+	@Transactional(readOnly = true)
+	List<UUID> jobsWithSubmittedBids() {
+		return this.jdbc.sql("SELECT DISTINCT job_id FROM matching.application WHERE status = 'SUBMITTED' ORDER BY job_id")
+			.query(UUID.class)
+			.list();
 	}
 
 	/**

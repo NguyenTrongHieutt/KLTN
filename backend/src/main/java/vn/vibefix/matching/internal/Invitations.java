@@ -60,6 +60,9 @@ class Invitations {
 
 	static final String ANSWER = "matching.answer_invitation_to_apply";
 
+	/** J12: the Job an open invitation names became self-mentored and takes no bid (FR-85). */
+	static final String SWITCHED = "job.switched_to_self_mentored";
+
 	enum Status {
 		OPEN, APPLIED, LAPSED
 	}
@@ -262,6 +265,27 @@ class Invitations {
 				RETURNING id
 				""").param("job", jobId).param("now", Timestamp.from(this.clock.instant())).query(UUID.class).list();
 		lapsed.forEach(id -> this.todos.closeAll(ANSWER, id));
+	}
+
+	/**
+	 * J12 (FR-85, UX-DR121): the Customer switched the Job to self-mentored, so its open invitations lapse, their
+	 * to-dos close, and each invited person learns why ({@value #SWITCHED}). Nobody else is told: a lapse by J2 or J3
+	 * says nothing, as before.
+	 */
+	@Transactional
+	void lapseForSwitch(UUID jobId) {
+		String title = this.posts.post(jobId).map(JobPostState::title).orElse("");
+		this.jdbc.sql("""
+				UPDATE matching.invitation SET status = 'LAPSED', ended_at = :now WHERE job_id = :job AND status = 'OPEN'
+				RETURNING id, mentor_account_id
+				""").param("job", jobId).param("now", Timestamp.from(this.clock.instant())).query((rs, n) -> {
+			UUID invitation = rs.getObject("id", UUID.class);
+			this.todos.closeAll(ANSWER, invitation);
+			this.notifications.send(new NotificationRequest(SWITCHED, invitation,
+					List.of(new Recipient(rs.getObject("mentor_account_id", UUID.class), Audience.SUBJECT)),
+					Map.of("job", title), "/cong-viec?vai-tro=huong-dan", null, invitation));
+			return invitation;
+		}).list();
 	}
 
 	/** The invited Mentor applied: the invitation is answered and its to-do closes (FR-14). */
