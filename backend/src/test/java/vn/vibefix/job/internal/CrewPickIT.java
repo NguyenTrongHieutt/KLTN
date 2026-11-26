@@ -88,7 +88,7 @@ import vn.vibefix.timers.internal.DeadlinePoller;
  * projection and the Commitment panel only, signs and joins, or declines; the 3 days pass, the Mentor withdraws the
  * pick, a lock or J8 ends it; and nobody who signed is removed.
  */
-@TestPropertySource(properties = "vibefix.features.large-crews=true")
+@TestPropertySource(properties = { "vibefix.features.large-crews=true", "vibefix.features.self-mentored-jobs=true" })
 class CrewPickIT extends IntegrationTest {
 
 	/** The Customers' Source App, through which the contributors are read (Story 23.5b). */
@@ -1003,7 +1003,103 @@ class CrewPickIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/**
+	 * FR-81, FR-85, AD-47, R54, R68, Story 25.3: in a Self-mentored Job the Customer recruits, reads the applications and
+	 * picks; the picked person reads the Customer's draft in the Commitment panel and signs a commitment that includes
+	 * N-35, whose version is recorded with the signature.
+	 */
+	@Test
+	void inASelfMentoredJobTheCustomerPicksAndTheSignatureRecordsTheNoticeOfWorkingUnderTheCustomer() throws Exception {
+		RequestPostProcessor asLan = IdentityTestSupport.signedIn(this.sessions, this.lan, Role.CUSTOMER, this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
+				""").param("id", this.lan).update();
+		UUID second = product(this.lan, "lan/thuc-don");
+		String created = this.mvc.perform(post("/api/v1/jobs").with(asLan).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"productId":"%s","title":"Thêm thanh toán online","problem":"Khách chưa trả tiền trước được.",
+					 "expected":"Khách trả tiền cọc khi đặt bàn.","appUsers":"Khách đặt bàn trên điện thoại.",
+					 "jobTypes":["BUG_FIX"],"skillIds":[],"budget":"FROM_2M_TO_5M","deadline":"2026-12-15","selfMentored":true}
+					""".formatted(second))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		UUID own = UUID.fromString(JsonPath.read(created, "$.id"));
+		this.mvc.perform(post("/api/v1/jobs/" + own + "/publish").with(asLan).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"selfMentoredNoticeVersion\":\"1.0\"}")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.state").value("AGREEMENT"));
+
+		// The Customer is the recruiter: the settings, the applications with the applicant's name, and the pick.
+		recruit(own, this.lan, 2).andExpect(status().isOk());
+		UUID application = apply(this.minh, own);
+		assertThat(this.mvc.perform(get("/api/v1/mentor/jobs/" + own + "/crew-applications").with(as(this.lan)))
+			.andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+			.contains("Trần Quang Minh");
+		pick(this.lan, own, application).andExpect(status().isOk());
+
+		// The panel names the Customer and carries N-35's version; a draft never saved shows nothing of the Agreement.
+		this.mvc.perform(get("/api/v1/crew/jobs/" + own + "/commitment").with(as(this.minh))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("PICKED"))
+			.andExpect(jsonPath("$.selfMentored").value(true))
+			.andExpect(jsonPath("$.mentorName").value("Nguyễn Thị Lan"))
+			.andExpect(jsonPath("$.panel.selfMentoredNoticeVersion").value("1.0"))
+			.andExpect(jsonPath("$.panel.scope").doesNotExist())
+			.andExpect(jsonPath("$.panel.milestones.length()").value(0));
+		this.mvc.perform(put("/api/v1/mentor/jobs/" + own + "/agreement").with(as(this.lan)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("""
+					{"revision":0,"scope":"Thêm bước trả tiền cọc khi đặt bàn.","priceVnd":800000,"skillIds":[],
+					 "milestones":[{"id":"%s","title":"Trả tiền cọc","priceVnd":800000,"dueOn":"2026-12-10","revisionRounds":2,
+					   "criteria":[{"id":"%s","statement":"Khách trả được tiền cọc","checkSteps":"1. Mở. 2. Đặt."}]}],
+					 "externalAccess":[]}
+					""".formatted(UUID.randomUUID(), UUID.randomUUID()))).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/crew/jobs/" + own + "/commitment").with(as(this.minh))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.panel.scope").value("Thêm bước trả tiền cọc khi đặt bàn."))
+			.andExpect(jsonPath("$.panel.milestones[0].title").value("Trả tiền cọc"))
+			.andExpect(jsonPath("$.panel.milestones[0].priceVnd").value(800000));
+
+		// N-35 is part of the commitment: without its current version nothing is signed.
+		sign(this.minh, own, "1.0", true).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("SELF_MENTORED_NOTICE_OUTDATED"));
+		signUnderTheCustomer(own, "0.9").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("SELF_MENTORED_NOTICE_OUTDATED"));
+		assertThat(applicationState(application)).isEqualTo("PICKED null");
+		assertThat(count("SELECT count(*) FROM matching.nda_signature WHERE job_id = :job", Map.of("job", own))).isZero();
+
+		signUnderTheCustomer(own, "1.0").andExpect(status().isOk()).andExpect(jsonPath("$.status").value("JOINED"));
+		assertThat(text("""
+				SELECT nda_version || ' ' || commitment_version || ' ' || self_mentored_notice_version
+				FROM matching.nda_signature WHERE job_id = :job AND account_id = :account
+				""", Map.of("job", own, "account", this.minh))).isEqualTo("2.0 1.0 1.0");
+		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = :job AND member_account_id = :account",
+				Map.of("job", own, "account", this.minh))).isEqualTo("ACTIVE");
+	}
+
+	/** A normal Job's signature records no notice of working under the Customer. */
+	@Test
+	void aNormalJobsSignatureRecordsNoSelfMentoredNotice() throws Exception {
+		recruit(this.job, this.hung, 1).andExpect(status().isOk());
+		UUID application = apply(this.minh, this.job);
+		pick(this.hung, this.job, application).andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/crew/jobs/" + this.job + "/commitment").with(as(this.minh))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentored").value(false))
+			.andExpect(jsonPath("$.panel.selfMentoredNoticeVersion").doesNotExist());
+		sign(this.minh, this.job, "1.0", true).andExpect(status().isOk());
+		assertThat(count("""
+				SELECT count(*) FROM matching.nda_signature
+				WHERE job_id = :job AND account_id = :account AND self_mentored_notice_version IS NULL
+				""", Map.of("job", this.job, "account", this.minh))).isOne();
+	}
+
 	// ---- Helpers ------------------------------------------------------------------------------
+
+	/** "Ký và tham gia" in a Self-mentored Job: the commitment names the version of N-35 the panel showed. */
+	private ResultActions signUnderTheCustomer(UUID jobId, String noticeVersion) throws Exception {
+		return this.mvc.perform(post("/api/v1/crew/jobs/" + jobId + "/commitment").with(as(this.minh)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"ndaVersion":"2.0","commitmentVersion":"1.0","publicCodeAcknowledged":true,
+					 "commitEmailNoticeAcknowledged":true,"selfMentoredNoticeVersion":"%s"}
+					""".formatted(noticeVersion)));
+	}
 
 	/** A pick of the only place sought, so recruitment turned off by itself. */
 	private UUID pickFillingTheOnePlace() throws Exception {

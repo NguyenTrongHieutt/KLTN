@@ -14,12 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.ActiveAccount;
 import vn.vibefix.identity.GitHubGate;
 import vn.vibefix.identity.PublicProfiles.PersonFacts;
 import vn.vibefix.job.CrewPicks.Assignment;
 import vn.vibefix.job.CrewRecruitment;
 import vn.vibefix.job.CrewRecruitment.Recruitment;
+import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.matching.internal.CrewApplications.CrewApplication;
 import vn.vibefix.matching.internal.CrewApplications.EndReason;
@@ -45,9 +48,13 @@ import vn.vibefix.shared.Gate;
 @Access(Gate.SIGNED_IN)
 class CrewNdaController {
 
-	/** "Ký và tham gia": the NDA and commitment texts the panel showed, N-5 and, for a Code Job, N-23. */
+	/**
+	 * "Ký và tham gia": the NDA and commitment texts the panel showed, N-5 and, for a Code Job, N-23.
+	 * @param selfMentoredNoticeVersion the version of N-35 the panel showed, in a Self-mentored Job (R68)
+	 */
 	record CommitmentSignRequest(@NotBlank String ndaVersion, @NotBlank String commitmentVersion,
-			boolean publicCodeAcknowledged, boolean commitEmailNoticeAcknowledged) {
+			boolean publicCodeAcknowledged, boolean commitEmailNoticeAcknowledged,
+			@Nullable @Size(max = 20) String selfMentoredNoticeVersion) {
 	}
 
 	/** One Milestone of the assignment projection, with its price; never a share. */
@@ -71,10 +78,12 @@ class CrewNdaController {
 	 * @param scope the Agreement's scope, absent before the Mentor drafted it
 	 * @param codeJob a Code Job: N-23 is acknowledged before signing, once per account and notice version
 	 * @param githubLogin the person's GitHub username, which N-19 says the Customer learns on signing
+	 * @param selfMentoredNoticeVersion the version of N-35, shown and signed in a Self-mentored Job; absent in a normal
+	 * Job, whose panel shows N-19's own disclosure
 	 */
 	record CommitmentPanelView(@Nullable String scope, List<CommitmentMilestoneView> milestones, boolean codeJob,
 			boolean commitEmailNoticeAcknowledged, @Nullable String githubLogin, String ndaVersion, String commitmentVersion,
-			SplitRulesView splitRules) {
+			SplitRulesView splitRules, @Nullable String selfMentoredNoticeVersion) {
 	}
 
 	/**
@@ -83,9 +92,11 @@ class CrewNdaController {
 	 * @param endReason {@code PICK_WITHDRAWN}, {@code COMMITMENT_DECLINED}, {@code COMMITMENT_LAPSED},
 	 * {@code PICK_ENDED} (J8 or J10), {@code APPLICANT_UNAVAILABLE} or {@code SIGNED}
 	 * @param panel the Commitment panel while the pick waits; absent once it ended
+	 * @param selfMentored a Self-mentored Job (FR-85): {@code mentorName} names its Customer, who picked the person
 	 */
 	record CommitmentView(UUID applicationId, UUID jobId, String jobTitle, String mentorName, Status status,
-			@Nullable EndReason endReason, Instant pickedAt, Instant signDueAt, @Nullable CommitmentPanelView panel) {
+			@Nullable EndReason endReason, Instant pickedAt, Instant signDueAt, @Nullable CommitmentPanelView panel,
+			boolean selfMentored) {
 	}
 
 	private final CrewCommitments commitments;
@@ -100,6 +111,8 @@ class CrewNdaController {
 
 	private final MilestoneSplits splits;
 
+	private final JobPosts posts;
+
 	private final GitHubGate gitHub;
 
 	private final ActiveAccount gate;
@@ -107,8 +120,9 @@ class CrewNdaController {
 	private final CurrentCaller callers;
 
 	CrewNdaController(CrewCommitments commitments, CrewSignatures signatures, SourceContributors contributors,
-			CrewRecruitment recruitment, CrewApplications applications, MilestoneSplits splits, GitHubGate gitHub,
-			ActiveAccount gate, CurrentCaller callers) {
+			CrewRecruitment recruitment, CrewApplications applications, MilestoneSplits splits, JobPosts posts,
+			GitHubGate gitHub, ActiveAccount gate, CurrentCaller callers) {
+		this.posts = posts;
 		this.commitments = commitments;
 		this.signatures = signatures;
 		this.contributors = contributors;
@@ -141,8 +155,8 @@ class CrewNdaController {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.PUBLIC_CODE_NOT_ACKNOWLEDGED);
 		}
 		Contribution contribution = this.contributors.readForSignature(jobId, person);
-		this.signatures.sign(person, jobId, body.ndaVersion(), body.commitmentVersion(), body.publicCodeAcknowledged(),
-				body.commitEmailNoticeAcknowledged(), contribution);
+		this.signatures.sign(person, jobId, body.ndaVersion(), body.commitmentVersion(), body.selfMentoredNoticeVersion(),
+				body.publicCodeAcknowledged(), body.commitEmailNoticeAcknowledged(), contribution);
 		return view(person, jobId);
 	}
 
@@ -157,6 +171,7 @@ class CrewNdaController {
 	private CommitmentView view(UUID person, UUID jobId) {
 		CrewApplication pick = this.commitments.pickOf(person, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		Recruitment found = this.recruitment.recruitment(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		boolean selfMentored = this.posts.post(jobId).map(JobPostState::selfMentored).orElse(false);
 		CommitmentPanelView panel = null;
 		if (pick.status() == Status.PICKED) {
 			Assignment assignment = this.commitments.assignment(person, jobId).orElse(null);
@@ -169,12 +184,12 @@ class CrewNdaController {
 							.toList(),
 						assignment.codeJob(), this.commitments.commitEmailAcknowledged(person),
 						facts == null ? null : facts.githubLogin(), NdaSignatures.NDA_VERSION, CrewCommitments.COMMITMENT_VERSION,
-						splitRules(jobId));
+						splitRules(jobId), selfMentored ? CrewCommitments.SELF_MENTORED_NOTICE_VERSION : null);
 			}
 		}
 		return new CommitmentView(pick.id(), jobId, found.title(), this.applications.name(pick.mentorId()), pick.status(),
 				pick.endReason(), pick.pickedAt() == null ? pick.submittedAt() : pick.pickedAt(),
-				pick.signDueAt() == null ? pick.lapsesAt() : pick.signDueAt(), panel);
+				pick.signDueAt() == null ? pick.lapsesAt() : pick.signDueAt(), panel, selfMentored);
 	}
 
 	/** The split rules {@code job} holds a save to (FR-61, FR-83). */

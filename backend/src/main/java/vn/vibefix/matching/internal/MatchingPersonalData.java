@@ -97,7 +97,8 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 			return application;
 		}).list();
 		List<Map<String, Object>> signatures = this.jdbc.sql("""
-				SELECT job_id, nda_version, commitment_version, signed_at FROM matching.nda_signature WHERE account_id = :id
+				SELECT job_id, nda_version, commitment_version, self_mentored_notice_version, signed_at
+				FROM matching.nda_signature WHERE account_id = :id
 				ORDER BY signed_at
 				""").param("id", accountId).query((rs, n) -> {
 			Map<String, Object> signature = new LinkedHashMap<>();
@@ -105,6 +106,8 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 			signature.put("ndaVersion", rs.getString("nda_version"));
 			// Story 21.5: a Crew member's signature also carries the commitment text's version.
 			signature.put("commitmentVersion", rs.getString("commitment_version"));
+			// Story 25.3: in a Self-mentored Job the commitment includes N-35, recorded with its own version.
+			signature.put("selfMentoredNoticeVersion", rs.getString("self_mentored_notice_version"));
 			signature.put("signedAt", rs.getTimestamp("signed_at").toInstant().toString());
 			return signature;
 		}).list();
