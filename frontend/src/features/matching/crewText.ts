@@ -63,7 +63,7 @@ export function crewRefusal(error: unknown, context: CrewRefusalContext = {}): s
   const reason = error.problem.reason
   switch (reason) {
     case 'ROLE_TAKEN':
-      return context.role && context.role !== 'CUSTOMER'
+      return context.role && context.role !== 'CUSTOMER' && context.role !== 'CUSTOMER_MENTOR'
         ? t('reason.matching.ROLE_IN_JOB_TAKEN', { role: roleLabel(context.role) })
         : t('reason.matching.ROLE_TAKEN')
     case 'ON_ANOTHER_CREW':

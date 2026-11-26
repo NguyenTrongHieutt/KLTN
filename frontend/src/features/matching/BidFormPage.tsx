@@ -121,7 +121,7 @@ function RoleGate({ jobId, role }: { jobId: string; role: JobRoleView }) {
   return (
     <Card role="status" className="flex flex-col gap-3">
       <PageHeading className="text-h3">
-        {role.role === 'CUSTOMER'
+        {role.role === 'CUSTOMER' || role.role === 'CUSTOMER_MENTOR'
           ? t('reason.matching.ROLE_TAKEN')
           : t('screen.jobPost.detail.role', { role: roleLabel(role.role) })}
       </PageHeading>

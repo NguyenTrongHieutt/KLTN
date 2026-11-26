@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
@@ -50,6 +52,12 @@ class JobRolesIT extends IntegrationTest {
 
 	@Autowired
 	private Crews crews;
+
+	@Autowired
+	private JobPersonalData personalData;
+
+	@Autowired
+	private PlatformTransactionManager transactions;
 
 	@Test
 	void roleOfGivesEachAccountAtMostOneRolePerJobAndAgreesWithTheTables() {
@@ -260,7 +268,8 @@ class JobRolesIT extends IntegrationTest {
 				SELECT job_id || ' ' || account_id FROM (
 				    SELECT id AS job_id, customer_account_id AS account_id, 'CUSTOMER' AS kind FROM job.job
 				    UNION ALL
-				    SELECT id, mentor_account_id, 'MENTOR' FROM job.job WHERE mentor_account_id IS NOT NULL AND NOT self_mentored
+				    SELECT id, mentor_account_id, 'MENTOR' FROM job.job WHERE mentor_account_id IS NOT NULL
+				        AND NOT (self_mentored AND mentor_account_id = customer_account_id)
 				    UNION ALL
 				    SELECT DISTINCT job_id, member_account_id, 'CREW' FROM job.crew_row
 				    WHERE status <> 'RELEASED' OR activated_at IS NOT NULL
@@ -305,7 +314,11 @@ class JobRolesIT extends IntegrationTest {
 		assertThat(this.roles.roleOf(normal, mentor).isSelfMentor()).isFalse();
 	}
 
-	/** AD-43, Story 25.2a: the Mentor is the Customer if and only if the Job is self-mentored, and the schema says so. */
+	/**
+	 * AD-43, Story 25.2a: the Mentor is the Customer if and only if the Job is self-mentored, and the schema says so. It
+	 * refuses a mode that disagrees with the Mentor; that the mode never changes back after J11 or J12 is the commands'
+	 * rule, since a statement that changes the mode and the Mentor together passes.
+	 */
 	@Test
 	void theSchemaTiesTheMentorToTheJobsMode() {
 		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
@@ -325,7 +338,7 @@ class JobRolesIT extends IntegrationTest {
 		assertRefused("a self-mentored Job with another Mentor", () -> this.jdbc
 			.sql("UPDATE job.job SET mentor_account_id = :mentor WHERE id = :id").param("mentor", mentor).param("id", running)
 			.update());
-		assertRefused("a self-mentored Job set back to normal", () -> this.jdbc
+		assertRefused("a self-mentored Job set back to normal with its Customer still the Mentor", () -> this.jdbc
 			.sql("UPDATE job.job SET self_mentored = FALSE WHERE id = :id").param("id", running).update());
 		assertRefused("a self-mentored Job with a selected Application", () -> this.jdbc
 			.sql("UPDATE job.job SET selected_application_id = :application WHERE id = :id")
@@ -339,6 +352,11 @@ class JobRolesIT extends IntegrationTest {
 		assertRefused("a normal Job past Open with no selected Application", () -> this.jdbc
 			.sql("UPDATE job.job SET selected_application_id = NULL WHERE id = :id").param("id", normal).update());
 		assertRefused("a Crew row of the Customer who mentors the Job", () -> insertCrewRow(running, customer, "ASSIGNED"));
+		for (String state : List.of("OPEN", "SELECTING")) {
+			assertRefused("a self-mentored Job in " + state + ": nobody bids on one", () -> this.jdbc
+				.sql("UPDATE job.job SET state = :state, opened_at = now(), lapses_at = now() + INTERVAL '14 days' WHERE id = :id")
+				.param("state", state).param("id", running).update());
+		}
 		// What J12 writes in one statement: an Open Job becomes self-mentored with its Customer as the Mentor.
 		UUID open = job(customer, null, "OPEN", "BUG_FIX");
 		assertThat(this.jdbc.sql("""
@@ -347,6 +365,37 @@ class JobRolesIT extends IntegrationTest {
 				""").param("id", open).update()).isOne();
 		assertThat(describe(this.roles.roleOf(open, customer))).isEqualTo("CUSTOMER_MENTOR");
 		assertThat(overlaps()).isEmpty();
+	}
+
+	/**
+	 * AD-24, AD-47, Story 25.2a: an erased Customer who mentored the Job leaves both columns of the bare row an open
+	 * split keeps, so the mode's check holds and the Mentor column names nobody either.
+	 */
+	@Test
+	void anErasedCustomerWhoMentoredTheJobLeavesNeitherColumnOfItsBareRow() {
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
+		UUID own = selfMentored(customer, "ACTIVE");
+		UUID normal = job(customer, mentor, "ACTIVE", "BUG_FIX");
+		for (UUID job : List.of(own, normal)) {
+			this.jdbc.sql("""
+					INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, status, cap_applies,
+					    released_at, draft_due_at, created_at)
+					SELECT :id, id, product_id, :milestone, 1, 'AWAITING_DRAFT', FALSE, now(), now() + INTERVAL '7 days', now()
+					FROM job.job WHERE id = :job
+					""").param("id", UUID.randomUUID()).param("milestone", UUID.randomUUID()).param("job", job).update();
+		}
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.personalData.eraseAccount(customer));
+
+		assertThat(this.jdbc.sql("""
+				SELECT (customer_account_id = :nobody) || ' ' || (mentor_account_id = :nobody) FROM job.job WHERE id = :id
+				""").param("nobody", JobPersonalData.NOBODY).param("id", own).query(String.class).single())
+			.as("the Self-mentored Job's bare row names nobody").isEqualTo("true true");
+		assertThat(this.jdbc.sql("""
+				SELECT (customer_account_id = :nobody) || ' ' || (mentor_account_id = :mentor) FROM job.job WHERE id = :id
+				""").param("nobody", JobPersonalData.NOBODY).param("mentor", mentor).param("id", normal)
+			.query(String.class).single()).as("a normal Job keeps its Mentor").isEqualTo("true true");
 	}
 
 	/** A Self-mentored Job on its own Product: a Draft has no Mentor, and from J11 on the Mentor is the Customer. */

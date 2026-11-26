@@ -246,7 +246,13 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		}
 		clearRecruitments(accountId);
 		deleteJobs("customer_account_id", accountId);
-		this.jdbc.sql("UPDATE job.job SET customer_account_id = :nobody WHERE customer_account_id = :id")
+		// The bare row of a Job kept for an open split. In a Self-mentored Job the Mentor column names the same person
+		// (AD-47), and the mode's check wants the two to stay equal, so both go.
+		this.jdbc.sql("""
+				UPDATE job.job SET customer_account_id = :nobody,
+				    mentor_account_id = CASE WHEN self_mentored THEN :nobody ELSE mentor_account_id END
+				WHERE customer_account_id = :id
+				""")
 			.param("nobody", NOBODY)
 			.param("id", accountId)
 			.update();

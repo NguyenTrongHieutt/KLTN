@@ -66,7 +66,7 @@ afterEach(() => {
 })
 
 /** One Job of "Công việc" (`/my-jobs`) where the user holds `role`. */
-function held(jobId: string, title: string, role: 'CUSTOMER' | 'MENTOR' | 'CREW', extra: Record<string, unknown> = {}) {
+function held(jobId: string, title: string, role: 'CUSTOMER' | 'MENTOR' | 'CUSTOMER_MENTOR' | 'CREW', extra: Record<string, unknown> = {}) {
   return { jobId, title, productName: 'Sổ đặt bàn Quán Mây', state: 'ACTIVE', role, updatedAt: '2026-10-20T03:00:00Z', ...extra }
 }
 
@@ -154,6 +154,20 @@ describe('CUS-7, the Jobs of every role (UX-DR66, UX-DR86)', () => {
     await user.click(within(segments).getByRole('button', { name: 'Việc tôi đăng' }))
     expect(await screen.findByRole('link', { name: /Việc A của tôi/ })).toHaveAttribute('href', '/cong-viec/a')
     expect(router.state.location.search).toBe('?vai-tro=dang')
+  })
+
+  it('lists a Self-mentored Job with the Jobs the user posted (AD-47, Story 25.2a)', async () => {
+    fakeBackend(signedInUser, {
+      'GET /api/v1/my-jobs': () => json([held('s', 'Việc tôi tự hướng dẫn', 'CUSTOMER_MENTOR')]),
+      'GET /api/v1/jobs': () =>
+        json([{ id: 's', productId: 'p1', productName: 'Sổ đặt bàn Quán Mây', state: 'AGREEMENT', title: 'Việc tôi tự hướng dẫn', jobTypes: [], updatedAt: '2026-10-20T03:00:00Z' }]),
+    })
+    renderAt('/cong-viec')
+
+    // The user's only Job: it is theirs under "Việc tôi đăng", so the page is not empty and names no mentored Job.
+    expect(await screen.findByRole('link', { name: /Việc tôi tự hướng dẫn/ })).toHaveAttribute('href', '/cong-viec/s')
+    expect(screen.queryByText('Bạn chưa có công việc nào.')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Việc tôi hướng dẫn/ })).toBeNull()
   })
 
   it('opens the segment the URL keeps', async () => {
