@@ -2484,6 +2484,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{jobId}/self-mentored": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["selfMentor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{jobId}/setup": {
         parameters: {
             query?: never;
@@ -4300,7 +4316,7 @@ export interface components {
         ApplicationView: {
             approach: string;
             /** @enum {string} */
-            endReason?: "WITHDRAWN" | "MENTOR_UNAVAILABLE" | "JOB_WITHDRAWN" | "JOB_LAPSED" | "NOT_SELECTED" | "DECLINED" | "NOT_SIGNED";
+            endReason?: "WITHDRAWN" | "MENTOR_UNAVAILABLE" | "JOB_WITHDRAWN" | "JOB_LAPSED" | "NOT_SELECTED" | "DECLINED" | "NOT_SIGNED" | "JOB_SELF_MENTORED";
             /** Format: date-time */
             endedAt?: string;
             /** Format: uuid */
@@ -6978,6 +6994,11 @@ export interface components {
             version: number;
         };
         SelectedView: {
+            /** Format: int64 */
+            version: number;
+        };
+        SelfMentorRequest: {
+            selfMentoredNoticeVersion?: string;
             /** Format: int64 */
             version: number;
         };
@@ -11820,6 +11841,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"];
+                };
+            };
+        };
+    };
+    selfMentor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelfMentorRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectedView"];
                 };
             };
         };

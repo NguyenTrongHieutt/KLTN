@@ -5456,6 +5456,43 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/api/v1/jobs/{jobId}/self-mentored" : {
+      "post" : {
+        "operationId" : "selfMentor",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "jobId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SelfMentorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SelectedView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "application-controller" ]
+      }
+    },
     "/api/v1/jobs/{jobId}/setup" : {
       "get" : {
         "operationId" : "setup",
@@ -9427,7 +9464,7 @@
           },
           "endReason" : {
             "type" : "string",
-            "enum" : [ "WITHDRAWN", "MENTOR_UNAVAILABLE", "JOB_WITHDRAWN", "JOB_LAPSED", "NOT_SELECTED", "DECLINED", "NOT_SIGNED" ]
+            "enum" : [ "WITHDRAWN", "MENTOR_UNAVAILABLE", "JOB_WITHDRAWN", "JOB_LAPSED", "NOT_SELECTED", "DECLINED", "NOT_SIGNED", "JOB_SELF_MENTORED" ]
           },
           "endedAt" : {
             "type" : "string",
@@ -17010,6 +17047,21 @@
       "SelectedView" : {
         "type" : "object",
         "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "SelfMentorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "selfMentoredNoticeVersion" : {
+            "type" : "string",
+            "maxLength" : 20,
+            "minLength" : 0
+          },
           "version" : {
             "type" : "integer",
             "format" : "int64"
