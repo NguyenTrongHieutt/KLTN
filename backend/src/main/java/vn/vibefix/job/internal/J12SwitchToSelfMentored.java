@@ -20,8 +20,8 @@ import vn.vibefix.shared.ErrorCode;
  * Agreement. From there it is J11's Job: the Customer is recorded as the Mentor, with the time they became it; the
  * Product is pinned while the Job runs (AD-30); the Agreement deadline is set and drafting starts with the Customer's
  * to-do (FR-16, FR-40). Unlike J11 it copies no rule value: the Job keeps the ones J1 copied (AD-7), and the deadline is
- * counted from them. The selection period ends by itself, because its Deadline holds the version J1 left and finds the
- * Job no longer Open. {@code matching} owns the Applications, so it counts the open ones for the guard and its listener
+ * counted from them. The selection period ends by itself: each of its Deadlines holds the version the Job had when it
+ * last became Open (J1, and J5 after a declined selection) and finds the Job no longer Open. {@code matching} owns the Applications, so it counts the open ones for the guard and its listener
  * lapses the Invitations to Apply and withdraws a bid that raced the switch (B-18). The switch is one-way: no transition
  * leads back to Open, and no command writes the mode after it.
  */

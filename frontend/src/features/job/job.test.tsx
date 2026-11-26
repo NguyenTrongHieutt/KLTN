@@ -698,9 +698,59 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     renderAt('/cong-viec/j1')
 
     const blocked = await screen.findByRole('button', { name: 'Chuyển sang tự hướng dẫn' })
-    await waitFor(() => expect(blocked).toBeDisabled())
+    // Disabled, yet in the tab order: a keyboard user reaches it and hears why.
+    await waitFor(() => expect(blocked).toHaveAttribute('aria-disabled', 'true'))
     expect(blocked).toHaveAccessibleDescription('Đã có chào giá nên không chuyển sang tự hướng dẫn được.')
     expect(screen.getByText('Đã có chào giá nên không chuyển sang tự hướng dẫn được.')).toBeVisible()
+    await userEvent.setup().click(blocked)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('says why when a bid arrived before the switch was confirmed, and reads the bids again (FR-85)', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let bids: unknown[] = []
+    fakeBackend(
+      { ...signedInUser, selfMentoredJobs: true },
+      {
+        ...inEveryJob('CUSTOMER'),
+        'GET /api/v1/jobs/j1': () => json(openJob),
+        'GET /api/v1/jobs/j1/applications': () => json(bids),
+        'GET /api/v1/products/p1': () => json(product()),
+        'GET /api/v1/catalog': catalog,
+        'POST /api/v1/jobs/j1/self-mentored': () => {
+          bids = [{ id: 'a1', status: 'SUBMITTED' }]
+          return json({ status: 422, code: 'GUARD_FAILED', reason: 'OPEN_APPLICATIONS', count: 1 }, 422)
+        },
+      },
+    )
+    renderAt('/cong-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Chuyển sang tự hướng dẫn' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Bạn sẽ tự hướng dẫn công việc này' })
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Tôi hiểu và muốn tự hướng dẫn công việc này.' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Tự hướng dẫn công việc này' }))
+
+    // The refusal's own sentence, once in the toast and then beside the button, which the reloaded bids disable.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Chuyển sang tự hướng dẫn' })).toHaveAttribute('aria-disabled', 'true'),
+    )
+    expect(screen.getAllByText('Đã có chào giá nên không chuyển sang tự hướng dẫn được.').length).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText(/Chưa thể/)).not.toBeInTheDocument()
+  })
+
+  it('offers the switch in the header of the bids page too (CUS-8, UX-DR121)', { timeout: 20_000 }, async () => {
+    fakeBackend(
+      { ...signedInUser, selfMentoredJobs: true },
+      {
+        ...inEveryJob('CUSTOMER'),
+        'GET /api/v1/jobs/j1': () => json(openJob),
+        'GET /api/v1/jobs/j1/applications': () => json([]),
+      },
+    )
+    renderAt('/cong-viec/j1/ung-tuyen')
+
+    expect(await screen.findByRole('button', { name: 'Chuyển sang tự hướng dẫn' })).toBeEnabled()
   })
 
   it('offers no switch while the mode is off (FR-85)', { timeout: 20_000 }, async () => {

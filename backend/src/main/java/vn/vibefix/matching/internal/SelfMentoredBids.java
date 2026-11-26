@@ -14,8 +14,9 @@ import vn.vibefix.job.JobPosts.JobPostState;
  * open, {@link MatchingListeners} withdraws a bid that committed before it ran, and {@link Applications#submit} reads
  * the Job again after writing the bid; a bid that read the Job before the switch committed and itself commits after the
  * listener ran passes all three. This finds it: every Job that holds a submitted bid is read, and the bids of a
- * Self-mentored one are withdrawn with {@code JOB_SELF_MENTORED}, each bidder told. Runs every 6 hours, off when
- * scheduling is off; with no such bid it writes nothing.
+ * Self-mentored one are withdrawn with {@code JOB_SELF_MENTORED}, each bidder told. A Draft is left alone whatever mode
+ * it holds: its mode is still a free choice, and nobody switched it (R55). Runs every 6 hours, off when scheduling is
+ * off; with no such bid it writes nothing.
  */
 @Component
 class SelfMentoredBids {
@@ -33,7 +34,7 @@ class SelfMentoredBids {
 	int sweep() {
 		int withdrawn = 0;
 		for (UUID jobId : this.applications.jobsWithSubmittedBids()) {
-			if (this.posts.post(jobId).filter(JobPostState::selfMentored).isPresent()) {
+			if (this.posts.post(jobId).filter(post -> post.selfMentored() && !"DRAFT".equals(post.state())).isPresent()) {
 				withdrawn += this.applications.withdrawForSelfMentored(jobId);
 			}
 		}

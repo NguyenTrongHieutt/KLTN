@@ -113,7 +113,7 @@ function Overview({ job }: { job: Job }) {
             </div>
           </div>
           {job.state === 'OPEN' && (
-            <div className="flex flex-wrap items-start justify-end gap-3">
+            <div className="flex flex-wrap items-start gap-3 sm:justify-end">
               <SelfMentorSwitch job={job} openBids={bids.data?.length} />
               <Withdraw job={job} />
             </div>

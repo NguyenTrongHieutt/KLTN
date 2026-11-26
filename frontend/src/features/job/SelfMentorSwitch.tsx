@@ -8,6 +8,7 @@ import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 import { useSession } from '@/features/identity/useSession'
 import { useSwitchToSelfMentored } from '@/features/matching/applicationApi'
 import { t } from '@/i18n/t'
+import { ApiError } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
 import type { Job } from './jobApi'
 
@@ -18,7 +19,8 @@ const NOTICE_VERSION = t('screen.job.form.selfMentored.noticeVersion')
  * "Chuyển sang tự hướng dẫn" (FR-85, UX-DR121, J12) on JOB-1 while the Job is Open and in CUS-8's header: the Customer
  * of an Open Job nobody bids on becomes its Mentor and recruits the Crew directly. Hidden while the mode is off
  * (`features.selfMentoredJobs`) and on a Job that is not Open. While a bid is open the button is disabled and the reason
- * stands beside it, since a disabled button says nothing by itself. The dialog shows N-34 with what the switch adds (the
+ * stands beside it, since a disabled button says nothing by itself; it stays in the tab order, so a keyboard user hears
+ * the reason too. The dialog shows N-34 with what the switch adds (the
  * open invitations lapse, and it is one-way) and its checkbox; the switch is sent at the Job version the screen loaded.
  *
  * @param openBids the Job's open bids as the page read them; `undefined` while they are unknown, when the server decides
@@ -60,7 +62,14 @@ export function SelfMentorSwitch({ job, openBids }: { job: Job; openBids: number
         },
         onError: (error) => {
           show(false)
-          toasts.error(problemMessage(error, { module: 'job', action: t('screen.job.detail.selfMentorSwitchAction') }).text)
+          if (error instanceof ApiError && error.problem.reason === 'SELF_MENTORED_OFF') {
+            // The catalog's sentence for this reason is about publishing a Draft; the switch has its own.
+            toasts.error(t('screen.job.detail.selfMentorSwitchOff'))
+            return
+          }
+          // A reason of the switch is a whole sentence ("Đã có chào giá nên…"), so no action is named before it.
+          const message = problemMessage(error, { module: 'job' })
+          toasts.error(message.text, message.link)
         },
       },
     )
@@ -71,6 +80,7 @@ export function SelfMentorSwitch({ job, openBids }: { job: Job; openBids: number
         type="button"
         variant="secondary"
         disabled={blocked}
+        focusableWhenDisabled
         aria-describedby={blocked ? `${ids}-blocked` : undefined}
         onClick={() => show(true)}
       >

@@ -90,9 +90,6 @@ class SelfMentoredSwitchIT extends IntegrationTest {
 		UUID hung = mentor("Đỗ Mạnh Hùng");
 		this.mvc.perform(post("/api/v1/jobs/" + job + "/invitations").with(as(this.lan)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"mentorId\":\"" + hung + "\"}")).andExpect(status().isCreated());
-		// The Job was once Selecting and its selected Mentor declined (J3, J5): it still holds that bid's quote.
-		this.jdbc.sql("UPDATE job.job SET quote_price_vnd = 3000000, quote_timeline_days = 20 WHERE id = :id")
-			.param("id", job).update();
 		this.clock.advance(Duration.ofHours(1));
 		Instant now = this.clock.instant();
 		Instant due = now.plus(Duration.ofDays(14));
@@ -156,12 +153,61 @@ class SelfMentoredSwitchIT extends IntegrationTest {
 
 		// One-way: nothing switches it again, publishes it, withdraws it or edits its mode.
 		switchIt(job, 2, NOTICE).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("STATE_CHANGED"));
+		this.mvc.perform(post("/api/v1/jobs/" + job + "/publish").with(as(this.lan)).with(csrf()))
+			.andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("STATE_CHANGED"));
 		this.mvc.perform(post("/api/v1/jobs/" + job + "/withdraw").with(as(this.lan)).with(csrf()))
 			.andExpect(status().isConflict());
 		this.mvc.perform(put("/api/v1/jobs/" + job).with(as(this.lan)).with(csrf()).contentType(MediaType.APPLICATION_JSON)
 			.content(body())).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("JOB_NOT_DRAFT"));
 		assertThat(this.jdbc.sql("SELECT self_mentored FROM job.job WHERE id = :id").param("id", job).query(Boolean.class).single())
 			.isTrue();
+	}
+
+	/**
+	 * The Job was Selecting once and its selected Mentor declined (J3, then J5): it is Open again, with that bid's quote,
+	 * a second selection period and no pin. The switch leaves nothing of the selection behind.
+	 */
+	@Test
+	void aJobWhoseSelectedMentorDeclinedIsSwitchedWithNothingOfTheSelectionLeft() throws Exception {
+		UUID job = publishedJob();
+		UUID hung = mentor("Đỗ Mạnh Hùng");
+		UUID bid = application(job, hung);
+		this.mvc.perform(post("/api/v1/jobs/" + job + "/applications/" + bid + "/select").with(as(this.lan)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}")).andExpect(status().isOk());
+		await().atMost(Duration.ofSeconds(10)).until(() -> "SELECTED".equals(applicationStatus(bid)));
+		this.clock.advance(Duration.ofHours(1));
+		this.mvc.perform(post("/api/v1/mentor/jobs/" + job + "/decline").with(as(hung)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":2}")).andExpect(status().isNoContent());
+		await().atMost(Duration.ofSeconds(10)).until(() -> "CLOSED".equals(applicationStatus(bid)));
+		assertThat(this.jdbc.sql("""
+				SELECT state || ' ' || quote_price_vnd || ' ' || (mentor_account_id IS NULL) FROM job.job WHERE id = :id
+				""").param("id", job).query(String.class).single()).as("J5 keeps the declined bid's quote")
+			.isEqualTo("OPEN 800000 true");
+		assertThat(count("SELECT count(*) FROM product.job_pin WHERE job_id = :id", job)).as("J5 released the pin").isZero();
+		this.clock.advance(Duration.ofHours(1));
+
+		switchIt(job, 3, NOTICE).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(4));
+
+		assertThat(this.jdbc.sql("""
+				SELECT state || ' ' || (mentor_account_id = customer_account_id) || ' ' || (selected_application_id IS NULL)
+				    || ' ' || (quote_price_vnd IS NULL AND quote_timeline_days IS NULL)
+				FROM job.job WHERE id = :id
+				""").param("id", job).query(String.class).single()).isEqualTo("AGREEMENT true true true");
+		assertThat(this.roles.roleOf(job, this.lan)).isEqualTo(JobRole.CUSTOMER_MENTOR);
+		assertThat(this.roles.roleOf(job, hung)).as("the Mentor who declined holds no role").isEqualTo(JobRole.NONE);
+		assertThat(count("SELECT count(*) FROM product.job_pin WHERE job_id = :id", job)).as("J12 pins the Product again").isOne();
+		assertThat(applicationStatus(bid)).as("a closed bid stays closed").isEqualTo("CLOSED");
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + job + "/agreement").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.quote").doesNotExist());
+
+		// Both selection periods end by themselves: J1's Deadline and J5's each find the Job no longer Open.
+		this.clock.advance(Duration.ofDays(14).minusMinutes(90));
+		this.poller.runDue();
+		assertThat(state(job)).isEqualTo("AGREEMENT");
+		assertThat(this.jdbc.sql("""
+				SELECT generation || ' ' || status FROM timers.deadline WHERE kind = 'job.selection_lapse' AND subject_id = :id
+				ORDER BY generation
+				""").param("id", job).query(String.class).list()).containsExactly("1 OBSOLETE", "3 OBSOLETE");
 	}
 
 	@Test
@@ -225,11 +271,18 @@ class SelfMentoredSwitchIT extends IntegrationTest {
 				SELECT count(*) FROM notification.todo WHERE todo_key = 'matching.open_crew_recruitment' AND job_id = :id
 				""", job) == 1);
 
-		// A bid that commits after the listener ran is the sweep's; a normal Open Job's bid is not touched.
+		// A bid that commits after the listener ran is the sweep's. A normal Open Job's bid is not touched, and neither is
+		// a bid left on a Draft whose Customer then chose the mode: nobody switched that Job.
 		UUID ha = mentor("Phạm Thu Hà");
 		UUID late = application(job, ha);
 		UUID normal = publishedJob();
 		UUID kept = application(normal, ha);
+		UUID draft = publishedJob();
+		UUID onDraft = application(draft, ha);
+		this.jdbc.sql("""
+				UPDATE job.job SET state = 'DRAFT', self_mentored = TRUE, rules = NULL, selection_days = NULL, opened_at = NULL,
+				    lapses_at = NULL WHERE id = :id
+				""").param("id", draft).update();
 
 		assertThat(this.bids.sweep()).isOne();
 
@@ -237,6 +290,7 @@ class SelfMentoredSwitchIT extends IntegrationTest {
 			.param("id", late).query(String.class).single()).isEqualTo("WITHDRAWN JOB_SELF_MENTORED");
 		assertThat(notifications("matching.application_job_self_mentored", ha)).isOne();
 		assertThat(applicationStatus(kept)).isEqualTo("SUBMITTED");
+		assertThat(applicationStatus(onDraft)).isEqualTo("SUBMITTED");
 		assertThat(this.bids.sweep()).as("nothing is left to withdraw").isZero();
 		assertThat(notifications("matching.application_job_self_mentored", ha)).isOne();
 		// The bidder reads why their bid ended.
