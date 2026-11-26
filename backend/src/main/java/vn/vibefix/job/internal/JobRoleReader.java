@@ -28,8 +28,10 @@ import vn.vibefix.shared.Caller;
 
 /**
  * {@code job.roleOf} and {@code job.historyOf} (AD-43): the Customer and the Mentor come from the Job row, and a
- * Crew member's relationship from {@link CrewService#crewRelationship}, read on every call. {@code job}'s own
- * policies call {@link #roleOf(Job, Caller)} with the Job they already read.
+ * Crew member's relationship from {@link CrewService#crewRelationship}, read on every call. The Customer of a
+ * Self-mentored Job is {@code CUSTOMER_MENTOR} once the Job has its Mentor (J11, J12), read from the Job's mode
+ * column and never from the two account columns being equal; on a Draft they are the Customer, whatever mode the
+ * Draft holds (AD-47). {@code job}'s own policies call {@link #roleOf(Job, Caller)} with the Job they already read.
  */
 @Component
 class JobRoleReader implements JobRoles {
@@ -79,7 +81,7 @@ class JobRoleReader implements JobRoles {
 		if (!caller.isUser()) {
 			return JobRole.NONE;
 		}
-		return relation(job.id(), job.customerId(), job.mentorId(), caller.requireAccountId());
+		return relation(job.id(), job.customerId(), job.mentorId(), job.selfMentored(), caller.requireAccountId());
 	}
 
 	/**
@@ -97,7 +99,7 @@ class JobRoleReader implements JobRoles {
 				""").param("id", accountId).query(Jobs::job).list();
 		List<HeldJob> held = new ArrayList<>();
 		for (Job job : jobs) {
-			JobRole role = relation(job.id(), job.customerId(), job.mentorId(), accountId);
+			JobRole role = relation(job.id(), job.customerId(), job.mentorId(), job.selfMentored(), accountId);
 			if (!JobRole.NONE.equals(role)) {
 				held.add(new HeldJob(job, role));
 			}
@@ -146,18 +148,20 @@ class JobRoleReader implements JobRoles {
 
 	private JobRole relation(UUID jobId, UUID accountId) {
 		Optional<Parties> parties = this.jdbc
-			.sql("SELECT customer_account_id, mentor_account_id FROM job.job WHERE id = :id AND " + Jobs.LIVE)
+			.sql("SELECT customer_account_id, mentor_account_id, self_mentored FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
 			.query((rs, n) -> new Parties(rs.getObject("customer_account_id", UUID.class),
-					rs.getObject("mentor_account_id", UUID.class)))
+					rs.getObject("mentor_account_id", UUID.class), rs.getBoolean("self_mentored")))
 			.optional();
-		return parties.map(found -> relation(jobId, found.customerId(), found.mentorId(), accountId))
+		return parties
+			.map(found -> relation(jobId, found.customerId(), found.mentorId(), found.selfMentored(), accountId))
 			.orElse(JobRole.NONE);
 	}
 
-	private JobRole relation(UUID jobId, UUID customerId, @Nullable UUID mentorId, UUID accountId) {
+	private JobRole relation(UUID jobId, UUID customerId, @Nullable UUID mentorId, boolean selfMentored, UUID accountId) {
 		if (accountId.equals(customerId)) {
-			return JobRole.CUSTOMER;
+			// AD-47: the combined role comes from the mode, and only once the Job has its Mentor (J11, J12).
+			return selfMentored && mentorId != null ? JobRole.CUSTOMER_MENTOR : JobRole.CUSTOMER;
 		}
 		if (accountId.equals(mentorId)) {
 			return JobRole.MENTOR;
@@ -199,7 +203,7 @@ class JobRoleReader implements JobRoles {
 		return (String[]) array.getArray();
 	}
 
-	private record Parties(UUID customerId, @Nullable UUID mentorId) {
+	private record Parties(UUID customerId, @Nullable UUID mentorId, boolean selfMentored) {
 	}
 
 }

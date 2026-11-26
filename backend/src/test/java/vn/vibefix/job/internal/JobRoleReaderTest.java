@@ -38,7 +38,7 @@ class JobRoleReaderTest {
 		// An Administrator named as the Job's Customer, which no command writes, still holds no role in it.
 		Job job = new Job(UUID.randomUUID(), UUID.randomUUID(), admin, JobState.ACTIVE, "Việc", null, null, null, null,
 				List.of(JobType.BUG_FIX), List.of(), List.of(), null, null, Instant.EPOCH, Instant.EPOCH, 1, null, null,
-				null, 1, null, UUID.randomUUID(), UUID.randomUUID(), Instant.EPOCH);
+				null, 1, null, UUID.randomUUID(), UUID.randomUUID(), Instant.EPOCH, false);
 
 		assertThat(reader.roleOf(job, Caller.anonymous())).isEqualTo(JobRole.NONE);
 		assertThat(reader.roleOf(job, Caller.account(admin, Kind.ADMINISTRATOR)))

@@ -260,13 +260,115 @@ class JobRolesIT extends IntegrationTest {
 				SELECT job_id || ' ' || account_id FROM (
 				    SELECT id AS job_id, customer_account_id AS account_id, 'CUSTOMER' AS kind FROM job.job
 				    UNION ALL
-				    SELECT id, mentor_account_id, 'MENTOR' FROM job.job WHERE mentor_account_id IS NOT NULL
+				    SELECT id, mentor_account_id, 'MENTOR' FROM job.job WHERE mentor_account_id IS NOT NULL AND NOT self_mentored
 				    UNION ALL
 				    SELECT DISTINCT job_id, member_account_id, 'CREW' FROM job.crew_row
 				    WHERE status <> 'RELEASED' OR activated_at IS NOT NULL
 				) relation
 				GROUP BY job_id, account_id HAVING count(*) > 1
 				""").query(String.class).list();
+	}
+
+	/**
+	 * FR-85, AD-47, AD-43, Story 25.2a: the combined role comes from the Job's mode, and only once the Job has its
+	 * Mentor; on a Draft the Customer is the Customer, whatever mode the Draft holds.
+	 */
+	@Test
+	void theCustomerOfASelfMentoredJobHoldsTheCombinedRoleOnceTheJobHasItsMentor() {
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
+		UUID member = student("Lê Thảo Vy");
+		UUID stranger = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID draft = selfMentored(customer, "DRAFT");
+		UUID running = selfMentored(customer, "ACTIVE");
+		crewRow(running, member, "ACTIVE", true);
+		UUID normal = job(customer, mentor, "ACTIVE", "BUG_FIX");
+
+		assertThat(describe(this.roles.roleOf(draft, customer))).as("a Draft has no Mentor yet").isEqualTo("CUSTOMER");
+		assertThat(this.roles.roleOf(draft, customer).isSelfMentor()).isFalse();
+		JobRole combined = this.roles.roleOf(running, customer);
+		assertThat(describe(combined)).isEqualTo("CUSTOMER_MENTOR");
+		assertThat(combined.isCustomer()).isTrue();
+		assertThat(combined.isMentor()).isTrue();
+		assertThat(combined.isSelfMentor()).isTrue();
+		assertThat(combined.isCrew()).isFalse();
+		assertThat(this.roles.roleOf(running, Caller.account(customer, Kind.USER))).isEqualTo(JobRole.CUSTOMER_MENTOR);
+		assertThat(describe(this.roles.roleOf(running, member))).isEqualTo("CREW ACTIVE");
+		assertThat(describe(this.roles.roleOf(running, stranger))).isEqualTo("NONE");
+		assertThat(describe(this.roles.roleOf(running, mentor))).as("the Mentor of another Job").isEqualTo("NONE");
+		// A normal Job of the same Customer: two people, two roles, and neither is the combined one.
+		assertThat(describe(this.roles.roleOf(normal, customer))).isEqualTo("CUSTOMER");
+		assertThat(this.roles.roleOf(normal, customer).isMentor()).isFalse();
+		assertThat(this.roles.roleOf(normal, customer).isSelfMentor()).isFalse();
+		assertThat(describe(this.roles.roleOf(normal, mentor))).isEqualTo("MENTOR");
+		assertThat(this.roles.roleOf(normal, mentor).isCustomer()).isFalse();
+		assertThat(this.roles.roleOf(normal, mentor).isSelfMentor()).isFalse();
+	}
+
+	/** AD-43, Story 25.2a: the Mentor is the Customer if and only if the Job is self-mentored, and the schema says so. */
+	@Test
+	void theSchemaTiesTheMentorToTheJobsMode() {
+		UUID customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID mentor = TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React");
+		UUID draft = selfMentored(customer, "DRAFT");
+		UUID running = selfMentored(customer, "AGREEMENT");
+		UUID normal = job(customer, mentor, "AGREEMENT", "BUG_FIX");
+
+		// The mode changes freely on a Draft, in either direction.
+		assertThat(this.jdbc.sql("UPDATE job.job SET self_mentored = FALSE WHERE id = :id").param("id", draft).update()).isOne();
+		assertThat(this.jdbc.sql("UPDATE job.job SET self_mentored = TRUE WHERE id = :id").param("id", draft).update()).isOne();
+		assertRefused("a self-mentored Draft with a Mentor", () -> this.jdbc
+			.sql("UPDATE job.job SET mentor_account_id = customer_account_id WHERE id = :id").param("id", draft).update());
+		assertRefused("a self-mentored Job past its Draft with no Mentor", () -> this.jdbc
+			.sql("UPDATE job.job SET state = 'AGREEMENT' WHERE id = :id").param("id", draft).update());
+		assertRefused("a self-mentored Job with another Mentor", () -> this.jdbc
+			.sql("UPDATE job.job SET mentor_account_id = :mentor WHERE id = :id").param("mentor", mentor).param("id", running)
+			.update());
+		assertRefused("a self-mentored Job set back to normal", () -> this.jdbc
+			.sql("UPDATE job.job SET self_mentored = FALSE WHERE id = :id").param("id", running).update());
+		assertRefused("a self-mentored Job with a selected Application", () -> this.jdbc
+			.sql("UPDATE job.job SET selected_application_id = :application WHERE id = :id")
+			.param("application", UUID.randomUUID()).param("id", running).update());
+		assertRefused("a self-mentored Job with no time its Mentor was set", () -> this.jdbc
+			.sql("UPDATE job.job SET selected_at = NULL WHERE id = :id").param("id", running).update());
+		assertRefused("a normal Job turned self-mentored under another Mentor", () -> this.jdbc
+			.sql("UPDATE job.job SET self_mentored = TRUE WHERE id = :id").param("id", normal).update());
+		assertRefused("a normal Job whose Mentor is its Customer", () -> this.jdbc
+			.sql("UPDATE job.job SET mentor_account_id = customer_account_id WHERE id = :id").param("id", normal).update());
+		assertRefused("a normal Job past Open with no selected Application", () -> this.jdbc
+			.sql("UPDATE job.job SET selected_application_id = NULL WHERE id = :id").param("id", normal).update());
+		assertRefused("a Crew row of the Customer who mentors the Job", () -> insertCrewRow(running, customer, "ASSIGNED"));
+		// What J12 writes in one statement: an Open Job becomes self-mentored with its Customer as the Mentor.
+		UUID open = job(customer, null, "OPEN", "BUG_FIX");
+		assertThat(this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, mentor_account_id = customer_account_id, selected_at = now(),
+				    state = 'AGREEMENT' WHERE id = :id
+				""").param("id", open).update()).isOne();
+		assertThat(describe(this.roles.roleOf(open, customer))).isEqualTo("CUSTOMER_MENTOR");
+		assertThat(overlaps()).isEmpty();
+	}
+
+	/** A Self-mentored Job on its own Product: a Draft has no Mentor, and from J11 on the Mentor is the Customer. */
+	private UUID selfMentored(UUID customer, String state) {
+		UUID id = UUID.randomUUID();
+		boolean draft = "DRAFT".equals(state);
+		Instant at = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(30));
+		this.jdbc.sql("""
+				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
+				    job_types, budget, deadline, rules, selection_days, mentor_account_id, selected_at, self_mentored, version,
+				    created_at, updated_at)
+				VALUES (:id, :product, :customer, :state, 'Việc tự hướng dẫn', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
+				    'UNDER_2M', DATE '2026-12-01', '{}'::jsonb, 14, :mentor, :selected, TRUE, 1, :at, :at)
+				""")
+			.param("id", id)
+			.param("product", product(customer))
+			.param("customer", customer)
+			.param("state", state)
+			.param("mentor", draft ? null : customer)
+			.param("selected", draft ? null : Timestamp.from(at))
+			.param("at", Timestamp.from(at))
+			.update();
+		return id;
 	}
 
 	private static void assertRefused(String what, Runnable write) {
@@ -277,6 +379,7 @@ class JobRolesIT extends IntegrationTest {
 		return switch (role) {
 			case JobRole.Customer customer -> "CUSTOMER";
 			case JobRole.Mentor mentor -> "MENTOR";
+			case JobRole.CustomerMentor both -> "CUSTOMER_MENTOR";
 			case JobRole.Crew crew -> "CREW " + crew.relationship().kind();
 			case JobRole.None none -> "NONE";
 		};
