@@ -1316,8 +1316,9 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(this.grants.teamGrantOfTheCustomer(this.grants.find(grant).orElseThrow())).isTrue();
 		GITHUB.seen.clear();
 
-		this.operations.request(new OperationRequest(JobGrants.INVITE, UUID.randomUUID(),
-				Map.of("grantId", grant.toString(), "round", 0), null, null, 0));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.operations
+			.request(new OperationRequest(JobGrants.INVITE, UUID.randomUUID(), Map.of("grantId", grant.toString(), "round", 0),
+					null, null, 0)));
 		this.worker.runDue(Lane.GITHUB_SHORT);
 
 		assertThat(this.jdbc.sql("""
