@@ -35,7 +35,8 @@ class JobDraftsFromFollowUps implements JobDrafts {
 			}
 		}
 		return this.jobs.create(customerId, productId,
-				new Jobs.Draft(title, problem, expected, null, null, types, List.copyOf(skillIds), null, null));
+				// A follow-up is drafted as a normal Job; its Customer may choose the mode on the Draft (FR-85).
+				new Jobs.Draft(title, problem, expected, null, null, types, List.copyOf(skillIds), null, null, false));
 	}
 
 }
