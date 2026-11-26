@@ -382,6 +382,37 @@ class MatrixFilesTest {
 		assertThat(MatrixRow.loadMatrix()).filteredOn(MatrixRow::selfWorld)
 			.allSatisfy(row -> assertThat(IN_THE_MODE_WORLD).as("%s has a relation in the mode world", row)
 				.contains(row.caller()));
+		assertThat(MatrixRow.loadMatrix())
+			.filteredOn(row -> row.caller() == MatrixCaller.CROSS_ROLE_SELF || row.binds(Binding.SELF_MEMBER_JOB))
+			.isNotEmpty()
+			.allSatisfy(row -> assertThat(row.caller() == MatrixCaller.CROSS_ROLE_SELF && row.binds(Binding.SELF_MEMBER_JOB))
+				.as("%s is the cross-role person on the normal Job where they are a member", row)
+				.isTrue());
+	}
+
+	/**
+	 * AD-20, AD-47: the mode world has its own canaries, named {@code SM_*}. The Customer who mentors reads no canary of a
+	 * normal Job, a normal Job's Customer and Mentor read none of the mode world's, and the same person called on the
+	 * normal Job where they are a member reads nothing there that a member does not.
+	 */
+	@Test
+	void theModeWorldsCanariesAreItsOwn() {
+		List<Canaries.Canary> canaries = Canaries.load().all();
+		assertThat(canaries).filteredOn(canary -> canary.name().startsWith("SM_")).isNotEmpty();
+		for (Canaries.Canary canary : canaries) {
+			boolean mode = canary.name().startsWith("SM_");
+			if (mode) {
+				assertThat(canary.visibleTo()).as("%s is the mode world's", canary.name())
+					.doesNotContain(MatrixCaller.CUSTOMER, MatrixCaller.MENTOR, MatrixCaller.CROSS_ROLE, MatrixCaller.BIDDER,
+							MatrixCaller.CREW_APPLICANT, MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED, MatrixCaller.ANONYMOUS,
+							MatrixCaller.LOCKED, MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_FORMER);
+			}
+			else {
+				assertThat(canary.visibleTo()).as("%s is a normal Job's", canary.name())
+					.doesNotContain(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CROSS_ROLE_SELF);
+			}
+		}
+		assertThat(Canaries.load().get("SM_MEMBER_JOB_CHAT").visibleTo()).as("no Crew state reads a Job Chat").isEmpty();
 	}
 
 	@Test

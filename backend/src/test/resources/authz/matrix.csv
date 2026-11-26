@@ -3667,3 +3667,34 @@ GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,20
 GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
+
+# CROSS_ROLE_SELF: the Customer who mentors the Self-mentored Job, called on the normal Job of the mode world where they
+# are an ACTIVE member (job=self-member). On every read of a Job they answer as a member of that Job does, and
+# nothing of the Job they are the Customer and the Mentor of reaches it (AD-20, AD-47).
+GET /api/v1/jobs/{jobId}/role,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/jobs/{jobId},CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/applications,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId},CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/mentors,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/invitations,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/recommendations,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/chat/messages,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/admin/jobs/{jobId},CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId}/agreement,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/agreement,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/agreement,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/mentor/jobs/{jobId}/crew,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/crew/jobs/{jobId}/commitment,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/funding,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId}/funding,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/setup,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/jobs/{jobId}/external-access,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/jobs/{jobId}/busy,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/jobs/{jobId}/drift,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/jobs/{jobId}/final-merge,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId}/recruitment,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/crew-applications,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/jobs/{jobId}/crew/me,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/jobs/{jobId}/splits,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND

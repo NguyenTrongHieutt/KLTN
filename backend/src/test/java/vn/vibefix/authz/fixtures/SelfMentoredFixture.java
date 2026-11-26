@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import vn.vibefix.authz.Canaries;
 import vn.vibefix.authz.JobContent;
 import vn.vibefix.authz.MatrixCaller;
 import vn.vibefix.authz.MatrixFixture;
@@ -57,7 +58,10 @@ import vn.vibefix.support.TestPeople;
  * state: the active member's Team Issue waits for the Customer's answer, and {@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}
  * took another member's escalated one. The Customer's due-date Change Request is open.
  * {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} is an Administrator with no grant here until Story 25.6 gives the
- * mode a split.
+ * mode a split. The world's own canaries are the {@code SM_*} ones ({@code authz/canaries.csv}).
+ * <p>
+ * {@link MatrixCaller#CROSS_ROLE_SELF} is the same person, called on a normal Job of another Customer and Mentor where
+ * they are an {@code ACTIVE} member ({@code job=self-member}).
  * <p>
  * What the schema cannot hold before its story (the spec's part 3): the Dispute is recorded as opened by the Customer,
  * where AD-20 wants a member's (Story 25.7); the handover names the member in the column that still says "mentor"
@@ -96,6 +100,8 @@ public class SelfMentoredFixture implements MatrixFixture {
 
 	private final ApplicationContext context;
 
+	private final Canaries canaries = Canaries.load();
+
 	private UUID customer;
 
 	private UUID assigned;
@@ -132,7 +138,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 			return;
 		}
 		this.customer = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
-		JobContent.customerProfile(this.jdbc, this.customer, "Khách hàng tự hướng dẫn", "tu.huong.dan@example.test");
+		JobContent.customerProfile(this.jdbc, this.customer, "Khách hàng tự hướng dẫn", value("SM_CONTACT_EMAIL"));
 		put(world, "customerId", this.customer);
 		put(world, "username", TestPeople.login(this.jdbc, this.customer));
 		UUID product = JobContent.product(this.jdbc, this.customer, "Sản phẩm tự hướng dẫn");
@@ -146,7 +152,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		put(world, "crewChatId", chat);
 		JobContent.message(this.jdbc, chat, this.customer, "Chào cả nhóm, mình bắt đầu nhé", SIGNED.plus(Duration.ofHours(1)));
-		put(world, "messageId", JobContent.message(this.jdbc, chat, this.customer, "Mình vừa cập nhật yêu cầu", WRITTEN));
+		put(world, "messageId", JobContent.message(this.jdbc, chat, this.customer, value("SM_CREW_CHAT"), WRITTEN));
 		UUID chatFile = storedFile("chat.attachment", this.customer, "yeu-cau.pdf");
 		JobContent.attachmentMessage(this.jdbc, chat, this.customer, chatFile, "yeu-cau.pdf", WRITTEN.plus(Duration.ofMinutes(10)));
 		put(world, "chatFileId", chatFile);
@@ -170,6 +176,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 		// No Split Resolution exists in the mode world before Story 25.6: this Administrator holds no grant on the Job.
 		this.resolutionAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		enrol(this.resolutionAdmin, "phan-chia-tu-huong-dan");
+		memberJob(world);
 		// The Job Post's screenshot, which the Customer added on the Draft: public while the Job is listed.
 		UUID screenshot = storedFile("job.screenshot", this.customer, "man-hinh-loi.pdf");
 		this.jdbc.sql("""
@@ -221,6 +228,16 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("due", Timestamp.from(raised.plus(Duration.ofDays(5))))
 			.update();
 		put(world, "teamIssueId", issue);
+		// Another member's Team Issue, never escalated: its ID is for the one who mentors only.
+		this.jdbc.sql("""
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, :rating, :raiser, :customer, 'Điểm chưa đúng', 'ANSWER', 5, 5, :raised, :due)
+				ON CONFLICT (id) DO NOTHING
+				""").param("id", UUID.fromString(value("SM_TEAM_ISSUE_ID"))).param("job", job).param("product", product)
+			.param("rating", UUID.randomUUID()).param("raiser", this.formerParty).param("customer", this.customer)
+			.param("raised", Timestamp.from(raised)).param("due", Timestamp.from(raised.plus(Duration.ofDays(5))))
+			.update();
 		UUID escalated = UUID.randomUUID();
 		Instant earlier = raised.minus(Duration.ofDays(1));
 		this.jdbc.sql("""
@@ -246,6 +263,34 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("grant", grant)
 			.param("id", escalated)
 			.update());
+	}
+
+	/**
+	 * The normal Job of the mode world ({@code {selfMemberJobId}}, AD-20): an Active Job of another Customer and another
+	 * Mentor where the Customer who mentors the first Job is an {@code ACTIVE} member, which
+	 * {@link MatrixCaller#CROSS_ROLE_SELF} runs on. It has its confirmed Agreement, a Crew Chat, and a Job Chat whose
+	 * message is {@code SM_MEMBER_JOB_CHAT}: there the person is a member and nothing more.
+	 */
+	private void memberJob(MatrixWorld world) {
+		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		JobContent.customerProfile(this.jdbc, owner, "Khách hàng của việc thường", "viec.thuong@example.test");
+		UUID mentor = TestPeople.mentor(this.jdbc, "Người hướng dẫn của việc thường", List.of(TestPeople.REACT), "React");
+		UUID product = JobContent.product(this.jdbc, owner, "Sản phẩm của việc thường");
+		UUID job = JobContent.activeJob(this.jdbc, product, owner, mentor, "Việc thường có khách hàng tự hướng dẫn làm thành viên");
+		JobContent.selectedBid(this.jdbc, job, product, owner, mentor, SIGNED);
+		UUID milestone = UUID.randomUUID();
+		JobContent.confirmedAgreement(this.jdbc, job, owner, mentor, false, milestone, "Giai đoạn 1", 1_500_000, SIGNED);
+		JobContent.milestone(this.jdbc, job, milestone, 0, "Giai đoạn 1", 1_500_000, "PLANNED", null, null, null, SIGNED);
+		JobContent.crewRow(this.jdbc, job, this.customer, "ACTIVE", null);
+		UUID crewChat = JobContent.chat(this.jdbc, job, product, "CREW");
+		JobContent.message(this.jdbc, crewChat, mentor, "Chào cả nhóm", WRITTEN);
+		UUID jobChat = JobContent.chat(this.jdbc, job, product, "JOB");
+		JobContent.message(this.jdbc, jobChat, owner, value("SM_MEMBER_JOB_CHAT"), WRITTEN);
+		world.put("selfMemberJobId", job);
+	}
+
+	private String value(String canary) {
+		return this.canaries.get(canary).value();
 	}
 
 	private void enrol(UUID admin, String name) {
@@ -306,6 +351,17 @@ public class SelfMentoredFixture implements MatrixFixture {
 		JobContent.crewRow(this.jdbc, job, this.activeParty, "ACTIVE", null);
 		this.formerParty = JobContent.member(this.jdbc, "Thành viên đã rời trong phân chia (tự hướng dẫn)");
 		JobContent.crewRow(this.jdbc, job, this.formerParty, "LEFT", WINDOW_END);
+		// A member who is no caller, whose own words are the canaries: the name and the LinkedIn link the Customer who
+		// mentors and the active members read, and the email nobody but an Administrator does.
+		UUID canaryMember = JobContent.canaryMember(this.jdbc, value("SM_CREW_NAME"), value("SM_CREW_EMAIL"),
+				value("SM_CREW_LINKEDIN"), null);
+		JobContent.crewRow(this.jdbc, job, canaryMember, "ACTIVE", null);
+		// A member who left with a reason (FR-82): in the mode the Customer reads it, as the one who mentors (B-16).
+		UUID leaver = JobContent.member(this.jdbc, "Thành viên đã rời có lý do (tự hướng dẫn)");
+		this.jdbc.sql("UPDATE job.crew_row SET left_note = :note WHERE id = :row")
+			.param("note", value("SM_CREW_LEFT_NOTE"))
+			.param("row", JobContent.crewRow(this.jdbc, job, leaver, "LEFT", WINDOW_END))
+			.update();
 		// Recruitment stays on for one more place (FR-81), so the Job is on "Tìm việc" and takes Crew Applications.
 		this.jdbc.sql("""
 				UPDATE job.job SET recruiting = true, recruiting_since = :at, open_slots = 1,
@@ -315,6 +371,10 @@ public class SelfMentoredFixture implements MatrixFixture {
 				""").param("at", Timestamp.from(SIGNED)).param("react", TestPeople.REACT).param("job", job).update();
 		UUID applicant = JobContent.member(this.jdbc, "Người xin vào nhóm (tự hướng dẫn)");
 		UUID application = crewApplication(job, product, applicant, "PENDING");
+		this.jdbc.sql("UPDATE matching.crew_application SET note = :note WHERE id = :id")
+			.param("note", value("SM_CREW_APPLICATION_NOTE"))
+			.param("id", application)
+			.update();
 		put(world, "crewApplicationId", application);
 		// Its proof file, which the applicant and the Customer who mentors read, and an upload no application took yet.
 		put(world, "crewProofFileId", crewProof(application, job, product, applicant, 1));
@@ -335,7 +395,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("product", product)
 			.param("applicant", applicant)
 			.param("position", position)
-			.param("caption", application == null ? null : "Bài mình đã làm")
+			.param("caption", application == null ? null : value("SM_CREW_APPLICATION_PROOF_CAPTION"))
 			.param("file", file)
 			.param("at", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(2))))
 			.update();

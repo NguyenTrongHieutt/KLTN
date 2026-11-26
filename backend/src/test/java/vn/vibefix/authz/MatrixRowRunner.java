@@ -107,7 +107,7 @@ public final class MatrixRowRunner {
 			Assumptions.abort("pending Story " + row.pending() + ": " + row);
 		}
 		MatrixWorld world = new MatrixWorld();
-		world.selfMode(row.selfWorld());
+		world.selfMode(row.modeWorld());
 		this.fixtures.forEach(fixture -> fixture.seed(world));
 		boolean upload = row.body() != null && !row.body().endsWith(".json");
 		AbstractMockHttpServletRequestBuilder<?> request = (upload

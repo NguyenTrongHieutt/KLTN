@@ -122,6 +122,12 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		SELF_JOB("job", "self", "jobId", "selfJobId"),
 
 		/**
+		 * {@code job=self-member}: {@code {jobId}} names the normal Job of the mode world where the Customer who mentors
+		 * is an {@code ACTIVE} member, which {@code CROSS_ROLE_SELF} runs on (AD-20, AD-47).
+		 */
+		SELF_MEMBER_JOB("job", "self-member", "jobId", "selfMemberJobId"),
+
+		/**
 		 * {@code job=post}: {@code {jobId}} names the Open Job Post's Job, where the bid {@code {applicationId}} and its
 		 * {@code BIDDER} live (review iteration 2): the post's bid, invitation and selection endpoints run on it.
 		 */
@@ -328,9 +334,14 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		return name.startsWith("self") ? name : "self" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
 	}
 
-	/** Whether the row runs in the mode world ({@code job=self}). */
+	/** Whether the row runs on the mode world's Self-mentored Job ({@code job=self}). */
 	public boolean selfWorld() {
 		return binds(Binding.SELF_JOB);
+	}
+
+	/** Whether the row needs the mode world seeded: one on its Self-mentored Job or on its normal Job. */
+	public boolean modeWorld() {
+		return selfWorld() || binds(Binding.SELF_MEMBER_JOB);
 	}
 
 	/** The story that makes the row pass ({@link #PENDING}), or {@code null} for a row the suite runs. */
@@ -389,11 +400,11 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 	}
 
 	/**
-	 * The rows of the normal world: every row but the mode world's ({@code job=self}), whose own rules
+	 * The rows of the normal world: every row but the mode world's ({@code job=self}, {@code job=self-member}), whose own rules
 	 * {@code MatrixFilesTest} keeps apart. The rules written for the crew Job, the post and the Draft read these.
 	 */
 	public static List<MatrixRow> loadNormal() {
-		return loadMatrix().stream().filter(row -> !row.selfWorld()).toList();
+		return loadMatrix().stream().filter(row -> !row.modeWorld()).toList();
 	}
 
 	/** Every row of the matrix file. */
