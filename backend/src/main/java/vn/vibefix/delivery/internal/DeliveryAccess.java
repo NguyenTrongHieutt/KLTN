@@ -16,7 +16,9 @@ import vn.vibefix.shared.ErrorCode;
 
 /**
  * Who reads and makes handovers (FR-32, AD-20, AD-41, AD-43), by their role in the Job: the Job's Customer, its
- * Mentor, and its {@code ACTIVE} Crew members read; only the Mentor makes one. Everyone else finds nothing.
+ * Mentor, and its {@code ACTIVE} Crew members read; only the Mentor makes one. Everyone else finds nothing. The
+ * Customer of a Self-mentored Job reads and decides as a Customer and never makes a handover: there the members hand
+ * over (AD-47, D11), so that Customer is refused as the one outside the team.
  */
 @Component
 class DeliveryAccess {
@@ -25,7 +27,14 @@ class DeliveryAccess {
 		CUSTOMER, MENTOR, CREW
 	}
 
-	record Viewer(HandoverJob job, UUID accountId, Kind kind) {
+	/**
+	 * @param selfMentor the Customer of a Self-mentored Job, who is its Mentor too: {@code kind} is {@code CUSTOMER}
+	 */
+	record Viewer(HandoverJob job, UUID accountId, Kind kind, boolean selfMentor) {
+
+		Viewer(HandoverJob job, UUID accountId, Kind kind) {
+			this(job, accountId, kind, false);
+		}
 
 		boolean mentor() {
 			return this.kind == Kind.MENTOR;
@@ -52,7 +61,8 @@ class DeliveryAccess {
 		}
 		JobRole role = this.roles.roleOf(jobId, caller);
 		if (role.isCustomer()) {
-			return new Viewer(job, account, Kind.CUSTOMER);
+			// The combined role reads and decides on the Customer's side (AD-20, B-01).
+			return new Viewer(job, account, Kind.CUSTOMER, role.isSelfMentor());
 		}
 		if (role.isMentor()) {
 			return new Viewer(job, account, Kind.MENTOR);
@@ -65,11 +75,15 @@ class DeliveryAccess {
 
 	/**
 	 * The Mentor, who alone makes a handover.
-	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY} for the Customer or a Crew member
+	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY} for the Customer or a Crew member; {@code FORBIDDEN TEAM_ONLY}
+	 * for the Customer of a Self-mentored Job, whose members hand over (AD-47, D11, R63)
 	 */
 	@Transactional(readOnly = true)
 	Viewer maker(UUID jobId, Caller caller) {
 		Viewer viewer = reader(jobId, caller);
+		if (viewer.selfMentor()) {
+			throw new ApiException(ErrorCode.FORBIDDEN, DeliveryReason.TEAM_ONLY);
+		}
 		if (!viewer.mentor()) {
 			throw new ApiException(ErrorCode.FORBIDDEN, DeliveryReason.MENTOR_ONLY);
 		}

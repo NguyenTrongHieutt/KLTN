@@ -418,7 +418,7 @@ class MatrixFilesTest {
 		String job = global.replace("/api/v1/x", "/api/v1/jobs/{jobId}");
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + job)))
 			.containsExactly("GET /api/v1/jobs/{jobId} has no row for [LOCKED, MENTOR, BIDDER, CREW_ASSIGNED, CREW_ACTIVE, "
-					+ "CREW_FORMER, CROSS_ROLE]");
+					+ "CREW_FORMER, CROSS_ROLE, CUSTOMER_MENTOR]");
 		String body = global.replace("GET /api/v1/x,", "POST /api/v1/team-issues,").replace(",,,", ",,team-issue.json,");
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + body))).as("a Job in the body scopes the endpoint")
 			.singleElement()
