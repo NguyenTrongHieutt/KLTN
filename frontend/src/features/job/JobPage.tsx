@@ -27,6 +27,7 @@ import { LeaverRevocations } from './closure/RevocationChecklist'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
 import { JobTabs } from './JobTabs'
 import { JobStateBadge } from './JobStateBadge'
+import { SelfMentorSwitch } from './SelfMentorSwitch'
 import { hasStarted } from '@/features/job/jobState'
 import { DisputeSection } from '@/features/dispute/DisputeSection'
 import { CancellationSection } from './cancellation/CancellationSection'
@@ -82,7 +83,8 @@ function CustomerJobPage({ jobId }: { jobId: string | undefined }) {
 }
 
 function Overview({ job }: { job: Job }) {
-  const applications = useJobApplications(job.state === 'OPEN' || job.state === 'SELECTING' ? job.id : undefined).data ?? []
+  const bids = useJobApplications(job.state === 'OPEN' || job.state === 'SELECTING' ? job.id : undefined)
+  const applications = bids.data ?? []
   // A Self-mentored Job has no Job Chat to ask for (FR-85).
   const chat = useJobChat(hasChat(job.state) && !job.selfMentored ? job.id : undefined)
   const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
@@ -110,7 +112,12 @@ function Overview({ job }: { job: Job }) {
               <JobRoleLine jobId={job.id} />
             </div>
           </div>
-          {job.state === 'OPEN' && <Withdraw job={job} />}
+          {job.state === 'OPEN' && (
+            <div className="flex flex-wrap items-start justify-end gap-3">
+              <SelfMentorSwitch job={job} openBids={bids.data?.length} />
+              <Withdraw job={job} />
+            </div>
+          )}
         </div>
         <StageStrip state={job.state} />
         <JobTabs

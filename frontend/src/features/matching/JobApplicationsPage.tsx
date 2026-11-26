@@ -11,6 +11,7 @@ import { useJob, type Job } from '@/features/job/jobApi'
 import { JobRoleLine } from '@/features/job/ByJobRole'
 import { JobStateBadge } from '@/features/job/JobStateBadge'
 import { JobTabs } from '@/features/job/JobTabs'
+import { SelfMentorSwitch } from '@/features/job/SelfMentorSwitch'
 import { useReputationHistories } from '@/features/reputation/historyApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
@@ -91,11 +92,16 @@ function BidList({ job }: { job: Job }) {
           </Link>{' '}
           / <span className="break-words">{job.title}</span>
         </nav>
-        <div className="flex flex-wrap items-center gap-2">
-          <PageHeading>{job.title}</PageHeading>
-          <JobStateBadge state={job.state} />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <PageHeading>{job.title}</PageHeading>
+              <JobStateBadge state={job.state} />
+            </div>
+            <JobRoleLine jobId={job.id} />
+          </div>
+          <SelfMentorSwitch job={job} openBids={applications.data?.length} />
         </div>
-        <JobRoleLine jobId={job.id} />
         <JobTabs jobId={job.id} current="applications" applications={items.length} />
       </div>
       <RegionState query={applications} skeleton={<Skeleton className="h-48 w-full" />}>

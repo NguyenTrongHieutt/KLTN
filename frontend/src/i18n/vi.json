@@ -1746,6 +1746,8 @@
         "selfMentorSwitchExtra": "Các lời mời chào giá đang mở sẽ hết hiệu lực và bạn không chuyển lại thành công việc thường được.",
         "selfMentorSwitchConfirm": "Tự hướng dẫn công việc này",
         "selfMentorSwitchBack": "Quay lại",
+        "selfMentorSwitchUnread": "Hãy đánh dấu vào ô xác nhận ở trên để chuyển sang tự hướng dẫn.",
+        "selfMentorSwitchAction": "chuyển sang tự hướng dẫn",
         "selfMentorSwitching": "Đang chuyển…",
         "selfMentorSwitched": "Đã chuyển sang tự hướng dẫn. Bạn có thể soạn thỏa thuận và mở tuyển thành viên nhóm.",
         "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo.",
