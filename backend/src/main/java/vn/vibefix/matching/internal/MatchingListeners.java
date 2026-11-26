@@ -56,7 +56,7 @@ class MatchingListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean handled = List.of("J2", "J3", "J4", "J5", "J8", "J10").contains(event.transition());
+		boolean handled = List.of("J2", "J3", "J4", "J5", "J8", "J10", "J11").contains(event.transition());
 		if (!handled
 				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onJobTransitioned", event.eventId())) {
 			return;
@@ -77,6 +77,14 @@ class MatchingListeners {
 				this.crewApplications.openRecruitmentTodo(event.jobId(), UUID.fromString(mentor),
 						due == null ? null : Instant.parse(due));
 			}
+			return;
+		}
+		if ("J11".equals(event.transition())) {
+			// FR-85, AD-4: a Self-mentored Job enters Agreement with no bid to close; its Customer, who is its Mentor,
+			// gets the recruitment to-do J4 gives a Mentor. J12 comes with the switch (Story 25.2b).
+			String due = event.facts().get("agreementDueAt");
+			this.crewApplications.openRecruitmentTodo(event.jobId(), UUID.fromString(event.facts().get("mentorId")),
+					due == null ? null : Instant.parse(due));
 			return;
 		}
 		if ("J8".equals(event.transition()) || "J10".equals(event.transition())) {

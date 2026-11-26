@@ -332,6 +332,10 @@ class JobRolesIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("UPDATE job.job SET self_mentored = TRUE WHERE id = :id").param("id", draft).update()).isOne();
 		assertRefused("a self-mentored Draft with a Mentor", () -> this.jdbc
 			.sql("UPDATE job.job SET mentor_account_id = customer_account_id WHERE id = :id").param("id", draft).update());
+		assertRefused("a self-mentored Job past its Draft with no notice read", () -> this.jdbc
+			.sql("UPDATE job.job SET self_mentored_notice_version = NULL WHERE id = :id").param("id", running).update());
+		assertRefused("a normal Job with the notice of the mode", () -> this.jdbc
+			.sql("UPDATE job.job SET self_mentored_notice_version = '1.0' WHERE id = :id").param("id", normal).update());
 		assertRefused("a self-mentored Job past its Draft with no Mentor", () -> this.jdbc
 			.sql("UPDATE job.job SET state = 'AGREEMENT', rules = '{}'::jsonb, selection_days = 14 WHERE id = :id")
 			.param("id", draft).update());
@@ -361,7 +365,7 @@ class JobRolesIT extends IntegrationTest {
 		UUID open = job(customer, null, "OPEN", "BUG_FIX");
 		assertThat(this.jdbc.sql("""
 				UPDATE job.job SET self_mentored = TRUE, mentor_account_id = customer_account_id, selected_at = now(),
-				    state = 'AGREEMENT' WHERE id = :id
+				    self_mentored_notice_version = '1.0', state = 'AGREEMENT' WHERE id = :id
 				""").param("id", open).update()).isOne();
 		assertThat(describe(this.roles.roleOf(open, customer))).isEqualTo("CUSTOMER_MENTOR");
 		assertThat(overlaps()).isEmpty();
@@ -405,10 +409,10 @@ class JobRolesIT extends IntegrationTest {
 		Instant at = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(30));
 		this.jdbc.sql("""
 				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
-				    job_types, budget, deadline, rules, selection_days, mentor_account_id, selected_at, self_mentored, version,
-				    created_at, updated_at)
+				    job_types, budget, deadline, rules, selection_days, mentor_account_id, selected_at, self_mentored,
+				    self_mentored_notice_version, version, created_at, updated_at)
 				VALUES (:id, :product, :customer, :state, 'Việc tự hướng dẫn', 'Lỗi', 'Đúng', 'Khách', ARRAY['BUG_FIX'],
-				    'UNDER_2M', DATE '2026-12-01', CAST(:rules AS JSONB), :days, :mentor, :selected, TRUE, 1, :at, :at)
+				    'UNDER_2M', DATE '2026-12-01', CAST(:rules AS JSONB), :days, :mentor, :selected, TRUE, :notice, 1, :at, :at)
 				""")
 			.param("id", id)
 			.param("product", product(customer))
@@ -418,6 +422,7 @@ class JobRolesIT extends IntegrationTest {
 			.param("rules", draft ? null : "{}")
 			.param("days", draft ? null : 14)
 			.param("mentor", draft ? null : customer)
+			.param("notice", draft ? null : "1.0")
 			.param("selected", draft ? null : Timestamp.from(at))
 			.param("at", Timestamp.from(at))
 			.update();

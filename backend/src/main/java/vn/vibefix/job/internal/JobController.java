@@ -60,21 +60,28 @@ import vn.vibefix.shared.Gate;
 @Access(Gate.SIGNED_IN)
 class JobController {
 
-	/** What CUS-6 sends; every answer but the title may wait until publishing. */
+	/**
+	 * What CUS-6 sends; every answer but the title may wait until publishing.
+	 * @param selfMentored "Tôi tự hướng dẫn" (FR-85); absent means a normal Job
+	 */
 	record JobDraftRequest(@Nullable UUID productId, @NotBlank @Size(max = 120) String title,
 			@Nullable @Size(max = 2000) String problem, @Nullable @Size(max = 2000) String expected,
 			@Nullable @Size(max = 1000) String appUsers, @Nullable @Size(max = 1000) String doneCheck,
 			@NotNull Set<@NotNull JobType> jobTypes, @NotNull List<@NotNull UUID> skillIds, @Nullable Budget budget,
-			@Nullable LocalDate deadline) {
+			@Nullable LocalDate deadline, @Nullable Boolean selfMentored) {
 
 		Draft draft() {
 			return new Draft(this.title, this.problem, this.expected, this.appUsers, this.doneCheck, this.jobTypes,
-					this.skillIds, this.budget, this.deadline);
+					this.skillIds, this.budget, this.deadline, Boolean.TRUE.equals(this.selfMentored));
 		}
 
 	}
 
 	record JobCreatedView(UUID id) {
+	}
+
+	/** What "Đăng tin" sends for a Self-mentored Job: the version of notice N-34 the Customer read (FR-85). */
+	record JobPublishRequest(@Nullable @Size(max = 20) String selfMentoredNoticeVersion) {
 	}
 
 	record SkillView(UUID id, String name, boolean active) {
@@ -95,14 +102,17 @@ class JobController {
 
 	/**
 	 * One Job as CUS-6 edits it and JOB-1 shows it; an Open Job Post has its opening and lapse times,
-	 * and from J3 on the Job has its Mentor and the NDA's due time (FR-15).
+	 * and from J3 on the Job has its Mentor and the NDA's due time (FR-15). A Self-mentored Job ({@code selfMentored},
+	 * FR-85) names no Mentor apart from its Customer and has no NDA; {@code selfMentoredOffered} says whether CUS-6
+	 * offers the mode.
 	 */
 	record JobView(UUID id, UUID productId, String productName, JobState state, String title, @Nullable String problem,
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<SkillView> skills, @Nullable Budget budget, @Nullable LocalDate deadline, List<ScreenshotView> screenshots,
 			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
 			@Nullable JobMentorView mentor, @Nullable Instant selectedAt, @Nullable Instant ndaDueAt,
-			boolean canCancelSelection, boolean agreementShared, boolean agreementConfirmed) {
+			boolean canCancelSelection, boolean agreementShared, boolean agreementConfirmed, boolean selfMentored,
+			boolean selfMentoredOffered) {
 	}
 
 	/** A decision at the Job version the screen loaded (AD-23). */
@@ -183,11 +193,23 @@ class JobController {
 		return view(this.jobs.find(customer, jobId).orElseThrow());
 	}
 
-	/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9); GitHub must be linked (FR-80). */
+	/**
+	 * CUS-6 "Đăng tin", after N-3: J1 makes a normal Job's Draft an Open Job Post (FR-9); GitHub must be linked (FR-80).
+	 * A Self-mentored Job's Draft takes J11 instead, after N-34, and enters Agreement at once (FR-85). The step checks the
+	 * Draft's mode again under the Job's lock.
+	 */
 	@PostMapping("/{jobId}/publish")
-	JobView publish(@PathVariable UUID jobId) {
-		this.gitHub.requireGitHubLinked(customerOf(jobId));
-		return transition(jobId, Transition.J1);
+	JobView publish(@PathVariable UUID jobId, @Valid @RequestBody(required = false) @Nullable JobPublishRequest body) {
+		UUID customer = customerOf(jobId);
+		this.gitHub.requireGitHubLinked(customer);
+		Job job = this.jobs.find(customer, jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (!job.selfMentored()) {
+			return transition(jobId, Transition.J1);
+		}
+		String notice = body == null ? null : body.selfMentoredNoticeVersion();
+		this.lifecycle.apply(Transition.J11, jobId, Actor.user(customer), Trigger.USER,
+				notice == null ? Map.of() : Map.of("noticeVersion", notice));
+		return view(this.jobs.find(customer, jobId).orElseThrow());
 	}
 
 	/** JOB-1 "Rút tin": J2 returns the Open Job Post to Draft (FR-9). */
@@ -247,11 +269,14 @@ class JobController {
 		return new JobView(job.id(), job.productId(), productName(new HashMap<>(), job.productId()), job.state(),
 				job.title(), job.problem(), job.expected(), job.appUsers(), job.doneCheck(), job.jobTypes(), skills,
 				job.budget(), job.deadline(), this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
-				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt(), mentor(job),
-				job.selectedAt(), job.selectedAt() == null ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD),
+				job.createdAt(), job.updatedAt(), job.version(), job.openedAt(), job.lapsesAt(),
+				// A Self-mentored Job has no Mentor apart from its Customer, and no NDA to sign.
+				job.selfMentored() ? null : mentor(job), job.selectedAt(),
+				job.selectedAt() == null || job.selfMentored() ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD),
 				job.state() == JobState.SELECTING && job.selectedAt() != null
 						&& !this.clock.instant().isBefore(job.selectedAt().plus(JobSelection.NDA_PERIOD)),
-				this.agreements.shared(job.id()), job.agreementVersionNo() != null);
+				this.agreements.shared(job.id()), job.agreementVersionNo() != null, job.selfMentored(),
+				this.jobs.selfMentoredOffered());
 	}
 
 	private @Nullable JobMentorView mentor(Job job) {

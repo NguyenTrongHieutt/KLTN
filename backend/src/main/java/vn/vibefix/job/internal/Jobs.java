@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,10 +57,13 @@ class Jobs {
 
 	static final String SCREENSHOT_PURPOSE = "job.screenshot";
 
-	/** What CUS-6 saves; every field but the title may wait until publishing. */
+	/**
+	 * What CUS-6 saves; every field but the title may wait until publishing.
+	 * @param selfMentored the mode "Tôi tự hướng dẫn" (FR-85), which a Draft may set and clear freely
+	 */
 	record Draft(String title, @Nullable String problem, @Nullable String expected, @Nullable String appUsers,
 			@Nullable String doneCheck, Set<JobType> jobTypes, List<UUID> skillIds, @Nullable Budget budget,
-			@Nullable LocalDate deadline) {
+			@Nullable LocalDate deadline, boolean selfMentored) {
 	}
 
 	record Screenshot(UUID fileId, String fileName, long sizeBytes, Instant addedAt) {
@@ -114,8 +118,11 @@ class Jobs {
 
 	private final Clock clock;
 
+	private final boolean selfMentoredJobs;
+
 	Jobs(JdbcClient jdbc, ProductDirectory products, Catalog catalog, StoredFiles files, AuditLog auditLog, IdGenerator ids,
-			Clock clock) {
+			Clock clock, @Value("${vibefix.features.self-mentored-jobs:false}") boolean selfMentoredJobs) {
+		this.selfMentoredJobs = selfMentoredJobs;
 		this.jdbc = jdbc;
 		this.products = products;
 		this.catalog = catalog;
@@ -140,10 +147,10 @@ class Jobs {
 		List<Skill> skills = this.catalog.byIds(draft.skillIds());
 		this.jdbc.sql("""
 				INSERT INTO job.job (id, product_id, customer_account_id, state, title, problem, expected, app_users,
-				    done_check, job_types, skill_ids, skill_names, budget, deadline, created_at, updated_at)
+				    done_check, job_types, skill_ids, skill_names, budget, deadline, self_mentored, created_at, updated_at)
 				VALUES (:id, :product, :customer, 'DRAFT', :title, :problem, :expected, :appUsers, :doneCheck,
 				    CAST(:types AS TEXT[]), CAST(:skillIds AS UUID[]), CAST(:skillNames AS TEXT[]), :budget, :deadline,
-				    :now, :now)
+				    :selfMentored, :now, :now)
 				""")
 			.param("id", id)
 			.param("product", product.id())
@@ -169,7 +176,8 @@ class Jobs {
 				UPDATE job.job
 				SET title = :title, problem = :problem, expected = :expected, app_users = :appUsers,
 				    done_check = :doneCheck, job_types = CAST(:types AS TEXT[]), skill_ids = CAST(:skillIds AS UUID[]),
-				    skill_names = CAST(:skillNames AS TEXT[]), budget = :budget, deadline = :deadline, updated_at = :now
+				    skill_names = CAST(:skillNames AS TEXT[]), budget = :budget, deadline = :deadline,
+				    self_mentored = :selfMentored, updated_at = :now
 				WHERE id = :id
 				""")
 			.param("id", jobId)
@@ -179,10 +187,13 @@ class Jobs {
 	}
 
 	/**
-	 * Refuses a Draft that breaks a rule: Assessment with another type, more than 10 Skills, or an added
-	 * Skill that is inactive.
+	 * Refuses a Draft that breaks a rule: Assessment with another type, more than 10 Skills, an added
+	 * Skill that is inactive, or the Self-mentored mode while it is switched off (FR-85).
 	 */
 	private void check(Draft draft, List<UUID> kept) {
+		if (draft.selfMentored() && !this.selfMentoredJobs) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.SELF_MENTORED_OFF);
+		}
 		if (draft.jobTypes().contains(JobType.ASSESSMENT) && draft.jobTypes().size() > 1) {
 			throw new ApiException(ErrorCode.VALIDATION, JobReason.ASSESSMENT_ALONE);
 		}
@@ -205,6 +216,7 @@ class Jobs {
 		fields.put("skillNames", skills.stream().map(Skill::name).toArray(String[]::new));
 		fields.put("budget", draft.budget() == null ? null : draft.budget().name());
 		fields.put("deadline", draft.deadline() == null ? null : Date.valueOf(draft.deadline()));
+		fields.put("selfMentored", draft.selfMentored());
 		return fields;
 	}
 
@@ -218,6 +230,11 @@ class Jobs {
 		return this.jdbc.sql("SELECT " + COLUMNS + """
 				 FROM job.job WHERE customer_account_id = :customer AND product_deleted_at IS NULL ORDER BY updated_at DESC, id
 				""").param("customer", customerId).query(Jobs::job).list();
+	}
+
+	/** Whether "Tôi tự hướng dẫn" is offered: {@code features.selfMentoredJobs} (FR-85). */
+	boolean selfMentoredOffered() {
+		return this.selfMentoredJobs;
 	}
 
 	/** The Customer's Job. */

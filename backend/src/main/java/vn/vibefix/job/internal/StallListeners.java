@@ -1,5 +1,7 @@
 package vn.vibefix.job.internal;
 
+import java.util.List;
+
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +23,8 @@ class StallListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean agreement = "J4".equals(event.transition());
+		// J11 and J12 put a Self-mentored Job in Agreement as J4 puts a normal one (AD-4, B-20).
+		boolean agreement = List.of("J4", "J11", "J12").contains(event.transition());
 		if ((!agreement && !"J6".equals(event.transition()))
 				|| !this.processedEvents.markProcessed("job.StallListeners.onJobTransitioned", event.eventId())) {
 			return;
