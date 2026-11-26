@@ -182,9 +182,11 @@ public class SelfMentoredFixture implements MatrixFixture {
 	private void crew(MatrixWorld world, UUID job, UUID product) {
 		this.assigned = JobContent.member(this.jdbc, "Thành viên được chọn (tự hướng dẫn)");
 		UUID assignedRow = JobContent.crewRow(this.jdbc, job, this.assigned, "ASSIGNED", null);
-		UUID pick = crewApplication(job, product, this.assigned, "PICKED");
+		UUID pick = crewApplication(job, product, this.assigned, "PENDING");
 		this.jdbc.sql("""
-				UPDATE matching.crew_application SET crew_row_id = :row, picked_at = :picked, sign_due_at = :due WHERE id = :id
+				UPDATE matching.crew_application SET status = 'PICKED', crew_row_id = :row, picked_at = :picked,
+				    sign_due_at = :due
+				WHERE id = :id
 				""")
 			.param("row", assignedRow)
 			.param("picked", Timestamp.from(MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(1))))
