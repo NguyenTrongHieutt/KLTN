@@ -117,7 +117,7 @@ enum Transition {
 					new Effect("timers", "The FR-9 selection period ends"),
 					new Effect("job", "Then as J11: the Customer is the Mentor, drafting and the Agreement stall start"),
 					new Effect("chat", "The Crew Chat opens; there is no Job Chat (FR-77)")),
-			false, false),
+			false, true),
 
 	M1(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.FUNDED), Set.of(SYSTEM),
 			"Verified payment of its Payment Order (FR-41)",

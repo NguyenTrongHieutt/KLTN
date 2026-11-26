@@ -92,7 +92,7 @@ class MatrixFilesTest {
 	/** The post's bid and invitation endpoints, whose Customer and Bidder rows run on the post ({@code job=post}, B5). */
 	static final Set<String> ON_THE_POST = Set.of("GET /api/v1/jobs/{jobId}/applications",
 			"GET /api/v1/jobs/{jobId}/invitations", "POST /api/v1/jobs/{jobId}/invitations",
-			"GET /api/v1/jobs/{jobId}/recommendations");
+			"GET /api/v1/jobs/{jobId}/recommendations", "POST /api/v1/jobs/{jobId}/self-mentored");
 
 	/**
 	 * The Customer's commands on a Draft or an Open Job Post (B4): their Customer keeps a row on that Job beside the

@@ -346,6 +346,15 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType MATCHING_INVITED_TO_APPLY = new NotificationType("matching.invited_to_apply",
 			Set.of(Audience.SUBJECT), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "mail", Set.of("job"));
 
+	/** J12: the Customer switched the Job to self-mentored, so this open Invitation to Apply lapsed (FR-85, UX-DR121). */
+	static final NotificationType JOB_SWITCHED_TO_SELF_MENTORED = new NotificationType("job.switched_to_self_mentored",
+			Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
+
+	/** J12: a bid that raced the switch to self-mentored was withdrawn (FR-85, B-18): its bidder. */
+	static final NotificationType MATCHING_APPLICATION_JOB_SELF_MENTORED = new NotificationType(
+			"matching.application_job_self_mentored", Set.of(Audience.SUBJECT), Channel.IN_APP, EmailClass.TRANSACTIONAL,
+			"info", Set.of("job"));
+
 	/** The Mentor shared an Agreement draft (FR-16): the Customer. */
 	static final NotificationType JOB_AGREEMENT_DRAFT_READY = new NotificationType("job.agreement_draft_ready",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
@@ -985,7 +994,8 @@ class NotificationTypes implements NotificationCatalog {
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
 				JOB_SELECTION_DECLINED, MATCHING_APPLICATIONS_CLOSED, MATCHING_APPLICATIONS_REOPENED, MATCHING_NDA_OVERDUE,
-				MATCHING_INVITED_TO_APPLY, MATCHING_CREW_APPLICATION_RECEIVED, MATCHING_CREW_APPLICATION_DECLINED,
+				MATCHING_INVITED_TO_APPLY, JOB_SWITCHED_TO_SELF_MENTORED, MATCHING_APPLICATION_JOB_SELF_MENTORED,
+				MATCHING_CREW_APPLICATION_RECEIVED, MATCHING_CREW_APPLICATION_DECLINED,
 				MATCHING_CREW_APPLICATION_LAPSED, MATCHING_CREW_APPLICATION_AUTO_WITHDRAWN, MATCHING_CREW_APPLICATION_PICKED,
 				MATCHING_CREW_PICK_WITHDRAWN, MATCHING_CREW_PICK_ENDED, MATCHING_COMMITMENT_DECLINED, MATCHING_COMMITMENT_LAPSED,
 				CHAT_CHAT_OPENED, JOB_AGREEMENT_DRAFT_READY, JOB_CREW_MEMBER_JOINED, JOB_CREW_LOGIN_ADDED, JOB_CREW_MEMBER_LEFT,

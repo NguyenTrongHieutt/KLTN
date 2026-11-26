@@ -87,9 +87,9 @@ class TransitionTableTest {
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::frozenBlocks))
 			.containsExactly(Transition.M1, Transition.M2, Transition.M3, Transition.M4, Transition.M5, Transition.M6,
 					Transition.M7);
-		// Story 8.4 gave M3 its step. J12, the switch of an Open Job to self-mentored, gets its step in Story 25.2b.
+		// Story 8.4 gave M3 its step, and Story 25.2b gave J12, the switch of an Open Job to self-mentored, its own.
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::reachable))
-			.containsExactlyElementsOf(EnumSet.complementOf(EnumSet.of(Transition.J12)));
+			.containsExactlyElementsOf(EnumSet.allOf(Transition.class));
 	}
 
 	@Test
