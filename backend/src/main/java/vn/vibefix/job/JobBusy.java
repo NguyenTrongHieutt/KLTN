@@ -31,10 +31,12 @@ public interface JobBusy {
 	/**
 	 * What an initiator reads of the Job before it reserves or resolves.
 	 * @param code a Code Job (not an Assessment alone)
+	 * @param selfMentored the Job's mode (FR-85, AD-47): its Customer is also its Mentor, so {@code mentorId} names the
+	 * Customer, who holds no grant of the team's (D11, AD-11)
 	 * @param frozen an open Dispute freezes it (FR-52)
 	 */
 	record BusyJob(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
-			long version, boolean code, boolean frozen, Optional<Busy> busy) {
+			long version, boolean code, boolean selfMentored, boolean frozen, Optional<Busy> busy) {
 	}
 
 	Optional<BusyJob> job(UUID jobId);

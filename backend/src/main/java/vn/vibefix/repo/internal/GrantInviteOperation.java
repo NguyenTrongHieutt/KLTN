@@ -19,7 +19,8 @@ import vn.vibefix.repo.internal.JobGrants.Grant;
  * Repository (R5), with read permission, as a consequence operation that never takes the busy marker. The invitee's login is resolved from their
  * numeric GitHub ID just before sending (AD-10 "Logins by ID"), so a renamed GitHub account is still the one
  * invited; a GitHub account that is gone cannot be invited. A 204 means GitHub added an organization
- * member at once ({@code MEMBER_DRIFT}). Collaborators are looked up on use.
+ * member at once ({@code MEMBER_DRIFT}). Collaborators are looked up on use. A team grant that names the Job's Customer,
+ * or a Mentor grant of a Self-mentored Job, is never sent (D11, AD-11, R63): it ends obsolete before any call.
  */
 @Component
 class GrantInviteOperation implements OperationHandler {
@@ -51,6 +52,9 @@ class GrantInviteOperation implements OperationHandler {
 			return new Outcome.Obsolete("GRANT_MOVED_ON");
 		}
 		JobGrants grants = this.grants.getObject();
+		if (grants.teamGrantOfTheCustomer(grant)) {
+			return new Outcome.Obsolete("CUSTOMER_NOT_ON_THE_TEAM");
+		}
 		Invited invited;
 		try {
 			PlatformRepositories repositories = this.repositories.getObject();

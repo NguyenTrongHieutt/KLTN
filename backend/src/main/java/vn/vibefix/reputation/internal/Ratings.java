@@ -170,6 +170,11 @@ class Ratings {
 			throw new ApiException(ErrorCode.FORBIDDEN, ReputationReason.NOT_A_RATER);
 		}
 		Window window = openWindow(viewer.jobId());
+		if (rateeId.equals(viewer.accountId())) {
+			// AD-47 exception 8 (B-17): in a Self-mentored Job the Customer is the window's Mentor too, and nobody rates
+			// themselves. The table's rating_not_of_oneself_check is the backstop.
+			throw new ApiException(ErrorCode.VALIDATION, ReputationReason.RATEE_NOT_ALLOWED);
+		}
 		Kind kind;
 		if (viewer.role() == ViewerRole.CUSTOMER) {
 			if (!rateeId.equals(window.mentorId())) {

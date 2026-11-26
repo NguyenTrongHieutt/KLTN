@@ -175,6 +175,41 @@ class RatingIT extends IntegrationTest {
 		assertThat(this.personalData.export(vy).orElseThrow().toString()).contains(CANARY);
 	}
 
+	/**
+	 * Story 25.2a part 4 (AD-47 exception 8, B-17): the Rating Window of a Self-mentored Job names its Customer as the
+	 * Mentor too, so "the Customer rates the Mentor" would be a Rating of oneself. The command refuses it with
+	 * {@code VALIDATION RATEE_NOT_ALLOWED}, and the table refuses the row whoever writes it.
+	 */
+	@Test
+	void nobodyRatesThemselvesInASelfMentoredJob() throws Exception {
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID job = job(lan, TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React"));
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, mentor_account_id = customer_account_id,
+				    selected_application_id = NULL, self_mentored_notice_version = '1.0'
+				WHERE id = :job
+				""").param("job", job).update();
+		Timestamp now = Timestamp.from(this.clock.instant());
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating_window (job_id, product_id, customer_account_id, mentor_account_id, job_title,
+				    opened_at, ends_at)
+				SELECT id, product_id, customer_account_id, mentor_account_id, title, :now, :ends FROM job.job WHERE id = :job
+				""").param("job", job).param("now", now)
+			.param("ends", Timestamp.from(this.clock.instant().plus(Duration.ofDays(10)))).update();
+
+		rate(lan, Role.CUSTOMER, job, lan, 5, "Tự khen").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("RATEE_NOT_ALLOWED"));
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM reputation.rating WHERE job_id = :job").param("job", job)
+			.query(Long.class).single()).isZero();
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> this.jdbc.sql("""
+				INSERT INTO reputation.rating (id, job_id, kind, rater_account_id, ratee_account_id, stars, comment, created_at)
+				VALUES (:id, :job, 'CUSTOMER_TO_MENTOR', :lan, :lan, 5, 'Tự khen', :now)
+				""").param("id", UUID.randomUUID()).param("job", job).param("lan", lan).param("now", now).update())
+			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+			.hasMessageContaining("rating_not_of_oneself_check");
+	}
+
 	private ResultActions rate(UUID account, Role role, UUID job, UUID ratee, int stars, String comment) throws Exception {
 		return this.mvc.perform(post("/api/v1/boards/" + job + "/ratings").with(as(account, role)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)

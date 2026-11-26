@@ -419,7 +419,8 @@ class MatrixFilesTest {
 			.extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("SM_CREW_NAME", "SM_CREW_EMAIL", "SM_CREW_LINKEDIN", "SM_CREW_CHAT",
 					"SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID",
-					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT", "SM_MEMBER_JOB_CONTACT");
+					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT", "SM_MEMBER_JOB_CONTACT", "SM_WORKING_REPOSITORY",
+					"SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL");
 		for (Canaries.Canary canary : canaries) {
 			boolean mode = canary.name().startsWith("SM_");
 			if (mode) {
@@ -459,6 +460,55 @@ class MatrixFilesTest {
 		assertThat(MatrixRowRunner.hiddenIn(normal, all)).isEqualTo(all.hiddenFrom(MatrixCaller.CREW_ACTIVE));
 		assertThat(all.normal().all()).as("the normal world's rules read the normal canaries")
 			.noneMatch(canary -> canary.name().startsWith(Canaries.MODE_PREFIX));
+	}
+
+	/**
+	 * D11 (AD-11, R69, B-09; Story 25.2a part 4): the Working Repository's name, its page and a member's invitation page
+	 * never reach the Customer who mentors. The row that scans the step tracker for them runs today, and each canary is
+	 * live: a row of a caller who reads it says {@code shows=}, so the suite fails if the world stops seeding it there.
+	 */
+	@Test
+	void theWorkingRepositoryNeverReachesTheCustomerWhoMentorsAndItsCanariesAreLive() {
+		Canaries all = Canaries.load();
+		String repository = all.get("SM_WORKING_REPOSITORY").value();
+		String page = all.get("SM_WORKING_REPOSITORY_URL").value();
+		assertThat(repository).as("the name alone, which the full name, a link and each page carry").doesNotContain("/");
+		assertThat(page).startsWith("https://github.com/").endsWith("/" + repository);
+		assertThat(all.get("SM_INVITATION_URL").value()).isEqualTo(page + "/invitations");
+		for (String name : List.of("SM_WORKING_REPOSITORY", "SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL")) {
+			assertThat(all.get(name).visibleTo()).as(name)
+				.doesNotContain(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CROSS_ROLE_SELF, MatrixCaller.CREW_FORMER_PARTY)
+				.contains(MatrixCaller.CREW_ACTIVE_PARTY);
+		}
+		assertThat(all.get("SM_INVITATION_URL").visibleTo()).as("the invitee's alone")
+			.containsExactly(MatrixCaller.CREW_ACTIVE_PARTY);
+		List<MatrixRow> tracker = MatrixRow.loadMatrix()
+			.stream()
+			.filter(row -> row.endpoint().equals("GET /api/v1/jobs/{jobId}/setup") && row.selfWorld())
+			.toList();
+		assertThat(tracker).filteredOn(row -> row.caller() == MatrixCaller.CUSTOMER_MENTOR)
+			.singleElement()
+			.satisfies(row -> {
+				assertThat(row.pending()).as("scanned from Story 25.2a on").isNull();
+				assertThat(row.expect().status()).isEqualTo(200);
+				assertThat(names(MatrixRowRunner.hiddenIn(row, all))).contains("SM_WORKING_REPOSITORY",
+						"SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL");
+			});
+		List<MatrixRow> shows = MatrixRow.loadMatrix().stream().filter(row -> row.shows() != null).toList();
+		assertThat(shows).extracting(MatrixRow::shows).contains("SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL");
+		for (MatrixRow row : shows) {
+			assertThat(all.get(row.shows()).hiddenFrom(row.caller())).as("%s reads what it shows", row).isFalse();
+			assertThat(row.expect().status()).as("%s", row).isEqualTo(200);
+		}
+		assertThatThrownBy(() -> MatrixRow
+			.parse(HEADER + "GET /api/v1/jobs/{jobId}/setup,CREW_ACTIVE,job=crew;shows=SM_WORKING_REPOSITORY,,200\n"))
+			.hasMessageContaining("shows a SM_* canary");
+		assertThatThrownBy(() -> MatrixRow
+			.parse(HEADER + "GET /api/v1/jobs/{jobId}/setup,CREW_ACTIVE,job=self;shows=CREW_NAME,,200\n"))
+			.hasMessageContaining("shows a SM_* canary");
+		assertThatThrownBy(() -> MatrixRow.parse(
+				HEADER + "GET /api/v1/jobs/{jobId}/setup,CREW_ACTIVE,job=self;pending=25.5;shows=SM_WORKING_REPOSITORY,,200\n"))
+			.hasMessageContaining("shows a SM_* canary");
 	}
 
 	@Test
@@ -1067,8 +1117,12 @@ class MatrixFilesTest {
 			Set<Map.Entry<MatrixCaller, Map<String, String>>> seen = new HashSet<>();
 			for (MatrixRow row : endpointRows) {
 				callers.add(row.caller());
-				// Equal states are equal maps, whatever order Map.copyOf iterates them in (review iteration 3, E10).
-				if (!seen.add(Map.entry(row.caller(), row.state()))) {
+				// Equal states are equal maps, whatever order Map.copyOf iterates them in (review iteration 3, E10). A
+				// pending mark or a shown canary names no other Job, so it does not make a second row.
+				Map<String, String> state = new java.util.HashMap<>(row.state());
+				state.remove(MatrixRow.PENDING);
+				state.remove(MatrixRow.SHOWS);
+				if (!seen.add(Map.entry(row.caller(), state))) {
 					violations.add(endpoint + " has two rows for " + row.caller());
 				}
 			}

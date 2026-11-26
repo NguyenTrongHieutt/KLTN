@@ -104,10 +104,17 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 	/**
 	 * {@code pending=25.x} (R63): the row holds the decision the finished mode gives, which Story 25.x makes pass. The
-	 * suite does not send a pending row and reports it as skipped; the story removes the mark. Only a {@code job=self}
-	 * row carries it.
+	 * suite sends a pending row and scans it, fails it once it answers that decision, and otherwise reports it as
+	 * skipped ({@link MatrixRowRunner#run}); the story removes the mark. Only a {@code job=self} row carries it.
 	 */
 	public static final String PENDING = "pending";
+
+	/**
+	 * {@code shows=CANARY} (D11, R69, Story 25.2a part 4): the answer must carry that canary. A canary no answer carries
+	 * proves nothing when it is hidden from someone, so the row of a caller who reads it says so, and the suite fails
+	 * when the answer does not hold it. Only a {@code job=self} row that is not pending carries it.
+	 */
+	public static final String SHOWS = "shows";
 
 	private static final Pattern PENDING_STORY = Pattern.compile("25\\.(2b|[3-8])");
 
@@ -284,6 +291,12 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		if (pending != null && !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
 			throw new IllegalArgumentException("only a " + Binding.SELF_JOB.state() + " row is pending");
 		}
+		String shows = state.get(SHOWS);
+		if (shows != null && (pending != null || !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))
+				|| !shows.startsWith(Canaries.MODE_PREFIX))) {
+			throw new IllegalArgumentException("only a " + Binding.SELF_JOB.state() + " row that is not pending shows a "
+					+ Canaries.MODE_PREFIX + "* canary");
+		}
 		if (!path.startsWith("/")) {
 			throw new IllegalArgumentException("A path starts with '/': " + path);
 		}
@@ -363,14 +376,20 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		return this.state.get(PENDING);
 	}
 
+	/** The canary the answer must carry ({@link #SHOWS}), or {@code null}. */
+	public @Nullable String shows() {
+		return this.state.get(SHOWS);
+	}
+
 	/**
-	 * The row's {@code subject_state} without its world-binding keys and its pending mark: what the caller's realizer
-	 * sees.
+	 * The row's {@code subject_state} without its world-binding keys, its pending mark and the canary it shows: what the
+	 * caller's realizer sees.
 	 */
 	public Map<String, String> callerState() {
 		Map<String, String> callerState = new LinkedHashMap<>(this.state);
 		bindings().forEach(binding -> callerState.remove(binding.key()));
 		callerState.remove(PENDING);
+		callerState.remove(SHOWS);
 		return callerState;
 	}
 

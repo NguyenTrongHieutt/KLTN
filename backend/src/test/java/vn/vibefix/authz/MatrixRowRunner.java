@@ -144,6 +144,7 @@ public final class MatrixRowRunner {
 		if (row.pending() == null) {
 			assertExpectation(row, response);
 			assertNoHiddenCanary(row, response);
+			assertShown(row, response);
 			return;
 		}
 		assertNoHiddenCanary(row, response);
@@ -213,6 +214,18 @@ public final class MatrixRowRunner {
 			return "Expected reason " + expect.reason() + " but got " + reason + " for " + row;
 		}
 		return null;
+	}
+
+	/** {@code shows=CANARY}: the answer carries the canary, so hiding it from another caller is a real assertion. */
+	private void assertShown(MatrixRow row, MockHttpServletResponse response) throws IOException {
+		if (row.shows() == null) {
+			return;
+		}
+		String body = response.getContentAsString(StandardCharsets.UTF_8);
+		if (forms(this.canaries.get(row.shows())).stream().noneMatch(body::contains)) {
+			throw new AssertionError("Canary " + row.shows() + " is not in the response body of " + row
+					+ ": the world does not seed it where this caller reads it");
+		}
 	}
 
 	private void assertNoHiddenCanary(MatrixRow row, MockHttpServletResponse response) throws IOException {

@@ -3742,3 +3742,7 @@ GET /api/v1/my-jobs,CROSS_ROLE_SELF,,,200
 GET /api/v1/todos,CROSS_ROLE_SELF,,,200
 GET /api/v1/notifications,CROSS_ROLE_SELF,,,200
 GET /api/v1/balance,CROSS_ROLE_SELF,,,200
+# D11 (AD-11, R69; Story 25.2a part 4): the active members read the Working Repository on their own row of the step
+# tracker, which the Customer who mentors never does (the CUSTOMER_MENTOR row of this endpoint, above).
+GET /api/v1/jobs/{jobId}/setup,CREW_ACTIVE,job=self;shows=SM_WORKING_REPOSITORY_URL,,200
+GET /api/v1/jobs/{jobId}/setup,CREW_ACTIVE_PARTY,job=self;shows=SM_INVITATION_URL,,200
