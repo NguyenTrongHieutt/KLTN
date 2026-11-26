@@ -3351,7 +3351,7 @@ GET /api/v1/mentor/job-posts/{postId}/proof-files,CUSTOMER_MENTOR,job=self,,200,
 DELETE /api/v1/mentor/job-posts/{postId}/proof-files/{fileId},CUSTOMER_MENTOR,job=self;file=proof-upload,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/mentor/applications/{applicationId}/withdraw,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/jobs/{jobId}/applications,CUSTOMER_MENTOR,job=self,,200
-POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,CUSTOMER_MENTOR,job=self,select.json,409 STALE STATE_CHANGED
+POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,CUSTOMER_MENTOR,job=self,select.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId},CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,CUSTOMER_MENTOR,job=self,decision.json,409 STALE STATE_CHANGED,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER_MENTOR,job=self,nda.json,409 STALE,requireGitHubLinked
@@ -3459,6 +3459,11 @@ POST /api/v1/jobs/{jobId}/source/reconfirm,CUSTOMER_MENTOR,job=self,,409 CONFLIC
 GET /api/v1/jobs/{jobId}/final-merge,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/final-merge/confirm,CUSTOMER_MENTOR,job=self,final-merge-confirm.json,409 CONFLICT FINAL_MERGE_NOT_READY
 POST /api/v1/jobs/{jobId}/code-receipt,CUSTOMER_MENTOR,job=self,code-receipt.json,409 CONFLICT NO_CLOSING_CHOICE_OPEN
+POST /api/v1/team-issues,CUSTOMER_MENTOR,job=self,team-issue.json,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,CUSTOMER_MENTOR,job=self,,200
+POST /api/v1/boards/{boardId}/team-issues/{teamIssueId}/answer,CUSTOMER_MENTOR,job=self,team-issue-answer.json,200
+POST /api/v1/team-issues/{teamIssueId}/accept,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
+POST /api/v1/team-issues/{teamIssueId}/escalate,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 GET /api/v1/admin/team-issues/{teamIssueId},CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/team-issues/{teamIssueId}/take,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/team-issues/{teamIssueId}/decision,CUSTOMER_MENTOR,job=self,admin-team-issue-decision.json,404 NOT_FOUND
@@ -3471,10 +3476,10 @@ GET /api/v1/admin/abuse-reports/{reportId},CUSTOMER_MENTOR,job=self,,404 NOT_FOU
 POST /api/v1/admin/abuse-reports/{reportId}/take,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/abuse-reports/{reportId}/decision,CUSTOMER_MENTOR,job=self,abuse-report-decision.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/recruitment,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/recruitment,CUSTOMER_MENTOR,job=self,recruitment.json,200,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/recruitment,CUSTOMER_MENTOR,job=self,recruitment.json,400 VALIDATION SLOTS_INVALID,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew-applications,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/decline,CUSTOMER_MENTOR,job=self,,204,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CUSTOMER_MENTOR,job=self,,422 GUARD_FAILED CONTRIBUTORS_UNKNOWN,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/pick,CUSTOMER_MENTOR,job=self,,422 GUARD_FAILED CREW_FULL,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/crew-applications/{crewApplicationId}/withdraw-pick,CUSTOMER_MENTOR,job=self,,409 CONFLICT NOT_WITHDRAWABLE,requireActiveAccount
 POST /api/v1/mentor/job-posts/{postId}/crew-applications,CUSTOMER_MENTOR,job=self,crew-application.json,422 GUARD_FAILED ROLE_TAKEN,requireGitHubLinked
 POST /api/v1/mentor/crew-applications/{crewApplicationId}/withdraw,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND,requireActiveAccount
@@ -3500,3 +3505,165 @@ GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/handovers,CUSTOMER_M
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/commits,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/crew-chat,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 GET /api/v1/admin/split-resolutions/{resolutionId}/evidence/person-links,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
+
+# The mode world's Crew, its locked member and its grant holders, on the families AD-20's table marks "mode branch":
+# handing over, the Change Request's steps, the cancellation, the Dispute, the data-deletion duty and private feedback.
+# A row no later story changes runs now; a member's new right is pending with the story that builds it, and holds
+# the decision the mode then gives.
+POST /api/v1/boards/{boardId}/handovers,CREW_ASSIGNED,job=self,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,job=self;pending=25.5,handover.json,422 GUARD_FAILED MILESTONE_NOT_HELD
+POST /api/v1/boards/{boardId}/handovers,CREW_FORMER,job=self,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,CREW_ACTIVE_PARTY,job=self;pending=25.5,handover.json,422 GUARD_FAILED MILESTONE_NOT_HELD
+POST /api/v1/boards/{boardId}/handovers,CREW_FORMER_PARTY,job=self,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,LOCKED,job=self,handover.json,401
+POST /api/v1/boards/{boardId}/handovers,ADMIN_DISPUTE_GRANT,job=self,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,handover.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers,ADMIN_TEAM_ISSUE_GRANT,job=self,handover.json,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_ASSIGNED,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_ACTIVE,job=self;pending=25.5,,200
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_FORMER,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_ACTIVE_PARTY,job=self;pending=25.5,,200
+GET /api/v1/boards/{boardId}/handovers/preflight,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,LOCKED,job=self,,401
+GET /api/v1/boards/{boardId}/handovers/preflight,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/preflight,ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_ASSIGNED,job=self,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_ACTIVE,job=self;pending=25.5,preview-check.json,200
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_FORMER,job=self,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_ACTIVE_PARTY,job=self;pending=25.5,preview-check.json,200
+POST /api/v1/boards/{boardId}/handovers/preview-check,CREW_FORMER_PARTY,job=self,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,LOCKED,job=self,preview-check.json,401
+POST /api/v1/boards/{boardId}/handovers/preview-check,ADMIN_DISPUTE_GRANT,job=self,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/preview-check,ADMIN_TEAM_ISSUE_GRANT,job=self,preview-check.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ASSIGNED,job=self,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ACTIVE,job=self;pending=25.5,upload.png,201
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_FORMER,job=self,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_ACTIVE_PARTY,job=self;pending=25.5,upload.png,201
+POST /api/v1/boards/{boardId}/handovers/screenshots,CREW_FORMER_PARTY,job=self,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,LOCKED,job=self,upload.png,401
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_DISPUTE_GRANT,job=self,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,upload.png,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_TEAM_ISSUE_GRANT,job=self,upload.png,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ASSIGNED,job=self;file=upload,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ACTIVE,job=self;file=upload;pending=25.5,,204
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_FORMER,job=self;file=upload,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ACTIVE_PARTY,job=self;file=upload;pending=25.5,,204
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_FORMER_PARTY,job=self;file=upload,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},LOCKED,job=self;file=upload,,401
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ADMIN_DISPUTE_GRANT,job=self;file=upload,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self;file=upload,,404 NOT_FOUND
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ADMIN_TEAM_ISSUE_GRANT,job=self;file=upload,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_ASSIGNED,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_ACTIVE,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_FORMER,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_ACTIVE_PARTY,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,LOCKED,job=self,,401
+GET /api/v1/boards/{boardId}/handovers/submission,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers/submission,ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_ASSIGNED,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_ACTIVE,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_FORMER,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_ACTIVE_PARTY,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,CREW_FORMER_PARTY,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,LOCKED,job=self,change-impact.json,401
+POST /api/v1/change-requests/{changeRequestId}/impact,ADMIN_DISPUTE_GRANT,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/impact,ADMIN_TEAM_ISSUE_GRANT,job=self,change-impact.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_ASSIGNED,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_ACTIVE,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_FORMER,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_ACTIVE_PARTY,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,CREW_FORMER_PARTY,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,LOCKED,job=self,change-version.json,401
+POST /api/v1/change-requests/{changeRequestId}/approve,ADMIN_DISPUTE_GRANT,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/approve,ADMIN_TEAM_ISSUE_GRANT,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_ASSIGNED,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_ACTIVE,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_FORMER,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_ACTIVE_PARTY,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,CREW_FORMER_PARTY,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,LOCKED,job=self,change-version.json,401
+POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_DISPUTE_GRANT,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_TEAM_ISSUE_GRANT,job=self,change-version.json,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_ASSIGNED,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/cancellation,CREW_FORMER,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE_PARTY,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/cancellation,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,LOCKED,job=self,,401
+GET /api/v1/boards/{boardId}/cancellation,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/cancellation,ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_ASSIGNED,job=self,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self,cancellation.json,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation,CREW_FORMER,job=self,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE_PARTY,job=self,cancellation.json,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation,CREW_FORMER_PARTY,job=self,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,LOCKED,job=self,cancellation.json,401
+POST /api/v1/boards/{boardId}/cancellation,ADMIN_DISPUTE_GRANT,job=self,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation,ADMIN_TEAM_ISSUE_GRANT,job=self,cancellation.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_ASSIGNED,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_ACTIVE,job=self,,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_FORMER,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_ACTIVE_PARTY,job=self,,403 FORBIDDEN
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,LOCKED,job=self,,401
+POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_ASSIGNED,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/dispute,CREW_FORMER,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE_PARTY,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/dispute,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,LOCKED,job=self,,401
+GET /api/v1/boards/{boardId}/dispute,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_ASSIGNED,job=self,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_ACTIVE,job=self;pending=25.7,dispute.json,409 CONFLICT DISPUTE_ALREADY_OPEN
+POST /api/v1/boards/{boardId}/disputes,CREW_FORMER,job=self,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,CREW_ACTIVE_PARTY,job=self;pending=25.7,dispute.json,409 CONFLICT DISPUTE_ALREADY_OPEN
+POST /api/v1/boards/{boardId}/disputes,CREW_FORMER_PARTY,job=self,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,LOCKED,job=self,dispute.json,401
+POST /api/v1/boards/{boardId}/disputes,ADMIN_DISPUTE_GRANT,job=self,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/disputes,ADMIN_TEAM_ISSUE_GRANT,job=self,dispute.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,CREW_ASSIGNED,job=self,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,CREW_ACTIVE,job=self;pending=25.7,dispute-statement.json,403 FORBIDDEN NOT_THE_OTHER_SIDE
+POST /api/v1/boards/{boardId}/dispute/statement,CREW_FORMER,job=self,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,CREW_ACTIVE_PARTY,job=self;pending=25.7,dispute-statement.json,403 FORBIDDEN NOT_THE_OTHER_SIDE
+POST /api/v1/boards/{boardId}/dispute/statement,CREW_FORMER_PARTY,job=self,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,LOCKED,job=self,dispute-statement.json,401
+POST /api/v1/boards/{boardId}/dispute/statement,ADMIN_DISPUTE_GRANT,job=self,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/dispute/statement,ADMIN_TEAM_ISSUE_GRANT,job=self,dispute-statement.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ASSIGNED,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,job=self;pending=25.4,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,job=self,,200
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE_PARTY,job=self;pending=25.4,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER_PARTY,job=self,,200
+POST /api/v1/boards/{boardId}/data-deletion/{item},LOCKED,job=self,,401
+POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ASSIGNED,job=self,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,job=self;pending=25.8,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER,job=self,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE_PARTY,job=self;pending=25.8,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER_PARTY,job=self,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,LOCKED,job=self,private-feedback.json,401
+POST /api/v1/boards/{boardId}/private-feedback,ADMIN_DISPUTE_GRANT,job=self,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,private-feedback.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/private-feedback,ADMIN_TEAM_ISSUE_GRANT,job=self,private-feedback.json,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
+GET /api/v1/chat-messages/{messageId},ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200

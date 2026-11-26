@@ -53,7 +53,11 @@ import vn.vibefix.support.TestPeople;
  * holds the Customer's messages and a file. The confirmed Agreement, which the Customer confirmed alone, has an
  * External Access item and two Milestones: the first accepted, its release waiting in its pool; the second Funded by
  * the Customer's paid order and handed over by the active member. An open Dispute about the second froze the Job;
- * {@link MatrixCaller#ADMIN_DISPUTE_GRANT} took it.
+ * {@link MatrixCaller#ADMIN_DISPUTE_GRANT} took it. As on the crew Job, the Ratings are published whatever the Job's
+ * state: the active member's Team Issue waits for the Customer's answer, and {@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}
+ * took another member's escalated one. The Customer's due-date Change Request is open.
+ * {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} is an Administrator with no grant here until Story 25.6 gives the
+ * mode a split.
  * <p>
  * What the schema cannot hold before its story (the spec's part 3): the Dispute is recorded as opened by the Customer,
  * where AD-20 wants a member's (Story 25.7); the handover names the member in the column that still says "mentor"
@@ -77,7 +81,8 @@ public class SelfMentoredFixture implements MatrixFixture {
 	/** The callers this fixture realizes in the mode world beside the Customer who mentors. */
 	private static final Set<MatrixCaller> PEOPLE = Set.of(MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE,
 			MatrixCaller.CREW_FORMER, MatrixCaller.LOCKED, MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY,
-			MatrixCaller.ADMIN_DISPUTE_GRANT);
+			MatrixCaller.ADMIN_DISPUTE_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT,
+			MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT);
 
 	private final JdbcClient jdbc;
 
@@ -106,6 +111,10 @@ public class SelfMentoredFixture implements MatrixFixture {
 	private UUID formerParty;
 
 	private UUID disputeAdmin;
+
+	private UUID teamIssueAdmin;
+
+	private UUID resolutionAdmin;
 
 	public SelfMentoredFixture(JdbcClient jdbc, SessionRepository<? extends Session> sessions, List<AdminReadGrants> grants,
 			StoredFiles files, PlatformTransactionManager transactionManager, ApplicationContext context) {
@@ -143,6 +152,24 @@ public class SelfMentoredFixture implements MatrixFixture {
 		put(world, "chatFileId", chatFile);
 		UUID held = agreementAndMilestones(world, job, product);
 		put(world, "disputeId", dispute(job, product, held));
+		ratingsAndIssues(world, job, product);
+		// The Customer's open due-date Change Request (FR-34), which the members answer from Story 25.7 on.
+		UUID changeRequest = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.change_request (id, job_id, proposer, proposer_account_id, description, items, status, created_at)
+				VALUES (:id, :job, 'CUSTOMER', :customer, 'Cần thêm thời gian', CAST(:items AS JSONB), 'OPEN', :at)
+				""")
+			.param("id", changeRequest)
+			.param("job", job)
+			.param("customer", this.customer)
+			.param("items", "[{\"milestoneId\":\"" + held + "\",\"number\":2,\"title\":\"Sửa lỗi trùng giờ\","
+					+ "\"oldDueOn\":\"2026-11-20\",\"newDueOn\":\"2027-01-20\"}]")
+			.param("at", Timestamp.from(WRITTEN))
+			.update();
+		put(world, "changeRequestId", changeRequest);
+		// No Split Resolution exists in the mode world before Story 25.6: this Administrator holds no grant on the Job.
+		this.resolutionAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
+		enrol(this.resolutionAdmin, "phan-chia-tu-huong-dan");
 		// The Job Post's screenshot, which the Customer added on the Draft: public while the Job is listed.
 		UUID screenshot = storedFile("job.screenshot", this.customer, "man-hinh-loi.pdf");
 		this.jdbc.sql("""
@@ -156,6 +183,74 @@ public class SelfMentoredFixture implements MatrixFixture {
 		for (String absent : List.of("applicationId", "proofFileId", "proofUploadId", "reportId", "resolutionId")) {
 			put(world, absent, UUID.randomUUID());
 		}
+	}
+
+	/**
+	 * As the crew Job has them, whatever its state: the Rating Window ended with the Crew's Ratings published two days
+	 * ago, the Customer's Rating of the active member ({@code {selfRatingId}}), that member's Team Issue about it
+	 * ({@code {selfTeamIssueId}}), which waits for the answer of the Customer who mentors, and a second member's issue,
+	 * escalated, which {@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT} took with its grant.
+	 */
+	private void ratingsAndIssues(MatrixWorld world, UUID job, UUID product) {
+		Instant published = MutableClock.DEFAULT_INSTANT.minus(Duration.ofDays(2));
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating_window (job_id, product_id, customer_account_id, mentor_account_id, job_title,
+				    opened_at, ends_at, pair_published_at, crew_published_at)
+				VALUES (:job, :product, :customer, :customer, 'Việc tự hướng dẫn ma trận', :opened, :published, :published,
+				    :published)
+				""").param("job", job).param("product", product).param("customer", this.customer)
+			.param("opened", Timestamp.from(published.minus(Duration.ofDays(14))))
+			.param("published", Timestamp.from(published))
+			.update();
+		UUID rating = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO reputation.rating (id, job_id, kind, rater_account_id, ratee_account_id, stars, comment, created_at)
+				VALUES (:id, :job, 'MENTOR_TO_STUDENT', :customer, :member, 2, 'Còn chậm', :at)
+				""").param("id", rating).param("job", job).param("customer", this.customer).param("member", this.active)
+			.param("at", Timestamp.from(published.minus(Duration.ofDays(1))))
+			.update();
+		put(world, "ratingId", rating);
+		Instant raised = MutableClock.DEFAULT_INSTANT;
+		UUID issue = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at)
+				VALUES (:id, :job, :product, :rating, :raiser, :customer, 'Điểm chưa đúng', 'ANSWER', 5, 5, :raised, :due)
+				""").param("id", issue).param("job", job).param("product", product).param("rating", rating)
+			.param("raiser", this.active).param("customer", this.customer).param("raised", Timestamp.from(raised))
+			.param("due", Timestamp.from(raised.plus(Duration.ofDays(5))))
+			.update();
+		put(world, "teamIssueId", issue);
+		UUID escalated = UUID.randomUUID();
+		Instant earlier = raised.minus(Duration.ofDays(1));
+		this.jdbc.sql("""
+				INSERT INTO dispute.team_issue (id, job_id, product_id, rating_id, raiser_account_id, mentor_account_id, reason,
+				    phase, answer_days, escalation_days, raised_at, answer_due_at, escalation_due_at, answer_kind, answered_at,
+				    escalated_at)
+				VALUES (:id, :job, :product, :rating, :raiser, :customer, 'Điểm chưa đúng', 'ESCALATED', 5, 5, :raised, :due,
+				    :escalationDue, 'KEEP', :answered, :escalatedAt)
+				""").param("id", escalated).param("job", job).param("product", product).param("rating", UUID.randomUUID())
+			.param("raiser", this.activeParty).param("customer", this.customer).param("raised", Timestamp.from(earlier))
+			.param("due", Timestamp.from(earlier.plus(Duration.ofDays(5))))
+			.param("escalationDue", Timestamp.from(earlier.plus(Duration.ofDays(10))))
+			.param("answered", Timestamp.from(earlier.plus(Duration.ofHours(2))))
+			.param("escalatedAt", Timestamp.from(earlier.plus(Duration.ofHours(3))))
+			.update();
+		put(world, "escalatedTeamIssueId", escalated);
+		this.teamIssueAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
+		enrol(this.teamIssueAdmin, "van-de-nhom-tu-huong-dan");
+		grant(this.teamIssueAdmin, job, AdminReadItem.forEscalatedTeamIssue(), escalated, grant -> this.jdbc
+			.sql("UPDATE dispute.team_issue SET assigned_admin_id = :admin, assigned_at = :at, grant_id = :grant WHERE id = :id")
+			.param("admin", this.teamIssueAdmin)
+			.param("at", Timestamp.from(WRITTEN))
+			.param("grant", grant)
+			.param("id", escalated)
+			.update());
+	}
+
+	private void enrol(UUID admin, String name) {
+		AdministratorTestSupport.enrol(this.context, admin, name + "." + admin + "@vibefix.test", "Quản trị " + name,
+				MutableClock.DEFAULT_INSTANT);
 	}
 
 	/** A Self-mentored Job of the Customer in {@code state}, as J11 leaves it and the later transitions move it. */
@@ -387,8 +482,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 	private UUID dispute(UUID job, UUID product, UUID milestone) {
 		UUID dispute = UUID.randomUUID();
 		this.disputeAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
-		AdministratorTestSupport.enrol(this.context, this.disputeAdmin, "tranh-chap-tu-huong-dan." + this.disputeAdmin
-				+ "@vibefix.test", "Quản trị tranh chấp", MutableClock.DEFAULT_INSTANT);
+		enrol(this.disputeAdmin, "tranh-chap-tu-huong-dan");
 		Instant opened = WRITTEN.plus(Duration.ofHours(2));
 		Timestamp at = Timestamp.from(opened);
 		grant(this.disputeAdmin, job, AdminReadItem.forDispute(), dispute, grant -> this.jdbc.sql("""
@@ -444,6 +538,8 @@ public class SelfMentoredFixture implements MatrixFixture {
 			case CREW_ACTIVE_PARTY -> signedIn(this.activeParty, Role.STUDENT);
 			case CREW_FORMER_PARTY -> signedIn(this.formerParty, Role.STUDENT);
 			case ADMIN_DISPUTE_GRANT -> signedIn(this.disputeAdmin, Role.ADMINISTRATOR);
+			case ADMIN_TEAM_ISSUE_GRANT -> signedIn(this.teamIssueAdmin, Role.ADMINISTRATOR);
+			case ADMIN_SPLIT_RESOLUTION_GRANT -> signedIn(this.resolutionAdmin, Role.ADMINISTRATOR);
 			default -> Optional.empty();
 		};
 	}
