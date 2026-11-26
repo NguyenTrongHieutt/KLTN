@@ -334,6 +334,8 @@ class JobRolesIT extends IntegrationTest {
 			.sql("UPDATE job.job SET mentor_account_id = customer_account_id WHERE id = :id").param("id", draft).update());
 		assertRefused("a self-mentored Job past its Draft with no notice read", () -> this.jdbc
 			.sql("UPDATE job.job SET self_mentored_notice_version = NULL WHERE id = :id").param("id", running).update());
+		assertRefused("a Draft with the notice read, before it is published", () -> this.jdbc
+			.sql("UPDATE job.job SET self_mentored_notice_version = '1.0' WHERE id = :id").param("id", draft).update());
 		assertRefused("a normal Job with the notice of the mode", () -> this.jdbc
 			.sql("UPDATE job.job SET self_mentored_notice_version = '1.0' WHERE id = :id").param("id", normal).update());
 		assertRefused("a self-mentored Job past its Draft with no Mentor", () -> this.jdbc

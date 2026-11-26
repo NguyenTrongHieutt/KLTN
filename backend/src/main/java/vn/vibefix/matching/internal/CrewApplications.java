@@ -553,7 +553,7 @@ class CrewApplications {
 	}
 
 	/**
-	 * J4 (UX-DR112): the Mentor's "Mở tuyển thành viên nhóm cho {job}", due at the Agreement deadline, unless the
+	 * J4 or J11 (UX-DR112): the Mentor's "Mở tuyển thành viên nhóm cho {job}", due at the Agreement deadline, unless the
 	 * recruitment is already on or a member has signed (the listener may run after the Mentor turned it on).
 	 */
 	@Transactional

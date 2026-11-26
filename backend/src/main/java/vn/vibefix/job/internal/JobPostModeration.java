@@ -30,7 +30,7 @@ class JobPostModeration implements ContentModeration {
 	static final String LISTABLE = "state IN ('OPEN', 'AGREEMENT', 'STARTING', 'ACTIVE')";
 
 	private static final String COLUMNS = "id, title, problem, customer_account_id AS author_id,"
-			+ " coalesce(opened_at, created_at) AS created_at, hidden_at, hidden_reason";
+			+ " coalesce(opened_at, selected_at, created_at) AS created_at, hidden_at, hidden_reason";
 
 	private final JdbcClient jdbc;
 
@@ -56,7 +56,7 @@ class JobPostModeration implements ContentModeration {
 	@Transactional(readOnly = true)
 	public List<Item> items(boolean hidden, int limit) {
 		return this.jdbc.sql("SELECT " + COLUMNS + " FROM job.job WHERE " + LISTABLE
-				+ " AND (hidden_at IS NOT NULL) = :hidden ORDER BY coalesce(opened_at, created_at) DESC, id DESC"
+				+ " AND (hidden_at IS NOT NULL) = :hidden ORDER BY coalesce(opened_at, selected_at, created_at) DESC, id DESC"
 				+ " LIMIT :limit").param("hidden", hidden).param("limit", limit).query(JobPostModeration::item).list();
 	}
 

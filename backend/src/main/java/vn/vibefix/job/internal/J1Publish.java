@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -108,9 +109,23 @@ class J1Publish implements JobLifecycle.Step {
 
 	/** Every FR-61 rule value as it stands now, as a JSON object keyed by the rule's name. */
 	static String rules(Settings settings) {
+		return json(values(settings));
+	}
+
+	/** Every FR-61 rule value as it stands now, read once: what a step both copies and counts a period from. */
+	static Map<Rule, Integer> values(Settings settings) {
+		Map<Rule, Integer> values = new EnumMap<>(Rule.class);
+		for (Rule rule : Rule.values()) {
+			values.put(rule, settings.value(rule));
+		}
+		return values;
+	}
+
+	/** The rule values as the Job keeps them: a JSON object keyed by the rule's name. */
+	static String json(Map<Rule, Integer> values) {
 		StringJoiner json = new StringJoiner(",", "{", "}");
 		for (Rule rule : Rule.values()) {
-			json.add("\"" + rule.name() + "\":" + settings.value(rule));
+			json.add("\"" + rule.name() + "\":" + values.get(rule));
 		}
 		return json.toString();
 	}

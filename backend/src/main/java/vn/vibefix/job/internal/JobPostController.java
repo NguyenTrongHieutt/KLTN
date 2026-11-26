@@ -58,7 +58,8 @@ import vn.vibefix.shared.SearchWindow;
  * reads while it is listed, and the SPA shows "Bạn là {role} của công việc này" in place of an action. A row or the
  * detail shows the Job Post, its phase, what it needs, the Customer's kind and month joined (never their name or
  * contact details), the Mentor once there is one, and while recruiting the open slots, the Skills sought and the
- * note: never the Agreement, Milestones, prices, Crew, bids or chats (UX-DR97).
+ * note: never the Agreement, Milestones, prices, Crew, bids or chats (UX-DR97). A Self-mentored Job names its
+ * Customer, as the one who mentors it (FR-85, N-34 says so before it is published).
  */
 @RestController
 @RequestMapping("/api/v1/mentor")
@@ -231,16 +232,35 @@ class JobPostController {
 				recruitment(post.recruitment()), job.selfMentored());
 	}
 
-	/** The Mentors of these Jobs that have one, by account, from one {@code identity} read. */
+	/**
+	 * The Mentors of these Jobs that have one, by account, from one {@code identity} read. The Customer who mentors a
+	 * Self-mentored Job may have saved no profile, or one with no name: they are then named as a Customer is where
+	 * another person sees them act (FR-85).
+	 */
 	private Map<UUID, PostMentorView> mentors(List<Post> posts) {
 		List<UUID> ids = posts.stream().map(post -> post.job().mentorId()).filter(Objects::nonNull).distinct().toList();
 		if (ids.isEmpty()) {
 			return Map.of();
 		}
-		return this.mentors.cards(ids)
-			.stream()
-			.collect(Collectors.toMap(MentorCard::accountId,
-					card -> new PostMentorView(card.displayName(), card.githubLogin()), (first, second) -> first));
+		Map<UUID, PostMentorView> found = new HashMap<>();
+		for (MentorCard card : this.mentors.cards(ids)) {
+			found.putIfAbsent(card.accountId(), new PostMentorView(card.displayName(), card.githubLogin()));
+		}
+		for (Post post : posts) {
+			Job job = post.job();
+			if (!job.selfMentored() || job.mentorId() == null) {
+				continue;
+			}
+			PostMentorView card = found.get(job.mentorId());
+			if (card != null && !card.displayName().isBlank()) {
+				continue;
+			}
+			String name = this.customers.displayName(job.mentorId());
+			if (!name.isBlank()) {
+				found.put(job.mentorId(), new PostMentorView(name, card == null ? null : card.githubLogin()));
+			}
+		}
+		return found;
 	}
 
 	/** What the recruitment seeks while it is on; nothing while it is off. */

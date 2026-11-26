@@ -51,7 +51,7 @@ import vn.vibefix.shared.Gate;
 
 /**
  * CUS-6, CUS-7, and JOB-1 (FR-9, AD-20): a Customer's Jobs with their guided answers, Job Types,
- * Skills, budget range, deadline, and screenshots, published (J1) and withdrawn (J2) through
+ * Skills, budget range, deadline, and screenshots, published (J1, or J11 for a Self-mentored Job) and withdrawn (J2) through
  * {@link JobLifecycle}. Only the Job's Customer reads, edits, or moves one; any other caller finds
  * nothing.
  */

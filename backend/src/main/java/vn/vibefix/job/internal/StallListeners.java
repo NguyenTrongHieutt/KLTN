@@ -8,7 +8,10 @@ import org.springframework.stereotype.Component;
 import vn.vibefix.job.JobTransitioned;
 import vn.vibefix.shared.ProcessedEvents;
 
-/** J4 and J6 start FR-40's Agreement and Starting deadlines. Replay-safe. */
+/**
+ * J4, and J11 or J12 for a Self-mentored Job, start FR-40's Agreement deadline; J6 starts the Starting one.
+ * Replay-safe.
+ */
 @Component
 class StallListeners {
 

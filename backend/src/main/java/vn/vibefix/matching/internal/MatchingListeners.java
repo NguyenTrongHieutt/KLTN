@@ -23,7 +23,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * Job's open Applications and J3 puts the others on hold (§4.0), both lapse its open invitations
  * (FR-14), and a locked account's not-yet-selected Applications, those on hold included, are withdrawn (FR-13,
  * AD-19): every lock runs it, and an account with no bid changes nothing (Stories 20.3 and 20.4). For the Crew
- * (Story 21.4): J4 opens the Mentor's {@code matching.open_crew_recruitment} to-do, and turning recruitment on, J8 or
+ * (Story 21.4): J4, or J11 for a Self-mentored Job, opens the Mentor's {@code matching.open_crew_recruitment} to-do,
+ * and turning recruitment on, J8 or
  * J10 closes it;
  * {@code CrewRecruitmentClosed} lapses the Job's pending Crew Applications; a lock withdraws the account's pending ones,
  * telling each Mentor, and its picks; and a hidden Job Post tells its applicants. For the picks (Story 21.5): J8's and

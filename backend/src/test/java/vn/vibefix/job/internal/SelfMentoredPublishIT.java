@@ -96,6 +96,9 @@ class SelfMentoredPublishIT extends IntegrationTest {
 		UUID job = draft(true, "\"2026-11-15\"");
 		Instant now = this.clock.instant();
 		Instant due = now.plus(Duration.ofDays(14));
+		// The Draft was once an Open Job Post whose selected Mentor declined (J3, J5, J2): it still holds that bid.
+		this.jdbc.sql("UPDATE job.job SET quote_price_vnd = 3000000, quote_timeline_days = 20 WHERE id = :id")
+			.param("id", job).update();
 
 		publish(job, NOTICE).andExpect(status().isOk())
 			.andExpect(jsonPath("$.state").value("AGREEMENT"))
@@ -115,6 +118,15 @@ class SelfMentoredPublishIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT jsonb_object_keys(rules) FROM job.job WHERE id = :id").param("id", job)
 			.query(String.class).list()).as("every FR-61 rule is copied, as at J1").hasSize(vn.vibefix.settings.Rule.values().length);
 		assertThat(this.roles.roleOf(job, this.lan)).isEqualTo(JobRole.CUSTOMER_MENTOR);
+		assertThat(this.jdbc.sql("""
+				SELECT (quote_price_vnd IS NULL) || ' ' || (quote_timeline_days IS NULL) FROM job.job WHERE id = :id
+				""").param("id", job).query(String.class).single()).as("nobody's bid prices this Agreement")
+			.isEqualTo("true true");
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + job + "/agreement").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.revision").exists())
+			.andExpect(jsonPath("$.quote").doesNotExist());
+		assertThat(this.jdbc.sql("SELECT product_id FROM product.job_pin WHERE job_id = :id").param("id", job)
+			.query(UUID.class).list()).as("the Product is pinned while the Job runs").containsExactly(this.product);
 		// The Job keeps the notice the Customer read, and the audit names the transition and its one actor.
 		assertThat(this.jdbc.sql("SELECT self_mentored_notice_version FROM job.job WHERE id = :id").param("id", job)
 			.query(String.class).single()).isEqualTo(J11PublishSelfMentored.NOTICE_VERSION);
@@ -183,10 +195,6 @@ class SelfMentoredPublishIT extends IntegrationTest {
 	 */
 	@Test
 	void aSelfMentoredJobIsListedWhileItRecruitsAndIsNoMentoredJob() throws Exception {
-		this.jdbc.sql("""
-				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
-				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
-				""").param("id", this.lan).update();
 		UUID job = draft(true, "\"2026-11-15\"");
 		publish(job, NOTICE).andExpect(status().isOk());
 		UUID reader = TestPeople.student(this.jdbc, "Lê Thảo Vy", true, List.of(TestPeople.REACT), "React",
@@ -197,6 +205,18 @@ class SelfMentoredPublishIT extends IntegrationTest {
 			.andExpect(jsonPath("$.total").value(0));
 		this.jdbc.sql("UPDATE job.job SET recruiting = TRUE, recruiting_since = :now, open_slots = 2 WHERE id = :id")
 			.param("now", Timestamp.from(this.clock.instant())).param("id", job).update();
+
+		// A Customer who never saved a profile is still named, as a Customer is to another person: by their username.
+		String login = this.jdbc.sql("SELECT github_login FROM identity.account WHERE id = :id").param("id", this.lan)
+			.query(String.class).single();
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(asReader)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].mentor.displayName").value("@" + login));
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(asReader)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.mentor.displayName").value("@" + login));
+		this.jdbc.sql("""
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
+				""").param("id", this.lan).update();
 
 		this.mvc.perform(get("/api/v1/mentor/job-posts").with(asReader)).andExpect(status().isOk())
 			.andExpect(jsonPath("$.total").value(1))

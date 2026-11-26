@@ -17,8 +17,9 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * J4 opens the Job Chat and the Crew Chat (FR-46, FR-77, AD-5) and tells the Customer and the Mentor
- * in-app of the Job Chat; J9 and J10 make both read-only (AD-9) and rewrite no message. Each is
- * replay-safe through {@link ProcessedEvents}.
+ * in-app of the Job Chat; J11 and J12 open the Crew Chat alone, because a Self-mentored Job has no Job Chat
+ * (FR-85, AD-47); J9 and J10 make both read-only (AD-9) and rewrite no message. Each is replay-safe through
+ * {@link ProcessedEvents}.
  */
 @Component
 class ChatListeners {
