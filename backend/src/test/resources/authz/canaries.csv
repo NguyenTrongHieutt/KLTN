@@ -58,6 +58,21 @@
 #   pending Crew Application (Story 21.4, AD-20): its note, its proof file's caption, and its proof link. Only the
 #   applicant (CREW_APPLICANT) and the Job's Mentor read them; the Customer never does, and no Administrator grant
 #   covers a Crew Application.
+# - The SM_* canaries are the mode world's (AD-20, AD-47, Story 25.2a), seeded only for a row that runs there
+#   (SelfMentoredFixture). The Customer who mentors a Self-mentored Job reads its Crew as a Mentor does, so
+#   CUSTOMER_MENTOR reads the member's name and LinkedIn link, the Crew Chat, the Crew Application's note and proof
+#   caption, the reason a member gave when leaving (B-16) and another member's Team Issue; the active members read the
+#   names and the Crew Chat (CREW_ACTIVE and CREW_ACTIVE_PARTY here are the mode world's members). The Customer's
+#   contact email stays hidden from every Crew state in the mode too (R61). No normal Job's canary lists
+#   CUSTOMER_MENTOR, and no SM_* canary lists CUSTOMER or MENTOR (MatrixFilesTest). The Dispute's grant will cover the
+#   Crew Chat of a Self-mentored Job (Story 25.7), which its pending rows read. SM_MEMBER_JOB_CHAT is the Job Chat of
+#   the normal Job where the same person is an ACTIVE member (CROSS_ROLE_SELF): being the Customer and Mentor of
+#   another Job opens nothing there, and neither does it show that Job's Customer's contact email
+#   (SM_MEMBER_JOB_CONTACT). SM_TEAM_ISSUE_ID is raised by the member whose name is SM_CREW_NAME, who is no caller.
+#   In a mode row every canary of the normal world is hidden from the row's people, whatever visible_to lists,
+#   since the names are shared and the people are not (MatrixRowRunner.hiddenIn). Not seeded before their stories: a split part and a Split Resolution reason
+#   (25.6), private feedback on the Customer (25.8), and the Working Repository's name, URL and invitation URL (the
+#   D11 canaries, with part 4's work on repo).
 canary,value,visible_to,seeded_as
 CREW_SHARE,7316429,MENTOR,another Crew member's part of a released Milestone in VND
 CREW_EMAIL,canary.crew.c7e2@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,a Crew member's account email
@@ -94,3 +109,14 @@ SPLIT_RESOLUTION_REASON,canary-split-resolution-reason-5a3e71,MENTOR CREW_ACTIVE
 SPLIT_STATEMENT,canary-split-statement-2f8c64,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMIN_SPLIT_RESOLUTION_GRANT,a party's statement on the open Split Resolution
 SPLIT_DECISION_REASONING,canary-split-decision-reasoning-9d1b36,MENTOR CREW_ACTIVE_PARTY CREW_FORMER_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the reasoning of the decided Split Resolution
 HANDOVER_LINK,https://docs.example.test/canary-handover-link-7d2f91,CUSTOMER MENTOR CREW_ACTIVE CROSS_ROLE ADMIN_DISPUTE_GRANT,the URL of a link on the crew Job's submitted handover
+SM_CREW_NAME,Canary Mode Crew Name 7a2c,CUSTOMER_MENTOR CREW_ACTIVE CREW_ACTIVE_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the shown name of a member of the Self-mentored Job
+SM_CREW_EMAIL,canary.mode.crew.3f9b@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,that member's account email
+SM_CREW_LINKEDIN,https://www.linkedin.com/in/canary-mode-crew-4d1e7a,CUSTOMER_MENTOR CREW_ACTIVE CREW_ACTIVE_PARTY ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,that member's LinkedIn link
+SM_CREW_CHAT,canary-mode-crew-chat-5b8e21,CUSTOMER_MENTOR CREW_ACTIVE CREW_ACTIVE_PARTY ADMIN_TEAM_ISSUE_GRANT ADMIN_DISPUTE_GRANT,a Crew Chat message of the Self-mentored Job
+SM_CREW_APPLICATION_NOTE,canary-mode-crew-application-note-9e4c16,CUSTOMER_MENTOR,the note of the Self-mentored Job's pending Crew Application
+SM_CREW_APPLICATION_PROOF_CAPTION,canary-mode-crew-application-proof-2a7d53,CUSTOMER_MENTOR,the caption of that application's proof file
+SM_CREW_LEFT_NOTE,canary-mode-crew-left-note-6c3f08,CUSTOMER_MENTOR,the reason a member gave when leaving the Self-mentored Job
+SM_TEAM_ISSUE_ID,01923c4f-7c8d-7e9f-8a0b-3c4d5e6f7081,CUSTOMER_MENTOR,the ID of a Team Issue another member of the Self-mentored Job raised
+SM_CONTACT_EMAIL,canary.mode.contact.8e5a@example.test,CUSTOMER_MENTOR CROSS_ROLE_SELF ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the contact email of the Customer who mentors the Self-mentored Job
+SM_MEMBER_JOB_CHAT,canary-mode-member-job-chat-1d6b94,,a Job Chat message of the normal Job where the Customer who mentors is a member
+SM_MEMBER_JOB_CONTACT,canary.mode.member.job.contact.2c7f@example.test,ADMINISTRATOR ADMIN_DISPUTE_GRANT ADMIN_TEAM_ISSUE_GRANT ADMIN_ABUSE_REPORT_GRANT ADMIN_SPLIT_RESOLUTION_GRANT,the contact email of the Customer of that normal Job

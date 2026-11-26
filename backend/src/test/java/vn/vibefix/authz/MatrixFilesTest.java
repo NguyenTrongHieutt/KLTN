@@ -50,7 +50,16 @@ class MatrixFilesTest {
 	/** A Job-scoped endpoint's callers on top of {@link #GLOBAL}. */
 	static final Set<MatrixCaller> PER_JOB = EnumSet.of(MatrixCaller.CUSTOMER, MatrixCaller.MENTOR, MatrixCaller.BIDDER,
 			MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CROSS_ROLE,
-			MatrixCaller.LOCKED);
+			MatrixCaller.LOCKED, MatrixCaller.CUSTOMER_MENTOR);
+
+	/**
+	 * The callers of the mode world (AD-20, AD-47): the Customer who mentors, and the Crew, the locked member and the
+	 * grant holders on the families whose policy has a mode branch; and the unrelated user, whom its Job tells nothing.
+	 */
+	static final Set<MatrixCaller> IN_THE_MODE_WORLD = EnumSet.of(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CREW_ASSIGNED,
+			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CREW_ACTIVE_PARTY,
+			MatrixCaller.CREW_FORMER_PARTY, MatrixCaller.LOCKED, MatrixCaller.ADMIN_DISPUTE_GRANT,
+			MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT, MatrixCaller.USER);
 
 	/**
 	 * The callers whose relation is to the crew Job only, never to the Customer's Draft, so their rows on an
@@ -354,8 +363,122 @@ class MatrixFilesTest {
 		// 3,000 since Story 21.3 scanned PUB-4 for a Crew member as well as for the Mentor, 3,150 since Story 21.4
 		// added the recruitment, the Crew Applications and their proof files, 3,200 since Story 22.2 added JOB-10's
 		// endpoints with the split's party callers, and 3,450 since Story 22.3 added the Split Resolutions, their queue and
-		// their evidence with the grant's caller on every read of Job content.
-		assertThat(MatrixRow.loadMatrix()).as("3,450 rows or fewer").hasSizeLessThanOrEqualTo(3_450);
+		// their evidence with the grant's caller on every read of Job content, and 3,800 since Story 25.2a added the
+		// mode world (AD-20: about 200 rows for CUSTOMER_MENTOR and 150 for its Crew and grant callers).
+		assertThat(MatrixRow.loadMatrix()).as("3,800 rows or fewer").hasSizeLessThanOrEqualTo(3_800);
+	}
+
+	/**
+	 * AD-20, AD-47: {@code CUSTOMER_MENTOR} lives in the mode world alone, so each of its rows carries {@code job=self},
+	 * whatever the endpoint names; no caller without a relation there runs in it; and {@code CROSS_ROLE_SELF} runs on
+	 * the normal Job where the same person is a member, never with {@code job=self}.
+	 */
+	@Test
+	void theModeWorldRunsItsOwnCallersAndTheCustomerWhoMentorsRunsNowhereElse() {
+		assertThat(MatrixRow.loadMatrix())
+			.filteredOn(row -> row.caller() == MatrixCaller.CUSTOMER_MENTOR)
+			.isNotEmpty()
+			.allSatisfy(row -> assertThat(row.selfWorld()).as("%s runs in the mode world", row).isTrue());
+		assertThat(MatrixRow.loadMatrix()).filteredOn(MatrixRow::selfWorld)
+			.allSatisfy(row -> assertThat(IN_THE_MODE_WORLD).as("%s has a relation in the mode world", row)
+				.contains(row.caller()));
+		assertThat(MatrixRow.loadMatrix())
+			.filteredOn(row -> row.caller() == MatrixCaller.CROSS_ROLE_SELF || row.binds(Binding.SELF_MEMBER_JOB))
+			.isNotEmpty()
+			.allSatisfy(row -> assertThat(row.caller() == MatrixCaller.CROSS_ROLE_SELF
+					&& (row.binds(Binding.SELF_MEMBER_JOB) || !row.jobScoped()))
+				.as("%s is the cross-role person on the normal Job where they are a member, or on a list of their own", row)
+				.isTrue());
+		// No mode row reads an object of the normal world: it names the mode world's objects and constants only.
+		assertThat(MatrixRow.loadMatrix()).filteredOn(MatrixRow::selfWorld).allSatisfy(row -> {
+			Set<String> allowed = new TreeSet<>(MatrixRow.SELF_WORLD);
+			allowed.addAll(MatrixRow.CONSTANTS);
+			assertThat(allowed).as("%s names the mode world's objects only", row).containsAll(row.placeholders());
+		});
+		// R63: handing over refuses the Customer who mentors from Story 25.2a on, so those rows never wait for a story.
+		assertThat(MatrixRow.loadMatrix())
+			.filteredOn(row -> row.caller() == MatrixCaller.CUSTOMER_MENTOR
+					&& row.path().startsWith("/api/v1/boards/{boardId}/handovers/")
+					|| row.caller() == MatrixCaller.CUSTOMER_MENTOR && row.endpoint().equals("POST /api/v1/boards/{boardId}/handovers"))
+			.hasSize(6)
+			.allSatisfy(row -> {
+				assertThat(row.pending()).as("%s does not wait", row).isNull();
+				assertThat(row.expect().reason()).as("%s", row).isEqualTo("TEAM_ONLY");
+			});
+	}
+
+	/**
+	 * AD-20, AD-47: the mode world has its own canaries, named {@code SM_*}. The Customer who mentors reads no canary of a
+	 * normal Job, and a normal Job's Customer and Mentor read none of the mode world's. In a mode row the scan hides
+	 * every normal canary from the row's people, whatever {@code visible_to} lists.
+	 */
+	@Test
+	void theModeWorldsCanariesAreItsOwn() {
+		List<Canaries.Canary> canaries = Canaries.load().all();
+		assertThat(canaries).filteredOn(canary -> canary.name().startsWith("SM_"))
+			.extracting(Canaries.Canary::name)
+			.containsExactlyInAnyOrder("SM_CREW_NAME", "SM_CREW_EMAIL", "SM_CREW_LINKEDIN", "SM_CREW_CHAT",
+					"SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID",
+					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT", "SM_MEMBER_JOB_CONTACT");
+		for (Canaries.Canary canary : canaries) {
+			boolean mode = canary.name().startsWith("SM_");
+			if (mode) {
+				assertThat(canary.visibleTo()).as("%s is the mode world's", canary.name())
+					.doesNotContain(MatrixCaller.CUSTOMER, MatrixCaller.MENTOR, MatrixCaller.CROSS_ROLE, MatrixCaller.BIDDER,
+							MatrixCaller.CREW_APPLICANT, MatrixCaller.USER, MatrixCaller.USER_UNVERIFIED, MatrixCaller.ANONYMOUS,
+							MatrixCaller.LOCKED, MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_FORMER);
+			}
+			else {
+				assertThat(canary.visibleTo()).as("%s is a normal Job's", canary.name())
+					.doesNotContain(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CROSS_ROLE_SELF);
+			}
+		}
+		Canaries all = Canaries.load();
+		assertThat(all.get("SM_MEMBER_JOB_CHAT").visibleTo()).as("no Crew state reads a Job Chat").isEmpty();
+		// The Customer who mentors reads the Crew as a Mentor does; the Customer's contact stays hidden from the Crew (R61).
+		for (String name : List.of("SM_CREW_NAME", "SM_CREW_LINKEDIN", "SM_CREW_CHAT", "SM_CREW_APPLICATION_NOTE",
+				"SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID", "SM_CONTACT_EMAIL")) {
+			assertThat(all.get(name).visibleTo()).as(name).contains(MatrixCaller.CUSTOMER_MENTOR);
+		}
+		assertThat(all.get("SM_CONTACT_EMAIL").visibleTo()).doesNotContain(MatrixCaller.CREW_ACTIVE,
+				MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY);
+		for (String name : List.of("SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE",
+				"SM_TEAM_ISSUE_ID")) {
+			assertThat(all.get(name).visibleTo()).as(name).containsExactly(MatrixCaller.CUSTOMER_MENTOR);
+		}
+		// The scan of a mode row: a member of the mode world is not the crew Job's member, so the crew Job's Crew Chat is
+		// hidden from them, and a grant holder keeps only what any Administrator reads.
+		MatrixRow member = MatrixRow.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,job=self,,200\n").getFirst();
+		assertThat(names(MatrixRowRunner.hiddenIn(member, all))).contains("CREW_CHAT", "CREW_NAME", "HANDOVER_LINK", "SM_CONTACT_EMAIL")
+			.doesNotContain("SM_CREW_CHAT", "SM_CREW_NAME");
+		MatrixRow grant = MatrixRow
+			.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_TEAM_ISSUE_GRANT,job=self,,200\n").getFirst();
+		assertThat(names(MatrixRowRunner.hiddenIn(grant, all))).contains("CREW_CHAT", "JOB_CHAT").doesNotContain("CREW_NAME",
+				"SM_CREW_CHAT");
+		MatrixRow normal = MatrixRow.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,job=crew,,200\n").getFirst();
+		assertThat(MatrixRowRunner.hiddenIn(normal, all)).isEqualTo(all.hiddenFrom(MatrixCaller.CREW_ACTIVE));
+		assertThat(all.normal().all()).as("the normal world's rules read the normal canaries")
+			.noneMatch(canary -> canary.name().startsWith(Canaries.MODE_PREFIX));
+	}
+
+	@Test
+	void aPendingRowNamesItsStoryAndRunsInTheModeWorld() {
+		MatrixRow pending = MatrixRow.parse(HEADER
+				+ "GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending=25.5,,200\n").getFirst();
+		assertThat(pending.pending()).isEqualTo("25.5");
+		assertThat(pending.callerState()).isEmpty();
+		assertThat(pending.rebound()).containsEntry("boardId", "selfBoardId");
+		assertThatThrownBy(() -> MatrixRow
+			.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER,job=crew;pending=25.5,,200\n"))
+			.hasMessageContaining("only a job=self row is pending");
+		for (String story : List.of("soon", "25.2a", "25.9", "25.33", "24.3")) {
+			assertThatThrownBy(() -> MatrixRow.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending="
+					+ story + ",,200\n")).as(story).hasMessageContaining("pending names a story");
+		}
+		// Another binding's value reads its mode twin, and a constant keeps its one value.
+		MatrixRow file = MatrixRow.parse(HEADER + "GET /api/v1/files/{fileId},CUSTOMER_MENTOR,job=self;file=chat,,200\n")
+			.getFirst();
+		assertThat(file.rebound()).containsEntry("fileId", "selfChatFileId");
 	}
 
 	@Test
@@ -373,7 +496,7 @@ class MatrixFilesTest {
 		String job = global.replace("/api/v1/x", "/api/v1/jobs/{jobId}");
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + job)))
 			.containsExactly("GET /api/v1/jobs/{jobId} has no row for [LOCKED, MENTOR, BIDDER, CREW_ASSIGNED, CREW_ACTIVE, "
-					+ "CREW_FORMER, CROSS_ROLE]");
+					+ "CREW_FORMER, CROSS_ROLE, CUSTOMER_MENTOR]");
 		String body = global.replace("GET /api/v1/x,", "POST /api/v1/team-issues,").replace(",,,", ",,team-issue.json,");
 		assertThat(coverageViolations(MatrixRow.parse(HEADER + body))).as("a Job in the body scopes the endpoint")
 			.singleElement()
@@ -410,7 +533,7 @@ class MatrixFilesTest {
 
 	@Test
 	void everyCallerOfTheCrewJobRunsTheJobEndpointsOnIt() {
-		assertThat(jobBindingViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(jobBindingViolations(MatrixRow.loadNormal())).isEmpty();
 	}
 
 	@Test
@@ -504,7 +627,7 @@ class MatrixFilesTest {
 
 	@Test
 	void someCallerPassesEveryJobScopedEndpointsPolicy() {
-		assertThat(livenessViolations(MatrixRow.loadMatrix(), UNREACHABLE)).isEmpty();
+		assertThat(livenessViolations(MatrixRow.loadNormal(), UNREACHABLE)).isEmpty();
 	}
 
 	@Test
@@ -564,7 +687,7 @@ class MatrixFilesTest {
 
 	@Test
 	void eachGrantCallerRunsItsCaseAndEveryContentReadAndGetsItsOwnScope() {
-		assertThat(grantViolations(MatrixRow.loadMatrix(), GRANT_SCOPES, CONTENT_READS)).isEmpty();
+		assertThat(grantViolations(MatrixRow.loadNormal(), GRANT_SCOPES, CONTENT_READS)).isEmpty();
 	}
 
 	@Test
@@ -607,7 +730,7 @@ class MatrixFilesTest {
 	@Test
 	void everyFileReadPolicyRunsThroughItsBindingOrIsListedUnreachable() {
 		assertThat(filePolicies()).as("the file read policies").hasSizeGreaterThanOrEqualTo(5);
-		assertThat(fileViolations(MatrixRow.loadMatrix(), filePolicies(), FILE_POLICIES, UNREACHABLE_FILE_POLICIES))
+		assertThat(fileViolations(MatrixRow.loadNormal(), filePolicies(), FILE_POLICIES, UNREACHABLE_FILE_POLICIES))
 			.isEmpty();
 	}
 
@@ -679,7 +802,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theCrossRolePersonReadsTheCrewJobAsAnActiveMember() {
-		assertThat(crossRoleViolations(MatrixRow.loadMatrix())).isEmpty();
+		assertThat(crossRoleViolations(MatrixRow.loadNormal())).isEmpty();
 		assertThat(crossRoleViolations(MatrixRow.parse(HEADER + """
 				GET /api/v1/boards/{boardId}/handovers,CREW_ACTIVE,,,200
 				GET /api/v1/boards/{boardId}/handovers,CROSS_ROLE,,,404 NOT_FOUND
@@ -694,7 +817,7 @@ class MatrixFilesTest {
 
 	@Test
 	void aNumericCanaryIsAlsoScannedAsVnd() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(MatrixRowRunner.forms(canaries.get("CREW_SHARE"))).containsExactly("7316429", "7.316.429");
 		assertThat(MatrixRowRunner.forms(canaries.get("CREW_NAME"))).containsExactly(canaries.get("CREW_NAME").value());
@@ -702,12 +825,12 @@ class MatrixFilesTest {
 
 	@Test
 	void everyListOfJobContentRunsEveryCallerOfTheCrewJob() {
-		assertThat(callerViolations(MatrixRow.loadMatrix(), JOB_LISTS::contains, IN_THE_CREW_JOB)).isEmpty();
+		assertThat(callerViolations(MatrixRow.loadNormal(), JOB_LISTS::contains, IN_THE_CREW_JOB)).isEmpty();
 	}
 
 	@Test
 	void everyEndpointOfTheProductRunsTheCrewJobsMentorAndCrew() {
-		assertThat(callerViolations(MatrixRow.loadMatrix(), MatrixFilesTest::onTheProduct, ON_THE_PRODUCT)).isEmpty();
+		assertThat(callerViolations(MatrixRow.loadNormal(), MatrixFilesTest::onTheProduct, ON_THE_PRODUCT)).isEmpty();
 	}
 
 	@Test
@@ -745,7 +868,7 @@ class MatrixFilesTest {
 
 	@Test
 	void everyCanaryIsHiddenFromTheCallersWithoutARelation() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(canaries.all()).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN",
@@ -809,7 +932,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theCustomerSeesNoCrewCanary() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CUSTOMER))).containsAll(CREW_CANARIES);
 		assertThat(names(canaries.all()).stream().filter(name -> !canaries.get(name).hiddenFrom(MatrixCaller.CUSTOMER)))
@@ -819,7 +942,7 @@ class MatrixFilesTest {
 
 	@Test
 	void noCrewStateReadsTheJobChatOrTheCustomersContact() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		for (MatrixCaller caller : new MatrixCaller[] { MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE,
 				MatrixCaller.CREW_FORMER, MatrixCaller.LOCKED, MatrixCaller.CROSS_ROLE }) {
@@ -840,7 +963,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theCrossRolePersonReadsWhatAnActiveMemberReadsAndNothingOfTheirOwnJobsCrew() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(canaries.hiddenFrom(MatrixCaller.CROSS_ROLE)).isEqualTo(canaries.hiddenFrom(MatrixCaller.CREW_ACTIVE));
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CROSS_ROLE))).containsAll(CROSS_CANARIES);
@@ -848,7 +971,7 @@ class MatrixFilesTest {
 
 	@Test
 	void eachAdministratorGrantReadsOnlyWhatItsScopeCovers() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR))).containsExactlyInAnyOrder("CREW_SHARE",
 				"CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT",
@@ -889,7 +1012,7 @@ class MatrixFilesTest {
 
 	@Test
 	void onlyTheCustomersCrewNamesOnPublicReputationAreExempt() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 		MatrixRow reputation = MatrixRow
 			.parse(HEADER + "GET /api/v1/users/{username}/reputation,CUSTOMER,user=member,,200")
 			.getFirst();
@@ -926,7 +1049,7 @@ class MatrixFilesTest {
 	void theCallersAreAd20s() {
 		assertThat(Arrays.stream(MatrixCaller.values()).map(Enum::name)).containsExactly("ANONYMOUS", "USER_UNVERIFIED",
 				"USER", "LOCKED", "CUSTOMER", "MENTOR", "BIDDER", "CREW_APPLICANT", "CREW_ASSIGNED", "CREW_ACTIVE", "CREW_FORMER",
-				"CREW_ACTIVE_PARTY", "CREW_FORMER_PARTY", "CROSS_ROLE", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
+				"CREW_ACTIVE_PARTY", "CREW_FORMER_PARTY", "CROSS_ROLE", "CUSTOMER_MENTOR", "CROSS_ROLE_SELF", "SUBJECT", "ADMINISTRATOR", "ADMIN_DISPUTE_GRANT", "ADMIN_TEAM_ISSUE_GRANT",
 				"ADMIN_ABUSE_REPORT_GRANT", "ADMIN_SPLIT_RESOLUTION_GRANT", "ACTIONS_RUN", "AUTHOR");
 	}
 
@@ -1303,6 +1426,11 @@ class MatrixFilesTest {
 		List<String> violations = new ArrayList<>();
 		for (MatrixRow row : rows) {
 			for (Binding binding : row.bindings()) {
+				// job=self names a world, not one placeholder; the member Job is also its own {boardId}.
+				if (binding == Binding.SELF_JOB
+						|| (binding == Binding.SELF_MEMBER_JOB && row.placeholders().contains("boardId"))) {
+					continue;
+				}
 				if (!row.placeholders().contains(binding.placeholder())) {
 					violations.add(row + " binds " + binding.state() + " but names no {" + binding.placeholder() + "}");
 				}

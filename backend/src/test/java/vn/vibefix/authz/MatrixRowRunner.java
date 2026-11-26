@@ -16,6 +16,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -100,25 +102,59 @@ public final class MatrixRowRunner {
 		return fixtures;
 	}
 
+	/**
+	 * Runs the row. A pending row (R63) holds the decision the finished mode gives, which its story makes pass: it is
+	 * sent and scanned for canaries like any other, it must not answer a server error, and it must still differ from
+	 * its final decision, so a mark nobody needs any more fails the build. It is then reported as skipped. A pending
+	 * row that names an object the world does not hold yet cannot be sent, and is skipped with that reason.
+	 */
 	public void run(MatrixRow row) throws Exception {
 		MatrixWorld world = new MatrixWorld();
+		world.selfMode(row.modeWorld());
 		this.fixtures.forEach(fixture -> fixture.seed(world));
 		boolean upload = row.body() != null && !row.body().endsWith(".json");
+		String path;
+		String content = null;
+		try {
+			path = world.expand(row.path(), row.rebound());
+			if (row.body() != null && !upload) {
+				content = world.expand(body(row.body()), row.rebound());
+			}
+		}
+		catch (MatrixWorld.NotSeeded missing) {
+			if (row.pending() == null) {
+				throw missing;
+			}
+			Assumptions.abort("pending Story " + row.pending() + ", not sent (" + missing.getMessage() + "): " + row);
+			return;
+		}
 		AbstractMockHttpServletRequestBuilder<?> request = (upload
-				? multipart(row.method(), world.expand(row.path(), row.rebound()))
+				? multipart(row.method(), path)
 					.file(new MockMultipartFile("file", row.body(), "application/octet-stream", bytes(row.body())))
-				: request(row.method(), world.expand(row.path(), row.rebound())))
+				: request(row.method(), path))
 			.with(realize(row, world));
 		if (row.method() != HttpMethod.GET) {
 			// A command carries the CSRF token as the SPA sends it (AD-19); without it Spring refuses.
 			request.with(csrf());
 		}
-		if (row.body() != null && !upload) {
-			request.contentType(MediaType.APPLICATION_JSON).content(world.expand(body(row.body()), row.rebound()));
+		if (content != null) {
+			request.contentType(MediaType.APPLICATION_JSON).content(content);
 		}
 		MockHttpServletResponse response = this.mvc.perform(request).andReturn().getResponse();
-		assertExpectation(row, response);
+		if (row.pending() == null) {
+			assertExpectation(row, response);
+			assertNoHiddenCanary(row, response);
+			return;
+		}
 		assertNoHiddenCanary(row, response);
+		if (response.getStatus() >= 500) {
+			throw new AssertionError("A pending row answers " + response.getStatus() + ": " + row);
+		}
+		if (mismatch(row, response) == null) {
+			throw new AssertionError("The row already answers its final decision: remove pending=" + row.pending()
+					+ " from " + row);
+		}
+		Assumptions.abort("pending Story " + row.pending() + ", answers " + response.getStatus() + " today: " + row);
 	}
 
 	private RequestPostProcessor realize(MatrixRow row, MatrixWorld world) {
@@ -152,28 +188,37 @@ public final class MatrixRowRunner {
 	}
 
 	private static void assertExpectation(MatrixRow row, MockHttpServletResponse response) throws IOException {
+		String mismatch = mismatch(row, response);
+		if (mismatch != null) {
+			throw new AssertionError(mismatch);
+		}
+	}
+
+	/** How the answer differs from the row's expectation, or {@code null} when it is the expected answer. */
+	private static @Nullable String mismatch(MatrixRow row, MockHttpServletResponse response) throws IOException {
 		Expectation expect = row.expect();
 		if (response.getStatus() != expect.status()) {
-			throw new AssertionError("Expected " + expect.status() + " but got " + response.getStatus() + " for " + row);
+			return "Expected " + expect.status() + " but got " + response.getStatus() + " for " + row;
 		}
 		if (expect.code() == null) {
-			return;
+			return null;
 		}
 		JsonNode body = JSON.readTree(response.getContentAsString(StandardCharsets.UTF_8));
 		String code = body.path("code").asString(null);
 		if (!expect.code().equals(code)) {
-			throw new AssertionError("Expected code " + expect.code() + " but got " + code + " for " + row);
+			return "Expected code " + expect.code() + " but got " + code + " for " + row;
 		}
 		String reason = body.path("reason").asString(null);
 		if (expect.reason() != null && !expect.reason().equals(reason)) {
-			throw new AssertionError("Expected reason " + expect.reason() + " but got " + reason + " for " + row);
+			return "Expected reason " + expect.reason() + " but got " + reason + " for " + row;
 		}
+		return null;
 	}
 
 	private void assertNoHiddenCanary(MatrixRow row, MockHttpServletResponse response) throws IOException {
 		String body = response.getContentAsString(StandardCharsets.UTF_8);
 		String errorMessage = response.getErrorMessage() == null ? "" : response.getErrorMessage();
-		for (Canary canary : this.canaries.hiddenFrom(row.caller())) {
+		for (Canary canary : hiddenIn(row, this.canaries)) {
 			if (exempt(row, canary, this.publicReputation)) {
 				continue;
 			}
@@ -192,6 +237,24 @@ public final class MatrixRowRunner {
 				}
 			}
 		}
+	}
+
+	/**
+	 * The canaries the row's caller must not receive. {@code visible_to} names callers, and a caller of the mode world is
+	 * another person than the normal world's caller of that name, so a mode row hides every canary of the normal world
+	 * from its people: only what any Administrator reads stays open to its grant holders. The mode world's own canaries
+	 * follow their {@code visible_to}.
+	 */
+	static List<Canary> hiddenIn(MatrixRow row, Canaries canaries) {
+		if (!row.modeWorld()) {
+			return canaries.hiddenFrom(row.caller());
+		}
+		boolean administrator = row.caller().name().startsWith("ADMIN");
+		return canaries.all()
+			.stream()
+			.filter(canary -> canary.name().startsWith(Canaries.MODE_PREFIX) ? canary.hiddenFrom(row.caller())
+					: !administrator || canary.hiddenFrom(MatrixCaller.ADMINISTRATOR))
+			.toList();
 	}
 
 	/**
