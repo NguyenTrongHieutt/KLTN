@@ -151,6 +151,7 @@ public class SelfMentoredFixture implements MatrixFixture {
 		put(world, "boardId", job);
 		put(world, "postId", job);
 		crew(world, job, product);
+		repositories(job, product);
 		UUID chat = JobContent.chat(this.jdbc, job, product, "CREW");
 		put(world, "crewChatId", chat);
 		JobContent.message(this.jdbc, chat, this.customer, "Chào cả nhóm, mình bắt đầu nhé", SIGNED.plus(Duration.ofHours(1)));
@@ -304,6 +305,71 @@ public class SelfMentoredFixture implements MatrixFixture {
 	private AdministratorTestSupport.Administrator enrol(UUID admin, String name) {
 		return AdministratorTestSupport.enrol(this.context, admin, name + "." + admin + "@vibefix.test",
 				"Quản trị " + name, MutableClock.DEFAULT_INSTANT);
+	}
+
+	/**
+	 * The Job's repositories as J7 left them (D11, AD-11, R69): the Setup done and recording the mode, the active member
+	 * with write on the Working Repository, the member of the split still invited to it, and the Customer who mentors with
+	 * their read on the Intermediary Repository alone. The Working Repository's name is {@code SM_WORKING_REPOSITORY}; its
+	 * page and the page of the pending invitation follow from the name ({@code SM_WORKING_REPOSITORY_URL},
+	 * {@code SM_INVITATION_URL}), and none of the three ever reaches the Customer who mentors.
+	 */
+	private void repositories(UUID job, UUID product) {
+		Timestamp at = Timestamp.from(SIGNED);
+		String working = value("SM_WORKING_REPOSITORY");
+		String intermediary = working.replace("working", "intermediary");
+		long workingId = 7_250_201L;
+		long intermediaryId = 7_250_202L;
+		this.jdbc.sql("""
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, assessment, self_mentored, source_full_name,
+				    default_branch, head_sha, head_read_at, approved_sha, confirmed_at, intermediary_github_id,
+				    intermediary_name, working_github_id, working_name, checked_at, intermediary_at, working_at, copied_at,
+				    started_at, finished_at)
+				VALUES (:id, :job, :product, 'DONE', FALSE, TRUE, 'khach-tu-huong-dan/san-pham', 'main', :sha, :at, :sha, :at,
+				    :intermediaryId, :intermediary, :workingId, :working, :at, :at, :at, :at, :at, :at)
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", job)
+			.param("product", product)
+			.param("sha", "5a".repeat(20))
+			.param("at", at)
+			.param("intermediaryId", intermediaryId)
+			.param("intermediary", intermediary)
+			.param("workingId", workingId)
+			.param("working", working)
+			.update();
+		grant(job, product, this.active, "CREW", workingId, working, "WRITE");
+		grant(job, product, this.activeParty, "CREW", workingId, working, "INVITED");
+		grant(job, product, this.customer, "CUSTOMER", intermediaryId, intermediary, "ACCEPTED");
+	}
+
+	/** One person's grant on one of the Job's repositories, in {@code status}. */
+	private void grant(UUID job, UUID product, UUID account, String role, long repositoryId, String repository,
+			String status) {
+		boolean invited = "INVITED".equals(status);
+		Timestamp at = Timestamp.from(SIGNED);
+		this.jdbc.sql("""
+				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, github_user_id,
+				    repository_github_id, repository_name, crew_change, read_only, status, invitation_id, invited_at,
+				    expires_at, accepted_at, write_at, created_at)
+				SELECT :id, :job, :product, a.id, :role, a.github_login, a.github_user_id, :repositoryId, :repository, FALSE,
+				    FALSE, :status, :invitation, :at, :expires, :accepted, :write, :at
+				FROM identity.account a WHERE a.id = :account
+				""")
+			.param("id", UUID.randomUUID())
+			.param("job", job)
+			.param("product", product)
+			.param("account", account)
+			.param("role", role)
+			.param("repositoryId", repositoryId)
+			.param("repository", repository)
+			.param("status", status)
+			.param("invitation", invited ? 7_250_301L : null)
+			.param("at", at)
+			.param("expires", invited ? Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(5))) : null)
+			.param("accepted", invited ? null : at)
+			.param("write", "WRITE".equals(status) ? at : null)
+			.update();
 	}
 
 	/** A Self-mentored Job of the Customer in {@code state}, as J11 leaves it and the later transitions move it. */
