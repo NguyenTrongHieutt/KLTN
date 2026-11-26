@@ -398,7 +398,11 @@ class MatrixFilesTest {
 	@Test
 	void theModeWorldsCanariesAreItsOwn() {
 		List<Canaries.Canary> canaries = Canaries.load().all();
-		assertThat(canaries).filteredOn(canary -> canary.name().startsWith("SM_")).isNotEmpty();
+		assertThat(canaries).filteredOn(canary -> canary.name().startsWith("SM_"))
+			.extracting(Canaries.Canary::name)
+			.containsExactlyInAnyOrder("SM_CREW_NAME", "SM_CREW_EMAIL", "SM_CREW_LINKEDIN", "SM_CREW_CHAT",
+					"SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID",
+					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT");
 		for (Canaries.Canary canary : canaries) {
 			boolean mode = canary.name().startsWith("SM_");
 			if (mode) {
@@ -412,7 +416,21 @@ class MatrixFilesTest {
 					.doesNotContain(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CROSS_ROLE_SELF);
 			}
 		}
-		assertThat(Canaries.load().get("SM_MEMBER_JOB_CHAT").visibleTo()).as("no Crew state reads a Job Chat").isEmpty();
+		Canaries all = Canaries.load();
+		assertThat(all.get("SM_MEMBER_JOB_CHAT").visibleTo()).as("no Crew state reads a Job Chat").isEmpty();
+		// The Customer who mentors reads the Crew as a Mentor does; the Customer's contact stays hidden from the Crew (R61).
+		for (String name : List.of("SM_CREW_NAME", "SM_CREW_LINKEDIN", "SM_CREW_CHAT", "SM_CREW_APPLICATION_NOTE",
+				"SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID", "SM_CONTACT_EMAIL")) {
+			assertThat(all.get(name).visibleTo()).as(name).contains(MatrixCaller.CUSTOMER_MENTOR);
+		}
+		assertThat(all.get("SM_CONTACT_EMAIL").visibleTo()).doesNotContain(MatrixCaller.CREW_ACTIVE,
+				MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY);
+		for (String name : List.of("SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE",
+				"SM_TEAM_ISSUE_ID")) {
+			assertThat(all.get(name).visibleTo()).as(name).containsExactly(MatrixCaller.CUSTOMER_MENTOR);
+		}
+		assertThat(all.normal().all()).as("the normal world's rules read the normal canaries")
+			.noneMatch(canary -> canary.name().startsWith(Canaries.MODE_PREFIX));
 	}
 
 	@Test
@@ -770,7 +788,7 @@ class MatrixFilesTest {
 
 	@Test
 	void aNumericCanaryIsAlsoScannedAsVnd() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(MatrixRowRunner.forms(canaries.get("CREW_SHARE"))).containsExactly("7316429", "7.316.429");
 		assertThat(MatrixRowRunner.forms(canaries.get("CREW_NAME"))).containsExactly(canaries.get("CREW_NAME").value());
@@ -821,7 +839,7 @@ class MatrixFilesTest {
 
 	@Test
 	void everyCanaryIsHiddenFromTheCallersWithoutARelation() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(canaries.all()).extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("CREW_SHARE", "CREW_EMAIL", "CREW_NAME", "CREW_LINKEDIN",
@@ -885,7 +903,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theCustomerSeesNoCrewCanary() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CUSTOMER))).containsAll(CREW_CANARIES);
 		assertThat(names(canaries.all()).stream().filter(name -> !canaries.get(name).hiddenFrom(MatrixCaller.CUSTOMER)))
@@ -895,7 +913,7 @@ class MatrixFilesTest {
 
 	@Test
 	void noCrewStateReadsTheJobChatOrTheCustomersContact() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		for (MatrixCaller caller : new MatrixCaller[] { MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE,
 				MatrixCaller.CREW_FORMER, MatrixCaller.LOCKED, MatrixCaller.CROSS_ROLE }) {
@@ -916,7 +934,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theCrossRolePersonReadsWhatAnActiveMemberReadsAndNothingOfTheirOwnJobsCrew() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(canaries.hiddenFrom(MatrixCaller.CROSS_ROLE)).isEqualTo(canaries.hiddenFrom(MatrixCaller.CREW_ACTIVE));
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.CROSS_ROLE))).containsAll(CROSS_CANARIES);
@@ -924,7 +942,7 @@ class MatrixFilesTest {
 
 	@Test
 	void eachAdministratorGrantReadsOnlyWhatItsScopeCovers() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 
 		assertThat(names(canaries.hiddenFrom(MatrixCaller.ADMINISTRATOR))).containsExactlyInAnyOrder("CREW_SHARE",
 				"CREW_CHAT", "CREW_CHAT_UNREPORTED", "JOB_CHAT",
@@ -965,7 +983,7 @@ class MatrixFilesTest {
 
 	@Test
 	void onlyTheCustomersCrewNamesOnPublicReputationAreExempt() {
-		Canaries canaries = Canaries.load();
+		Canaries canaries = Canaries.load().normal();
 		MatrixRow reputation = MatrixRow
 			.parse(HEADER + "GET /api/v1/users/{username}/reputation,CUSTOMER,user=member,,200")
 			.getFirst();

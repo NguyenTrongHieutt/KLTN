@@ -102,6 +102,17 @@ public final class Canaries {
 		return new Canaries(canaries);
 	}
 
+	/** The prefix of the mode world's canaries (AD-20, AD-47), which only a row of that world can meet. */
+	public static final String MODE_PREFIX = "SM_";
+
+	/**
+	 * The canaries of the normal world alone, without the mode world's: what the rules written for the crew Job, the
+	 * post and the Draft speak of.
+	 */
+	public Canaries normal() {
+		return new Canaries(all().stream().filter(canary -> !canary.name().startsWith(MODE_PREFIX)).toList());
+	}
+
 	public Canary get(String name) {
 		Canary canary = this.byName.get(name);
 		if (canary == null) {
