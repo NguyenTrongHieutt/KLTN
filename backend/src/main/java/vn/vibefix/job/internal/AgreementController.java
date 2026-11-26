@@ -25,6 +25,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.identity.ActiveAccount;
+import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Content;
@@ -99,8 +100,15 @@ class AgreementController {
 			@NotNull @Size(max = Agreements.MAX_EXTERNAL_ACCESS) List<UUID> liveAccessIds) {
 	}
 
-	/** "Xác nhận thỏa thuận" at the {@code Job.version} and {@code crewVersion} the screen loaded. */
-	record AgreementConfirmRequest(@NotNull Long version, @NotNull Long crewVersion) {
+	/**
+	 * "Xác nhận thỏa thuận" at the {@code Job.version} and {@code crewVersion} the screen loaded. The last three fields are
+	 * the one step of a Self-mentored Job (AD-47, B-11) and are read there only.
+	 * @param revision the draft revision the screen loaded
+	 * @param freezeCommitment N-6, which a Code Job needs
+	 * @param liveAccessIds the External Access entries marked as live systems
+	 */
+	record AgreementConfirmRequest(@NotNull Long version, @NotNull Long crewVersion, @Nullable @Min(0) Integer revision,
+			@Nullable Boolean freezeCommitment, @Nullable @Size(max = Agreements.MAX_EXTERNAL_ACCESS) List<UUID> liveAccessIds) {
 	}
 
 	record AgreementCommentView(UUID id, int versionNo, TargetKind targetKind, @Nullable UUID targetId, String body,
@@ -131,10 +139,11 @@ class AgreementController {
 	/**
 	 * The Mentor's editor: the live draft, what keeps it from being shared, and the Customer's review.
 	 * @param reworkDays the Job's copied {@code REWORK_DAYS}, for the note on due dates (FR-87)
+	 * @param selfMentored a Self-mentored Job (FR-85): the editor's one reader confirms alone, with no share and no review
 	 */
 	record AgreementDraftView(int revision, Content content, List<Problem> problems, @Nullable QuoteView quote,
 			List<VersionSummary> versions, JobState state, AgreementReviewView review,
-			@Nullable ConfirmedAgreementView confirmed, int reworkDays) {
+			@Nullable ConfirmedAgreementView confirmed, int reworkDays, boolean selfMentored) {
 	}
 
 	/**
@@ -206,20 +215,27 @@ class AgreementController {
 		return view(mentorJob(mentor, jobId), draft);
 	}
 
-	/** "Gửi cho khách hàng" (FR-16). */
+	/** "Gửi cho khách hàng" (FR-16). A Self-mentored Job has no share step: its Customer finds nothing here (B-11). */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/agreement/share")
 	AgreementDraftView share(@PathVariable UUID jobId, @Valid @RequestBody ShareRequest body) {
 		UUID mentor = mentorOf(jobId);
+		if (this.roles.roleOf(jobId, this.callers.get()).isSelfMentor()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
 		this.agreements.share(mentor, jobId, body.revision());
 		Job job = mentorJob(mentor, jobId);
 		return view(job, this.agreements.draft(job).orElseThrow());
 	}
 
-	/** "Xác nhận thỏa thuận" (FR-17): the confirmed Agreement version 1, waiting for no Crew condition (R7). */
+	/**
+	 * "Xác nhận thỏa thuận" (FR-17): the confirmed Agreement version 1, waiting for no Crew condition (R7). In a
+	 * Self-mentored Job it is the one step, on the live draft, with the Freeze Commitment for a Code Job (AD-47, B-11).
+	 */
 	@PostMapping("/api/v1/mentor/jobs/{jobId}/agreement/confirm")
 	AgreementDraftView confirmAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementConfirmRequest body) {
 		UUID mentor = mentorOf(jobId);
-		this.reviews.confirm(mentor, jobId, body.version(), body.crewVersion());
+		this.reviews.confirm(mentor, jobId, body.version(), body.crewVersion(), new AgreementReviews.Alone(body.revision(),
+				Boolean.TRUE.equals(body.freezeCommitment()), body.liveAccessIds() == null ? List.of() : body.liveAccessIds()));
 		Job job = mentorJob(mentor, jobId);
 		return view(job, this.agreements.draft(job).orElseThrow());
 	}
@@ -228,7 +244,7 @@ class AgreementController {
 	@PostMapping("/api/v1/jobs/{jobId}/agreement/comments")
 	@ResponseStatus(HttpStatus.CREATED)
 	AgreementCommentView commentOnAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementCommentRequest body) {
-		return commentView(this.reviews.comment(customerOf(jobId), jobId, body.versionNo(), body.targetKind(),
+		return commentView(this.reviews.comment(reviewerOf(jobId), jobId, body.versionNo(), body.targetKind(),
 				body.targetId(), body.body()));
 	}
 
@@ -236,7 +252,7 @@ class AgreementController {
 	@PostMapping("/api/v1/jobs/{jobId}/agreement/changes")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void requestAgreementChanges(@PathVariable UUID jobId, @Valid @RequestBody AgreementChangesRequest body) {
-		this.reviews.requestChanges(customerOf(jobId), jobId, body.version(), body.versionNo(), body.note(),
+		this.reviews.requestChanges(reviewerOf(jobId), jobId, body.version(), body.versionNo(), body.note(),
 				body.milestoneOrder());
 	}
 
@@ -244,7 +260,7 @@ class AgreementController {
 	@PostMapping("/api/v1/jobs/{jobId}/agreement/approve")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void approveAgreement(@PathVariable UUID jobId, @Valid @RequestBody AgreementApproveRequest body) {
-		this.reviews.approve(customerOf(jobId), jobId, body.version(), body.versionNo(), body.freezeCommitment(),
+		this.reviews.approve(reviewerOf(jobId), jobId, body.version(), body.versionNo(), body.freezeCommitment(),
 				body.liveAccessIds());
 	}
 
@@ -274,7 +290,8 @@ class AgreementController {
 				shared != null && this.reviews.draftMatchesShared(job, shared));
 		return new AgreementDraftView(draft.revision(), draft.content(), this.agreements.problems(draft.content()),
 				quote(job.id()), this.agreements.versions(job.id()), job.state(), review,
-				this.reviews.confirmed(job.id()).map(this::confirmedView).orElse(null), reworkDays(job.id()));
+				this.reviews.confirmed(job.id()).map(this::confirmedView).orElse(null), reworkDays(job.id()),
+				job.selfMentored());
 	}
 
 	/** The days a rework gets at least (FR-87), as the Job was published with them. */
@@ -311,6 +328,19 @@ class AgreementController {
 	private UUID customerOf(UUID jobId) {
 		Caller caller = this.callers.get();
 		if (!this.roles.roleOf(jobId, caller).isCustomer()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return caller.requireAccountId();
+	}
+
+	/**
+	 * The Customer who reviews a Mentor's draft, calling: the Customer of a normal Job. The Customer of a Self-mentored
+	 * Job drafts and confirms alone, so the review steps find nothing for them (AD-47 exception 3, B-11).
+	 */
+	private UUID reviewerOf(UUID jobId) {
+		Caller caller = this.callers.get();
+		JobRole role = this.roles.roleOf(jobId, caller);
+		if (!role.isCustomer() || role.isSelfMentor()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return caller.requireAccountId();

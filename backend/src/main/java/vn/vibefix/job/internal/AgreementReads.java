@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,9 @@ class AgreementReads {
 	 * The versions a picked applicant or an active member may open, oldest first (FR-75, AD-41): every confirmed version
 	 * once there is one; until then the latest shared draft alone, which the first confirmation turns into version 1 (no
 	 * draft is shared after it). Empty before the first share.
+	 * <p>
+	 * In a Self-mentored Job nobody shares a draft (AD-47, R54): until the confirmation the reader opens the Customer's
+	 * live draft, named by its revision, once it was saved for the first time.
 	 */
 	@Transactional(readOnly = true)
 	List<Readable> readable(UUID jobId) {
@@ -90,6 +94,12 @@ class AgreementReads {
 			.list();
 		if (!confirmed.isEmpty()) {
 			return confirmed;
+		}
+		if (selfMentored(jobId)) {
+			return this.jdbc.sql("SELECT revision, saved_at FROM job.agreement_draft WHERE job_id = :job AND revision > 0")
+				.param("job", jobId)
+				.query((rs, n) -> new Readable(new Mark(false, rs.getInt("revision")), rs.getTimestamp("saved_at").toInstant()))
+				.list();
 		}
 		return this.jdbc
 			.sql("SELECT version_no, created_at FROM job.agreement_version WHERE job_id = :job ORDER BY version_no DESC LIMIT 1")
@@ -168,10 +178,54 @@ class AgreementReads {
 				Agreements.agreementLink(jobId), jobId, null));
 	}
 
+	/** The Job's mode (FR-85): its Customer is also its Mentor, and the Crew reads the live draft. */
+	boolean selfMentored(UUID jobId) {
+		return this.jdbc.sql("SELECT self_mentored FROM job.job WHERE id = :id")
+			.param("id", jobId)
+			.query(Boolean.class)
+			.optional()
+			.orElse(false);
+	}
+
+	/**
+	 * The Customer of a Self-mentored Job saved the draft the Crew reads (AD-47, R67): each picked applicant and active
+	 * member who opened an earlier revision is told, once for the revision they opened, however many saves follow. Their
+	 * rows stay where they are until they open the draft again.
+	 */
+	@Transactional
+	void draftChanged(UUID jobId, String jobTitle, int revision) {
+		Map<UUID, Integer> behind = new HashMap<>();
+		this.jdbc.sql("""
+				SELECT account_id, version_no FROM job.agreement_read
+				WHERE job_id = :job AND confirmed = FALSE AND version_no < :revision
+				""")
+			.param("job", jobId)
+			.param("revision", revision)
+			.query((rs, n) -> behind.put(rs.getObject("account_id", UUID.class), rs.getInt("version_no")))
+			.list();
+		if (behind.isEmpty()) {
+			return;
+		}
+		for (CrewMember member : this.crews.crewOf(jobId, Selection.UNRELEASED)) {
+			Integer opened = behind.get(member.studentId());
+			// A lock commits before its listener releases the row (AD-19): a locked account is told nothing.
+			if (opened == null || this.crews.locked(member.studentId())) {
+				continue;
+			}
+			UUID cause = UUID.nameUUIDFromBytes((jobId + ":agreement-draft-changed-since:" + opened)
+				.getBytes(StandardCharsets.UTF_8));
+			this.notifications.send(new NotificationRequest(DRAFT_CHANGED, cause,
+					List.of(new Recipient(member.studentId(),
+							"ACTIVE".equals(member.status()) ? Audience.CREW_ACTIVE : Audience.CREW_ASSIGNED)),
+					Map.of("job", jobTitle), Agreements.agreementLink(jobId), jobId, null));
+		}
+	}
+
 	/**
 	 * The first confirmation turns the approved draft into version 1 with the same words, so whoever read that draft has
 	 * read version 1 and is told nothing; a reader behind that draft was told when it was shared and stays behind. The
-	 * row keeps its time: it is when the reader opened those words.
+	 * row keeps its time: it is when the reader opened those words. In a Self-mentored Job {@code draftVersionNo} is the
+	 * revision of the live draft the Customer confirmed.
 	 */
 	@Transactional
 	void confirmedFromDraft(UUID jobId, int draftVersionNo, int versionNo) {

@@ -263,6 +263,10 @@ class Agreements {
 				.toArray(String[]::new))
 			.param("now", Timestamp.from(now))
 			.update();
+		if (locked.selfMentored()) {
+			// AD-47, R67: the Crew of a Self-mentored Job reads this draft, so whoever read an earlier revision is told.
+			this.reads.draftChanged(locked.id(), locked.title(), current.revision() + 1);
+		}
 		return draft(locked).orElseThrow();
 	}
 
@@ -309,11 +313,15 @@ class Agreements {
 	 * gate; the Customer is told and their review to-do opens. It answers every open change request
 	 * (Story 4.4) and ends the Mentor's revision to-do.
 	 * @throws ApiException {@code STALE}; {@code GUARD_FAILED AGREEMENT_CONFIRMED} once confirmed;
-	 * {@code VALIDATION AGREEMENT_INCOMPLETE} with {@code problems}
+	 * {@code VALIDATION AGREEMENT_INCOMPLETE} with {@code problems}; {@code NOT_FOUND} in a Self-mentored Job, which has
+	 * no share step (AD-47, B-11)
 	 */
 	@Transactional
 	Version share(UUID mentorId, UUID jobId, int revision) {
 		Job locked = lockMentorJob(mentorId, jobId);
+		if (locked.selfMentored()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
 		requireAgreement(locked);
 		requireUnconfirmed(locked);
 		Draft draft = draft(locked).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
