@@ -150,6 +150,23 @@ describe('JOB-6 for the Mentor: draft the Agreement (FR-16)', () => {
   })
 })
 
+describe('JOB-6 and JOB-8 for the Customer of a Self-mentored Job (AD-47, Story 25.2a)', () => {
+  it('opens the editor, as the one who drafts, and says who they are', { timeout: 20_000 }, async () => {
+    mentorBackend(draft(), inEveryJob('CUSTOMER_MENTOR'))
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText('Bạn là: Khách hàng · tự hướng dẫn')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Lưu bản nháp' })).toBeInTheDocument()
+  })
+
+  it('has no Job Chat: the screen is not found', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, { ...inEveryJob('CUSTOMER_MENTOR') })
+    renderAt('/cong-viec/j1/tro-chuyen')
+
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy nội dung này.' })).toBeInTheDocument()
+  })
+})
+
 describe('JOB-6 for the Customer: read the shared draft (FR-16)', () => {
   const job = {
     id: 'j1',

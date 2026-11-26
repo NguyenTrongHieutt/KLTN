@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t } from '@/i18n/t'
 import { isNotFound } from '@/lib/problemMessage'
-import { useJobRole, youAreText, type JobRoleView } from './jobRoleApi'
+import { useJobRole, youAreText, type JobRoleView, type RoleInJob } from './jobRoleApi'
 import { PhaseBadge } from './PhaseBadge'
 import { Page } from '@/components/ui/page'
 
@@ -14,16 +14,23 @@ type Variant = (view: JobRoleView) => ReactNode
  * A Job screen's variant by the caller's role in that Job (AD-20, AD-43, UX-DR87, Story 20.6), never by the
  * account: the Customer's, the Mentor's, or the Crew's. A Job where the caller holds no role, or a role this screen
  * has no variant for, shows the not-found screen, as the API does.
+ * <p>
+ * `customerMentor` is the variant of the Customer of a Self-mentored Job (AD-47, Story 25.2a), and every screen must
+ * name it: the side AD-20 maps that screen to (the Customer's on a Customer's decision or duty, the Mentor's on
+ * recruitment, the Agreement draft and the Crew Chat), or `null` where the mode has no such screen. A screen that
+ * leaves it out does not build.
  */
 export function ByJobRole({
   jobId,
   customer,
   mentor,
+  customerMentor,
   crew,
 }: {
   jobId: string | undefined
   customer?: Variant
   mentor?: Variant
+  customerMentor: Variant | null
   crew?: Variant
 }) {
   const role = useJobRole(jobId)
@@ -39,7 +46,13 @@ export function ByJobRole({
       </Page>
     )
   }
-  const variant = { CUSTOMER: customer, MENTOR: mentor, CREW: crew }[role.data.role]
+  const variants: Record<RoleInJob, Variant | null | undefined> = {
+    CUSTOMER: customer,
+    MENTOR: mentor,
+    CUSTOMER_MENTOR: customerMentor,
+    CREW: crew,
+  }
+  const variant = variants[role.data.role]
   return variant ? <>{variant(role.data)}</> : <NotFoundScreen />
 }
 

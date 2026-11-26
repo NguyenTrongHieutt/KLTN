@@ -30,6 +30,7 @@ export function CrewChatPage() {
     <ByJobRole
       jobId={jobId}
       mentor={() => <MentorCrewChat jobId={jobId ?? ''} />}
+      customerMentor={() => <MentorCrewChat jobId={jobId ?? ''} />}
       crew={() => <StudentCrewChat jobId={jobId ?? ''} />}
     />
   )

@@ -5940,7 +5940,7 @@ export interface components {
             /** @enum {string} */
             phase?: "FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING";
             /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "CREW";
+            role: "CUSTOMER" | "MENTOR" | "CUSTOMER_MENTOR" | "CREW";
         };
         JobSummaryView: {
             /** Format: uuid */
@@ -6281,7 +6281,7 @@ export interface components {
             left: boolean;
             productName: string;
             /** @enum {string} */
-            role: "CUSTOMER" | "MENTOR" | "CREW";
+            role: "CUSTOMER" | "MENTOR" | "CUSTOMER_MENTOR" | "CREW";
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
             title: string;

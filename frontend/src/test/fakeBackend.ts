@@ -51,7 +51,7 @@ export const administratorAccount: NonNullable<Session['account']> = {
  * otherwise. Spread it into {@link fakeBackend}'s handlers; without it, every Job answers `NOT_FOUND`.
  */
 export function inEveryJob(
-  role: 'CUSTOMER' | 'MENTOR' | 'CREW',
+  role: 'CUSTOMER' | 'MENTOR' | 'CUSTOMER_MENTOR' | 'CREW',
   crewKind: 'ASSIGNED' | 'ACTIVE' | 'FORMER' = 'ACTIVE',
 ): Record<string, Handler> {
   return { 'GET /api/v1/jobs/*/role': () => json(role === 'CREW' ? { role, crewKind } : { role }) }
@@ -61,7 +61,7 @@ export function inEveryJob(
 export interface HeldJob {
   jobId: string
   title: string
-  role: 'CUSTOMER' | 'MENTOR' | 'CREW'
+  role: 'CUSTOMER' | 'MENTOR' | 'CUSTOMER_MENTOR' | 'CREW'
   crewKind?: 'ASSIGNED' | 'ACTIVE' | 'FORMER'
   state?: string
 }

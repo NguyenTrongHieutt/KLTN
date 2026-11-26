@@ -33,7 +33,13 @@ const SEGMENTS: Segment[] = ['dang', 'huong-dan', 'tham-gia']
 
 const ROLE_OF: Record<Segment, RoleInJob> = { dang: 'CUSTOMER', 'huong-dan': 'MENTOR', 'tham-gia': 'CREW' }
 
-const SEGMENT_OF: Record<RoleInJob, Segment> = { CUSTOMER: 'dang', MENTOR: 'huong-dan', CREW: 'tham-gia' }
+// A Self-mentored Job is listed with the Jobs the user posts, never with the ones they mentor (AD-47).
+const SEGMENT_OF: Record<RoleInJob, Segment> = {
+  CUSTOMER: 'dang',
+  MENTOR: 'huong-dan',
+  CUSTOMER_MENTOR: 'dang',
+  CREW: 'tham-gia',
+}
 
 /** A bid still in play counts in "Việc tôi hướng dẫn" (UX-DR86): sent, picked, or on hold. */
 const PENDING: ApplicationStatus[] = ['SUBMITTED', 'SELECTED', 'ON_HOLD']

@@ -14104,7 +14104,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
+            "enum" : [ "CUSTOMER", "MENTOR", "CUSTOMER_MENTOR", "CREW" ]
           }
         },
         "required" : [ "left", "noCrew", "role" ]
@@ -15005,7 +15005,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
+            "enum" : [ "CUSTOMER", "MENTOR", "CUSTOMER_MENTOR", "CREW" ]
           },
           "state" : {
             "type" : "string",

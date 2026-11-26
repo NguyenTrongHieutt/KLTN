@@ -72,6 +72,8 @@ export function JobPaymentPage() {
       jobId={jobId}
       customer={() => <CustomerPayment jobId={jobId ?? ''} />}
       mentor={() => <MentorPayment jobId={jobId ?? ''} />}
+      // Funding is the Customer's: the Customer's side.
+      customerMentor={() => <CustomerPayment jobId={jobId ?? ''} />}
       crew={(view) => <CrewPayment jobId={jobId ?? ''} left={view.left} />}
     />
   )

@@ -56,6 +56,8 @@ export function JobPage() {
       jobId={jobId}
       customer={() => <CustomerJobPage jobId={jobId} />}
       mentor={() => <MentorJobPage jobId={jobId ?? ''} />}
+      // The overview carries the Customer's duties (funding, the closing choice): the Customer's side.
+      customerMentor={() => <CustomerJobPage jobId={jobId} />}
       crew={() => <CrewJobPage jobId={jobId ?? ''} />}
     />
   )

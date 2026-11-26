@@ -31,6 +31,8 @@ export function JobChatPage() {
       jobId={jobId}
       customer={() => <CustomerChat jobId={jobId ?? ''} />}
       mentor={() => <MentorChat jobId={jobId ?? ''} />}
+      // A Self-mentored Job has no Job Chat (AD-47): the Customer and the Crew talk in the Crew Chat.
+      customerMentor={null}
     />
   )
 }
