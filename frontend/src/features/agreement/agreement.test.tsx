@@ -159,6 +159,80 @@ describe('JOB-6 and JOB-4 for the Customer of a Self-mentored Job (AD-47, Story 
     expect(await screen.findByRole('button', { name: 'Lưu bản nháp' })).toBeInTheDocument()
   })
 
+  // Story 25.3 (UX-DR124): one step, with N-6 for a Code Job; unsaved edits are saved first, and the systems the draft
+  // marks as production are the live ones.
+  it('confirms alone in one step, with no share and no review', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    let saved: { revision?: number } | undefined
+    let confirmedWith: unknown
+    const content = {
+      milestones: [milestone({ criteria: [{ id: 'c1', statement: 'Khách chọn giờ đã qua thì không đặt được', checkSteps: '1. Mở.' }] })],
+      externalAccess: [{ id: 'a1', system: 'Supabase', purpose: 'Đọc bảng đặt bàn', environment: 'PRODUCTION', accessLevel: 'READ' }],
+    }
+    const alone = (overrides: object = {}) => draft({ selfMentored: true, quote: undefined, ...overrides }, content)
+    const confirmed = {
+      versionNo: 1,
+      draftVersionNo: 1,
+      crew: [],
+      liveAccessIds: ['a1'],
+      freezeCommitted: true,
+      approvedAt: '2026-11-26T03:00:00Z',
+      confirmedAt: '2026-11-26T03:00:00Z',
+      content: draft({}, content).content,
+    }
+    // The page reads the Agreement again after each command, as the server then holds it.
+    const current = () => alone(confirmedWith ? { revision: 2, confirmed } : saved ? { revision: 2 } : {})
+    mentorBackend(alone(), {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/mentor/jobs/j1/agreement': () => json(current()),
+      'PUT /api/v1/mentor/jobs/j1/agreement': async (request) => {
+        saved = await request.json()
+        return json(current())
+      },
+      'POST /api/v1/mentor/jobs/j1/agreement/confirm': async (request) => {
+        confirmedWith = await request.json()
+        return json(current())
+      },
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText(/Bạn soạn và xác nhận thỏa thuận một mình, không có bước gửi hay duyệt/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gửi cho khách hàng' })).toBeNull()
+    expect(screen.queryByText(/Báo giá trong đơn chào giá/)).toBeNull()
+    expect(screen.queryByText(/Khách hàng duyệt trước, sau đó bạn xác nhận/)).toBeNull()
+    // N-6 comes first: the button says why it waits, and stays where it is.
+    const confirm = screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveAccessibleDescription('Đánh dấu cam kết phía trên để xác nhận.')
+    await user.click(screen.getByRole('checkbox', { name: /Từ lúc công việc bắt đầu đến khi tôi nhận mã/ }))
+    expect(confirm).toBeEnabled()
+
+    await user.type(screen.getByRole('textbox', { name: 'Cách kiểm tra' }), ' 2. Chọn.')
+    await user.click(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thỏa thuận?' })
+    expect(within(dialog).getByText(/Thỏa thuận có hiệu lực ngay.*Nhóm thực hiện được vào 1 production bạn đã chọn\./)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận thỏa thuận' }))
+
+    await waitFor(() =>
+      expect(confirmedWith).toEqual({ version: 3, crewVersion: 0, revision: 2, freezeCommitment: true, liveAccessIds: ['a1'] }),
+    )
+    expect(saved?.revision).toBe(1)
+    expect(await screen.findByText('Bạn đã xác nhận thỏa thuận này.')).toBeInTheDocument()
+    expect(screen.queryByText(/Khách hàng đã duyệt · Người hướng dẫn đã xác nhận/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Lưu bản nháp' })).toBeNull()
+  })
+
+  it('waits for a complete draft before the one step', { timeout: 20_000 }, async () => {
+    mentorBackend(draft({ selfMentored: true, quote: undefined }, { codeJob: false }), inEveryJob('CUSTOMER_MENTOR'))
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    const confirm = await screen.findByRole('button', { name: 'Xác nhận thỏa thuận' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveAccessibleDescription('Bản nháp còn thiếu mục, xem danh sách phía trên.')
+    // Not a Code Job: there is no N-6 to tick.
+    expect(screen.queryByRole('checkbox', { name: /Từ lúc công việc bắt đầu/ })).toBeNull()
+  })
+
   it('has no Job Chat: the screen is not found', { timeout: 15_000 }, async () => {
     // The Customer's and the Mentor's chat screens would both load here: only the explicit "none" is not found.
     const chatScreens = {
@@ -393,6 +467,25 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     await waitFor(() => expect(opened).toEqual([{ confirmed: false, versionNo: 2 }]))
     // The line stays for this visit: noting the read reloads nothing.
     expect(screen.getByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeInTheDocument()
+  })
+
+  // Story 25.3 (UX-DR125): in a Self-mentored Job nobody shares a draft; the reader opens the Customer's own.
+  it("names the Customer's current draft in a Self-mentored Job", { timeout: 15_000 }, async () => {
+    const opened: unknown[] = []
+    const liveDraft = { confirmed: false, versionNo: 4, at: '2026-11-26T03:00:00Z' }
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/agreement': () => json(read({ selfMentored: true, versions: [liveDraft], shown: liveDraft })),
+      [READ]: async (request) => {
+        opened.push(await request.json())
+        return noted()
+      },
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText(/Bản nháp hiện tại của khách hàng, lưu lúc .*Khách hàng còn có thể sửa cho đến khi xác nhận\./)).toBeInTheDocument()
+    expect(screen.queryByText(/người hướng dẫn gửi cho khách hàng/)).toBeNull()
+    await waitFor(() => expect(opened).toEqual([{ confirmed: false, versionNo: 4 }]))
   })
 
   it('says nothing is shared yet to a picked applicant, who goes back to the commitment', { timeout: 15_000 }, async () => {

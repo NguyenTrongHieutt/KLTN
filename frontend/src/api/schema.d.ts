@@ -4232,6 +4232,10 @@ export interface components {
         AgreementConfirmRequest: {
             /** Format: int64 */
             crewVersion: number;
+            freezeCommitment?: boolean;
+            liveAccessIds?: string[];
+            /** Format: int32 */
+            revision?: number;
             /** Format: int64 */
             version: number;
         };
@@ -4245,6 +4249,7 @@ export interface components {
             revision: number;
             /** Format: int32 */
             reworkDays: number;
+            selfMentored: boolean;
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
             versions: components["schemas"]["VersionSummary"][];
@@ -4919,6 +4924,7 @@ export interface components {
             liveAccessIds: string[];
             /** Format: int32 */
             reworkDays: number;
+            selfMentored: boolean;
             shown?: components["schemas"]["CrewAgreementOption"];
             versions: components["schemas"]["CrewAgreementOption"][];
         };

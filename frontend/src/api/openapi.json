@@ -9230,6 +9230,23 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "freezeCommitment" : {
+            "type" : "boolean"
+          },
+          "liveAccessIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
           "version" : {
             "type" : "integer",
             "format" : "int64"
@@ -9266,6 +9283,9 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "state" : {
             "type" : "string",
             "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
@@ -9277,7 +9297,7 @@
             }
           }
         },
-        "required" : [ "content", "problems", "review", "revision", "reworkDays", "state", "versions" ]
+        "required" : [ "content", "problems", "review", "revision", "reworkDays", "selfMentored", "state", "versions" ]
       },
       "AgreementReviewView" : {
         "type" : "object",
@@ -11168,6 +11188,9 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "shown" : {
             "$ref" : "#/components/schemas/CrewAgreementOption"
           },
@@ -11178,7 +11201,7 @@
             }
           }
         },
-        "required" : [ "changedSinceRead", "jobTitle", "liveAccessIds", "reworkDays", "versions" ]
+        "required" : [ "changedSinceRead", "jobTitle", "liveAccessIds", "reworkDays", "selfMentored", "versions" ]
       },
       "CrewApplicationSkillView" : {
         "type" : "object",

@@ -300,7 +300,7 @@ function CrewLine({ crew, confirmedCrew, state }: { crew: string[]; confirmedCre
 }
 
 /** N-6, bordered, with "Cách tạm dừng đồng bộ" (draft per-builder text until OQ7). */
-function FreezeCommitment({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+export function FreezeCommitment({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <Card className="flex flex-col gap-2 border-2">
       <label className="flex items-start gap-3 text-body-sm">

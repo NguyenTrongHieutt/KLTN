@@ -28,7 +28,8 @@ import {
 /**
  * JOB-6 read-only for the Crew (FR-75, FR-81, AD-41, UX-DR125, Story 25.1b): a picked applicant, coming from "Đọc thỏa
  * thuận" in the Commitment panel, and an active member read the Agreement they sign for and work under. Until the
- * Agreement is confirmed that is the latest draft the Mentor shared with the Customer; then every confirmed version.
+ * Agreement is confirmed that is the latest draft the Mentor shared with the Customer, or in a Self-mentored Job the
+ * Customer's current draft as it was last saved (Story 25.3); then every confirmed version.
  * Never a comment, the quote, or a Change Request in progress, and nothing to act on. The page says which version it
  * shows, and tells a reader who opened an earlier one that the Agreement changed since. A member who left, and anyone
  * else, sees the not-found screen, as the API answers.
@@ -155,7 +156,9 @@ function Versions({
       ) : (
         <p role="status" className="flex gap-2 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           <Info aria-hidden="true" className="size-5 shrink-0 text-primary" />
-          {t('screen.agreement.crew.shared', { n: shown.versionNo, time: formatDayMonthTime(shown.at) })}
+          {agreement.selfMentored
+            ? t('screen.agreement.crew.liveDraft', { time: formatDayMonthTime(shown.at) })
+            : t('screen.agreement.crew.shared', { n: shown.versionNo, time: formatDayMonthTime(shown.at) })}
         </p>
       )}
       <AgreementContentView
