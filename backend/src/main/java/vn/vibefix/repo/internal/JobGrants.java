@@ -75,6 +75,12 @@ import vn.vibefix.timers.Deadlines;
  * the crew-change raise skips the row, the sweep stops reading a Job once every invitation on it has been answered,
  * and {@code GrantRaiseOperation} ends a raise of it obsolete with {@code READ_ONLY_GRANT}. The table's
  * {@code job_grant_read_only_check} is what makes the permission itself unreachable, whatever a caller does.
+ * <p>
+ * A Self-mentored Job (D11, AD-11, AD-47, Story 25.2a) has no Mentor to grant: its Mentor is its Customer, who holds
+ * the Customer's read on the Intermediary Repository and nothing with the team, read included. {@link #counted} leaves
+ * the Mentor out, so Verify waits for the active Crew alone; {@link #grant} writes no team row for the Job's Customer
+ * and {@code GrantInviteOperation} sends no invitation for one ({@link #teamGrantOfTheCustomer}); the trigger
+ * {@code job_grant_customer_never_on_the_team} is the backstop, whatever a caller does.
  */
 @Component
 class JobGrants {
@@ -291,6 +297,11 @@ class JobGrants {
 	 */
 	@Transactional
 	void grant(BusyJob job, Person person, PlatformRepository repository, boolean crewChange, boolean readOnly) {
+		if (!CUSTOMER.equals(person.role()) && (person.accountId().equals(job.customerId())
+				|| (job.selfMentored() && "MENTOR".equals(person.role())))) {
+			// D11: the Job's Customer is never granted with the team, and a Self-mentored Job grants no Mentor.
+			return;
+		}
 		UUID id = this.ids.newId();
 		int inserted = this.jdbc.sql("""
 				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, github_user_id,
@@ -327,10 +338,13 @@ class JobGrants {
 		return counted(job).stream().filter(person -> !late.contains(person.accountId())).toList();
 	}
 
-	/** The Mentor and the active Crew, each with an unlocked account and a linked GitHub account. */
+	/**
+	 * The Mentor and the active Crew, each with an unlocked account and a linked GitHub account. In a Self-mentored Job
+	 * (D11, AD-11) the Mentor is the Customer, who is not counted: the active Crew alone is.
+	 */
 	List<Person> counted(BusyJob job) {
 		List<Person> people = new ArrayList<>();
-		if (job.mentorId() != null && unlocked(job.mentorId())) {
+		if (!job.selfMentored() && job.mentorId() != null && unlocked(job.mentorId())) {
 			this.mentors.cards(List.of(job.mentorId()))
 				.stream()
 				.filter(card -> card.githubUserId() != null && card.githubLogin() != null)
@@ -421,6 +435,20 @@ class JobGrants {
 		if (updated == 1) {
 			audit("repo.grant_login_renamed", grant);
 		}
+	}
+
+	/**
+	 * A team grant naming the Job's Customer, or a Mentor grant of a Self-mentored Job (D11, AD-11, R63): a row no path
+	 * writes and the table's trigger refuses. The invitation step asks before it calls GitHub, so that even such a row
+	 * would invite nobody to the Working Repository.
+	 */
+	boolean teamGrantOfTheCustomer(Grant grant) {
+		if (grant.customer()) {
+			return false;
+		}
+		BusyJob job = this.busy.job(grant.jobId()).orElse(null);
+		return job != null && (grant.accountId().equals(job.customerId())
+				|| (job.selfMentored() && "MENTOR".equals(grant.role())));
 	}
 
 	private boolean unlocked(UUID accountId) {

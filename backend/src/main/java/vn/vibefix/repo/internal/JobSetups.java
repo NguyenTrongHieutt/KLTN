@@ -380,10 +380,14 @@ class JobSetups {
 		UUID id = this.ids.newId();
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
-				INSERT INTO repo.job_setup (id, job_id, product_id, status, assessment, started_at)
-				VALUES (:id, :job, :product, 'CONFIRMING', :assessment, :now)
+				INSERT INTO repo.job_setup (id, job_id, product_id, status, assessment, self_mentored, started_at)
+				VALUES (:id, :job, :product, 'CONFIRMING', :assessment, :selfMentored, :now)
 				""").param("id", id).param("job", job.jobId()).param("product", job.productId())
-			.param("assessment", !job.code()).param("now", Timestamp.from(now)).update();
+			.param("assessment", !job.code())
+			// D11 (AD-11, AD-47): the mode comes down with the Job, and the trigger on repo.job_grant reads it from here.
+			.param("selfMentored", job.selfMentored())
+			.param("now", Timestamp.from(now))
+			.update();
 		this.operations.request(new OperationRequest(OPERATION, id, Map.of("setupId", id.toString()), null, null, 0));
 		audit("repo.setup_started", id, job.jobId());
 		return find(id).orElseThrow();

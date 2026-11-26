@@ -1234,6 +1234,116 @@ class JobSetupIT extends IntegrationTest {
 	}
 
 	/**
+	 * Story 25.2a part 4 (D11, AD-11, AD-47, B-10, R63): a Self-mentored Job grants no Mentor. Its Setup records the mode,
+	 * the active Crew alone is invited to the Working Repository and counted for Verify, and the Customer who mentors
+	 * holds their read on the Intermediary Repository and nothing else: no team grant, no invitation, and nothing of the
+	 * Working Repository in the step tracker they read. The table refuses the rows no path writes.
+	 */
+	@Test
+	void aSelfMentoredJobInvitesItsCrewAloneAndItsCustomerHoldsNothingOnTheWorkingRepository() throws Exception {
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, mentor_account_id = customer_account_id,
+				    selected_application_id = NULL, self_mentored_notice_version = '1.0'
+				WHERE id = :job
+				""").param("job", this.job).update();
+		String crewLogin = TestPeople.login(this.jdbc, this.crew);
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		String working = GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job);
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.jdbc.sql("SELECT self_mentored FROM repo.job_setup WHERE job_id = :job").param("job", this.job)
+			.query(Boolean.class).single()).as("the Setup records the mode").isTrue();
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::role).containsExactly("CREW", "CUSTOMER");
+		assertThat(teamGrants()).singleElement().satisfies(grant -> {
+			assertThat(grant.accountId()).isEqualTo(this.crew);
+			assertThat(grant.repositoryName()).isEqualTo(working);
+		});
+		assertThat(customerGrant().repositoryName())
+			.isEqualTo(GitHubStub.ORGANIZATION + "/" + JobSetups.intermediaryName(this.job));
+		assertThat(GITHUB.seen).as("nobody invites the Customer to the Working Repository")
+			.noneMatch(seen -> seen.path().equals("/repos/" + working + "/collaborators/" + customerLogin));
+		assertThat(notices("repo.github_invitation_sent")).as("the member's alone").isOne();
+		assertThat(notices("repo.github_invitation_sent", this.customer)).isZero();
+		String tracker = this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.customer, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.people.length()").value(2))
+			.andExpect(jsonPath("$.people[0].role").value("CREW"))
+			.andExpect(jsonPath("$.people[0].name").value("@" + crewLogin))
+			.andExpect(jsonPath("$.people[0].githubUrl").doesNotExist())
+			.andExpect(jsonPath("$.people[1].role").value("CUSTOMER"))
+			.andExpect(jsonPath("$.people[1].githubUrl").value(org.hamcrest.Matchers.endsWith("-intermediary/invitations")))
+			.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat(tracker).as("nothing of the Working Repository").doesNotContain(JobSetups.workingName(this.job));
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/setup").with(as(this.crew, Role.STUDENT)))
+			.andExpect(jsonPath("$.people[0].githubUrl").value(org.hamcrest.Matchers.endsWith("-working/invitations")));
+
+		JobBusy.BusyJob selfMentored = this.busy.job(this.job).orElseThrow();
+		assertThat(selfMentored.selfMentored()).isTrue();
+		assertThat(this.grants.counted(selfMentored)).extracting(JobGrants.Person::accountId).containsExactly(this.crew);
+		vn.vibefix.github.PlatformRepositories.PlatformRepository repository = teamGrants().get(0).repository();
+		long customerGitHub = githubUserId(this.customer);
+		this.grants.grant(selfMentored, new JobGrants.Person(this.customer, "MENTOR", customerGitHub, customerLogin), repository,
+				false, false);
+		this.grants.grant(selfMentored, new JobGrants.Person(this.customer, "CREW", customerGitHub, customerLogin), repository,
+				true, false);
+		assertThat(this.grants.ofJob(this.job)).as("no team grant is written for the Customer").hasSize(2);
+		assertThatThrownBy(() -> insertGrant(this.mentor, "MENTOR")).as("the table refuses a Mentor's grant in the mode")
+			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+			.hasMessageContaining("grants no Mentor");
+		assertThatThrownBy(() -> insertGrant(this.customer, "CREW")).as("and a team grant for who holds the Customer's read")
+			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+			.hasMessageContaining("holds no grant with its team");
+		assertThatThrownBy(() -> insertGrant(this.crew, "CUSTOMER")).as("and the Customer's read for a member of the team")
+			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+			.hasMessageContaining("holds no grant with its team");
+
+		GITHUB.accept(crewLogin);
+		this.checks.check(this.job);
+		assertThat(this.busy.job(this.job).orElseThrow().busy()).as("Verify waits for the active Crew alone")
+			.hasValueSatisfying(marker -> assertThat(marker.purpose()).isEqualTo(JobBusy.Purpose.JOB_VERIFY));
+		awaitListeners();
+	}
+
+	/**
+	 * Story 25.2a part 4 (D11, AD-11, R63): the invitation step sends nothing for a team grant that names the Job's
+	 * Customer. The table's trigger knows the Customer by their read grant, so a Customer who holds none (no Setup yet
+	 * here) is refused by the step itself: the operation ends obsolete before any call to GitHub.
+	 */
+	@Test
+	void anInvitationForATeamGrantNamingTheCustomerIsNeverSent() throws Exception {
+		UUID grant = insertGrant(this.customer, "CREW");
+		assertThat(this.grants.teamGrantOfTheCustomer(this.grants.find(grant).orElseThrow())).isTrue();
+		GITHUB.seen.clear();
+
+		this.operations.request(new OperationRequest(JobGrants.INVITE, UUID.randomUUID(),
+				Map.of("grantId", grant.toString(), "round", 0), null, null, 0));
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.jdbc.sql("""
+				SELECT status || ' ' || coalesce(error_code, '') FROM operations.external_operation WHERE type = :type
+				""").param("type", JobGrants.INVITE).query(String.class).list())
+			.containsExactly("OBSOLETE CUSTOMER_NOT_ON_THE_TEAM");
+		assertThat(this.grants.find(grant).orElseThrow().status()).as("never invited").isEqualTo("INVITING");
+		assertThat(GITHUB.seen).as("nothing was asked of GitHub").noneMatch(seen -> seen.path().contains("/collaborators/"));
+	}
+
+	/** A grant row written as no path writes it, on a repository of its own: what the table's trigger sees. */
+	private UUID insertGrant(UUID account, String role) {
+		UUID id = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO repo.job_grant (id, job_id, product_id, account_id, role, github_login, github_user_id,
+				    repository_github_id, repository_name, crew_change, read_only, status, created_at)
+				VALUES (:id, :job, :product, :account, :role, :login, :githubUserId, :repository, 'vibefix-org/khong-ai-ghi',
+				    FALSE, FALSE, 'INVITING', :now)
+				""").param("id", id).param("job", this.job).param("product", this.product).param("account", account)
+			.param("role", role).param("login", TestPeople.login(this.jdbc, account))
+			.param("githubUserId", githubUserId(account)).param("repository", REPOSITORY_IDS.incrementAndGet())
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		return id;
+	}
+
+	/**
 	 * Story 23.7 (AD-24): the Customer's export holds their read of the Intermediary with the role CUSTOMER, beside the
 	 * Mentor's grant on the Working Repository with the role MENTOR.
 	 */

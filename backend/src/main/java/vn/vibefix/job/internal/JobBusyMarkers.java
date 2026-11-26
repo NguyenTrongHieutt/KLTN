@@ -58,7 +58,8 @@ class JobBusyMarkers implements JobBusy {
 			.query(Jobs::job)
 			.optional()
 			.map(job -> new BusyJob(job.id(), job.productId(), job.customerId(), job.mentorId(), job.title(),
-					job.state().name(), job.version(), job.code(), job.frozenAt() != null, busy(job.id())));
+					job.state().name(), job.version(), job.code(), job.selfMentored(), job.frozenAt() != null,
+					busy(job.id())));
 	}
 
 	@Override
