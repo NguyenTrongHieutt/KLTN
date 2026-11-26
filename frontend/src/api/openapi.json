@@ -10726,6 +10726,9 @@
           "scope" : {
             "type" : "string"
           },
+          "selfMentoredNoticeVersion" : {
+            "type" : "string"
+          },
           "splitRules" : {
             "$ref" : "#/components/schemas/SplitRulesView"
           }
@@ -10748,6 +10751,11 @@
           },
           "publicCodeAcknowledged" : {
             "type" : "boolean"
+          },
+          "selfMentoredNoticeVersion" : {
+            "type" : "string",
+            "maxLength" : 20,
+            "minLength" : 0
           }
         },
         "required" : [ "commitEmailNoticeAcknowledged", "commitmentVersion", "ndaVersion", "publicCodeAcknowledged" ]
@@ -10780,6 +10788,9 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "signDueAt" : {
             "type" : "string",
             "format" : "date-time"
@@ -10789,7 +10800,7 @@
             "enum" : [ "PENDING", "PICKED", "JOINED", "DECLINED", "WITHDRAWN", "LAPSED" ]
           }
         },
-        "required" : [ "applicationId", "jobId", "jobTitle", "mentorName", "pickedAt", "signDueAt", "status" ]
+        "required" : [ "applicationId", "jobId", "jobTitle", "mentorName", "pickedAt", "selfMentored", "signDueAt", "status" ]
       },
       "ConfirmRequest" : {
         "type" : "object",
@@ -13735,7 +13746,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE", "NOT_PICKABLE", "COMMITMENT_VERSION_OUTDATED", "PICK_ENDED" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE", "NOT_PICKABLE", "COMMITMENT_VERSION_OUTDATED", "SELF_MENTORED_NOTICE_OUTDATED", "PICK_ENDED" ]
           }
         },
         "required" : [ "invitations", "left" ]
@@ -16202,7 +16213,7 @@
           },
           "limit" : {
             "type" : "string",
-            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE", "NOT_PICKABLE", "COMMITMENT_VERSION_OUTDATED", "PICK_ENDED" ]
+            "enum" : [ "JOB_POST_NOT_OPEN", "JOB_POST_HIDDEN", "ROLE_TAKEN", "ALREADY_APPLIED", "MENTOR_JOB_LIMIT", "CONFLICT_OF_INTEREST", "APPLICANT_IS_CONTRIBUTOR", "CONTRIBUTORS_UNKNOWN", "PUBLIC_CODE_NOT_ACKNOWLEDGED", "NOT_WITHDRAWABLE", "NDA_VERSION_OUTDATED", "COMMIT_EMAIL_NOT_ACKNOWLEDGED", "INVITEE_NOT_AVAILABLE", "ALREADY_INVITED", "INVITEE_ALREADY_APPLIED", "INVITE_LIMIT_JOB_POST", "INVITE_LIMIT_DAILY", "PROFILE_REQUIRED", "PROOF_LIMIT", "LINK_INVALID", "PROOF_FILE_UNKNOWN", "RECRUITMENT_CLOSED", "CREW_FULL", "CREW_REJOIN_REFUSED", "ON_ANOTHER_CREW", "NOT_DECLINABLE", "NOT_PICKABLE", "COMMITMENT_VERSION_OUTDATED", "SELF_MENTORED_NOTICE_OUTDATED", "PICK_ENDED" ]
           }
         },
         "required" : [ "left" ]

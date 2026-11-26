@@ -385,10 +385,9 @@ function CrewApplyFields({
       <Card as="section" aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3">
         <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           {/* N-27's variant (Story 25.3): in a Self-mentored Job the Customer is the one who reads the application. */}
-          {t('notice.proofConfidentiality', {
-            who: t(post.selfMentored ? 'screen.crewApply.proofWhoSelfMentored' : 'screen.crewApply.proofWho'),
-          })}
-          {post.selfMentored && ` ${t('screen.crewApply.proofSelfMentored')}`}
+          {post.selfMentored
+            ? `${t('notice.proofConfidentialitySelfMentored')} ${t('screen.crewApply.proofSelfMentored')}`
+            : t('notice.proofConfidentiality', { who: t('screen.crewApply.proofWho') })}
         </div>
         <h2 id={`${ids}-proof`} className="text-h3">
           {t('screen.matching.apply.proofHeading')}

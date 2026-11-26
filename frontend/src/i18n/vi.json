@@ -3510,7 +3510,6 @@
       "noteRequired": "Hãy viết lời nhắn cho người hướng dẫn.",
       "skills": "Kỹ năng của bạn",
       "skillsHint": "Lấy sẵn từ hồ sơ của bạn. Tối đa 10 kỹ năng.",
-      "proofWhoSelfMentored": "khách hàng tự hướng dẫn công việc này",
       "proofSelfMentored": "Khách hàng đọc đơn của bạn và thấy hồ sơ công khai của bạn.",
       "proofWho": "người hướng dẫn",
       "acknowledgeRequired": "Hãy đánh dấu ô xác nhận trước khi gửi đơn.",
@@ -3673,6 +3672,7 @@
       "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các commit của bàn giao này không chứa secret, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",
       "customer": "vibefix không quét mã của nhóm. Người hướng dẫn {mentor} đã xác nhận bàn giao này không chứa secret hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu."
     },
+    "proofConfidentialitySelfMentored": "Tệp và liên kết bạn đính kèm chỉ khách hàng tự hướng dẫn công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai.",
     "proofConfidentiality": "Tệp và liên kết bạn đính kèm chỉ {who} của công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai."
   },
   "term": {

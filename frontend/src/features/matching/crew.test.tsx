@@ -971,6 +971,146 @@ describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.
   })
 })
 
+describe('the commitment of a Self-mentored Job (FR-85, UX-DR124, R68, Story 25.3)', () => {
+  const N35 = '1.0'
+  const ownPost = { 'GET /api/v1/mentor/job-posts/j1': () => json(post({ selfMentored: true })) }
+  const own = (overrides: object = {}, panel: object = {}) =>
+    commitment(
+      { selfMentored: true, ...overrides },
+      { selfMentoredNoticeVersion: N35, commitEmailNoticeAcknowledged: true, ...panel },
+    )
+
+  it('names the Customer, shows N-35 with its version, and signs with that version', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    let sent: Record<string, unknown> | undefined
+    const joined = () => own({ status: 'JOINED', endReason: 'SIGNED', panel: undefined })
+    fakeBackend(signedInUser, {
+      ...menThree(ownPost),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(sent ? joined() : own()),
+      'POST /api/v1/crew/jobs/j1/commitment': async (request) => {
+        sent = (await request.json()) as Record<string, unknown>
+        return json(joined())
+      },
+    })
+    renderAt('/tim-viec/j1')
+
+    // N-19's variant: the Customer picked, and takes no part of the money. The Mentor's wording and the sentences on
+    // what the Customer learns are gone, because here the Customer reads the application and the profile.
+    const n19 = await screen.findByText(/^Khách hàng Đỗ Mạnh Hùng đã chọn bạn vào nhóm thực hiện Sửa lỗi đặt bàn/)
+    expect(n19).toHaveTextContent('khách hàng không nhận phần nào')
+    expect(n19).not.toHaveTextContent('@minh-dev')
+    expect(screen.queryByText(/^Người hướng dẫn Đỗ Mạnh Hùng đã chọn bạn/)).toBeNull()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Làm việc với khách hàng tự hướng dẫn · phiên bản 1.0' }),
+    ).toBeInTheDocument()
+    const n35 = screen.getByText(/^Bạn làm việc dưới sự hướng dẫn của khách hàng Đỗ Mạnh Hùng/)
+    expect(n35).toHaveTextContent('Khách hàng không vào được kho làm việc của nhóm')
+    // The projection is the Customer's saved draft, with the same way to read the whole of it.
+    expect(screen.getByText('Sửa lỗi hai khách đặt trùng bàn cùng giờ.')).toBeInTheDocument()
+    expect(screen.getByText('Giai đoạn 1 · Sửa lỗi trùng bàn')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Đọc thỏa thuận' })).toHaveAttribute('href', '/cong-viec/j1/thoa-thuan')
+    // The split rules in the Customer's words: no cap, because the Customer takes nothing.
+    expect(screen.getByText(/Khách hàng không nhận phần nào trong tiền của giai đoạn/)).toBeInTheDocument()
+    expect(screen.getByText(/Khách hàng soạn phân chia trong 7 ngày/)).toBeInTheDocument()
+    expect(screen.getByText(/Mỗi bản phân chia có 3 ngày/)).toBeInTheDocument()
+    expect(screen.getByText(/Khách hàng sửa phân chia tối đa 3 lần/)).toBeInTheDocument()
+    expect(screen.queryByText(/Phần của người hướng dẫn tối đa/)).toBeNull()
+    // The commitment text points at N-35 and drops the two disclosure sentences.
+    const text = screen.getByRole('region', { name: 'Toàn văn cam kết tham gia' })
+    expect(text).toHaveTextContent('"Làm việc với khách hàng tự hướng dẫn" ở đầu bảng này (phiên bản 1.0)')
+    expect(text).not.toHaveTextContent('không biết tên, hồ sơ hay cách liên hệ')
+
+    await user.click(screen.getByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    await user.click(screen.getByRole('button', { name: 'Ký và tham gia' }))
+
+    await waitFor(() =>
+      expect(sent).toEqual({
+        ndaVersion: '2.0',
+        commitmentVersion: '1.0',
+        publicCodeAcknowledged: true,
+        commitEmailNoticeAcknowledged: true,
+        selfMentoredNoticeVersion: '1.0',
+      }),
+    )
+    expect(await screen.findByText('Bạn đã tham gia nhóm thực hiện Sửa lỗi đặt bàn.', { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it('says the Customer has saved no draft yet, where a normal Job says the Mentor has shared none', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...menThree(ownPost),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(own({}, { scope: undefined, milestones: [] })),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Khách hàng chưa lưu bản nháp thỏa thuận nào, nên chưa có phạm vi để đọc.')).toBeInTheDocument()
+    expect(screen.getByText('Các giai đoạn và giá hiện ở đây khi khách hàng lưu bản nháp thỏa thuận.')).toBeInTheDocument()
+    expect(screen.getByText(/khách hàng đề xuất phần trăm cho từng thành viên/)).toBeInTheDocument()
+    expect(screen.queryByText(/Người hướng dẫn chưa gửi bản thỏa thuận nào/)).toBeNull()
+  })
+
+  it('asks to reload when N-35 changed since the panel was read', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...menThree(ownPost),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(own()),
+      'POST /api/v1/crew/jobs/j1/commitment': () =>
+        json({ status: 400, code: 'VALIDATION', reason: 'SELF_MENTORED_NOTICE_OUTDATED' }, 400),
+    })
+    renderAt('/tim-viec/j1')
+
+    await user.click(await screen.findByRole('checkbox', { name: /Tôi hiểu mã tôi và nhóm làm/ }))
+    await user.click(screen.getByRole('button', { name: 'Ký và tham gia' }))
+
+    expect(
+      await screen.findByText(
+        'Phần cam kết làm việc với khách hàng tự hướng dẫn vừa thay đổi. Hãy tải lại trang và đọc lại trước khi ký.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ký và tham gia' })).toBeInTheDocument()
+  })
+
+  it('says the Customer withdrew the pick', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...menThree(ownPost),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () =>
+        json(own({ status: 'WITHDRAWN', endReason: 'PICK_WITHDRAWN', panel: undefined })),
+    })
+    renderAt('/tim-viec/j1')
+
+    expect(await screen.findByText('Khách hàng đã rút lựa chọn.')).toBeInTheDocument()
+    expect(screen.queryByText('Người hướng dẫn đã rút lựa chọn.')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Tìm việc khác' })).toBeInTheDocument()
+  })
+
+  it('shows the Customer who mentors N-20 in their own words on JOB-9', { timeout: 20_000 }, async () => {
+    fakeBackend(signedInUser, { ...jobNine(), ...inEveryJob('CUSTOMER_MENTOR') })
+    renderAt('/cong-viec/j1/tuyen-thanh-vien')
+
+    expect(await screen.findByRole('switch', { name: 'Nhận đơn xin vào nhóm' })).toBeInTheDocument()
+    const n20 = await screen.findByText(/^Người xin vào nhóm thấy tên và hồ sơ công khai của bạn/)
+    expect(n20).toHaveTextContent('Bạn soạn phần chia tiền nhưng không nhận phần nào.')
+    expect(screen.queryByText(/Khách hàng không thấy đơn xin vào nhóm, hồ sơ hay phần chia tiền/)).toBeNull()
+  })
+
+  it('tells an applicant on FND-2 that the Customer reads the application', { timeout: 15_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...menThree({
+        ...ownPost,
+        'GET /api/v1/jobs/j1/role': () => json({ status: 404, code: 'NOT_FOUND' }, 404),
+      }),
+    })
+    renderAt('/tim-viec/j1/xin-vao-nhom')
+
+    const n27 = await screen.findByText(/chỉ khách hàng tự hướng dẫn công việc này xem được/)
+    expect(n27).toHaveTextContent('Khách hàng đọc đơn của bạn và thấy hồ sơ công khai của bạn.')
+    expect(screen.queryByText(/chỉ người hướng dẫn của công việc này xem được/)).toBeNull()
+  })
+})
+
 describe('CUS-7 "Việc tôi tham gia" shows a pick waiting for its signature (UX-DR86, Story 21.5)', () => {
   it('reads "Bạn được chọn · ký cam kết trước {date}" with the way to MEN-3', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
