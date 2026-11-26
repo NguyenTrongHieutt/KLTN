@@ -200,8 +200,9 @@ class SelfMentoredSwitchIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/mentor/jobs/" + job + "/agreement").with(as(this.lan))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.quote").doesNotExist());
 
-		// Both selection periods end by themselves: J1's Deadline and J5's each find the Job no longer Open.
-		this.clock.advance(Duration.ofDays(14).minusMinutes(90));
+		// Both selection periods end by themselves: J1's Deadline and J5's each find the Job no longer Open. J5's is due
+		// 14 days after the decline, an hour before the Agreement deadline the switch set.
+		this.clock.advance(Duration.ofDays(14).minusMinutes(30));
 		this.poller.runDue();
 		assertThat(state(job)).isEqualTo("AGREEMENT");
 		assertThat(this.jdbc.sql("""
