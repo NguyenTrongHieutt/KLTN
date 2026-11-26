@@ -1,6 +1,7 @@
 package vn.vibefix.authz;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -28,12 +29,12 @@ class AuthorizationMatrixIT extends IntegrationTest {
 	private MatrixRowRunner runner;
 
 	/**
-	 * Every row; with {@code -Dmatrix.rows=<text>}, only the rows whose description holds the text, for building a
+	 * Every row; with {@code -Dmatrix.rows=<regex>}, only the rows whose description matches somewhere, for building a
 	 * part of the matrix (a verify runs them all).
 	 */
 	static List<MatrixRow> rows() {
-		String only = System.getProperty("matrix.rows", "");
-		return MatrixRow.loadMatrix().stream().filter(row -> row.toString().contains(only)).toList();
+		Pattern only = Pattern.compile(System.getProperty("matrix.rows", ""));
+		return MatrixRow.loadMatrix().stream().filter(row -> only.matcher(row.toString()).find()).toList();
 	}
 
 	@BeforeEach

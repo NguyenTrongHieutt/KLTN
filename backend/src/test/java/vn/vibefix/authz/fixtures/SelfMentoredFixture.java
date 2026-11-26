@@ -189,9 +189,11 @@ public class SelfMentoredFixture implements MatrixFixture {
 		put(world, "screenshotId", screenshot);
 		// Nobody bids on a Self-mentored Job, no Abuse Report names its content, and it has no split yet (Story 25.6):
 		// the endpoints that name one of these answer for an object that does not exist.
-		for (String absent : List.of("applicationId", "proofFileId", "proofUploadId", "reportId", "resolutionId")) {
+		for (String absent : List.of("applicationId", "proofFileId", "proofUploadId", "reportId", "resolutionId",
+				"resolutionActivePartyId", "resolutionFormerPartyId", "resolutionMentorPartyId")) {
 			put(world, absent, UUID.randomUUID());
 		}
+		put(world, "resolutionStepUpCode", "000000");
 	}
 
 	/**

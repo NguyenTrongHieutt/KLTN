@@ -3354,7 +3354,7 @@ GET /api/v1/jobs/{jobId}/applications,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,CUSTOMER_MENTOR,job=self,select.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId},CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,CUSTOMER_MENTOR,job=self,decision.json,409 STALE STATE_CHANGED,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER_MENTOR,job=self,nda.json,409 STALE STATE_CHANGED,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER_MENTOR,job=self,nda.json,409 STALE,requireGitHubLinked
 POST /api/v1/jobs/{jobId}/selection/cancel,CUSTOMER_MENTOR,job=self,decision.json,409 STALE
 GET /api/v1/jobs/{jobId}/mentors,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/jobs/{jobId}/invitations,CUSTOMER_MENTOR,job=self,,200
@@ -3371,17 +3371,17 @@ GET /api/v1/crew-chats/{crewChatId}/messages,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/crew-chats/{crewChatId}/messages,CUSTOMER_MENTOR,job=self,chat-message.json,201
 POST /api/v1/crew-chats/{crewChatId}/attachments,CUSTOMER_MENTOR,job=self,upload.png,201
 POST /api/v1/crew-chats/{crewChatId}/read,CUSTOMER_MENTOR,job=self,,204
-GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending=25.5,,200
-GET /api/v1/boards/{boardId}/closure,CUSTOMER_MENTOR,job=self;pending=25.7,,200
-POST /api/v1/boards/{boardId}/closure,CUSTOMER_MENTOR,job=self;pending=25.7,closure.json,422 GUARD_FAILED MILESTONE_HELD
-POST /api/v1/boards/{boardId}/closure/confirm,CUSTOMER_MENTOR,job=self;pending=25.7,closure.json,409 CONFLICT NO_CLOSURE_OPEN
-POST /api/v1/boards/{boardId}/closure/decline,CUSTOMER_MENTOR,job=self;pending=25.7,closure.json,409 CONFLICT NO_CLOSURE_OPEN
+GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/boards/{boardId}/closure,CUSTOMER_MENTOR,job=self,,200
+POST /api/v1/boards/{boardId}/closure,CUSTOMER_MENTOR,job=self,closure.json,422 GUARD_FAILED MILESTONE_HELD
+POST /api/v1/boards/{boardId}/closure/confirm,CUSTOMER_MENTOR,job=self,closure.json,409 CONFLICT NO_CLOSURE_OPEN
+POST /api/v1/boards/{boardId}/closure/decline,CUSTOMER_MENTOR,job=self,closure.json,409 CONFLICT NO_CLOSURE_OPEN
 GET /api/v1/boards/{boardId}/data-deletion,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/boards/{boardId}/data-deletion/{item},CUSTOMER_MENTOR,job=self;pending=25.4,,403 FORBIDDEN NOT_A_DUTY
 GET /api/v1/boards/{boardId}/revocation-checklist,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/boards/{boardId}/revocation-checklist/{accessId},CUSTOMER_MENTOR,job=self,revocation-confirm.json,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/ratings,CUSTOMER_MENTOR,job=self,,200
-POST /api/v1/boards/{boardId}/ratings,CUSTOMER_MENTOR,job=self;pending=25.8,rating.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/ratings,CUSTOMER_MENTOR,job=self,rating.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
 POST /api/v1/boards/{boardId}/private-feedback,CUSTOMER_MENTOR,job=self,private-feedback.json,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/portfolio,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/boards/{boardId}/portfolio/summary,CUSTOMER_MENTOR,job=self;pending=25.8,portfolio-summary.json,422 GUARD_FAILED NO_PORTFOLIO
@@ -3395,17 +3395,17 @@ DELETE /api/v1/follow-ups/{followUpId},CUSTOMER_MENTOR,job=self;pending=25.8,,20
 POST /api/v1/follow-ups/{followUpId}/open,CUSTOMER_MENTOR,job=self;pending=25.8,,404 NOT_FOUND
 POST /api/v1/follow-ups/{followUpId}/discard,CUSTOMER_MENTOR,job=self;pending=25.8,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/change-requests,CUSTOMER_MENTOR,job=self,,200
-POST /api/v1/boards/{boardId}/change-requests,CUSTOMER_MENTOR,job=self;pending=25.7,change-request.json,409 CONFLICT CHANGE_REQUEST_OPEN
+POST /api/v1/boards/{boardId}/change-requests,CUSTOMER_MENTOR,job=self,change-request.json,409 CONFLICT CHANGE_REQUEST_OPEN
 POST /api/v1/change-requests/{changeRequestId}/impact,CUSTOMER_MENTOR,job=self;pending=25.7,change-impact.json,404 NOT_FOUND
 POST /api/v1/change-requests/{changeRequestId}/approve,CUSTOMER_MENTOR,job=self;pending=25.7,change-version.json,404 NOT_FOUND
 POST /api/v1/change-requests/{changeRequestId}/confirm,CUSTOMER_MENTOR,job=self;pending=25.7,change-version.json,404 NOT_FOUND
-POST /api/v1/change-requests/{changeRequestId}/withdraw,CUSTOMER_MENTOR,job=self;pending=25.7,,200
+POST /api/v1/change-requests/{changeRequestId}/withdraw,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/boards/{boardId}/agreement-versions,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self,,200
-POST /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self;pending=25.7,cancellation.json,200
+POST /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self,cancellation.json,200
 POST /api/v1/boards/{boardId}/cancellation/confirm,CUSTOMER_MENTOR,job=self;pending=25.7,change-version.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/cancellation/withdraw,CUSTOMER_MENTOR,job=self;pending=25.7,,409 CONFLICT NO_CANCELLATION_OPEN
-POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER_MENTOR,job=self;pending=25.4,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CUSTOMER_MENTOR,job=self,,409 CONFLICT NO_CANCELLATION_OPEN
+POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER_MENTOR,job=self,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
 GET /api/v1/boards/{boardId}/dispute,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/boards/{boardId}/disputes,CUSTOMER_MENTOR,job=self,dispute.json,409 CONFLICT DISPUTE_ALREADY_OPEN
 GET /api/v1/admin/disputes/{disputeId},CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
@@ -3430,7 +3430,7 @@ GET /api/v1/handovers/{handoverId},CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/handovers/{handoverId}/accept,CUSTOMER_MENTOR,job=self,handover-accept.json,409 STALE
 POST /api/v1/handovers/{handoverId}/revision,CUSTOMER_MENTOR,job=self,handover-revision.json,409 STALE
 GET /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
-PUT /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self;pending=25.3,agreement.json,409 STALE,requireActiveAccount
+PUT /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,agreement.json,409 STALE,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-share.json,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
@@ -3442,11 +3442,11 @@ POST /api/v1/crew/jobs/{jobId}/commitment/decline,CUSTOMER_MENTOR,job=self,,404 
 POST /api/v1/jobs/{jobId}/agreement/comments,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-comment.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/agreement/changes,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-changes.json,404 NOT_FOUND
 POST /api/v1/jobs/{jobId}/agreement/approve,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-approve.json,404 NOT_FOUND
-POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-confirm.json,409 STALE,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CUSTOMER_MENTOR,job=self,agreement-confirm.json,409 STALE,requireActiveAccount
 GET /api/v1/jobs/{jobId}/funding,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,CUSTOMER_MENTOR,job=self,payment-order.json,409 STALE
 GET /api/v1/payment-orders/{paymentOrderId},CUSTOMER_MENTOR,job=self,,200
-GET /api/v1/mentor/jobs/{jobId}/funding,CUSTOMER_MENTOR,job=self;pending=25.6,,200,requireActiveAccount
+GET /api/v1/mentor/jobs/{jobId}/funding,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 GET /api/v1/jobs/{jobId}/setup,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/jobs/{jobId}/setup/retry,CUSTOMER_MENTOR,job=self,,409 CONFLICT SETUP_NOT_BLOCKED
 POST /api/v1/jobs/{jobId}/setup/confirmation,CUSTOMER_MENTOR,job=self,setup-confirmation.json,409 CONFLICT SETUP_NOT_CONFIRMING
@@ -3592,9 +3592,9 @@ POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_DISPUTE_GRANT,job=s
 POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,change-version.json,404 NOT_FOUND
 POST /api/v1/change-requests/{changeRequestId}/confirm,ADMIN_TEAM_ISSUE_GRANT,job=self,change-version.json,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/cancellation,CREW_ASSIGNED,job=self,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self,,200
 GET /api/v1/boards/{boardId}/cancellation,CREW_FORMER,job=self,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE_PARTY,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE_PARTY,job=self,,200
 GET /api/v1/boards/{boardId}/cancellation,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/cancellation,LOCKED,job=self,,401
 GET /api/v1/boards/{boardId}/cancellation,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
@@ -3619,9 +3619,9 @@ POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_DISPUTE_GRANT,job=self
 POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/dispute,CREW_ASSIGNED,job=self,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE,job=self,,200
 GET /api/v1/boards/{boardId}/dispute,CREW_FORMER,job=self,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE_PARTY,job=self;pending=25.7,,200
+GET /api/v1/boards/{boardId}/dispute,CREW_ACTIVE_PARTY,job=self,,200
 GET /api/v1/boards/{boardId}/dispute,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/dispute,LOCKED,job=self,,401
 GET /api/v1/boards/{boardId}/dispute,ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
@@ -3646,18 +3646,18 @@ POST /api/v1/boards/{boardId}/dispute/statement,ADMIN_DISPUTE_GRANT,job=self,dis
 POST /api/v1/boards/{boardId}/dispute/statement,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,dispute-statement.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/dispute/statement,ADMIN_TEAM_ISSUE_GRANT,job=self,dispute-statement.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ASSIGNED,job=self,,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,job=self;pending=25.4,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE,job=self,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER,job=self,,200
-POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE_PARTY,job=self;pending=25.4,,422 GUARD_FAILED JOB_NOT_ENDED
+POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_ACTIVE_PARTY,job=self,,422 GUARD_FAILED JOB_NOT_ENDED
 POST /api/v1/boards/{boardId}/data-deletion/{item},CREW_FORMER_PARTY,job=self,,200
 POST /api/v1/boards/{boardId}/data-deletion/{item},LOCKED,job=self,,401
 POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_DISPUTE_GRANT,job=self,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/data-deletion/{item},ADMIN_TEAM_ISSUE_GRANT,job=self,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/private-feedback,CREW_ASSIGNED,job=self,private-feedback.json,404 NOT_FOUND
-POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,job=self;pending=25.8,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE,job=self,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
 POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER,job=self,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
-POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE_PARTY,job=self;pending=25.8,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
+POST /api/v1/boards/{boardId}/private-feedback,CREW_ACTIVE_PARTY,job=self,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
 POST /api/v1/boards/{boardId}/private-feedback,CREW_FORMER_PARTY,job=self,private-feedback.json,422 GUARD_FAILED RATING_WINDOW_CLOSED
 POST /api/v1/boards/{boardId}/private-feedback,LOCKED,job=self,private-feedback.json,401
 POST /api/v1/boards/{boardId}/private-feedback,ADMIN_DISPUTE_GRANT,job=self,private-feedback.json,404 NOT_FOUND
