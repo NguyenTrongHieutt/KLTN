@@ -215,7 +215,7 @@ describe('PUB-2 sign in (FR-1, FR-59)', () => {
       status: 'LOCKED',
       lockReason: 'Vi phạm quy định',
       supportEmail: 'hotro@vibefix.vn',
-      privacyNoticeVersion: '2.0',
+      privacyNoticeVersion: '2.0', selfMentoredJobs: false,
     })
     renderAt('/dang-nhap')
 
@@ -266,7 +266,7 @@ describe('PUB-3 "Chào mừng" (FR-1, NFR-9, UX-DR89)', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/viec-can-lam'))
     const request = seen.find((entry) => entry.method === 'POST')!
-    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.1' })
+    expect(await request.clone().json()).toEqual({ privacyNoticeVersion: '3.1', selfMentoredJobs: false })
     expect(request.headers.get('X-XSRF-TOKEN')).toBe('token-1')
     document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   })

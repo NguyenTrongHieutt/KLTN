@@ -21,7 +21,7 @@ import { useJobApplications } from '@/features/matching/applicationApi'
 import { MentorJobPage } from '@/features/matching/MentorJobPage'
 import { useCancelSelection } from '@/features/matching/mentorJobApi'
 import { formatVnd } from '@/lib/money'
-import { NoCrewAlert } from '@/features/crew/NoCrew'
+import { NoCrewAlert, NoCrewBanner } from '@/features/crew/NoCrew'
 import { ByJobRole, JobPhaseBadge, JobRoleLine } from './ByJobRole'
 import { LeaverRevocations } from './closure/RevocationChecklist'
 import { useJob, useWithdrawJob, type Job } from './jobApi'
@@ -83,7 +83,8 @@ function CustomerJobPage({ jobId }: { jobId: string | undefined }) {
 
 function Overview({ job }: { job: Job }) {
   const applications = useJobApplications(job.state === 'OPEN' || job.state === 'SELECTING' ? job.id : undefined).data ?? []
-  const chat = useJobChat(hasChat(job.state) ? job.id : undefined)
+  // A Self-mentored Job has no Job Chat to ask for (FR-85).
+  const chat = useJobChat(hasChat(job.state) && !job.selfMentored ? job.id : undefined)
   const types = job.jobTypes.map((type) => t(`term.jobType${type}.label` as MessageKey)).join(', ')
   const open = job.state === 'OPEN' && job.lapsesAt != null
   return (
@@ -114,6 +115,7 @@ function Overview({ job }: { job: Job }) {
         <StageStrip state={job.state} />
         <JobTabs
           jobId={job.id}
+          state={job.state}
           current="overview"
           applications={job.state === 'OPEN' ? applications.length : undefined}
           chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
@@ -123,6 +125,7 @@ function Overview({ job }: { job: Job }) {
         />
       </div>
       {job.mentor && <NoCrewAlert jobId={job.id} mentor={job.mentor.displayName} />}
+      {job.selfMentored && <NoCrewBanner jobId={job.id} />}
       <LeaverRevocations jobId={job.id} />
       {job.state === 'SELECTING' && job.mentor && job.ndaDueAt ? (
         <Card as="section" aria-labelledby="job-selecting" className="flex flex-col gap-2">
@@ -199,7 +202,18 @@ function Overview({ job }: { job: Job }) {
  */
 function AgreementStep({ job }: { job: Job }) {
   const base = `/cong-viec/${job.id}`
-  const step = job.agreementConfirmed
+  // A Self-mentored Job (FR-85): the Customer drafts the Agreement and recruits the Crew, and nobody shares a draft.
+  const step = job.selfMentored && !job.agreementConfirmed
+    ? {
+        title: t('screen.job.detail.selfMentoredTitle'),
+        body: t('screen.job.detail.selfMentoredBody'),
+        links: [
+          { to: `${base}/thoa-thuan`, label: t('screen.agreement.tab') },
+          { to: `${base}/tuyen-thanh-vien`, label: t('screen.recruitment.tab') },
+          { to: `${base}/trao-doi-nhom`, label: t('screen.crewChat.tab') },
+        ],
+      }
+    : job.agreementConfirmed
     ? {
         title: t('screen.job.detail.agreementConfirmedTitle'),
         body: t('screen.job.detail.agreementConfirmedBody'),

@@ -100,23 +100,44 @@ export function useRemoveScreenshot(jobId: string) {
   })
 }
 
-function useTransition(path: '/api/v1/jobs/{jobId}/publish' | '/api/v1/jobs/{jobId}/withdraw') {
+/** A transition's answer is the Job as it is now: the screens read it at once, and the lists reload. */
+function useJobChanged() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (jobId: string) => unwrap(apiClient.POST(path, { params: { path: { jobId } } })),
-    onSuccess: (job) => {
-      queryClient.setQueryData([...JOBS_QUERY_KEY, 'detail', job.id], job)
-      return queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'list'] })
-    },
-  })
+  return (job: Job) => {
+    queryClient.setQueryData([...JOBS_QUERY_KEY, 'detail', job.id], job)
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'list'] }),
+      // Publishing a Self-mentored Job changes the user's role in it (FR-85).
+      queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'role', job.id] }),
+      queryClient.invalidateQueries({ queryKey: [...JOBS_QUERY_KEY, 'mine'] }),
+    ])
+  }
 }
 
-/** CUS-6 "Đăng tin", after N-3: J1 makes the Draft an Open Job Post (FR-9). */
+/**
+ * CUS-6 "Đăng tin", after N-3: J1 makes a normal Job's Draft an Open Job Post (FR-9). A Self-mentored Job's Draft
+ * names the version of notice N-34 the Customer acknowledged, and J11 puts it in Agreement (FR-85).
+ */
 export function usePublishJob() {
-  return useTransition('/api/v1/jobs/{jobId}/publish')
+  const changed = useJobChanged()
+  return useMutation({
+    mutationFn: ({ jobId, selfMentoredNoticeVersion }: { jobId: string; selfMentoredNoticeVersion?: string }) =>
+      unwrap(
+        apiClient.POST('/api/v1/jobs/{jobId}/publish', {
+          params: { path: { jobId } },
+          body: selfMentoredNoticeVersion === undefined ? undefined : { selfMentoredNoticeVersion },
+        }),
+      ),
+    onSuccess: changed,
+  })
 }
 
 /** JOB-1 "Rút tin": J2 returns the Open Job Post to Draft (FR-9). */
 export function useWithdrawJob() {
-  return useTransition('/api/v1/jobs/{jobId}/withdraw')
+  const changed = useJobChanged()
+  return useMutation({
+    mutationFn: (jobId: string) =>
+      unwrap(apiClient.POST('/api/v1/jobs/{jobId}/withdraw', { params: { path: { jobId } } })),
+    onSuccess: changed,
+  })
 }

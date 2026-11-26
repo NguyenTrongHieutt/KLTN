@@ -7,10 +7,12 @@ import { t } from '@/i18n/t'
 /**
  * The No-Crew banner on JOB-H, so on JOB-1 and JOB-2 too (FR-82, Q7, R8, UX-DR104): for the Mentor of a Job in Starting
  * or Active with no counted member, with "Tuyển thành viên" (JOB-9). Nothing dismisses it; it goes when a member signs.
+ * The Customer of a Self-mentored Job recruits the Crew too, so it shows to them, in the words for that mode: only a
+ * member hands over (FR-85).
  */
 export function NoCrewBanner({ jobId }: { jobId: string }) {
   const role = useJobRole(jobId).data
-  if (role?.role !== 'MENTOR' || !role.noCrew) {
+  if ((role?.role !== 'MENTOR' && role?.role !== 'CUSTOMER_MENTOR') || !role.noCrew) {
     return null
   }
   return (
@@ -19,7 +21,9 @@ export function NoCrewBanner({ jobId }: { jobId: string }) {
       className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm"
     >
       <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-      <p className="min-w-60 flex-1 break-words">{t('screen.crew.noCrew.mentor')}</p>
+      <p className="min-w-60 flex-1 break-words">
+        {t(role.role === 'CUSTOMER_MENTOR' ? 'screen.crew.noCrew.selfMentor' : 'screen.crew.noCrew.mentor')}
+      </p>
       <Link
         to={`/cong-viec/${jobId}/tuyen-thanh-vien`}
         className={buttonVariants({ variant: 'secondary', size: 'compact' })}

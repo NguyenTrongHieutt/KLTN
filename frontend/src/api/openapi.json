@@ -5245,6 +5245,15 @@
             "format" : "uuid"
           }
         } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobPublishRequest"
+              }
+            }
+          }
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -13812,6 +13821,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "skillIds" : {
             "type" : "array",
             "items" : {
@@ -13943,6 +13955,9 @@
           "recruitment" : {
             "$ref" : "#/components/schemas/PostRecruitmentView"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "skills" : {
             "type" : "array",
             "items" : {
@@ -13953,7 +13968,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "jobTypes", "need", "openedAt", "productName", "skills", "title" ]
+        "required" : [ "id", "jobTypes", "need", "openedAt", "productName", "selfMentored", "skills", "title" ]
       },
       "JobPostView" : {
         "type" : "object",
@@ -14033,6 +14048,9 @@
               "$ref" : "#/components/schemas/ScreenshotView"
             }
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "skills" : {
             "type" : "array",
             "items" : {
@@ -14043,7 +14061,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "id", "jobTypes", "need", "openedAt", "productDescription", "productId", "productName", "productTools", "screenshots", "skills", "title" ]
+        "required" : [ "id", "jobTypes", "need", "openedAt", "productDescription", "productId", "productName", "productTools", "screenshots", "selfMentored", "skills", "title" ]
       },
       "JobProgressView" : {
         "type" : "object",
@@ -14084,6 +14102,16 @@
           }
         },
         "required" : [ "assessment", "audience", "boardId", "crew", "mentorName", "milestones", "productName", "state", "title" ]
+      },
+      "JobPublishRequest" : {
+        "type" : "object",
+        "properties" : {
+          "selfMentoredNoticeVersion" : {
+            "type" : "string",
+            "maxLength" : 20,
+            "minLength" : 0
+          }
+        }
       },
       "JobRoleView" : {
         "type" : "object",
@@ -14272,6 +14300,9 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "skills" : {
             "type" : "array",
             "items" : {
@@ -14294,7 +14325,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "agreementConfirmed", "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "skills", "state", "title", "updatedAt", "version" ]
+        "required" : [ "agreementConfirmed", "agreementShared", "canCancelSelection", "createdAt", "id", "jobTypes", "productId", "productName", "screenshots", "selfMentored", "skills", "state", "title", "updatedAt", "version" ]
       },
       "LeaveRequest" : {
         "type" : "object",
@@ -17055,6 +17086,9 @@
           "privacyNoticeVersion" : {
             "type" : "string"
           },
+          "selfMentoredJobs" : {
+            "type" : "boolean"
+          },
           "status" : {
             "type" : "string",
             "enum" : [ "ANONYMOUS", "SIGNING_UP", "LOCKED", "SIGNED_IN" ]
@@ -17063,7 +17097,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "privacyNoticeVersion", "status" ]
+        "required" : [ "privacyNoticeVersion", "selfMentoredJobs", "status" ]
       },
       "SetupConfirmationRequest" : {
         "type" : "object",

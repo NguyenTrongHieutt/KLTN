@@ -293,11 +293,12 @@ function CustomerPayment({ jobId }: { jobId: string }) {
 }
 
 function Header({ job }: { job: Job }) {
-  const chat = useJobChat(hasChat(job.state) ? job.id : undefined)
+  const chat = useJobChat(hasChat(job.state) && !job.selfMentored ? job.id : undefined)
   return (
     <JobHeader title={job.title} state={job.state} meta={customerMeta(job)}>
       <JobTabs
         jobId={job.id}
+        state={job.state}
         current="payment"
         chat={hasChat(job.state) ? { unread: chat.data?.unread ?? false } : undefined}
         agreement={job.agreementShared}
