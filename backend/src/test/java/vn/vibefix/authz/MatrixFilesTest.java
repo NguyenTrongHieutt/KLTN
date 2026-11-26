@@ -54,12 +54,12 @@ class MatrixFilesTest {
 
 	/**
 	 * The callers of the mode world (AD-20, AD-47): the Customer who mentors, and the Crew, the locked member and the
-	 * grant holders on the families whose policy has a mode branch.
+	 * grant holders on the families whose policy has a mode branch; and the unrelated user, whom its Job tells nothing.
 	 */
 	static final Set<MatrixCaller> IN_THE_MODE_WORLD = EnumSet.of(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CREW_ASSIGNED,
 			MatrixCaller.CREW_ACTIVE, MatrixCaller.CREW_FORMER, MatrixCaller.CREW_ACTIVE_PARTY,
 			MatrixCaller.CREW_FORMER_PARTY, MatrixCaller.LOCKED, MatrixCaller.ADMIN_DISPUTE_GRANT,
-			MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT);
+			MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT, MatrixCaller.ADMIN_TEAM_ISSUE_GRANT, MatrixCaller.USER);
 
 	/**
 	 * The callers whose relation is to the crew Job only, never to the Customer's Draft, so their rows on an
@@ -385,15 +385,32 @@ class MatrixFilesTest {
 		assertThat(MatrixRow.loadMatrix())
 			.filteredOn(row -> row.caller() == MatrixCaller.CROSS_ROLE_SELF || row.binds(Binding.SELF_MEMBER_JOB))
 			.isNotEmpty()
-			.allSatisfy(row -> assertThat(row.caller() == MatrixCaller.CROSS_ROLE_SELF && row.binds(Binding.SELF_MEMBER_JOB))
-				.as("%s is the cross-role person on the normal Job where they are a member", row)
+			.allSatisfy(row -> assertThat(row.caller() == MatrixCaller.CROSS_ROLE_SELF
+					&& (row.binds(Binding.SELF_MEMBER_JOB) || !row.jobScoped()))
+				.as("%s is the cross-role person on the normal Job where they are a member, or on a list of their own", row)
 				.isTrue());
+		// No mode row reads an object of the normal world: it names the mode world's objects and constants only.
+		assertThat(MatrixRow.loadMatrix()).filteredOn(MatrixRow::selfWorld).allSatisfy(row -> {
+			Set<String> allowed = new TreeSet<>(MatrixRow.SELF_WORLD);
+			allowed.addAll(MatrixRow.CONSTANTS);
+			assertThat(allowed).as("%s names the mode world's objects only", row).containsAll(row.placeholders());
+		});
+		// R63: handing over refuses the Customer who mentors from Story 25.2a on, so those rows never wait for a story.
+		assertThat(MatrixRow.loadMatrix())
+			.filteredOn(row -> row.caller() == MatrixCaller.CUSTOMER_MENTOR
+					&& row.path().startsWith("/api/v1/boards/{boardId}/handovers/")
+					|| row.caller() == MatrixCaller.CUSTOMER_MENTOR && row.endpoint().equals("POST /api/v1/boards/{boardId}/handovers"))
+			.hasSize(6)
+			.allSatisfy(row -> {
+				assertThat(row.pending()).as("%s does not wait", row).isNull();
+				assertThat(row.expect().reason()).as("%s", row).isEqualTo("TEAM_ONLY");
+			});
 	}
 
 	/**
 	 * AD-20, AD-47: the mode world has its own canaries, named {@code SM_*}. The Customer who mentors reads no canary of a
-	 * normal Job, a normal Job's Customer and Mentor read none of the mode world's, and the same person called on the
-	 * normal Job where they are a member reads nothing there that a member does not.
+	 * normal Job, and a normal Job's Customer and Mentor read none of the mode world's. In a mode row the scan hides
+	 * every normal canary from the row's people, whatever {@code visible_to} lists.
 	 */
 	@Test
 	void theModeWorldsCanariesAreItsOwn() {
@@ -402,7 +419,7 @@ class MatrixFilesTest {
 			.extracting(Canaries.Canary::name)
 			.containsExactlyInAnyOrder("SM_CREW_NAME", "SM_CREW_EMAIL", "SM_CREW_LINKEDIN", "SM_CREW_CHAT",
 					"SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID",
-					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT");
+					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT", "SM_MEMBER_JOB_CONTACT");
 		for (Canaries.Canary canary : canaries) {
 			boolean mode = canary.name().startsWith("SM_");
 			if (mode) {
@@ -429,6 +446,17 @@ class MatrixFilesTest {
 				"SM_TEAM_ISSUE_ID")) {
 			assertThat(all.get(name).visibleTo()).as(name).containsExactly(MatrixCaller.CUSTOMER_MENTOR);
 		}
+		// The scan of a mode row: a member of the mode world is not the crew Job's member, so the crew Job's Crew Chat is
+		// hidden from them, and a grant holder keeps only what any Administrator reads.
+		MatrixRow member = MatrixRow.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,job=self,,200\n").getFirst();
+		assertThat(names(MatrixRowRunner.hiddenIn(member, all))).contains("CREW_CHAT", "CREW_NAME", "HANDOVER_LINK", "SM_CONTACT_EMAIL")
+			.doesNotContain("SM_CREW_CHAT", "SM_CREW_NAME");
+		MatrixRow grant = MatrixRow
+			.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_TEAM_ISSUE_GRANT,job=self,,200\n").getFirst();
+		assertThat(names(MatrixRowRunner.hiddenIn(grant, all))).contains("CREW_CHAT", "JOB_CHAT").doesNotContain("CREW_NAME",
+				"SM_CREW_CHAT");
+		MatrixRow normal = MatrixRow.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,job=crew,,200\n").getFirst();
+		assertThat(MatrixRowRunner.hiddenIn(normal, all)).isEqualTo(all.hiddenFrom(MatrixCaller.CREW_ACTIVE));
 		assertThat(all.normal().all()).as("the normal world's rules read the normal canaries")
 			.noneMatch(canary -> canary.name().startsWith(Canaries.MODE_PREFIX));
 	}
@@ -443,9 +471,10 @@ class MatrixFilesTest {
 		assertThatThrownBy(() -> MatrixRow
 			.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER,job=crew;pending=25.5,,200\n"))
 			.hasMessageContaining("only a job=self row is pending");
-		assertThatThrownBy(() -> MatrixRow
-			.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending=soon,,200\n"))
-			.hasMessageContaining("pending names a story");
+		for (String story : List.of("soon", "25.2a", "25.9", "25.33", "24.3")) {
+			assertThatThrownBy(() -> MatrixRow.parse(HEADER + "GET /api/v1/boards/{boardId}/progress,CUSTOMER_MENTOR,job=self;pending="
+					+ story + ",,200\n")).as(story).hasMessageContaining("pending names a story");
+		}
 		// Another binding's value reads its mode twin, and a constant keeps its one value.
 		MatrixRow file = MatrixRow.parse(HEADER + "GET /api/v1/files/{fileId},CUSTOMER_MENTOR,job=self;file=chat,,200\n")
 			.getFirst();
@@ -636,7 +665,7 @@ class MatrixFilesTest {
 
 	@Test
 	void theEscalatedTeamIssuesAdministratorsReadTheIssueTheyTook() {
-		assertThat(teamIssueBindingViolations(MatrixRow.loadNormal())).isEmpty();
+		assertThat(teamIssueBindingViolations(MatrixRow.loadMatrix())).isEmpty();
 	}
 
 	@Test
@@ -737,7 +766,7 @@ class MatrixFilesTest {
 			world.put(value, value + "-file");
 			assertThat(world.expand(row.path(), row.rebound())).as(state).isEqualTo("/api/v1/files/" + value + "-file");
 		});
-		assertThat(bindingPlaceholderViolations(MatrixRow.loadNormal())).isEmpty();
+		assertThat(bindingPlaceholderViolations(MatrixRow.loadMatrix())).isEmpty();
 		assertThat(bindingPlaceholderViolations(MatrixRow.parse(HEADER + """
 				DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},MENTOR,file=upload,,204
 				GET /api/v1/files/{fileId},MENTOR,,,404 NOT_FOUND
@@ -749,7 +778,7 @@ class MatrixFilesTest {
 
 	@Test
 	void anUnrelatedCallerIsToldNothingOnTheCrewJob() {
-		assertThat(unrelatedViolations(MatrixRow.loadNormal())).isEmpty();
+		assertThat(unrelatedViolations(MatrixRow.loadMatrix())).isEmpty();
 	}
 
 	@Test
@@ -821,7 +850,7 @@ class MatrixFilesTest {
 
 	@Test
 	void anUnrelatedCallerIsNeverToldThatAHiddenObjectExists() {
-		assertThat(sg31Violations(MatrixRow.loadNormal())).isEmpty();
+		assertThat(sg31Violations(MatrixRow.loadMatrix())).isEmpty();
 	}
 
 	@Test
@@ -1397,6 +1426,11 @@ class MatrixFilesTest {
 		List<String> violations = new ArrayList<>();
 		for (MatrixRow row : rows) {
 			for (Binding binding : row.bindings()) {
+				// job=self names a world, not one placeholder; the member Job is also its own {boardId}.
+				if (binding == Binding.SELF_JOB
+						|| (binding == Binding.SELF_MEMBER_JOB && row.placeholders().contains("boardId"))) {
+					continue;
+				}
 				if (!row.placeholders().contains(binding.placeholder())) {
 					violations.add(row + " binds " + binding.state() + " but names no {" + binding.placeholder() + "}");
 				}

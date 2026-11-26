@@ -14,6 +14,17 @@ public final class MatrixWorld {
 
 	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
 
+	/** A row names a value no fixture seeded. */
+	public static final class NotSeeded extends AssertionError {
+
+		private static final long serialVersionUID = 1L;
+
+		NotSeeded(String name) {
+			super("No fixture seeds {" + name + "}");
+		}
+
+	}
+
 	private final Map<String, String> values = new HashMap<>();
 
 	private boolean selfMode;
@@ -39,7 +50,7 @@ public final class MatrixWorld {
 	public String get(String name) {
 		String value = this.values.get(name);
 		if (value == null) {
-			throw new AssertionError("No fixture seeds {" + name + "}");
+			throw new NotSeeded(name);
 		}
 		return value;
 	}

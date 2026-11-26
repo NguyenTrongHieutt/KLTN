@@ -85,14 +85,20 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 
 	/**
 	 * The placeholders a {@code job=self} row reads from the mode world: a Job's own objects, and the Product, the
-	 * Customer and the Rating that belong to that world's people. Every other placeholder (a constant such as
-	 * {@code {item}}) keeps its one value.
+	 * Customer, the Rating, a split's parties and a case's step-up code that belong to that world's people. The only
+	 * other placeholder a mode row may name is a constant ({@link #CONSTANTS}), so no mode row reads an object of the
+	 * normal world.
 	 */
 	public static final Set<String> SELF_WORLD;
 
+	/** The placeholders that name no object of any world: {@code {item}} is a data-deletion duty's name. */
+	public static final Set<String> CONSTANTS = Set.of("item");
+
 	static {
 		Set<String> names = new TreeSet<>(JOB_SCOPED);
-		names.addAll(Set.of("productId", "customerId", "ratingId", "username"));
+		names.addAll(Set.of("productId", "customerId", "ratingId", "username", "activePartyId", "formerPartyId",
+				"mentorPartyId", "resolutionActivePartyId", "resolutionFormerPartyId", "resolutionMentorPartyId",
+				"resolutionStepUpCode", "teamIssueStepUpCode"));
 		SELF_WORLD = Set.copyOf(names);
 	}
 
@@ -326,6 +332,10 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 				.filter(SELF_WORLD::contains)
 				.forEach(placeholder -> rebound.putIfAbsent(placeholder, selfName(placeholder)));
 		}
+		if (binds(Binding.SELF_MEMBER_JOB)) {
+			// The Job is its own {boardId}, as everywhere.
+			rebound.put("boardId", Binding.SELF_MEMBER_JOB.worldValue());
+		}
 		return rebound;
 	}
 
@@ -339,9 +349,13 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		return binds(Binding.SELF_JOB);
 	}
 
-	/** Whether the row needs the mode world seeded: one on its Self-mentored Job or on its normal Job. */
+	/**
+	 * Whether the row needs the mode world seeded: one on its Self-mentored Job or on its normal Job, and every row of
+	 * the two callers who are that world's Customer.
+	 */
 	public boolean modeWorld() {
-		return selfWorld() || binds(Binding.SELF_MEMBER_JOB);
+		return selfWorld() || binds(Binding.SELF_MEMBER_JOB) || this.caller == MatrixCaller.CUSTOMER_MENTOR
+				|| this.caller == MatrixCaller.CROSS_ROLE_SELF;
 	}
 
 	/** The story that makes the row pass ({@link #PENDING}), or {@code null} for a row the suite runs. */

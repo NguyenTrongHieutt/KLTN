@@ -3354,7 +3354,7 @@ GET /api/v1/jobs/{jobId}/applications,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/jobs/{jobId}/applications/{applicationId}/select,CUSTOMER_MENTOR,job=self,select.json,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId},CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/decline,CUSTOMER_MENTOR,job=self,decision.json,409 STALE STATE_CHANGED,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER_MENTOR,job=self,nda.json,409 STALE,requireGitHubLinked
+POST /api/v1/mentor/jobs/{jobId}/nda,CUSTOMER_MENTOR,job=self,nda.json,409 STALE STATE_CHANGED,requireGitHubLinked
 POST /api/v1/jobs/{jobId}/selection/cancel,CUSTOMER_MENTOR,job=self,decision.json,409 STALE
 GET /api/v1/jobs/{jobId}/mentors,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/jobs/{jobId}/invitations,CUSTOMER_MENTOR,job=self,,200
@@ -3549,7 +3549,7 @@ POST /api/v1/boards/{boardId}/handovers/screenshots,ADMIN_TEAM_ISSUE_GRANT,job=s
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ASSIGNED,job=self;file=upload,,404 NOT_FOUND
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ACTIVE,job=self;file=upload;pending=25.5,,204
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_FORMER,job=self;file=upload,,404 NOT_FOUND
-DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ACTIVE_PARTY,job=self;file=upload;pending=25.5,,204
+DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_ACTIVE_PARTY,job=self;file=upload;pending=25.5,,404 NOT_FOUND
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},CREW_FORMER_PARTY,job=self;file=upload,,404 NOT_FOUND
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},LOCKED,job=self;file=upload,,401
 DELETE /api/v1/boards/{boardId}/handovers/screenshots/{fileId},ADMIN_DISPUTE_GRANT,job=self;file=upload,,404 NOT_FOUND
@@ -3668,6 +3668,30 @@ GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_DISPUTE_GRANT,job=self;pendin
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 
+# The lists the Customer who mentors reads, the contact the Crew never reads in the mode either (R61), the Crew Chat
+# an Administrator without a grant on this Job does not read, the file the Dispute's grant will (Story 25.7), and an
+# unrelated user, whom the Self-mentored Job tells nothing.
+GET /api/v1/my-jobs,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/mentor/jobs,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
+GET /api/v1/todos,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/notifications,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/balance,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/customers/{customerId}/contact,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE,job=self,,404 NOT_FOUND
+GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE_PARTY,job=self,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,job=self;file=chat;pending=25.7,,200
+GET /api/v1/jobs/{jobId},USER,job=self,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/role,USER,job=self,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/crew-chat,USER,job=self,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/agreement,USER,job=self,,404 NOT_FOUND
+GET /api/v1/mentor/jobs/{jobId},USER,job=self,,404 NOT_FOUND,requireActiveAccount
+GET /api/v1/boards/{boardId}/handovers,USER,job=self,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/dispute,USER,job=self,,404 NOT_FOUND
+
 # CROSS_ROLE_SELF: the Customer who mentors the Self-mentored Job, called on the normal Job of the mode world where they
 # are an ACTIVE member (job=self-member). On every read of a Job they answer as a member of that Job does, and
 # nothing of the Job they are the Customer and the Mentor of reaches it (AD-20, AD-47).
@@ -3681,7 +3705,21 @@ GET /api/v1/jobs/{jobId}/recommendations,CROSS_ROLE_SELF,job=self-member,,404 NO
 GET /api/v1/jobs/{jobId}/chat,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/chat/messages,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/crew-chat,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/progress,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/closure,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/data-deletion,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/revocation-checklist,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/ratings,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/portfolio,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/follow-ups,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/change-requests,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/agreement-versions,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/cancellation,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/dispute,CROSS_ROLE_SELF,job=self-member,,200
 GET /api/v1/admin/jobs/{jobId},CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/handovers,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/handovers/preflight,CROSS_ROLE_SELF,job=self-member,,403 FORBIDDEN MENTOR_ONLY
+GET /api/v1/boards/{boardId}/handovers/submission,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
 GET /api/v1/mentor/jobs/{jobId}/agreement,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/jobs/{jobId}/agreement,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
 GET /api/v1/crew/jobs/{jobId}/agreement,CROSS_ROLE_SELF,job=self-member,,200
@@ -3694,7 +3732,13 @@ GET /api/v1/jobs/{jobId}/external-access,CROSS_ROLE_SELF,job=self-member,,200
 GET /api/v1/jobs/{jobId}/busy,CROSS_ROLE_SELF,job=self-member,,200
 GET /api/v1/jobs/{jobId}/drift,CROSS_ROLE_SELF,job=self-member,,200
 GET /api/v1/jobs/{jobId}/final-merge,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/boards/{boardId}/team-issues,CROSS_ROLE_SELF,job=self-member,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,CROSS_ROLE_SELF,job=self-member,,200
 GET /api/v1/mentor/jobs/{jobId}/recruitment,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/mentor/jobs/{jobId}/crew-applications,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/jobs/{jobId}/crew/me,CROSS_ROLE_SELF,job=self-member,,200
 GET /api/v1/jobs/{jobId}/splits,CROSS_ROLE_SELF,job=self-member,,404 NOT_FOUND
+GET /api/v1/my-jobs,CROSS_ROLE_SELF,,,200
+GET /api/v1/todos,CROSS_ROLE_SELF,,,200
+GET /api/v1/notifications,CROSS_ROLE_SELF,,,200
+GET /api/v1/balance,CROSS_ROLE_SELF,,,200
