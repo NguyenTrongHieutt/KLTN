@@ -232,11 +232,6 @@ class Jobs {
 				""").param("customer", customerId).query(Jobs::job).list();
 	}
 
-	/** Whether "Tôi tự hướng dẫn" is offered: {@code features.selfMentoredJobs} (FR-85). */
-	boolean selfMentoredOffered() {
-		return this.selfMentoredJobs;
-	}
-
 	/** The Customer's Job. */
 	@Transactional(readOnly = true)
 	Optional<Job> find(UUID customerId, UUID jobId) {

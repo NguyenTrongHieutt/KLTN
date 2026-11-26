@@ -74,8 +74,12 @@ class SelfMentoredPublishIT extends IntegrationTest {
 
 		this.mvc.perform(get("/api/v1/jobs/" + job).with(as(this.lan))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.selfMentored").value(true))
-			.andExpect(jsonPath("$.selfMentoredOffered").value(true))
 			.andExpect(jsonPath("$.state").value("DRAFT"));
+		// The session says the mode is offered, so CUS-6 can show the choice before any Job exists.
+		this.mvc.perform(get("/api/v1/session").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentoredJobs").value(true));
+		this.mvc.perform(get("/api/v1/session")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentoredJobs").value(true));
 		assertThat(this.roles.roleOf(job, this.lan)).as("a Draft's Customer is the Customer, whatever its mode")
 			.isEqualTo(JobRole.CUSTOMER);
 

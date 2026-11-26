@@ -244,8 +244,9 @@ class JobLifecycleIT extends IntegrationTest {
 
 		UUID job = draft("[\"BUG_FIX\"]", "\"FROM_2M_TO_5M\"", "\"2026-11-15\"");
 		this.mvc.perform(get("/api/v1/jobs/" + job).with(as(this.lan))).andExpect(status().isOk())
-			.andExpect(jsonPath("$.selfMentored").value(false))
-			.andExpect(jsonPath("$.selfMentoredOffered").value(false));
+			.andExpect(jsonPath("$.selfMentored").value(false));
+		this.mvc.perform(get("/api/v1/session").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentoredJobs").value(false));
 		this.mvc.perform(put("/api/v1/jobs/" + job).with(as(this.lan)).with(csrf()).contentType(MediaType.APPLICATION_JSON)
 			.content(selfMentored)).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("SELF_MENTORED_OFF"));
 

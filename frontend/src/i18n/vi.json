@@ -1688,6 +1688,20 @@
         "missingBudget": "Ngân sách dự kiến",
         "missingDeadline": "Mong muốn xong trước",
         "published": "Đã đăng tin.",
+        "selfMentored": {
+          "question": "Ai hướng dẫn công việc này?",
+          "find": "Tìm người hướng dẫn",
+          "findHint": "Người hướng dẫn chào giá, bạn chọn một người, rồi họ tuyển nhóm thực hiện.",
+          "own": "Tôi tự hướng dẫn",
+          "ownHint": "Bạn tự tuyển nhóm thực hiện và dẫn dắt công việc; không ai chào giá.",
+          "noticeVersion": "1.0",
+          "noticeTitle": "Bạn sẽ tự hướng dẫn công việc này",
+          "notice": "Bạn tuyển nhóm thực hiện, soạn thỏa thuận và nghiệm thu từng giai đoạn; không có người hướng dẫn riêng. Người xin vào nhóm thấy tên và hồ sơ công khai của bạn. Bạn không có quyền vào kho làm việc: bạn xem phần việc ở mỗi lần bàn giao, và hướng dẫn nhóm trong Trao đổi nhóm. Bạn không nhận phần nào trong tiền của giai đoạn; toàn bộ chia cho các thành viên nhóm.",
+          "understood": "Tôi hiểu và muốn tự hướng dẫn công việc này.",
+          "noticeMissing": "Hãy đánh dấu vào ô xác nhận ở trên để đăng công việc tự hướng dẫn.",
+          "confidentiality": "Mọi người dùng vibefix đã liên kết GitHub đều đọc được tin này, kể cả những người có thể xin vào nhóm thực hiện. Đừng ghi thông tin kinh doanh bí mật ở đây; hãy trao đổi trong Trao đổi nhóm sau khi thành viên nhóm đã ký cam kết bảo mật.",
+          "published": "Đã đăng công việc. Bạn có thể soạn thỏa thuận và mở tuyển thành viên nhóm."
+        },
         "publishAction": "đăng tin"
       },
       "detail": {
@@ -1727,6 +1741,8 @@
         "withdrawing": "Đang rút…",
         "withdrawn": "Đã rút tin. Tin đã trở về bản nháp.",
         "notYet": "Trang này của công việc sẽ có khi công việc đến bước tiếp theo.",
+        "selfMentoredTitle": "Bạn đang hướng dẫn công việc này",
+        "selfMentoredBody": "Hãy soạn thỏa thuận và mở tuyển thành viên nhóm. Công việc bắt đầu khi thỏa thuận có hiệu lực, có ít nhất một thành viên nhóm đã ký cam kết và bạn thanh toán Giai đoạn 1.",
         "agreementDraftingTitle": "Người hướng dẫn đang soạn thỏa thuận",
         "agreementDraftingBody": "Bạn được báo khi có bản nháp để xem. Trong lúc chờ, bạn có thể trò chuyện với người hướng dẫn.",
         "agreementSharedTitle": "Thỏa thuận đang chờ hai bên thống nhất",
@@ -1796,6 +1812,7 @@
       "needMentor": "Cần người hướng dẫn",
       "needCrew": "Cần thêm {n} thành viên nhóm",
       "mentor": "Người hướng dẫn: {name}",
+      "selfMentor": "Khách hàng tự hướng dẫn: {name}",
       "sought": "Kỹ năng cần tìm: {skills}",
       "customer": "Khách hàng: {facts}",
       "rating": "{average} sao ({n} lượt)",
@@ -1833,6 +1850,7 @@
         "builtWith": "{product}, làm bằng {tools}.",
         "crewHeading": "Xin vào nhóm",
         "crewMentor": "Người hướng dẫn: {name}",
+        "crewSelfMentor": "Khách hàng tự hướng dẫn: {name}",
         "slotsLeft": "Còn {n} chỗ",
         "crewSkills": "Kỹ năng cần tìm",
         "crewNote": "Lời nhắn của người hướng dẫn",
@@ -2340,6 +2358,7 @@
         "done": "Bạn đã rời công việc này."
       },
       "noCrew": {
+        "selfMentor": "Nhóm thực hiện không còn ai. Chỉ thành viên nhóm bàn giao được, nên hãy tuyển thành viên để công việc tiếp tục.",
         "mentor": "Nhóm thực hiện không còn ai. Bạn có thể tiếp tục một mình: bạn vẫn bàn giao từng giai đoạn như thường, và khách hàng nghiệm thu là bước kiểm tra. Bạn cũng có thể tuyển thêm thành viên.",
         "customer": "Nhóm thực hiện của người hướng dẫn hiện không còn thành viên. Người hướng dẫn {mentor} vẫn tiếp tục công việc. Nếu bạn lo lắng, hãy trao đổi trong Trò chuyện; bạn vẫn có thể đề nghị hủy như thường lệ."
       },

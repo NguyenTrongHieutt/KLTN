@@ -103,16 +103,14 @@ class JobController {
 	/**
 	 * One Job as CUS-6 edits it and JOB-1 shows it; an Open Job Post has its opening and lapse times,
 	 * and from J3 on the Job has its Mentor and the NDA's due time (FR-15). A Self-mentored Job ({@code selfMentored},
-	 * FR-85) names no Mentor apart from its Customer and has no NDA; {@code selfMentoredOffered} says whether CUS-6
-	 * offers the mode.
+	 * FR-85) names no Mentor apart from its Customer and has no NDA. Whether CUS-6 offers the mode is in the session.
 	 */
 	record JobView(UUID id, UUID productId, String productName, JobState state, String title, @Nullable String problem,
 			@Nullable String expected, @Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes,
 			List<SkillView> skills, @Nullable Budget budget, @Nullable LocalDate deadline, List<ScreenshotView> screenshots,
 			Instant createdAt, Instant updatedAt, long version, @Nullable Instant openedAt, @Nullable Instant lapsesAt,
 			@Nullable JobMentorView mentor, @Nullable Instant selectedAt, @Nullable Instant ndaDueAt,
-			boolean canCancelSelection, boolean agreementShared, boolean agreementConfirmed, boolean selfMentored,
-			boolean selfMentoredOffered) {
+			boolean canCancelSelection, boolean agreementShared, boolean agreementConfirmed, boolean selfMentored) {
 	}
 
 	/** A decision at the Job version the screen loaded (AD-23). */
@@ -275,8 +273,7 @@ class JobController {
 				job.selectedAt() == null || job.selfMentored() ? null : job.selectedAt().plus(JobSelection.NDA_PERIOD),
 				job.state() == JobState.SELECTING && job.selectedAt() != null
 						&& !this.clock.instant().isBefore(job.selectedAt().plus(JobSelection.NDA_PERIOD)),
-				this.agreements.shared(job.id()), job.agreementVersionNo() != null, job.selfMentored(),
-				this.jobs.selfMentoredOffered());
+				this.agreements.shared(job.id()), job.agreementVersionNo() != null, job.selfMentored());
 	}
 
 	private @Nullable JobMentorView mentor(Job job) {
