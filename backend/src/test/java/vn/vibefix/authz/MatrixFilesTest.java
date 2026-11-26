@@ -471,8 +471,10 @@ class MatrixFilesTest {
 	void theWorkingRepositoryNeverReachesTheCustomerWhoMentorsAndItsCanariesAreLive() {
 		Canaries all = Canaries.load();
 		String repository = all.get("SM_WORKING_REPOSITORY").value();
-		assertThat(all.get("SM_WORKING_REPOSITORY_URL").value()).isEqualTo("https://github.com/" + repository);
-		assertThat(all.get("SM_INVITATION_URL").value()).isEqualTo("https://github.com/" + repository + "/invitations");
+		String page = all.get("SM_WORKING_REPOSITORY_URL").value();
+		assertThat(repository).as("the name alone, which the full name, a link and each page carry").doesNotContain("/");
+		assertThat(page).startsWith("https://github.com/").endsWith("/" + repository);
+		assertThat(all.get("SM_INVITATION_URL").value()).isEqualTo(page + "/invitations");
 		for (String name : List.of("SM_WORKING_REPOSITORY", "SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL")) {
 			assertThat(all.get(name).visibleTo()).as(name)
 				.doesNotContain(MatrixCaller.CUSTOMER_MENTOR, MatrixCaller.CROSS_ROLE_SELF, MatrixCaller.CREW_FORMER_PARTY)
@@ -1115,8 +1117,12 @@ class MatrixFilesTest {
 			Set<Map.Entry<MatrixCaller, Map<String, String>>> seen = new HashSet<>();
 			for (MatrixRow row : endpointRows) {
 				callers.add(row.caller());
-				// Equal states are equal maps, whatever order Map.copyOf iterates them in (review iteration 3, E10).
-				if (!seen.add(Map.entry(row.caller(), row.state()))) {
+				// Equal states are equal maps, whatever order Map.copyOf iterates them in (review iteration 3, E10). A
+				// pending mark or a shown canary names no other Job, so it does not make a second row.
+				Map<String, String> state = new java.util.HashMap<>(row.state());
+				state.remove(MatrixRow.PENDING);
+				state.remove(MatrixRow.SHOWS);
+				if (!seen.add(Map.entry(row.caller(), state))) {
 					violations.add(endpoint + " has two rows for " + row.caller());
 				}
 			}

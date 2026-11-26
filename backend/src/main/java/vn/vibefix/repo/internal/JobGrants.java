@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
@@ -79,11 +81,14 @@ import vn.vibefix.timers.Deadlines;
  * A Self-mentored Job (D11, AD-11, AD-47, Story 25.2a) has no Mentor to grant: its Mentor is its Customer, who holds
  * the Customer's read on the Intermediary Repository and nothing with the team, read included. {@link #counted} leaves
  * the Mentor out, so Verify waits for the active Crew alone; {@link #grant} writes no team row for the Job's Customer
- * and {@code GrantInviteOperation} sends no invitation for one ({@link #teamGrantOfTheCustomer}); the trigger
+ * and neither {@code GrantInviteOperation} nor {@code GrantRaiseOperation} acts on one
+ * ({@link #teamGrantOfTheCustomer}); the trigger
  * {@code job_grant_customer_never_on_the_team} is the backstop, whatever a caller does.
  */
 @Component
 class JobGrants {
+
+	private static final Logger log = LoggerFactory.getLogger(JobGrants.class);
 
 	static final String INVITE = "repo.grant_invite";
 
@@ -299,7 +304,9 @@ class JobGrants {
 	void grant(BusyJob job, Person person, PlatformRepository repository, boolean crewChange, boolean readOnly) {
 		if (!CUSTOMER.equals(person.role()) && (person.accountId().equals(job.customerId())
 				|| (job.selfMentored() && "MENTOR".equals(person.role())))) {
-			// D11: the Job's Customer is never granted with the team, and a Self-mentored Job grants no Mentor.
+			// D11: the Job's Customer is never granted with the team, and a Self-mentored Job grants no Mentor. No caller
+			// asks for it (counted leaves them out), so one that does is a bug worth a line in the log.
+			log.warn("No {} grant is written for the Customer of Job {}", person.role(), job.jobId());
 			return;
 		}
 		UUID id = this.ids.newId();
@@ -439,8 +446,8 @@ class JobGrants {
 
 	/**
 	 * A team grant naming the Job's Customer, or a Mentor grant of a Self-mentored Job (D11, AD-11, R63): a row no path
-	 * writes and the table's trigger refuses. The invitation step asks before it calls GitHub, so that even such a row
-	 * would invite nobody to the Working Repository.
+	 * writes and the table's trigger refuses. The invitation step and the raise ask before they call GitHub, so that even
+	 * such a row would invite nobody to the Working Repository.
 	 */
 	boolean teamGrantOfTheCustomer(Grant grant) {
 		if (grant.customer()) {

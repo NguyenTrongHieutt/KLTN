@@ -112,6 +112,14 @@ class AuthorizationHarnessIT extends IntegrationTest {
 			.hasMessageContaining("hidden from ADMINISTRATOR");
 	}
 
+	/** {@code shows=}: a canary the answer does not carry fails the row (D11, Story 25.2a part 4). */
+	@Test
+	void aCanaryTheRowShowsButTheAnswerLacksFailsTheRow() {
+		assertThatThrownBy(() -> run("GET /api/v1/fixture/public,CREW_ACTIVE,job=self;shows=SM_CREW_NAME,,200"))
+			.isInstanceOf(AssertionError.class)
+			.hasMessageContaining("Canary SM_CREW_NAME is not in the response body");
+	}
+
 	@Test
 	void aCanaryInAHeaderFailsTheRow() {
 		assertThatThrownBy(() -> run("GET /api/v1/fixture/leak-header,USER,,,200"))

@@ -57,6 +57,11 @@ class GrantRaiseOperation implements OperationHandler {
 			// anyone on an Assessment Job's copy, whatever their role -- and the row's CHECK would refuse the write anyway.
 			return new Outcome.Obsolete("READ_ONLY_GRANT");
 		}
+		if (this.grants.getObject().teamGrantOfTheCustomer(grant)) {
+			// D11 (AD-11, Story 25.2a): on a person who is no collaborator a raise is an invitation, so this step asks as
+			// the invitation step does. No path writes such a row, and the table's trigger refuses it.
+			return new Outcome.Obsolete("CUSTOMER_NOT_ON_THE_TEAM");
+		}
 		if ("WRITE".equals(grant.status())) {
 			return Outcome.succeeded();
 		}

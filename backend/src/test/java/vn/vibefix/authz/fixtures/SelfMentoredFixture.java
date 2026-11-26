@@ -316,7 +316,8 @@ public class SelfMentoredFixture implements MatrixFixture {
 	 */
 	private void repositories(UUID job, UUID product) {
 		Timestamp at = Timestamp.from(SIGNED);
-		String working = value("SM_WORKING_REPOSITORY");
+		// The full name, organization/name, as the page's URL holds it: SM_WORKING_REPOSITORY is the name alone.
+		String working = value("SM_WORKING_REPOSITORY_URL").substring("https://github.com/".length());
 		String intermediary = working.replace("working", "intermediary");
 		long workingId = 7_250_201L;
 		long intermediaryId = 7_250_202L;

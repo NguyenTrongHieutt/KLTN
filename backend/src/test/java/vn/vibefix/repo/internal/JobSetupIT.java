@@ -1241,11 +1241,7 @@ class JobSetupIT extends IntegrationTest {
 	 */
 	@Test
 	void aSelfMentoredJobInvitesItsCrewAloneAndItsCustomerHoldsNothingOnTheWorkingRepository() throws Exception {
-		this.jdbc.sql("""
-				UPDATE job.job SET self_mentored = TRUE, mentor_account_id = customer_account_id,
-				    selected_application_id = NULL, self_mentored_notice_version = '1.0'
-				WHERE id = :job
-				""").param("job", this.job).update();
+		selfMentored();
 		String crewLogin = TestPeople.login(this.jdbc, this.crew);
 		String customerLogin = TestPeople.login(this.jdbc, this.customer);
 		String working = GitHubStub.ORGANIZATION + "/" + JobSetups.workingName(this.job);
@@ -1327,6 +1323,42 @@ class JobSetupIT extends IntegrationTest {
 			.containsExactly("OBSOLETE CUSTOMER_NOT_ON_THE_TEAM");
 		assertThat(this.grants.find(grant).orElseThrow().status()).as("never invited").isEqualTo("INVITING");
 		assertThat(GITHUB.seen).as("nothing was asked of GitHub").noneMatch(seen -> seen.path().contains("/collaborators/"));
+	}
+
+	/**
+	 * Story 25.2a part 4 (D11, AD-11, R63): a Self-mentored Job grants no Mentor, whoever the row names. Before the Job
+	 * has a Setup the table cannot know its mode, so the steps refuse such a row themselves: neither the invitation nor
+	 * the raise, which on a person who is no collaborator is an invitation, calls GitHub.
+	 */
+	@Test
+	void aMentorGrantOfASelfMentoredJobIsNeitherInvitedNorRaised() throws Exception {
+		selfMentored();
+		UUID grant = insertGrant(this.mentor, "MENTOR");
+		assertThat(this.grants.teamGrantOfTheCustomer(this.grants.find(grant).orElseThrow())).isTrue();
+		GITHUB.seen.clear();
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.operations
+			.request(new OperationRequest(JobGrants.INVITE, UUID.randomUUID(), Map.of("grantId", grant.toString(), "round", 0),
+					null, null, 0)));
+		this.grants.requestRaise(this.grants.find(grant).orElseThrow());
+		this.worker.runDue(Lane.GITHUB_SHORT);
+
+		assertThat(this.jdbc.sql("""
+				SELECT type || ' ' || status || ' ' || coalesce(error_code, '') FROM operations.external_operation
+				WHERE type IN (:invite, :raise) ORDER BY type
+				""").param("invite", JobGrants.INVITE).param("raise", JobGrants.RAISE).query(String.class).list())
+			.containsExactly(JobGrants.INVITE + " OBSOLETE CUSTOMER_NOT_ON_THE_TEAM",
+					JobGrants.RAISE + " OBSOLETE CUSTOMER_NOT_ON_THE_TEAM");
+		assertThat(GITHUB.seen).as("nothing was asked of GitHub").noneMatch(seen -> seen.path().contains("/collaborators/"));
+	}
+
+	/** The Job becomes a Self-mentored one, as J11 leaves it: its Customer is its Mentor, and no bid was selected. */
+	private void selfMentored() {
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, mentor_account_id = customer_account_id,
+				    selected_application_id = NULL, self_mentored_notice_version = '1.0'
+				WHERE id = :job
+				""").param("job", this.job).update();
 	}
 
 	/** A grant row written as no path writes it, on a repository of its own: what the table's trigger sees. */
