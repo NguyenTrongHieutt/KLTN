@@ -82,11 +82,13 @@ class JobRetentionIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(360));
 		this.poller.runDue();
 		assertThat(identifiers()).as("not yet").isOne();
+		assertThat(reads()).as("not yet").isOne();
 
 		this.clock.advance(Duration.ofDays(7));
 		this.poller.runDue();
 
 		assertThat(identifiers()).isZero();
+		assertThat(reads()).isZero();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM job.job WHERE id = :job").param("job", this.first).query(Long.class)
 			.single()).isOne();
 		assertThat(this.jdbc.sql("SELECT count(*) FROM product.product WHERE id = :id").param("id", this.product)
@@ -110,6 +112,7 @@ class JobRetentionIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(370));
 		this.poller.runDue();
 		assertThat(identifiers()).as("another Job is running").isOne();
+		assertThat(reads()).as("another Job is running").isOne();
 		assertThat(this.jdbc.sql("SELECT status FROM timers.deadline WHERE kind = 'job.retention' AND generation = :job")
 			.param("job", this.first.toString()).query(String.class).single()).isEqualTo("OBSOLETE");
 
@@ -120,6 +123,7 @@ class JobRetentionIT extends IntegrationTest {
 		this.clock.advance(Duration.ofDays(367));
 		this.poller.runDue();
 		assertThat(identifiers()).isZero();
+		assertThat(reads()).isZero();
 	}
 
 	private UUID job(String state) {
@@ -147,6 +151,11 @@ class JobRetentionIT extends IntegrationTest {
 				INSERT INTO job.external_access_identifier (access_id, account_id, job_id, identifier, updated_at)
 				VALUES (:access, :mentor, :job, 'hung@supabase.test', :now)
 				""").param("access", access).param("mentor", this.hung).param("job", id).param("now", now).update();
+		// Story 25.1b: which Agreement version a Crew reader opened, personal data that goes with the identifiers.
+		this.jdbc.sql("""
+				INSERT INTO job.agreement_read (job_id, account_id, confirmed, version_no, read_at)
+				VALUES (:job, :reader, TRUE, 1, :now)
+				""").param("job", id).param("reader", UUID.randomUUID()).param("now", now).update();
 		UUID milestone = UUID.randomUUID();
 		this.jdbc.sql("""
 				INSERT INTO payment.ledger_account (milestone_id, job_id, product_id, created_at) VALUES (:id, :job, :product, now())
@@ -164,6 +173,13 @@ class JobRetentionIT extends IntegrationTest {
 	private void ended(UUID job, String state) {
 		this.transactions.executeWithoutResult(status -> this.events.publishEvent(new JobTransitioned(UUID.randomUUID(),
 				UUID.randomUUID(), job, "CLOSED".equals(state) ? "J9" : "J10", "SYSTEM", "CLOSING", state, 10, 1, Map.of())));
+	}
+
+	private long reads() {
+		return this.jdbc.sql("SELECT count(*) FROM job.agreement_read WHERE job_id = :job")
+			.param("job", this.first)
+			.query(Long.class)
+			.single();
 	}
 
 	private long identifiers() {

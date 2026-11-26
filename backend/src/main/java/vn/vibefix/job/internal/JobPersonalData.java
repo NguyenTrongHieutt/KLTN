@@ -31,7 +31,8 @@ import vn.vibefix.shared.PersonalDataSection;
 /**
  * {@code job}'s part in exports, erasure, and Product deletion (AD-24): the Customer's Jobs, the External
  * Access identifiers a Mentor or a Crew member entered (FR-66), the Crew recruitments a Mentor set, with their note
- * to applicants (Story 21.4), and the reasons a member gave when leaving (Story 21.6). Erasure and Product deletion delete
+ * to applicants (Story 21.4), the reasons a member gave when leaving (Story 21.6), and the Agreement version a picked
+ * applicant or a member last opened (Story 25.1b), which erasure and the retention run delete. Erasure and Product deletion delete
  * the Jobs and their screenshot files, and erasure deletes the person's identifiers and clears those reasons; a running
  * Job blocks the erasure of
  * its Customer, its Mentor, and its unreleased Crew, and a Milestone a former member will be a split party of
@@ -285,6 +286,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		this.jdbc.sql("""
 				SELECT s.file_id FROM job.job_screenshot s JOIN job.job j ON j.id = s.job_id WHERE j.product_id = :id
 				""").param("id", productId).query(UUID.class).list().forEach(this.files::delete);
+		// The Agreement reads go too (Story 25.1b): a row names who read which version, and nothing refers to it.
 		for (String table : List.of("job.job_screenshot", "job.external_access_identifier", "job.agreement_read",
 				"job.agreement_comment")) {
 			this.jdbc.sql("DELETE FROM %s WHERE job_id IN (SELECT id FROM job.job WHERE product_id = :id)".formatted(table))

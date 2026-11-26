@@ -1,4 +1,4 @@
-import { CircleCheck, Info, TriangleAlert } from 'lucide-react'
+import { CircleCheck, Info } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router'
 import { PageHeading } from '@/app/PageHeading'
@@ -6,6 +6,7 @@ import { usePageTitle } from '@/app/usePageTitle'
 import { inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
+import { Alert } from '@/components/ui/alert'
 import { Card } from '@/components/ui/card'
 import { Page } from '@/components/ui/page'
 import { JobRoleLine } from '@/features/job/ByJobRole'
@@ -45,6 +46,12 @@ export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind 
       markRead({ confirmed: shownConfirmed, versionNo: shownVersion })
     }
   }, [markRead, shownConfirmed, shownVersion])
+  // "Đã thay đổi từ lần bạn đọc trước" stays for the visit (UX-DR125): once the read above is noted, a reload or
+  // another version answers that nothing changed, which would take the line away while the reader still compares.
+  const [changed, setChanged] = useState(false)
+  if (!changed && !agreement.isPlaceholderData && agreement.data?.changedSinceRead) {
+    setChanged(true)
+  }
   usePageTitle(agreement.data ? t('screen.agreement.title', { job: agreement.data.jobTitle }) : t('screen.agreement.tab'))
   if (agreement.isError && isNotFound(agreement.error)) {
     return <NotFoundScreen />
@@ -70,7 +77,13 @@ export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind 
       </div>
       <RegionState query={agreement} skeleton={<Skeleton className="h-96 w-full" />}>
         {agreement.data && (
-          <Versions agreement={agreement.data} pick={pick} loading={agreement.isPlaceholderData} onPick={setPick} />
+          <Versions
+            agreement={agreement.data}
+            pick={pick}
+            loading={agreement.isPlaceholderData}
+            changed={changed}
+            onPick={setPick}
+          />
         )}
       </RegionState>
     </Page>
@@ -81,6 +94,7 @@ function Versions({
   agreement,
   pick,
   loading,
+  changed,
   onPick,
 }: {
   agreement: CrewAgreementData
@@ -88,6 +102,8 @@ function Versions({
   pick?: CrewAgreementOption
   /** The picked version is loading, and the one before it is still shown. */
   loading: boolean
+  /** The reader opened an earlier version before this visit, and a newer one became readable since. */
+  changed: boolean
   onPick: (option: CrewAgreementOption) => void
 }) {
   const ids = useId()
@@ -101,12 +117,7 @@ function Versions({
   }
   return (
     <div aria-busy={loading} className={cn('flex w-full max-w-reading-max flex-col gap-5', loading && 'opacity-60')}>
-      {agreement.changedSinceRead && (
-        <p role="status" className="flex gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
-          <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-          {t('screen.agreement.crew.changed')}
-        </p>
-      )}
+      {changed && <Alert tone="warning">{t('screen.agreement.crew.changed')}</Alert>}
       {agreement.versions.length > 1 && (
         <div className="flex flex-col gap-1">
           <label htmlFor={`${ids}-version`} className="text-label">

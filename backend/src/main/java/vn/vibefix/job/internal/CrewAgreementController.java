@@ -25,7 +25,6 @@ import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRules;
 import vn.vibefix.job.internal.AgreementReviews.Confirmed;
-import vn.vibefix.job.internal.AgreementReviews.ConfirmedSummary;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Content;
 import vn.vibefix.job.internal.Agreements.Environment;
@@ -176,37 +175,30 @@ class CrewAgreementController {
 	 * The reader has this version in front of them (Story 25.1b): what they are later told about is anything newer than
 	 * the newest version they opened. Opening an older version changes nothing.
 	 * @throws ApiException {@code NOT_FOUND} for anyone but a picked applicant or an active member of the Job, and for a
-	 * version the reader may not open
+	 * version the reader may not open; {@code FORBIDDEN ACCOUNT_LOCKED} for such a reader whose account is locked;
+	 * {@code VALIDATION} for a body that names no version
 	 */
 	@PostMapping("/api/v1/crew/jobs/{jobId}/agreement/read")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void crewAgreementRead(@PathVariable UUID jobId, @Valid @RequestBody CrewAgreementReadRequest body) {
 		readerJobTitle(jobId);
 		AgreementReads.Mark opened = new AgreementReads.Mark(body.confirmed(), body.versionNo());
-		if (options(jobId).stream().noneMatch(option -> mark(option).equals(opened))) {
+		// The reader and the version are checked again with the write, under the Job row (AgreementReads.opened).
+		if (!this.reads.opened(jobId, this.callers.get().requireAccountId(), opened)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		this.reads.opened(jobId, this.callers.get().requireAccountId(), opened);
 	}
 
 	private static AgreementReads.Mark mark(CrewAgreementOption option) {
 		return new AgreementReads.Mark(option.confirmed(), option.versionNo());
 	}
 
-	/**
-	 * Every confirmed version once there is one; until then the latest shared draft alone, which the first confirmation
-	 * turns into version 1 (no draft is shared after it).
-	 */
+	/** The versions the reader may open, as {@link AgreementReads#readable} decides them. */
 	private List<CrewAgreementOption> options(UUID jobId) {
-		List<ConfirmedSummary> confirmed = this.reviews.confirmedVersions(jobId);
-		if (!confirmed.isEmpty()) {
-			return confirmed.stream()
-				.map(version -> new CrewAgreementOption(true, version.versionNo(), version.confirmedAt()))
-				.toList();
-		}
-		return this.agreements.version(jobId, null)
-			.map(shared -> List.of(new CrewAgreementOption(false, shared.versionNo(), shared.sharedAt())))
-			.orElse(List.of());
+		return this.reads.readable(jobId)
+			.stream()
+			.map(version -> new CrewAgreementOption(version.mark().confirmed(), version.mark().versionNo(), version.at()))
+			.toList();
 	}
 
 	/**

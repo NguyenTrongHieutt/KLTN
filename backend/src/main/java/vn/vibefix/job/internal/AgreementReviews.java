@@ -95,10 +95,6 @@ class AgreementReviews {
 			Instant approvedAt, Instant confirmedAt, Content content) {
 	}
 
-	/** One confirmed version in a list of them. */
-	record ConfirmedSummary(int versionNo, Instant confirmedAt) {
-	}
-
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private final JdbcClient jdbc;
@@ -452,16 +448,6 @@ class AgreementReviews {
 			.param("no", versionNo)
 			.query(AgreementReviews::confirmedRow)
 			.optional();
-	}
-
-	/** Every confirmed version, oldest first. */
-	@Transactional(readOnly = true)
-	List<ConfirmedSummary> confirmedVersions(UUID jobId) {
-		return this.jdbc
-			.sql("SELECT version_no, confirmed_at FROM job.confirmed_agreement WHERE job_id = :job ORDER BY version_no")
-			.param("job", jobId)
-			.query((rs, n) -> new ConfirmedSummary(rs.getInt("version_no"), rs.getTimestamp("confirmed_at").toInstant()))
-			.list();
 	}
 
 	private static Confirmed confirmedRow(ResultSet rs, int n) throws SQLException {

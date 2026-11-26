@@ -342,7 +342,7 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     expect(screen.queryByRole('button', { name: 'Duyệt thỏa thuận' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Yêu cầu sửa' })).toBeNull()
     expect(screen.queryByText(/báo giá/)).toBeNull()
-    // The page says which version it shows, once, so the reader is told of a newer one later.
+    // The page says which version it shows, so the reader is told of a newer one later.
     await waitFor(() => expect(opened).toEqual([{ confirmed: false, versionNo: 2 }]))
     expect(screen.queryByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeNull()
   })
@@ -387,6 +387,7 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
     const first = { confirmed: true, versionNo: 1, at: '2026-10-21T03:00:00Z' }
     const second = { confirmed: true, versionNo: 2, at: '2026-11-02T03:00:00Z' }
     const opened: unknown[] = []
+    let reads = 0
     const seen = fakeBackend(signedInUser, {
       ...inEveryJob('CREW'),
       [READ]: async (request) => {
@@ -395,15 +396,25 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
       },
       'GET /api/v1/crew/jobs/j1/agreement': (request) => {
         const query = new URL(request.url).searchParams
+        reads += 1
+        // Version 2 is newer than what the reader opened before; once it is noted as read, nothing has changed.
         return query.get('version') === '1'
           ? json(read({ versions: [first, second], shown: first, liveAccessIds: ['a1'] }))
-          : json(read({ versions: [first, second], shown: second, content: { ...content, scope: 'Phạm vi sau yêu cầu thay đổi.' } }))
+          : json(
+              read({
+                versions: [first, second],
+                shown: second,
+                content: { ...content, scope: 'Phạm vi sau yêu cầu thay đổi.' },
+                changedSinceRead: reads === 1,
+              }),
+            )
       },
     })
     renderAt('/cong-viec/j1/thoa-thuan')
 
     expect(await screen.findByText('Thỏa thuận · phiên bản 2')).toBeInTheDocument()
     expect(screen.getByText('Phạm vi sau yêu cầu thay đổi.')).toBeInTheDocument()
+    expect(screen.getByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeInTheDocument()
     expect(screen.getByText('Staging')).toBeInTheDocument()
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Phiên bản' }), '1')
@@ -418,6 +429,15 @@ describe('JOB-6 read-only for the Crew (FR-75, FR-81, UX-DR125, Story 25.1b)', (
         { confirmed: true, versionNo: 1 },
       ]),
     )
+    // UX-DR125: the line stays for the visit, while the reader compares with the version they knew, and when they
+    // come back to the newer one, which now answers that nothing changed.
+    expect(screen.getByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Phiên bản' }), '2')
+    expect(await screen.findByText('Thỏa thuận · phiên bản 2')).toBeInTheDocument()
+    expect(screen.getByText('Bản nháp thỏa thuận đã thay đổi từ lần bạn đọc trước.')).toBeInTheDocument()
+    // A version shown again is noted again; the server keeps the newest one the reader opened.
+    await waitFor(() => expect(opened).toHaveLength(3))
+    expect(opened[2]).toEqual({ confirmed: true, versionNo: 2 })
   })
 
   it('shows a member who left the not-found screen', { timeout: 15_000 }, async () => {

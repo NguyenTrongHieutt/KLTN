@@ -116,6 +116,17 @@ class ChangeRequestIT extends IntegrationTest {
 			.andExpect(jsonPath("$.shown.versionNo").value(2))
 			.andExpect(jsonPath("$.versions.length()").value(2))
 			.andExpect(jsonPath("$.changedSinceRead").value(true));
+		// The row only moves forward: opening version 2, then version 1 again from the selector, leaves it at 2.
+		for (int opened : List.of(2, 1)) {
+			this.mvc.perform(post("/api/v1/crew/jobs/" + job + "/agreement/read").with(as(this.vy, Role.STUDENT)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"confirmed\":true,\"versionNo\":" + opened + "}"))
+				.andExpect(status().isNoContent());
+		}
+		assertThat(this.jdbc.sql("SELECT confirmed || ':' || version_no FROM job.agreement_read WHERE job_id = :job")
+			.param("job", job).query(String.class).single()).isEqualTo("true:2");
+		this.mvc.perform(get("/api/v1/crew/jobs/" + job + "/agreement?version=1&confirmed=true").with(as(this.vy, Role.STUDENT)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.changedSinceRead").value(false));
 		assertThat(this.jdbc.sql("SELECT agreement_version_no FROM job.job WHERE id = :id").param("id", job)
 			.query(Integer.class).single()).isEqualTo(2);
 		assertThat(this.jdbc.sql("""

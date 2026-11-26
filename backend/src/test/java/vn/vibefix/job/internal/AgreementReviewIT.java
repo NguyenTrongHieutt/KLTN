@@ -84,6 +84,9 @@ class AgreementReviewIT extends IntegrationTest {
 	private ApplicationEventPublisher events;
 
 	@Autowired
+	private JobPersonalData personalData;
+
+	@Autowired
 	private PlatformTransactionManager transactions;
 
 	@Autowired
@@ -679,10 +682,23 @@ class AgreementReviewIT extends IntegrationTest {
 		crewRead(this.vy, Role.STUDENT, false, 2).andExpect(status().isNoContent());
 		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(false));
 
-		approve(jobVersion(), 2, true, List.of()).andExpect(status().isNoContent());
+		// Once per version: a third draft tells the reader again; a reader whose pick ended is told nothing.
+		UUID bao = member("Lý Minh Khôi");
+		UUID ended = picked(bao);
+		crewRead(bao, Role.STUDENT, false, 2).andExpect(status().isNoContent());
+		new TransactionTemplate(this.transactions)
+			.executeWithoutResult(status -> this.picks.releasePick(this.job, ended, CrewPicks.PickEnd.WITHDRAWN));
+		crewRead(bao, Role.STUDENT, false, 2).andExpect(status().isNotFound());
+		save(2, "Sửa lỗi hai khách đặt trùng bàn, nhắc lịch, và báo cáo.").andExpect(status().isOk());
+		share(3).andExpect(status().isOk());
+		assertThat(notifications("job.agreement_draft_changed", this.vy)).isEqualTo(2);
+		assertThat(notifications("job.agreement_draft_changed", bao)).as("the pick ended").isZero();
+		crewRead(this.vy, Role.STUDENT, false, 3).andExpect(status().isNoContent());
+
+		approve(jobVersion(), 3, true, List.of()).andExpect(status().isNoContent());
 		confirm(jobVersion(), crewVersion()).andExpect(status().isOk());
 
-		assertThat(notifications("job.agreement_draft_changed", this.vy)).as("version 1 says what draft 2 said").isOne();
+		assertThat(notifications("job.agreement_draft_changed", this.vy)).as("version 1 says what draft 3 said").isEqualTo(2);
 		assertThat(readMark(this.vy)).isEqualTo("true:1");
 		crewAgreement(this.vy, "").andExpect(jsonPath("$.shown.confirmed").value(true))
 			.andExpect(jsonPath("$.changedSinceRead").value(false));
@@ -706,6 +722,21 @@ class AgreementReviewIT extends IntegrationTest {
 		crewRead(this.vy, Role.STUDENT, true, 1).andExpect(status().isNoContent());
 		assertThat(readMark(this.vy)).isEqualTo("true:1");
 		crewAgreement(this.vy, "").andExpect(jsonPath("$.changedSinceRead").value(false));
+	}
+
+	/** AD-24, Story 25.1b: the read is exported for its person and deleted on their erasure. */
+	@Test
+	void theReadIsExportedForItsPersonAndDeletedOnTheirErasure() throws Exception {
+		picked(this.vy);
+		crewRead(this.vy, Role.STUDENT, false, 1).andExpect(status().isNoContent());
+
+		assertThat(this.personalData.export(this.vy)).hasValueSatisfying(section -> assertThat(
+				String.valueOf(section.data().get("agreementReads"))).contains(this.job.toString()).contains("versionNo=1")
+			.contains("confirmedVersion=false"));
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.personalData.eraseAccount(this.vy));
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM job.agreement_read WHERE account_id = :account")
+			.param("account", this.vy).query(Long.class).single()).isZero();
 	}
 
 	private ResultActions crewRead(UUID account, Role role, boolean confirmed, int versionNo) throws Exception {

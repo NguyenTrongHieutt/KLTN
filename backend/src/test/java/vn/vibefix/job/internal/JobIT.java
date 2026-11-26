@@ -194,11 +194,18 @@ class JobIT extends IntegrationTest {
 	@Test
 	void deletingTheProductDeletesItsDraftJobs() throws Exception {
 		UUID job = jobId(create(draft("Sẽ xóa", "[]", List.of(), null, null)).andExpect(status().isCreated()));
+		// Story 25.1b: a reader's row refers to the Job with no cascade, so it must go first.
+		this.jdbc.sql("""
+				INSERT INTO job.agreement_read (job_id, account_id, confirmed, version_no, read_at)
+				VALUES (:job, :reader, FALSE, 1, now())
+				""").param("job", job).param("reader", UUID.randomUUID()).update();
 
 		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.personalData.deleteProduct(this.product));
 
 		assertThat(this.jdbc.sql("SELECT count(*) FROM job.job WHERE id = :id").param("id", job).query(Long.class).single())
 			.isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM job.agreement_read WHERE job_id = :id").param("id", job)
+			.query(Long.class).single()).isZero();
 	}
 
 	private ResultActions create(String body) throws Exception {
