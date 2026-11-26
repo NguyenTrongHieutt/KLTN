@@ -23,7 +23,8 @@ import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
 /**
- * FR-40's stall deadlines (AD-7): from entering Agreement (J4) and from entering Starting (J6), the FR-61
+ * FR-40's stall deadlines (AD-7): from entering Agreement (J4; J11 or J12 for a Self-mentored Job) and from
+ * entering Starting (J6), the FR-61
  * rule values the Job was published with ({@code AGREEMENT_STALL_DAYS}, 14 by default, and
  * {@code STARTING_STALL_DAYS}, 7; author decision 2026-10-21). A Job published before they were rules
  * keeps those defaults. When one passes with the Job still there, the Job records it and both sides learn
@@ -58,7 +59,7 @@ class StallDeadlines {
 		this.clock = clock;
 	}
 
-	/** J4 or J6: the deadline of the state the Job entered. */
+	/** J4, J11, J12 or J6: the deadline of the state the Job entered. */
 	@Transactional
 	void schedule(UUID jobId, JobState state) {
 		Instant now = this.clock.instant();

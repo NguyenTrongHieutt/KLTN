@@ -1,5 +1,6 @@
 import { hasChat, useCrewChat, useJobChat } from '@/features/chat/chatApi'
-import { JobTabRow } from '@/features/job/JobTabs'
+import { JobTabRow, SelfMentoredJobTabs } from '@/features/job/JobTabs'
+import { useJobRole } from '@/features/job/jobRoleApi'
 import { useJobSplits } from '@/features/split/splitApi'
 import { hasStarted } from '@/features/job/jobState'
 import { t } from '@/i18n/t'
@@ -12,8 +13,17 @@ const RECRUITS = ['AGREEMENT', 'STARTING', 'ACTIVE']
  * Agreement on, "Trò chuyện" and "Trao đổi nhóm" (JOB-8), each with its unread dot, and "Thỏa thuận";
  * "Tuyển thành viên" (JOB-9) from Agreement until Closing (Story 21.4); "Thanh toán" once the Agreement is confirmed
  * (JOB-7); "Phân chia tiền" (JOB-10) from the first split on, by asking for the splits itself (Story 22.2).
+ * The Customer of a Self-mentored Job gets {@link SelfMentoredJobTabs} in its place: there is no "Trò chuyện".
  */
-export function MentorJobTabs({
+export function MentorJobTabs(props: Parameters<typeof MentorOnlyJobTabs>[0]) {
+  const role = useJobRole(props.jobId).data?.role
+  if (role === 'CUSTOMER_MENTOR') {
+    return <SelfMentoredJobTabs jobId={props.jobId} state={props.state} current={props.current} payment={props.payment} />
+  }
+  return <MentorOnlyJobTabs {...props} />
+}
+
+function MentorOnlyJobTabs({
   jobId,
   state,
   current,

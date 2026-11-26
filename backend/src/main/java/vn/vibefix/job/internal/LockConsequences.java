@@ -41,7 +41,8 @@ import vn.vibefix.shared.IdGenerator;
  * learns of picks; the place returns while recruitment is on (Story 21.5).</li>
  * <li>A locked Mentor or Customer leaves each of their running Jobs needing a decision ({@link JobNeedsDecision});
  * {@code job.party_locked} goes to the other party, to the active Crew about the Mentor, and to the
- * Administrators.</li>
+ * Administrators. In a Self-mentored Job the locked Customer is the Mentor too (AD-47): the active Crew and the
+ * Administrators hear, and never the locked account.</li>
  * </ul>
  * The Customer never learns that a Crew member was locked, and nobody learns why. The caller makes it replay-safe
  * by marking the event processed in the same transaction. Beyond that marker, the Crew branch acts only on unreleased
@@ -163,13 +164,16 @@ class LockConsequences {
 		List<Recipient> told = new ArrayList<>();
 		if (mentor) {
 			told.add(new Recipient(job.customerId(), Audience.CUSTOMER));
+		}
+		else if (!job.selfMentored()) {
+			told.add(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
+		}
+		// The Crew hears of its Mentor; in a Self-mentored Job that is the locked Customer (AD-47).
+		if (mentor || job.selfMentored()) {
 			this.crews.rows(job.id())
 				.stream()
 				.filter(row -> "ACTIVE".equals(row.status()))
 				.forEach(row -> told.add(new Recipient(row.studentId(), Audience.CREW_ACTIVE)));
-		}
-		else {
-			told.add(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
 		}
 		told.addAll(admins());
 		this.notifications.send(new NotificationRequest(PARTY_LOCKED, key(causeId + ":" + job.id()), told,

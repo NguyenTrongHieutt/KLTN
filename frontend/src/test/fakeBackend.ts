@@ -3,10 +3,10 @@ import type { Capabilities, Session } from '@/features/identity/api'
 
 type Handler = (request: Request) => Response | Promise<Response>
 
-export const anonymous: Session = { status: 'ANONYMOUS', privacyNoticeVersion: '3.1' }
+export const anonymous: Session = { status: 'ANONYMOUS', privacyNoticeVersion: '3.1', selfMentoredJobs: false }
 
 /** A Google account on PUB-3, waiting to accept N-10 (Story 19.1). */
-export const welcome: Session = { status: 'SIGNING_UP', displayName: 'Nguyễn Thị Lan', privacyNoticeVersion: '3.1' }
+export const welcome: Session = { status: 'SIGNING_UP', displayName: 'Nguyễn Thị Lan', privacyNoticeVersion: '3.1', selfMentoredJobs: false }
 
 /** What an account can show for itself (Story 20.1): by default nothing verified, and unlocked. */
 export function capabilities(overrides: Partial<Capabilities> = {}): Capabilities {
@@ -17,6 +17,7 @@ export function capabilities(overrides: Partial<Capabilities> = {}): Capabilitie
 export const signedInWithGoogle: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '3.1',
+  selfMentoredJobs: false,
   displayName: 'Nguyễn Thị Lan',
   account: { id: '00000000-0000-7000-8000-000000000002', kind: 'USER', capabilities: capabilities(), theme: 'LIGHT' },
 }
@@ -28,6 +29,7 @@ export const signedInWithGoogle: Session = {
 export const signedInUser: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '2.0',
+  selfMentoredJobs: false,
   githubLogin: 'octo-cat',
   account: {
     id: '00000000-0000-7000-8000-000000000001',

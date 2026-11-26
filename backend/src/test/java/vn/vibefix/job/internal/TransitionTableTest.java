@@ -33,7 +33,8 @@ class TransitionTableTest {
 			entry("J2", "OPEN -> DRAFT"), entry("J3", "OPEN -> SELECTING"), entry("J4", "SELECTING -> AGREEMENT"),
 			entry("J5", "SELECTING -> OPEN"), entry("J6", "AGREEMENT -> STARTING"), entry("J7", "STARTING -> ACTIVE"),
 			entry("J8", "ACTIVE -> CLOSING"), entry("J9", "CLOSING -> CLOSED|CANCELLED"),
-			entry("J10", "AGREEMENT|STARTING|ACTIVE -> CANCELLED"), entry("M1", "PLANNED -> FUNDED"),
+			entry("J10", "AGREEMENT|STARTING|ACTIVE -> CANCELLED"), entry("J11", "DRAFT -> AGREEMENT"),
+			entry("J12", "OPEN -> AGREEMENT"), entry("M1", "PLANNED -> FUNDED"),
 			entry("M2", "FUNDED|REVISION_REQUESTED -> SUBMITTED"), entry("M3", "SUBMITTED -> FUNDED|REVISION_REQUESTED"),
 			entry("M4", "SUBMITTED -> REVISION_REQUESTED"), entry("M5", "SUBMITTED -> ACCEPTED"),
 			entry("M6", "PLANNED -> CANCELLED"), entry("M7", "FUNDED|REVISION_REQUESTED|SUBMITTED -> CANCELLED"),
@@ -45,6 +46,7 @@ class TransitionTableTest {
 			entry("J4", Set.of(Trigger.USER)), entry("J5", Set.of(Trigger.USER)), entry("J6", Set.of(Trigger.SYSTEM)),
 			entry("J7", Set.of(Trigger.SYSTEM)), entry("J8", Set.of(Trigger.USER, Trigger.AUTO, Trigger.DECISION)),
 			entry("J9", Set.of(Trigger.SYSTEM)), entry("J10", Set.of(Trigger.USER, Trigger.DECISION)),
+			entry("J11", Set.of(Trigger.USER)), entry("J12", Set.of(Trigger.USER)),
 			entry("M1", Set.of(Trigger.SYSTEM)), entry("M2", Set.of(Trigger.USER)), entry("M3", Set.of(Trigger.SYSTEM)),
 			entry("M4", Set.of(Trigger.USER)), entry("M5", Set.of(Trigger.USER, Trigger.AUTO)),
 			entry("M6", Set.of(Trigger.USER, Trigger.SYSTEM, Trigger.DECISION)), entry("M7", Set.of(Trigger.USER)),
@@ -85,9 +87,9 @@ class TransitionTableTest {
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::frozenBlocks))
 			.containsExactly(Transition.M1, Transition.M2, Transition.M3, Transition.M4, Transition.M5, Transition.M6,
 					Transition.M7);
-		// Story 8.4 gave M3 its step, the last one missing.
+		// Story 8.4 gave M3 its step. J12, the switch of an Open Job to self-mentored, gets its step in Story 25.2b.
 		assertThat(EnumSet.allOf(Transition.class).stream().filter(Transition::reachable))
-			.containsExactlyElementsOf(EnumSet.allOf(Transition.class));
+			.containsExactlyElementsOf(EnumSet.complementOf(EnumSet.of(Transition.J12)));
 	}
 
 	@Test

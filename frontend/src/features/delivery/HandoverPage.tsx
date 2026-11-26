@@ -64,6 +64,7 @@ function CustomerHandovers({ jobId, handoverId }: { jobId: string; handoverId: s
             <JobHeader title={job.data.title} state={job.data.state} meta={customerMeta(job.data)}>
               <JobTabs
                 jobId={job.data.id}
+                state={job.data.state}
                 current="handover"
                 chat={{ unread: false }}
                 agreement={job.data.agreementShared}

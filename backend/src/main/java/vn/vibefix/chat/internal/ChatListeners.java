@@ -17,8 +17,9 @@ import vn.vibefix.shared.ProcessedEvents;
 
 /**
  * J4 opens the Job Chat and the Crew Chat (FR-46, FR-77, AD-5) and tells the Customer and the Mentor
- * in-app of the Job Chat; J9 and J10 make both read-only (AD-9) and rewrite no message. Each is
- * replay-safe through {@link ProcessedEvents}.
+ * in-app of the Job Chat; J11 and J12 open the Crew Chat alone, because a Self-mentored Job has no Job Chat
+ * (FR-85, AD-47); J9 and J10 make both read-only (AD-9) and rewrite no message. Each is replay-safe through
+ * {@link ProcessedEvents}.
  */
 @Component
 class ChatListeners {
@@ -42,7 +43,9 @@ class ChatListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean opens = "J4".equals(event.transition());
+		// J11 and J12 put a Self-mentored Job in Agreement as J4 puts a normal one (AD-4): they open the Crew Chat alone.
+		boolean selfMentored = "J11".equals(event.transition()) || "J12".equals(event.transition());
+		boolean opens = "J4".equals(event.transition()) || selfMentored;
 		boolean closes = "J9".equals(event.transition()) || "J10".equals(event.transition());
 		if ((!opens && !closes)
 				|| !this.processedEvents.markProcessed("chat.ChatListeners.onJobTransitioned", event.eventId())) {
@@ -54,6 +57,10 @@ class ChatListeners {
 		}
 		this.posts.post(event.jobId()).ifPresent(post -> {
 			this.chats.open(post.jobId(), post.productId(), Kind.CREW);
+			if (selfMentored) {
+				// A Self-mentored Job never has a Job Chat: it would hold one person (AD-47, B-20).
+				return;
+			}
 			this.chats.open(post.jobId(), post.productId(), Kind.JOB).ifPresent(chat -> {
 				if (post.mentorId() == null) {
 					return;

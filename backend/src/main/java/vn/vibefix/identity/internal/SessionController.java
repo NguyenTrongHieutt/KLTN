@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContext;
@@ -60,10 +61,13 @@ class SessionController {
 	 * @param supportEmail whom a locked account may write to, for {@code LOCKED}
 	 * @param privacyNoticeVersion the current version of the personal-data notice (N-10)
 	 * @param administrator an Administrator's name and session limits, exactly for Administrators
+	 * @param selfMentoredJobs whether the platform offers Self-mentored Jobs ({@code features.selfMentoredJobs}, FR-85),
+	 * so CUS-6 knows whether to offer "Tôi tự hướng dẫn" before any Job exists
 	 */
 	record SessionView(SessionStatus status, @Nullable AccountView account, @Nullable String githubLogin,
 			@Nullable String githubAvatarUrl, @Nullable String displayName, @Nullable String lockReason,
-			@Nullable String supportEmail, String privacyNoticeVersion, @Nullable AdministratorView administrator) {
+			@Nullable String supportEmail, String privacyNoticeVersion, @Nullable AdministratorView administrator,
+			boolean selfMentoredJobs) {
 	}
 
 	/**
@@ -121,9 +125,13 @@ class SessionController {
 
 	private final Clock clock;
 
+	private final boolean selfMentoredJobs;
+
 	SessionController(CurrentCaller callers, Accounts accounts, SignIns signIns, SecurityContextRepository contexts,
 			IdentityProperties properties, Profiles profiles, AdministratorCredentials administrators,
-			Capabilities capabilities, Clock clock) {
+			Capabilities capabilities, Clock clock,
+			@Value("${vibefix.features.self-mentored-jobs:false}") boolean selfMentoredJobs) {
+		this.selfMentoredJobs = selfMentoredJobs;
 		this.administrators = administrators;
 		this.capabilities = capabilities;
 		this.clock = clock;
@@ -144,13 +152,14 @@ class SessionController {
 		HttpSession session = request.getSession(false);
 		if (session != null && session.getAttribute(SignInSession.LOCKED) instanceof SignInSession.Locked locked) {
 			return new SessionView(SessionStatus.LOCKED, null, null, null, null, locked.reason(),
-					this.properties.supportEmail(), version(), null);
+					this.properties.supportEmail(), version(), null, this.selfMentoredJobs);
 		}
 		if (session != null && session.getAttribute(SignInSession.PENDING_WELCOME) instanceof PendingWelcome pending) {
 			return new SessionView(SessionStatus.SIGNING_UP, null, null, null, pending.displayName(), null, null,
-					version(), null);
+					version(), null, this.selfMentoredJobs);
 		}
-		return new SessionView(SessionStatus.ANONYMOUS, null, null, null, null, null, null, version(), null);
+		return new SessionView(SessionStatus.ANONYMOUS, null, null, null, null, null, null, version(), null,
+				this.selfMentoredJobs);
 	}
 
 	/**
@@ -216,7 +225,7 @@ class SessionController {
 		return new SessionView(SessionStatus.SIGNED_IN,
 				new AccountView(account.id(), account.kind(), capabilities, this.profiles.theme(account.id())),
 				account.githubLogin(), account.githubAvatarUrl(), account.displayName(), null, null, version(),
-				administrator(account, request));
+				administrator(account, request), this.selfMentoredJobs);
 	}
 
 	private @Nullable AdministratorView administrator(Account account, HttpServletRequest request) {

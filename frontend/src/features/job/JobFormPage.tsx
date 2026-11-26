@@ -10,7 +10,9 @@ import { Skeleton } from '@/components/Skeleton'
 import { SkillPicker } from '@/components/SkillPicker'
 import { TermHint } from '@/components/TermHint'
 import { useToasts } from '@/components/toasts'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { useSession } from '@/features/identity/useSession'
 import { useProduct, type Product } from '@/features/product/productApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
@@ -35,6 +37,9 @@ import {
 import { Page } from '@/components/ui/page'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 import { Card } from '@/components/ui/card'
+
+/** The version of notice N-34 this form shows; the server checks it and the Job keeps it (FR-85). */
+const SELF_MENTORED_NOTICE_VERSION = t('screen.job.form.selfMentored.noticeVersion')
 
 /** The answers publishing needs besides the title, in the order CUS-6 asks them (FR-9). */
 const REQUIRED = ['problem', 'expected', 'appUsers', 'jobTypes', 'budget', 'deadline'] as const
@@ -66,6 +71,8 @@ interface FormValues {
   skillIds: string[]
   budget: Budget | ''
   deadline: string
+  /** "Tôi tự hướng dẫn" (FR-85): a Self-mentored Job, which a Draft may choose and drop freely. */
+  selfMentored: boolean
 }
 
 /**
@@ -73,7 +80,9 @@ interface FormValues {
  * questions with their examples, the Job Types or "Chưa rõ — đánh giá trước", the Skills suggested
  * from the repository and the AI tools, the budget range, the deadline, and screenshots. Every Job Type
  * can be chosen (no scan gates it, 2026-11-12). "Lưu nháp" keeps a Draft; "Đăng tin" saves it, shows
- * N-3, and publishes it as a Job Post (J1), landing on JOB-1.
+ * N-3, and publishes it as a Job Post (J1), landing on JOB-1. While the platform offers Self-mentored Jobs, the form
+ * asks "Ai hướng dẫn công việc này?" (UX-DR120): choosing "Tôi tự hướng dẫn" shows N-34 with its checkbox, and "Đăng
+ * tin" then puts the Job in Agreement (J11) with the Customer as its Mentor (FR-85).
  */
 export function JobFormPage() {
   const { productId, jobId } = useParams()
@@ -140,6 +149,7 @@ function empty(skillIds: string[]): FormValues {
     skillIds: skillIds.slice(0, 10),
     budget: '',
     deadline: '',
+    selfMentored: false,
   }
 }
 
@@ -168,6 +178,7 @@ function fromJob(job: Job): FormValues {
     skillIds: job.skills.map((skill) => skill.id),
     budget: job.budget ?? '',
     deadline: job.deadline ?? '',
+    selfMentored: job.selfMentored,
   }
 }
 
@@ -186,6 +197,16 @@ function JobForm({
   const [titleMissing, setTitleMissing] = useState(false)
   const [missing, setMissing] = useState<string[]>([])
   const [confirming, setConfirming] = useState(false)
+  // N-34's own checkbox, asked again for each publication (FR-85).
+  const [understood, setUnderstood] = useState(false)
+  const [noticeMissing, setNoticeMissing] = useState(false)
+  const notice = useRef<HTMLInputElement>(null)
+  // The mode is offered while the platform has it on; the Draft's own choice decides nothing by itself.
+  const session = useSession().data
+  const offered = session?.selfMentoredJobs === true
+  const selfMentored = offered && values.selfMentored
+  // A Draft that took the mode while it was on: saving or publishing it now makes it a normal Job, and the form says so.
+  const modeOff = session !== undefined && !offered && job?.selfMentored === true
   const save = useSaveJob(job?.id)
   const publish = usePublishJob()
   const toasts = useToasts()
@@ -213,6 +234,7 @@ function JobForm({
     skillIds: values.skillIds,
     budget: values.budget === '' ? undefined : values.budget,
     deadline: values.deadline === '' ? undefined : values.deadline,
+    selfMentored,
   })
   // "Đăng tin": every answer first, then N-3 (FR-9, UX-DR8).
   const startPublish = () => {
@@ -222,8 +244,12 @@ function JobForm({
     }
     const unanswered = missingAnswers(values)
     setMissing(unanswered)
-    if (unanswered.length === 0) {
+    const unread = selfMentored && !understood
+    setNoticeMissing(unread)
+    if (unanswered.length === 0 && !unread) {
       setConfirming(true)
+    } else if (unanswered.length === 0) {
+      notice.current?.focus()
     }
   }
   const confirmPublish = async () => {
@@ -236,9 +262,9 @@ function JobForm({
       return
     }
     try {
-      await publish.mutateAsync(id)
+      await publish.mutateAsync({ jobId: id, selfMentoredNoticeVersion: selfMentored ? SELF_MENTORED_NOTICE_VERSION : undefined })
       setConfirming(false)
-      toasts.success(t('screen.job.form.published'))
+      toasts.success(t(selfMentored ? 'screen.job.form.selfMentored.published' : 'screen.job.form.published'))
       void navigate(`/cong-viec/${id}`)
     } catch (error) {
       setConfirming(false)
@@ -423,9 +449,69 @@ function JobForm({
 
         <Screenshots job={job} />
 
+        {offered && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-label font-semibold">{t('screen.job.form.selfMentored.question')}</legend>
+            {([false, true] as const).map((own) => (
+              <label key={String(own)} className="flex items-start gap-2 text-body-sm">
+                <input
+                  type="radio"
+                  name={`${ids}-mode`}
+                  className="mt-1"
+                  checked={values.selfMentored === own}
+                  onChange={() => {
+                    set('selfMentored', own)
+                    // The acknowledgement belongs to the choice just made: choosing again asks again.
+                    setUnderstood(false)
+                    setNoticeMissing(false)
+                  }}
+                />
+                <span className="flex flex-col">
+                  <span className="font-semibold">
+                    {t(own ? 'screen.job.form.selfMentored.own' : 'screen.job.form.selfMentored.find')}
+                  </span>
+                  <span className="text-caption text-muted-foreground">
+                    {t(own ? 'screen.job.form.selfMentored.ownHint' : 'screen.job.form.selfMentored.findHint')}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+        {modeOff && <Alert tone="warning">{t('screen.job.form.selfMentored.off')}</Alert>}
+
+        {selfMentored && (
+          <Alert tone="info" title={t('screen.job.form.selfMentored.noticeTitle')}>
+            <p>{t('screen.job.form.selfMentored.notice')}</p>
+            <label className="mt-1 flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                ref={notice}
+                checked={understood}
+                aria-invalid={noticeMissing || undefined}
+                aria-describedby={noticeMissing ? `${ids}-noticeMissing` : undefined}
+                onChange={(event) => {
+                  setUnderstood(event.target.checked)
+                  setNoticeMissing(false)
+                }}
+              />
+              <span>{t('screen.job.form.selfMentored.understood')}</span>
+            </label>
+            {noticeMissing && (
+              <p id={`${ids}-noticeMissing`} role="alert" className="text-destructive">
+                {t('screen.job.form.selfMentored.noticeMissing')}
+              </p>
+            )}
+          </Alert>
+        )}
+
         <div role="note" className="flex gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4">
           <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-          <p className="text-body-sm">{t('screen.job.form.confidentiality')}</p>
+          <p className="text-body-sm">
+            {t(selfMentored ? 'screen.job.form.selfMentored.confidentiality' : 'screen.job.form.confidentiality')}
+          </p>
         </div>
 
         {missing.length > 0 && (
@@ -455,7 +541,9 @@ function JobForm({
                 <X aria-hidden="true" className="size-5" />
               </Dialog.Close>
             </div>
-            <Dialog.Description className="text-body-sm">{t('screen.job.form.confidentiality')}</Dialog.Description>
+            <Dialog.Description className="text-body-sm">
+              {t(selfMentored ? 'screen.job.form.selfMentored.confidentiality' : 'screen.job.form.confidentiality')}
+            </Dialog.Description>
             <div className="flex flex-wrap justify-between gap-3">
               <Dialog.Close render={<Button variant="secondary" />}>{t('screen.job.form.publishBack')}</Dialog.Close>
               <Button type="button" onClick={() => void confirmPublish()} disabled={save.isPending || publish.isPending}>

@@ -9,6 +9,15 @@ enum JobReason {
 	/** Only a Draft is edited here. */
 	JOB_NOT_DRAFT,
 
+	/** The Self-mentored mode is switched off on this platform ({@code features.selfMentoredJobs}, FR-85). */
+	SELF_MENTORED_OFF,
+
+	/** J11: the publication does not name the current version of notice N-34 (FR-85). */
+	SELF_MENTORED_NOTICE,
+
+	/** J1 publishes a normal Job's Draft and J11 a Self-mentored Job's: this Draft holds the other mode (FR-85). */
+	JOB_MODE_MISMATCH,
+
 	/** The Job's screenshots would pass 200 MB (AD-34). */
 	JOB_FILE_QUOTA,
 

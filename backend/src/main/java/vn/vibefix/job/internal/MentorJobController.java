@@ -86,13 +86,17 @@ class MentorJobController {
 		this.callers = callers;
 	}
 
-	/** MEN-4 "Công việc của bạn": the Mentor's Jobs, most recently selected first. */
+	/**
+	 * MEN-4 "Công việc của bạn": the Mentor's Jobs, most recently selected first. A Self-mentored Job is not among them:
+	 * its Customer opens it from the Jobs they posted, and its own routes below stay open to them (AD-47, B-14).
+	 */
 	@GetMapping
 	List<MentorJobSummaryView> jobs() {
 		UUID mentor = mentor();
 		Map<UUID, String> names = new HashMap<>();
 		return this.jdbc.sql("SELECT " + Jobs.COLUMNS
-				+ " FROM job.job WHERE mentor_account_id = :mentor AND " + Jobs.LIVE + " ORDER BY selected_at DESC, id")
+				+ " FROM job.job WHERE mentor_account_id = :mentor AND NOT self_mentored AND " + Jobs.LIVE
+				+ " ORDER BY selected_at DESC, id")
 			.param("mentor", mentor)
 			.query(Jobs::job)
 			.list()

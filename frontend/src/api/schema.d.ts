@@ -5841,6 +5841,7 @@ export interface components {
             problem?: string;
             /** Format: uuid */
             productId?: string;
+            selfMentored?: boolean;
             skillIds: string[];
             title: string;
         };
@@ -5886,6 +5887,7 @@ export interface components {
             phase?: "FINDING_MENTOR" | "FINDING_CREW" | "RECRUITING" | "AGREEING";
             productName: string;
             recruitment?: components["schemas"]["PostRecruitmentView"];
+            selfMentored: boolean;
             skills: string[];
             title: string;
         };
@@ -5917,6 +5919,7 @@ export interface components {
             productTools: string[];
             recruitment?: components["schemas"]["PostRecruitmentView"];
             screenshots: components["schemas"]["ScreenshotView"][];
+            selfMentored: boolean;
             skills: components["schemas"]["JobPostSkillView"][];
             title: string;
         };
@@ -5931,6 +5934,9 @@ export interface components {
             productName: string;
             state: string;
             title: string;
+        };
+        JobPublishRequest: {
+            selfMentoredNoticeVersion?: string;
         };
         JobRoleView: {
             /** @enum {string} */
@@ -6003,6 +6009,7 @@ export interface components {
             screenshots: components["schemas"]["ScreenshotView"][];
             /** Format: date-time */
             selectedAt?: string;
+            selfMentored: boolean;
             skills: components["schemas"]["SkillView"][];
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
@@ -6999,6 +7006,7 @@ export interface components {
             githubLogin?: string;
             lockReason?: string;
             privacyNoticeVersion: string;
+            selfMentoredJobs: boolean;
             /** @enum {string} */
             status: "ANONYMOUS" | "SIGNING_UP" | "LOCKED" | "SIGNED_IN";
             supportEmail?: string;
@@ -11676,7 +11684,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["JobPublishRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

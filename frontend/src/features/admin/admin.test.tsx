@@ -25,6 +25,7 @@ function administrator(idleIn = 30, absoluteIn = 480): Session {
   return {
     status: 'SIGNED_IN',
     privacyNoticeVersion: '2.0',
+    selfMentoredJobs: false,
     account: administratorAccount,
     administrator: {
       email: 'ha.phuong@vibefix.vn',

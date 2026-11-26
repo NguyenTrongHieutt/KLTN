@@ -216,6 +216,7 @@ describe('PUB-2 sign in (FR-1, FR-59)', () => {
       lockReason: 'Vi phạm quy định',
       supportEmail: 'hotro@vibefix.vn',
       privacyNoticeVersion: '2.0',
+      selfMentoredJobs: false,
     })
     renderAt('/dang-nhap')
 

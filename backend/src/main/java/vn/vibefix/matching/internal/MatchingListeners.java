@@ -23,7 +23,8 @@ import vn.vibefix.shared.ProcessedEvents;
  * Job's open Applications and J3 puts the others on hold (§4.0), both lapse its open invitations
  * (FR-14), and a locked account's not-yet-selected Applications, those on hold included, are withdrawn (FR-13,
  * AD-19): every lock runs it, and an account with no bid changes nothing (Stories 20.3 and 20.4). For the Crew
- * (Story 21.4): J4 opens the Mentor's {@code matching.open_crew_recruitment} to-do, and turning recruitment on, J8 or
+ * (Story 21.4): J4, or J11 for a Self-mentored Job, opens the Mentor's {@code matching.open_crew_recruitment} to-do,
+ * and turning recruitment on, J8 or
  * J10 closes it;
  * {@code CrewRecruitmentClosed} lapses the Job's pending Crew Applications; a lock withdraws the account's pending ones,
  * telling each Mentor, and its picks; and a hidden Job Post tells its applicants. For the picks (Story 21.5): J8's and
@@ -56,7 +57,7 @@ class MatchingListeners {
 
 	@ApplicationModuleListener
 	void onJobTransitioned(JobTransitioned event) {
-		boolean handled = List.of("J2", "J3", "J4", "J5", "J8", "J10").contains(event.transition());
+		boolean handled = List.of("J2", "J3", "J4", "J5", "J8", "J10", "J11").contains(event.transition());
 		if (!handled
 				|| !this.processedEvents.markProcessed("matching.MatchingListeners.onJobTransitioned", event.eventId())) {
 			return;
@@ -77,6 +78,14 @@ class MatchingListeners {
 				this.crewApplications.openRecruitmentTodo(event.jobId(), UUID.fromString(mentor),
 						due == null ? null : Instant.parse(due));
 			}
+			return;
+		}
+		if ("J11".equals(event.transition())) {
+			// FR-85, AD-4: a Self-mentored Job enters Agreement with no bid to close; its Customer, who is its Mentor,
+			// gets the recruitment to-do J4 gives a Mentor. J12 comes with the switch (Story 25.2b).
+			String due = event.facts().get("agreementDueAt");
+			this.crewApplications.openRecruitmentTodo(event.jobId(), UUID.fromString(event.facts().get("mentorId")),
+					due == null ? null : Instant.parse(due));
 			return;
 		}
 		if ("J8".equals(event.transition()) || "J10".equals(event.transition())) {

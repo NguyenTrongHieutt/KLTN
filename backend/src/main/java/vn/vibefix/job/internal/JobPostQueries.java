@@ -120,9 +120,12 @@ class JobPostQueries implements JobPosts {
 					: JobNeed.CREW;
 		}
 
-		/** When the Job Post opened. */
+		/** When the Job Post opened; a Self-mentored Job was never Open, so when J11 or J12 published it (FR-85). */
 		Instant openedAt() {
 			Instant opened = this.job.openedAt();
+			if (opened == null && this.job.selfMentored() && this.job.selectedAt() != null) {
+				return this.job.selectedAt();
+			}
 			return opened == null ? this.job.createdAt() : opened;
 		}
 

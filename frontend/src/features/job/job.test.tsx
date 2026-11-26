@@ -430,6 +430,137 @@ describe('Publishing a Job Post and JOB-1 (FR-9, J1, J2)', () => {
     expect(calls.indexOf('POST /api/v1/jobs/j1/publish')).toBeGreaterThan(calls.indexOf('PUT /api/v1/jobs/j1'))
   })
 
+  it('asks who mentors, shows N-34, and publishes a Self-mentored Job into Agreement (FR-85, Story 25.2a)', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    let published = false
+    let saved: unknown
+    let publishedWith: unknown
+    const selfMentored = { ...complete, state: 'AGREEMENT', version: 1, selfMentored: true, selectedAt: '2026-10-16T03:00:00Z' }
+    fakeBackend(
+      { ...signedInUser, selfMentoredJobs: true },
+      {
+        // Publishing makes the Customer the Job's Mentor too.
+        'GET /api/v1/jobs/*/role': () => json({ role: published ? 'CUSTOMER_MENTOR' : 'CUSTOMER' }),
+        'GET /api/v1/jobs/j1': () => json(published ? selfMentored : { ...complete, selfMentored: false }),
+        'GET /api/v1/products/p1': () => json(product()),
+        'GET /api/v1/catalog': catalog,
+        'PUT /api/v1/jobs/j1': async (request) => {
+          saved = await request.json()
+          return json({ ...complete, selfMentored: true })
+        },
+        'POST /api/v1/jobs/j1/publish': async (request) => {
+          publishedWith = await request.json()
+          published = true
+          return json(selfMentored)
+        },
+      },
+    )
+    renderAt('/cong-viec/j1/sua')
+
+    const mode = await screen.findByRole('group', { name: 'Ai hướng dẫn công việc này?' })
+    expect(within(mode).getByRole('radio', { name: /^Tìm người hướng dẫn/ })).toBeChecked()
+    expect(screen.queryByText('Bạn sẽ tự hướng dẫn công việc này')).toBeNull()
+    await user.click(within(mode).getByRole('radio', { name: /^Tôi tự hướng dẫn/ }))
+    expect(screen.getByText('Bạn sẽ tự hướng dẫn công việc này')).toBeInTheDocument()
+    expect(screen.getByText(/Bạn không có quyền vào kho làm việc/)).toBeInTheDocument()
+
+    // N-34 has its own checkbox: without it nothing is asked of the server.
+    await user.click(screen.getByRole('button', { name: 'Đăng tin' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Hãy đánh dấu vào ô xác nhận ở trên')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const understood = () => screen.getByRole('checkbox', { name: 'Tôi hiểu và muốn tự hướng dẫn công việc này.' })
+    expect(understood()).toHaveFocus()
+    expect(understood()).toHaveAttribute('aria-invalid', 'true')
+    await user.click(understood())
+    // Choosing again asks again: the acknowledgement does not carry over.
+    await user.click(within(mode).getByRole('radio', { name: /^Tìm người hướng dẫn/ }))
+    await user.click(within(mode).getByRole('radio', { name: /^Tôi tự hướng dẫn/ }))
+    expect(understood()).not.toBeChecked()
+    await user.click(understood())
+    await user.click(screen.getByRole('button', { name: 'Đăng tin' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đăng tin công việc?' })
+    // N-3's variant: there is no Job Chat and no selected Mentor.
+    expect(within(dialog).getByText(/hãy trao đổi trong Trao đổi nhóm sau khi thành viên nhóm đã ký cam kết bảo mật/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Đăng tin' }))
+
+    await waitFor(() => expect(publishedWith).toEqual({ selfMentoredNoticeVersion: '1.0' }))
+    expect(saved).toMatchObject({ selfMentored: true })
+    // JOB-1 in Agreement, as the one who mentors: the Agreement, the recruitment and the Crew Chat, and no Job Chat.
+    expect(await screen.findByText('Bạn là: Khách hàng · tự hướng dẫn')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Bạn đang hướng dẫn công việc này' })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Trao đổi nhóm' }).length).toBeGreaterThan(1)
+    expect(screen.getAllByRole('link', { name: 'Thỏa thuận' }).length).toBeGreaterThan(1)
+    expect(screen.getAllByRole('link', { name: 'Tuyển thành viên' }).length).toBeGreaterThan(1)
+    expect(screen.queryByRole('link', { name: 'Trò chuyện' })).toBeNull()
+  })
+
+  it('does not ask who mentors while the platform has the mode off, and publishes as before', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let saved: unknown
+    let body: string | undefined
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      // A Draft that took the mode while it was on: the choice is not shown, and the save clears it.
+      'GET /api/v1/jobs/j1': () => json({ ...complete, selfMentored: true }),
+      'GET /api/v1/products/p1': () => json(product()),
+      'GET /api/v1/catalog': catalog,
+      'PUT /api/v1/jobs/j1': async (request) => {
+        saved = await request.json()
+        return json(complete)
+      },
+      'POST /api/v1/jobs/j1/publish': async (request) => {
+        body = await request.text()
+        return json(openJob)
+      },
+    })
+    renderAt('/cong-viec/j1/sua')
+
+    // The form says what saving or publishing this Draft now does.
+    expect(await screen.findByText(/Hiện chưa thể đăng công việc tự hướng dẫn\. Nếu bạn lưu hoặc đăng bản nháp này/)).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Đăng tin' }))
+    expect(screen.queryByRole('group', { name: 'Ai hướng dẫn công việc này?' })).toBeNull()
+    expect(screen.queryByText('Bạn sẽ tự hướng dẫn công việc này')).toBeNull()
+    const dialog = await screen.findByRole('dialog', { name: 'Đăng tin công việc?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Đăng tin' }))
+
+    await waitFor(() => expect(body).toBe(''))
+    expect(saved).toMatchObject({ selfMentored: false })
+  })
+
+  it('publishes a normal Job as before while the mode is offered: no notice, no body', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let saved: unknown
+    let body: string | undefined
+    fakeBackend(
+      { ...signedInUser, selfMentoredJobs: true },
+      {
+        ...inEveryJob('CUSTOMER'),
+        'GET /api/v1/jobs/j1': () => json({ ...complete, selfMentored: false }),
+        'GET /api/v1/products/p1': () => json(product()),
+        'GET /api/v1/catalog': catalog,
+        'PUT /api/v1/jobs/j1': async (request) => {
+          saved = await request.json()
+          return json(complete)
+        },
+        'POST /api/v1/jobs/j1/publish': async (request) => {
+          body = await request.text()
+          return json(openJob)
+        },
+      },
+    )
+    renderAt('/cong-viec/j1/sua')
+
+    await screen.findByRole('group', { name: 'Ai hướng dẫn công việc này?' })
+    expect(screen.queryByText(/Hiện chưa thể đăng công việc tự hướng dẫn/)).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Đăng tin' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đăng tin công việc?' })
+    expect(within(dialog).queryByText(/Trao đổi nhóm/)).toBeNull()
+    await user.click(within(dialog).getByRole('button', { name: 'Đăng tin' }))
+
+    await waitFor(() => expect(body).toBe(''))
+    expect(saved).toMatchObject({ selfMentored: false })
+  })
+
   it('names the unanswered questions before N-3', { timeout: 15_000 }, async () => {
     const user = userEvent.setup()
     const seen = fakeBackend(signedInUser, {

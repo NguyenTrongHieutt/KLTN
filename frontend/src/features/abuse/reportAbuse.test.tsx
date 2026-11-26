@@ -10,6 +10,7 @@ import { ReportAbuseMenu } from './ReportAbuseMenu'
 const student: Session = {
   status: 'SIGNED_IN',
   privacyNoticeVersion: '2.0',
+  selfMentoredJobs: false,
   account: {
     id: '00000000-0000-7000-8000-00000000b001',
     kind: 'USER',

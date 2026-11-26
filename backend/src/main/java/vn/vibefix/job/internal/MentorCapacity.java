@@ -52,12 +52,13 @@ class MentorCapacity implements MentorWork {
 
 	/**
 	 * {@code job.activeJobCount} (AD-33): the Jobs in Selecting, Agreement, Starting, Active, or
-	 * Closing whose Mentor is the account, recorded at J3.
+	 * Closing whose Mentor is the account, recorded at J3. A Self-mentored Job, whose Customer is its Mentor, counts
+	 * toward nobody's limit (FR-85, AD-47).
 	 */
 	@Override
 	public int activeJobCount(UUID mentorId) {
 		return this.jdbc.sql("""
-				SELECT count(*) FROM job.job WHERE mentor_account_id = :mentor
+				SELECT count(*) FROM job.job WHERE mentor_account_id = :mentor AND NOT self_mentored
 				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
 				""").param("mentor", mentorId).query(Integer.class).single();
 	}
@@ -76,7 +77,7 @@ class MentorCapacity implements MentorWork {
 		}
 		this.jdbc.sql("""
 				SELECT mentor_account_id, count(*) AS n FROM job.job WHERE mentor_account_id IN (:mentors)
-				  AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
+				  AND NOT self_mentored AND state IN ('SELECTING', 'AGREEMENT', 'STARTING', 'ACTIVE', 'CLOSING')
 				GROUP BY mentor_account_id
 				""").param("mentors", List.copyOf(mentorIds)).query(rs -> {
 			counts.put(rs.getObject("mentor_account_id", UUID.class), rs.getInt("n"));

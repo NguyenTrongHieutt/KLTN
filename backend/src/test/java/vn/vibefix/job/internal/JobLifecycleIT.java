@@ -231,6 +231,37 @@ class JobLifecycleIT extends IntegrationTest {
 		assertThat(state(job)).isEqualTo("DRAFT");
 	}
 
+	/**
+	 * FR-85, Story 25.2a: with {@code features.selfMentoredJobs} off, as it is by default, the mode is neither offered
+	 * nor taken, and a Draft that holds it is not published.
+	 */
+	@Test
+	void theSelfMentoredModeIsRefusedWhileItIsSwitchedOff() throws Exception {
+		String selfMentored = body("[\"BUG_FIX\"]", "\"FROM_2M_TO_5M\"", "\"2026-11-15\"").replace("\"skillIds\":[]",
+				"\"skillIds\":[],\"selfMentored\":true");
+		this.mvc.perform(post("/api/v1/jobs").with(as(this.lan)).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content(selfMentored)).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("SELF_MENTORED_OFF"));
+
+		UUID job = draft("[\"BUG_FIX\"]", "\"FROM_2M_TO_5M\"", "\"2026-11-15\"");
+		this.mvc.perform(get("/api/v1/jobs/" + job).with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentored").value(false));
+		this.mvc.perform(get("/api/v1/session").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentoredJobs").value(false));
+		this.mvc.perform(put("/api/v1/jobs/" + job).with(as(this.lan)).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content(selfMentored)).andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("SELF_MENTORED_OFF"));
+
+		// A Draft that took the mode while it was on stays a Draft: J11 is refused, and J1 never publishes it.
+		this.jdbc.sql("UPDATE job.job SET self_mentored = TRUE WHERE id = :id").param("id", job).update();
+		this.mvc.perform(post("/api/v1/jobs/" + job + "/publish").with(as(this.lan)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"selfMentoredNoticeVersion\":\"1.0\"}"))
+			.andExpect(status().is(422)).andExpect(jsonPath("$.reason").value("SELF_MENTORED_OFF"));
+		assertThatThrownBy(() -> new TransactionTemplate(this.transactions).executeWithoutResult(
+				status -> this.lifecycle.apply(Transition.J1, job, Actor.user(this.lan), Trigger.USER)))
+			.isInstanceOfSatisfying(vn.vibefix.shared.ApiException.class,
+					refusal -> assertThat(refusal.reason()).contains("JOB_MODE_MISMATCH"));
+		assertThat(state(job)).isEqualTo("DRAFT");
+	}
+
 	private ResultActions publish(UUID job) throws Exception {
 		return this.mvc.perform(post("/api/v1/jobs/" + job + "/publish").with(as(this.lan)).with(csrf()));
 	}

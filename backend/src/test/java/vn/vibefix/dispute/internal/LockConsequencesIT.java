@@ -283,6 +283,29 @@ class LockConsequencesIT extends IntegrationTest {
 		awaitListeners();
 	}
 
+	/**
+	 * FR-59, AD-47, Story 25.2a: the locked Customer of a Self-mentored Job is its Mentor too, so the active Crew and the
+	 * Administrators hear, and the locked account is never told of its own lock.
+	 */
+	@Test
+	void aLockedCustomerOfASelfMentoredJobTellsTheCrewAndNeverTheLockedAccount() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world();
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0',
+				    mentor_account_id = customer_account_id, selected_application_id = NULL WHERE id = :id
+				""").param("id", job).update();
+
+		lock(ha, this.lan).andExpect(status().isOk());
+		awaitSystemDispute(job);
+		awaitListeners();
+
+		assertThat(notices("job.party_locked", this.vy)).as("the active member hears of the Mentor").isEqualTo(1);
+		assertThat(notices("job.party_locked", ha.accountId())).isEqualTo(1);
+		assertThat(notices("job.party_locked", this.lan)).as("never the locked account").isZero();
+		assertThat(notices("job.party_locked", this.hung)).isZero();
+	}
+
 	/** Story 20.3: no role switch; one lock acts on every relation, here the Mentor of one Job and Customer of another. */
 	@Test
 	void oneLockActsOnTheJobTheAccountMentorsAndTheJobItIsTheCustomerOf() throws Exception {

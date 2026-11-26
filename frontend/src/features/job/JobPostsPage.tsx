@@ -580,7 +580,7 @@ function PostItem({
         )}
         {post.mentor && (
           <span className="text-caption break-words">
-            {rich('screen.jobPost.mentor', {
+            {rich(post.selfMentored ? 'screen.jobPost.selfMentor' : 'screen.jobPost.mentor', {
               name: post.mentor.githubLogin ? (
                 <Link
                   to={personPath(post.mentor.githubLogin)}

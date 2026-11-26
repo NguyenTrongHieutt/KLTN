@@ -361,7 +361,7 @@ function CrewAction({
       </h2>
       {mentor && (
         <p className="text-body-sm break-words">
-          {rich('screen.jobPost.detail.crewMentor', {
+          {rich(post.selfMentored ? 'screen.jobPost.detail.crewSelfMentor' : 'screen.jobPost.detail.crewMentor', {
             name: mentor.githubLogin ? (
               <Link to={personPath(mentor.githubLogin)} className="text-primary underline-offset-4 hover:underline">
                 {mentor.displayName}

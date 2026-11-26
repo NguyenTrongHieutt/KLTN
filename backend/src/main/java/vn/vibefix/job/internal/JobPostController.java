@@ -58,7 +58,8 @@ import vn.vibefix.shared.SearchWindow;
  * reads while it is listed, and the SPA shows "Bạn là {role} của công việc này" in place of an action. A row or the
  * detail shows the Job Post, its phase, what it needs, the Customer's kind and month joined (never their name or
  * contact details), the Mentor once there is one, and while recruiting the open slots, the Skills sought and the
- * note: never the Agreement, Milestones, prices, Crew, bids or chats (UX-DR97).
+ * note: never the Agreement, Milestones, prices, Crew, bids or chats (UX-DR97). A Self-mentored Job names its
+ * Customer, as the one who mentors it (FR-85, N-34 says so before it is published).
  */
 @RestController
 @RequestMapping("/api/v1/mentor")
@@ -71,13 +72,14 @@ class JobPostController {
 	 * @param phase the phase label; never empty for a listed Job
 	 * @param customerKind {@code INDIVIDUAL} or {@code BUSINESS}; {@code null} before the Customer saved CUS-11
 	 * @param customerJoinedAt when the Customer's account was created
-	 * @param mentor the Job's Mentor, once J3 recorded one
+	 * @param mentor the Job's Mentor, once J3 recorded one; in a Self-mentored Job, its Customer
 	 * @param recruitment what the Mentor's recruitment seeks, while it is on
+	 * @param selfMentored "Khách hàng tự hướng dẫn" (FR-85): the Mentor named here is the Job's Customer
 	 */
 	record JobPostSummaryView(UUID id, String title, String productName, List<JobType> jobTypes, List<String> skills,
 			@Nullable Budget budget, @Nullable LocalDate deadline, Instant openedAt, @Nullable JobPhase phase,
 			JobNeed need, @Nullable String customerKind, @Nullable Instant customerJoinedAt,
-			@Nullable PostMentorView mentor, @Nullable PostRecruitmentView recruitment) {
+			@Nullable PostMentorView mentor, @Nullable PostRecruitmentView recruitment, boolean selfMentored) {
 	}
 
 	/**
@@ -102,13 +104,14 @@ class JobPostController {
 	/**
 	 * One listed Job as MEN-3 shows it.
 	 * @param lapsesAt when the Job Post lapses, while Open
+	 * @param selfMentored "Khách hàng tự hướng dẫn" (FR-85): the Mentor named here is the Job's Customer
 	 */
 	record JobPostView(UUID id, UUID productId, String title, String productName, String productDescription,
 			List<String> productTools, @Nullable String problem, @Nullable String expected,
 			@Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes, List<JobPostSkillView> skills,
 			@Nullable Budget budget, @Nullable LocalDate deadline, Instant openedAt, @Nullable Instant lapsesAt,
 			List<ScreenshotView> screenshots, @Nullable JobPhase phase, JobNeed need, @Nullable PostMentorView mentor,
-			@Nullable PostRecruitmentView recruitment) {
+			@Nullable PostRecruitmentView recruitment, boolean selfMentored) {
 	}
 
 	/** The user's FR-13 position as Mentor, and why they cannot bid now: only the Mentor Job limit (Story 21.2). */
@@ -193,7 +196,8 @@ class JobPostController {
 			return new JobPostSummaryView(job.id(), job.title(), productName(names, job.productId()), job.jobTypes(),
 					job.skillNames(), job.budget(), job.deadline(), post.openedAt(), phaseOf.get(job.id()), post.need(),
 					customer == null ? null : customer.kind(), customer == null ? null : customer.joinedAt(),
-					job.mentorId() == null ? null : mentorOf.get(job.mentorId()), recruitment(post.recruitment()));
+					job.mentorId() == null ? null : mentorOf.get(job.mentorId()), recruitment(post.recruitment()),
+					job.selfMentored());
 		}).toList();
 		return new PageResponse<>(items, found.page(), JobPostQueries.PAGE_SIZE, found.total());
 	}
@@ -225,19 +229,38 @@ class JobPostController {
 				this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
 				this.posts.phases(List.of(post)).get(job.id()), post.need(),
 				job.mentorId() == null ? null : mentors(List.of(post)).get(job.mentorId()),
-				recruitment(post.recruitment()));
+				recruitment(post.recruitment()), job.selfMentored());
 	}
 
-	/** The Mentors of these Jobs that have one, by account, from one {@code identity} read. */
+	/**
+	 * The Mentors of these Jobs that have one, by account, from one {@code identity} read. The Customer who mentors a
+	 * Self-mentored Job may have saved no profile, or one with no name: they are then named as a Customer is where
+	 * another person sees them act (FR-85).
+	 */
 	private Map<UUID, PostMentorView> mentors(List<Post> posts) {
 		List<UUID> ids = posts.stream().map(post -> post.job().mentorId()).filter(Objects::nonNull).distinct().toList();
 		if (ids.isEmpty()) {
 			return Map.of();
 		}
-		return this.mentors.cards(ids)
-			.stream()
-			.collect(Collectors.toMap(MentorCard::accountId,
-					card -> new PostMentorView(card.displayName(), card.githubLogin()), (first, second) -> first));
+		Map<UUID, PostMentorView> found = new HashMap<>();
+		for (MentorCard card : this.mentors.cards(ids)) {
+			found.putIfAbsent(card.accountId(), new PostMentorView(card.displayName(), card.githubLogin()));
+		}
+		for (Post post : posts) {
+			Job job = post.job();
+			if (!job.selfMentored() || job.mentorId() == null) {
+				continue;
+			}
+			PostMentorView card = found.get(job.mentorId());
+			if (card != null && !card.displayName().isBlank()) {
+				continue;
+			}
+			String name = this.customers.displayName(job.mentorId());
+			if (!name.isBlank()) {
+				found.put(job.mentorId(), new PostMentorView(name, card == null ? null : card.githubLogin()));
+			}
+		}
+		return found;
 	}
 
 	/** What the recruitment seeks while it is on; nothing while it is off. */

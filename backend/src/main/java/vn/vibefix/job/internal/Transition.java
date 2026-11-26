@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  */
 enum Transition {
 
-	J1(Machine.JOB, job(JobState.DRAFT), job(JobState.OPEN), Set.of(USER), "The Customer publishes (FR-9)",
+	J1(Machine.JOB, job(JobState.DRAFT), job(JobState.OPEN), Set.of(USER), "The Customer publishes a normal Job (FR-9)",
 			List.of(new Guard("FR-9", "The guided answers, a Job Type, the budget, and a future deadline are given")),
 			List.of(new Effect("job", "The FR-61 rule values and the selection period are copied onto the Job (AD-7)"),
 					new Effect("timers", "The selection lapse is scheduled (FR-9)")),
@@ -97,6 +97,27 @@ enum Transition {
 					new Effect("repo", "The Revocation Checklist is presented (FR-66)"),
 					new Effect("job", "The Crew is released (FR-75)")),
 			false, true),
+
+	J11(Machine.JOB, job(JobState.DRAFT), job(JobState.AGREEMENT), Set.of(USER),
+			"The Customer publishes a Self-mentored Job (FR-9, FR-85)",
+			List.of(new Guard("FR-85", "N-34 is acknowledged, and the mode is offered"),
+					new Guard("FR-9", "The guided answers, a Job Type, the budget, and a future deadline are given"),
+					new Guard("FR-80", "The Customer has a linked GitHub account and is not locked")),
+			List.of(new Effect("job", "The Customer is recorded as the Mentor, and the FR-61 rule values are copied (AD-7)"),
+					new Effect("product", "The Product is pinned while the Job runs (AD-30)"),
+					new Effect("job", "Drafting starts and the Agreement stall is scheduled (FR-16, FR-40)"),
+					new Effect("chat", "The Crew Chat opens; there is no Job Chat (FR-77)"),
+					new Effect("matching", "The Customer can turn Crew recruitment on (FR-81)")),
+			false, true),
+
+	J12(Machine.JOB, job(JobState.OPEN), job(JobState.AGREEMENT), Set.of(USER),
+			"The Customer switches an Open Job to self-mentored (FR-85)",
+			List.of(new Guard("FR-85", "The Job has no open Application, and N-34 is acknowledged")),
+			List.of(new Effect("matching", "Invitations to Apply lapse, and a bid racing the switch is withdrawn"),
+					new Effect("timers", "The FR-9 selection period ends"),
+					new Effect("job", "Then as J11: the Customer is the Mentor, drafting and the Agreement stall start"),
+					new Effect("chat", "The Crew Chat opens; there is no Job Chat (FR-77)")),
+			false, false),
 
 	M1(Machine.MILESTONE, milestone(MilestoneState.PLANNED), milestone(MilestoneState.FUNDED), Set.of(SYSTEM),
 			"Verified payment of its Payment Order (FR-41)",
