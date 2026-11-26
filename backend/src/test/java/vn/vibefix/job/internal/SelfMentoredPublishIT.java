@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -33,6 +35,7 @@ import vn.vibefix.job.JobRole;
 import vn.vibefix.job.JobRoles;
 import vn.vibefix.support.IntegrationTest;
 import vn.vibefix.support.MutableClock;
+import vn.vibefix.support.TestPeople;
 
 /**
  * FR-85, AD-47, AD-4, Story 25.2a: with {@code features.selfMentoredJobs} on, a Customer chooses "Tôi tự hướng dẫn" on
@@ -168,6 +171,52 @@ class SelfMentoredPublishIT extends IntegrationTest {
 		publish(normal, NOTICE).andExpect(status().isOk()).andExpect(jsonPath("$.state").value("OPEN"))
 			.andExpect(jsonPath("$.selfMentored").value(false));
 		assertThat(this.roles.roleOf(normal, this.lan)).isEqualTo(JobRole.CUSTOMER);
+	}
+
+	/**
+	 * FR-85, AD-47 (B-14), Story 25.2a: a Self-mentored Job is on "Tìm việc" only while it recruits, naming its Customer
+	 * as the one who mentors; it is not among the Jobs its Customer mentors, and counts toward no Mentor Job limit.
+	 */
+	@Test
+	void aSelfMentoredJobIsListedWhileItRecruitsAndIsNoMentoredJob() throws Exception {
+		this.jdbc.sql("""
+				INSERT INTO identity.profile (account_id, kind, display_name, contact_email, updated_at)
+				VALUES (:id, 'INDIVIDUAL', 'Nguyễn Thị Lan', 'lan@example.com', now())
+				""").param("id", this.lan).update();
+		UUID job = draft(true, "\"2026-11-15\"");
+		publish(job, NOTICE).andExpect(status().isOk());
+		UUID reader = TestPeople.student(this.jdbc, "Lê Thảo Vy", true, List.of(TestPeople.REACT), "React",
+				LocalDate.parse("2026-09-30"));
+		RequestPostProcessor asReader = IdentityTestSupport.signedIn(this.sessions, reader, Role.STUDENT, this.clock.instant());
+
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(asReader)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(0));
+		this.jdbc.sql("UPDATE job.job SET recruiting = TRUE, recruiting_since = :now, open_slots = 2 WHERE id = :id")
+			.param("now", Timestamp.from(this.clock.instant())).param("id", job).update();
+
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(asReader)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(1))
+			.andExpect(jsonPath("$.items[0].id").value(job.toString()))
+			.andExpect(jsonPath("$.items[0].selfMentored").value(true))
+			.andExpect(jsonPath("$.items[0].need").value("CREW"))
+			.andExpect(jsonPath("$.items[0].recruitment.openSlots").value(2))
+			.andExpect(jsonPath("$.items[0].mentor.displayName").value("Nguyễn Thị Lan"))
+			.andExpect(jsonPath("$.items[0].openedAt").value(this.clock.instant().toString()));
+		this.mvc.perform(get("/api/v1/mentor/job-posts/" + job).with(asReader)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.selfMentored").value(true))
+			.andExpect(jsonPath("$.need").value("CREW"))
+			.andExpect(jsonPath("$.lapsesAt").doesNotExist());
+		// Its Customer never reads their own Job on "Tìm việc", and it is not a Job they mentor.
+		this.mvc.perform(get("/api/v1/mentor/job-posts").with(as(this.lan))).andExpect(jsonPath("$.total").value(0));
+		this.mvc.perform(get("/api/v1/mentor/jobs").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(0));
+		this.mvc.perform(get("/api/v1/mentor/jobs/" + job).with(as(this.lan))).andExpect(status().isOk());
+		this.mvc.perform(get("/api/v1/mentor/capacity").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.activeJobs").value(0));
+		this.mvc.perform(get("/api/v1/my-jobs").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].role").value("CUSTOMER_MENTOR"));
+		this.mvc.perform(get("/api/v1/jobs/" + job + "/role").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.role").value("CUSTOMER_MENTOR"));
 	}
 
 	private ResultActions publish(UUID job, String body) throws Exception {

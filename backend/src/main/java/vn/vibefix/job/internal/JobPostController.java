@@ -71,13 +71,14 @@ class JobPostController {
 	 * @param phase the phase label; never empty for a listed Job
 	 * @param customerKind {@code INDIVIDUAL} or {@code BUSINESS}; {@code null} before the Customer saved CUS-11
 	 * @param customerJoinedAt when the Customer's account was created
-	 * @param mentor the Job's Mentor, once J3 recorded one
+	 * @param mentor the Job's Mentor, once J3 recorded one; in a Self-mentored Job, its Customer
 	 * @param recruitment what the Mentor's recruitment seeks, while it is on
+	 * @param selfMentored "Khách hàng tự hướng dẫn" (FR-85): the Mentor named here is the Job's Customer
 	 */
 	record JobPostSummaryView(UUID id, String title, String productName, List<JobType> jobTypes, List<String> skills,
 			@Nullable Budget budget, @Nullable LocalDate deadline, Instant openedAt, @Nullable JobPhase phase,
 			JobNeed need, @Nullable String customerKind, @Nullable Instant customerJoinedAt,
-			@Nullable PostMentorView mentor, @Nullable PostRecruitmentView recruitment) {
+			@Nullable PostMentorView mentor, @Nullable PostRecruitmentView recruitment, boolean selfMentored) {
 	}
 
 	/**
@@ -102,13 +103,14 @@ class JobPostController {
 	/**
 	 * One listed Job as MEN-3 shows it.
 	 * @param lapsesAt when the Job Post lapses, while Open
+	 * @param selfMentored "Khách hàng tự hướng dẫn" (FR-85): the Mentor named here is the Job's Customer
 	 */
 	record JobPostView(UUID id, UUID productId, String title, String productName, String productDescription,
 			List<String> productTools, @Nullable String problem, @Nullable String expected,
 			@Nullable String appUsers, @Nullable String doneCheck, List<JobType> jobTypes, List<JobPostSkillView> skills,
 			@Nullable Budget budget, @Nullable LocalDate deadline, Instant openedAt, @Nullable Instant lapsesAt,
 			List<ScreenshotView> screenshots, @Nullable JobPhase phase, JobNeed need, @Nullable PostMentorView mentor,
-			@Nullable PostRecruitmentView recruitment) {
+			@Nullable PostRecruitmentView recruitment, boolean selfMentored) {
 	}
 
 	/** The user's FR-13 position as Mentor, and why they cannot bid now: only the Mentor Job limit (Story 21.2). */
@@ -193,7 +195,8 @@ class JobPostController {
 			return new JobPostSummaryView(job.id(), job.title(), productName(names, job.productId()), job.jobTypes(),
 					job.skillNames(), job.budget(), job.deadline(), post.openedAt(), phaseOf.get(job.id()), post.need(),
 					customer == null ? null : customer.kind(), customer == null ? null : customer.joinedAt(),
-					job.mentorId() == null ? null : mentorOf.get(job.mentorId()), recruitment(post.recruitment()));
+					job.mentorId() == null ? null : mentorOf.get(job.mentorId()), recruitment(post.recruitment()),
+					job.selfMentored());
 		}).toList();
 		return new PageResponse<>(items, found.page(), JobPostQueries.PAGE_SIZE, found.total());
 	}
@@ -225,7 +228,7 @@ class JobPostController {
 				this.jobs.screenshots(job.id()).stream().map(ScreenshotView::of).toList(),
 				this.posts.phases(List.of(post)).get(job.id()), post.need(),
 				job.mentorId() == null ? null : mentors(List.of(post)).get(job.mentorId()),
-				recruitment(post.recruitment()));
+				recruitment(post.recruitment()), job.selfMentored());
 	}
 
 	/** The Mentors of these Jobs that have one, by account, from one {@code identity} read. */
