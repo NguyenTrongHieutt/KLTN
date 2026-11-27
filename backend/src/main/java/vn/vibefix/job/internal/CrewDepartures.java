@@ -122,7 +122,7 @@ class CrewDepartures {
 			// Self-mentored Job recruited the member, and reads the name the Mentor's notice gives.
 			this.notifications.send(new NotificationRequest(LOGIN_REMOVED, key(row.id() + ":login-removed"),
 					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-					Map.of("member", memberText(job, shownName(card), login), "job", job.title()), link, job.id(), null));
+					Map.of("who", memberText(job, shownName(card), login), "job", job.title()), link, job.id(), null));
 		}
 		this.externalAccess.memberLeft(job, member);
 		this.events.publishEvent(new CrewMemberRemoved(this.ids.newId(), job.id(), row.id(), member));

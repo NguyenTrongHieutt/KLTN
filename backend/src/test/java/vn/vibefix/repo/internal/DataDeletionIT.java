@@ -118,6 +118,53 @@ class DataDeletionIT extends IntegrationTest {
 			.andExpect(status().isNotFound());
 	}
 
+	/**
+	 * R51, AD-47 exception 13, Story 25.4: in a Self-mentored Job only the members have the duty. The Customer, who is
+	 * its Mentor, is not asked, is refused a tick, and reads each member's status by name, as a Mentor does.
+	 */
+	@Test
+	void inASelfMentoredJobOnlyTheMembersAreAsked() throws Exception {
+		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID vy = student("Trần Thảo Vy");
+		UUID hai = student("Lê Văn Hải");
+		UUID job = job(lan, lan);
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0', selected_application_id = NULL,
+				    state = 'CLOSING' WHERE id = :id
+				""").param("id", job).update();
+		crewRow(job, vy, "ACTIVE", true);
+		crewRow(job, hai, "RELEASED", true);
+
+		this.listeners.onJobTransitioned(new JobTransitioned(UUID.randomUUID(), UUID.randomUUID(), job, "J8", "USER", "ACTIVE",
+				"CLOSING", 6, 1, Map.of()));
+		await().atMost(Duration.ofSeconds(10)).until(() -> openTodos() == 2);
+
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.todo WHERE account_id = :lan").param("lan", lan)
+			.query(Long.class).single()).as("no to-do reaches the Customer as the Mentor").isZero();
+		assertThat(this.jdbc.sql("SELECT count(*) FROM notification.notification WHERE account_id = :lan").param("lan", lan)
+			.query(Long.class).single()).isZero();
+		assertThat(this.jdbc.sql("""
+				SELECT count(*) FROM notification.notification WHERE type = 'repo.data_deletion_confirmation_pending'
+				""").query(Long.class).single()).isEqualTo(2);
+		ticks(lan, Role.CUSTOMER, job, "NON_CODE_DATA").andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("NOT_A_DUTY"));
+		ticks(lan, Role.CUSTOMER, job, "PREVIEWS").andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.reason").value("NOT_A_DUTY"));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM repo.data_deletion_confirmation WHERE job_id = :job").param("job", job)
+			.query(Long.class).single()).isZero();
+		ticks(hai, Role.STUDENT, job, "NON_CODE_DATA").andExpect(status().isOk());
+		ticks(hai, Role.STUDENT, job, "PREVIEWS").andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/boards/" + job + "/data-deletion").with(as(lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.mine").doesNotExist())
+			.andExpect(jsonPath("$.parties.length()").value(2))
+			.andExpect(jsonPath("$.parties[?(@.party != 'CREW')]").isEmpty())
+			.andExpect(jsonPath("$.parties[?(@.name == 'Lê Văn Hải')].confirmed").value(true))
+			.andExpect(jsonPath("$.parties[?(@.name == 'Trần Thảo Vy')].confirmed").value(false));
+		assertThat(this.deletions.confirmed(job, hai)).isTrue();
+	}
+
 	private ResultActions ticks(UUID account, Role role, UUID job, String item) throws Exception {
 		return this.mvc.perform(post("/api/v1/boards/" + job + "/data-deletion/" + item).with(as(account, role)).with(csrf()));
 	}

@@ -113,7 +113,7 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(notices("job.crew_member_left", this.hung)).isOne();
 		assertThat(param("job.crew_member_left", this.hung, "name")).isEqualTo("Trần Thảo Vy");
 		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
-		assertThat(param("job.crew_login_removed", this.lan, "login")).isEqualTo(TestPeople.login(this.jdbc, this.vy));
+		assertThat(param("job.crew_login_removed", this.lan, "who")).isEqualTo("@" + TestPeople.login(this.jdbc, this.vy));
 		assertThat(notices("job.crew_empty", this.lan)).isOne();
 		assertThat(param("job.crew_empty", this.lan, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
 		assertThat(notices("job.party_locked", ha.accountId())).isOne();

@@ -1,7 +1,7 @@
-subject: {member} đã rời nhóm thực hiện {job}
+subject: {who} đã rời nhóm thực hiện {job}
 ---
 Xin chào,
 
-{member} không còn trong nhóm thực hiện công việc {job}.
+{who} không còn trong nhóm thực hiện công việc {job}.
 Nếu bạn đã cho tài khoản GitHub này vào một hệ thống bên ngoài vibefix, hãy gỡ quyền đó.
 Mỗi hệ thống trong thỏa thuận có một việc "Thu hồi quyền" trên trang của công việc.

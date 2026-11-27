@@ -229,7 +229,7 @@ class JobCrewPicks implements CrewPicks {
 			// of a Self-mentored Job picked the member, and reads the name the Mentor's notice gives.
 			this.notifications.send(new NotificationRequest(LOGIN_ADDED, key(rowId + ":login-added"),
 					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-					Map.of("member", CrewDepartures.memberText(job, name, login), "job", job.title()), link, jobId, null));
+					Map.of("who", CrewDepartures.memberText(job, name, login), "job", job.title()), link, jobId, null));
 			// R15, FR-66: the confirmation's to-dos named nobody, so the Customer grants a later member each item by name.
 			this.externalAccess.memberJoined(job, member, login);
 		}
