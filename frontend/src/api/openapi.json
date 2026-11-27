@@ -10016,6 +10016,10 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "noMember" : {
+            "type" : "string",
+            "enum" : [ "ALONE", "CREW_WAS_ACTIVE" ]
+          },
           "proposal" : {
             "$ref" : "#/components/schemas/CancellationProposalView"
           },
@@ -11363,6 +11367,9 @@
           "productName" : {
             "type" : "string"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "state" : {
             "type" : "string",
             "enum" : [ "DRAFT", "OPEN", "SELECTING", "AGREEMENT", "STARTING", "ACTIVE", "CLOSING", "CLOSED", "CANCELLED" ]
@@ -11371,7 +11378,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "canLeave", "codeJob", "former", "jobId", "mentorName", "partyMilestones", "productName", "state", "title" ]
+        "required" : [ "canLeave", "codeJob", "former", "jobId", "mentorName", "partyMilestones", "productName", "selfMentored", "state", "title" ]
       },
       "CrewMemberView" : {
         "type" : "object",
@@ -18769,7 +18776,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "CUSTOMER", "MENTOR", "CREW" ]
+            "enum" : [ "CUSTOMER", "MENTOR", "CREW", "CUSTOMER_MENTOR" ]
           },
           "tier" : {
             "type" : "integer",
