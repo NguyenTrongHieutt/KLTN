@@ -170,6 +170,18 @@ class SelfMentoredAgreementIT extends IntegrationTest {
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/agreement").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.confirmed.versionNo").value(1));
+
+		// A later version of this Job, as a Change Request will make it (Story 25.7), has the one account on both sides
+		// too and names the same draft, and is still not a version confirmed alone: only version 1 is.
+		this.jdbc.sql("""
+				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames, live_access_ids,
+				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
+				SELECT job_id, 2, draft_version_no, content, crew_usernames, live_access_ids, freeze_committed,
+				       customer_account_id, approved_at, mentor_account_id, confirmed_at
+				FROM job.confirmed_agreement WHERE job_id = :id AND version_no = 1
+				""").param("id", this.job).update();
+		assertThat(this.history.confirmedVersions(this.job)).extracting(vn.vibefix.job.AgreementHistory.ConfirmedVersion::alone)
+			.containsExactly(true, false);
 	}
 
 	@Test

@@ -56,8 +56,8 @@ export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind 
   usePageTitle(agreement.data ? t('screen.agreement.title', { job: agreement.data.jobTitle }) : t('screen.agreement.tab'))
   if (agreement.isError && isNotFound(agreement.error)) {
     if (pick) {
-      // The version picked is gone: in a Self-mentored Job a save leaves the draft's earlier revision behind. The page
-      // loads the newest instead; a reader with no way in gets the not-found screen from that read.
+      // The version picked cannot be read any more. The page asks for the newest instead, once: a reader who has lost
+      // their way in gets the not-found screen from that read.
       setPick(undefined)
       return null
     }

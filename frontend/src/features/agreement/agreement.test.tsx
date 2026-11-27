@@ -249,7 +249,9 @@ describe('JOB-6 and JOB-4 for the Customer of a Self-mentored Job (AD-47, Story 
     expect(await screen.findByText(/Bạn soạn và xác nhận thỏa thuận một mình, không có bước gửi hay duyệt/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gửi cho khách hàng' })).toBeNull()
     expect(screen.queryByText('Chưa gửi cho khách hàng.')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })).toBeDisabled()
+    const confirm = screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveAccessibleDescription('Chưa đọc được công việc và nhóm thực hiện nên chưa xác nhận được.')
   })
 
   it('has no Job Chat: the screen is not found', { timeout: 15_000 }, async () => {

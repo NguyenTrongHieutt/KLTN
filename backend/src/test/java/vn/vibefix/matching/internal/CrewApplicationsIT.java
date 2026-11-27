@@ -688,7 +688,8 @@ class CrewApplicationsIT extends IntegrationTest {
 
 	/**
 	 * AD-24, FR-85, Story 25.3: a Job nobody bid on, as a Self-mentored Job is, has its Crew's signatures all the same.
-	 * They go with the Product, also after the end of the retention took the Crew Applications that named the Job.
+	 * They go with the Product though no bid and no Crew Application names the Job (the end of the retention deletes
+	 * the Crew Applications), and another Product's signature stays.
 	 */
 	@Test
 	void deletingTheProductDeletesTheSignaturesOfAJobNobodyBidOn() {
@@ -706,10 +707,7 @@ class CrewApplicationsIT extends IntegrationTest {
 					""").param("job", signed).param("minh", this.minh).param("at", Timestamp.from(JobContent.SIGNED)).update();
 		}
 
-		new TransactionTemplate(this.transactions).executeWithoutResult(status -> {
-			this.matching.retireJobData(this.product);
-			this.matching.deleteProduct(this.product);
-		});
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> this.matching.deleteProduct(this.product));
 
 		assertThat(this.jdbc.sql("SELECT job_id FROM matching.nda_signature WHERE account_id = :minh")
 			.param("minh", this.minh)

@@ -2249,6 +2249,7 @@
         "lead": "Bạn soạn và xác nhận thỏa thuận một mình, không có bước gửi hay duyệt. Người được chọn và thành viên nhóm đọc được bản nháp bạn đã lưu.",
         "blockedProblems": "Bản nháp còn thiếu mục, xem danh sách phía trên.",
         "blockedFreeze": "Đánh dấu cam kết phía trên để xác nhận.",
+        "blockedWaiting": "Chưa đọc được công việc và nhóm thực hiện nên chưa xác nhận được.",
         "dialogBody": "Thỏa thuận có hiệu lực ngay và chỉ thay đổi được qua đề nghị thay đổi. Công việc bắt đầu khi có ít nhất một thành viên nhóm đã ký và bạn thanh toán Giai đoạn 1.",
         "dialogLive": "Nhóm thực hiện được vào {n} production bạn đã chọn.",
         "confirmedLine": "Bạn đã xác nhận thỏa thuận này.",

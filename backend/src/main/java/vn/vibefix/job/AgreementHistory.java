@@ -27,7 +27,9 @@ public interface AgreementHistory {
 
 	/**
 	 * @param alone the Customer of a Self-mentored Job confirmed this version in one step (AD-47): nobody approved it
-	 * first, and {@code approvedAt} is the time of that one step
+	 * first, and {@code approvedAt} is the time of that one step. Only version 1 is ever confirmed so: it is told by
+	 * the kind of draft the version names, never by the Customer and the Mentor being one account, and a later
+	 * version of such a Job, which a Change Request makes, is not one
 	 */
 	record ConfirmedVersion(int versionNo, Instant approvedAt, Instant confirmedAt, String scope, @Nullable Long priceVnd,
 			List<MilestoneLine> milestones, boolean alone) {

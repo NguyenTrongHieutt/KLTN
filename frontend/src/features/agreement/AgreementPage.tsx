@@ -253,7 +253,9 @@ function Editor({ jobId, draft, alone }: { jobId: string; draft: AgreementDraft;
       ? 'screen.agreement.alone.blockedProblems'
       : alone && content.codeJob && !alone.freeze
         ? 'screen.agreement.alone.blockedFreeze'
-        : undefined
+        : alone && !alone.versions
+          ? 'screen.agreement.alone.blockedWaiting'
+          : undefined
   // The draft on screen is what is confirmed: unsaved edits are saved first, and the confirmation names that revision.
   const confirmAlone = async () => {
     if (!alone?.versions) {
@@ -431,7 +433,7 @@ function Editor({ jobId, draft, alone }: { jobId: string; draft: AgreementDraft;
           <Button
             type="button"
             onClick={() => alone.onAsking(true)}
-            disabled={pending || blocked !== undefined || !alone.versions}
+            disabled={pending || blocked !== undefined}
             aria-describedby={`${ids}-alone-why`}
           >
             {t('screen.agreement.review.confirm')}
