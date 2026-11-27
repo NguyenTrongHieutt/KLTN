@@ -3461,6 +3461,11 @@ GET /api/v1/handovers/{handoverId},CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/handovers/{handoverId}/accept,CUSTOMER_MENTOR,job=self,handover-accept.json,409 STALE
 POST /api/v1/handovers/{handoverId}/revision,CUSTOMER_MENTOR,job=self,handover-revision.json,409 STALE
 POST /api/v1/handovers/{handoverId}/return,CUSTOMER_MENTOR,job=self,handover-return.json,409 STALE
+GET /api/v1/handovers/{handoverId},CUSTOMER_MENTOR,job=self;selfHandover=returned,,200
+GET /api/v1/handovers/{handoverId},CREW_ACTIVE,job=self;selfHandover=returned,,200
+GET /api/v1/handovers/{handoverId},CREW_FORMER,job=self;selfHandover=returned,,404 NOT_FOUND
+POST /api/v1/handovers/{handoverId}/accept,CUSTOMER_MENTOR,job=self;selfHandover=returned,handover-accept.json,409 STALE HANDOVER_RETURNED
+POST /api/v1/handovers/{handoverId}/return,CUSTOMER_MENTOR,job=self;selfHandover=returned,handover-return.json,409 STALE HANDOVER_RETURNED
 GET /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,agreement.json,409 STALE,requireActiveAccount
 POST /api/v1/mentor/jobs/{jobId}/agreement/share,CUSTOMER_MENTOR,job=self,agreement-share.json,404 NOT_FOUND,requireActiveAccount

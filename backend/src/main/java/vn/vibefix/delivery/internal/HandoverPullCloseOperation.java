@@ -54,9 +54,10 @@ class HandoverPullCloseOperation implements OperationHandler {
 		switch (String.valueOf(payload.get("transition"))) {
 			case "M3" -> {
 				// FR-86: a handover the Customer returned is closed with their reason, read from the handover itself.
-				String reason = this.handovers.getObject().find(handoverId).map(Handover::returnReason).orElse(null);
-				comment = reason == null ? HandoverPullCloses.voidComment(handoverId)
-						: HandoverPullCloses.returnComment(handoverId, reason);
+				Handover handover = this.handovers.getObject().find(handoverId).orElse(null);
+				comment = handover != null && handover.returned()
+						? HandoverPullCloses.returnComment(handoverId, handover.returnReason())
+						: HandoverPullCloses.voidComment(handoverId);
 			}
 			case "M4" -> comment = HandoverPullCloses.revisionComment(handoverId);
 			default -> {

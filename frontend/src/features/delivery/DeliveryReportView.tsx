@@ -87,10 +87,13 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
             {t('screen.handover.voided.returned', { date: formatDate(report.returned.at) })}
             {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
           </p>
-          <figure className="flex flex-col gap-0.5">
-            <figcaption className="text-label">{t('screen.handover.voided.returnReason')}</figcaption>
-            <blockquote className="break-words whitespace-pre-wrap">{report.returned.reason}</blockquote>
-          </figure>
+          {/* The reason goes with the handover's other texts once the Job's data is retired (NFR-10). */}
+          {report.returned.reason && (
+            <figure className="flex flex-col gap-0.5">
+              <figcaption className="text-label">{t('screen.handover.voided.returnReason')}</figcaption>
+              <blockquote className="break-words whitespace-pre-wrap">{report.returned.reason}</blockquote>
+            </figure>
+          )}
         </div>
       )}
       {!report.returned && (report.status === 'VOIDED' || report.acceptance === 'VOIDED') && (

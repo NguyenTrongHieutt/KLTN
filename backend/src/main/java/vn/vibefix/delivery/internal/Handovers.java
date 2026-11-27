@@ -130,19 +130,15 @@ class Handovers {
 	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, AD-48), as
 	 * {@code job} counted it at M2; {@code null} for a handover made before the figure was recorded
 	 * @param voidedAt when a {@code VOIDED} handover became void
-	 * @param returnReason for a handover the Customer of a Self-mentored Job returned (FR-86), the reason as written;
-	 * {@code null} for every other handover, one voided by an acceptance merge's 409 included
+	 * @param returned a {@code VOIDED} handover the Customer of a Self-mentored Job returned (FR-86); one voided by an
+	 * acceptance merge's 409 is not
+	 * @param returnReason the reason of a return as written; {@code null} for a handover not returned, and once the
+	 * Job's data was retired (NFR-10)
 	 */
 	record Handover(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, String milestoneTitle, int round,
 			@Nullable UUID mentorId, String status, long jobVersion, Instant checkBy, Instant createdAt,
-			@Nullable Instant decidedAt, boolean auto, @Nullable Integer daysLate, @Nullable Instant voidedAt,
+			@Nullable Instant decidedAt, boolean auto, @Nullable Integer daysLate, @Nullable Instant voidedAt, boolean returned,
 			@Nullable String returnReason) {
-
-		/** Whether the Customer of a Self-mentored Job returned it (FR-86). */
-		boolean returned() {
-			return this.returnReason != null;
-		}
-
 	}
 
 	record Criterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
@@ -257,7 +253,7 @@ class Handovers {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, milestone_title, round, mentor_account_id, status,
-			job_version, check_by, created_at, decided_at, auto, days_late, voided_at, return_reason
+			job_version, check_by, created_at, decided_at, auto, days_late, voided_at, returned, return_reason
 			""";
 
 	private final JdbcClient jdbc;
@@ -700,7 +696,7 @@ class Handovers {
 				rs.getObject("mentor_account_id", UUID.class), rs.getString("status"), rs.getLong("job_version"),
 				Objects.requireNonNull(rs.getTimestamp("check_by")).toInstant(), rs.getTimestamp("created_at").toInstant(),
 				decided == null ? null : decided.toInstant(), rs.getBoolean("auto"), (Integer) rs.getObject("days_late"),
-				voided == null ? null : voided.toInstant(), rs.getString("return_reason"));
+				voided == null ? null : voided.toInstant(), rs.getBoolean("returned"), rs.getString("return_reason"));
 	}
 
 }

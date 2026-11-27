@@ -88,6 +88,8 @@ class SelfMentoredHandoverIT extends IntegrationTest {
 
 	private UUID job;
 
+	private UUID product;
+
 	private UUID milestone;
 
 	private UUID criterion;
@@ -192,12 +194,37 @@ class SelfMentoredHandoverIT extends IntegrationTest {
 		assertThat(openTodos("delivery.hand_over", this.lan)).as("the Customer hands nothing over").isZero();
 		// A second decision on the returned handover finds it void, and every reader sees why.
 		returnIt(this.lan, handover, 7, REASON).andExpect(status().isConflict())
-			.andExpect(jsonPath("$.reason").value("HANDOVER_VOIDED"));
+			.andExpect(jsonPath("$.reason").value("HANDOVER_RETURNED"));
+		decide(this.lan, handover, "accept", 7, true).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("HANDOVER_RETURNED"));
 		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.minh))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.returned.reason").value(REASON));
 		assertThat(this.personalData.export(this.lan).orElseThrow().data().toString()).contains(REASON);
+		// NFR-10: the reason is what the handover said, so retirement clears it with the notes; "returned" stays.
+		this.transactions.executeWithoutResult(status -> this.personalData.retireJobData(this.product));
+		assertThat(text("SELECT returned || ':' || (return_reason IS NULL) FROM delivery.handover WHERE id = '" + handover + "'"))
+			.isEqualTo("true:true");
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.minh))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.returned.at").exists())
+			.andExpect(jsonPath("$.returned.reason").doesNotExist());
+		assertThat(this.personalData.export(this.lan).orElseThrow().data().toString()).doesNotContain(REASON);
+	}
 
-		// The other member hands over next, which closes the to-do of both.
+	/** The other member hands over next, which closes the to-do of both; the count of returns left follows. */
+	@Test
+	void afterAReturnAnotherMemberHandsOverAndAutoAcceptanceNeverTakesTheReturnedOne() throws Exception {
+		world(true, 2, null);
+		String handover = handedOver(this.vy, 5);
+		returnIt(this.lan, handover, 6, REASON).andExpect(status().isOk());
+		awaitListeners();
+
+		// FR-35, AD-4: Auto-acceptance is cancelled with the handover, so its Deadline finds nothing to accept.
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.poller.runDue();
+		assertThat(text("SELECT status FROM delivery.handover WHERE id = '" + handover + "'")).isEqualTo("VOIDED");
+		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("FUNDED");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.milestone_accepted'")).isZero();
+
 		String second = handedOver(this.minh, 7);
 		assertThat(openTodos("delivery.hand_over", this.vy)).isZero();
 		assertThat(openTodos("delivery.hand_over", this.minh)).isZero();
@@ -211,6 +238,8 @@ class SelfMentoredHandoverIT extends IntegrationTest {
 	@Test
 	void theLimitOfReturnsIsTheJobsCopyAndARevisionStillFollowsItsRounds() throws Exception {
 		world(true, 1, 1);
+		// AD-7, R50: the Job runs by the limit copied when it was published, whatever the setting is today.
+		this.jdbc.sql("UPDATE settings.rule_value SET value = 5 WHERE rule_key = 'HANDOVER_RETURN_LIMIT'").update();
 		String first = handedOver(this.vy, 5);
 		this.mvc.perform(get("/api/v1/handovers/" + first).with(as(this.lan)))
 			.andExpect(jsonPath("$.decision.returnLimit").value(1))
@@ -413,6 +442,7 @@ class SelfMentoredHandoverIT extends IntegrationTest {
 		this.minh = TestPeople.student(this.jdbc, "Lê Quang Minh", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		UUID product = UUID.randomUUID();
+		this.product = product;
 		this.jdbc.sql("""
 				INSERT INTO product.product (id, customer_account_id, name, description, ai_tools, repository_github_id,
 				    repository_full_name, repository_owner_type, repository_default_branch, public_notice_version,

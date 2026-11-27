@@ -253,8 +253,11 @@ class HandoverController {
 	record HandoverReturnRequest(@NotNull Long version, @NotBlank @Size(max = Handovers.MAX_NOTE) String reason) {
 	}
 
-	/** A handover the Customer of a Self-mentored Job returned (FR-86): when, and the reason as written. */
-	record HandoverReturnView(Instant at, String reason) {
+	/**
+	 * A handover the Customer of a Self-mentored Job returned (FR-86): when, and the reason as written.
+	 * @param reason absent once the Job's data was retired (NFR-10), as the handover's other texts are
+	 */
+	record HandoverReturnView(Instant at, @Nullable String reason) {
 	}
 
 	record HandoverCheckRequest(@NotNull UUID criterionId, boolean met, @Nullable @Size(max = Handovers.MAX_NOTE) String comment) {

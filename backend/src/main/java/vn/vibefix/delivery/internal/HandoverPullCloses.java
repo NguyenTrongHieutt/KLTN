@@ -3,6 +3,8 @@ package vn.vibefix.delivery.internal;
 import java.util.Map;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,18 +36,22 @@ class HandoverPullCloses {
 	/** M3's reason comment, with the handover's ID. */
 	static String voidComment(UUID handoverId) {
 		return "Bàn giao đã bị hủy vì nhánh bàn giao thay đổi trước khi nghiệm thu. Yêu cầu hợp nhất này được đóng; "
-				+ "nhánh handover/" + handoverId + " được giữ làm bằng chứng. Người hướng dẫn sẽ bàn giao lại.";
+				+ "nhánh handover/" + handoverId + " được giữ làm bằng chứng. Giai đoạn cần được bàn giao lại.";
 	}
 
 	/**
 	 * A return's reason comment (FR-86, AD-11, Story 25.5), with the Customer's reason as an indented code block: GitHub
 	 * shows it as written, and nothing in it becomes a mention, a link or markup.
 	 */
-	static String returnComment(UUID handoverId, String reason) {
-		String quoted = reason.strip().lines().map(line -> "    " + line).collect(java.util.stream.Collectors.joining("\n"));
-		return "Khách hàng đã trả lại bàn giao này. Lý do khách hàng ghi:\n\n" + quoted
-				+ "\n\nYêu cầu hợp nhất này được đóng; nhánh handover/" + handoverId
+	static String returnComment(UUID handoverId, @Nullable String reason) {
+		String closed = "Yêu cầu hợp nhất này được đóng; nhánh handover/" + handoverId
 				+ " được giữ làm bằng chứng. Lần bàn giao sau mở yêu cầu hợp nhất mới.";
+		if (reason == null || reason.isBlank()) {
+			// The reason is only ever absent once the Job's data was retired, long after this comment was posted.
+			return "Khách hàng đã trả lại bàn giao này. " + closed;
+		}
+		String quoted = reason.strip().lines().map(line -> "    " + line).collect(java.util.stream.Collectors.joining("\n"));
+		return "Khách hàng đã trả lại bàn giao này. Lý do khách hàng ghi:\n\n" + quoted + "\n\n" + closed;
 	}
 
 	private final Handovers handovers;

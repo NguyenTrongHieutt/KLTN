@@ -163,7 +163,7 @@ class Decisions {
 	 * review to-do closes; M3's listeners reopen the members' handover to-do and close the pull request with the
 	 * reason. Auto-acceptance and its reminders end through their generation check.
 	 * @throws ApiException {@code NOT_FOUND} in a normal Job, which has no return; {@code FORBIDDEN CUSTOMER_ONLY};
-	 * {@code STALE HANDOVER_VOIDED}; {@code CONFLICT HANDOVER_DECIDED}; {@code VALIDATION} for a blank reason or one past
+	 * {@code STALE HANDOVER_VOIDED} or {@code HANDOVER_RETURNED}; {@code CONFLICT HANDOVER_DECIDED}; {@code VALIDATION} for a blank reason or one past
 	 * {@value Handovers#MAX_NOTE} characters; M3's refusals, {@code HANDOVER_RETURNS_USED}, {@code JOB_BUSY} and
 	 * {@code JOB_FROZEN} among them
 	 */
@@ -179,8 +179,8 @@ class Decisions {
 		}
 		this.jobs.returnHandover(handover.jobId(), handover.milestoneId(), viewer.accountId(), version, handoverId, written);
 		int returned = this.jdbc.sql("""
-				UPDATE delivery.handover SET status = 'VOIDED', voided_at = :now, returned_by_account_id = :by,
-				    return_reason = :reason
+				UPDATE delivery.handover SET status = 'VOIDED', voided_at = :now, returned = TRUE,
+				    returned_by_account_id = :by, return_reason = :reason
 				WHERE id = :id AND status = 'SUBMITTED'
 				""")
 			.param("id", handoverId)
@@ -215,8 +215,10 @@ class Decisions {
 			.filter(found -> found.jobId().equals(customer.job().jobId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if ("VOIDED".equals(handover.status())) {
-			// FR-33, UX-DR26: an acceptance merge answered 409 and M3 voided it while the Customer was deciding.
-			throw new ApiException(ErrorCode.STALE, DeliveryReason.HANDOVER_VOIDED);
+			// FR-33, UX-DR26: an acceptance merge answered 409 and M3 voided it while the Customer was deciding; or, in a
+			// Self-mentored Job, the Customer already returned it (FR-86), which the answer names apart.
+			throw new ApiException(ErrorCode.STALE,
+					handover.returned() ? DeliveryReason.HANDOVER_RETURNED : DeliveryReason.HANDOVER_VOIDED);
 		}
 		if (!"SUBMITTED".equals(handover.status())) {
 			throw new ApiException(ErrorCode.CONFLICT, DeliveryReason.HANDOVER_DECIDED);

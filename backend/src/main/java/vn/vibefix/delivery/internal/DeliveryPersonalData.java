@@ -147,7 +147,10 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
 			row.put("milestone", rs.getInt("milestone_number"));
 			row.put("at", rs.getTimestamp("voided_at").toInstant().toString());
-			row.put("reason", rs.getString("return_reason"));
+			// The reason is gone once the Job's data was retired (NFR-10); that the handover was returned stays.
+			if (rs.getString("return_reason") != null) {
+				row.put("reason", rs.getString("return_reason"));
+			}
 			return row;
 		}).list();
 		if (handovers.isEmpty() && decisions.isEmpty() && teamCode.isEmpty() && returns.isEmpty()) {
@@ -178,7 +181,7 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET decided_by = NULL WHERE decided_by = :id").param("id", accountId).update();
-		// FR-86 (Story 25.5): a returned handover keeps its reason, as a decided one keeps its comments, without the person.
+		// FR-86 (Story 25.5): a returned handover stays returned, with its reason until retirement, without the person.
 		this.jdbc.sql("UPDATE delivery.handover SET returned_by_account_id = NULL WHERE returned_by_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -200,8 +203,8 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 	}
 
 	/**
-	 * NFR-10: what each handover said goes (criteria and notes, the Customer's marks and comments,
-	 * screenshots, links, the preview link and the no-preview reason, recorded commits, Sensitive Changes, pending
+	 * NFR-10: what each handover said goes (criteria and notes, the Customer's marks and comments, the reason of a
+	 * return, screenshots, links, the preview link and the no-preview reason, recorded commits, Sensitive Changes, pending
 	 * acceptances, follow-ups); each
 	 * handover row and its status stay for the Milestone history. A Job with an open split keeps its handovers whole
 	 * until the split is final.
@@ -270,10 +273,12 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 				"delivery.handover_sensitive_change", "delivery.handover_acceptance", "delivery.handover_commit")) {
 			this.jdbc.sql("DELETE FROM " + table + " WHERE handover_id IN (" + handovers + ")").param("job", jobId).update();
 		}
-		// The preview link and the no-preview reason are what the handover said too (Story 24.3), like its links.
+		// The preview link and the no-preview reason are what the handover said too (Story 24.3), like its links; so is
+		// the reason the Customer of a Self-mentored Job wrote to return it (FR-86). That it was returned stays.
 		this.jdbc.sql("""
-				UPDATE delivery.handover SET preview_url = NULL, preview_checked_at = NULL, no_preview_reason = NULL
-				WHERE job_id = :job AND (preview_url IS NOT NULL OR no_preview_reason IS NOT NULL)
+				UPDATE delivery.handover SET preview_url = NULL, preview_checked_at = NULL, no_preview_reason = NULL,
+				    return_reason = NULL
+				WHERE job_id = :job AND (preview_url IS NOT NULL OR no_preview_reason IS NOT NULL OR return_reason IS NOT NULL)
 				""").param("job", jobId).update();
 		if ("DELETE".equals(waiting)) {
 			this.jdbc.sql("DELETE FROM delivery.handover WHERE job_id = :job").param("job", jobId).update();

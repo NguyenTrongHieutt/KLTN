@@ -63,6 +63,28 @@ function writeDraft(handoverId: string, draft: Draft | undefined) {
   }
 }
 
+/** `delivery`'s own refusals of a decision on a handover that moved on, each with its sentence under `reason.delivery`. */
+const MOVED_ON = ['HANDOVER_VOIDED', 'HANDOVER_RETURNED', 'HANDOVER_DECIDED'] as const
+
+/**
+ * Why a decision was refused, in the reader's words. A handover that was voided, returned or decided meanwhile says
+ * which of the three it was: a return is not a change on GitHub, and an Assessment Job has no GitHub at all. A Job
+ * that moved on says to open the report again. Everything else is read from `module`, whose reasons the command's
+ * own guards use.
+ */
+function refusal(failure: unknown, module: 'delivery' | 'job', operation?: string): string {
+  if (failure instanceof ApiError) {
+    const movedOn = MOVED_ON.find((reason) => reason === failure.problem.reason)
+    if (movedOn) {
+      return t(`reason.delivery.${movedOn}`)
+    }
+    if (failure.problem.code === 'STALE') {
+      return t('screen.handover.check.stale')
+    }
+  }
+  return problemMessage(failure, { module, operation }).text
+}
+
 /** "Cách kiểm tra" as numbered steps: one per line, or split at "1. … 2. …" written on one line. */
 function steps(checkSteps: string): string[] {
   const lines = checkSteps.split(/\n+/).map((line) => line.trim()).filter(Boolean)
@@ -171,13 +193,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         },
         onError: (failure) => {
           setConfirming(undefined)
-          setError(
-            failure instanceof ApiError && failure.problem.reason === 'HANDOVER_VOIDED'
-              ? t('reason.delivery.HANDOVER_VOIDED')
-              : failure instanceof ApiError && failure.problem.code === 'STALE'
-                ? t('screen.handover.check.stale')
-                : problemMessage(failure, { module: 'delivery' }).text,
-          )
+          setError(refusal(failure, 'delivery'))
         },
       },
     )
@@ -339,6 +355,8 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               type="button"
               variant="secondary"
               disabled={!decision.returnsLeft}
+              // R65: disabled in place, and still reachable by keyboard so that its reason is announced.
+              focusableWhenDisabled
               aria-describedby={`${ids}-returns`}
               onClick={() => setReturning(true)}
             >
@@ -489,14 +507,8 @@ function ReturnDialog({
           )
           void navigate(`/cong-viec/${jobId}/ban-giao/${report.id}`)
         },
-        onError: (failure) =>
-          setError(
-            failure instanceof ApiError && failure.problem.reason === 'HANDOVER_VOIDED'
-              ? t('reason.delivery.HANDOVER_RETURNED')
-              : failure instanceof ApiError && failure.problem.code === 'STALE'
-                ? t('screen.handover.check.stale')
-                : problemMessage(failure, { module: 'job', operation: t('screen.handover.check.busyOperation') }).text,
-          ),
+        // The return's own guards are `job`'s (the limit, the freeze); a handover that moved on names itself.
+        onError: (failure) => setError(refusal(failure, 'job', t('screen.handover.check.busyOperation'))),
       },
     )
   }

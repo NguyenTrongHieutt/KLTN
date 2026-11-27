@@ -423,7 +423,8 @@ describe('JOB-5 in a Self-mentored Job (FR-32, FR-86, UX-DR126, UX-DR127, Story 
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Tóm tắt kiểm tra' })).toBeInTheDocument()
     const action = screen.getByRole('button', { name: 'Trả lại bàn giao' })
-    expect(action).toBeDisabled()
+    // Disabled in place and still focusable, so a keyboard user hears why.
+    expect(action).toHaveAttribute('aria-disabled', 'true')
     expect(action).toHaveAccessibleDescription('Đã dùng hết lần trả lại cho giai đoạn này.')
     expect(screen.getByRole('button', { name: 'Yêu cầu sửa (1 tiêu chí)' })).toBeEnabled()
   })
@@ -446,6 +447,48 @@ describe('JOB-5 in a Self-mentored Job (FR-32, FR-86, UX-DR126, UX-DR127, Story 
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Đã dùng hết lần trả lại cho giai đoạn này.')
     expect(window.sessionStorage.getItem('vibefix.check.h1')).not.toBeNull()
+  })
+
+  /** FR-34: with no return and no Revision Round left, what remains is a normal Job's: accept, or the two ways out. */
+  it('leaves acceptance, a Change Request and a Dispute once neither a return nor a Revision Round is left', { timeout: 25_000 }, async () => {
+    window.sessionStorage.setItem('vibefix.check.h1', summaryDraft)
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/handovers/h1': () =>
+        json(memberReport({ roundsLeft: 0, decision: { releaseVnd: 1000001, revisionAllowed: false, returnLimit: 2, returnsLeft: 0 } })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    expect(await screen.findByText('Giai đoạn này đã hết lượt sửa, nên chỉ còn nghiệm thu.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Trả lại bàn giao' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByRole('button', { name: /Yêu cầu sửa/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Nghiệm thu giai đoạn' })).toBeEnabled()
+    expect(screen.getByRole('link', { name: 'Đề nghị thay đổi' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở tranh chấp' })).toBeInTheDocument()
+  })
+
+  /** A handover returned in another tab is void, but not because GitHub moved: the answer says which. */
+  it('says the handover was returned when a decision meets one already returned', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    window.sessionStorage.setItem('vibefix.check.h1', summaryDraft)
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/handovers/h1': () => json(memberReport()),
+      'POST /api/v1/handovers/h1/accept': () => json({ status: 409, code: 'STALE', reason: 'HANDOVER_RETURNED' }, 409),
+      'POST /api/v1/handovers/h1/return': () => json({ status: 409, code: 'CONFLICT', reason: 'HANDOVER_DECIDED' }, 409),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    await user.click(await screen.findByRole('button', { name: 'Nghiệm thu giai đoạn' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Nghiệm thu Giai đoạn 1?' })).getByRole('button', { name: 'Xác nhận' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bàn giao này đã được trả lại. Hãy mở lại báo cáo bàn giao.')
+    expect(screen.queryByText(/GitHub đã thay đổi/)).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Trả lại bàn giao' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Trả lại bàn giao Giai đoạn 1?' })
+    await user.type(within(dialog).getByRole('textbox', { name: 'Lý do trả lại' }), 'Bấm sớm')
+    await user.click(within(dialog).getByRole('button', { name: 'Trả lại bàn giao' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Lần bàn giao này đã được quyết định.')
   })
 
   it('offers no return in a normal Job', { timeout: 25_000 }, async () => {

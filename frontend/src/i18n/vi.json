@@ -4778,7 +4778,7 @@
       "REPOSITORIES_NOT_READY": "repo của công việc chưa sẵn sàng",
       "REVISION_ROUNDS_USED": "Giai đoạn này đã hết lượt sửa.",
       "HANDOVER_RETURNS_USED": "Đã dùng hết lần trả lại cho giai đoạn này.",
-      "MEMBER_ONLY": "Chỉ thành viên nhóm thực hiện bàn giao được.",
+      "MEMBER_ONLY": "Chỉ thành viên đang hoạt động của nhóm thực hiện bàn giao được; người gửi bàn giao này không còn là thành viên.",
       "HANDOVER_CHANGED": "Người hướng dẫn vừa bàn giao lại. Hãy mở bản bàn giao mới nhất.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_NOT_MERGED": "Mã bàn giao cần được merge trước khi nghiệm thu giai đoạn.",
