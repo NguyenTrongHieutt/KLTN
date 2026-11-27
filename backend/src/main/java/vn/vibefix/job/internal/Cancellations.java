@@ -47,6 +47,10 @@ import vn.vibefix.timers.Deadlines;
  * ends the Job: with Accepted work through Closing (J8, then J9 to Cancelled for an Assessment Job),
  * without it straight to Cancelled (J10). An unanswered proposal tells its proposer; any other outcome
  * is a Dispute's. Every command takes the Job row lock first (AD-4).
+ *
+ * <p>In a Self-mentored Job with a Held Milestone and no counted member, nobody is there to confirm, so the proposal
+ * command decides at once (R49, AD-47 exceptions 1 and 6): the cancellation applies on the Customer's word alone when
+ * no member was active since that Milestone was funded, and is refused otherwise ({@link NoMember}).
  */
 @Component
 class Cancellations {
@@ -70,6 +74,15 @@ class Cancellations {
 
 	enum Scope {
 		JOB, REMAINING
+	}
+
+	/**
+	 * What decides the cancellation of a Self-mentored Job with a Held Milestone and no counted member (R49):
+	 * {@code ALONE}, nobody was active since the Milestone was funded, so the Customer cancels alone with the full
+	 * refund; {@code CREW_WAS_ACTIVE}, a member was, so the Customer recruits again or opens a Dispute.
+	 */
+	enum NoMember {
+		ALONE, CREW_WAS_ACTIVE
 	}
 
 	record Proposal(UUID id, UUID jobId, Scope scope, String reason, Party proposer, String status, Instant answerBy,
@@ -98,10 +111,13 @@ class Cancellations {
 
 	private final StallDeadlines stalls;
 
+	private final CrewService crews;
+
 	Cancellations(JdbcClient jdbc, Jobs jobs, JobLifecycle lifecycle, ClosureProposals closures, Deadlines deadlines,
 			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock,
-			StallDeadlines stalls) {
+			StallDeadlines stalls, CrewService crews) {
 		this.stalls = stalls;
+		this.crews = crews;
 		this.jdbc = jdbc;
 		this.jobs = jobs;
 		this.lifecycle = lifecycle;
@@ -115,8 +131,12 @@ class Cancellations {
 	}
 
 	/**
+	 * Proposes the cancellation to the other side. In a Self-mentored Job with a Held Milestone and no counted member
+	 * it is decided here instead ({@link NoMember}): applied at once and kept as a confirmed proposal marked alone, or
+	 * refused.
 	 * @throws ApiException {@code STALE STATE_CHANGED}; {@code CONFLICT CANCELLATION_OPEN} or
-	 * {@code CLOSURE_OPEN}; {@code VALIDATION}
+	 * {@code CLOSURE_OPEN}; {@code VALIDATION}; {@code GUARD_FAILED CREW_WAS_ACTIVE}; for a cancellation applied at once,
+	 * the cascade's refusals
 	 */
 	@Transactional
 	Proposal propose(UUID jobId, UUID account, Party party, long version, Scope scope, String reason) {
@@ -133,6 +153,13 @@ class Cancellations {
 		String text = reason.strip();
 		if (text.isEmpty() || text.length() > 2000) {
 			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		NoMember noMember = noMember(job);
+		if (noMember == NoMember.CREW_WAS_ACTIVE) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_WAS_ACTIVE);
+		}
+		if (noMember == NoMember.ALONE) {
+			return applyAlone(job, account, party, scope, text);
 		}
 		Instant now = this.clock.instant();
 		Instant answerBy = now.plus(Duration.ofDays(days(jobId)));
@@ -230,6 +257,12 @@ class Cancellations {
 		if (text.isEmpty() || text.length() > 2000) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
+		return applyAlone(job, account, party, Scope.JOB, text);
+	}
+
+	/** The cascade on one side's word alone, kept as a confirmed proposal marked alone. The caller holds the Job lock. */
+	private Proposal applyAlone(Job job, UUID account, Party party, Scope scope, String reason) {
+		UUID jobId = job.id();
 		List<Planned> cascade = cascade(job);
 		ApiException refusal = this.lifecycle.refusal(jobId, Trigger.USER, cascade);
 		if (refusal != null) {
@@ -242,17 +275,39 @@ class Cancellations {
 		this.jdbc.sql("""
 				INSERT INTO job.cancellation_proposal (id, job_id, scope, reason, proposer, proposer_account_id, status, answer_by,
 				    confirmed_by, created_at, decided_at, alone)
-				VALUES (:id, :job, 'JOB', :reason, :proposer, :account, 'CONFIRMED', :now, :account, :now, :now, true)
+				VALUES (:id, :job, :scope, :reason, :proposer, :account, 'CONFIRMED', :now, :account, :now, :now, true)
 				""")
 			.param("id", id)
 			.param("job", jobId)
-			.param("reason", text)
+			.param("scope", scope.name())
+			.param("reason", reason)
 			.param("proposer", party.name())
 			.param("account", account)
 			.param("now", now)
 			.update();
 		audit(account, "job.cancellation_alone", id, jobId);
 		return find(id).orElseThrow();
+	}
+
+	/**
+	 * Who decides the cancellation of a Self-mentored Job whose Held Milestone has no counted member now (R49; AD-4's
+	 * guard of M7's alone-cancel), or {@code null} where the usual rules apply: a normal Job, no Held Milestone, or a
+	 * member who is active. The command reads it under the Job lock; the view reads it unlocked, to say what the page
+	 * offers.
+	 */
+	@Nullable NoMember noMember(Job job) {
+		if (!job.selfMentored() || job.mentorId() == null || !CANCELLABLE.contains(job.state())) {
+			return null;
+		}
+		// A Held Milestone always records when it was funded (the table's milestone_funded_check).
+		Instant funded = this.jdbc.sql("""
+				SELECT min(funded_at) FROM job.milestone WHERE job_id = :job AND removed_at IS NULL
+				    AND state IN ('FUNDED', 'REVISION_REQUESTED', 'SUBMITTED')
+				""").param("job", job.id()).query(Timestamp.class).optional().map(Timestamp::toInstant).orElse(null);
+		if (funded == null || !this.crews.countedActive(job.id()).isEmpty()) {
+			return null;
+		}
+		return this.crews.activeSince(job.id(), funded) ? NoMember.CREW_WAS_ACTIVE : NoMember.ALONE;
 	}
 
 	/** Whether one side may cancel alone now. */

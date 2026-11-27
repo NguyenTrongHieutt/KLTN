@@ -38,6 +38,15 @@ class JobRecipients implements RecipientLookup {
 		return holds(accountId, audience, jobId, null);
 	}
 
+	/** By the mode column and the recorded Mentor, never by two equal account IDs (AD-47): a Draft has no combined role. */
+	@Override
+	public boolean combinedRole(UUID accountId, UUID jobId) {
+		return this.jdbc.sql("""
+				SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND self_mentored AND mentor_account_id IS NOT NULL
+				    AND customer_account_id = :account)
+				""").param("job", jobId).param("account", accountId).query(Boolean.class).single();
+	}
+
 	@Override
 	public boolean holds(UUID accountId, Audience audience, @Nullable UUID jobId, @Nullable UUID milestoneId) {
 		if (jobId == null) {

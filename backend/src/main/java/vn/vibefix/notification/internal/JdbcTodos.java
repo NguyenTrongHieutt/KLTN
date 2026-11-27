@@ -45,7 +45,8 @@ class JdbcTodos implements Todos {
 		this.registry.checkRecipient(type.key(), type.audiences(), request.recipientAccountId(), request.audience(),
 				request.jobId(), request.subjectId(), request.milestoneId());
 		// The recipient's role in the Job, from the audience class just confirmed (AD-27, Story 20.6).
-		TodoRole role = TodoRole.of(request.audience());
+		TodoRole role = TodoRole.of(request.audience(), request.jobId() != null
+				&& this.registry.combinedRole(request.recipientAccountId(), request.jobId()));
 		this.jdbc.sql("""
 				INSERT INTO notification.todo
 				    (id, todo_key, account_id, subject_id, tier, params, link, deadline_at, job_id, role, opened_at)

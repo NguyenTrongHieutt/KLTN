@@ -1,36 +1,172 @@
+import { Dialog } from '@base-ui/react/dialog'
 import { Info, TriangleAlert } from 'lucide-react'
+import { useId, useState } from 'react'
 import { Link } from 'react-router'
+import { FormField } from '@/components/FormField'
+import { fieldProps, inputClass } from '@/components/formField-props'
+import { useToasts } from '@/components/toasts'
+import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
+import { useCancellation, useCancellationCommand, type Cancellation } from '@/features/job/cancellation/cancellationApi'
 import { useJobRole } from '@/features/job/jobRoleApi'
-import { t } from '@/i18n/t'
+import { t, type MessageKey } from '@/i18n/t'
+import { ApiError } from '@/lib/apiClient'
+import { problemMessage } from '@/lib/problemMessage'
+
+const banner = 'flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm'
+
+const compact = buttonVariants({ variant: 'secondary', size: 'compact' })
 
 /**
  * The No-Crew banner on JOB-H, so on JOB-1 and JOB-2 too (FR-82, Q7, R8, UX-DR104): for the Mentor of a Job in Starting
  * or Active with no counted member, with "Tuyển thành viên" (JOB-9). Nothing dismisses it; it goes when a member signs.
- * The Customer of a Self-mentored Job recruits the Crew too, so it shows to them, in the words for that mode: only a
- * member hands over (FR-85).
+ * The Customer of a Self-mentored Job recruits the Crew too, and reads the no-member banner of that mode instead.
  */
 export function NoCrewBanner({ jobId }: { jobId: string }) {
   const role = useJobRole(jobId).data
   if ((role?.role !== 'MENTOR' && role?.role !== 'CUSTOMER_MENTOR') || !role.noCrew) {
     return null
   }
+  if (role.role === 'CUSTOMER_MENTOR') {
+    return <NoMemberBanner jobId={jobId} />
+  }
   return (
-    <div
-      role="status"
-      className="flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm"
-    >
+    <div role="status" className={banner}>
       <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-      <p className="min-w-60 flex-1 break-words">
-        {t(role.role === 'CUSTOMER_MENTOR' ? 'screen.crew.noCrew.selfMentor' : 'screen.crew.noCrew.mentor')}
-      </p>
-      <Link
-        to={`/cong-viec/${jobId}/tuyen-thanh-vien`}
-        className={buttonVariants({ variant: 'secondary', size: 'compact' })}
-      >
-        {t('screen.crew.mentor.recruit')}
-      </Link>
+      <p className="min-w-60 flex-1 break-words">{t('screen.crew.noCrew.mentor')}</p>
+      <RecruitLink jobId={jobId} />
     </div>
+  )
+}
+
+function RecruitLink({ jobId }: { jobId: string }) {
+  return (
+    <Link to={`/cong-viec/${jobId}/tuyen-thanh-vien`} className={compact}>
+      {t('screen.crew.mentor.recruit')}
+    </Link>
+  )
+}
+
+/**
+ * The no-member banner of a Self-mentored Job (FR-85, FR-40, R49, UX-DR124): only a member hands over, so the Mentor's
+ * "continue alone" does not apply. It reads the cancellation's own answer to know what to say and offer:
+ * with no Held Milestone, recruit; with a Held Milestone nobody worked on since it was funded, recruit or cancel it
+ * alone with the full refund; with one a member worked on, why it cannot be cancelled alone, and recruit or open a
+ * Dispute. A Job still Starting adds that the Starting stall is the way out, and once that stall passed the banner
+ * points to JOB-1's "Hủy công việc", which cancels alone whoever worked (B-07). It offers nothing the page would
+ * refuse: no cancellation at once while a proposal is open or a Dispute freezes the Job, and no second Dispute. While
+ * the answer loads it says only to recruit, which holds in every case. The sentence alone is the live region.
+ */
+function NoMemberBanner({ jobId }: { jobId: string }) {
+  const cancellation = useCancellation(jobId).data
+  const [asking, setAsking] = useState(false)
+  const stallPassed = cancellation?.canCancelAlone === true
+  const alone = !stallPassed && cancellation?.noMember === 'ALONE' && cancellation.canPropose
+  const crewWasActive = !stallPassed && cancellation?.noMember === 'CREW_WAS_ACTIVE' && !cancellation.frozen
+  const text: MessageKey = stallPassed
+    ? 'screen.crew.noCrew.selfMentorStallPassed'
+    : alone
+      ? 'screen.crew.noCrew.selfMentorAlone'
+      : crewWasActive
+        ? cancellation.state === 'STARTING'
+          ? 'screen.crew.noCrew.selfMentorStarting'
+          : 'screen.crew.noCrew.selfMentorCrewWasActive'
+        : 'screen.crew.noCrew.selfMentor'
+  return (
+    <div className={banner}>
+      <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
+      <p role="status" className="min-w-60 flex-1 break-words">
+        {t(text)}
+      </p>
+      <RecruitLink jobId={jobId} />
+      {stallPassed && (
+        <Link to={`/cong-viec/${jobId}#huy-cong-viec`} className={compact}>
+          {t('screen.cancellation.heading')}
+        </Link>
+      )}
+      {alone && (
+        <Button type="button" variant="destructive" size="compact" onClick={() => setAsking(true)}>
+          {t('screen.crew.noCrew.cancelHeld')}
+        </Button>
+      )}
+      {crewWasActive && (
+        <Link to={`/cong-viec/${jobId}#tranh-chap`} className={compact}>
+          {t('screen.cancellation.openDispute')}
+        </Link>
+      )}
+      {asking && cancellation && <CancelHeldDialog cancellation={cancellation} onClose={() => setAsking(false)} />}
+    </div>
+  )
+}
+
+/**
+ * "Hủy giai đoạn đang giữ tiền" (R49): a Confirmation dialog that states the full refund and that the Job ends with it,
+ * since a Milestone is never cancelled apart from its Job. The reason is kept with the cancellation.
+ */
+function CancelHeldDialog({ cancellation, onClose }: { cancellation: Cancellation; onClose: () => void }) {
+  const ids = useId()
+  const toasts = useToasts()
+  const command = useCancellationCommand(cancellation.jobId)
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string>()
+  const confirm = () => {
+    setError(undefined)
+    command.mutate(
+      { action: 'propose', scope: 'JOB', reason: reason.trim(), version: cancellation.version },
+      {
+        onSuccess: () => {
+          toasts.success(t('screen.cancellation.confirmed'))
+          onClose()
+        },
+        onError: (failure) =>
+          setError(
+            failure instanceof ApiError && failure.problem.code === 'STALE'
+              ? t('screen.cancellation.stale')
+              : problemMessage(failure, { module: 'job' }).text,
+          ),
+      },
+    )
+  }
+  return (
+    <Dialog.Root open onOpenChange={(next) => !next && onClose()}>
+      <Dialog.Portal>
+        <DialogBackdrop />
+        <DialogPopup size="sm">
+          <Dialog.Title className="text-h2">{t('screen.crew.noCrew.cancelHeldTitle')}</Dialog.Title>
+          <Dialog.Description className="flex flex-col gap-2 text-body-sm">
+            <span>{t('screen.crew.noCrew.cancelHeldRefund')}</span>
+            <span>{t('screen.crew.noCrew.cancelHeldEnd')}</span>
+          </Dialog.Description>
+          <FormField id={`${ids}-reason`} label={t('screen.cancellation.reason')}>
+            <textarea
+              {...fieldProps(`${ids}-reason`)}
+              rows={3}
+              maxLength={2000}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className={inputClass}
+            />
+          </FormField>
+          {error && (
+            <p role="alert" className="text-body-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex flex-wrap justify-end gap-3">
+            <Dialog.Close render={<Button variant="secondary" />}>{t('screen.cancellation.cancel')}</Dialog.Close>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={reason.trim() === '' || command.isPending}
+              onClick={confirm}
+            >
+              {t('screen.crew.noCrew.cancelHeld')}
+            </Button>
+          </div>
+        </DialogPopup>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
@@ -50,4 +186,3 @@ export function NoCrewAlert({ jobId, mentor }: { jobId: string; mentor: string }
     </div>
   )
 }
-

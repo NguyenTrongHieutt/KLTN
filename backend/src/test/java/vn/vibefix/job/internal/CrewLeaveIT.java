@@ -468,6 +468,29 @@ class CrewLeaveIT extends IntegrationTest {
 
 	// ---- External Access ------------------------------------------------------------------------
 
+	/**
+	 * AD-47 exception 12 (c), Story 25.4: in a Self-mentored Job the to-dos to remove what a leaver had are the
+	 * Customer's as in any Job, and each records the one role the Customer holds there.
+	 */
+	@Test
+	void inASelfMentoredJobTheRevocationToDosRecordTheCustomersOneRole() throws Exception {
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0',
+				    mentor_account_id = customer_account_id, selected_application_id = NULL WHERE id = :id
+				""").param("id", this.job).update();
+		twoExternalAccessItems();
+
+		leave(this.vy, null).andExpect(status().isNoContent());
+		awaitListeners();
+
+		assertThat(openTodos("repo.revocation_item_member", this.lan)).isEqualTo(2);
+		assertThat(text("SELECT string_agg(DISTINCT role, ',') FROM notification.todo WHERE todo_key = 'repo.revocation_item_member'"))
+			.isEqualTo("CUSTOMER_MENTOR");
+		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
+		assertThat(notices("job.crew_member_left", this.lan)).isZero();
+		assertThat(notices("job.crew_member_left", this.minh)).isOne();
+	}
+
 	/** FR-66, R15: one revocation to-do per item, identifier given or not, ticked one by one, beside the rows of the end. */
 	@Test
 	void aLeaverGetsOneRevocationToDoPerItemTickedOneByOne() throws Exception {

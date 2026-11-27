@@ -71,9 +71,11 @@ class CrewController {
 	 * @param codeJob a Code Job: leaving ends write access to its Working Repository
 	 * @param partyMilestones the numbers N-28 names for an {@code ACTIVE} member: the Held Milestones and those with a
 	 * split not {@code FINAL} where they are a party (R9); empty for a former member
+	 * @param selfMentored the Customer mentors the Job (FR-85): the Leave dialog says the Customer reads the reason and
+	 * is told the member's name (B-16, AD-47 exception 12 c)
 	 */
 	record CrewMeView(UUID jobId, String title, JobState state, String productName, String mentorName, boolean former,
-			boolean canLeave, boolean codeJob, List<Integer> partyMilestones) {
+			boolean canLeave, boolean codeJob, List<Integer> partyMilestones, boolean selfMentored) {
 	}
 
 	/** "Rời công việc", at most {@value #MAX_LEFT_NOTE} characters of reason; blank means none. */
@@ -141,7 +143,7 @@ class CrewController {
 		return new CrewMeView(jobId, job.title(), job.state(),
 				this.products.find(job.productId()).map(ProductDirectory.ProductInfo::name).orElse(""),
 				facts == null ? "" : facts.displayName(), !active, active && CrewService.LEAVES.contains(job.state()), job.code(),
-				active ? this.crews.partyMilestones(jobId, account) : List.of());
+				active ? this.crews.partyMilestones(jobId, account) : List.of(), job.selfMentored());
 	}
 
 	/**

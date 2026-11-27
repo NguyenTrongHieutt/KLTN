@@ -141,6 +141,13 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		SELF_MEMBER_JOB("job", "self-member", "jobId", "selfMemberJobId"),
 
 		/**
+		 * {@code selfJob=stalled}, beside {@code job=self}: {@code {boardId}} names the mode world's second Job, in
+		 * Agreement with its FR-40 stall passed and no member yet, which its Customer cancels alone (AD-47 exception 3,
+		 * B-07, Story 25.4). In the mode world the value reads {@code selfStalledBoardId} ({@link MatrixRow#rebound()}).
+		 */
+		STALLED_SELF_JOB("selfJob", "stalled", "boardId", "stalledBoardId"),
+
+		/**
 		 * {@code job=post}: {@code {jobId}} names the Open Job Post's Job, where the bid {@code {applicationId}} and its
 		 * {@code BIDDER} live (review iteration 2): the post's bid, invitation and selection endpoints run on it.
 		 */
@@ -296,6 +303,11 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 				|| !shows.startsWith(Canaries.MODE_PREFIX))) {
 			throw new IllegalArgumentException("only a " + Binding.SELF_JOB.state() + " row that is not pending shows a "
 					+ Canaries.MODE_PREFIX + "* canary");
+		}
+		if (Binding.STALLED_SELF_JOB.value().equals(state.get(Binding.STALLED_SELF_JOB.key()))
+				&& !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
+			throw new IllegalArgumentException(Binding.STALLED_SELF_JOB.state() + " names a Job of the mode world, beside "
+					+ Binding.SELF_JOB.state());
 		}
 		if (!path.startsWith("/")) {
 			throw new IllegalArgumentException("A path starts with '/': " + path);

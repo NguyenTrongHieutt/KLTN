@@ -146,8 +146,11 @@ class NotificationAudiencesTest {
 			}
 		}
 		assertThat(found).isEmpty();
-		// The GitHub username is what the Customer sees of the Crew (R15).
-		assertThat(type("job.crew_login_removed").params()).contains("login");
+		// The GitHub username is what the Customer sees of the Crew (R15): "who" holds "@login". Only the Customer of a
+		// Self-mentored Job, who picked the member, reads the name there too (AD-47 exception 12 c); CrewLeaveIT and
+		// CrewPickIT assert that a normal Job's notice holds no name.
+		assertThat(type("job.crew_login_removed").params()).containsExactlyInAnyOrder("who", "job");
+		assertThat(type("job.crew_login_added").params()).containsExactlyInAnyOrder("who", "job");
 	}
 
 	@Test

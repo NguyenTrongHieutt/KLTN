@@ -4519,9 +4519,12 @@ export interface components {
             audience: string;
             canCancelAlone: boolean;
             canPropose: boolean;
+            frozen: boolean;
             held: boolean;
             /** Format: uuid */
             jobId: string;
+            /** @enum {string} */
+            noMember?: "ALONE" | "CREW_WAS_ACTIVE";
             proposal?: components["schemas"]["CancellationProposalView"];
             state: string;
             /** Format: int64 */
@@ -4981,6 +4984,7 @@ export interface components {
             mentorName: string;
             partyMilestones: number[];
             productName: string;
+            selfMentored: boolean;
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
             title: string;
@@ -7631,7 +7635,7 @@ export interface components {
                 [key: string]: string;
             };
             /** @enum {string} */
-            role?: "CUSTOMER" | "MENTOR" | "CREW";
+            role?: "CUSTOMER" | "MENTOR" | "CREW" | "CUSTOMER_MENTOR";
             /** Format: int32 */
             tier: number;
         };

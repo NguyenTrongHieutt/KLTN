@@ -115,6 +115,10 @@ class TransitionTableTest {
 		assertThat(Transition.J3.guards()).extracting(Transition.Guard::fr).contains("FR-13");
 		assertThat(Transition.J4.guards()).extracting(Transition.Guard::fr).contains("FR-15");
 		assertThat(Transition.J6.guards()).extracting(Transition.Guard::fr).contains("FR-75");
+		// R49, AD-4: M7's third trigger, the Customer of a Self-mentored Job alone. Its guard is the command's
+		// (Cancellations.noMember), because it binds that trigger only: a confirmed cancellation needs no such check.
+		assertThat(Transition.M7.trigger()).contains("Self-mentored Job").contains("the Customer alone")
+			.contains("no Crew member was active since its M1").contains("R49");
 		assertThat(Transition.J1.auditAction()).isEqualTo("job.transition_j1");
 	}
 

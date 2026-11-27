@@ -166,7 +166,9 @@ enum Transition {
 			List.of(), List.of(new Effect("job", "No money moves")), true, true),
 
 	M7(Machine.MILESTONE, milestone(MilestoneState.held()), milestone(MilestoneState.CANCELLED), Set.of(USER),
-			"Confirmed cancellation (FR-40) or a Change Request removing it (FR-36)", List.of(),
+			"Confirmed cancellation (FR-40), a Change Request removing it (FR-36), or, in a Self-mentored Job with no "
+					+ "active member, the Customer alone while no Crew member was active since its M1 (FR-85, R49)",
+			List.of(),
 			List.of(new Effect("payment", "Full refund (FR-43)")), true, true),
 
 	M8(Machine.MILESTONE, milestone(MilestoneState.held()), milestone(MilestoneState.SETTLED), Set.of(DECISION),

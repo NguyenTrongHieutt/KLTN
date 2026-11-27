@@ -113,7 +113,7 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(notices("job.crew_member_left", this.hung)).isOne();
 		assertThat(param("job.crew_member_left", this.hung, "name")).isEqualTo("Trần Thảo Vy");
 		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
-		assertThat(param("job.crew_login_removed", this.lan, "login")).isEqualTo(TestPeople.login(this.jdbc, this.vy));
+		assertThat(param("job.crew_login_removed", this.lan, "who")).isEqualTo("@" + TestPeople.login(this.jdbc, this.vy));
 		assertThat(notices("job.crew_empty", this.lan)).isOne();
 		assertThat(param("job.crew_empty", this.lan, "mentor")).isEqualTo("Đỗ Mạnh Hùng");
 		assertThat(notices("job.party_locked", ha.accountId())).isOne();
@@ -304,6 +304,34 @@ class LockConsequencesIT extends IntegrationTest {
 		assertThat(notices("job.party_locked", ha.accountId())).isEqualTo(1);
 		assertThat(notices("job.party_locked", this.lan)).as("never the locked account").isZero();
 		assertThat(notices("job.party_locked", this.hung)).isZero();
+	}
+
+	/**
+	 * FR-59, FR-82, AD-47 exception 12 (c), Story 25.4: the lock of the last member of a Self-mentored Job counts as
+	 * leaving. The Customer, who is its Mentor, hears once, by the Customer's type and with the member's name, and
+	 * nothing says a Mentor carries on.
+	 */
+	@Test
+	void theLockOfTheLastMemberOfASelfMentoredJobTellsItsCustomerOnceAndByName() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world();
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0',
+				    mentor_account_id = customer_account_id, selected_application_id = NULL WHERE id = :id
+				""").param("id", job).update();
+
+		lock(ha, this.vy).andExpect(status().isOk());
+		awaitListeners();
+
+		assertThat(text("SELECT status || ' ' || released_reason FROM job.crew_row WHERE job_id = '" + job + "'"))
+			.isEqualTo("RELEASED LEFT");
+		assertThat(notices("job.crew_login_removed", this.lan)).isOne();
+		assertThat(param("job.crew_login_removed", this.lan, "who"))
+			.isEqualTo("Trần Thảo Vy (@" + TestPeople.login(this.jdbc, this.vy) + ")");
+		assertThat(notices("job.crew_member_left", this.lan)).as("not by the Mentor's type as well").isZero();
+		assertThat(notices("job.crew_empty", this.lan)).as("nobody carries on").isZero();
+		assertThat(notices("job.party_locked", ha.accountId())).isOne();
+		assertThat(count("SELECT count(*) FROM dispute.dispute WHERE job_id = '" + job + "'")).isZero();
 	}
 
 	/** Story 20.3: no role switch; one lock acts on every relation, here the Mentor of one Job and Customer of another. */

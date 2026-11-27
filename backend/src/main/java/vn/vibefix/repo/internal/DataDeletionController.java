@@ -36,7 +36,8 @@ import vn.vibefix.shared.Gate;
  * status; the Customer reads the Mentor's and the Crew's as one {@code TEAM} party with no name, since
  * Customer screens never name a Student (UX spine, Voice and Tone); a Crew member who was ever active
  * reads their own. The Mentor and those Crew members tick their items once the Job has ended, and a member who left
- * from then on, in every state (Story 21.6). Everyone else finds nothing.
+ * from then on, in every state (Story 21.6). Everyone else finds nothing. In a Self-mentored Job only the members
+ * have the duty (R51): its Customer reads each member's status by name and is refused a tick with {@code NOT_A_DUTY}.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -123,7 +124,9 @@ class DataDeletionController {
 
 	private DataDeletionView view(JobPostState job, UUID viewer) {
 		List<Duty> duties = this.confirmations.duties(job);
-		boolean customer = viewer.equals(job.customerId());
+		// The Customer of a Self-mentored Job reads each member's status by name, as a Mentor does, and no "team" row
+		// (AD-20, AD-47 exception 11); they have no duty of their own (exception 13).
+		boolean customer = viewer.equals(job.customerId()) && !job.selfMentored();
 		boolean everyone = viewer.equals(job.mentorId());
 		List<UUID> crew = duties.stream().filter(duty -> !duty.mentor()).map(Duty::accountId).toList();
 		Map<UUID, String> names = crew.isEmpty() || customer ? Map.of()

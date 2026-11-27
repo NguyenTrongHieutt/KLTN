@@ -3,7 +3,7 @@ import type { components } from '@/api/schema'
 import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
 import { MENTOR_JOB_KEY } from '@/features/matching/mentorJobApi'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
-import { apiClient, unwrap } from '@/lib/apiClient'
+import { ApiError, apiClient, unwrap } from '@/lib/apiClient'
 
 export type Cancellation = components['schemas']['CancellationView']
 
@@ -22,7 +22,10 @@ type Command =
   | { action: 'alone'; reason: string; version: number }
   | { action: 'withdraw' }
 
-/** Propose, confirm, or withdraw; each refreshes the section, the overview, the Job, and the to-dos. */
+/**
+ * Propose, confirm, or withdraw; each refreshes the section, the overview, the Job, and the to-dos. A `STALE` answer
+ * reads the cancellation again, so "thử lại" sends the Job's new version, not the one just refused.
+ */
 export function useCancellationCommand(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -56,6 +59,11 @@ export function useCancellationCommand(jobId: string) {
         queryClient.invalidateQueries({ queryKey: MENTOR_JOB_KEY }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
       ])
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.problem.code === 'STALE') {
+        return queryClient.invalidateQueries({ queryKey: ['cancellation', jobId] })
+      }
     },
   })
 }

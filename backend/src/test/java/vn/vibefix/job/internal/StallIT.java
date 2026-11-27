@@ -136,6 +136,28 @@ class StallIT extends IntegrationTest {
 						+ job + "'") >= DUTIES);
 	}
 
+	/** A cancellation alone is a cascade, which a freeze refuses: a frozen Job is not offered it (Story 25.4). */
+	@Test
+	void aFrozenJobIsNotOfferedTheCancellationAloneAfterItsStall() throws Exception {
+		UUID job = world("STARTING", true);
+		this.listeners.onJobTransitioned(event(job, "J6", "AGREEMENT", "STARTING"));
+		await().atMost(Duration.ofSeconds(10)).until(() -> count("SELECT count(*) FROM timers.deadline WHERE subject_id = '"
+				+ job + "'") >= 1);
+		this.clock.advance(Duration.ofDays(8));
+		this.poller.runDue();
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(true))
+			.andExpect(jsonPath("$.frozen").value(false));
+
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :at WHERE id = :id").param("at", Timestamp.from(this.clock.instant()))
+			.param("id", job).update();
+
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(false))
+			.andExpect(jsonPath("$.frozen").value(true));
+		alone(this.lan, Role.CUSTOMER, job).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("JOB_FROZEN"));
+	}
+
 	@Test
 	void aJobThatMovedOnLeavesTheDeadlineObsolete() throws Exception {
 		UUID job = world("STARTING", false);
@@ -149,6 +171,55 @@ class StallIT extends IntegrationTest {
 			.isZero();
 		assertThat(count("SELECT count(*) FROM job.job WHERE id = '" + job + "' AND stall_deadline_passed_at IS NULL"))
 			.isEqualTo(1);
+	}
+
+	/**
+	 * FR-40, AD-47 exception 3, B-07, Story 25.4: the Customer of a Self-mentored Job hears of the stall once, cancels
+	 * alone after it with the full refund although a member worked since the funding (R49 does not guard a stall), and
+	 * the active member is told.
+	 */
+	@Test
+	void theCustomerOfASelfMentoredJobCancelsAloneAfterTheStallAndTheMemberIsTold() throws Exception {
+		UUID job = world("STARTING", true);
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0',
+				    mentor_account_id = customer_account_id, selected_application_id = NULL WHERE id = :id
+				""").param("id", job).update();
+		UUID vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
+				java.time.LocalDate.parse("2026-09-30"));
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, created_at)
+				VALUES (:id, :job, :member, 'ACTIVE', :now, :now, :now)
+				""").param("id", UUID.randomUUID()).param("job", job).param("member", vy)
+			.param("now", Timestamp.from(this.clock.instant())).update();
+		this.listeners.onJobTransitioned(event(job, "J6", "AGREEMENT", "STARTING"));
+		await().atMost(Duration.ofSeconds(10)).until(() -> count("SELECT count(*) FROM timers.deadline WHERE subject_id = '"
+				+ job + "'") >= 1);
+		alone(this.lan, Role.CUSTOMER, job).andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.reason").value("DEADLINE_NOT_PASSED"));
+
+		this.clock.advance(Duration.ofDays(8));
+		this.poller.runDue();
+
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.starting_deadline_passed'"))
+			.as("one account, told once").isEqualTo(1);
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(true))
+			.andExpect(jsonPath("$.noMember").doesNotExist());
+		alone(this.lan, Role.CUSTOMER, job).andExpect(status().isOk()).andExpect(jsonPath("$.state").value("CANCELLED"));
+		await().atMost(Duration.ofSeconds(10)).until(() -> this.ledger.releasable(this.milestone) == 0);
+		assertThat(text("SELECT reason || ':' || amount_vnd FROM payment.refund WHERE milestone_id = '" + this.milestone + "'"))
+			.isEqualTo("CANCELLED:" + PRICE);
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.job_cancelled' AND account_id = '"
+				+ vy + "'")).as("the active member").isEqualTo(1);
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.job_cancelled' AND account_id = '"
+				+ this.lan + "'")).as("the Customer, once").isEqualTo(1);
+		// J10's data-deletion duty is the member's alone (R51); let it land before the next test.
+		await().atMost(Duration.ofSeconds(10)).until(() -> count(
+				"SELECT count(*) FROM notification.notification WHERE type = 'repo.data_deletion_confirmation_pending' AND job_id = '"
+						+ job + "'") >= 1);
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'repo.data_deletion_confirmation_pending'"
+				+ " AND account_id = '" + this.lan + "'")).as("never the Customer as the Mentor").isZero();
 	}
 
 	private JobTransitioned event(UUID job, String transition, String from, String to) {

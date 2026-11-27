@@ -1077,6 +1077,19 @@ class CrewPickIT extends IntegrationTest {
 				""", Map.of("job", own, "account", this.minh))).isEqualTo("2.0 1.0 1.0");
 		assertThat(text("SELECT status FROM job.crew_row WHERE job_id = :job AND member_account_id = :account",
 				Map.of("job", own, "account", this.minh))).isEqualTo("ACTIVE");
+		// AD-47 exception 12 (c), Story 25.4: the Customer hears once, by the Customer's type, which names the member.
+		assertThat(text("""
+				SELECT params ->> 'who' FROM notification.notification WHERE type = 'job.crew_login_added' AND job_id = :job
+				    AND account_id = :lan
+				""", Map.of("job", own, "lan", this.lan))).isEqualTo("Trần Quang Minh (@" + TestPeople.login(this.jdbc, this.minh) + ")");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.crew_member_joined' AND job_id = :job",
+				Map.of("job", own))).as("no other member, and never the Customer by the Mentor's type").isZero();
+		assertThat(count("""
+				SELECT count(*) FROM notification.todo WHERE job_id = :job AND account_id = :lan AND role <> 'CUSTOMER_MENTOR'
+				""", Map.of("job", own, "lan", this.lan))).as("every to-do of the Customer's holds the one role").isZero();
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE job_id = :job AND account_id = :lan",
+				Map.of("job", own, "lan", this.lan))).isPositive();
+		awaitListeners();
 	}
 
 	/** A normal Job's signature records no notice of working under the Customer. */

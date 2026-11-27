@@ -29,4 +29,16 @@ class TodoRoleTest {
 			.hasSize(Audience.values().length);
 	}
 
+	/** AD-47 exception 12 (c), Story 25.4: the Customer of a Self-mentored Job holds one role, whichever class opened it. */
+	@Test
+	void theCombinedRoleReplacesTheCustomersAndTheMentorsAndNoOther() {
+		assertThat(TodoRole.of(Audience.CUSTOMER, true)).isEqualTo(TodoRole.CUSTOMER_MENTOR);
+		assertThat(TodoRole.of(Audience.MENTOR, true)).isEqualTo(TodoRole.CUSTOMER_MENTOR);
+		assertThat(TodoRole.of(Audience.CREW_ACTIVE, true)).isEqualTo(TodoRole.CREW);
+		assertThat(TodoRole.of(Audience.SUBJECT, true)).isNull();
+		for (Audience audience : Audience.values()) {
+			assertThat(TodoRole.of(audience, false)).as(audience.name()).isEqualTo(TodoRole.of(audience));
+		}
+	}
+
 }

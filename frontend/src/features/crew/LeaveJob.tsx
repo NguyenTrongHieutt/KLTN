@@ -14,7 +14,8 @@ import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
  * "Rời công việc" on a member's JOB-1 (FR-82, UX-DR104): the Leave dialog with N-28, in the words of this Job: a Job
  * with no code has no repository to speak of, and the split sentence names the Milestones the member stays a party of,
  * or with none only their post-Job duties (R9). The optional reason follows, marked as read by the Mentor alone. It
- * takes effect at once and cannot be undone.
+ * takes effect at once and cannot be undone. In a Self-mentored Job the Customer is the Mentor: the dialog says the
+ * Customer reads the reason, and is told the member's name with the username (B-16, AD-47 exception 12 c).
  */
 export function LeaveJob({ me }: { me: CrewMe }) {
   const [open, setOpen] = useState(false)
@@ -34,6 +35,7 @@ function LeaveDialog({ me, onClose }: { me: CrewMe; onClose: () => void }) {
   const leave = useLeaveJob(me.jobId)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string>()
+  const reasonHint = t(me.selfMentored ? 'screen.crew.leave.reasonHintSelfMentored' : 'screen.crew.leave.reasonHint')
   const confirm = () => {
     setError(undefined)
     leave.mutate(reason, {
@@ -62,10 +64,10 @@ function LeaveDialog({ me, onClose }: { me: CrewMe; onClose: () => void }) {
           <FormField
             id={`${ids}-reason`}
             label={t('screen.crew.leave.reason')}
-            helper={t('screen.crew.leave.reasonHint')}
+            helper={reasonHint}
           >
             <textarea
-              {...fieldProps(`${ids}-reason`, undefined, t('screen.crew.leave.reasonHint'))}
+              {...fieldProps(`${ids}-reason`, undefined, reasonHint)}
               rows={3}
               maxLength={MAX_LEFT_NOTE}
               value={reason}
@@ -98,6 +100,6 @@ function notice(me: CrewMe): string {
       ? t('screen.crew.leave.split', { n: me.partyMilestones.join(', ') })
       : t('screen.crew.leave.duties'),
   )
-  sentences.push(t('screen.crew.leave.customer'))
+  sentences.push(t(me.selfMentored ? 'screen.crew.leave.customerSelfMentored' : 'screen.crew.leave.customer'))
   return sentences.join(' ')
 }

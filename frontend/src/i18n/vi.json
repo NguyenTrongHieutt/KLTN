@@ -2377,11 +2377,21 @@
         "customer": "Khách hàng chỉ được báo GitHub username của bạn để thu hồi quyền.",
         "reason": "Lý do (không bắt buộc)",
         "reasonHint": "Chỉ người hướng dẫn đọc được.",
+        "reasonHintSelfMentored": "Khách hàng đọc được lý do bạn rời đi.",
+        "customerSelfMentored": "Khách hàng được báo tên của bạn, và GitHub username nếu bạn đã liên kết, để thu hồi quyền.",
         "back": "Quay lại",
         "done": "Bạn đã rời công việc này."
       },
       "noCrew": {
-        "selfMentor": "Nhóm thực hiện không còn ai. Chỉ thành viên nhóm bàn giao được, nên hãy tuyển thành viên để công việc tiếp tục.",
+        "selfMentor": "Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.",
+        "selfMentorAlone": "Công việc chưa có thành viên. Chưa ai bàn giao được, nên giai đoạn đang giữ tiền chưa nghiệm thu được. Hãy tuyển thành viên, hoặc hủy giai đoạn đang giữ tiền và nhận hoàn tiền đầy đủ.",
+        "selfMentorCrewWasActive": "Công việc chưa có thành viên. Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được. Hãy tuyển thành viên, hoặc mở tranh chấp. Bàn giao đã gửi vẫn nghiệm thu hoặc yêu cầu sửa được.",
+        "selfMentorStarting": "Công việc chưa có thành viên nên chưa bắt đầu được. Hãy tuyển thành viên, hoặc mở tranh chấp. Nếu công việc vẫn chưa bắt đầu khi hết hạn chuẩn bị, bạn tự hủy được và nhận hoàn tiền đầy đủ.",
+        "selfMentorStallPassed": "Công việc chưa có thành viên và đã quá hạn chuẩn bị. Hãy tuyển thành viên, hoặc tự hủy công việc và nhận hoàn tiền đầy đủ.",
+        "cancelHeld": "Hủy giai đoạn đang giữ tiền",
+        "cancelHeldTitle": "Hủy giai đoạn đang giữ tiền?",
+        "cancelHeldRefund": "Giai đoạn đang giữ tiền bị hủy và bạn được hoàn đủ số tiền đó (thử nghiệm).",
+        "cancelHeldEnd": "Các giai đoạn chưa bắt đầu cũng bị hủy và công việc kết thúc. Không hoàn tác được.",
         "mentor": "Nhóm thực hiện không còn ai. Bạn có thể tiếp tục một mình: bạn vẫn bàn giao từng giai đoạn như thường, và khách hàng nghiệm thu là bước kiểm tra. Bạn cũng có thể tuyển thêm thành viên.",
         "customer": "Nhóm thực hiện của người hướng dẫn hiện không còn thành viên. Người hướng dẫn {mentor} vẫn tiếp tục công việc. Nếu bạn lo lắng, hãy trao đổi trong Trò chuyện; bạn vẫn có thể đề nghị hủy như thường lệ."
       },
@@ -4262,13 +4272,13 @@
         "title": "{name} đã tham gia nhóm thực hiện {job}"
       },
       "crew_login_added": {
-        "title": "Nhóm thực hiện {job} có thêm thành viên @{login}"
+        "title": "Nhóm thực hiện {job} có thêm thành viên {who}"
       },
       "crew_member_left": {
         "title": "{name} đã rời nhóm thực hiện {job}"
       },
       "crew_login_removed": {
-        "title": "@{login} đã rời nhóm thực hiện {job}"
+        "title": "{who} đã rời nhóm thực hiện {job}"
       },
       "crew_pick_released": {
         "title": "{name} không thể ký cam kết cho {job}"
@@ -4757,6 +4767,7 @@
       "IDENTIFIER_LOOKS_LIKE_SECRET": "Đây giống một mật khẩu hoặc secret. Chỉ nhập tài khoản để khách hàng mời bạn, ví dụ email của bạn.",
       "EXTERNAL_ACCESS_CLOSED": "Công việc đã kết thúc, không cần gửi tài khoản nữa.",
       "DEADLINE_NOT_PASSED": "Bạn tự hủy được khi thỏa thuận chưa xác nhận sau 14 ngày hoặc công việc chưa bắt đầu sau 7 ngày.",
+      "CREW_WAS_ACTIVE": "Đã có thành viên làm giai đoạn đang giữ tiền, nên bạn không tự hủy được. Hãy tuyển thành viên hoặc mở tranh chấp.",
       "NO_TOP_UP": "Không có yêu cầu thay đổi nào đang chờ thanh toán thêm.",
       "RECRUITMENT_UNAVAILABLE": "chỉ tuyển thành viên được khi công việc đang thống nhất, chuẩn bị bắt đầu hoặc đang thực hiện",
       "SLOTS_INVALID": "Số người cần thêm phải từ 1 đến {max}.",

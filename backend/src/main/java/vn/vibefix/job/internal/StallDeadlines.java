@@ -68,6 +68,7 @@ class StallDeadlines {
 					now.plus(period(this.jdbc, jobId, state))));
 		}
 		else if (state == JobState.STARTING) {
+			// J6 itself forgot an Agreement stall that had passed (J6Start), so this period starts with no flag.
 			this.deadlines.schedule(new DeadlineRequest(StartingDeadline.KEY, jobId, jobId.toString(), jobId,
 					now.plus(period(this.jdbc, jobId, state))));
 		}

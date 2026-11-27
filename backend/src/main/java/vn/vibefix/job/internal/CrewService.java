@@ -281,6 +281,24 @@ class CrewService implements Crews {
 		return active.stream().filter(row -> !locked.containsKey(row.studentId())).toList();
 	}
 
+	/**
+	 * Whether a Crew row of the Job was {@code ACTIVE} at any time since {@code since} (R49; AD-4's guard of M7's
+	 * alone-cancel), counted as AD-41 fixes split parties: a row's window runs from {@code activated_at} to
+	 * {@code window_end}, or to now while it is {@code ACTIVE}, and a locked account's row ends at its lock time, also
+	 * before the lock's listener released it. A window that ends at {@code since} counts.
+	 */
+	boolean activeSince(UUID jobId, Instant since) {
+		List<Row> ever = rows(jobId).stream().filter(row -> row.activatedAt() != null).toList();
+		if (ever.isEmpty()) {
+			return false;
+		}
+		Map<UUID, Instant> locked = this.capabilities.lockedAmong(ever.stream().filter(Row::active).map(Row::studentId).toList());
+		return ever.stream().anyMatch(row -> {
+			Instant end = row.active() ? locked.get(row.studentId()) : row.windowEnd();
+			return end == null || !end.isBefore(since);
+		});
+	}
+
 	@Override
 	@Transactional(readOnly = true)
 	public boolean hasCountedMember(UUID jobId) {
