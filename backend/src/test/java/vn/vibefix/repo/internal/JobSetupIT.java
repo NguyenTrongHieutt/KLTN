@@ -1352,6 +1352,66 @@ class JobSetupIT extends IntegrationTest {
 		assertThat(GITHUB.seen).as("nothing was asked of GitHub").noneMatch(seen -> seen.path().contains("/collaborators/"));
 	}
 
+	/**
+	 * Story 25.4 (FR-19, AD-12, AD-47 exception 9): the platform sweep expects nothing of the Customer on the Working
+	 * Repository of a Self-mentored Job, so their account found there is a difference, as in any Job.
+	 */
+	@Test
+	void theSweepReportsTheCustomerOfASelfMentoredJobOnItsWorkingRepository() throws Exception {
+		AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		selfMentored();
+		String customerLogin = TestPeople.login(this.jdbc, this.customer);
+		String working = JobSetups.workingName(this.job);
+		setUpTheRepositories();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		GITHUB.accept(customerLogin);
+		this.checks.check(this.job);
+		assertThat(customerGrant().status()).isEqualTo("ACCEPTED");
+		assertThat(sweep()).as("the Crew's invitation and the Customer's read are expected").isEmpty();
+
+		GITHUB.addCollaborator(working, customerLogin, "read");
+
+		assertThat(sweep()).singleElement().asString()
+			.startsWith(GitHubStub.ORGANIZATION + "/" + working + ": collaborators {")
+			.contains(customerLogin + "=read");
+		awaitListeners();
+	}
+
+	/**
+	 * Story 25.4 (FR-18, FR-19, AD-11, AD-47 exceptions 9 and 12 b): a Self-mentored Assessment Job invites its Crew and
+	 * its Customer to the one read-only copy, each through one grant, and nobody as the Mentor; when a member's read is
+	 * never accepted, Administrators alone hear, because the notice is about the team's access.
+	 */
+	@Test
+	void aSelfMentoredAssessmentJobInvitesNoMentorAndItsExhaustedRenewalsReachAdministratorsAlone() throws Exception {
+		UUID administrator = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		assessmentJob();
+		selfMentored();
+		assessmentSetUpTheRepository();
+		this.worker.runDue(Lane.GITHUB_SHORT);
+		assertThat(this.busy.job(this.job).orElseThrow().state()).isEqualTo("ACTIVE");
+
+		assertThat(this.grants.ofJob(this.job)).extracting(JobGrants.Grant::role).containsExactlyInAnyOrder("CREW", "CUSTOMER");
+		assertThat(this.grants.ofJob(this.job)).as("one read each, on the one copy").allMatch(JobGrants.Grant::readOnly)
+			.extracting(JobGrants.Grant::repositoryName).containsOnly(customerGrant().repositoryName());
+		assertThat(notices("repo.github_invitation_sent", this.customer)).as("never invited as the Mentor").isZero();
+
+		for (int renewal = 0; renewal < JobGrants.CREW_CHANGE_RENEWALS; renewal++) {
+			this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+			this.deadlines.runDue();
+			this.worker.runDue(Lane.GITHUB_SHORT);
+		}
+		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
+		this.deadlines.runDue();
+
+		assertThat(crewGrant().renewals()).isEqualTo(JobGrants.CREW_CHANGE_RENEWALS);
+		assertThat(this.jdbc.sql("""
+				SELECT DISTINCT account_id FROM notification.notification WHERE type = 'repo.invitation_renewals_exhausted'
+				""").query(UUID.class).list()).as("the Customer mentors, and is not told of the team's access")
+			.containsExactly(administrator);
+		awaitListeners();
+	}
+
 	/** The Job becomes a Self-mentored one, as J11 leaves it: its Customer is its Mentor, and no bid was selected. */
 	private void selfMentored() {
 		this.jdbc.sql("""
