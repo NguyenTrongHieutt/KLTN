@@ -120,6 +120,12 @@ enum DeliveryReason {
 	 * The acceptance merge answered 409, so M3 voided the handover (FR-33, D9): the Customer decides on the next
 	 * one.
 	 */
-	HANDOVER_VOIDED
+	HANDOVER_VOIDED,
+
+	/**
+	 * The Customer of a Self-mentored Job already returned this handover (FR-86): it is void, and the members hand over
+	 * again.
+	 */
+	HANDOVER_RETURNED
 
 }

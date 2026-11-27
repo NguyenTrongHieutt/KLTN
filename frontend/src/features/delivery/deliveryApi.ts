@@ -123,6 +123,29 @@ export function useDecideHandover(jobId: string, handoverId: string) {
   })
 }
 
+export type HandoverReturnRequest = components['schemas']['HandoverReturnRequest']
+
+/**
+ * "Trả lại bàn giao" (FR-86, Story 25.5): the Customer of a Self-mentored Job returns the handover with a reason, on
+ * the loaded Job version. It refreshes what a decision refreshes: the report, the list, JOB-1 and the to-dos.
+ */
+export function useReturnHandover(jobId: string, handoverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: HandoverReturnRequest) =>
+      unwrap(apiClient.POST('/api/v1/handovers/{handoverId}/return', { params: { path: { handoverId } }, body })),
+    onSuccess: async (report) => {
+      queryClient.setQueryData(['handover', handoverId], report)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['handovers', jobId] }),
+        queryClient.invalidateQueries({ queryKey: ['progress', jobId] }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: busyKey(jobId) }),
+      ])
+    },
+  })
+}
+
 /** One Delivery Report (UX-DR53). */
 export function useHandover(handoverId: string | undefined) {
   return useQuery({

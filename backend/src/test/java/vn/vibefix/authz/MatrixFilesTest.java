@@ -121,7 +121,10 @@ class MatrixFilesTest {
 					+ " Milestone refuses a proposal (MILESTONE_HELD), so it has none to read",
 			"GET /api/v1/boards/{boardId}/handovers/submission",
 			"a handover submission exists only while the runner copies one, and briefly after (Story 23.8a): the crew"
-					+ " Job has handed none over through the form, so it has none to read");
+					+ " Job has handed none over through the form, so it has none to read",
+			"POST /api/v1/handovers/{handoverId}/return",
+			"a handover is returned only in a Self-mentored Job (FR-86, Story 25.5): the crew Job is a normal Job, where"
+					+ " the command finds nothing for anyone; the mode world's Customer passes its policy on job=self");
 
 	/**
 	 * The four reads of a Crew Chat (review iteration 3, G5): every grant caller runs each, so a grant that reads more

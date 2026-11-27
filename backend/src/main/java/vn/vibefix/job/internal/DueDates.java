@@ -76,10 +76,13 @@ class DueDates {
 	/** FR-87: a Milestone whose work started later than planned is due later by the same days, for the three sides. */
 	static final String DUE_MOVED = "job.milestone_due_moved";
 
-	/** Why a due date moved (FR-87): a revision request (M4), a voided handover (M3), or funding later than planned (M1). */
+	/**
+	 * Why a due date moved (FR-87): a revision request (M4), a handover voided by an acceptance merge's 409 (M3), a
+	 * handover the Customer of a Self-mentored Job returned (M3, FR-86), or funding later than planned (M1).
+	 */
 	enum Cause {
 
-		REVISION, VOID, LATE_FUNDING
+		REVISION, VOID, RETURN, LATE_FUNDING
 
 	}
 

@@ -2,7 +2,8 @@ import { Dialog } from '@base-ui/react/dialog'
 import { useEffect, useId, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { usePageTitle } from '@/app/usePageTitle'
-import { inputClass } from '@/components/formField-props'
+import { FormField } from '@/components/FormField'
+import { fieldProps, inputClass } from '@/components/formField-props'
 import { RegionState } from '@/components/RegionState'
 import { Skeleton } from '@/components/Skeleton'
 import { TestTag } from '@/components/TestTag'
@@ -15,8 +16,8 @@ import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
-import { isNotFound, problemMessage } from '@/lib/problemMessage'
-import { useDecideHandover, useHandover, type DeliveryReport } from './deliveryApi'
+import { isNotFound, problemMessage, reasonMessage } from '@/lib/problemMessage'
+import { useDecideHandover, useHandover, useReturnHandover, type DeliveryReport } from './deliveryApi'
 import { HandoverLinkList } from './HandoverLinkList'
 import { OutsideLink } from './OutsideLink'
 import { Page } from '@/components/ui/page'
@@ -62,6 +63,32 @@ function writeDraft(handoverId: string, draft: Draft | undefined) {
   }
 }
 
+/** `delivery`'s own refusals of a decision on a handover that moved on, each with its sentence under `reason.delivery`. */
+const MOVED_ON = ['HANDOVER_VOIDED', 'HANDOVER_RETURNED', 'HANDOVER_DECIDED'] as const
+
+/**
+ * Why a decision was refused, in the reader's words. A handover that was voided, returned or decided meanwhile says
+ * which of the three it was: a return is not a change on GitHub, and an Assessment Job has no GitHub at all. A Job
+ * that moved on says to open the report again. Any other reason is `delivery`'s own, or `job`'s when the transition
+ * itself refused (a Dispute's freeze, no Revision Round or no return left), so it is read from whichever of the two
+ * holds a sentence for it. A busy Job names the operation to wait for.
+ */
+function refusal(failure: unknown): string {
+  if (!(failure instanceof ApiError)) {
+    return problemMessage(failure).text
+  }
+  const { code, reason } = failure.problem
+  const movedOn = MOVED_ON.find((known) => known === reason)
+  if (movedOn) {
+    return t(`reason.delivery.${movedOn}`)
+  }
+  if (code === 'STALE') {
+    return t('screen.handover.check.stale')
+  }
+  const module = reason && reasonMessage('delivery', reason) === undefined ? 'job' : 'delivery'
+  return problemMessage(failure, { module, operation: t('screen.handover.check.busyOperation') }).text
+}
+
 /** "Cách kiểm tra" as numbered steps: one per line, or split at "1. … 2. …" written on one line. */
 function steps(checkSteps: string): string[] {
   const lines = checkSteps.split(/\n+/).map((line) => line.trim()).filter(Boolean)
@@ -77,6 +104,11 @@ function steps(checkSteps: string): string[] {
  * confirmation. Where the handover holds the Mentor's N-33 confirmation, the acceptance's Confirmation dialog
  * quotes it with their name: vibefix scans no team code, and the Mentor confirmed this handover holds none (FR-33,
  * R28, Story 23.8b). Nothing is sent before that.
+ *
+ * In a Self-mentored Job a Crew member made the handover, so the note and N-33's line are the member's, and the
+ * summary has a third action for the Customer, "Trả lại bàn giao" with "còn {n} lần trả lại" (FR-86, UX-DR127,
+ * Story 25.5): shown whether or not a Revision Round is left, disabled in place with its reason once the returns are
+ * used up (R65), and never shown in a normal Job, whose decision block names no return.
  */
 export function GuidedCheckPage() {
   const { jobId, handoverId } = useParams()
@@ -93,7 +125,14 @@ export function GuidedCheckPage() {
             <Check jobId={jobId} report={report.data} />
           ) : (
             <p className="text-body-sm">
-              {t('reason.delivery.HANDOVER_DECIDED')}{' '}
+              {/* A handover with nothing left to decide says which it is: returned, void, or decided. */}
+              {t(
+                report.data.returned
+                  ? 'reason.delivery.HANDOVER_RETURNED'
+                  : report.data.status === 'VOIDED'
+                    ? 'reason.delivery.HANDOVER_VOIDED'
+                    : 'reason.delivery.HANDOVER_DECIDED',
+              )}{' '}
               <Link to={`/cong-viec/${jobId}/ban-giao/${handoverId}`} className="text-primary underline-offset-4 hover:underline">
                 {t('screen.handover.report.criteria')}
               </Link>
@@ -112,6 +151,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
   const [draft, setDraft] = useState<Draft>(() => readDraft(report.id))
   const [hint, setHint] = useState<string>()
   const [confirming, setConfirming] = useState<'accept' | 'revision'>()
+  const [returning, setReturning] = useState(false)
   const [error, setError] = useState<string>()
   const total = report.criteria.length
   const step = Math.min(draft.step, total)
@@ -164,13 +204,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         },
         onError: (failure) => {
           setConfirming(undefined)
-          setError(
-            failure instanceof ApiError && failure.problem.reason === 'HANDOVER_VOIDED'
-              ? t('reason.delivery.HANDOVER_VOIDED')
-              : failure instanceof ApiError && failure.problem.code === 'STALE'
-                ? t('screen.handover.check.stale')
-                : problemMessage(failure, { module: 'delivery' }).text,
-          )
+          setError(refusal(failure))
         },
       },
     )
@@ -215,7 +249,9 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
           <HandoverLinkList links={report.links} />
         </div>
         <figure className="flex flex-col gap-1 border-l-4 border-border pl-3 text-body-sm">
-          <figcaption className="text-caption text-muted-foreground">{t('screen.handover.check.mentorNote')}</figcaption>
+          <figcaption className="text-caption text-muted-foreground">
+            {t(report.byMember ? 'screen.handover.check.memberNote' : 'screen.handover.check.mentorNote')}
+          </figcaption>
           <blockquote className="break-words whitespace-pre-wrap">{criterion.note}</blockquote>
         </figure>
         <fieldset className="flex flex-wrap gap-4 text-body">
@@ -314,14 +350,36 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         })}
       </ol>
       {notMet.length > 0 && !decision.revisionAllowed && (
-        <p className="text-body-sm text-muted-foreground">{t('screen.handover.check.noRounds')}</p>
+        <p className="text-body-sm text-muted-foreground">
+          {t(decision.returnsLeft ? 'screen.handover.check.noRoundsReturn' : 'screen.handover.check.noRounds')}
+        </p>
       )}
       {error && (
         <p role="alert" className="text-body-sm text-destructive">
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-3">
+      <div className="flex flex-wrap items-start justify-end gap-3">
+        {decision.returnLimit != null && (
+          <span className="flex flex-col items-end gap-1">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!decision.returnsLeft}
+              // R65: disabled in place, and still reachable by keyboard so that its reason is announced.
+              focusableWhenDisabled
+              aria-describedby={`${ids}-returns`}
+              onClick={() => setReturning(true)}
+            >
+              {t('screen.handover.check.return')}
+            </Button>
+            <span id={`${ids}-returns`} className="text-caption text-muted-foreground">
+              {decision.returnsLeft
+                ? t('screen.handover.check.returnsLeft', { n: decision.returnsLeft })
+                : t('screen.handover.check.returnsUsed')}
+            </span>
+          </span>
+        )}
         {revise ? (
           <>
             <Button type="button" variant="secondary" onClick={() => setConfirming('accept')}>
@@ -364,7 +422,9 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
             <Dialog.Description className="text-body-sm">
               {confirming === 'revision' ? (
                 <>
-                  {t('screen.handover.check.reviseBody', { r: Math.max(0, report.roundsLeft - 1) })}
+                  {t(report.byMember ? 'screen.handover.check.reviseBodySelfMentored' : 'screen.handover.check.reviseBody', {
+                    r: Math.max(0, report.roundsLeft - 1),
+                  })}
                   {/* FR-87: what the request does to the due date, said before the Customer confirms. The server computes it. */}
                   {decision.reworkDueOn && (
                     <span className="mt-2 block font-semibold tabular-nums">
@@ -375,7 +435,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
               ) : (
                 <>
                   {/* The tag stands beside the amount it marks, not after the sentence's last word. */}
-                  {rich('screen.handover.check.acceptBody', {
+                  {rich(report.byMember ? 'screen.handover.check.acceptBodySelfMentored' : 'screen.handover.check.acceptBody', {
                     amount: (
                       <span className="whitespace-nowrap">
                         {formatVnd(decision.releaseVnd)} <TestTag />
@@ -388,7 +448,9 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
                   */}
                   {report.code?.teamCodeConfirmedAt && (
                     <span className="mt-2 block break-words">
-                      {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
+                      {t(report.byMember ? 'notice.teamCode.customerSelfMentored' : 'notice.teamCode.customer', {
+                        mentor: report.mentorName || t('screen.split.erased'),
+                      })}
                     </span>
                   )}
                 </>
@@ -405,6 +467,109 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
           </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
+      {returning && (
+        <ReturnDialog
+          jobId={jobId}
+          report={report}
+          onClose={() => setReturning(false)}
+          onReturned={() => writeDraft(report.id, undefined)}
+        />
+      )}
     </section>
+  )
+}
+
+/**
+ * "Trả lại bàn giao Giai đoạn {n}?" (FR-86, FR-87, UX-DR127, UX-DR128): a Confirmation dialog with the reason the
+ * members will read as written, what the return does, that it uses no Revision Round, how many returns are left
+ * after this one, and the Milestone's new due date when the server names one. A busy Job, a Dispute's freeze and a
+ * handover that changed meanwhile answer with their own sentence, and nothing was returned.
+ */
+function ReturnDialog({
+  jobId,
+  report,
+  onClose,
+  onReturned,
+}: {
+  jobId: string
+  report: DeliveryReport
+  onClose: () => void
+  onReturned: () => void
+}) {
+  const ids = useId()
+  const toasts = useToasts()
+  const navigate = useNavigate()
+  const returnHandover = useReturnHandover(jobId, report.id)
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string>()
+  const decision = report.decision
+  const left = decision?.returnsLeft ?? 0
+  const confirm = () => {
+    setError(undefined)
+    returnHandover.mutate(
+      { version: report.version, reason: reason.trim() },
+      {
+        onSuccess: () => {
+          onReturned()
+          toasts.success(
+            decision?.reworkDueOn
+              ? t('screen.handover.check.returnedDue', { n: report.number, date: formatCalendarDayMonth(decision.reworkDueOn) })
+              : t('screen.handover.check.returned', { n: report.number }),
+          )
+          void navigate(`/cong-viec/${jobId}/ban-giao/${report.id}`)
+        },
+        onError: (failure) => setError(refusal(failure)),
+      },
+    )
+  }
+  return (
+    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <DialogBackdrop className="z-[60]" />
+        <DialogPopup size="sm" className="z-[70]">
+          <Dialog.Title className="text-h2">{t('screen.handover.check.returnTitle', { n: report.number })}</Dialog.Title>
+          <Dialog.Description className="flex flex-col gap-2 text-body-sm">
+            <span>{t('screen.handover.check.returnWhat')}</span>
+            {report.code && <span>{t('screen.handover.check.returnWhatCode')}</span>}
+            <span>{t('screen.handover.check.returnNoRound')}</span>
+            <span className="tabular-nums">
+              {t('screen.handover.check.returnCount', { n: left, m: Math.max(0, left - 1) })}
+            </span>
+            {/* FR-87: the due date the return gives the Milestone, from the server; nothing when it moves none. */}
+            {decision?.reworkDueOn && (
+              <span className="font-semibold tabular-nums">
+                {t('screen.handover.check.reviseDue', { date: formatCalendarDayMonth(decision.reworkDueOn) })}
+              </span>
+            )}
+          </Dialog.Description>
+          <FormField
+            id={`${ids}-reason`}
+            label={t('screen.handover.check.returnReason')}
+            helper={t('screen.handover.check.returnReasonHelper')}
+          >
+            <textarea
+              {...fieldProps(`${ids}-reason`, undefined, t('screen.handover.check.returnReasonHelper'))}
+              required
+              rows={3}
+              maxLength={2000}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className={inputClass}
+            />
+          </FormField>
+          {error && (
+            <p role="alert" className="text-body-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex flex-wrap justify-end gap-3">
+            <Dialog.Close render={<Button variant="secondary" />}>{t('screen.handover.check.cancel')}</Dialog.Close>
+            <Button type="button" disabled={reason.trim() === '' || returnHandover.isPending} onClick={confirm}>
+              {t('screen.handover.check.return')}
+            </Button>
+          </div>
+        </DialogPopup>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }

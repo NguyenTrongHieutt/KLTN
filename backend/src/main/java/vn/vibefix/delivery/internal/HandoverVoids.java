@@ -23,6 +23,10 @@ import vn.vibefix.shared.ProcessedEvents;
  * acceptance merge answers 409, and a push to the Working Repository voids nothing. {@link DeliveryListeners}
  * reopens the Mentor's {@code delivery.hand_over}, {@link HandoverPullCloses} closes the handover's pull
  * request, and Auto-acceptance and its reminders end through their generation check.
+ * <p>
+ * A handover the Customer of a Self-mentored Job returned (FR-86, Story 25.5) is already {@code VOIDED} when this
+ * listener hears its M3: {@link Decisions#returnHandover} wrote it with the reason in the command's transaction, so
+ * nothing is left to do here.
  */
 @Component
 class HandoverVoids {

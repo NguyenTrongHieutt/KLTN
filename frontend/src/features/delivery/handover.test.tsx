@@ -1108,7 +1108,7 @@ describe('JOB-5 handovers (FR-10, FR-32, UX-DR53, UX-DR54)', () => {
 
     expect(
       await screen.findByText(
-        'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.',
+        'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Giai đoạn cần được bàn giao lại.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText('Tiền của giai đoạn vẫn được giữ.')).toBeInTheDocument()

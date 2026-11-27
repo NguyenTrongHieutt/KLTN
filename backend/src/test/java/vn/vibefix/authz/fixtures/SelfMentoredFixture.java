@@ -566,9 +566,11 @@ public class SelfMentoredFixture implements MatrixFixture {
 				VALUES (:id, :job, 0, 'Bảng quản trị Supabase', 'Xem lỗi đặt bàn', :at)
 				""").param("id", access).param("job", job).param("at", signed).update();
 		put(world, "accessId", access);
-		handover(releasedHandover, job, product, released, 1, "Thiết lập đặt bàn", "ACCEPTED", 3,
+		handover(releasedHandover, job, product, released, 1, 1, "Thiết lập đặt bàn", "ACCEPTED", 3,
 				ACCEPTED.minus(Duration.ofDays(1)), ACCEPTED);
-		handover(handover, job, product, held, 2, "Sửa lỗi trùng giờ", "SUBMITTED", 5, WRITTEN, null);
+		// The held Milestone's first handover was returned; the one waiting for a decision is its second, made after.
+		returnedHandover(world, job, product, held);
+		handover(handover, job, product, held, 2, 2, "Sửa lỗi trùng giờ", "SUBMITTED", 5, WRITTEN, null);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', true, 'Đã kiểm tra trên điện thoại')
@@ -594,16 +596,45 @@ public class SelfMentoredFixture implements MatrixFixture {
 		return held;
 	}
 
-	/** A Milestone Handover the active member made; the column that names them still says "mentor" (Story 25.5). */
-	private void handover(UUID id, UUID job, UUID product, UUID milestone, int number, String title, String status,
+	/**
+	 * The held Milestone's first handover, which the Customer returned with a reason (FR-86, AD-20's world, Story 25.5):
+	 * void, counted on the Milestone, and read through {@code selfHandover=returned}. The handover waiting for a
+	 * decision is the Milestone's second.
+	 */
+	private void returnedHandover(MatrixWorld world, UUID job, UUID product, UUID milestone) {
+		UUID returned = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
+				    mentor_account_id, status, job_version, transition_id, check_by, created_at, voided_at, returned,
+				    returned_by_account_id, return_reason)
+				VALUES (:id, :job, :product, :milestone, 2, 'Sửa lỗi trùng giờ', 1, :member, 'VOIDED', 4, :transition, :at, :at,
+				    :voided, TRUE, :customer, 'Bấm bàn giao sớm, chưa sửa xong lỗi trùng giờ')
+				""")
+			.param("id", returned)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("member", this.active)
+			.param("transition", UUID.randomUUID())
+			.param("at", Timestamp.from(WRITTEN.minus(Duration.ofDays(1))))
+			.param("voided", Timestamp.from(WRITTEN.minus(Duration.ofHours(12))))
+			.param("customer", this.customer)
+			.update();
+		this.jdbc.sql("UPDATE job.milestone SET handover_returns_used = 1 WHERE id = :id").param("id", milestone).update();
+		put(world, "returnedHandoverId", returned);
+	}
+
+	/** A Milestone Handover the active member made, whom the column that still says "mentor" names (Story 25.5). */
+	private void handover(UUID id, UUID job, UUID product, UUID milestone, int number, int round, String title, String status,
 			int jobVersion, Instant at, Instant decided) {
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
-				VALUES (:id, :job, :product, :milestone, :number, :title, 1, :member, :status, :version, :transition, :at, :at,
-				    :decided, :decider)
+				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :member, :status, :version, :transition, :at,
+				    :at, :decided, :decider)
 				""")
 			.param("id", id)
+			.param("round", round)
 			.param("job", job)
 			.param("product", product)
 			.param("milestone", milestone)

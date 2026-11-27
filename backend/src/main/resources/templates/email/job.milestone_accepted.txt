@@ -2,6 +2,6 @@ subject: Giai đoạn {n} của {job} đã được {how}
 ---
 Xin chào,
 
-Giai đoạn {n} của công việc {job} đã được {how}. Tiền của giai đoạn này đã được chuyển cho người hướng dẫn và nhóm thực hiện.
+Giai đoạn {n} của công việc {job} đã được {how}. Tiền của giai đoạn này đã được chuyển cho bên thực hiện.
 
 Giao dịch thử nghiệm — không dùng tiền thật. vibefix đang chạy thử với môi trường thử nghiệm của VNPay.

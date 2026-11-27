@@ -70,7 +70,13 @@ public enum Rule {
 	SPLIT_UNDECIDED_FLAG_DAYS(1, 30),
 
 	/** Days a Milestone gets for rework after a revision request or a voided handover (FR-61, FR-87, Story 25.1); 5. */
-	REWORK_DAYS(1, 30);
+	REWORK_DAYS(1, 30),
+
+	/**
+	 * Times the Customer of a Self-mentored Job may return a Milestone's handover (FR-61, FR-86, Story 25.5); 2, and 0
+	 * means a return is never offered. Copied onto a Job when it is published, like the durations (AD-7, R50).
+	 */
+	HANDOVER_RETURN_LIMIT(0, 5);
 
 	private final int min;
 

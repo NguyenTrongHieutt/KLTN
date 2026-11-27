@@ -3,4 +3,4 @@ subject: Bàn giao Giai đoạn {n} đã bị hủy vì nội dung bàn giao tr�
 Xin chào,
 
 Khi nghiệm thu Giai đoạn {n}, GitHub cho biết nhánh bàn giao không còn đúng lần lưu đã bàn giao, nên lần bàn giao này đã bị hủy.
-Tiền của giai đoạn vẫn được giữ. Người hướng dẫn sẽ bàn giao lại.
+Tiền của giai đoạn vẫn được giữ. Giai đoạn cần được bàn giao lại.

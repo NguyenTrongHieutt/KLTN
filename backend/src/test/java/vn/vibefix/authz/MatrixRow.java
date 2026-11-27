@@ -148,6 +148,14 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		STALLED_SELF_JOB("selfJob", "stalled", "boardId", "stalledBoardId"),
 
 		/**
+		 * {@code selfHandover=returned}, beside {@code job=self}: {@code {handoverId}} names the handover of the mode
+		 * world's held Milestone that its Customer returned (FR-86, AD-20's world, Story 25.5), where every other mode
+		 * row reads the handover waiting for a decision. In the mode world the value reads
+		 * {@code selfReturnedHandoverId} ({@link MatrixRow#rebound()}).
+		 */
+		RETURNED_SELF_HANDOVER("selfHandover", "returned", "handoverId", "returnedHandoverId"),
+
+		/**
 		 * {@code job=post}: {@code {jobId}} names the Open Job Post's Job, where the bid {@code {applicationId}} and its
 		 * {@code BIDDER} live (review iteration 2): the post's bid, invitation and selection endpoints run on it.
 		 */
@@ -308,6 +316,11 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 				&& !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
 			throw new IllegalArgumentException(Binding.STALLED_SELF_JOB.state() + " names a Job of the mode world, beside "
 					+ Binding.SELF_JOB.state());
+		}
+		if (Binding.RETURNED_SELF_HANDOVER.value().equals(state.get(Binding.RETURNED_SELF_HANDOVER.key()))
+				&& !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
+			throw new IllegalArgumentException(Binding.RETURNED_SELF_HANDOVER.state()
+					+ " names a handover of the mode world, beside " + Binding.SELF_JOB.state());
 		}
 		if (!path.startsWith("/")) {
 			throw new IllegalArgumentException("A path starts with '/': " + path);

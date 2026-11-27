@@ -102,6 +102,9 @@ enum JobReason {
 	/** Only the Job's Mentor hands a Milestone over (FR-32). */
 	MENTOR_ONLY,
 
+	/** In a Self-mentored Job only an active Crew member hands a Milestone over (FR-32, AD-47 exception 1). */
+	MEMBER_ONLY,
+
 	/** A Code Job's handover needs its Handover Commit, recorded from Epic 7 on (FR-32, AD-4). */
 	HANDOVER_COMMIT_MISSING,
 
@@ -116,6 +119,9 @@ enum JobReason {
 
 	/** The Milestone has no Revision Round left (FR-34). */
 	REVISION_ROUNDS_USED,
+
+	/** The Milestone used every return of a handover its Job allows (FR-86, {@code HANDOVER_RETURN_LIMIT}). */
+	HANDOVER_RETURNS_USED,
 
 	/** A closure proposal is already open on the Job (FR-37). */
 	CLOSURE_OPEN,

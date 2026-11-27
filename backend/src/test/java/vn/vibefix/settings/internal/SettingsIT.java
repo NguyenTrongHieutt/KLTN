@@ -50,6 +50,7 @@ class SettingsIT extends IntegrationTest {
 		defaults.put(Rule.SPLIT_EDIT_LIMIT, 3);
 		defaults.put(Rule.SPLIT_UNDECIDED_FLAG_DAYS, 7);
 		defaults.put(Rule.REWORK_DAYS, 5);
+		defaults.put(Rule.HANDOVER_RETURN_LIMIT, 2);
 
 		assertThat(defaults).containsOnlyKeys(Rule.values());
 		defaults.forEach((rule, value) -> assertThat(this.settings.value(rule)).as(rule.name()).isEqualTo(value));

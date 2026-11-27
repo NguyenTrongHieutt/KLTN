@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.internal.JobLifecycle.Applying;
 import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.notification.Audience;
@@ -29,6 +31,9 @@ import vn.vibefix.shared.ErrorCode;
  * with the time; a Code Job also needs its Handover Commit, which Epic 7 records. The Customer gets
  * {@code job.milestone_submitted} with the date to check by: now plus the Job's copied Auto-acceptance
  * days (FR-35), whose Deadline {@code delivery} keeps from Story 6.4 on.
+ * <p>
+ * In a Self-mentored Job a counted {@code ACTIVE} Crew member hands over, and the Customer, who is that Job's Mentor,
+ * cannot (FR-32, AD-47 exception 1, Story 25.5); the notice names the member.
  */
 @Component
 class M2Submit implements JobLifecycle.Step {
@@ -51,7 +56,14 @@ class M2Submit implements JobLifecycle.Step {
 
 	private final DueDates dueDates;
 
-	M2Submit(JdbcClient jdbc, M1Fund numbers, MentorDirectory mentors, Notifications notifications, DueDates dueDates) {
+	private final CrewService crews;
+
+	private final PersonDirectory people;
+
+	M2Submit(JdbcClient jdbc, M1Fund numbers, MentorDirectory mentors, Notifications notifications, DueDates dueDates,
+			CrewService crews, PersonDirectory people) {
+		this.crews = crews;
+		this.people = people;
 		this.dueDates = dueDates;
 		this.jdbc = jdbc;
 		this.numbers = numbers;
@@ -65,13 +77,21 @@ class M2Submit implements JobLifecycle.Step {
 	}
 
 	/**
-	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY}; {@code STALE STATE_CHANGED} outside Active;
-	 * {@code GUARD_FAILED HANDOVER_COMMIT_MISSING} for a Code Job without its commit
+	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY}, or {@code MEMBER_ONLY} in a Self-mentored Job;
+	 * {@code STALE STATE_CHANGED} outside Active; {@code GUARD_FAILED HANDOVER_COMMIT_MISSING} for a Code Job without
+	 * its commit
 	 */
 	@Override
 	public void check(Applying applying) {
 		Job job = applying.job();
-		if (!Objects.equals(applying.actor().accountId(), job.mentorId())) {
+		UUID actor = applying.actor().accountId();
+		if (job.selfMentored()) {
+			// AD-47 exception 1: a member who counts hands over, never the Customer, though the Customer is the Mentor.
+			if (actor == null || this.crews.countedActive(job.id()).stream().noneMatch(row -> row.studentId().equals(actor))) {
+				throw new ApiException(ErrorCode.FORBIDDEN, JobReason.MEMBER_ONLY);
+			}
+		}
+		else if (!Objects.equals(actor, job.mentorId())) {
 			throw new ApiException(ErrorCode.FORBIDDEN, JobReason.MENTOR_ONLY);
 		}
 		if (job.state() != JobState.ACTIVE) {
@@ -117,14 +137,28 @@ class M2Submit implements JobLifecycle.Step {
 	@Override
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
-		String mentor = this.mentors.cards(List.of(Objects.requireNonNull(job.mentorId()))).stream().findFirst()
-			.map(MentorCard::displayName).orElse("");
 		String date = DAY_MONTH.format(checkBy(applying).atZone(VIETNAM));
 		this.notifications.send(new NotificationRequest(SUBMITTED, applying.transitionId(),
 				List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-				Map.of("mentor", mentor, "n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "date",
+				Map.of("who", who(applying), "n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "date",
 						date),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+	}
+
+	/**
+	 * Who handed over, as the Customer's notice names them (UX-DR126): "Người hướng dẫn {name}", or in a Self-mentored
+	 * Job "Thành viên {name}", the member under the name the Crew reads.
+	 */
+	private String who(Applying applying) {
+		Job job = applying.job();
+		if (!job.selfMentored()) {
+			String mentor = this.mentors.cards(List.of(Objects.requireNonNull(job.mentorId()))).stream().findFirst()
+				.map(MentorCard::displayName).orElse("");
+			return ("Người hướng dẫn " + mentor).strip();
+		}
+		String member = this.people.cards(List.of(Objects.requireNonNull(applying.actor().accountId()))).stream().findFirst()
+			.map(PersonCard::shownName).orElse("");
+		return member.isBlank() ? "Một thành viên nhóm" : "Thành viên " + member;
 	}
 
 	/** When the Customer should have checked by: the handover plus the Job's copied Auto-acceptance days. */

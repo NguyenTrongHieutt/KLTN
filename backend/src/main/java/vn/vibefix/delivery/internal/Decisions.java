@@ -13,6 +13,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.audit.AuditActor;
+import vn.vibefix.audit.AuditEntry;
+import vn.vibefix.audit.AuditLog;
+import vn.vibefix.audit.AuditObject;
 import vn.vibefix.delivery.internal.DeliveryAccess.Kind;
 import vn.vibefix.delivery.internal.DeliveryAccess.Viewer;
 import vn.vibefix.delivery.internal.Handovers.CodeRecord;
@@ -34,6 +38,9 @@ import vn.vibefix.shared.ErrorCode;
  * Either keeps the Customer's marks, decides the handover once, and closes the review to-do; the
  * handover to-do reopens through the M4 listener. The Job row, which M4 and M5 lock, serializes two
  * decisions (AD-4's lock order); the second meets a Milestone no longer Submitted.
+ * <p>
+ * In a Self-mentored Job the Customer has a third decision, "Trả lại bàn giao" (FR-86, AD-47 exception 2, Story
+ * 25.5): M3 with a written reason, which voids the handover, uses no Revision Round and is counted on the Milestone.
  */
 @Component
 class Decisions {
@@ -56,8 +63,11 @@ class Decisions {
 
 	private final Clock clock;
 
+	private final AuditLog auditLog;
+
 	Decisions(JdbcClient jdbc, Handovers handovers, MilestoneHandovers jobs, Releases releases, Todos todos,
-			AcceptanceMerges merges, Clock clock) {
+			AcceptanceMerges merges, Clock clock, AuditLog auditLog) {
+		this.auditLog = auditLog;
 		this.jdbc = jdbc;
 		this.handovers = handovers;
 		this.jobs = jobs;
@@ -147,6 +157,47 @@ class Decisions {
 		return this.handovers.find(handoverId).orElseThrow();
 	}
 
+	/**
+	 * "Trả lại bàn giao" (FR-86): M3 on {@code version} by the Customer of a Self-mentored Job, with the reason the
+	 * members will read. In this transaction the handover becomes {@code VOIDED} with who returned it and why, and the
+	 * review to-do closes; M3's listeners reopen the members' handover to-do and close the pull request with the
+	 * reason. Auto-acceptance and its reminders end through their generation check.
+	 * @throws ApiException {@code NOT_FOUND} in a normal Job, which has no return; {@code FORBIDDEN CUSTOMER_ONLY};
+	 * {@code STALE HANDOVER_VOIDED} or {@code HANDOVER_RETURNED}; {@code CONFLICT HANDOVER_DECIDED}; {@code VALIDATION} for a blank reason or one past
+	 * {@value Handovers#MAX_NOTE} characters; M3's refusals, {@code HANDOVER_RETURNS_USED}, {@code JOB_BUSY} and
+	 * {@code JOB_FROZEN} among them
+	 */
+	@Transactional
+	Handover returnHandover(Viewer viewer, UUID handoverId, long version, String reason) {
+		if (!viewer.job().selfMentored()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		Handover handover = open(viewer, handoverId);
+		String written = Handovers.note(reason);
+		if (written.isEmpty()) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		this.jobs.returnHandover(handover.jobId(), handover.milestoneId(), viewer.accountId(), version, handoverId, written);
+		int returned = this.jdbc.sql("""
+				UPDATE delivery.handover SET status = 'VOIDED', voided_at = :now, returned = TRUE,
+				    returned_by_account_id = :by, return_reason = :reason
+				WHERE id = :id AND status = 'SUBMITTED'
+				""")
+			.param("id", handoverId)
+			.param("now", Timestamp.from(this.clock.instant()))
+			.param("by", viewer.accountId())
+			.param("reason", written)
+			.update();
+		if (returned != 1) {
+			throw new ApiException(ErrorCode.CONFLICT, DeliveryReason.HANDOVER_DECIDED);
+		}
+		this.todos.closeAll(Handovers.REVIEW_HANDOVER, handoverId);
+		this.auditLog.record(AuditEntry
+			.of(AuditActor.user(viewer.accountId()), "delivery.handover_returned", AuditObject.of("delivery.handover", handoverId))
+			.forJob(handover.jobId()));
+		return this.handovers.find(handoverId).orElseThrow();
+	}
+
 	/** The Customer's marks, once decided. */
 	@Transactional(readOnly = true)
 	List<Check> checks(UUID handoverId) {
@@ -164,8 +215,10 @@ class Decisions {
 			.filter(found -> found.jobId().equals(customer.job().jobId()))
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if ("VOIDED".equals(handover.status())) {
-			// FR-33, UX-DR26: an acceptance merge answered 409 and M3 voided it while the Customer was deciding.
-			throw new ApiException(ErrorCode.STALE, DeliveryReason.HANDOVER_VOIDED);
+			// FR-33, UX-DR26: an acceptance merge answered 409 and M3 voided it while the Customer was deciding; or, in a
+			// Self-mentored Job, the Customer already returned it (FR-86), which the answer names apart.
+			throw new ApiException(ErrorCode.STALE,
+					handover.returned() ? DeliveryReason.HANDOVER_RETURNED : DeliveryReason.HANDOVER_VOIDED);
 		}
 		if (!"SUBMITTED".equals(handover.status())) {
 			throw new ApiException(ErrorCode.CONFLICT, DeliveryReason.HANDOVER_DECIDED);

@@ -60,7 +60,7 @@ describe('The busy banner on JOB-H (UX-DR21, AD-28)', () => {
 
     await screen.findByText('Đang merge bàn giao Giai đoạn 1…')
     const voided = await screen.findAllByText(
-      'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.',
+      'Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Giai đoạn cần được bàn giao lại.',
       {},
       { timeout: 5_000 },
     )
