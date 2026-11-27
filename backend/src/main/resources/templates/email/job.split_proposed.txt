@@ -1,5 +1,5 @@
-subject: Phân chia Giai đoạn {n} của {job} đã được {who} đề xuất. Hãy xác nhận trước {date}.
+subject: {drafter} đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}.
 ---
 Xin chào,
 
-Phân chia tiền Giai đoạn {n} của công việc {job} đã được {who} đề xuất. Hãy xem phần chia của mọi người trên trang "Phân chia tiền" và xác nhận trước {date}.
+{drafter} đã đề xuất phân chia tiền Giai đoạn {n} của công việc {job}. Hãy xem phần chia của mọi người trên trang "Phân chia tiền" và xác nhận trước {date}.

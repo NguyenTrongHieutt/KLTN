@@ -154,7 +154,7 @@ class MilestoneSplitController {
 	}
 
 	/**
-	 * The VND each party would get, for the split's Mentor while drafting (AD-33).
+	 * The VND each party would get, for the split's drafter while drafting (AD-33).
 	 * @throws ApiException {@code VALIDATION SPLIT_INVALID} for what a save would refuse
 	 */
 	@PostMapping("/api/v1/splits/{splitId}/preview")

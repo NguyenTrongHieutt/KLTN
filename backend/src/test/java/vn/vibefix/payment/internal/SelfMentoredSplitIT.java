@@ -29,8 +29,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import vn.vibefix.identity.GitHubLinkBlocker;
+import vn.vibefix.identity.GitHubLinkParticipant;
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.MilestoneSettlements;
 import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.job.MilestoneSplits.PercentLine;
 import vn.vibefix.job.MilestoneSplits.PreviewBasis;
@@ -75,6 +78,12 @@ class SelfMentoredSplitIT extends IntegrationTest {
 	@Autowired
 	private List<PersonalDataParticipant> participants;
 
+	@Autowired
+	private MilestoneSettlements settlements;
+
+	@Autowired
+	private List<GitHubLinkParticipant> githubLinks;
+
 	private UUID lan;
 
 	private UUID hung;
@@ -106,6 +115,7 @@ class SelfMentoredSplitIT extends IntegrationTest {
 		assertThat(text("SELECT role FROM notification.todo WHERE todo_key = 'job.draft_split'")).isEqualTo("CUSTOMER_MENTOR");
 		assertThat(notices("job.split_pending", this.vy)).isOne();
 		assertThat(notices("job.split_pending", this.lan)).as("the drafter is no party").isZero();
+		assertThat(param("job.split_pending", this.vy, "who")).isEqualTo("khách hàng");
 
 		// The Customer reads the split they draft; a member reads it as a party.
 		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/splits").with(as(this.lan))).andExpect(status().isOk())
@@ -135,9 +145,15 @@ class SelfMentoredSplitIT extends IntegrationTest {
 				+ "' AND cap_percent IS NOT NULL")).as("no cap is stored").isZero();
 		assertThat(openTodos("job.confirm_split", this.vy)).isOne();
 		assertThat(openTodos("job.confirm_split", this.lan)).as("the drafter confirms nothing").isZero();
+		assertThat(param("job.split_proposed", this.vy, "drafter")).isEqualTo("Khách hàng");
 
-		// An open split keeps its drafter's account, as it keeps a party's.
+		// An open split keeps its drafter's account, as it keeps a party's; it never keeps the drafter's GitHub link,
+		// since the Customer hands nothing over.
 		assertThat(blockers(this.lan)).contains("SPLIT_PENDING");
+		assertThat(this.githubLinks.stream().flatMap(participant -> participant.githubLinkBlockers(this.lan).stream())
+			.map(GitHubLinkBlocker::reason)).doesNotContain("SPLIT_PENDING");
+		assertThat(this.githubLinks.stream().flatMap(participant -> participant.githubLinkBlockers(this.vy).stream())
+			.map(GitHubLinkBlocker::reason)).contains("SPLIT_PENDING");
 
 		confirm(this.lan, split, 1).andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("PARTY_ONLY"));
 		confirm(this.hung, split, 1).andExpect(status().isNotFound());
@@ -255,8 +271,17 @@ class SelfMentoredSplitIT extends IntegrationTest {
 		decide(this.lan, handover, 6).andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.reason").value("NO_SPLIT_PARTY"));
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("SUBMITTED");
+		// M8's own guard, the backstop behind the Dispute decision's check: a settlement that releases is refused before
+		// any write, and one that only refunds goes through.
+		assertThatThrownBy(() -> this.settlements.settle(this.job, this.milestone, 400_000, PRICE - 400_000))
+			.hasMessageContaining("NO_SPLIT_PARTY");
+		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("SUBMITTED");
 		assertThat(count("SELECT count(*) FROM job.milestone_split")).isZero();
 		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type <> 'FUND'")).isZero();
+		this.settlements.settle(this.job, this.milestone, 0, PRICE);
+		assertThat(text("SELECT state || ':' || settled_release_vnd || ':' || settled_refund_vnd FROM job.milestone WHERE id = '"
+				+ this.milestone + "'")).isEqualTo("SETTLED:0:" + PRICE);
+		assertThat(count("SELECT count(*) FROM job.milestone_split")).as("no release, no split").isZero();
 	}
 
 	@Test
@@ -276,6 +301,10 @@ class SelfMentoredSplitIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].remainderPartyId").value(party(split, this.hung).toString()));
 		confirm(this.lan, split, 1).andExpect(status().isNotFound());
 		assertThat(this.splits.hasWouldBeSplitParty(this.milestone)).isTrue();
+		assertThat(param("job.split_pending", this.vy, "who")).isEqualTo("người hướng dẫn");
+		// The schema's rule holds in every Job: the Customer is never a party, and a normal split's Mentor is its party 0.
+		assertThatThrownBy(() -> partyRow(split, this.lan, false, 7)).hasMessageContaining("never a party");
+		assertThatThrownBy(() -> partyRow(split, this.vy, true, 8)).hasMessageContaining("party 0");
 	}
 
 	/** The schema's backstop (M-10): no party row names the Job's Customer, and a mode split has no Mentor row. */
@@ -564,6 +593,11 @@ class SelfMentoredSplitIT extends IntegrationTest {
 	private List<String> blockers(UUID account) {
 		return this.participants.stream().flatMap(participant -> participant.erasureBlockers(account).stream())
 			.map(ErasureBlocker::reason).toList();
+	}
+
+	private String param(String type, UUID account, String name) {
+		return this.jdbc.sql("SELECT params ->> :name FROM notification.notification WHERE type = :type AND account_id = :account")
+			.param("name", name).param("type", type).param("account", account).query(String.class).single();
 	}
 
 	private long notices(String type, UUID account) {

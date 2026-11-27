@@ -3417,7 +3417,7 @@
       "lineTooMuch": "Phần trăm không quá 100",
       "lineZero": "Thành viên làm cả giai đoạn phải lớn hơn 0%",
       "floorHint": "Làm cả giai đoạn: phải lớn hơn 0%",
-      "remainder": "Phần lẻ dưới 1 đồng thuộc về {name}, người vào nhóm trước.",
+      "remainder": "Phần lẻ còn lại sau khi chia thuộc về {name}, người vào nhóm trước.",
       "sum": "Tổng {sum}%, cần đúng 100%",
       "send": "Gửi để xác nhận",
       "confirm": "Xác nhận",
@@ -3471,6 +3471,7 @@
         "statementSend": "Gửi ý kiến",
         "statementDialogTitle": "Gửi ý kiến của bạn?",
         "statementDialogBody": "Mỗi người chỉ gửi được một ý kiến cho yêu cầu này, và không sửa lại được. Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được.",
+        "statementDialogBodySelf": "Mỗi người chỉ gửi được một ý kiến cho yêu cầu này, và không sửa lại được. Mọi bên trong phân chia, khách hàng (người soạn phân chia) và quản trị viên nhận xử lý đều đọc được.",
         "withdraw": "Rút yêu cầu",
         "withdrawDialogTitle": "Rút yêu cầu xem xét?",
         "withdrawDialogBody": "Hạn xác nhận bắt đầu lại từ đầu, và các xác nhận đã có vẫn giữ. Nếu mọi người đã xác nhận, phân chia chốt ngay. Bạn sẽ không nhờ xem xét được giai đoạn này lần nữa.",
@@ -4430,7 +4431,7 @@
         "title": "Còn 1 ngày để soạn phân chia Giai đoạn {n}. Sau {date}, hệ thống sẽ chia đều."
       },
       "split_proposed": {
-        "title": "Phân chia Giai đoạn {n} của {job} đã được {who} đề xuất. Hãy xác nhận trước {date}."
+        "title": "{drafter} đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}."
       },
       "split_defaulted": {
         "title": "Hệ thống đã chia đều tiền Giai đoạn {n} của {job} vì chưa có bản phân chia. Hãy xác nhận trước {date}."

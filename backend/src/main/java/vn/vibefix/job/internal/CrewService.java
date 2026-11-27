@@ -299,7 +299,9 @@ class CrewService implements Crews {
 	 * runs from {@code activated_at} to {@code window_end}; an unreleased row of a locked account ends at its lock time,
 	 * also before the lock's listener released it, and never before it became active (A-07); any other row runs to
 	 * {@code at}. The one definition: the release's party fixing (AD-29), R49's alone-cancel guard (AD-4) and the
-	 * no-party guards of a release (AD-31) read only this, under the Job lock their caller holds.
+	 * no-party guards of a release (AD-31) read only this. The commands read it under the Job lock their caller holds;
+	 * {@code dispute}'s check before a decision reads it unlocked, which is safe because the set only grows: a row that
+	 * was active stays one, and M8's own guard reads it again under the lock.
 	 */
 	List<ActiveSpan> wouldBeParties(UUID jobId, Instant funded, Instant at) {
 		List<Row> ever = rows(jobId).stream().filter(row -> row.activatedAt() != null).toList();

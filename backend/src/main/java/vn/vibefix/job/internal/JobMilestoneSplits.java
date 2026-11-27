@@ -209,7 +209,9 @@ class JobMilestoneSplits implements MilestoneSplits {
 		List<CrewService.ActiveSpan> spans = new ArrayList<>(this.crews.wouldBeParties(job.id(), funded, release));
 		List<Party> parties = new ArrayList<>();
 		if (job.selfMentored()) {
-			spans.sort(Comparator.comparing(CrewService.ActiveSpan::from).thenComparing(span -> span.row().id()));
+			// The lower Crew row ID as the database orders UUIDs, by their bytes: the text form sorts that way, and
+			// UUID.compareTo, which compares signed halves, does not.
+			spans.sort(Comparator.comparing(CrewService.ActiveSpan::from).thenComparing(span -> span.row().id().toString()));
 		}
 		else {
 			UUID mentor = Objects.requireNonNull(job.mentorId(), "the Job's Mentor");

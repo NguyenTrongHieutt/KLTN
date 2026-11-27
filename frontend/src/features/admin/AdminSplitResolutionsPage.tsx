@@ -277,7 +277,7 @@ function Detail({ data }: { data: AdminSplitResolution }) {
 
 /**
  * Who wrote a statement: a party by name. In a Self-mentored Job a statement with no party is the drafter's, the
- * customer's, and is told so, with the name if the server sent one.
+ * customer's, and is told so.
  */
 function statementAuthor(data: AdminSplitResolution, statement: AdminSplitResolution['statements'][number]): string {
   if (statement.partyId === undefined && data.selfMentored) {

@@ -3534,6 +3534,21 @@ GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;split=resolution;shows=SM_SPLIT_RESOLUTION_REASON,,200
 POST /api/v1/split-resolutions/{resolutionId}/statements,CUSTOMER_MENTOR,job=self,split-resolution-statement.json,201
 POST /api/v1/split-resolutions/{resolutionId}/withdraw,CUSTOMER_MENTOR,job=self,,403 FORBIDDEN
+# Story 25.6: the mode's split has no Mentor party, so each party confirms and any of them may ask for a resolution; the
+# Customer drafts. A member who is no party of the Milestone finds nothing, and the case's Administrator reads its reason.
+GET /api/v1/jobs/{jobId}/splits,CREW_ACTIVE_PARTY,job=self;shows=SM_SPLIT_PART,,200
+GET /api/v1/jobs/{jobId}/splits,CREW_FORMER_PARTY,job=self,,200
+GET /api/v1/jobs/{jobId}/splits,CREW_ACTIVE,job=self,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CREW_FORMER,job=self,,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,CREW_ACTIVE_PARTY,job=self,self-split-version.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/splits/{splitId}/versions,CREW_ACTIVE,job=self,self-split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,CREW_ACTIVE_PARTY,job=self,split-confirmation.json,200
+POST /api/v1/splits/{splitId}/confirmations,CREW_FORMER_PARTY,job=self,split-confirmation.json,200
+POST /api/v1/splits/{splitId}/confirmations,CREW_ACTIVE,job=self,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE_PARTY,job=self,split-resolution.json,201
+GET /api/v1/splits/{splitId}/resolutions,CREW_FORMER_PARTY,job=self;split=resolution;shows=SM_SPLIT_RESOLUTION_REASON,,200
+GET /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE,job=self;split=resolution,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self;shows=SM_SPLIT_RESOLUTION_REASON,,200
 GET /api/v1/admin/split-resolutions/{resolutionId},CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/split-resolutions/{resolutionId}/take,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CUSTOMER_MENTOR,job=self,admin-split-preview.json,404 NOT_FOUND

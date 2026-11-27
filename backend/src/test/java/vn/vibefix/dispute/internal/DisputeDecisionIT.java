@@ -166,6 +166,20 @@ class DisputeDecisionIT extends IntegrationTest {
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.held + "'")).isEqualTo("FUNDED");
 		assertThat(this.ledger.releasable(this.held)).isEqualTo(PRICE);
 		assertThat(count("SELECT count(*) FROM job.milestone_split")).isZero();
+
+		// The decision that only refunds is recorded and runs to the end: M8 with no release, so no pool and no split,
+		// the whole amount refunded, and the Job unfrozen.
+		decide(ha, dispute, 0L, PRICE, "CANCEL").andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("DECIDED"))
+			.andExpect(jsonPath("$.execution.status").value("DONE"));
+		assertThat(text("SELECT state || ':' || settled_release_vnd || ':' || settled_refund_vnd FROM job.milestone WHERE id = '"
+				+ this.held + "'")).isEqualTo("SETTLED:0:" + PRICE);
+		assertThat(count("SELECT count(*) FROM job.milestone_split")).isZero();
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type IN ('RELEASE_POOLED', 'RELEASE')")).isZero();
+		assertThat(text("SELECT reason || ':' || amount_vnd FROM payment.refund WHERE milestone_id = '" + this.held + "'"))
+			.isEqualTo("DISPUTE_DECISION:" + PRICE);
+		assertThat(text("SELECT state || ':' || (frozen_at IS NULL) FROM job.job WHERE id = '" + job + "'"))
+			.isEqualTo("CANCELLED:true");
 	}
 
 	@Test

@@ -1512,7 +1512,7 @@ describe('JOB-10, a Self-mentored Job (UX-DR131)', () => {
     expect(screen.queryByText(/Không còn thành viên nào trong nhóm/)).toBeNull()
     // One input per member and none for the Customer; the leftover dong goes to the member the server names.
     expect(screen.getAllByRole('textbox')).toHaveLength(2)
-    expect(screen.getByText('Phần lẻ dưới 1 đồng thuộc về Trần Thảo Vy, người vào nhóm trước.')).toBeInTheDocument()
+    expect(screen.getByText('Phần lẻ còn lại sau khi chia thuộc về Trần Thảo Vy, người vào nhóm trước.')).toBeInTheDocument()
     // The floor's hint is on the member there the whole Milestone only.
     expect(screen.getAllByText('Làm cả giai đoạn: phải lớn hơn 0%')).toHaveLength(1)
 

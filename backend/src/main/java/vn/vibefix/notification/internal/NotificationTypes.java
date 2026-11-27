@@ -736,18 +736,21 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_SPLIT_DRAFT_REMINDER = new NotificationType("job.split_draft_reminder",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("n", "date"));
 
-	/** FR-83: the first draft reached the parties; {who} drafted it, as in {@code job.split_pending}. */
+	/**
+	 * FR-83: the first draft reached the parties; {drafter} begins the sentence: "Người hướng dẫn", or "Khách hàng" in a
+	 * Self-mentored Job (UX-DR131).
+	 */
 	static final NotificationType JOB_SPLIT_PROPOSED = new NotificationType("job.split_proposed", Set.of(Audience.SPLIT_PARTY),
-			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date", "who"));
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date", "drafter"));
 
 	/** R11, X4: no draft by the deadline, so the default split went out for confirmation. */
 	static final NotificationType JOB_SPLIT_DEFAULTED = new NotificationType("job.split_defaulted",
 			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n", "job", "date"));
 
-	/** FR-83: the drafter edited a sent draft, and the confirmations start over; {who} is the drafter, in the email. */
+	/** FR-83: the drafter edited a sent draft, and the confirmations start over; {drafter} begins the email's sentence. */
 	static final NotificationType JOB_SPLIT_EDITED = new NotificationType("job.split_edited", Set.of(Audience.SPLIT_PARTY),
-			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date", "who"));
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date", "drafter"));
 
 	/** FR-83, SG-26: a day before the confirmation deadline, to each party who has not confirmed. */
 	static final NotificationType JOB_SPLIT_CONFIRMATION_REMINDER = new NotificationType("job.split_confirmation_reminder",

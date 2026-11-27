@@ -8,6 +8,9 @@
 -- the commitment signature.
 -- The trigger keeps two rules the table's CHECK could not: a normal split's Mentor is its party 0 and a mode split has no
 -- Mentor row; and no party row ever names the Job's Customer, in any Job.
+-- A split that a Self-mentored Job got before this migration keeps the mark false and its Customer as party 0, as the
+-- code then made it: nothing here rewrites a split, since its money may already be out. The mode sits behind
+-- features.selfMentoredJobs, off by default, and no such Job exists outside a development database.
 -- Personal data: nothing new. The mark is a flag beside rows an erasure already anonymizes (JobPersonalData).
 
 ALTER TABLE job.milestone_split

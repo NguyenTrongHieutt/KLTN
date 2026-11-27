@@ -394,7 +394,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.list());
 		pendingMilestoneJobs(accountId)
 			.forEach(job -> blockers.add(new ErasureBlocker("job", MILESTONE_PENDING, job.jobId(), job.title())));
-		splitPendingJobs(accountId)
+		splitPendingJobs(accountId, true)
 			.forEach(job -> blockers.add(new ErasureBlocker("job", SPLIT_PENDING, job.live() ? job.jobId() : null, job.title())));
 		return blockers;
 	}
@@ -403,7 +403,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	 * Each Job, not Closed or Cancelled, where the account is the Customer, the Mentor, or an unreleased Crew member
 	 * ({@code JOB_ROLE}), each Job with a Milestone {@link #pendingMilestoneJobs pending} for a former member
 	 * ({@code MILESTONE_PENDING}), and each Job with a split not {@code FINAL} where it is a party ({@code SPLIT_PENDING}),
-	 * whose Handover Commit authors a Split Resolution reads by GitHub ID, once per Job.
+	 * whose Handover Commit authors a Split Resolution reads by GitHub ID, once per Job. The drafter of a Self-mentored
+	 * Job's split, its Customer, is no party and hands nothing over, so an open split never keeps their link.
 	 */
 	@Override
 	public List<GitHubLinkBlocker> githubLinkBlockers(UUID accountId) {
@@ -417,7 +418,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.list());
 		pendingMilestoneJobs(accountId)
 			.forEach(job -> blockers.add(new GitHubLinkBlocker("job", MILESTONE_PENDING, job.jobId(), job.title())));
-		splitPendingJobs(accountId)
+		splitPendingJobs(accountId, false)
 			.forEach(job -> blockers.add(new GitHubLinkBlocker("job", SPLIT_PENDING, job.jobId(), job.title())));
 		return blockers;
 	}
@@ -431,15 +432,18 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	 * Self-mentored Job drafts its splits and is no party of them (AD-29): an open one keeps them too, so that the
 	 * drafter stays reachable for its draft, its notices and a Split Resolution's statement (review M-02). A normal
 	 * Job's drafter is its party 0.
+	 * @param withDrafter also the splits the account drafts without being a party: for the erasure, never for the
+	 * GitHub link
 	 */
-	private List<SplitPendingJob> splitPendingJobs(UUID accountId) {
+	private List<SplitPendingJob> splitPendingJobs(UUID accountId, boolean withDrafter) {
 		return this.jdbc.sql("""
 				SELECT DISTINCT s.job_id, j.title, j.product_deleted_at IS NULL AS live
 				FROM job.milestone_split s JOIN job.job j ON j.id = s.job_id
-				WHERE s.status <> 'FINAL' AND ((s.self_mentored AND s.mentor_account_id = :id)
+				WHERE s.status <> 'FINAL' AND ((:drafter AND s.self_mentored AND s.mentor_account_id = :id)
 				    OR EXISTS (SELECT 1 FROM job.milestone_split_party p WHERE p.split_id = s.id AND p.party_account_id = :id))
 				ORDER BY s.job_id
 				""")
+			.param("drafter", withDrafter)
 			.param("id", accountId)
 			.query((rs, n) -> new SplitPendingJob(rs.getObject("job_id", UUID.class), rs.getString("title"), rs.getBoolean("live")))
 			.list();

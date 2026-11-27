@@ -108,12 +108,14 @@ class SplitNotices {
 	/** The drafter's first draft or an edit reached each party. */
 	void sent(String type, Split split, int versionNo, String title, List<Party> parties, Instant due) {
 		send(type, split, cause(split, type + ":" + versionNo), members(parties), Map.of("n", String.valueOf(split.number()),
-				"job", title, "date", ClosureProposals.dayMonth(due), "who", drafter(split)));
+				"job", title, "date", ClosureProposals.dayMonth(due), "drafter", split.selfMentored() ? "Khách hàng"
+						: "Người hướng dẫn"));
 	}
 
 	/**
-	 * What a party's notice calls the one who drafts the split (UX-DR131, E25-15): "khách hàng" in a Self-mentored Job,
-	 * where a normal Job's says "người hướng dẫn".
+	 * What a party's notice calls the one who drafts the split, inside a sentence (UX-DR131, E25-15): "khách hàng" in a
+	 * Self-mentored Job, where a normal Job's says "người hướng dẫn". A sentence that begins with them takes the
+	 * {@code drafter} parameter, capitalized.
 	 */
 	static String drafter(Split split) {
 		return split.selfMentored() ? "khách hàng" : "người hướng dẫn";

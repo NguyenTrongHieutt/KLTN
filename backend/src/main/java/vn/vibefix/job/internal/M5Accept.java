@@ -92,7 +92,7 @@ class M5Accept implements JobLifecycle.Step {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.HANDOVER_NOT_MERGED);
 		}
 		// AD-29: a release needs a split party. A handover's member is always one, so this never fires; it is a guard
-		// here so that it could never fire after the write and the acceptance merge (AD-5).
+		// here, before every write of the transition, and never a refusal after one.
 		this.splits.requireParty(applying.job(), applying.milestoneId(), applying.now());
 	}
 

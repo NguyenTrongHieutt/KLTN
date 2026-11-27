@@ -246,7 +246,7 @@ function ResolutionCase({
       )}
       <Ending card={card} resolution={resolution} latest={latest} />
       {(resolution.viewerMayState || send.isError) && (
-        <StatementForm send={send} mayState={resolution.viewerMayState} />
+        <StatementForm send={send} mayState={resolution.viewerMayState} selfMentored={card.selfMentored} />
       )}
       {resolution.viewerIsRaiser && resolution.status === 'OPEN' && (
         <WithdrawButton jobId={jobId} card={card} resolution={resolution} />
@@ -306,7 +306,15 @@ function Ending({ card, resolution, latest }: { card: SplitCard; resolution: Spl
  * One statement of a party other than the raiser, which cannot be changed, so it asks first. A refusal may leave the
  * reader unable to send one: the form stays with its message and the words typed, and sends nothing more.
  */
-function StatementForm({ send, mayState }: { send: ReturnType<typeof useResolutionStatement>; mayState: boolean }) {
+function StatementForm({
+  send,
+  mayState,
+  selfMentored,
+}: {
+  send: ReturnType<typeof useResolutionStatement>
+  mayState: boolean
+  selfMentored: boolean
+}) {
   const ids = useId()
   const [text, setText] = useState('')
   const [asking, setAsking] = useState(false)
@@ -350,7 +358,8 @@ function StatementForm({ send, mayState }: { send: ReturnType<typeof useResoluti
       <ConfirmDialog
         open={asking}
         title={t('screen.split.resolution.statementDialogTitle')}
-        body={t('screen.split.resolution.statementDialogBody')}
+        // In a Self-mentored Job the Customer drafts the split and reads every statement, though no party (AD-40).
+        body={t(selfMentored ? 'screen.split.resolution.statementDialogBodySelf' : 'screen.split.resolution.statementDialogBody')}
         confirmLabel={t('screen.split.resolution.statementSend')}
         pending={send.isPending}
         onConfirm={() => send.mutate(text.trim(), { onSettled: () => setAsking(false) })}

@@ -24,9 +24,10 @@ import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.Gate;
 
 /**
- * JOB-10's commands (FR-83, AD-20, AD-23): the Mentor saves a version, a party confirms one. Both decide from the split's
- * party rows, never the role in the Job, so a former member and a bare row work, and each names the version its screen
- * showed. The Customer and everyone else find nothing; an unlocked account is required (AD-19).
+ * JOB-10's commands (FR-83, AD-20, AD-23): the drafter saves a version, a party confirms one. Both decide from the
+ * split's own rows, never the role in the Job, so a former member and a bare row work, and each names the version its
+ * screen showed. A normal Job's Customer and everyone else find nothing; the Customer of a Self-mentored Job drafts its
+ * splits and is no party (AD-29, AD-47). An unlocked account is required (AD-19).
  */
 @RestController
 @Access(Gate.SIGNED_IN)

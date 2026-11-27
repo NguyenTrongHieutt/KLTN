@@ -40,8 +40,9 @@ import vn.vibefix.shared.Gate;
 /**
  * JOB-10's Split Resolutions (FR-84, AD-20, AD-40, A-18, UX-DR106): a party raises one, adds a statement, withdraws theirs, and
  * reads every case of the Milestone. They decide from the split's party rows, never the role in the Job, so a former member and
- * a bare row work. {@code payment}'s composed read cannot depend on {@code dispute}, so the screen reads the cases here. The
- * Customer and everyone else find nothing, and an unlocked account is required (AD-19).
+ * a bare row work. {@code payment}'s composed read cannot depend on {@code dispute}, so the screen reads the cases here. A
+ * normal Job's Customer and everyone else find nothing; the Customer of a Self-mentored Job, the split's drafter and no
+ * party, reads the cases and writes the drafter's statement (AD-40). An unlocked account is required (AD-19).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
