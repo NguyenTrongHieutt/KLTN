@@ -183,8 +183,8 @@ class SelfMentoredHandoverIT extends IntegrationTest {
 				+ "'repo.acceptance_head_moved')")).isZero();
 		assertThat(notices("job.milestone_rework_due", this.lan)).as("the Customer once, though also the Mentor").isOne();
 		assertThat(notices("job.milestone_rework_due", this.vy)).isOne();
-		assertThat(count("SELECT count(*) FROM audit.audit_log WHERE action = 'job.milestone_due_moved.return'")).isOne();
-		assertThat(count("SELECT count(*) FROM audit.audit_log WHERE action = 'delivery.handover_returned'")).isOne();
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.milestone_due_moved.return'")).isOne();
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'delivery.handover_returned'")).isOne();
 		// The to-dos move from the Customer back to the members, each of whom may hand over again.
 		assertThat(openTodos("delivery.review_handover", this.lan)).isZero();
 		assertThat(openTodos("delivery.hand_over", this.vy)).isOne();

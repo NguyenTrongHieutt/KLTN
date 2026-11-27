@@ -160,6 +160,11 @@ class CodeHandoverIT extends IntegrationTest {
 	/** The Job's one {@code ACTIVE} Crew member, who reads the copy's run row on JOB-5 (Story 23.8b). */
 	private UUID vy;
 
+	/** Who hands over in the helpers: the Mentor, or in a Self-mentored Job the Crew member (Story 25.5). */
+	private UUID maker;
+
+	private Role makerRole;
+
 	private UUID job;
 
 	private UUID milestone;
@@ -199,6 +204,8 @@ class CodeHandoverIT extends IntegrationTest {
 		this.vy = TestPeople.student(this.jdbc, "Trần Thảo Vy", true, List.of(TestPeople.REACT), "React",
 				LocalDate.parse("2026-09-30"));
 		UUID vy = this.vy;
+		this.maker = this.hung;
+		this.makerRole = Role.MENTOR;
 		long id = REPOSITORY_IDS.incrementAndGet();
 		String source = "so-dat-ban-" + id;
 		GITHUB.source("lan-dev", source);
@@ -1054,6 +1061,60 @@ class CodeHandoverIT extends IntegrationTest {
 			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":5,\"criteria\":[{\"criterionId\":\"" + this.criterion
 					+ "\",\"met\":true,\"note\":\"Đạt.\"}],\"teamCodeNoticeVersion\":\"" + TEAM_CODE_NOTICE + "\"" + evidence
 					+ "}"));
+	}
+
+	/**
+	 * Story 25.5 (FR-32, FR-86, AD-11, AD-47 exceptions 1 and 2): in a Self-mentored Code Job a Crew member hands over,
+	 * and N-33 is their own confirmation. The Customer's return closes the handover's pull request with their reason as
+	 * a code block, so nothing in it is a mention or markup on GitHub, keeps the branch, and alerts no Administrator.
+	 */
+	@Test
+	void aMemberOfASelfMentoredJobHandsOverAndAReturnClosesThePullRequestWithItsReason() throws Exception {
+		UUID admin = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương").accountId();
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0',
+				    mentor_account_id = customer_account_id, selected_application_id = NULL WHERE id = :id
+				""").param("id", this.job).update();
+		this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers/preview-check").with(as(this.lan, Role.CUSTOMER))
+			.with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"url\":\"https://so-dat-ban-gd1.vercel.app\"}"))
+			.andExpect(status().isForbidden()).andExpect(jsonPath("$.reason").value("TEAM_ONLY"));
+		this.maker = this.vy;
+		this.makerRole = Role.STUDENT;
+
+		UUID handover = handedOver();
+		int pull = pull(handover);
+
+		assertThat(this.jdbc.sql("SELECT mentor_account_id = :vy AND team_code_account_id = :vy FROM delivery.handover WHERE id = :id")
+			.param("vy", this.vy).param("id", handover).query(Boolean.class).single())
+			.as("the member handed over and confirmed N-33").isTrue();
+		this.mvc.perform(get("/api/v1/handovers/" + handover).with(as(this.lan, Role.CUSTOMER))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.mentorName").value("Trần Thảo Vy"))
+			.andExpect(jsonPath("$.byMember").value(true))
+			.andExpect(jsonPath("$.code.teamCodeConfirmedAt").exists())
+			.andExpect(jsonPath("$.decision.returnsLeft").value(2));
+		String first = "Chưa chạy được: @octocat xem lại";
+		String second = "# thiếu bước 2";
+		String reason = first + '\n' + second;
+		this.mvc.perform(post("/api/v1/handovers/" + handover + "/return").with(as(this.lan, Role.CUSTOMER)).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"version\":" + version() + ",\"reason\":\"" + first + "\\n" + second + "\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("VOIDED"))
+			.andExpect(jsonPath("$.returned.reason").value(reason));
+
+		assertThat(milestoneState()).as("M3: back to where it was handed over from").isEqualTo("FUNDED");
+		closePullRequests(handover);
+		assertThat(GITHUB.closedPulls).contains(this.intermediary + "#" + pull);
+		assertThat(GITHUB.pullTitles.get(this.intermediary + "#" + pull)).isEqualTo(PULL_TITLE + " (lần 1)");
+		assertThat(GITHUB.pullComments.get(this.intermediary + "#" + pull)).singleElement()
+			.satisfies(comment -> assertThat(comment).startsWith(HandoverPullCloses.returnComment(handover, reason))
+				.contains("    " + first + '\n' + "    " + second + '\n')
+				.contains("handover/" + handover)
+				.contains("<!-- vibefix:handover-closed:" + handover + " -->"));
+		assertThat(GITHUB.head(GitHubStub.ORGANIZATION, this.intermediary, "handover/" + handover)).isNotNull();
+		assertThat(notifications("job.handover_returned", this.vy)).isOne();
+		assertThat(notifications("repo.acceptance_head_moved", admin)).as("a return alerts no Administrator").isZero();
+		assertThat(notifications("job.handover_voided", this.lan)).isZero();
 	}
 
 	@Test
@@ -2001,7 +2062,7 @@ class CodeHandoverIT extends IntegrationTest {
 
 	private ResultActions preflight() throws Exception {
 		return this.mvc.perform(get("/api/v1/boards/" + this.job + "/handovers/preflight").param("milestoneId",
-				this.milestone.toString()).with(as(this.hung, Role.MENTOR)));
+				this.milestone.toString()).with(as(this.maker, this.makerRole)));
 	}
 
 	private ResultActions handOver(long version) throws Exception {
@@ -2010,7 +2071,7 @@ class CodeHandoverIT extends IntegrationTest {
 
 	/** "Gửi bàn giao" naming N-33's version as the form sent it (Story 23.8b); {@code null} leaves it out. */
 	private ResultActions handOver(long version, String notice) throws Exception {
-		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.hung, Role.MENTOR)).with(csrf())
+		return this.mvc.perform(post("/api/v1/boards/" + this.job + "/handovers").with(as(this.maker, this.makerRole)).with(csrf())
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"milestoneId\":\"" + this.milestone + "\",\"version\":" + version + ",\"criteria\":[{\"criterionId\":\""
 					+ this.criterion + "\",\"met\":true,\"note\":\"Đạt: không còn đặt trùng.\"}],"
