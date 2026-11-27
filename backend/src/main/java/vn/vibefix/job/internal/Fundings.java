@@ -97,7 +97,7 @@ class Fundings implements MilestoneFunding {
 	@Override
 	@Transactional(readOnly = true)
 	public List<FundingJob> ofMentor(UUID mentorId) {
-		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE mentor_account_id = :mentor"
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE mentor_account_id = :mentor AND NOT self_mentored"
 				+ " AND agreement_version_no IS NOT NULL AND " + Jobs.LIVE + " ORDER BY updated_at DESC, id")
 			.param("mentor", mentorId)
 			.query(Jobs::job)

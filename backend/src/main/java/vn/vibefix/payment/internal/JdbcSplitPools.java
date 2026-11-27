@@ -31,9 +31,9 @@ class JdbcSplitPools implements SplitPools {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Parts parts(UUID milestoneId, UUID mentorPartyId, Map<UUID, Integer> percents) {
+	public Parts parts(UUID milestoneId, UUID remainderPartyId, Map<UUID, Integer> percents) {
 		long pooled = pooledVnd(milestoneId);
-		Map<UUID, Long> parts = CrewSplit.split(pooled, percents, mentorPartyId);
+		Map<UUID, Long> parts = CrewSplit.split(pooled, percents, remainderPartyId);
 		Map<UUID, Long> amounts = new LinkedHashMap<>();
 		percents.keySet().forEach(party -> amounts.put(party, parts.getOrDefault(party, 0L)));
 		return new Parts(pooled, amounts);

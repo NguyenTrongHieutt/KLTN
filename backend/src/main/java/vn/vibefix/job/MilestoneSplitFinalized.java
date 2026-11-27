@@ -15,18 +15,23 @@ import vn.vibefix.shared.DomainEvent;
  * @param milestoneSplitId the split, which keys the RELEASE entries
  * @param milestoneNumber the Milestone's number, for the payees' notice
  * @param jobTitle the Job's title, for the payees' notice: the Job's row may be gone by then
- * @param mentorId who receives the remainder of the whole-VND split
+ * @param remainderReceiverId who receives the remainder of the whole-VND split: the account of the split's party at
+ * position 0, the Mentor in a normal Job and the member who signed first in a Self-mentored Job (AD-33). Never the
+ * split's drafter, whom no payout needs
  * @param finalVersionNo the final version, recorded on each RELEASE
  * @param percentages each party's whole percentage in that version, a party at 0 included
  * @param finality how it became final
  */
 public record MilestoneSplitFinalized(UUID eventId, UUID milestoneSplitId, UUID jobId, UUID productId, UUID milestoneId,
-		int milestoneNumber, String jobTitle, UUID mentorId, int finalVersionNo, Map<UUID, Integer> percentages,
+		int milestoneNumber, String jobTitle, UUID remainderReceiverId, int finalVersionNo, Map<UUID, Integer> percentages,
 		Finality finality) implements DomainEvent {
 
-	/** How a split became final: a confirmation by every party, its Deadline, a decision, or the Mentor alone. */
+	/**
+	 * How a split became final: a confirmation by every party, its Deadline, a decision, the Mentor alone, or, in a
+	 * Self-mentored Job, one member alone.
+	 */
 	public enum Finality {
-		CONFIRMED, DEADLINE, DECISION, MENTOR_ONLY
+		CONFIRMED, DEADLINE, DECISION, MENTOR_ONLY, SOLE_MEMBER
 	}
 
 	public MilestoneSplitFinalized {
@@ -36,7 +41,7 @@ public record MilestoneSplitFinalized(UUID eventId, UUID milestoneSplitId, UUID 
 		Objects.requireNonNull(productId, "productId");
 		Objects.requireNonNull(milestoneId, "milestoneId");
 		Objects.requireNonNull(jobTitle, "jobTitle");
-		Objects.requireNonNull(mentorId, "mentorId");
+		Objects.requireNonNull(remainderReceiverId, "remainderReceiverId");
 		Objects.requireNonNull(finality, "finality");
 		percentages = new LinkedHashMap<>(percentages);
 	}

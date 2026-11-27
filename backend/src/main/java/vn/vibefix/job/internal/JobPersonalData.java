@@ -377,9 +377,10 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	 * What keeps the account from being erased (AD-24, NFR-11), each with its Job's title: a Job from Selecting to
 	 * Closing where it is the Customer, the Mentor, or an unreleased Crew member ({@code JOB_RUNNING}), each Job with a
 	 * Milestone {@link #pendingMilestoneJobs pending} for a former member ({@code MILESTONE_PENDING}), and each Job with
-	 * a split not {@code FINAL} where it is a party ({@code SPLIT_PENDING}), the latter two once per Job however many of
-	 * its Milestones wait. A split's parties are reached through its own rows, so a Job whose Product was deleted counts;
-	 * it keeps its title and names no Job, since no page would open it.
+	 * a split not {@code FINAL} where it is a party, or its drafter in a Self-mentored Job ({@code SPLIT_PENDING}), the
+	 * latter two once per Job however many of its Milestones wait. A split's parties and drafter are reached through its
+	 * own rows, so a Job whose Product was deleted counts; it keeps its title and names no Job, since no page would open
+	 * it.
 	 */
 	@Override
 	public List<ErasureBlocker> erasureBlockers(UUID accountId) {
@@ -425,12 +426,19 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 	private record SplitPendingJob(UUID jobId, String title, boolean live) {
 	}
 
-	/** Once per Job however many of its splits wait, a Job whose Product was deleted included. */
+	/**
+	 * Once per Job however many of its splits wait, a Job whose Product was deleted included. The Customer of a
+	 * Self-mentored Job drafts its splits and is no party of them (AD-29): an open one keeps them too, so that the
+	 * drafter stays reachable for its draft, its notices and a Split Resolution's statement (review M-02). A normal
+	 * Job's drafter is its party 0.
+	 */
 	private List<SplitPendingJob> splitPendingJobs(UUID accountId) {
 		return this.jdbc.sql("""
 				SELECT DISTINCT s.job_id, j.title, j.product_deleted_at IS NULL AS live
-				FROM job.milestone_split s JOIN job.milestone_split_party p ON p.split_id = s.id JOIN job.job j ON j.id = s.job_id
-				WHERE p.party_account_id = :id AND s.status <> 'FINAL' ORDER BY s.job_id
+				FROM job.milestone_split s JOIN job.job j ON j.id = s.job_id
+				WHERE s.status <> 'FINAL' AND ((s.self_mentored AND s.mentor_account_id = :id)
+				    OR EXISTS (SELECT 1 FROM job.milestone_split_party p WHERE p.split_id = s.id AND p.party_account_id = :id))
+				ORDER BY s.job_id
 				""")
 			.param("id", accountId)
 			.query((rs, n) -> new SplitPendingJob(rs.getObject("job_id", UUID.class), rs.getString("title"), rs.getBoolean("live")))

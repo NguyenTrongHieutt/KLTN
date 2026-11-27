@@ -160,7 +160,7 @@ class SplitResolutionDecisions {
 		requireAssignee(resolution, adminId);
 		refuseEnded(resolution);
 		PreviewBasis basis = this.splits.decisionBasis(resolution.splitId(), lines);
-		return this.pools.parts(basis.milestoneId(), basis.mentorPartyId(), basis.percents());
+		return this.pools.parts(basis.milestoneId(), basis.remainderPartyId(), basis.percents());
 	}
 
 	/**
@@ -189,7 +189,7 @@ class SplitResolutionDecisions {
 		Instant now = this.clock.instant();
 		SplitEvidenceSnapshots.SplitEvidenceSnapshot snapshot = this.snapshots.take(split, partyAccounts(split), now);
 		int versionNo = this.splits.decideSplit(resolution.milestoneId(), resolutionId, adminId, lines);
-		SplitPools.Parts parts = this.pools.parts(basis.milestoneId(), basis.mentorPartyId(), basis.percents());
+		SplitPools.Parts parts = this.pools.parts(basis.milestoneId(), basis.remainderPartyId(), basis.percents());
 		List<DecisionLine> decided = new ArrayList<>();
 		basis.percents().forEach((party, percent) -> decided.add(new DecisionLine(party, percent,
 				parts.amounts().getOrDefault(party, 0L))));

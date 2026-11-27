@@ -45,8 +45,9 @@ import vn.vibefix.shared.Gate;
  * JOB-10's reads (FR-83, AD-20, AD-33, X11): {@code payment} alone knows the pool, so it composes {@code job}'s split rows
  * with it, and every VND amount comes from {@link CrewSplit} here, so the screen computes no money. {@code job} decides
  * who reads what, from the party rows: a party reads every line of the splits they are a party of and nothing of another
- * Milestone's, the Job's Mentor with no split yet gets an empty list, and everyone else finds nothing, the Customer
- * always. No answer names an entry type. A split stays readable after its Job is gone.
+ * Milestone's, the Job's Mentor with no split yet gets an empty list, and everyone else finds nothing, a normal Job's
+ * Customer always. The Customer of a Self-mentored Job drafts its splits, is no party of them, and reads every one
+ * (AD-29, AD-47). No answer names an entry type. A split stays readable after its Job is gone.
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -64,7 +65,7 @@ class MilestoneSplitController {
 	record SplitPreviewLineView(UUID partyId, long amountVnd) {
 	}
 
-	/** The server's VND preview through {@link CrewSplit}: the remainder of a whole dong goes to the Mentor. */
+	/** The server's VND preview through {@link CrewSplit}: the remainder of a whole dong goes to the split's party 0. */
 	record SplitPreviewView(long pooledVnd, List<SplitPreviewLineView> lines) {
 	}
 
@@ -114,8 +115,13 @@ class MilestoneSplitController {
 	 * @param n the parties other than the Mentor
 	 * @param latest the latest version, once one exists
 	 * @param earlier the earlier versions, newest first
+	 * @param selfMentored the split of a Self-mentored Job: no Mentor line and no cap; its drafter is the Customer, who is
+	 * no party; every party confirms; a member of the whole Milestone gets more than 0
+	 * @param remainderPartyId the party who receives the remainder of a whole dong
+	 * @param viewerIsMentor the caller drafts this split: its Mentor, or the Customer of a Self-mentored Job
 	 */
 	record SplitCardView(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle, boolean jobLive,
+			boolean selfMentored, UUID remainderPartyId,
 			Status status, @Nullable Finality finality, long pooledVnd, boolean paid, boolean capApplies, @Nullable Integer cap,
 			int editsUsed, int editsLeft, int editLimit, Instant draftDueAt, boolean draftNear, boolean draftLate, Instant nextConfirmationDueAt,
 			@Nullable Instant confirmationDueAt, boolean confirmationNear, boolean pastDue, @Nullable Instant finalAt, int k,
@@ -157,7 +163,7 @@ class MilestoneSplitController {
 		PreviewBasis basis = this.splits.previewBasis(splitId, mentor,
 				body.shares().stream().map(share -> new PercentLine(share.partyId(), share.percent())).toList());
 		long pooled = pool(basis.milestoneId()).map(Pool::amountVnd).orElse(0L);
-		Map<UUID, Long> parts = CrewSplit.split(pooled, basis.percents(), basis.mentorPartyId());
+		Map<UUID, Long> parts = CrewSplit.split(pooled, basis.percents(), basis.remainderPartyId());
 		return new SplitPreviewView(pooled, basis.percents()
 			.keySet()
 			.stream()
@@ -167,15 +173,17 @@ class MilestoneSplitController {
 
 	private SplitCardView card(SplitRead split) {
 		Pool pool = pool(split.milestoneId()).orElse(new Pool(0, false));
-		UUID mentorParty = split.parties().stream().filter(PartyRead::mentor).map(PartyRead::partyId).findFirst().orElseThrow();
+		// The remainder goes to the party the split names (AD-33), never to "the Mentor party": a Self-mentored Job has none.
+		UUID remainderParty = split.remainderPartyId();
 		List<SplitVersionView> earlier = new ArrayList<>();
-		split.earlier().forEach(version -> earlier.add(version(version, pool, mentorParty)));
+		split.earlier().forEach(version -> earlier.add(version(version, pool, remainderParty)));
 		return new SplitCardView(split.splitId(), split.milestoneId(), split.milestoneNumber(), split.jobTitle(),
-				split.jobLive(), split.status(), split.finality(), pool.amountVnd(), pool.reversed(), split.capApplies(),
+				split.jobLive(), split.selfMentored(), remainderParty, split.status(), split.finality(), pool.amountVnd(),
+				pool.reversed(), split.capApplies(),
 				split.cap(), split.editsUsed(), split.editsLeft(), split.editLimit(), split.draftDueAt(), split.draftNear(), split.draftLate(), split.nextConfirmationDueAt(),
 				split.confirmationDueAt(), split.confirmationNear(), split.pastDue(), split.finalAt(), split.confirmed(),
 				split.confirmers(), split.viewerIsMentor(), split.viewerConfirmed(), parties(split),
-				split.latest() == null ? null : version(split.latest(), pool, mentorParty), earlier);
+				split.latest() == null ? null : version(split.latest(), pool, remainderParty), earlier);
 	}
 
 	/** The parties by {@code partyId}, named as Balances name them; an anonymized party has no name. */
@@ -196,10 +204,10 @@ class MilestoneSplitController {
 			.toList();
 	}
 
-	private static SplitVersionView version(VersionRead version, Pool pool, UUID mentorParty) {
+	private static SplitVersionView version(VersionRead version, Pool pool, UUID remainderParty) {
 		Map<UUID, Integer> percents = new LinkedHashMap<>();
 		version.lines().forEach(line -> percents.put(line.partyId(), line.percent()));
-		Map<UUID, Long> parts = CrewSplit.split(pool.amountVnd(), percents, mentorParty);
+		Map<UUID, Long> parts = CrewSplit.split(pool.amountVnd(), percents, remainderParty);
 		List<SplitLineView> lines = new ArrayList<>();
 		for (LineRead line : version.lines()) {
 			lines.add(new SplitLineView(line.partyId(), line.percent(), parts.getOrDefault(line.partyId(), 0L), line.confirmed()));

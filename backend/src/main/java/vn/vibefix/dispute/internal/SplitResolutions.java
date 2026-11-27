@@ -11,6 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -94,10 +95,11 @@ class SplitResolutions {
 	}
 
 	/**
-	 * One party's statement on a case.
+	 * One party's statement on a case, or the drafter's in a Self-mentored Job.
+	 * @param partyId empty for the statement of a Self-mentored Job's drafter, the Customer, who is no party (AD-40)
 	 * @param accountId empty once an erasure anonymized them
 	 */
-	record Statement(UUID partyId, @Nullable UUID accountId, String text, Instant submittedAt) {
+	record Statement(@Nullable UUID partyId, @Nullable UUID accountId, String text, Instant submittedAt) {
 	}
 
 	private final JdbcClient jdbc;
@@ -142,18 +144,19 @@ class SplitResolutions {
 	 * "Nhờ quản trị viên xem xét": holds the split, the whole pool staying pooled, and tells the Mentor, the other parties and
 	 * the Administrators.
 	 * @param shownVersionNo the version the screen showed
-	 * @throws ApiException {@code NOT_FOUND} for a non-party or before any draft; {@code FORBIDDEN PARTY_ONLY} for the Mentor;
+	 * @throws ApiException {@code NOT_FOUND} for a non-party or before any draft; {@code FORBIDDEN PARTY_ONLY} for the
+	 * drafter: the Mentor, or the Customer of a Self-mentored Job, where any party may raise since none is the Mentor;
 	 * {@code GUARD_FAILED} with {@code SPLIT_RESOLUTION_USED}, {@code SPLIT_IN_RESOLUTION}, or {@code SPLIT_FINAL}, also past the
 	 * due time however late the Deadline runs (A-09); {@code STALE} on an old version; {@code VALIDATION}
 	 */
 	@Transactional
 	Resolution raise(UUID accountId, UUID splitId, int shownVersionNo, String reasonText) {
 		SplitCase split = lockedCase(splitId);
-		CaseParty party = party(split, accountId);
+		CaseParty party = partyOrDrafter(split, accountId);
 		if (split.status() == MilestoneSplits.Status.AWAITING_DRAFT) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (party.mentor()) {
+		if (party == null || party.mentor()) {
 			throw new ApiException(ErrorCode.FORBIDDEN, DisputeReason.PARTY_ONLY);
 		}
 		lockRows(split.milestoneId());
@@ -209,8 +212,9 @@ class SplitResolutions {
 	}
 
 	/**
-	 * One statement of a party other than the raiser, whose reason is theirs, while the case is open. The inventory has no
-	 * notice for it: JOB-10 polls, and the assigned Administrator's case reads it.
+	 * One statement of a party other than the raiser, whose reason is theirs, while the case is open. The drafter of a
+	 * Self-mentored Job's split, its Customer, writes one too, as the Mentor does in a normal Job, with no party row to
+	 * hang it on (AD-40). The inventory has no notice for it: JOB-10 polls, and the assigned Administrator's case reads it.
 	 * @throws ApiException {@code NOT_FOUND} for a non-party; {@code GUARD_FAILED} with {@code SPLIT_RESOLUTION_ENDED} or
 	 * {@code SPLIT_STATEMENT_USED}; {@code VALIDATION}
 	 */
@@ -218,12 +222,13 @@ class SplitResolutions {
 	Statement addStatement(UUID accountId, UUID resolutionId, String statementText) {
 		Resolution resolution = lockedResolution(resolutionId);
 		SplitCase split = this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		CaseParty party = party(split, accountId);
+		CaseParty party = partyOrDrafter(split, accountId);
+		UUID partyId = party == null ? null : party.partyId();
 		if (!resolution.open()) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, DisputeReason.SPLIT_RESOLUTION_ENDED);
 		}
-		boolean written = party.partyId().equals(resolution.raiserPartyId())
-				|| statements(resolutionId).stream().anyMatch(statement -> statement.partyId().equals(party.partyId()));
+		boolean written = resolution.raiserPartyId().equals(partyId)
+				|| statements(resolutionId).stream().anyMatch(statement -> Objects.equals(statement.partyId(), partyId));
 		if (written) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, DisputeReason.SPLIT_STATEMENT_USED);
 		}
@@ -233,17 +238,18 @@ class SplitResolutions {
 		}
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
-				INSERT INTO dispute.split_resolution_statement (resolution_id, party_id, account_id, text, submitted_at)
-				VALUES (:resolution, :party, :account, :text, :now)
+				INSERT INTO dispute.split_resolution_statement (resolution_id, party_id, drafter, account_id, text, submitted_at)
+				VALUES (:resolution, :party, :drafter, :account, :text, :now)
 				""")
 			.param("resolution", resolutionId)
-			.param("party", party.partyId())
+			.param("party", partyId)
+			.param("drafter", partyId == null)
 			.param("account", accountId)
 			.param("text", text)
 			.param("now", Timestamp.from(now))
 			.update();
 		audit(AuditActor.user(accountId), "dispute.split_statement_added", resolutionId, resolution.jobId());
-		return new Statement(party.partyId(), accountId, text, now);
+		return new Statement(partyId, accountId, text, now);
 	}
 
 	/**
@@ -257,8 +263,8 @@ class SplitResolutions {
 	Resumed withdraw(UUID accountId, UUID resolutionId) {
 		Resolution resolution = lockedResolution(resolutionId);
 		SplitCase split = this.splits.caseOf(resolution.splitId()).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		CaseParty party = party(split, accountId);
-		if (!party.partyId().equals(resolution.raiserPartyId())) {
+		CaseParty party = partyOrDrafter(split, accountId);
+		if (party == null || !party.partyId().equals(resolution.raiserPartyId())) {
 			throw new ApiException(ErrorCode.FORBIDDEN);
 		}
 		if (!resolution.open()) {
@@ -287,11 +293,14 @@ class SplitResolutions {
 				: "Hạn xác nhận mới: " + DAY_MONTH.format(due.atZone(VIETNAM)) + ".";
 	}
 
-	/** The split a party reads: its rows answer, never the role in the Job, so a former member and a bare row work. */
+	/**
+	 * The split a party or its drafter reads: its rows answer, never the role in the Job, so a former member and a bare row
+	 * work.
+	 */
 	@Transactional(readOnly = true)
 	SplitCase caseFor(UUID accountId, UUID splitId) {
 		SplitCase split = this.splits.caseOf(splitId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		party(split, accountId);
+		partyOrDrafter(split, accountId);
 		return split;
 	}
 
@@ -358,9 +367,17 @@ class SplitResolutions {
 				"/quan-tri/tranh-chap/phan-chia/" + resolutionId, null, null));
 	}
 
-	/** The Mentor and each other party who still has an account, leaving out {@code except} when it is named. */
+	/**
+	 * The Mentor and each other party who still has an account, leaving out {@code except} when it is named. In a
+	 * Self-mentored Job the drafter, the Customer, is told what the Mentor is told, as {@code MENTOR}, though no party
+	 * (AD-40).
+	 */
 	static List<Recipient> partiesExcept(SplitCase split, @Nullable UUID except) {
 		List<Recipient> recipients = new ArrayList<>();
+		UUID drafter = split.mentorId();
+		if (split.selfMentored() && drafter != null && !drafter.equals(except)) {
+			recipients.add(new Recipient(drafter, Audience.MENTOR));
+		}
 		for (CaseParty party : split.parties()) {
 			UUID account = party.accountId();
 			if (account != null && !account.equals(except)) {
@@ -387,13 +404,18 @@ class SplitResolutions {
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
-	/** The account's party row; a stranger, the Customer always, finds nothing. */
-	private static CaseParty party(SplitCase split, UUID accountId) {
-		return split.parties()
-			.stream()
-			.filter(candidate -> accountId.equals(candidate.accountId()))
-			.findFirst()
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+	/**
+	 * The account's party row, or none for the drafter of a Self-mentored Job's split: its Customer, who is no party and
+	 * reads the case, writes the drafter's statement and can neither raise nor withdraw (AD-40, AD-47). A stranger, a
+	 * normal Job's Customer always, finds nothing.
+	 * @throws ApiException {@code NOT_FOUND}
+	 */
+	static @Nullable CaseParty partyOrDrafter(SplitCase split, UUID accountId) {
+		CaseParty party = split.parties().stream().filter(candidate -> accountId.equals(candidate.accountId())).findFirst().orElse(null);
+		if (party == null && !(split.selfMentored() && accountId.equals(split.mentorId()))) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		return party;
 	}
 
 	private boolean raised(UUID milestoneId, UUID partyId) {

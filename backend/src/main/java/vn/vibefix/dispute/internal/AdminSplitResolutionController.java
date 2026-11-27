@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -69,8 +70,11 @@ class AdminSplitResolutionController {
 	record AdminSplitPartyView(UUID partyId, @Nullable String name, boolean mentor, boolean wholeInterval, boolean activeAtRelease) {
 	}
 
-	/** A statement as the assignee reads it. */
-	record AdminSplitStatementView(UUID partyId, @Nullable String name, String text, Instant submittedAt) {
+	/**
+	 * A statement as the assignee reads it.
+	 * @param partyId absent for the statement of a Self-mentored Job's drafter, the Customer, who is no party
+	 */
+	record AdminSplitStatementView(@Nullable UUID partyId, @Nullable String name, String text, Instant submittedAt) {
 	}
 
 	/** One party's line of the decision, with its VND from the record. */
@@ -100,8 +104,11 @@ class AdminSplitResolutionController {
 	 * @param capApplies a party other than the Mentor was still in the Crew at the release
 	 * @param decision the record, for every Administrator once decided
 	 * @param jobContentGone decided, and the Job's content has gone: the record stands with no evidence behind it to read
+	 * @param selfMentored the split of a Self-mentored Job: no Mentor party and no cap, its drafter is the Customer, and a
+	 * member of the whole Milestone still gets more than 0
 	 */
-	record AdminSplitResolutionDetail(UUID id, UUID jobId, @Nullable String jobTitle, int milestoneNumber, long pooledVnd,
+	record AdminSplitResolutionDetail(UUID id, UUID jobId, @Nullable String jobTitle, boolean selfMentored, int milestoneNumber,
+			long pooledVnd,
 			Status status, Instant raisedAt, long daysUndecided, boolean undecidedLong, @Nullable Instant endedAt, boolean assigned,
 			boolean assignedToMe, boolean evidenceReadable, @Nullable String raiserName, @Nullable String reason,
 			List<AdminSplitStatementView> statements, List<AdminSplitPartyView> parties, boolean capApplies, @Nullable Integer cap,
@@ -240,12 +247,17 @@ class AdminSplitResolutionController {
 		Instant now = this.clock.instant();
 		boolean mine = me.equals(resolution.assigneeId());
 		boolean decided = resolution.status() == Status.DECIDED;
-		Map<UUID, String> names = mine || decided
-				? this.people.names(SplitResolutionDecisions.partyAccounts(split), split.mentorId()) : Map.of();
+		// The drafter of a Self-mentored Job's split is no party, and their statement still has a name.
+		List<UUID> named = new ArrayList<>(SplitResolutionDecisions.partyAccounts(split));
+		if (split.selfMentored() && split.mentorId() != null) {
+			named.add(split.mentorId());
+		}
+		Map<UUID, String> names = mine || decided ? this.people.names(named, split.mentorId()) : Map.of();
 		Instant until = resolution.endedAt() == null ? now : resolution.endedAt();
 		UUID raiser = resolution.raiserId();
-		return new AdminSplitResolutionDetail(resolution.id(), resolution.jobId(), split.jobTitle(), resolution.milestoneNumber(),
-				this.pools.pooledVnd(resolution.milestoneId()), resolution.status(), resolution.raisedAt(),
+		return new AdminSplitResolutionDetail(resolution.id(), resolution.jobId(), split.jobTitle(), split.selfMentored(),
+				resolution.milestoneNumber(), this.pools.pooledVnd(resolution.milestoneId()), resolution.status(),
+				resolution.raisedAt(),
 				Duration.between(resolution.raisedAt(), until).toDays(), undecidedLong(resolution, now), resolution.endedAt(),
 				resolution.assigneeId() != null, mine, this.decisions.evidenceReadable(resolution, me),
 				mine && raiser != null ? names.get(raiser) : null, mine ? resolution.reason() : null,

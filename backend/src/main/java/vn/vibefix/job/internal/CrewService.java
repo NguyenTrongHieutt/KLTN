@@ -5,10 +5,12 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -282,21 +284,47 @@ class CrewService implements Crews {
 	}
 
 	/**
-	 * Whether a Crew row of the Job was {@code ACTIVE} at any time since {@code since} (R49; AD-4's guard of M7's
-	 * alone-cancel), counted as AD-41 fixes split parties: a row's window runs from {@code activated_at} to
-	 * {@code window_end}, or to now while it is {@code ACTIVE}, and a locked account's row ends at its lock time, also
-	 * before the lock's listener released it. A window that ends at {@code since} counts.
+	 * A Crew row's active time inside a Milestone's span, as a release fixes a split party.
+	 * @param from when the row became active
+	 * @param to when that ended, at the span's end at the latest
+	 * @param whole active from the span's start to its end
+	 * @param activeAtEnd still {@code ACTIVE} and unlocked at the span's end
 	 */
-	boolean activeSince(UUID jobId, Instant since) {
+	record ActiveSpan(Row row, Instant from, Instant to, boolean whole, boolean activeAtEnd) {
+	}
+
+	/**
+	 * The would-be split parties of a Milestone funded at {@code funded}, seen at {@code at} (AD-33, AD-41): each Crew row
+	 * that was {@code ACTIVE} at some time between the two, bounds inclusive, in Crew row creation order. A row's window
+	 * runs from {@code activated_at} to {@code window_end}; an unreleased row of a locked account ends at its lock time,
+	 * also before the lock's listener released it, and never before it became active (A-07); any other row runs to
+	 * {@code at}. The one definition: the release's party fixing (AD-29), R49's alone-cancel guard (AD-4) and the
+	 * no-party guards of a release (AD-31) read only this, under the Job lock their caller holds.
+	 */
+	List<ActiveSpan> wouldBeParties(UUID jobId, Instant funded, Instant at) {
 		List<Row> ever = rows(jobId).stream().filter(row -> row.activatedAt() != null).toList();
 		if (ever.isEmpty()) {
-			return false;
+			return List.of();
 		}
-		Map<UUID, Instant> locked = this.capabilities.lockedAmong(ever.stream().filter(Row::active).map(Row::studentId).toList());
-		return ever.stream().anyMatch(row -> {
-			Instant end = row.active() ? locked.get(row.studentId()) : row.windowEnd();
-			return end == null || !end.isBefore(since);
-		});
+		Map<UUID, Instant> locked = this.capabilities.lockedAmong(ever.stream().map(Row::studentId).toList());
+		List<ActiveSpan> spans = new ArrayList<>();
+		for (Row row : ever) {
+			Instant activated = Objects.requireNonNull(row.activatedAt());
+			Instant lockedAt = locked.get(row.studentId());
+			Instant end = at;
+			if (row.windowEnd() != null) {
+				end = row.windowEnd();
+			}
+			else if (!row.released() && lockedAt != null) {
+				end = lockedAt.isAfter(activated) ? lockedAt : activated;
+			}
+			if (activated.isAfter(at) || end.isBefore(funded)) {
+				continue;
+			}
+			spans.add(new ActiveSpan(row, activated, end.isAfter(at) ? at : end, !activated.isAfter(funded) && !end.isBefore(at),
+					row.active() && lockedAt == null));
+		}
+		return spans;
 	}
 
 	@Override

@@ -23,9 +23,10 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 
 /**
- * What a split tells its people (UX-DR112, AD-20): the to-dos and notices of the Mentor and the parties, leavers
- * included, each with the Milestone so the audience classes hold after the Job's row went. The Customer is never told.
- * A party anonymized by an erasure has nobody to reach.
+ * What a split tells its people (UX-DR112, AD-20): the to-dos and notices of the drafter and the parties, leavers
+ * included, each with the Milestone so the audience classes hold after the Job's row went. A normal Job's Customer is
+ * never told. In a Self-mentored Job the drafter is the Customer, reached as {@code MENTOR} with the Mentor's words
+ * (AD-40, AD-47 exception 12), and is no party. A party anonymized by an erasure has nobody to reach.
  */
 @Component
 class SplitNotices {
@@ -150,6 +151,7 @@ class SplitNotices {
 			case DEADLINE -> "hết hạn xác nhận";
 			case DECISION -> "quản trị viên đã quyết định";
 			case MENTOR_ONLY -> "chỉ có người hướng dẫn";
+			case SOLE_MEMBER -> "chỉ có một thành viên";
 		};
 	}
 

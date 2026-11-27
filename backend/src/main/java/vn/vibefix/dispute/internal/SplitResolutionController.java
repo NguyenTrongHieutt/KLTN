@@ -60,10 +60,12 @@ class SplitResolutionController {
 
 	/**
 	 * A statement as every party reads it.
+	 * @param partyId absent for the statement of a Self-mentored Job's drafter, the Customer, who is no party
 	 * @param name what screens call the person; absent once an erasure anonymized them
-	 * @param mentor it is the Mentor's
+	 * @param mentor it is the drafter's: the Mentor's, or the Customer's in a Self-mentored Job
 	 */
-	record SplitResolutionStatementView(UUID partyId, @Nullable String name, boolean mentor, String text, Instant submittedAt) {
+	record SplitResolutionStatementView(@Nullable UUID partyId, @Nullable String name, boolean mentor, String text,
+			Instant submittedAt) {
 	}
 
 	/**
@@ -155,19 +157,25 @@ class SplitResolutionController {
 
 	private SplitResolutionsView read(UUID me, UUID splitId) {
 		SplitCase split = this.resolutions.caseFor(me, splitId);
-		CaseParty mine = split.parties().stream().filter(party -> me.equals(party.accountId())).findFirst().orElseThrow();
+		// No party row for the drafter of a Self-mentored Job's split, whom caseFor let in (AD-40).
+		CaseParty mine = split.parties().stream().filter(party -> me.equals(party.accountId())).findFirst().orElse(null);
+		UUID myParty = mine == null ? null : mine.partyId();
 		List<Resolution> cases = this.resolutions.ofSplit(splitId);
 		Map<UUID, UUID> accountOf = split.parties()
 			.stream()
 			.filter(party -> party.accountId() != null)
 			.collect(Collectors.toMap(CaseParty::partyId, party -> Objects.requireNonNull(party.accountId())));
-		Map<UUID, String> names = this.people.names(accountOf.values(), split.mentorId());
+		List<UUID> accounts = new ArrayList<>(accountOf.values());
+		if (split.selfMentored() && split.mentorId() != null) {
+			accounts.add(split.mentorId());
+		}
+		Map<UUID, String> names = this.people.names(accounts, split.mentorId());
 		Set<UUID> mentors = split.parties().stream().filter(CaseParty::mentor).map(CaseParty::partyId).collect(Collectors.toSet());
 		List<SplitResolutionView> views = new ArrayList<>();
 		for (Resolution resolution : cases) {
 			List<Statement> statements = this.resolutions.statements(resolution.id());
-			boolean isRaiser = mine.partyId().equals(resolution.raiserPartyId());
-			boolean written = statements.stream().anyMatch(statement -> statement.partyId().equals(mine.partyId()));
+			boolean isRaiser = resolution.raiserPartyId().equals(myParty);
+			boolean written = statements.stream().anyMatch(statement -> Objects.equals(statement.partyId(), myParty));
 			UUID raiser = resolution.raiserId();
 			views.add(new SplitResolutionView(resolution.id(), resolution.splitVersionNo(), resolution.status(),
 					resolution.raiserPartyId(), raiser == null ? null : names.get(raiser), resolution.reason(), resolution.raisedAt(), resolution.endedAt(),
@@ -175,11 +183,13 @@ class SplitResolutionController {
 					statements.stream()
 						.map(statement -> new SplitResolutionStatementView(statement.partyId(),
 								statement.accountId() == null ? null : names.get(statement.accountId()),
-								mentors.contains(statement.partyId()), statement.text(), statement.submittedAt()))
+								statement.partyId() == null || mentors.contains(statement.partyId()), statement.text(),
+								statement.submittedAt()))
 						.toList()));
 		}
-		boolean mayRaise = !mine.mentor() && split.status() == MilestoneSplits.Status.PROPOSED && !split.pastDue()
-				&& cases.stream().noneMatch(resolution -> mine.partyId().equals(resolution.raiserPartyId()) || resolution.open());
+		boolean mayRaise = mine != null && !mine.mentor() && split.status() == MilestoneSplits.Status.PROPOSED
+				&& !split.pastDue()
+				&& cases.stream().noneMatch(resolution -> resolution.raiserPartyId().equals(myParty) || resolution.open());
 		return new SplitResolutionsView(mayRaise, views);
 	}
 

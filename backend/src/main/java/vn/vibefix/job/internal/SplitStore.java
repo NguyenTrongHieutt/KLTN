@@ -35,10 +35,17 @@ class SplitStore {
 	 * @param round how many confirmation rounds it has had
 	 * @param confirmationDueAt the current round's due time: {@code Deadlines.dueAt} would read the earliest pending row,
 	 * and an old round's stays until it ends {@code OBSOLETE}
+	 * @param mentorId the drafter: the Mentor, who is party 0, or in a Self-mentored Job the Customer, who is no party
+	 * @param selfMentored the split of a Self-mentored Job (AD-29, AD-47): no Mentor party, no cap
 	 */
-	record Split(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, @Nullable UUID mentorId, Status status,
-			boolean capApplies, Instant draftDueAt, int round, @Nullable Instant confirmationDueAt,
-			@Nullable Instant finalAt, @Nullable Finality finality) {
+	record Split(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, @Nullable UUID mentorId,
+			boolean selfMentored, Status status, boolean capApplies, Instant draftDueAt, int round,
+			@Nullable Instant confirmationDueAt, @Nullable Instant finalAt, @Nullable Finality finality) {
+
+		/** Whether the account drafts this split; a split whose drafter an erasure anonymized has none. */
+		boolean draftedBy(UUID accountId) {
+			return accountId.equals(this.mentorId);
+		}
 
 		/** {@code PROPOSED} and past its due time by the Clock: nothing supersedes the version now (A-09). */
 		boolean pastDue(Instant now) {
@@ -60,8 +67,8 @@ class SplitStore {
 	}
 
 	private static final String COLUMNS = """
-			id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status, cap_applies, draft_due_at,
-			confirmation_round, confirmation_due_at, final_at, finality""";
+			id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, self_mentored, status, cap_applies,
+			draft_due_at, confirmation_round, confirmation_due_at, final_at, finality""";
 
 	private final JdbcClient jdbc;
 
@@ -84,12 +91,15 @@ class SplitStore {
 			.optional();
 	}
 
-	/** The Job's splits {@code accountId} is a party of, newest Milestone first. */
-	List<Split> ofParty(UUID jobId, UUID accountId) {
+	/**
+	 * The Job's splits {@code accountId} is a party of or drafts, newest Milestone first. A normal Job's drafter is its
+	 * party 0; a Self-mentored Job's is the Customer, who is no party and reads every split of the Job (AD-29).
+	 */
+	List<Split> ofPartyOrDrafter(UUID jobId, UUID accountId) {
 		return this.jdbc.sql("SELECT " + COLUMNS + """
 				 FROM job.milestone_split s
-				WHERE s.job_id = :job AND EXISTS (SELECT 1 FROM job.milestone_split_party p
-				    WHERE p.split_id = s.id AND p.party_account_id = :account)
+				WHERE s.job_id = :job AND (s.mentor_account_id = :account OR EXISTS (SELECT 1 FROM job.milestone_split_party p
+				    WHERE p.split_id = s.id AND p.party_account_id = :account))
 				ORDER BY s.milestone_number DESC, s.created_at DESC, s.id
 				""").param("job", jobId).param("account", accountId).query(SplitStore::split).list();
 	}
@@ -103,7 +113,18 @@ class SplitStore {
 		this.jdbc.sql("SELECT id FROM job.job WHERE id = :id FOR UPDATE").param("id", jobId).query(UUID.class).optional();
 	}
 
-	/** Every party in the fixed order: the Mentor first, then Crew row creation order. */
+	/**
+	 * The party who receives the remainder of the whole-VND split (AD-33): the one at position 0, fixed at the release.
+	 * Every preview, JOB-10's amounts, a decision record and the payout take it from here.
+	 */
+	static Party remainderParty(List<Party> parties) {
+		return parties.getFirst();
+	}
+
+	/**
+	 * Every party in the fixed order: in a normal Job the Mentor first, then Crew row creation order; in a Self-mentored
+	 * Job the members by their commitment signature.
+	 */
 	List<Party> parties(UUID splitId) {
 		return this.jdbc.sql("""
 				SELECT id, party_account_id, is_mentor, whole_interval, active_at_release FROM job.milestone_split_party
@@ -152,7 +173,7 @@ class SplitStore {
 		return versions(splitId).stream().findFirst();
 	}
 
-	/** The edits used: the Mentor's versions after the first (AD-29). */
+	/** The edits used: the drafter's versions after the first (AD-29). */
 	int editsUsed(List<Version> versions) {
 		return Math.max(0, (int) versions.stream().filter(version -> version.kind() == VersionKind.DRAFT).count() - 1);
 	}
@@ -312,7 +333,8 @@ class SplitStore {
 		String finality = rs.getString("finality");
 		return new Split(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getObject("milestone_id", UUID.class), rs.getInt("milestone_number"),
-				rs.getObject("mentor_account_id", UUID.class), Status.valueOf(rs.getString("status")),
+				rs.getObject("mentor_account_id", UUID.class), rs.getBoolean("self_mentored"),
+				Status.valueOf(rs.getString("status")),
 				rs.getBoolean("cap_applies"), rs.getTimestamp("draft_due_at").toInstant(), rs.getInt("confirmation_round"),
 				due == null ? null : due.toInstant(), finalAt == null ? null : finalAt.toInstant(),
 				finality == null ? null : Finality.valueOf(finality));

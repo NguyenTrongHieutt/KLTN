@@ -37,7 +37,10 @@ public interface MilestoneFunding {
 	/** The Job once its Agreement is confirmed. */
 	Optional<FundingJob> byId(UUID jobId);
 
-	/** The Mentor's Jobs with a confirmed Agreement, newest first (MEN-7's held money). */
+	/**
+	 * The Mentor's Jobs with a confirmed Agreement, newest first (MEN-7's held money). A Self-mentored Job is left out:
+	 * its Mentor is its Customer, whose own payment is not money held for them (AD-47 exception 10).
+	 */
 	List<FundingJob> ofMentor(UUID mentorId);
 
 	/**
