@@ -423,7 +423,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		return blockers;
 	}
 
-	/** A Job with a split not {@code FINAL} where the account is a party. */
+	/** A Job with a split not {@code FINAL} where the account is a party, or its drafter in a Self-mentored Job. */
 	private record SplitPendingJob(UUID jobId, String title, boolean live) {
 	}
 

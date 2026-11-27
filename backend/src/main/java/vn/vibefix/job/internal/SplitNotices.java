@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -105,11 +106,17 @@ class SplitNotices {
 		}
 	}
 
-	/** The drafter's first draft or an edit reached each party. */
+	/**
+	 * The drafter's first draft or an edit reached each party. The first draft's notice begins with who drafted it
+	 * ({@code drafter}); an edit's names nobody.
+	 */
 	void sent(String type, Split split, int versionNo, String title, List<Party> parties, Instant due) {
-		send(type, split, cause(split, type + ":" + versionNo), members(parties), Map.of("n", String.valueOf(split.number()),
-				"job", title, "date", ClosureProposals.dayMonth(due), "drafter", split.selfMentored() ? "Khách hàng"
-						: "Người hướng dẫn"));
+		Map<String, String> params = new LinkedHashMap<>(
+				Map.of("n", String.valueOf(split.number()), "job", title, "date", ClosureProposals.dayMonth(due)));
+		if (PROPOSED.equals(type)) {
+			params.put("drafter", split.selfMentored() ? "Khách hàng" : "Người hướng dẫn");
+		}
+		send(type, split, cause(split, type + ":" + versionNo), members(parties), params);
 	}
 
 	/**

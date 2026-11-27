@@ -57,16 +57,16 @@ import vn.vibefix.support.TestPeople;
  * {@link MatrixCaller#ADMIN_DISPUTE_GRANT} took it. As on the crew Job, the Ratings are published whatever the Job's
  * state: the active member's Team Issue waits for the Customer's answer, and {@link MatrixCaller#ADMIN_TEAM_ISSUE_GRANT}
  * took another member's escalated one. The Customer's due-date Change Request is open.
- * {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} is an Administrator with no grant here until Story 25.6 gives the
- * mode a split. The world's own canaries are the {@code SM_*} ones ({@code authz/canaries.csv}).
+ * The released Milestone's split is out for confirmation and a third Milestone's is held by an open Split Resolution,
+ * which {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} took with its grant (Story 25.6, {@link #splits}). The world's
+ * own canaries are the {@code SM_*} ones ({@code authz/canaries.csv}).
  * <p>
  * {@link MatrixCaller#CROSS_ROLE_SELF} is the same person, called on a normal Job of another Customer and Mentor where
  * they are an {@code ACTIVE} member ({@code job=self-member}).
  * <p>
  * What the schema cannot hold before its story (the spec's part 3): the Dispute is recorded as opened by the Customer,
  * where AD-20 wants a member's (Story 25.7); the handover names the member in the column that still says "mentor"
- * (Story 25.5); and the Job has no split, since a split without a Mentor's part is Story 25.6's. The rows that need
- * those are pending.
+ * (Story 25.5). The rows that need those are pending.
  */
 public class SelfMentoredFixture implements MatrixFixture {
 

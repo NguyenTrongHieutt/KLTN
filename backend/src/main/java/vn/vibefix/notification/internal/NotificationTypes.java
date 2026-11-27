@@ -748,9 +748,12 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n", "job", "date"));
 
-	/** FR-83: the drafter edited a sent draft, and the confirmations start over; {drafter} begins the email's sentence. */
+	/**
+	 * FR-83: the drafter edited a sent draft, and the confirmations start over. Its texts name nobody, so they are true
+	 * of a Mentor's edit and of the Customer's in a Self-mentored Job.
+	 */
 	static final NotificationType JOB_SPLIT_EDITED = new NotificationType("job.split_edited", Set.of(Audience.SPLIT_PARTY),
-			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date", "drafter"));
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
 
 	/** FR-83, SG-26: a day before the confirmation deadline, to each party who has not confirmed. */
 	static final NotificationType JOB_SPLIT_CONFIRMATION_REMINDER = new NotificationType("job.split_confirmation_reminder",
