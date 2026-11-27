@@ -124,10 +124,12 @@ function MentorAgreement({ jobId }: { jobId: string }) {
                 jobId={jobId}
                 draft={draft.data}
                 alone={
-                  alone && job.data && crew.data
+                  alone
                     ? {
-                        version: job.data.version,
-                        crewVersion: crew.data.crewVersion,
+                        // The mode is the draft's own word, so the editor never shows a normal Job's "Gửi cho khách
+                        // hàng" while the Job and its Crew are still loading; the confirmation waits for both.
+                        versions:
+                          job.data && crew.data ? { version: job.data.version, crewVersion: crew.data.crewVersion } : undefined,
                         freeze,
                         onFreeze: setFreeze,
                         asking,
@@ -166,8 +168,8 @@ function toMilestones(content: AgreementContent): DraftMilestone[] {
 
 /** What the one-step confirmation of a Self-mentored Job carries from the page (Story 25.3). */
 type Alone = {
-  version: number
-  crewVersion: number
+  /** The Job's and the Crew's versions the confirmation names (AD-23); none until both have loaded. */
+  versions?: { version: number; crewVersion: number }
   freeze: boolean
   onFreeze: (checked: boolean) => void
   asking: boolean
@@ -254,14 +256,15 @@ function Editor({ jobId, draft, alone }: { jobId: string; draft: AgreementDraft;
         : undefined
   // The draft on screen is what is confirmed: unsaved edits are saved first, and the confirmation names that revision.
   const confirmAlone = async () => {
-    if (!alone) {
+    if (!alone?.versions) {
       return
     }
+    const { version, crewVersion } = alone.versions
     try {
       const revision = dirty ? (await save.mutateAsync(body())).revision : draft.revision
       await alone.confirm({
-        version: alone.version,
-        crewVersion: alone.crewVersion,
+        version,
+        crewVersion,
         revision,
         freezeCommitment: alone.freeze,
         liveAccessIds: production,
@@ -428,7 +431,7 @@ function Editor({ jobId, draft, alone }: { jobId: string; draft: AgreementDraft;
           <Button
             type="button"
             onClick={() => alone.onAsking(true)}
-            disabled={pending || blocked !== undefined}
+            disabled={pending || blocked !== undefined || !alone.versions}
             aria-describedby={`${ids}-alone-why`}
           >
             {t('screen.agreement.review.confirm')}

@@ -233,6 +233,25 @@ describe('JOB-6 and JOB-4 for the Customer of a Self-mentored Job (AD-47, Story 
     expect(screen.queryByRole('checkbox', { name: /Từ lúc công việc bắt đầu/ })).toBeNull()
   })
 
+  // The mode is the draft's own word: a Crew that cannot be read never brings back a normal Job's "Gửi cho khách hàng",
+  // and the one step waits for the versions it names.
+  it('keeps the one-step controls while the Crew cannot be read', { timeout: 20_000 }, async () => {
+    const complete = {
+      codeJob: false,
+      milestones: [milestone({ criteria: [{ id: 'c1', statement: 'Khách chọn giờ đã qua thì không đặt được', checkSteps: '1. Mở.' }] })],
+    }
+    mentorBackend(draft({ selfMentored: true, quote: undefined }, complete), {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/mentor/jobs/j1/crew': () => json({ status: 500, code: 'INTERNAL' }, 500),
+    })
+    renderAt('/cong-viec/j1/thoa-thuan')
+
+    expect(await screen.findByText(/Bạn soạn và xác nhận thỏa thuận một mình, không có bước gửi hay duyệt/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gửi cho khách hàng' })).toBeNull()
+    expect(screen.queryByText('Chưa gửi cho khách hàng.')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Xác nhận thỏa thuận' })).toBeDisabled()
+  })
+
   it('has no Job Chat: the screen is not found', { timeout: 15_000 }, async () => {
     // The Customer's and the Mentor's chat screens would both load here: only the explicit "none" is not found.
     const chatScreens = {

@@ -686,6 +686,37 @@ class CrewApplicationsIT extends IntegrationTest {
 		assertDeletedAndAudited(second);
 	}
 
+	/**
+	 * AD-24, FR-85, Story 25.3: a Job nobody bid on, as a Self-mentored Job is, has its Crew's signatures all the same.
+	 * They go with the Product, also after the end of the retention took the Crew Applications that named the Job.
+	 */
+	@Test
+	void deletingTheProductDeletesTheSignaturesOfAJobNobodyBidOn() {
+		UUID other = TestPeople.mentor(this.jdbc, "Lê Thu Trang", List.of(TestPeople.REACT), "React");
+		UUID noBid = JobContent.job(this.jdbc, this.product, this.lan, other, "Thêm thanh toán online", JobContent.SIGNED,
+				"AGREEMENT");
+		UUID owner = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
+		UUID elsewhere = JobContent.job(this.jdbc, product(owner), owner, other, "Việc của sản phẩm khác", JobContent.SIGNED,
+				"AGREEMENT");
+		for (UUID signed : List.of(noBid, elsewhere)) {
+			this.jdbc.sql("""
+					INSERT INTO matching.nda_signature (job_id, account_id, nda_version, commitment_version,
+					    self_mentored_notice_version, signed_at)
+					VALUES (:job, :minh, '2.0', '1.0', '1.0', :at)
+					""").param("job", signed).param("minh", this.minh).param("at", Timestamp.from(JobContent.SIGNED)).update();
+		}
+
+		new TransactionTemplate(this.transactions).executeWithoutResult(status -> {
+			this.matching.retireJobData(this.product);
+			this.matching.deleteProduct(this.product);
+		});
+
+		assertThat(this.jdbc.sql("SELECT job_id FROM matching.nda_signature WHERE account_id = :minh")
+			.param("minh", this.minh)
+			.query(UUID.class)
+			.list()).as("only the other Product's signature stays").containsExactly(elsewhere);
+	}
+
 	@Test
 	void thePurgeDeletesAnUploadNoApplicationTookWithinNinetyDays() throws Exception {
 		String file = fileId(upload(this.minh));

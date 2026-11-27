@@ -1054,6 +1054,13 @@ class CrewPickIT extends IntegrationTest {
 			.andExpect(jsonPath("$.panel.scope").value("Thêm bước trả tiền cọc khi đặt bàn."))
 			.andExpect(jsonPath("$.panel.milestones[0].title").value("Trả tiền cọc"))
 			.andExpect(jsonPath("$.panel.milestones[0].priceVnd").value(800000));
+		// R61: what the picked person reads names the Customer and shows the draft, and carries no way to reach the
+		// Customer outside vibefix.
+		for (String read : List.of("/commitment", "/agreement")) {
+			assertThat(this.mvc.perform(get("/api/v1/crew/jobs/" + own + read).with(as(this.minh))).andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).as(read)
+				.contains("Trả tiền cọc").doesNotContain("lan@example.com");
+		}
 
 		// N-35 is part of the commitment: without its current version nothing is signed.
 		sign(this.minh, own, "1.0", true).andExpect(status().isBadRequest())

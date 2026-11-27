@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -141,6 +142,11 @@ class CrewAgreementController {
 	@GetMapping("/api/v1/crew/jobs/{jobId}/agreement")
 	CrewAgreementView crewAgreement(@PathVariable UUID jobId, @RequestParam(required = false) @Nullable Integer version,
 			@RequestParam(required = false) @Nullable Boolean confirmed) {
+		return read(jobId, version, confirmed, true);
+	}
+
+	/** @param again whether a read of the newest version that a save overtook is tried once more */
+	private CrewAgreementView read(UUID jobId, @Nullable Integer version, @Nullable Boolean confirmed, boolean again) {
 		Job job = readerJob(jobId);
 		String title = job.title();
 		boolean selfMentored = job.selfMentored();
@@ -175,12 +181,16 @@ class CrewAgreementController {
 		}
 		if (selfMentored) {
 			// AD-47, R54: nobody shares a draft here, so the reader opens the Customer's live draft at the revision named. A
-			// save between the two reads leaves that revision behind: the reader finds nothing and loads the draft again.
+			// save between the two reads leaves that revision behind. A reader who asked for the newest is read again,
+			// once; one who named the revision finds nothing, and the page loads the newest.
 			int revision = shown.versionNo();
-			Draft draft = this.agreements.draft(job)
-				.filter(live -> live.revision() == revision)
-				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-			return new CrewAgreementView(title, options, shown, content(draft.content()), List.of(), reworkDays, changed, true);
+			Optional<Draft> draft = this.agreements.draft(job).filter(live -> live.revision() == revision);
+			if (draft.isEmpty() && again && version == null) {
+				return read(jobId, null, null, false);
+			}
+			return new CrewAgreementView(title, options, shown,
+					content(draft.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)).content()), List.of(), reworkDays,
+					changed, true);
 		}
 		Version shared = this.agreements.version(jobId, shown.versionNo())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));

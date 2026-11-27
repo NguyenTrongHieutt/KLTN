@@ -223,10 +223,13 @@ class MatchingPersonalData implements PersonalDataParticipant, GitHubLinkPartici
 
 	@Override
 	public void deleteProduct(UUID productId) {
+		// The Product's Jobs are read from `job`, which deletes its rows after this participant: a Self-mentored Job has no
+		// bid to find its Crew's signatures by (FR-85), and the end of the retention took its Crew Applications already.
+		UUID[] jobs = this.posts.getObject().productJobs(productId).stream().map(JobPostState::jobId).toArray(UUID[]::new);
 		this.jdbc.sql("""
-				DELETE FROM matching.nda_signature WHERE job_id IN
+				DELETE FROM matching.nda_signature WHERE job_id = ANY (CAST(:jobs AS UUID[])) OR job_id IN
 				    (SELECT job_id FROM matching.application WHERE product_id = :id)
-				""").param("id", productId).update();
+				""").param("jobs", jobs).param("id", productId).update();
 		this.proofs.getObject().deleteWhere("product_id = :id", Map.of("id", productId));
 		this.jdbc.sql("DELETE FROM matching.application WHERE product_id = :id").param("id", productId).update();
 		this.jdbc.sql("DELETE FROM matching.invitation WHERE product_id = :id").param("id", productId).update();

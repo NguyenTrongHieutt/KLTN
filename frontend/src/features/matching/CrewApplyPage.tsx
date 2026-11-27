@@ -302,12 +302,15 @@ function CrewApplyFields({
     })
   }
 
+  // UX-DR124: in a Self-mentored Job the form names the Customer, who reads the application.
+  const own = post.selfMentored === true
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
     setRefusal(undefined)
     const found: Record<string, string> = {}
     if (note.trim() === '') {
-      found.note = t('screen.crewApply.noteRequired')
+      found.note = t(own ? 'screen.crewApply.noteRequiredSelfMentored' : 'screen.crewApply.noteRequired')
     }
     if (items.some((item) => caption(item).trim() === '')) {
       found.proof = t('screen.matching.apply.captionRequired')
@@ -331,7 +334,9 @@ function CrewApplyFields({
       { note: note.trim(), skillIds, publicCodeAcknowledged: true, proof },
       {
         onSuccess: (sent) => {
-          toasts.success(t('screen.crewApply.sent', { date: formatDayMonth(sent.lapsesAt) }))
+          toasts.success(
+            t(own ? 'screen.crewApply.sentSelfMentored' : 'screen.crewApply.sent', { date: formatDayMonth(sent.lapsesAt) }),
+          )
           void navigate(`/tim-viec/${post.id}`)
         },
         onError: (error) => setRefusal(refusalText(error)),
@@ -344,19 +349,28 @@ function CrewApplyFields({
       <div className="flex flex-col gap-1">
         <PageHeading>{t('screen.crewApply.heading')}</PageHeading>
         <p className="text-body-sm break-words text-muted-foreground">{post.title}</p>
-        <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.lead')}</p>
+        <p className="text-body-sm text-muted-foreground">
+          {t(own ? 'screen.crewApply.leadSelfMentored' : 'screen.crewApply.lead')}
+        </p>
       </div>
       {recruitment && (
         <Card as="section" aria-label={t('screen.jobPost.detail.crewNote')} className="flex flex-col gap-2 text-body-sm">
           <p className="font-semibold break-words">
             {recruitment.skills.length > 0
-              ? t('screen.crewApply.ask', { skills: recruitment.skills.join(', ') })
-              : t('screen.crewApply.askAny')}
+              ? t(own ? 'screen.crewApply.askSelfMentored' : 'screen.crewApply.ask', {
+                  skills: recruitment.skills.join(', '),
+                })
+              : t(own ? 'screen.crewApply.askAnySelfMentored' : 'screen.crewApply.askAny')}
           </p>
           {recruitment.note && <p className="break-words whitespace-pre-line">{recruitment.note}</p>}
         </Card>
       )}
-      <FormField id={`${ids}-note`} label={t('screen.crewApply.note')} helper={t('screen.crewApply.noteHint')} error={errors.note}>
+      <FormField
+        id={`${ids}-note`}
+        label={t(own ? 'screen.crewApply.noteSelfMentored' : 'screen.crewApply.note')}
+        helper={t('screen.crewApply.noteHint')}
+        error={errors.note}
+      >
         <textarea
           {...fieldProps(`${ids}-note`, errors.note, t('screen.crewApply.noteHint'))}
           rows={4}
@@ -385,7 +399,7 @@ function CrewApplyFields({
       <Card as="section" aria-labelledby={`${ids}-proof`} className="flex flex-col gap-3">
         <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
           {/* N-27's variant (Story 25.3): in a Self-mentored Job the Customer is the one who reads the application. */}
-          {post.selfMentored
+          {own
             ? `${t('notice.proofConfidentialitySelfMentored')} ${t('screen.crewApply.proofSelfMentored')}`
             : t('notice.proofConfidentiality', { who: t('screen.crewApply.proofWho') })}
         </div>

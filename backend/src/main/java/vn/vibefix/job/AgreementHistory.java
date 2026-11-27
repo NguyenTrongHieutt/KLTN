@@ -25,8 +25,12 @@ public interface AgreementHistory {
 
 	}
 
+	/**
+	 * @param alone the Customer of a Self-mentored Job confirmed this version in one step (AD-47): nobody approved it
+	 * first, and {@code approvedAt} is the time of that one step
+	 */
 	record ConfirmedVersion(int versionNo, Instant approvedAt, Instant confirmedAt, String scope, @Nullable Long priceVnd,
-			List<MilestoneLine> milestones) {
+			List<MilestoneLine> milestones, boolean alone) {
 
 		public ConfirmedVersion {
 			milestones = List.copyOf(milestones);

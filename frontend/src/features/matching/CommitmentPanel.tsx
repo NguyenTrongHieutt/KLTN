@@ -15,6 +15,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import {
   COMMITMENT_VERSION,
+  SELF_MENTORED_CREW_NOTICE_VERSION,
   useCommitment,
   useDeclineCommitment,
   useSignCommitment,
@@ -84,7 +85,8 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         commitmentVersion: COMMITMENT_VERSION,
         publicCodeAcknowledged: publicCode,
         commitEmailNoticeAcknowledged: understood || panel.commitEmailNoticeAcknowledged,
-        selfMentoredNoticeVersion: panel.selfMentoredNoticeVersion ?? undefined,
+        // The version of the N-35 text this page shows, never the server's own number sent back to it.
+        selfMentoredNoticeVersion: own ? SELF_MENTORED_CREW_NOTICE_VERSION : undefined,
       },
       {
         onSuccess: () => toasts.success(t('screen.commitment.signed', { job: commitment.jobTitle })),
@@ -96,7 +98,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
     decline.mutate(undefined, {
       onSuccess: () => {
         setDeclining(false)
-        toasts.success(t('screen.commitment.declined'))
+        toasts.success(t(own ? 'screen.commitment.declinedSelfMentored' : 'screen.commitment.declined'))
       },
       onError: (failed) => {
         setDeclining(false)
@@ -125,7 +127,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
       {own && (
         <div className="flex flex-col gap-2">
           <h3 className="text-label font-semibold">
-            {t('screen.commitment.n35Title', { version: panel.selfMentoredNoticeVersion ?? '' })}
+            {t('screen.commitment.n35Title', { version: SELF_MENTORED_CREW_NOTICE_VERSION })}
           </h3>
           <p className="text-body-sm">{t('screen.commitment.n35', { name: commitment.mentorName })}</p>
         </div>
@@ -206,7 +208,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         >
           <p>
             {own
-              ? t('screen.commitment.textSelfMentored', { version: panel.selfMentoredNoticeVersion ?? '' })
+              ? t('screen.commitment.textSelfMentored', { version: SELF_MENTORED_CREW_NOTICE_VERSION })
               : t('screen.commitment.text', { login: panel.githubLogin ?? '' })}
           </p>
           <p className="mt-2">{t('screen.nda.pending')}</p>
@@ -248,7 +250,9 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
                 <X aria-hidden="true" className="size-5" />
               </Dialog.Close>
             </div>
-            <Dialog.Description className="text-body-sm">{t('screen.commitment.declineBody')}</Dialog.Description>
+            <Dialog.Description className="text-body-sm">
+              {t(own ? 'screen.commitment.declineBodySelfMentored' : 'screen.commitment.declineBody')}
+            </Dialog.Description>
             <div className="flex flex-wrap justify-between gap-3">
               <Dialog.Close render={<Button variant="secondary" />}>{t('screen.commitment.declineBack')}</Dialog.Close>
               <Button type="button" variant="destructive" onClick={confirmDecline} disabled={decline.isPending}>

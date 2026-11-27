@@ -60,13 +60,18 @@ class AdminEvidenceController {
 			List<EvidenceCriterion> criteria, @Nullable LocalDate dueInForce) {
 	}
 
-	record EvidenceAgreementVersion(int versionNo, Instant approvedAt, Instant confirmedAt, String scope,
+	/**
+	 * @param approvedAt when the Customer approved it; none for a version the Customer of a Self-mentored Job confirmed
+	 * alone, where nobody approved before the one step (AD-47)
+	 */
+	record EvidenceAgreementVersion(int versionNo, @Nullable Instant approvedAt, Instant confirmedAt, String scope,
 			@Nullable Long priceVnd, List<EvidenceMilestone> milestones) {
 	}
 
 	/**
 	 * One approval or revision request, oldest first.
-	 * @param kind {@code AGREEMENT_APPROVED}, {@code AGREEMENT_CONFIRMED}, {@code HANDOVER_ACCEPTED},
+	 * @param kind {@code AGREEMENT_APPROVED}, {@code AGREEMENT_CONFIRMED}, {@code AGREEMENT_CONFIRMED_ALONE} (the one
+	 * step of a Self-mentored Job, in place of the two before it), {@code HANDOVER_ACCEPTED},
 	 * {@code HANDOVER_AUTO_ACCEPTED}, {@code HANDOVER_REVISION_REQUESTED}, or {@code HANDOVER_VOIDED}
 	 */
 	record EvidenceDecision(String kind, Instant at, @Nullable Integer versionNo, @Nullable Integer milestoneNumber,
@@ -138,8 +143,8 @@ class AdminEvidenceController {
 			.orElse(List.of())
 			.forEach(milestone -> inForce.put(milestone.id(), milestone.dueOn()));
 		return versions.stream()
-			.map(version -> new EvidenceAgreementVersion(version.versionNo(), version.approvedAt(), version.confirmedAt(),
-					version.scope(), version.priceVnd(), version.milestones()
+			.map(version -> new EvidenceAgreementVersion(version.versionNo(), version.alone() ? null : version.approvedAt(),
+					version.confirmedAt(), version.scope(), version.priceVnd(), version.milestones()
 						.stream()
 						.map(milestone -> new EvidenceMilestone(milestone.milestoneId(), milestone.number(), milestone.title(),
 								milestone.priceVnd(), milestone.dueOn(), milestone.criteria()
@@ -151,6 +156,20 @@ class AdminEvidenceController {
 										: null))
 						.toList()))
 			.toList();
+	}
+
+	/**
+	 * How one confirmed Agreement version came to be: the Customer's approval and then the Mentor's confirmation, or the
+	 * one step of the Customer who mentors the Job, which is never told as two parties' steps (AD-47).
+	 */
+	static List<EvidenceDecision> agreementDecisions(ConfirmedVersion version) {
+		if (version.alone()) {
+			return List.of(new EvidenceDecision("AGREEMENT_CONFIRMED_ALONE", version.confirmedAt(), version.versionNo(), null,
+					null, null));
+		}
+		return List.of(
+				new EvidenceDecision("AGREEMENT_APPROVED", version.approvedAt(), version.versionNo(), null, null, null),
+				new EvidenceDecision("AGREEMENT_CONFIRMED", version.confirmedAt(), version.versionNo(), null, null, null));
 	}
 
 	/** The due date in force when it is not the agreed one; {@code null} when they are the same or none is in force. */
@@ -174,8 +193,7 @@ class AdminEvidenceController {
 		Dispute dispute = view(disputeId, Tab.DECISIONS);
 		List<EvidenceDecision> lines = new ArrayList<>();
 		for (ConfirmedVersion version : this.agreements.confirmedVersions(dispute.jobId())) {
-			lines.add(new EvidenceDecision("AGREEMENT_APPROVED", version.approvedAt(), version.versionNo(), null, null, null));
-			lines.add(new EvidenceDecision("AGREEMENT_CONFIRMED", version.confirmedAt(), version.versionNo(), null, null, null));
+			lines.addAll(agreementDecisions(version));
 		}
 		for (Report report : this.deliveries.reports(dispute.jobId())) {
 			if (report.voidedAt() != null) {

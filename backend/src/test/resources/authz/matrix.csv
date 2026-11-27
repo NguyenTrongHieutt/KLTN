@@ -3682,6 +3682,25 @@ GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_DISPUTE_GRANT,job=self;pendin
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 
+# The Agreement and the commitment as the mode world's Crew reads them (Story 25.3): the Agreement for the picked
+# person and the active members, the Commitment panel for the picked person, each scanned for the Customer's contact
+# (R61). A member who left finds nothing, and a commitment that does not name N-35's version signs nothing.
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ASSIGNED,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE_PARTY,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER,job=self,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ASSIGNED,job=self,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ACTIVE,job=self,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_FORMER,job=self,agreement-read.json,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_ASSIGNED,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_ACTIVE,job=self,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_FORMER,job=self,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_ASSIGNED,job=self,commitment.json,400 VALIDATION SELF_MENTORED_NOTICE_OUTDATED
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_ACTIVE,job=self,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ASSIGNED,job=self,,200
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ACTIVE,job=self,,404 NOT_FOUND
+
 # The lists the Customer who mentors reads, the contact the Crew never reads in the mode either (R61), the Crew Chat
 # an Administrator without a grant on this Job does not read, the file the Dispute's grant will (Story 25.7), and an
 # unrelated user, whom the Self-mentored Job tells nothing.

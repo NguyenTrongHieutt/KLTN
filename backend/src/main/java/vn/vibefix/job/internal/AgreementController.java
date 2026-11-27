@@ -108,7 +108,8 @@ class AgreementController {
 	 * @param liveAccessIds the External Access entries marked as live systems
 	 */
 	record AgreementConfirmRequest(@NotNull Long version, @NotNull Long crewVersion, @Nullable @Min(0) Integer revision,
-			@Nullable Boolean freezeCommitment, @Nullable @Size(max = Agreements.MAX_EXTERNAL_ACCESS) List<UUID> liveAccessIds) {
+			@Nullable Boolean freezeCommitment,
+			@Nullable @Size(max = Agreements.MAX_EXTERNAL_ACCESS) List<@NotNull UUID> liveAccessIds) {
 	}
 
 	record AgreementCommentView(UUID id, int versionNo, TargetKind targetKind, @Nullable UUID targetId, String body,

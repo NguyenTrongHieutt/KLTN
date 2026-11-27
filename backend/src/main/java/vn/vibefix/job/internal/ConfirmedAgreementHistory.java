@@ -27,7 +27,9 @@ class ConfirmedAgreementHistory implements AgreementHistory {
 	@Transactional(readOnly = true)
 	public List<ConfirmedVersion> confirmedVersions(UUID jobId) {
 		return this.jdbc.sql("""
-				SELECT version_no, approved_at, confirmed_at, content::text AS content FROM job.confirmed_agreement
+				SELECT version_no, approved_at, confirmed_at, content::text AS content,
+				       customer_account_id = mentor_account_id AS alone
+				FROM job.confirmed_agreement
 				WHERE job_id = :job ORDER BY version_no
 				""").param("job", jobId).query((rs, n) -> {
 			Content content = AgreementReviews.content(rs.getString("content"));
@@ -42,7 +44,8 @@ class ConfirmedAgreementHistory implements AgreementHistory {
 						milestone.dueOn(), criteria));
 			}
 			return new ConfirmedVersion(rs.getInt("version_no"), rs.getTimestamp("approved_at").toInstant(),
-					rs.getTimestamp("confirmed_at").toInstant(), content.scope(), content.priceVnd(), milestones);
+					rs.getTimestamp("confirmed_at").toInstant(), content.scope(), content.priceVnd(), milestones,
+					rs.getBoolean("alone"));
 		}).list();
 	}
 

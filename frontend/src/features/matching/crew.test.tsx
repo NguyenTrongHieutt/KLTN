@@ -972,7 +972,9 @@ describe('MEN-3 Commitment panel for a picked person (FR-81, UX-DR103, Story 21.
 })
 
 describe('the commitment of a Self-mentored Job (FR-85, UX-DR124, R68, Story 25.3)', () => {
-  const N35 = '1.0'
+  // The server's number for N-35 is deliberately not the bundle's: the page shows and signs the version of the text it
+  // holds ("1.0"), so a bundle with an older text is refused and never signs what it did not show (R68).
+  const N35 = '9.9'
   const ownPost = { 'GET /api/v1/mentor/job-posts/j1': () => json(post({ selfMentored: true })) }
   const own = (overrides: object = {}, panel: object = {}) =>
     commitment(
@@ -1072,6 +1074,31 @@ describe('the commitment of a Self-mentored Job (FR-85, UX-DR124, R68, Story 25.
     expect(screen.getByRole('button', { name: 'Ký và tham gia' })).toBeInTheDocument()
   })
 
+  it('declines to the Customer, who is told', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let declined = false
+    const ended = () => own({ status: 'DECLINED', endReason: 'COMMITMENT_DECLINED', panel: undefined })
+    fakeBackend(signedInUser, {
+      ...menThree(ownPost),
+      ...inEveryJob('CREW', 'ASSIGNED'),
+      'GET /api/v1/crew/jobs/j1/commitment': () => json(declined ? ended() : own()),
+      'POST /api/v1/crew/jobs/j1/commitment/decline': () => {
+        declined = true
+        return json(ended())
+      },
+    })
+    renderAt('/tim-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Từ chối' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Từ chối tham gia công việc này?' })
+    expect(within(dialog).getByText(/Khách hàng được báo để chọn người khác/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Người hướng dẫn được báo/)).toBeNull()
+    await user.click(within(dialog).getByRole('button', { name: 'Từ chối' }))
+
+    expect(await screen.findByText('Bạn đã từ chối tham gia. Khách hàng được báo.')).toBeInTheDocument()
+    expect(declined).toBe(true)
+  })
+
   it('says the Customer withdrew the pick', { timeout: 15_000 }, async () => {
     fakeBackend(signedInUser, {
       ...menThree(ownPost),
@@ -1108,6 +1135,11 @@ describe('the commitment of a Self-mentored Job (FR-85, UX-DR124, R68, Story 25.
     const n27 = await screen.findByText(/chỉ khách hàng tự hướng dẫn công việc này xem được/)
     expect(n27).toHaveTextContent('Khách hàng đọc đơn của bạn và thấy hồ sơ công khai của bạn.')
     expect(screen.queryByText(/chỉ người hướng dẫn của công việc này xem được/)).toBeNull()
+    // The form names the Customer wherever a normal Job's names the Mentor (UX-DR124).
+    expect(screen.getByText(/cho khách hàng, người tự hướng dẫn công việc này/)).toBeInTheDocument()
+    expect(screen.getByText('Khách hàng cần: React, Supabase')).toBeInTheDocument()
+    expect(screen.getByLabelText('Lời nhắn cho khách hàng')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Lời nhắn cho người hướng dẫn')).toBeNull()
   })
 })
 

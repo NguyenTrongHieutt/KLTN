@@ -55,6 +55,12 @@ export function CrewAgreement({ jobId, kind }: { jobId: string; kind?: CrewKind 
   }
   usePageTitle(agreement.data ? t('screen.agreement.title', { job: agreement.data.jobTitle }) : t('screen.agreement.tab'))
   if (agreement.isError && isNotFound(agreement.error)) {
+    if (pick) {
+      // The version picked is gone: in a Self-mentored Job a save leaves the draft's earlier revision behind. The page
+      // loads the newest instead; a reader with no way in gets the not-found screen from that read.
+      setPick(undefined)
+      return null
+    }
     return <NotFoundScreen />
   }
   // A pick not yet signed has no Job page: the way back is the Job Post, where the Commitment panel is (MEN-3).

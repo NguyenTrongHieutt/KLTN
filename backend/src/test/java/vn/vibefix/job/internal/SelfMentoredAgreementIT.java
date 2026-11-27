@@ -62,6 +62,9 @@ class SelfMentoredAgreementIT extends IntegrationTest {
 	@Autowired
 	private CrewPicks picks;
 
+	@Autowired
+	private vn.vibefix.job.AgreementHistory history;
+
 	private UUID lan;
 
 	private UUID job;
@@ -104,7 +107,13 @@ class SelfMentoredAgreementIT extends IntegrationTest {
 		confirm(jobVersion(), 0, 0, true, List.of()).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE"));
 		confirm(jobVersion(), 0, 1, false, List.of()).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.reason").value("FREEZE_COMMITMENT_REQUIRED"));
-		confirm(jobVersion(), 0, 1, true, List.of(UUID.randomUUID())).andExpect(status().isBadRequest());
+		// A live system the draft does not list, and one that is no ID at all, are refused as what the request got wrong.
+		confirm(jobVersion(), 0, 1, true, List.of(UUID.randomUUID())).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION"));
+		this.mvc.perform(post("/api/v1/mentor/jobs/" + this.job + "/agreement/confirm").with(as(this.lan, Role.CUSTOMER))
+			.with(csrf()).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"version\":%d,\"crewVersion\":0,\"revision\":1,\"freezeCommitment\":true,\"liveAccessIds\":[null]}"
+				.formatted(jobVersion()))).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION"));
 		confirm(jobVersion() + 1, 0, 1, true, List.of()).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("STALE"));
 		assertThat(count("SELECT count(*) FROM job.confirmed_agreement WHERE job_id = :id")).isZero();
@@ -129,6 +138,9 @@ class SelfMentoredAgreementIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT status || ' ' || (author_account_id = :lan) FROM job.agreement_version WHERE job_id = :id")
 			.param("id", this.job).param("lan", this.lan).query(String.class).list()).containsExactly("CONFIRMED_ALONE true");
 		assertThat(count("SELECT count(*) FROM job.agreement_approval WHERE job_id = :id")).isZero();
+		// The history a Dispute's Evidence Package reads says it too, so it never tells the one step as two.
+		assertThat(this.history.confirmedVersions(this.job)).singleElement()
+			.satisfies(found -> assertThat(found.alone()).as("confirmed alone").isTrue());
 		assertThat(this.jdbc.sql("SELECT agreement_version_no || ' ' || version FROM job.job WHERE id = :id").param("id", this.job)
 			.query(String.class).single()).isEqualTo("1 " + (version + 1));
 		assertThat(this.jdbc.sql("""

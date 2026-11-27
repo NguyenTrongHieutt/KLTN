@@ -104,7 +104,8 @@ class CrewSignatures {
 		if (!CrewCommitments.COMMITMENT_VERSION.equals(commitmentVersion)) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.COMMITMENT_VERSION_OUTDATED);
 		}
-		// The mode never changes once the Job left Draft (AD-47), and a pick exists only after that.
+		// The mode changes only in a Draft or by J12, which starts from Open (AD-47); a pick exists from Agreement on, so
+		// the mode read here is the one the person was picked under.
 		boolean selfMentored = this.posts.post(jobId).map(JobPostState::selfMentored).orElse(false);
 		if (selfMentored && !CrewCommitments.SELF_MENTORED_NOTICE_VERSION.equals(selfMentoredNoticeVersion)) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.SELF_MENTORED_NOTICE_OUTDATED);
