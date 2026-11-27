@@ -176,7 +176,7 @@ class FundingIT extends IntegrationTest {
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("STARTING");
 		assertThat(this.jdbc.sql("SELECT stall_deadline_passed_at IS NULL FROM job.job WHERE id = :id").param("id", this.job)
-			.query(Boolean.class).single()).as("J6 forgot the Agreement stall in its own transaction, before any listener")
+			.query(Boolean.class).single()).as("J6 forgot the Agreement stall")
 			.isTrue();
 		this.mvc.perform(get("/api/v1/boards/" + this.job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
 			.andExpect(status().isOk())

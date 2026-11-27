@@ -358,8 +358,21 @@ describe('No member left in a Self-mentored Job (FR-85, R49, UX-DR124)', () => {
     canPropose: true,
     held: true,
     canCancelAlone: false,
+    frozen: false,
     ...overrides,
   })
+
+  const openProposal = {
+    id: 'p1',
+    scope: 'JOB',
+    reason: 'Đổi kế hoạch',
+    proposer: 'CUSTOMER',
+    mine: true,
+    status: 'OPEN',
+    answerBy: '2026-11-30T03:00:00Z',
+    unanswered: false,
+    createdAt: '2026-11-25T03:00:00Z',
+  }
 
   const asTheCustomerWhoMentors = (view: () => object, extra: Parameters<typeof fakeBackend>[1] = {}) =>
     fakeBackend(signedInUser, {
@@ -374,6 +387,8 @@ describe('No member left in a Self-mentored Job (FR-85, R49, UX-DR124)', () => {
     asTheCustomerWhoMentors(() => cancellation({ held: false }))
     renderAt('/cong-viec/j1')
 
+    // The banner says the same while its answer loads: JOB-1's own button shows that it has arrived.
+    expect(await screen.findByRole('button', { name: 'Đề nghị hủy' })).toBeInTheDocument()
     const banner = (
       await screen.findByText('Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.')
     ).parentElement as HTMLElement
@@ -476,30 +491,32 @@ describe('No member left in a Self-mentored Job (FR-85, R49, UX-DR124)', () => {
 
   /** While a proposal made earlier is open, the cancellation is not offered, in words or as a button. */
   it('says only to recruit while a cancellation proposal is open', { timeout: 20_000 }, async () => {
+    asTheCustomerWhoMentors(() => cancellation({ noMember: 'ALONE', canPropose: false, proposal: openProposal }))
+    renderAt('/cong-viec/j1')
+
+    // The banner says the same while its answer loads: the open proposal shows that it has arrived.
+    expect(await screen.findByRole('button', { name: 'Rút đề nghị' })).toBeInTheDocument()
+    const banner = screen.getByText(
+      'Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.',
+    ).parentElement as HTMLElement
+    expect(within(banner).queryByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' })).toBeNull()
+    expect(screen.queryByText(/hủy giai đoạn đang giữ tiền và nhận hoàn tiền đầy đủ/)).toBeNull()
+  })
+
+  /** A Dispute already freezes the Job: the banner offers no second one, and says nothing a Dispute now decides. */
+  it('offers no Dispute while one freezes the Job', { timeout: 20_000 }, async () => {
     asTheCustomerWhoMentors(() =>
-      cancellation({
-        noMember: 'ALONE',
-        canPropose: false,
-        proposal: {
-          id: 'p1',
-          scope: 'JOB',
-          reason: 'Đổi kế hoạch',
-          proposer: 'CUSTOMER',
-          mine: true,
-          status: 'OPEN',
-          answerBy: '2026-11-30T03:00:00Z',
-          unanswered: false,
-          createdAt: '2026-11-25T03:00:00Z',
-        },
-      }),
+      cancellation({ noMember: 'CREW_WAS_ACTIVE', canPropose: false, frozen: true, proposal: openProposal }),
     )
     renderAt('/cong-viec/j1')
 
-    const banner = (
-      await screen.findByText('Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.')
-    ).parentElement as HTMLElement
-    expect(within(banner).queryByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' })).toBeNull()
     expect(await screen.findByRole('button', { name: 'Rút đề nghị' })).toBeInTheDocument()
+    const banner = screen.getByText(
+      'Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.',
+    ).parentElement as HTMLElement
+    expect(within(banner).getByRole('link', { name: 'Tuyển thành viên' })).toBeInTheDocument()
+    expect(within(banner).queryByRole('link', { name: 'Mở tranh chấp' })).toBeNull()
+    expect(screen.queryByText(/bạn không tự hủy và nhận lại tiền một mình được/)).toBeNull()
   })
 
   it('shows the refusal when a member turned out to have worked on it', { timeout: 20_000 }, async () => {

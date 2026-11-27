@@ -53,9 +53,10 @@ class CancellationController {
 	 * {@code ALONE}, nobody was active since it was funded, so the proposal command cancels at once with the full refund;
 	 * {@code CREW_WAS_ACTIVE}, a member was, so the command is refused and the page offers recruiting again or a
 	 * Dispute. {@code null} everywhere else
+	 * @param frozen a Dispute freezes the Job: nothing is cancelled at once, and no second Dispute opens
 	 */
 	record CancellationView(UUID jobId, String audience, String state, long version, boolean canPropose, boolean held,
-			boolean canCancelAlone, @Nullable CancellationProposalView proposal, @Nullable NoMember noMember) {
+			boolean canCancelAlone, @Nullable CancellationProposalView proposal, @Nullable NoMember noMember, boolean frozen) {
 	}
 
 	record CancelAloneRequest(@NotBlank @Size(max = 2000) String reason, @NotNull Long version) {
@@ -172,9 +173,12 @@ class CancellationController {
 				: new CancellationProposalView(shown.id(), shown.scope().name(), shown.reason(), shown.proposer().name(),
 						shown.proposer() == viewer.party(), shown.status(), shown.answerBy(), shown.unansweredAt() != null,
 						shown.createdAt(), shown.decidedAt());
-		boolean alone = viewer.party() != null && open == null && this.cancellations.aloneAllowed(job);
+		// The stall's cancellation is a cascade too, so a frozen Job is not offered it (the command answers JOB_FROZEN).
+		boolean alone = viewer.party() != null && open == null && job.frozenAt() == null
+				&& this.cancellations.aloneAllowed(job);
 		return new CancellationView(job.id(), viewer.party() == null ? "CREW" : viewer.party().name(), job.state().name(),
-				job.version(), canPropose, this.cancellations.held(job.id()), alone, proposal, noMember);
+				job.version(), canPropose, this.cancellations.held(job.id()), alone, proposal, noMember,
+				job.frozenAt() != null);
 	}
 
 }

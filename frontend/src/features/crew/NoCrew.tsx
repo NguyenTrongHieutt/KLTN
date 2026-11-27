@@ -54,15 +54,16 @@ function RecruitLink({ jobId }: { jobId: string }) {
  * with no Held Milestone, recruit; with a Held Milestone nobody worked on since it was funded, recruit or cancel it
  * alone with the full refund; with one a member worked on, why it cannot be cancelled alone, and recruit or open a
  * Dispute. A Job still Starting adds that the Starting stall is the way out, and once that stall passed the banner
- * points to JOB-1's "Hủy công việc", which cancels alone whoever worked (B-07). While the answer loads, and while a
- * proposal is open, it says only to recruit, which holds in every case. The sentence alone is the live region.
+ * points to JOB-1's "Hủy công việc", which cancels alone whoever worked (B-07). It offers nothing the page would
+ * refuse: no cancellation at once while a proposal is open or a Dispute freezes the Job, and no second Dispute. While
+ * the answer loads it says only to recruit, which holds in every case. The sentence alone is the live region.
  */
 function NoMemberBanner({ jobId }: { jobId: string }) {
   const cancellation = useCancellation(jobId).data
   const [asking, setAsking] = useState(false)
   const stallPassed = cancellation?.canCancelAlone === true
   const alone = !stallPassed && cancellation?.noMember === 'ALONE' && cancellation.canPropose
-  const crewWasActive = !stallPassed && cancellation?.noMember === 'CREW_WAS_ACTIVE'
+  const crewWasActive = !stallPassed && cancellation?.noMember === 'CREW_WAS_ACTIVE' && !cancellation.frozen
   const text: MessageKey = stallPassed
     ? 'screen.crew.noCrew.selfMentorStallPassed'
     : alone

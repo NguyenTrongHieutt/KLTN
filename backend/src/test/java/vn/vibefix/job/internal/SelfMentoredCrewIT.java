@@ -276,7 +276,10 @@ class SelfMentoredCrewIT extends IntegrationTest {
 		this.jdbc.sql("UPDATE job.job SET frozen_at = :at WHERE id = :id").param("at", Timestamp.from(this.clock.instant()))
 			.param("id", this.job).update();
 
-		cancellation().andExpect(jsonPath("$.noMember").value("ALONE")).andExpect(jsonPath("$.canPropose").value(false));
+		cancellation().andExpect(jsonPath("$.noMember").value("ALONE"))
+			.andExpect(jsonPath("$.canPropose").value(false))
+			.andExpect(jsonPath("$.frozen").value(true));
+		cancel().andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("JOB_FROZEN"));
 	}
 
 	/** With a member still active the command proposes, as before; the members' agreement is Story 25.7's. */

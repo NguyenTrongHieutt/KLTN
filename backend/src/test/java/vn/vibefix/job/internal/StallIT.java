@@ -136,6 +136,28 @@ class StallIT extends IntegrationTest {
 						+ job + "'") >= DUTIES);
 	}
 
+	/** A cancellation alone is a cascade, which a freeze refuses: a frozen Job is not offered it (Story 25.4). */
+	@Test
+	void aFrozenJobIsNotOfferedTheCancellationAloneAfterItsStall() throws Exception {
+		UUID job = world("STARTING", true);
+		this.listeners.onJobTransitioned(event(job, "J6", "AGREEMENT", "STARTING"));
+		await().atMost(Duration.ofSeconds(10)).until(() -> count("SELECT count(*) FROM timers.deadline WHERE subject_id = '"
+				+ job + "'") >= 1);
+		this.clock.advance(Duration.ofDays(8));
+		this.poller.runDue();
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(true))
+			.andExpect(jsonPath("$.frozen").value(false));
+
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :at WHERE id = :id").param("at", Timestamp.from(this.clock.instant()))
+			.param("id", job).update();
+
+		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(jsonPath("$.canCancelAlone").value(false))
+			.andExpect(jsonPath("$.frozen").value(true));
+		alone(this.lan, Role.CUSTOMER, job).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("JOB_FROZEN"));
+	}
+
 	@Test
 	void aJobThatMovedOnLeavesTheDeadlineObsolete() throws Exception {
 		UUID job = world("STARTING", false);
