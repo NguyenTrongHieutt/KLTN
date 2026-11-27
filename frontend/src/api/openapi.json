@@ -13580,7 +13580,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "at", "reason" ]
+        "required" : [ "at" ]
       },
       "HandoverScreenshotView" : {
         "type" : "object",

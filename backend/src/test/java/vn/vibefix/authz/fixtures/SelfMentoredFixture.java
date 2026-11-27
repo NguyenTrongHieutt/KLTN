@@ -566,10 +566,11 @@ public class SelfMentoredFixture implements MatrixFixture {
 				VALUES (:id, :job, 0, 'Bảng quản trị Supabase', 'Xem lỗi đặt bàn', :at)
 				""").param("id", access).param("job", job).param("at", signed).update();
 		put(world, "accessId", access);
-		handover(releasedHandover, job, product, released, 1, "Thiết lập đặt bàn", "ACCEPTED", 3,
+		handover(releasedHandover, job, product, released, 1, 1, "Thiết lập đặt bàn", "ACCEPTED", 3,
 				ACCEPTED.minus(Duration.ofDays(1)), ACCEPTED);
-		handover(handover, job, product, held, 2, "Sửa lỗi trùng giờ", "SUBMITTED", 5, WRITTEN, null);
-		returnedHandover(world, job, product, held, handover);
+		// The held Milestone's second handover: its first was returned (returnedHandover).
+		handover(handover, job, product, held, 2, 2, "Sửa lỗi trùng giờ", "SUBMITTED", 5, WRITTEN, null);
+		returnedHandover(world, job, product, held);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', true, 'Đã kiểm tra trên điện thoại')
@@ -600,9 +601,8 @@ public class SelfMentoredFixture implements MatrixFixture {
 	 * void, counted on the Milestone, and read through {@code selfHandover=returned}. The handover waiting for a
 	 * decision is the Milestone's second.
 	 */
-	private void returnedHandover(MatrixWorld world, UUID job, UUID product, UUID milestone, UUID current) {
+	private void returnedHandover(MatrixWorld world, UUID job, UUID product, UUID milestone) {
 		UUID returned = UUID.randomUUID();
-		this.jdbc.sql("UPDATE delivery.handover SET round = 2 WHERE id = :id").param("id", current).update();
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, check_by, created_at, voided_at, returned,
@@ -625,15 +625,16 @@ public class SelfMentoredFixture implements MatrixFixture {
 	}
 
 	/** A Milestone Handover the active member made, whom the column that still says "mentor" names (Story 25.5). */
-	private void handover(UUID id, UUID job, UUID product, UUID milestone, int number, String title, String status,
+	private void handover(UUID id, UUID job, UUID product, UUID milestone, int number, int round, String title, String status,
 			int jobVersion, Instant at, Instant decided) {
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover (id, job_id, product_id, milestone_id, milestone_number, milestone_title, round,
 				    mentor_account_id, status, job_version, transition_id, check_by, created_at, decided_at, decided_by)
-				VALUES (:id, :job, :product, :milestone, :number, :title, 1, :member, :status, :version, :transition, :at, :at,
-				    :decided, :decider)
+				VALUES (:id, :job, :product, :milestone, :number, :title, :round, :member, :status, :version, :transition, :at,
+				    :at, :decided, :decider)
 				""")
 			.param("id", id)
+			.param("round", round)
 			.param("job", job)
 			.param("product", product)
 			.param("milestone", milestone)

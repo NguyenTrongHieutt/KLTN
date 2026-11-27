@@ -5752,7 +5752,7 @@ export interface components {
         HandoverReturnView: {
             /** Format: date-time */
             at: string;
-            reason: string;
+            reason?: string;
         };
         HandoverScreenshotView: {
             /** Format: uuid */
