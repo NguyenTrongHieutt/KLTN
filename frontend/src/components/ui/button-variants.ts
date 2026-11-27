@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
  * Accessibility Floor. Links that look like buttons use these classes too.
  */
 const variants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent text-label font-semibold text-center transition-[color,background-color,border-color,translate] duration-(--duration-fast) select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-5',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent text-label font-semibold text-center transition-[color,background-color,border-color,translate] duration-(--duration-fast) select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-5',
   {
     variants: {
       variant: {

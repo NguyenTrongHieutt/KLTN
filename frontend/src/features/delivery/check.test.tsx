@@ -481,7 +481,7 @@ describe('JOB-5 in a Self-mentored Job (FR-32, FR-86, UX-DR126, UX-DR127, Story 
 
     await user.click(await screen.findByRole('button', { name: 'Nghiệm thu giai đoạn' }))
     await user.click(within(await screen.findByRole('dialog', { name: 'Nghiệm thu Giai đoạn 1?' })).getByRole('button', { name: 'Xác nhận' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Bàn giao này đã được trả lại. Hãy mở lại báo cáo bàn giao.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bàn giao này đã được trả lại. Hãy mở báo cáo bàn giao để xem.')
     expect(screen.queryByText(/GitHub đã thay đổi/)).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Trả lại bàn giao' }))
@@ -489,6 +489,43 @@ describe('JOB-5 in a Self-mentored Job (FR-32, FR-86, UX-DR126, UX-DR127, Story 
     await user.type(within(dialog).getByRole('textbox', { name: 'Lý do trả lại' }), 'Bấm sớm')
     await user.click(within(dialog).getByRole('button', { name: 'Trả lại bàn giao' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Lần bàn giao này đã được quyết định.')
+  })
+
+  /** A Dispute's freeze is `job`'s refusal, read from `job`'s sentences though the decision is `delivery`'s. */
+  it('says the Job is in a Dispute when the freeze refuses a decision or a return', { timeout: 25_000 }, async () => {
+    const user = userEvent.setup()
+    const frozen = () => json({ status: 409, code: 'CONFLICT', reason: 'JOB_FROZEN' }, 409)
+    window.sessionStorage.setItem('vibefix.check.h1', summaryDraft)
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/handovers/h1': () => json(memberReport()),
+      'POST /api/v1/handovers/h1/accept': frozen,
+      'POST /api/v1/handovers/h1/return': frozen,
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    await user.click(await screen.findByRole('button', { name: 'Nghiệm thu giai đoạn' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Nghiệm thu Giai đoạn 1?' })).getByRole('button', { name: 'Xác nhận' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Công việc đang tạm dừng vì có tranh chấp/i)
+
+    await user.click(screen.getByRole('button', { name: 'Trả lại bàn giao' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Trả lại bàn giao Giai đoạn 1?' })
+    await user.type(within(dialog).getByRole('textbox', { name: 'Lý do trả lại' }), 'Bấm sớm')
+    await user.click(within(dialog).getByRole('button', { name: 'Trả lại bàn giao' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Công việc đang tạm dừng vì có tranh chấp/i)
+  })
+
+  /** The check route of a handover already returned says so, not that it was "decided". */
+  it('tells a returned handover apart on the check route', { timeout: 25_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/handovers/h1': () =>
+        json(memberReport({ status: 'VOIDED', decision: null, returned: { at: '2026-11-22T03:00:00Z', reason: 'Bấm sớm' } })),
+    })
+    renderAt('/cong-viec/j1/ban-giao/h1/kiem-tra')
+
+    expect(await screen.findByText(/Bàn giao này đã được trả lại\./)).toBeInTheDocument()
+    expect(screen.queryByText(/đã được quyết định/)).toBeNull()
   })
 
   it('offers no return in a normal Job', { timeout: 25_000 }, async () => {

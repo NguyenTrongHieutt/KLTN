@@ -218,9 +218,13 @@ class SelfMentoredHandoverIT extends IntegrationTest {
 		returnIt(this.lan, handover, 6, REASON).andExpect(status().isOk());
 		awaitListeners();
 
-		// FR-35, AD-4: Auto-acceptance is cancelled with the handover, so its Deadline finds nothing to accept.
+		// FR-35, AD-4: Auto-acceptance and its reminders end with the handover: each Deadline runs into a handover that
+		// is no longer waiting, ends OBSOLETE, and accepts and reminds nothing.
 		this.clock.advance(Duration.ofDays(7).plusMinutes(1));
 		this.poller.runDue();
+		assertThat(this.jdbc.sql("SELECT DISTINCT status FROM timers.deadline WHERE subject_id = :id")
+			.param("id", UUID.fromString(handover)).query(String.class).list()).containsExactly("OBSOLETE");
+		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'delivery.acceptance_reminder'")).isZero();
 		assertThat(text("SELECT status FROM delivery.handover WHERE id = '" + handover + "'")).isEqualTo("VOIDED");
 		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.milestone + "'")).isEqualTo("FUNDED");
 		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.milestone_accepted'")).isZero();

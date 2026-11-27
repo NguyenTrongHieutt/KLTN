@@ -568,9 +568,9 @@ public class SelfMentoredFixture implements MatrixFixture {
 		put(world, "accessId", access);
 		handover(releasedHandover, job, product, released, 1, 1, "Thiết lập đặt bàn", "ACCEPTED", 3,
 				ACCEPTED.minus(Duration.ofDays(1)), ACCEPTED);
-		// The held Milestone's second handover: its first was returned (returnedHandover).
-		handover(handover, job, product, held, 2, 2, "Sửa lỗi trùng giờ", "SUBMITTED", 5, WRITTEN, null);
+		// The held Milestone's first handover was returned; the one waiting for a decision is its second, made after.
 		returnedHandover(world, job, product, held);
+		handover(handover, job, product, held, 2, 2, "Sửa lỗi trùng giờ", "SUBMITTED", 5, WRITTEN, null);
 		this.jdbc.sql("""
 				INSERT INTO delivery.handover_criterion (handover_id, criterion_id, number, statement, check_steps, met, note)
 				VALUES (:id, :criterion, 1, 'Hai khách không đặt trùng bàn', '1. Mở. 2. Đặt.', true, 'Đã kiểm tra trên điện thoại')

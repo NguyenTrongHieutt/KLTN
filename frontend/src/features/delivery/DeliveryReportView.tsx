@@ -83,10 +83,8 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
       */}
       {report.returned && (
         <div role="note" className="flex flex-col gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
-          <p>
-            {t('screen.handover.voided.returned', { date: formatDate(report.returned.at) })}
-            {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
-          </p>
+          {/* Nothing here speaks of the money: a later handover of the Milestone may have released it since. */}
+          <p>{t('screen.handover.voided.returned', { date: formatDate(report.returned.at) })}</p>
           {/* The reason goes with the handover's other texts once the Job's data is retired (NFR-10). */}
           {report.returned.reason && (
             <figure className="flex flex-col gap-0.5">

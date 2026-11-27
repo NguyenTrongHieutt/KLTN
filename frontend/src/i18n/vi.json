@@ -4887,7 +4887,7 @@
       "SCREENSHOT_UNKNOWN": "Có hình ảnh không còn trong danh sách. Hãy tải lại trang.",
       "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB.",
       "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Giai đoạn cần được bàn giao lại.",
-      "HANDOVER_RETURNED": "Bàn giao này đã được trả lại. Hãy mở lại báo cáo bàn giao.",
+      "HANDOVER_RETURNED": "Bàn giao này đã được trả lại. Hãy mở báo cáo bàn giao để xem.",
       "HANDOVER_COPYING": "Một bàn giao khác đang được sao chép sang repo trung gian. Hãy đợi xong rồi gửi tiếp.",
       "RUN_FAILED": "Lần sao chép bàn giao trên GitHub Actions không chạy xong.",
       "EXCHANGE_REFUSED": "Lần sao chép bàn giao không được vibefix cấp quyền.",

@@ -16,7 +16,7 @@ import { t } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatCalendarDayMonth } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
-import { isNotFound, problemMessage } from '@/lib/problemMessage'
+import { isNotFound, problemMessage, reasonMessage } from '@/lib/problemMessage'
 import { useDecideHandover, useHandover, useReturnHandover, type DeliveryReport } from './deliveryApi'
 import { HandoverLinkList } from './HandoverLinkList'
 import { OutsideLink } from './OutsideLink'
@@ -69,20 +69,24 @@ const MOVED_ON = ['HANDOVER_VOIDED', 'HANDOVER_RETURNED', 'HANDOVER_DECIDED'] as
 /**
  * Why a decision was refused, in the reader's words. A handover that was voided, returned or decided meanwhile says
  * which of the three it was: a return is not a change on GitHub, and an Assessment Job has no GitHub at all. A Job
- * that moved on says to open the report again. Everything else is read from `module`, whose reasons the command's
- * own guards use.
+ * that moved on says to open the report again. Any other reason is `delivery`'s own, or `job`'s when the transition
+ * itself refused (a Dispute's freeze, no Revision Round or no return left), so it is read from whichever of the two
+ * holds a sentence for it. A busy Job names the operation to wait for.
  */
-function refusal(failure: unknown, module: 'delivery' | 'job', operation?: string): string {
-  if (failure instanceof ApiError) {
-    const movedOn = MOVED_ON.find((reason) => reason === failure.problem.reason)
-    if (movedOn) {
-      return t(`reason.delivery.${movedOn}`)
-    }
-    if (failure.problem.code === 'STALE') {
-      return t('screen.handover.check.stale')
-    }
+function refusal(failure: unknown): string {
+  if (!(failure instanceof ApiError)) {
+    return problemMessage(failure).text
   }
-  return problemMessage(failure, { module, operation }).text
+  const { code, reason } = failure.problem
+  const movedOn = MOVED_ON.find((known) => known === reason)
+  if (movedOn) {
+    return t(`reason.delivery.${movedOn}`)
+  }
+  if (code === 'STALE') {
+    return t('screen.handover.check.stale')
+  }
+  const module = reason && reasonMessage('delivery', reason) === undefined ? 'job' : 'delivery'
+  return problemMessage(failure, { module, operation: t('screen.handover.check.busyOperation') }).text
 }
 
 /** "Cách kiểm tra" as numbered steps: one per line, or split at "1. … 2. …" written on one line. */
@@ -121,7 +125,14 @@ export function GuidedCheckPage() {
             <Check jobId={jobId} report={report.data} />
           ) : (
             <p className="text-body-sm">
-              {t('reason.delivery.HANDOVER_DECIDED')}{' '}
+              {/* A handover with nothing left to decide says which it is: returned, void, or decided. */}
+              {t(
+                report.data.returned
+                  ? 'reason.delivery.HANDOVER_RETURNED'
+                  : report.data.status === 'VOIDED'
+                    ? 'reason.delivery.HANDOVER_VOIDED'
+                    : 'reason.delivery.HANDOVER_DECIDED',
+              )}{' '}
               <Link to={`/cong-viec/${jobId}/ban-giao/${handoverId}`} className="text-primary underline-offset-4 hover:underline">
                 {t('screen.handover.report.criteria')}
               </Link>
@@ -193,7 +204,7 @@ function Check({ jobId, report }: { jobId: string; report: DeliveryReport }) {
         },
         onError: (failure) => {
           setConfirming(undefined)
-          setError(refusal(failure, 'delivery'))
+          setError(refusal(failure))
         },
       },
     )
@@ -507,8 +518,7 @@ function ReturnDialog({
           )
           void navigate(`/cong-viec/${jobId}/ban-giao/${report.id}`)
         },
-        // The return's own guards are `job`'s (the limit, the freeze); a handover that moved on names itself.
-        onError: (failure) => setError(refusal(failure, 'job', t('screen.handover.check.busyOperation'))),
+        onError: (failure) => setError(refusal(failure)),
       },
     )
   }
