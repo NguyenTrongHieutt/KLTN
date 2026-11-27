@@ -87,6 +87,7 @@ class DisputeDecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$[0].assigned").value(false));
 		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(ha))).andExpect(status().isOk())
 			.andExpect(jsonPath("$.held.releasableVnd").value(PRICE))
+			.andExpect(jsonPath("$.held.refundOnly").value(false))
 			.andExpect(jsonPath("$.held.number").value(1))
 			.andExpect(jsonPath("$.plannedRemains").value(true));
 		assertThat(this.jdbc.sql("SELECT count(*) FROM dispute.dispute WHERE status = 'OPEN'").query(Long.class).single())
@@ -127,6 +128,44 @@ class DisputeDecisionIT extends IntegrationTest {
 			.andExpect(jsonPath("$.decided.releaseVnd").value(500000))
 			.andExpect(jsonPath("$.open").doesNotExist());
 		this.mvc.perform(get("/api/v1/admin/overview").with(admin(ha))).andExpect(jsonPath("$.disputes.count").value(0));
+	}
+
+	/**
+	 * Story 25.6 (FR-54, AD-29, AD-31; the money check's M-01): the Held Milestone of a Self-mentored Job that no Crew
+	 * member was active on since it was funded has no split party, and its Customer is never one. A decision that
+	 * releases anything on it is refused before the step-up and before it is recorded, since a recorded decision is final
+	 * and its execution would fail in M8's guard for ever with the Job frozen; the case says so beforehand.
+	 */
+	@Test
+	void aDecisionOnAMilestoneWithNoSplitPartyCanOnlyRefund() throws Exception {
+		Administrator ha = AdministratorTestSupport.create(this.context, "ha.phuong@vibefix.test", "Hà Phương");
+		UUID job = world(true, true);
+		String dispute = open(job);
+		// The Job as a Self-mentored one whose only member left before the Milestone was funded.
+		Timestamp left = Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(3)));
+		this.jdbc.sql("""
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', released_at = :left, window_end = :left
+				WHERE job_id = :job
+				""").param("left", left).param("job", job).update();
+		this.jdbc.sql("""
+				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0',
+				    mentor_account_id = customer_account_id, selected_application_id = NULL WHERE id = :id
+				""").param("id", job).update();
+		this.mvc.perform(post("/api/v1/admin/disputes/" + dispute + "/take").with(admin(ha)).with(csrf()))
+			.andExpect(status().isOk());
+
+		this.mvc.perform(get("/api/v1/admin/disputes/" + dispute).with(admin(ha))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.held.refundOnly").value(true));
+		decide(ha, dispute, 500000L, 300000L, "CANCEL").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("NO_SPLIT_PARTY"));
+		decide(ha, dispute, PRICE, 0L, "CANCEL").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("NO_SPLIT_PARTY"));
+
+		assertThat(count("SELECT count(*) FROM dispute.decision")).as("nothing was recorded").isZero();
+		assertThat(count("SELECT count(*) FROM dispute.execution")).isZero();
+		assertThat(text("SELECT state FROM job.milestone WHERE id = '" + this.held + "'")).isEqualTo("FUNDED");
+		assertThat(this.ledger.releasable(this.held)).isEqualTo(PRICE);
+		assertThat(count("SELECT count(*) FROM job.milestone_split")).isZero();
 	}
 
 	@Test

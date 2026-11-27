@@ -65,7 +65,12 @@ class AdminDisputeController {
 	record AdminStatementView(String side, String text, Instant submittedAt) {
 	}
 
-	record HeldMilestoneView(UUID milestoneId, int number, String title, long releasableVnd) {
+	/**
+	 * The Held Milestone a decision settles.
+	 * @param refundOnly nothing can be released on it: a Self-mentored Job's Milestone no Crew member was active on since
+	 * it was funded has no split party, so the form offers the refund alone and says why before the step-up (AD-31)
+	 */
+	record HeldMilestoneView(UUID milestoneId, int number, String title, long releasableVnd, boolean refundOnly) {
 	}
 
 	record DecisionView(@Nullable Long releaseVnd, @Nullable Long refundVnd, String nextState, String reasoning,
@@ -208,7 +213,8 @@ class AdminDisputeController {
 				: this.settlements.milestone(dispute.jobId(), dispute.milestoneId())
 					.map(milestone -> new HeldMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title(),
 							decision != null && decision.releasableVnd() != null ? decision.releasableVnd()
-									: this.ledger.releasable(milestone.milestoneId())))
+									: this.ledger.releasable(milestone.milestoneId()),
+							this.decisions.refundOnly(milestone.milestoneId())))
 					.orElse(null);
 		return new AdminDisputeDetail(disputeId, dispute.jobId(), title(dispute.jobId()), dispute.openedBy().name(),
 				dispute.reason(), dispute.concern(), dispute.openedAt(), dispute.status(), assignee != null,

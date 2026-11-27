@@ -183,6 +183,14 @@ class DisputeDecisions implements DisputeQueue {
 	}
 
 	/**
+	 * Whether a decision on the Held Milestone can only refund (FR-54, AD-29, AD-31): it has no would-be split party,
+	 * which only a Self-mentored Job's Milestone can lack. {@link #decide} refuses a release on it.
+	 */
+	boolean refundOnly(UUID milestoneId) {
+		return !this.splits.hasWouldBeSplitParty(milestoneId);
+	}
+
+	/**
 	 * The assignee's decision, after the step-up, in one transaction with its execution row.
 	 * @throws ApiException {@code CONFLICT NOT_ASSIGNED} for an Administrator who did not take it (SG-31: every
 	 * Administrator sees the Dispute, so the refusal is no {@code FORBIDDEN}); {@code CONFLICT ALREADY_DECIDED};

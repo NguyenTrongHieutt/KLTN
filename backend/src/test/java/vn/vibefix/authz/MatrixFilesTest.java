@@ -424,7 +424,7 @@ class MatrixFilesTest {
 			.containsExactlyInAnyOrder("SM_CREW_NAME", "SM_CREW_EMAIL", "SM_CREW_LINKEDIN", "SM_CREW_CHAT",
 					"SM_CREW_APPLICATION_NOTE", "SM_CREW_APPLICATION_PROOF_CAPTION", "SM_CREW_LEFT_NOTE", "SM_TEAM_ISSUE_ID",
 					"SM_CONTACT_EMAIL", "SM_MEMBER_JOB_CHAT", "SM_MEMBER_JOB_CONTACT", "SM_WORKING_REPOSITORY",
-					"SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL");
+					"SM_WORKING_REPOSITORY_URL", "SM_INVITATION_URL", "SM_SPLIT_PART", "SM_SPLIT_RESOLUTION_REASON");
 		for (Canaries.Canary canary : canaries) {
 			boolean mode = canary.name().startsWith("SM_");
 			if (mode) {
@@ -451,6 +451,13 @@ class MatrixFilesTest {
 				"SM_TEAM_ISSUE_ID")) {
 			assertThat(all.get(name).visibleTo()).as(name).containsExactly(MatrixCaller.CUSTOMER_MENTOR);
 		}
+		// Story 25.6 (AD-15, AD-29, AD-40): the Customer who mentors drafts the split and is no party of it, and reads each
+		// party's line and a Split Resolution's reason as its drafter, beside the parties; a member outside the split reads
+		// neither, and the case's Administrator reads the reason only.
+		assertThat(all.get("SM_SPLIT_PART").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.CUSTOMER_MENTOR,
+				MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY);
+		assertThat(all.get("SM_SPLIT_RESOLUTION_REASON").visibleTo()).containsExactlyInAnyOrder(MatrixCaller.CUSTOMER_MENTOR,
+				MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY, MatrixCaller.ADMIN_SPLIT_RESOLUTION_GRANT);
 		// The scan of a mode row: a member of the mode world is not the crew Job's member, so the crew Job's Crew Chat is
 		// hidden from them, and a grant holder keeps only what any Administrator reads.
 		MatrixRow member = MatrixRow.parse(HEADER + "GET /api/v1/jobs/{jobId}/crew-chat,CREW_ACTIVE,job=self,,200\n").getFirst();
