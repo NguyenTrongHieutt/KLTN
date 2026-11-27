@@ -3525,14 +3525,30 @@ GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CUSTOMER_MENTOR,job
 DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CUSTOMER_MENTOR,job=self;file=crew-proof-upload,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/jobs/{jobId}/crew/leave,CUSTOMER_MENTOR,job=self,crew-leave.json,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/crew/me,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/splits,CUSTOMER_MENTOR,job=self;pending=25.6,,200
-POST /api/v1/splits/{splitId}/versions,CUSTOMER_MENTOR,job=self;pending=25.6,split-version.json,200
-POST /api/v1/splits/{splitId}/confirmations,CUSTOMER_MENTOR,job=self;pending=25.6,split-confirmation.json,403 FORBIDDEN PARTY_ONLY
-POST /api/v1/splits/{splitId}/preview,CUSTOMER_MENTOR,job=self;pending=25.6,split-preview.json,200
-POST /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;pending=25.6,split-resolution.json,403 FORBIDDEN PARTY_ONLY
-GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;pending=25.6,,200
-POST /api/v1/split-resolutions/{resolutionId}/statements,CUSTOMER_MENTOR,job=self;pending=25.6,split-resolution-statement.json,201
-POST /api/v1/split-resolutions/{resolutionId}/withdraw,CUSTOMER_MENTOR,job=self;pending=25.6,,403 FORBIDDEN
+GET /api/v1/jobs/{jobId}/splits,CUSTOMER_MENTOR,job=self;shows=SM_SPLIT_PART,,200
+POST /api/v1/splits/{splitId}/versions,CUSTOMER_MENTOR,job=self,self-split-version.json,200
+POST /api/v1/splits/{splitId}/confirmations,CUSTOMER_MENTOR,job=self,split-confirmation.json,403 FORBIDDEN PARTY_ONLY
+POST /api/v1/splits/{splitId}/preview,CUSTOMER_MENTOR,job=self,self-split-preview.json,200
+POST /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self,split-resolution.json,403 FORBIDDEN PARTY_ONLY
+GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;split=resolution;shows=SM_SPLIT_RESOLUTION_REASON,,200
+POST /api/v1/split-resolutions/{resolutionId}/statements,CUSTOMER_MENTOR,job=self,split-resolution-statement.json,201
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CUSTOMER_MENTOR,job=self,,403 FORBIDDEN
+# Story 25.6: the mode's split has no Mentor party, so each party confirms and any of them may ask for a resolution; the
+# Customer drafts. A member who is no party of the Milestone finds nothing, and the case's Administrator reads its reason.
+GET /api/v1/jobs/{jobId}/splits,CREW_ACTIVE_PARTY,job=self;shows=SM_SPLIT_PART,,200
+GET /api/v1/jobs/{jobId}/splits,CREW_FORMER_PARTY,job=self,,200
+GET /api/v1/jobs/{jobId}/splits,CREW_ACTIVE,job=self,,404 NOT_FOUND
+GET /api/v1/jobs/{jobId}/splits,CREW_FORMER,job=self,,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/versions,CREW_ACTIVE_PARTY,job=self,self-split-version.json,403 FORBIDDEN MENTOR_ONLY
+POST /api/v1/splits/{splitId}/versions,CREW_ACTIVE,job=self,self-split-version.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/confirmations,CREW_ACTIVE_PARTY,job=self,split-confirmation.json,200
+POST /api/v1/splits/{splitId}/confirmations,CREW_FORMER_PARTY,job=self,split-confirmation.json,200
+POST /api/v1/splits/{splitId}/confirmations,CREW_ACTIVE,job=self,split-confirmation.json,404 NOT_FOUND
+POST /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE_PARTY,job=self,split-resolution.json,201
+GET /api/v1/splits/{splitId}/resolutions,CREW_FORMER_PARTY,job=self;split=resolution;shows=SM_SPLIT_RESOLUTION_REASON,,200
+GET /api/v1/splits/{splitId}/resolutions,CREW_ACTIVE,job=self;split=resolution,,404 NOT_FOUND
+GET /api/v1/admin/split-resolutions/{resolutionId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self;shows=SM_SPLIT_RESOLUTION_REASON,,200
 GET /api/v1/admin/split-resolutions/{resolutionId},CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/split-resolutions/{resolutionId}/take,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CUSTOMER_MENTOR,job=self,admin-split-preview.json,404 NOT_FOUND
@@ -3734,8 +3750,9 @@ POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ASSIGNED,job=self,,200
 POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ACTIVE,job=self,,404 NOT_FOUND
 
 # The lists the Customer who mentors reads, the contact the Crew never reads in the mode either (R61), the Crew Chat
-# an Administrator without a grant on this Job does not read, the file the Dispute's grant will (Story 25.7), and an
-# unrelated user, whom the Self-mentored Job tells nothing.
+# the Administrator of the open Split Resolution reads under its grant, as on a normal Job (AD-40, Story 25.6: the
+# chat's own reads, never the Job's page of it), the file the Dispute's grant will (Story 25.7), and an unrelated user,
+# whom the Self-mentored Job tells nothing.
 GET /api/v1/my-jobs,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/mentor/jobs,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 GET /api/v1/todos,CUSTOMER_MENTOR,job=self,,200
@@ -3745,9 +3762,9 @@ GET /api/v1/customers/{customerId}/contact,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE,job=self,,404 NOT_FOUND
 GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE_PARTY,job=self,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
-GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
-GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self;shows=SM_CREW_CHAT,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,200
+GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,200
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,job=self;file=chat;pending=25.7,,200
 GET /api/v1/jobs/{jobId},USER,job=self,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/role,USER,job=self,,404 NOT_FOUND

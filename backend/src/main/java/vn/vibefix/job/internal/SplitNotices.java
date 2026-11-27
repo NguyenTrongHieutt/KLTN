@@ -3,6 +3,7 @@ package vn.vibefix.job.internal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,9 +24,10 @@ import vn.vibefix.notification.TodoRequest;
 import vn.vibefix.notification.Todos;
 
 /**
- * What a split tells its people (UX-DR112, AD-20): the to-dos and notices of the Mentor and the parties, leavers
- * included, each with the Milestone so the audience classes hold after the Job's row went. The Customer is never told.
- * A party anonymized by an erasure has nobody to reach.
+ * What a split tells its people (UX-DR112, AD-20): the to-dos and notices of the drafter and the parties, leavers
+ * included, each with the Milestone so the audience classes hold after the Job's row went. A normal Job's Customer is
+ * never told. In a Self-mentored Job the drafter is the Customer, reached as {@code MENTOR} with the Mentor's words
+ * (AD-40, AD-47 exception 12), and is no party. A party anonymized by an erasure has nobody to reach.
  */
 @Component
 class SplitNotices {
@@ -69,7 +71,8 @@ class SplitNotices {
 		String date = ClosureProposals.dayMonth(split.draftDueAt());
 		Map<String, String> params = Map.of("n", String.valueOf(split.number()), "job", title, "date", date);
 		send(DRAFT_DUE, split, split.id(), mentor(split), params);
-		send(PENDING, split, split.id(), members(parties), params);
+		send(PENDING, split, split.id(), members(parties),
+				Map.of("n", String.valueOf(split.number()), "job", title, "date", date, "who", drafter(split)));
 		UUID mentor = split.mentorId();
 		if (mentor != null) {
 			this.todos.open(new TodoRequest(DRAFT_TODO, mentor, Audience.MENTOR, split.id(),
@@ -103,10 +106,26 @@ class SplitNotices {
 		}
 	}
 
-	/** The Mentor's first draft or an edit reached each party. */
+	/**
+	 * The drafter's first draft or an edit reached each party. The first draft's notice begins with who drafted it
+	 * ({@code drafter}); an edit's names nobody.
+	 */
 	void sent(String type, Split split, int versionNo, String title, List<Party> parties, Instant due) {
-		send(type, split, cause(split, type + ":" + versionNo), members(parties),
+		Map<String, String> params = new LinkedHashMap<>(
 				Map.of("n", String.valueOf(split.number()), "job", title, "date", ClosureProposals.dayMonth(due)));
+		if (PROPOSED.equals(type)) {
+			params.put("drafter", split.selfMentored() ? "Khách hàng" : "Người hướng dẫn");
+		}
+		send(type, split, cause(split, type + ":" + versionNo), members(parties), params);
+	}
+
+	/**
+	 * What a party's notice calls the one who drafts the split, inside a sentence (UX-DR131, E25-15): "khách hàng" in a
+	 * Self-mentored Job, where a normal Job's says "người hướng dẫn". A sentence that begins with them takes the
+	 * {@code drafter} parameter, capitalized.
+	 */
+	static String drafter(Split split) {
+		return split.selfMentored() ? "khách hàng" : "người hướng dẫn";
 	}
 
 	/** The default version reached the Mentor and each party. */
@@ -150,6 +169,7 @@ class SplitNotices {
 			case DEADLINE -> "hết hạn xác nhận";
 			case DECISION -> "quản trị viên đã quyết định";
 			case MENTOR_ONLY -> "chỉ có người hướng dẫn";
+			case SOLE_MEMBER -> "chỉ có một thành viên";
 		};
 	}
 

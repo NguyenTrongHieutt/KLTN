@@ -435,3 +435,118 @@ describe('ADM-4 Dispute decisions (FR-54, UX-DR58)', () => {
     expect(await screen.findByText(/Đã thực hiện xong/)).toBeInTheDocument()
   })
 })
+
+describe('ADM-4 Dispute decisions on a Milestone nobody worked on (Story 25.6)', () => {
+  const refundOnly = (overrides: object = {}) =>
+    detail({
+      assigned: true,
+      assignedToMe: true,
+      held: { milestoneId: 'm1', number: 1, title: 'Báo cáo', releasableVnd: 800000, refundOnly: true },
+      ...overrides,
+    })
+
+  it('says nothing can be released, fixes the amounts, and sends a refund of all that is held', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/disputes': () => json([{ ...row, assigned: true, assignedToMe: true }]),
+      'GET /api/v1/admin/disputes/d1': () => json(refundOnly()),
+      'POST /api/v1/admin/disputes/d1/decision': async (request) => {
+        sent.push(await request.json())
+        return json(
+          refundOnly({
+            status: 'DECIDED',
+            decision: {
+              releaseVnd: 0,
+              refundVnd: 800000,
+              nextState: 'CONTINUE',
+              reasoning: 'Không có thành viên',
+              decidedAt: '2026-10-21T03:00:00Z',
+            },
+            execution: { status: 'DONE', step: 4, failure: null },
+          }),
+        )
+      },
+    })
+    renderAt('/quan-tri/tranh-chap/d1')
+
+    const reason = await screen.findByText(
+      'Giai đoạn này không có thành viên nào tham gia từ khi được thanh toán, nên chỉ có thể hoàn tiền cho khách hàng.',
+    )
+    const release = screen.getByLabelText('Giải ngân cho nhóm thực hiện (VND)')
+    const refund = screen.getByLabelText('Hoàn lại cho khách hàng (VND)')
+    // Above the amounts, and the amounts are the only ones that can be sent.
+    expect(reason.compareDocumentPosition(release) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(release).toHaveValue('0')
+    expect(release).toHaveAttribute('readonly')
+    expect(release).toHaveAccessibleDescription(/chỉ có thể hoàn tiền cho khách hàng/)
+    expect(refund).toHaveValue('800000')
+    expect(refund).toHaveAttribute('readonly')
+    expect(screen.getByText(/Khớp số tiền đang giữ/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Lý do quyết định'), 'Không có thành viên')
+    await user.click(screen.getByRole('button', { name: 'Xem lại và ghi quyết định' }))
+    await user.click(screen.getByRole('button', { name: 'Ghi quyết định' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox'), '123456')
+    await user.click(within(dialog).getByRole('button', { name: 'Ghi quyết định' }))
+
+    await waitFor(() =>
+      expect(sent).toEqual([
+        {
+          releaseVnd: 0,
+          refundVnd: 800000,
+          nextState: 'CONTINUE',
+          reasoning: 'Không có thành viên',
+          stepUpCode: '123456',
+        },
+      ]),
+    )
+  })
+
+  it('says why when the server refuses a release, and closes the step-up', { timeout: 30_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/disputes': () => json([{ ...row, assigned: true, assignedToMe: true }]),
+      'GET /api/v1/admin/disputes/d1': () => json(refundOnly()),
+      'POST /api/v1/admin/disputes/d1/decision': () =>
+        json({ status: 400, code: 'VALIDATION', reason: 'NO_SPLIT_PARTY' }, 400),
+    })
+    renderAt('/quan-tri/tranh-chap/d1')
+
+    await user.type(await screen.findByLabelText('Lý do quyết định'), 'Không có thành viên')
+    await user.click(screen.getByRole('button', { name: 'Xem lại và ghi quyết định' }))
+    await user.click(screen.getByRole('button', { name: 'Ghi quyết định' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox'), '123456')
+    await user.click(within(dialog).getByRole('button', { name: 'Ghi quyết định' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Giai đoạn này không có bên nhận tiền, nên chỉ có thể hoàn tiền.',
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('leaves the amounts to the Administrator when something can be released', { timeout: 30_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/overview': () => json(overview),
+      'GET /api/v1/admin/disputes': () => json([{ ...row, assigned: true, assignedToMe: true }]),
+      'GET /api/v1/admin/disputes/d1': () =>
+        json(
+          detail({
+            assigned: true,
+            assignedToMe: true,
+            held: { milestoneId: 'm1', number: 1, title: 'Báo cáo', releasableVnd: 800000, refundOnly: false },
+          }),
+        ),
+    })
+    renderAt('/quan-tri/tranh-chap/d1')
+
+    const release = await screen.findByLabelText('Giải ngân cho nhóm thực hiện (VND)')
+    expect(release).toHaveValue('')
+    expect(release).not.toHaveAttribute('readonly')
+    expect(screen.queryByText(/chỉ có thể hoàn tiền cho khách hàng/)).toBeNull()
+  })
+})

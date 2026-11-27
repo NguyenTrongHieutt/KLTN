@@ -567,6 +567,7 @@
         },
         "held": "Giai đoạn {n}: {title} · đang giữ {amount}",
         "noHeld": "Không có giai đoạn nào đang giữ tiền; quyết định chỉ về bước tiếp theo.",
+        "refundOnly": "Giai đoạn này không có thành viên nào tham gia từ khi được thanh toán, nên chỉ có thể hoàn tiền cho khách hàng.",
         "release": "Giải ngân cho nhóm thực hiện (VND)",
         "refund": "Hoàn lại cho khách hàng (VND)",
         "sum": "Tổng {sum} / đang giữ {held}",
@@ -1183,6 +1184,7 @@
         "reason": "Lý do",
         "statements": "Ý kiến của các bên",
         "noStatements": "Chưa có ý kiến nào.",
+        "drafter": "Khách hàng (người soạn phân chia)",
         "take": "Nhận xử lý",
         "takeNote": "Khi nhận xử lý, bạn được xem các bản phân chia, các commit của giai đoạn này và trao đổi nhóm, đến 30 ngày sau quyết định. Mỗi lần xem đều được ghi lại.",
         "alreadyDecided": "Yêu cầu này đã có quyết định.",
@@ -1204,7 +1206,9 @@
             "DRAFT": "người hướng dẫn soạn",
             "DEFAULT": "chia mặc định",
             "DECISION": "quyết định của quản trị viên",
-            "MENTOR_ONLY": "chỉ có người hướng dẫn"
+            "MENTOR_ONLY": "chỉ có người hướng dẫn",
+            "SOLE_MEMBER": "chỉ có một thành viên",
+            "DRAFT_SELF": "khách hàng soạn"
           },
           "cap": "Tối đa {cap}% cho người hướng dẫn",
           "noCap": "Không giới hạn phần của người hướng dẫn",
@@ -1243,6 +1247,7 @@
           "reasoning": "Lý do quyết định",
           "reasoningHint": "Mọi bên trong phân chia đều đọc được lý do này.",
           "final": "Quyết định là cuối cùng: phân chia chốt ngay, tiền chuyển vào số dư, và các bên được báo. Khách hàng không thấy gì.",
+          "finalSelf": "Quyết định là cuối cùng: phân chia chốt ngay, tiền chuyển vào số dư, và các bên được báo, khách hàng soạn phân chia cũng được báo.",
           "confirm": "Ghi quyết định",
           "decided": "Đã ghi quyết định.",
           "at": "Bản {n} · quyết định lúc {time}",
@@ -2614,8 +2619,13 @@
         "releaseLine": "{name} · {amount}",
         "ordersTitle": "Lệnh thanh toán của khách hàng"
       },
+      "self": {
+        "title": "Phân chia tiền cho thành viên",
+        "lead": "Bạn soạn phân chia nhưng không nhận phần nào: toàn bộ tiền của giai đoạn chia cho các thành viên."
+      },
       "crew": {
         "lead": "Phần của bạn ở mỗi giai đoạn bạn tham gia trong công việc này. Khách hàng không thấy phần của từng người.",
+        "leadSelfMentored": "Phần của bạn ở mỗi giai đoạn bạn tham gia trong công việc này. Khách hàng soạn phân chia nên thấy phần của từng người.",
         "empty": "Bạn chưa có phần nào trong công việc này. Phần của bạn hiện ở đây khi một giai đoạn bạn tham gia được nghiệm thu."
       },
       "refundAtEnd": "Sẽ hoàn {amount} THỬ NGHIỆM khi giai đoạn kết thúc",
@@ -3371,7 +3381,11 @@
         "inResolution": "Đang chờ quản trị viên xem xét",
         "pastDue": "Đã hết hạn xác nhận · đang chốt theo bản hiện tại",
         "final": "Đã chốt",
-        "mentorOnly": "Không cần phân chia · bạn nhận 100%"
+        "mentorOnly": "Không cần phân chia · bạn nhận 100%",
+        "draftCustomer": "Chờ khách hàng soạn phân chia (hạn {date})",
+        "defaultCm": "Chia đều · không sửa được · {k}/{n} đã xác nhận · hạn {date}",
+        "soleMemberCm": "Không cần phân chia · thành viên nhận 100%",
+        "soleMember": "Không cần phân chia · bạn nhận 100%"
       },
       "how": {
         "confirmed": "mọi người đã xác nhận",
@@ -3380,11 +3394,15 @@
         "default": "chia mặc định"
       },
       "mentorOnly": "Không có thành viên nào tham gia giai đoạn này: bạn nhận 100%, không cần phân chia.",
+      "soleMember": "Chỉ có một thành viên trong giai đoạn này: thành viên nhận 100%, không cần phân chia.",
       "noMember": "Không còn thành viên nào trong nhóm khi giai đoạn được nghiệm thu: phần của người hướng dẫn không bị giới hạn, và người đã rời có thể nhận 0%.",
       "draftLate": "Đã quá hạn soạn phân chia nên hệ thống đang chia mặc định. Bản chia sẽ hiện ở đây trong ít phút.",
       "default": "Người hướng dẫn chưa soạn phân chia trước {date}, nên hệ thống đã chia: người hướng dẫn {pct}% (tối đa {cap}%), phần còn lại chia đều cho các thành viên.",
       "defaultNoCap": "Người hướng dẫn chưa soạn phân chia trước {date}, nên hệ thống đã chia: người hướng dẫn {pct}%, phần còn lại chia đều cho các thành viên.",
+      "defaultSelfMember": "Khách hàng chưa soạn phân chia trước {date}, nên hệ thống đã chia đều cho các thành viên.",
+      "defaultSelfCm": "Bạn chưa soạn phân chia trước {date}, nên hệ thống đã chia đều cho các thành viên.",
       "edited": "Người hướng dẫn đã sửa phân chia (lần {k}/{n}). Các xác nhận cũ đã bị xóa; hãy xác nhận lại trước {date}.",
+      "editedCustomer": "Khách hàng đã sửa phân chia (lần {k}/{n}). Các xác nhận cũ đã bị xóa; hãy xác nhận lại trước {date}.",
       "inResolution": "Đang chờ quản trị viên xem xét. Tiền của cả giai đoạn được giữ; thời hạn xác nhận tạm dừng.",
       "final": "Đã chốt ngày {date} · {how}",
       "paid": "Đã về số dư",
@@ -3398,11 +3416,14 @@
       "lineOverCap": "Phần của bạn tối đa {cap}%",
       "lineTooMuch": "Phần trăm không quá 100",
       "lineZero": "Thành viên làm cả giai đoạn phải lớn hơn 0%",
+      "floorHint": "Làm cả giai đoạn: phải lớn hơn 0%",
+      "remainder": "Phần lẻ còn lại sau khi chia thuộc về {name}, người vào nhóm trước.",
       "sum": "Tổng {sum}%, cần đúng 100%",
       "send": "Gửi để xác nhận",
       "confirm": "Xác nhận",
       "n29": "Mỗi thành viên xác nhận trước {date}, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn {k}/{n} lần sửa. Phần của bạn tối đa {cap}%. Khách hàng không thấy phần chia.",
       "n29NoCap": "Mỗi thành viên xác nhận trước {date}, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn {k}/{n} lần sửa. Giai đoạn này không còn thành viên nào trong nhóm khi được nghiệm thu, nên phần của bạn không bị giới hạn; người đã rời có thể nhận 0%. Khách hàng không thấy phần chia.",
+      "n29Self": "Mỗi thành viên xác nhận trước {date}, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn {k}/{n} lần sửa. Bạn không nhận phần nào: toàn bộ tiền của giai đoạn chia cho các thành viên, và tổng phải bằng 100%.",
       "n30": "Khi mọi người xác nhận, hoặc đến {date} mà không ai nhờ xem xét, tiền được chuyển theo phần chia này. Nếu bạn thấy chưa đúng, hãy nhờ quản trị viên xem xét trước {date}; khi đó tiền của cả giai đoạn được giữ lại cho đến khi có quyết định.",
       "earlier": "Các bản trước",
       "earlierVersion": "Bản {n} · {date}",
@@ -3425,8 +3446,10 @@
         "dialogTitle": "Nhờ quản trị viên xem xét phân chia Giai đoạn {n}?",
         "n31": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các commit của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định, trong mức tối đa {cap}% cho người hướng dẫn nếu giai đoạn còn thành viên trong nhóm khi được nghiệm thu. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
         "n31NoCap": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các commit của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, người hướng dẫn không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
+        "n31Self": "Quản trị viên sẽ xem các bản phân chia và các lần sửa, các commit của giai đoạn này kèm người tạo, Trao đổi nhóm của giai đoạn này, và dấu hiệu cho thấy hai tài khoản có thể của cùng một người, rồi quyết định. Trong lúc chờ, khách hàng không sửa được phần chia và tiền của cả giai đoạn được giữ. Bạn có thể rút yêu cầu; khi đó hạn xác nhận bắt đầu lại.",
         "reason": "Lý do bạn thấy phân chia chưa đúng",
         "reasonHint": "Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được. Khách hàng không thấy.",
+        "reasonHintSelf": "Mọi bên trong phân chia, khách hàng soạn phân chia và quản trị viên nhận xử lý đều đọc được.",
         "send": "Gửi yêu cầu",
         "back": "Quay lại",
         "case": "Yêu cầu xem xét của {name}",
@@ -3436,6 +3459,8 @@
         "reasonLabel": "Lý do",
         "statements": "Ý kiến của các bên",
         "mentorMark": "người hướng dẫn",
+        "drafterMark": "khách hàng (người soạn phân chia)",
+        "drafterOnly": "Khách hàng (người soạn phân chia)",
         "status": {
           "WITHDRAWN": "Đã rút lúc {time}",
           "DECIDED": "Quản trị viên đã quyết định lúc {time}"
@@ -3446,6 +3471,7 @@
         "statementSend": "Gửi ý kiến",
         "statementDialogTitle": "Gửi ý kiến của bạn?",
         "statementDialogBody": "Mỗi người chỉ gửi được một ý kiến cho yêu cầu này, và không sửa lại được. Mọi bên trong phân chia và quản trị viên nhận xử lý đều đọc được.",
+        "statementDialogBodySelf": "Mỗi người chỉ gửi được một ý kiến cho yêu cầu này, và không sửa lại được. Mọi bên trong phân chia, khách hàng (người soạn phân chia) và quản trị viên nhận xử lý đều đọc được.",
         "withdraw": "Rút yêu cầu",
         "withdrawDialogTitle": "Rút yêu cầu xem xét?",
         "withdrawDialogBody": "Hạn xác nhận bắt đầu lại từ đầu, và các xác nhận đã có vẫn giữ. Nếu mọi người đã xác nhận, phân chia chốt ngay. Bạn sẽ không nhờ xem xét được giai đoạn này lần nữa.",
@@ -4399,13 +4425,13 @@
         "title": "Giai đoạn {n} của {job} đã được nghiệm thu. Hãy soạn phân chia tiền trước {date}."
       },
       "split_pending": {
-        "title": "Tiền Giai đoạn {n} của {job} đang chờ người hướng dẫn phân chia (hạn {date})"
+        "title": "Tiền Giai đoạn {n} của {job} đang chờ {who} phân chia (hạn {date})"
       },
       "split_draft_reminder": {
         "title": "Còn 1 ngày để soạn phân chia Giai đoạn {n}. Sau {date}, hệ thống sẽ chia đều."
       },
       "split_proposed": {
-        "title": "Người hướng dẫn đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}."
+        "title": "{drafter} đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}."
       },
       "split_defaulted": {
         "title": "Hệ thống đã chia đều tiền Giai đoạn {n} của {job} vì chưa có bản phân chia. Hãy xác nhận trước {date}."
@@ -4818,7 +4844,8 @@
       "SPLIT_IN_RESOLUTION": "phân chia đang chờ quản trị viên xem xét",
       "SPLIT_FINAL": "phân chia đã chốt",
       "SPLIT_FINAL_PAST_DUE": "đã hết hạn xác nhận; phân chia đang được chốt theo bản hiện tại",
-      "PARTY_ONLY": "Chỉ thành viên trong phân chia mới xác nhận được."
+      "PARTY_ONLY": "Chỉ thành viên trong phân chia mới xác nhận được.",
+      "NO_SPLIT_PARTY": "Giai đoạn này không có bên nhận tiền, nên chỉ có thể hoàn tiền."
     },
     "matching": {
       "JOB_POST_NOT_OPEN": "công việc không còn nhận chào giá",
@@ -4953,6 +4980,7 @@
       "SPLIT_FINAL_PAST_DUE": "Đã hết hạn xác nhận nên không nhờ xem xét được nữa. Phân chia đang được chốt theo bản hiện tại.",
       "SPLIT_STATEMENT_USED": "Bạn đã gửi ý kiến cho yêu cầu này.",
       "SPLIT_RESOLUTION_ENDED": "Yêu cầu xem xét này đã kết thúc.",
+      "NO_SPLIT_PARTY": "Giai đoạn này không có bên nhận tiền, nên chỉ có thể hoàn tiền.",
       "CONFLICT_OF_INTEREST": "Bạn không thể nhận vụ này vì bạn có liên quan đến một tài khoản trong vụ. Hãy để quản trị viên khác nhận."
     },
     "admin": {

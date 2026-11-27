@@ -27,8 +27,9 @@ import vn.vibefix.shared.IdGenerator;
 /**
  * The one way a split becomes final (AD-9, AD-15, AD-29): whichever path got here, {@link #makeFinal} writes the status,
  * the final version, when and how, and publishes {@link MilestoneSplitFinalized} in the transaction, which {@code payment}
- * alone executes. Its caller holds the Job row lock. Anything but the Mentor being alone closes the split's to-dos and
- * tells the Mentor and the parties how.
+ * alone executes. Its caller holds the Job row lock. Anything but one party being alone closes the split's to-dos and
+ * tells the drafter and the parties how. It names the remainder receiver, the party at position 0, and never reads the
+ * drafter: a split whose drafter an erasure anonymized still becomes final and is paid out (AD-29, review M-02).
  */
 @Component
 class SplitFinalization {
@@ -60,7 +61,8 @@ class SplitFinalization {
 
 	/**
 	 * @param versionNo the version that becomes final
-	 * @param finality how: {@code CONFIRMED}, {@code DEADLINE}, {@code DECISION} or {@code MENTOR_ONLY}
+	 * @param finality how: {@code CONFIRMED}, {@code DEADLINE}, {@code DECISION}, {@code MENTOR_ONLY} or
+	 * {@code SOLE_MEMBER}
 	 */
 	void makeFinal(Split split, int versionNo, Finality finality) {
 		Instant now = this.clock.instant();
@@ -78,9 +80,10 @@ class SplitFinalization {
 		this.auditLog.record(AuditEntry.of(AuditActor.system(), action(finality), AuditObject.of("job.milestone_split", split.id()))
 			.forJob(split.jobId()));
 		this.events.publishEvent(new MilestoneSplitFinalized(this.ids.newId(), split.id(), split.jobId(), split.productId(),
-				split.milestoneId(), split.number(), title, Objects.requireNonNull(split.mentorId(), "the split's Mentor"), versionNo,
+				split.milestoneId(), split.number(), title,
+				Objects.requireNonNull(SplitStore.remainderParty(parties).accountId(), "the remainder receiver"), versionNo,
 				percentages(split, versionNo), finality));
-		if (finality != Finality.MENTOR_ONLY) {
+		if (finality != Finality.MENTOR_ONLY && finality != Finality.SOLE_MEMBER) {
 			this.notices.finalized(split, title, parties, finality);
 		}
 	}
@@ -96,8 +99,11 @@ class SplitFinalization {
 	}
 
 	private static String action(Finality finality) {
-		return finality == Finality.MENTOR_ONLY ? "job.split_mentor_only"
-				: "job.split_final_" + finality.name().toLowerCase(Locale.ROOT);
+		return switch (finality) {
+			case MENTOR_ONLY -> "job.split_mentor_only";
+			case SOLE_MEMBER -> "job.split_sole_member";
+			default -> "job.split_final_" + finality.name().toLowerCase(Locale.ROOT);
+		};
 	}
 
 }

@@ -118,9 +118,13 @@ class SplitPoolExecution {
 		}
 		parts.forEach((party, amount) -> release(event, productId, pool, party, amount));
 		reverse(event, productId, pool);
+		// The payee's audience comes from their party row, never from who receives the remainder (review M-04): in a
+		// Self-mentored Job that receiver is a member, and no payee is the Mentor.
+		Set<UUID> mentors = new HashSet<>();
+		parties.stream().filter(SplitParty::mentor).map(SplitParty::accountId).filter(Objects::nonNull).forEach(mentors::add);
 		parts.forEach((party, amount) -> {
 			if (named.contains(party)) {
-				tell(event, party, amount);
+				tell(event, party, amount, mentors.contains(party) ? Audience.MENTOR : Audience.SPLIT_PARTY);
 			}
 		});
 		return Optional.empty();
@@ -162,7 +166,7 @@ class SplitPoolExecution {
 	/** The parts by {@link CrewSplit}, or {@code null} when the percentages cannot split the pool exactly. */
 	private static Map<UUID, Long> parts(MilestoneSplitFinalized event, Pool pool) {
 		try {
-			Map<UUID, Long> parts = CrewSplit.split(pool.amountVnd(), event.percentages(), event.mentorId());
+			Map<UUID, Long> parts = CrewSplit.split(pool.amountVnd(), event.percentages(), event.remainderReceiverId());
 			return parts.values().stream().mapToLong(Long::longValue).sum() == pool.amountVnd() ? parts : null;
 		}
 		catch (IllegalArgumentException | ArithmeticException off) {
@@ -207,8 +211,7 @@ class SplitPoolExecution {
 			.update();
 	}
 
-	private void tell(MilestoneSplitFinalized event, UUID party, long amount) {
-		Audience audience = party.equals(event.mentorId()) ? Audience.MENTOR : Audience.SPLIT_PARTY;
+	private void tell(MilestoneSplitFinalized event, UUID party, long amount, Audience audience) {
 		this.notifications.send(new NotificationRequest(RELEASED, event.milestoneSplitId(), List.of(new Recipient(party, audience)),
 				Map.of("amount", PaymentOrders.vnd(amount), "job", event.jobTitle(), "n", String.valueOf(event.milestoneNumber())),
 				"/so-du", event.jobId(), null, event.milestoneId()));

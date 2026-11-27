@@ -222,6 +222,8 @@ class PaymentHistory {
 		}
 		lines.sort(Comparator.comparing(ReleaseLine::releasedAt).reversed());
 		long balance = own.stream().mapToLong(Release::amountVnd).sum();
+		// The Mentor-side figures leave out a Self-mentored Job (AD-47 exception 10): its Customer's own payment is not
+		// money held for them, and they are no party of its splits. CUS-10 shows that money.
 		List<FundingJob> mentoring = this.funding.ofMentor(accountId);
 		boolean mentor = lines.stream().anyMatch(line -> line.role() == LineRole.MENTOR);
 		if (!mentor && mentoring.isEmpty()) {

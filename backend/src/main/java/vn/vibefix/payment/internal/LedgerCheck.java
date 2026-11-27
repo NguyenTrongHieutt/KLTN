@@ -28,9 +28,9 @@ import vn.vibefix.operations.OperationRequest;
 
 /**
  * SG-23's daily ledger check (AD-15): a final Milestone whose paid out plus requested refunds differ
- * from what was funded, a Milestone of a gone Job included, and an unapplied FUND that no refund reverses, each go
- * to the failed-operations queue as a {@value LedgerMismatchOperation#TYPE} operation, once a day. A Team Issue open too
- * long is {@code dispute}'s.
+ * from what was funded, a Milestone of a gone Job included, an unapplied FUND that no refund reverses, and a RELEASE
+ * whose party is its Job's Customer (never a payee, Story 25.6), each go to the failed-operations queue as a
+ * {@value LedgerMismatchOperation#TYPE} operation, once a day. A Team Issue open too long is {@code dispute}'s.
  * <p>
  * Pooled money (NFR-4) goes there as a {@value SplitPoolOverdueOperation#TYPE} operation, once a day each: a
  * RELEASE_POOLED unreversed more than {@value #POOL_SLACK_DAYS} days after its split's latest due time unless the split
@@ -89,6 +89,11 @@ class LedgerCheck {
 				mismatches.addAll(unbalancedOfGoneJob(jobId));
 				continue;
 			}
+			// AD-15, AD-47: no RELEASE ever pays a Job's Customer, the Customer who mentors their own Job included.
+			mismatches.addAll(this.jdbc.sql("""
+					SELECT id FROM payment.ledger_entry
+					WHERE job_id = :job AND entry_type = 'RELEASE' AND party_account_id = :customer ORDER BY created_at, id
+					""").param("job", jobId).param("customer", job.customerId()).query(UUID.class).list());
 			for (FundingMilestone milestone : job.milestones()) {
 				if (!FINAL.contains(milestone.state())) {
 					continue;

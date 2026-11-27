@@ -22,9 +22,9 @@ public interface SplitPools {
 	long pooledVnd(UUID milestoneId);
 
 	/**
-	 * @param mentorPartyId who receives the remainder
+	 * @param remainderPartyId who receives the remainder: the split's party at position 0 (AD-33)
 	 * @param percents every party's whole percentage, summing to 100
 	 */
-	Parts parts(UUID milestoneId, UUID mentorPartyId, Map<UUID, Integer> percents);
+	Parts parts(UUID milestoneId, UUID remainderPartyId, Map<UUID, Integer> percents);
 
 }

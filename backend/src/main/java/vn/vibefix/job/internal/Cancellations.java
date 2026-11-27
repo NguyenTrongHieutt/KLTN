@@ -307,7 +307,8 @@ class Cancellations {
 		if (funded == null || !this.crews.countedActive(job.id()).isEmpty()) {
 			return null;
 		}
-		return this.crews.activeSince(job.id(), funded) ? NoMember.CREW_WAS_ACTIVE : NoMember.ALONE;
+		return this.crews.wouldBeParties(job.id(), funded, this.clock.instant()).isEmpty() ? NoMember.ALONE
+				: NoMember.CREW_WAS_ACTIVE;
 	}
 
 	/** Whether one side may cancel alone now. */

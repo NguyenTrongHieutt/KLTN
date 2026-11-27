@@ -256,6 +256,12 @@ enum JobReason {
 	SPLIT_FINAL,
 
 	/** Only a party other than the Mentor confirms a split (FR-83). */
-	PARTY_ONLY
+	PARTY_ONLY,
+
+	/**
+	 * A release of a Self-mentored Job's Milestone that no Crew member was active on since it was funded: its split would
+	 * have no party, and the Customer is never one (AD-29, AD-31).
+	 */
+	NO_SPLIT_PARTY
 
 }

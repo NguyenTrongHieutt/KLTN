@@ -7,13 +7,24 @@ export function hasMentorLine(lines: BalanceLine[]): boolean {
   return lines.some((line) => line.role === 'MENTOR')
 }
 
-/** EXPERIENCE.md's final state of a split: "Đã chốt ngày {date} · {how}", or the Mentor alone's. */
-export function finalText(finality: BalanceLine['finality'], finalAt: string | undefined): string | undefined {
+/**
+ * EXPERIENCE.md's final state of a split: "Đã chốt ngày {date} · {how}", the Mentor alone's, or in a Self-mentored Job
+ * the one member's, which reads "bạn nhận 100%" to that member (`member`) and "thành viên nhận 100%" to the reader of
+ * the Job's money, who takes no part.
+ */
+export function finalText(
+  finality: BalanceLine['finality'],
+  finalAt: string | undefined,
+  member = false,
+): string | undefined {
   if (!finality || !finalAt) {
     return undefined
   }
   if (finality === 'MENTOR_ONLY') {
     return t('screen.split.state.mentorOnly')
+  }
+  if (finality === 'SOLE_MEMBER') {
+    return t(member ? 'screen.split.state.soleMember' : 'screen.split.state.soleMemberCm')
   }
   const how =
     finality === 'CONFIRMED'

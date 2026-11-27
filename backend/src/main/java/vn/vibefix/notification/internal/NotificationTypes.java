@@ -725,24 +725,33 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType JOB_SPLIT_DRAFT_DUE = new NotificationType("job.split_draft_due", Set.of(Audience.MENTOR),
 			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
 
-	/** FR-83: the parties of that release hear the money waits for the Mentor's split. */
+	/**
+	 * FR-83: the parties of that release hear the money waits for the drafter's split; {who} is "người hướng dẫn", or
+	 * "khách hàng" in a Self-mentored Job (UX-DR131).
+	 */
 	static final NotificationType JOB_SPLIT_PENDING = new NotificationType("job.split_pending", Set.of(Audience.SPLIT_PARTY),
-			Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("n", "job", "date"));
+			Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("n", "job", "date", "who"));
 
 	/** FR-83, SG-26: a day before the draft deadline. */
 	static final NotificationType JOB_SPLIT_DRAFT_REMINDER = new NotificationType("job.split_draft_reminder",
 			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info", Set.of("n", "date"));
 
-	/** FR-83: the first draft reached the parties. */
+	/**
+	 * FR-83: the first draft reached the parties; {drafter} begins the sentence: "Người hướng dẫn", or "Khách hàng" in a
+	 * Self-mentored Job (UX-DR131).
+	 */
 	static final NotificationType JOB_SPLIT_PROPOSED = new NotificationType("job.split_proposed", Set.of(Audience.SPLIT_PARTY),
-			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
+			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date", "drafter"));
 
 	/** R11, X4: no draft by the deadline, so the default split went out for confirmation. */
 	static final NotificationType JOB_SPLIT_DEFAULTED = new NotificationType("job.split_defaulted",
 			Set.of(Audience.MENTOR, Audience.SPLIT_PARTY), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n", "job", "date"));
 
-	/** FR-83: the Mentor edited a sent draft, and the confirmations start over. */
+	/**
+	 * FR-83: the drafter edited a sent draft, and the confirmations start over. Its texts name nobody, so they are true
+	 * of a Mentor's edit and of the Customer's in a Self-mentored Job.
+	 */
 	static final NotificationType JOB_SPLIT_EDITED = new NotificationType("job.split_edited", Set.of(Audience.SPLIT_PARTY),
 			Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job", "date"));
 

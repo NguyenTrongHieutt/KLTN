@@ -24,6 +24,7 @@ import vn.vibefix.dispute.internal.Disputes.Dispute;
 import vn.vibefix.identity.AdministratorStepUp;
 import vn.vibefix.job.MilestoneSettlements;
 import vn.vibefix.job.MilestoneSettlements.Next;
+import vn.vibefix.job.MilestoneSplits;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.shared.AdminReadGrants;
 import vn.vibefix.shared.AdminReadItem;
@@ -89,9 +90,12 @@ class DisputeDecisions implements DisputeQueue {
 
 	private final TakeConflicts conflicts;
 
+	private final MilestoneSplits splits;
+
 	DisputeDecisions(JdbcClient jdbc, Disputes disputes, MilestoneSettlements settlements, Ledger ledger, AdministratorStepUp stepUp,
 			AuditLog auditLog, Clock clock, ObjectProvider<DisputeStatements> statements, List<AdminReadGrants> grants,
-			IdGenerator ids, ObjectProvider<EvidenceSnapshots> snapshots, TakeConflicts conflicts) {
+			IdGenerator ids, ObjectProvider<EvidenceSnapshots> snapshots, TakeConflicts conflicts, MilestoneSplits splits) {
+		this.splits = splits;
 		this.conflicts = conflicts;
 		this.statements = statements;
 		this.snapshots = snapshots;
@@ -179,10 +183,18 @@ class DisputeDecisions implements DisputeQueue {
 	}
 
 	/**
+	 * Whether a decision on the Held Milestone can only refund (FR-54, AD-29, AD-31): it has no would-be split party,
+	 * which only a Self-mentored Job's Milestone can lack. {@link #decide} refuses a release on it.
+	 */
+	boolean refundOnly(UUID milestoneId) {
+		return !this.splits.hasWouldBeSplitParty(milestoneId);
+	}
+
+	/**
 	 * The assignee's decision, after the step-up, in one transaction with its execution row.
 	 * @throws ApiException {@code CONFLICT NOT_ASSIGNED} for an Administrator who did not take it (SG-31: every
 	 * Administrator sees the Dispute, so the refusal is no {@code FORBIDDEN}); {@code CONFLICT ALREADY_DECIDED};
-	 * {@code VALIDATION AMOUNTS_MISMATCH} or {@code NOTHING_TO_CONTINUE}; {@code VALIDATION}
+	 * {@code VALIDATION AMOUNTS_MISMATCH}, {@code NO_SPLIT_PARTY} or {@code NOTHING_TO_CONTINUE}; {@code VALIDATION}
 	 */
 	@Transactional
 	Outcome decide(UUID disputeId, UUID administrator, @Nullable Long releaseVnd, @Nullable Long refundVnd, Next next,
@@ -208,6 +220,12 @@ class DisputeDecisions implements DisputeQueue {
 				|| releaseVnd + refundVnd != releasable)) {
 			throw new ApiException(ErrorCode.VALIDATION, DisputeReason.AMOUNTS_MISMATCH,
 					Map.of("releasableVnd", releasable));
+		}
+		// AD-29, AD-31 (review M-01): nothing is released on a Milestone with no would-be split party, which only a
+		// Self-mentored Job can have. Refused here, before the step-up and before the decision is recorded: a recorded
+		// decision is final, and its execution would fail in M8's guard on every retry with the Job frozen.
+		if (milestone != null && releaseVnd > 0 && !this.splits.hasWouldBeSplitParty(milestone)) {
+			throw new ApiException(ErrorCode.VALIDATION, DisputeReason.NO_SPLIT_PARTY);
 		}
 		if (next == Next.CONTINUE && !this.settlements.plannedRemains(dispute.jobId())) {
 			throw new ApiException(ErrorCode.VALIDATION, DisputeReason.NOTHING_TO_CONTINUE);

@@ -8852,6 +8852,9 @@
           "reason" : {
             "type" : "string"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "statements" : {
             "type" : "array",
             "items" : {
@@ -8866,7 +8869,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "assigned", "assignedToMe", "capApplies", "daysUndecided", "evidenceReadable", "id", "jobContentGone", "jobId", "milestoneNumber", "parties", "pooledVnd", "raisedAt", "statements", "status", "undecidedLong" ]
+        "required" : [ "assigned", "assignedToMe", "capApplies", "daysUndecided", "evidenceReadable", "id", "jobContentGone", "jobId", "milestoneNumber", "parties", "pooledVnd", "raisedAt", "selfMentored", "statements", "status", "undecidedLong" ]
       },
       "AdminSplitResolutionRow" : {
         "type" : "object",
@@ -8950,7 +8953,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "partyId", "submittedAt", "text" ]
+        "required" : [ "submittedAt", "text" ]
       },
       "AdminStatementView" : {
         "type" : "object",
@@ -9758,7 +9761,7 @@
           },
           "finality" : {
             "type" : "string",
-            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY", "SOLE_MEMBER" ]
           },
           "jobId" : {
             "type" : "string",
@@ -13689,6 +13692,9 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "refundOnly" : {
+            "type" : "boolean"
+          },
           "releasableVnd" : {
             "type" : "integer",
             "format" : "int64"
@@ -13697,7 +13703,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "milestoneId", "number", "releasableVnd", "title" ]
+        "required" : [ "milestoneId", "number", "refundOnly", "releasableVnd", "title" ]
       },
       "HideRequest" : {
         "type" : "object",
@@ -14525,7 +14531,7 @@
           },
           "finality" : {
             "type" : "string",
-            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY", "SOLE_MEMBER" ]
           },
           "fundedVnd" : {
             "type" : "integer",
@@ -17807,7 +17813,7 @@
           },
           "finality" : {
             "type" : "string",
-            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY" ]
+            "enum" : [ "CONFIRMED", "DEADLINE", "DECISION", "MENTOR_ONLY", "SOLE_MEMBER" ]
           },
           "jobLive" : {
             "type" : "boolean"
@@ -17854,6 +17860,13 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "remainderPartyId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "splitId" : {
             "type" : "string",
             "format" : "uuid"
@@ -17869,7 +17882,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "capApplies", "confirmationNear", "draftDueAt", "draftLate", "draftNear", "earlier", "editLimit", "editsLeft", "editsUsed", "jobLive", "k", "milestoneId", "milestoneNumber", "n", "nextConfirmationDueAt", "paid", "parties", "pastDue", "pooledVnd", "splitId", "status", "viewerConfirmed", "viewerIsMentor" ]
+        "required" : [ "capApplies", "confirmationNear", "draftDueAt", "draftLate", "draftNear", "earlier", "editLimit", "editsLeft", "editsUsed", "jobLive", "k", "milestoneId", "milestoneNumber", "n", "nextConfirmationDueAt", "paid", "parties", "pastDue", "pooledVnd", "remainderPartyId", "selfMentored", "splitId", "status", "viewerConfirmed", "viewerIsMentor" ]
       },
       "SplitConfirmationRequest" : {
         "type" : "object",
@@ -18079,7 +18092,7 @@
           },
           "kind" : {
             "type" : "string",
-            "enum" : [ "DRAFT", "DEFAULT", "DECISION", "MENTOR_ONLY" ]
+            "enum" : [ "DRAFT", "DEFAULT", "DECISION", "MENTOR_ONLY", "SOLE_MEMBER" ]
           },
           "lines" : {
             "type" : "array",
@@ -18266,7 +18279,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "mentor", "partyId", "submittedAt", "text" ]
+        "required" : [ "mentor", "submittedAt", "text" ]
       },
       "SplitResolutionView" : {
         "type" : "object",
@@ -18495,7 +18508,7 @@
           },
           "kind" : {
             "type" : "string",
-            "enum" : [ "DRAFT", "DEFAULT", "DECISION", "MENTOR_ONLY" ]
+            "enum" : [ "DRAFT", "DEFAULT", "DECISION", "MENTOR_ONLY", "SOLE_MEMBER" ]
           },
           "lines" : {
             "type" : "array",

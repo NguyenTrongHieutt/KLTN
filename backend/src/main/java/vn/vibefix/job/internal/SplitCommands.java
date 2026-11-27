@@ -103,7 +103,7 @@ class SplitCommands {
 	Saved save(UUID mentorId, UUID splitId, int shownVersionNo, List<PercentLine> lines) {
 		Split split = lockedSplit(splitId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		List<Party> parties = this.store.parties(splitId);
-		requireMentor(split, parties, mentorId);
+		requireDrafter(split, parties, mentorId);
 		Instant now = this.clock.instant();
 		refuseFinished(split, now);
 		List<Version> versions = this.store.versions(splitId);
@@ -142,11 +142,12 @@ class SplitCommands {
 	Confirmed confirm(UUID accountId, UUID splitId, int versionNo) {
 		Split split = lockedSplit(splitId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		List<Party> parties = this.store.parties(splitId);
-		Party party = parties.stream()
-			.filter(candidate -> accountId.equals(candidate.accountId()))
-			.findFirst()
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		if (party.mentor()) {
+		Party party = parties.stream().filter(candidate -> accountId.equals(candidate.accountId())).findFirst().orElse(null);
+		if (party == null && !split.draftedBy(accountId)) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		// The drafter confirms nothing: the Mentor, who is party 0, and the Customer of a Self-mentored Job, who is none.
+		if (party == null || party.mentor()) {
 			throw new ApiException(ErrorCode.FORBIDDEN, JobReason.PARTY_ONLY);
 		}
 		if (split.status() == Status.AWAITING_DRAFT) {
@@ -200,9 +201,20 @@ class SplitCommands {
 
 	/**
 	 * R11's default: the Mentor gets ⌊100 / parties⌋, lowered to the cap when one applies; the rest goes equally over the
-	 * other parties, the leftover points one each in ascending position.
+	 * other parties, the leftover points one each in ascending position. A Self-mentored Job's split has no Mentor party
+	 * (AD-29, R58): every party gets ⌊100 / parties⌋ and the leftover points go one each in ascending position, which
+	 * there is the order of the commitment signatures.
 	 */
 	static Map<UUID, Integer> defaultPercents(List<Party> parties, @Nullable Integer cap) {
+		if (parties.stream().noneMatch(Party::mentor)) {
+			int each = 100 / parties.size();
+			int leftover = 100 % parties.size();
+			Map<UUID, Integer> percents = new LinkedHashMap<>();
+			for (Party party : parties) {
+				percents.put(party.id(), each + (leftover-- > 0 ? 1 : 0));
+			}
+			return percents;
+		}
 		int mentor = 100 / parties.size();
 		if (cap != null) {
 			mentor = Math.min(mentor, cap);
@@ -350,7 +362,8 @@ class SplitCommands {
 	 * Checks a draft by AD-29's rules against {@code cap}: read live for a save, stored on the latest version for a decision.
 	 * @throws ApiException {@code VALIDATION SPLIT_INVALID} unless the parties are exactly the split's, the percentages
 	 * whole and summing to 100, the Mentor's within the cap when it applies, and, when it does, each member of the whole
-	 * Milestone above 0
+	 * Milestone above 0. A Self-mentored Job's split has no cap, and its members of the whole Milestone are still above 0:
+	 * there the floor is read from the split's mode, not from the cap (review M-06)
 	 */
 	Map<UUID, Integer> validated(Split split, List<Party> parties, List<PercentLine> lines, @Nullable Integer cap) {
 		Map<UUID, Integer> typed = new HashMap<>();
@@ -367,7 +380,8 @@ class SplitCommands {
 		for (Party party : parties) {
 			int percent = Objects.requireNonNull(typed.get(party.id()));
 			boolean tooMuch = party.mentor() && cap != null && percent > cap;
-			boolean tooLittle = !party.mentor() && split.capApplies() && party.wholeInterval() && percent == 0;
+			boolean floor = split.capApplies() || split.selfMentored();
+			boolean tooLittle = !party.mentor() && floor && party.wholeInterval() && percent == 0;
 			if (percent < 0 || percent > 100 || tooMuch || tooLittle) {
 				throw invalid(cap);
 			}
@@ -416,13 +430,20 @@ class SplitCommands {
 		return this.store.find(splitId);
 	}
 
-	private static void requireMentor(Split split, List<Party> parties, UUID accountId) {
+	/**
+	 * The split's drafter, read from the split's own rows and never from the role in the Job, so a bare row still answers:
+	 * the Mentor, or the Customer of a Self-mentored Job, who is no party.
+	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY} for a party who does not draft it; {@code NOT_FOUND} for anyone
+	 * else
+	 */
+	static void requireDrafter(Split split, List<Party> parties, UUID accountId) {
+		if (split.draftedBy(accountId)) {
+			return;
+		}
 		if (parties.stream().noneMatch(party -> accountId.equals(party.accountId()))) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		if (!accountId.equals(split.mentorId())) {
-			throw new ApiException(ErrorCode.FORBIDDEN, JobReason.MENTOR_ONLY);
-		}
+		throw new ApiException(ErrorCode.FORBIDDEN, JobReason.MENTOR_ONLY);
 	}
 
 	/** Final, under a resolution, or past its due time, where only the Deadline moves the split on. */

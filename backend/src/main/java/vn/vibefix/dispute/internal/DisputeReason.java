@@ -57,8 +57,17 @@ enum DisputeReason {
 	/** The decision waits for the statement or the end of its period (FR-52). */
 	STATEMENT_PERIOD_OPEN,
 
-	/** The Mentor adds a statement; only the other parties ask for a Split Resolution (FR-84, AD-40). */
+	/**
+	 * The drafter adds a statement; only the parties who do not draft ask for a Split Resolution (FR-84, AD-40): the
+	 * Mentor, and the Customer of a Self-mentored Job, cannot.
+	 */
 	PARTY_ONLY,
+
+	/**
+	 * A decision that releases money on a Self-mentored Job's Milestone no Crew member was active on since it was funded:
+	 * its split would have no party, so the decision can only refund (FR-54, AD-29, AD-31).
+	 */
+	NO_SPLIT_PARTY,
 
 	/** A party raises one Split Resolution per Milestone (FR-84, AD-40). */
 	SPLIT_RESOLUTION_USED,

@@ -426,6 +426,47 @@ public final class JobContent {
 		return new UUID[] { split, mentorParty, activeParty, formerParty };
 	}
 
+	/**
+	 * A Self-mentored Job's split as a release fixes it (AD-29, AD-47, Story 25.6): no Mentor party, the Customer its
+	 * drafter, no cap, and an active member and a former one as its two parties, at version 1 in {@code status}
+	 * ({@code PROPOSED} or {@code IN_RESOLUTION}), with the confirmation due at {@code due}.
+	 * @return the split and its party rows: the active member's, at position 0, and the former member's
+	 */
+	public static UUID[] selfProposedSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID drafter,
+			UUID active, UUID former, int activePercent, int formerPercent, String status, Instant funded, Instant released,
+			Instant due) {
+		UUID split = UUID.randomUUID();
+		jdbc.sql("""
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id,
+				    self_mentored, status, cap_applies, funded_at, released_at, draft_due_at, created_at, confirmation_round,
+				    confirmation_due_at)
+				VALUES (:id, :job, :product, :milestone, :number, :drafter, true, :status, false, :funded, :released, :draftDue,
+				    :released, 1, :due)
+				""")
+			.param("id", split)
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", milestone)
+			.param("number", number)
+			.param("drafter", drafter)
+			.param("status", status)
+			.param("funded", Timestamp.from(funded))
+			.param("released", Timestamp.from(released))
+			.param("draftDue", Timestamp.from(released.plus(java.time.Duration.ofDays(7))))
+			.param("due", Timestamp.from(due))
+			.update();
+		UUID activeParty = party(jdbc, split, active, false, true, 0);
+		UUID formerParty = party(jdbc, split, former, false, false, 1);
+		jdbc.sql("""
+				INSERT INTO job.milestone_split_version (split_id, version_no, kind, cap_percent, author_account_id, created_at)
+				VALUES (:split, 1, 'DRAFT', NULL, :drafter, :released)
+				""").param("split", split).param("drafter", drafter).param("released", Timestamp.from(released)).update();
+		Map.of(activeParty, activePercent, formerParty, formerPercent).forEach((party, percent) -> jdbc.sql("""
+				INSERT INTO job.milestone_split_share (split_id, version_no, party_id, percent) VALUES (:split, 1, :party, :percent)
+				""").param("split", split).param("party", party).param("percent", percent).update());
+		return new UUID[] { split, activeParty, formerParty };
+	}
+
 	/** The Milestone's split with the Mentor and its members as a release fixes them, waiting for the draft (AD-29). */
 	public static void openSplit(JdbcClient jdbc, UUID job, UUID product, UUID milestone, int number, UUID mentor, UUID active,
 			UUID former, Instant released) {

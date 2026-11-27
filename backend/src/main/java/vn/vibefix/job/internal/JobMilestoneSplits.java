@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,6 +45,13 @@ import vn.vibefix.timers.Deadlines;
  * the draft Deadline and its reminder, the Mentor's to-do, and the parties told. Writing a split changes neither
  * {@code Job.version} nor {@code crewVersion}. The release stores the Milestone's funding time and each party's active
  * interval too, as a Split Resolution reads them after the Crew rows went (AD-24, AD-40).
+ *
+ * <p>
+ * A Self-mentored Job's split has no Mentor party (AD-29, AD-47, Story 25.6): its parties are the overlapping Crew rows
+ * only, in the order of their commitment signatures, and the Customer, who is the Mentor there, is recorded as its
+ * drafter and never as a party, so the Customer's payment never flows back. With one party it is final at once as
+ * {@code SOLE_MEMBER}; with none, the release was refused by {@link #requireParty} before any write. The party at
+ * position 0 receives the rounding remainder in every Job.
  */
 @Component
 class JobMilestoneSplits implements MilestoneSplits {
@@ -115,24 +123,27 @@ class JobMilestoneSplits implements MilestoneSplits {
 
 	/**
 	 * Creates the Milestone's one split, in the apply of the release at {@code release} under the Job row lock its caller
-	 * holds. With no party but the Mentor it is {@code FINAL} with a System-authored {@code MENTOR_ONLY} version, and
-	 * {@link MilestoneSplitFinalized} is published in the same apply; otherwise it waits in {@code AWAITING_DRAFT}.
+	 * holds. With one party it is {@code FINAL} with a System-authored version at 100% ({@code MENTOR_ONLY}, or
+	 * {@code SOLE_MEMBER} in a Self-mentored Job), and {@link MilestoneSplitFinalized} is published in the same apply;
+	 * otherwise it waits in {@code AWAITING_DRAFT}.
+	 * @throws IllegalStateException with no party: the release's guard, {@link #requireParty}, was not run
 	 */
 	void createAtRelease(Job job, UUID milestoneId, int number, Instant release) {
-		Instant funded = this.jdbc.sql("SELECT funded_at FROM job.milestone WHERE id = :id")
-			.param("id", milestoneId)
-			.query(Timestamp.class)
-			.single()
-			.toInstant();
+		Instant funded = fundedAt(milestoneId);
 		List<Party> parties = partiesOf(job, funded, release);
-		boolean capApplies = parties.stream().anyMatch(party -> !party.mentor() && party.activeAtRelease());
+		if (parties.isEmpty()) {
+			throw new IllegalStateException("A release with no split party was not refused: " + milestoneId);
+		}
+		// No cap in the mode: there is no Mentor share to cap (AD-29).
+		boolean capApplies = !job.selfMentored() && parties.stream().anyMatch(party -> !party.mentor() && party.activeAtRelease());
 		UUID splitId = this.ids.newId();
 		int days = this.rules.value(job.id(), DRAFT_RULE, DEFAULT_DRAFT_DAYS);
 		Instant draftDue = release.plus(Duration.ofDays(days));
 		this.jdbc.sql("""
-				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id, status,
-				    cap_applies, funded_at, released_at, draft_due_at, created_at)
-				VALUES (:id, :job, :product, :milestone, :number, :mentor, 'AWAITING_DRAFT', :cap, :funded, :release, :due, :now)
+				INSERT INTO job.milestone_split (id, job_id, product_id, milestone_id, milestone_number, mentor_account_id,
+				    self_mentored, status, cap_applies, funded_at, released_at, draft_due_at, created_at)
+				VALUES (:id, :job, :product, :milestone, :number, :mentor, :mode, 'AWAITING_DRAFT', :cap, :funded, :release, :due,
+				    :now)
 				""")
 			.param("id", splitId)
 			.param("job", job.id())
@@ -140,6 +151,7 @@ class JobMilestoneSplits implements MilestoneSplits {
 			.param("milestone", milestoneId)
 			.param("number", number)
 			.param("mentor", job.mentorId())
+			.param("mode", job.selfMentored())
 			.param("cap", capApplies)
 			.param("funded", Timestamp.from(funded))
 			.param("release", Timestamp.from(release))
@@ -165,7 +177,7 @@ class JobMilestoneSplits implements MilestoneSplits {
 		}
 		SplitStore.Split split = this.store.find(splitId).orElseThrow();
 		if (parties.size() == 1) {
-			finalizeForMentorAlone(split, parties.getFirst());
+			finalizeForOneParty(split, parties.getFirst());
 			return;
 		}
 		this.deadlines.schedule(new DeadlineRequest(SplitDraftDeadline.KEY, splitId, splitId.toString(), job.id(), draftDue));
@@ -176,44 +188,77 @@ class JobMilestoneSplits implements MilestoneSplits {
 		this.notices.released(split, job.title(), this.store.parties(splitId));
 	}
 
-	/** R9, A-10: version 1 gives the Mentor 100%, System-authored and final when saved. */
-	private void finalizeForMentorAlone(SplitStore.Split split, Party mentor) {
-		this.store.insertVersion(split.id(), 1, VersionKind.MENTOR_ONLY, null, null, Map.of(mentor.id(), 100), this.clock.instant());
-		this.finalization.makeFinal(split, 1, Finality.MENTOR_ONLY);
+	/**
+	 * R9, A-10: version 1 gives the one party 100%, System-authored and final when saved: the Mentor alone, or the one
+	 * member of a Self-mentored Job's Milestone.
+	 */
+	private void finalizeForOneParty(SplitStore.Split split, Party party) {
+		boolean member = split.selfMentored();
+		this.store.insertVersion(split.id(), 1, member ? VersionKind.SOLE_MEMBER : VersionKind.MENTOR_ONLY, null, null,
+				Map.of(party.id(), 100), this.clock.instant());
+		this.finalization.makeFinal(split, 1, member ? Finality.SOLE_MEMBER : Finality.MENTOR_ONLY);
 	}
 
-	/** The Mentor, position 0, then each overlapping Crew row in creation order. */
+	/**
+	 * The parties a release at {@code release} fixes, from {@link CrewService#wouldBeParties}, the one definition
+	 * (AD-33). A normal Job: the Mentor at position 0, then each overlapping Crew row in creation order. A Self-mentored
+	 * Job: the overlapping Crew rows only, by their commitment signature ({@code activated_at}) and then the Crew row's
+	 * ID, so position 0 is the member who signed first (R58).
+	 */
 	private List<Party> partiesOf(Job job, Instant funded, Instant release) {
-		UUID mentor = Objects.requireNonNull(job.mentorId(), "the Job's Mentor");
-		List<CrewService.Row> rows = this.crews.rows(job.id()).stream().filter(row -> row.activatedAt() != null).toList();
-		List<UUID> accounts = new ArrayList<>(rows.stream().map(CrewService.Row::studentId).toList());
-		accounts.add(mentor);
-		Map<UUID, Instant> locked = this.capabilities.lockedAmong(accounts);
+		List<CrewService.ActiveSpan> spans = new ArrayList<>(this.crews.wouldBeParties(job.id(), funded, release));
 		List<Party> parties = new ArrayList<>();
-		parties.add(new Party(this.ids.newId(), mentor, true, true, !locked.containsKey(mentor), 0, funded, release));
-		for (CrewService.Row row : rows) {
-			Instant activated = Objects.requireNonNull(row.activatedAt());
-			Instant lockedAt = locked.get(row.studentId());
-			Instant end = endOf(row, activated, lockedAt, release);
-			if (activated.isAfter(release) || end.isBefore(funded)) {
-				continue;
-			}
-			boolean whole = !activated.isAfter(funded) && !end.isBefore(release);
-			parties.add(new Party(this.ids.newId(), row.studentId(), false, whole, row.active() && lockedAt == null, parties.size(),
-					activated, end.isAfter(release) ? release : end));
+		if (job.selfMentored()) {
+			// The lower Crew row ID as the database orders UUIDs, by their bytes: the text form sorts that way, and
+			// UUID.compareTo, which compares signed halves, does not.
+			spans.sort(Comparator.comparing(CrewService.ActiveSpan::from).thenComparing(span -> span.row().id().toString()));
+		}
+		else {
+			UUID mentor = Objects.requireNonNull(job.mentorId(), "the Job's Mentor");
+			boolean locked = this.capabilities.lockedAmong(List.of(mentor)).containsKey(mentor);
+			parties.add(new Party(this.ids.newId(), mentor, true, true, !locked, 0, funded, release));
+		}
+		for (CrewService.ActiveSpan span : spans) {
+			parties.add(new Party(this.ids.newId(), span.row().studentId(), false, span.whole(), span.activeAtEnd(),
+					parties.size(), span.from(), span.to()));
 		}
 		return parties;
 	}
 
-	/** A row's end: its {@code window_end}; for an unreleased row of a locked account, the lock; otherwise the release. */
-	private static Instant endOf(CrewService.Row row, Instant activated, Instant lockedAt, Instant release) {
-		if (row.windowEnd() != null) {
-			return row.windowEnd();
+	private Instant fundedAt(UUID milestoneId) {
+		return this.jdbc.sql("SELECT funded_at FROM job.milestone WHERE id = :id")
+			.param("id", milestoneId)
+			.query(Timestamp.class)
+			.single()
+			.toInstant();
+	}
+
+	/**
+	 * The guard of a release (M5, and M8 with a release above 0), before any write (AD-4, AD-29, AD-31): a Self-mentored
+	 * Job's Milestone that no Crew member was active on since it was funded has no split party, and the Customer is
+	 * never one, so nothing can be released on it. A normal Job always has its Mentor.
+	 * @throws ApiException {@code GUARD_FAILED NO_SPLIT_PARTY}
+	 */
+	void requireParty(Job job, UUID milestoneId, Instant at) {
+		if (job.selfMentored() && this.crews.wouldBeParties(job.id(), fundedAt(milestoneId), at).isEmpty()) {
+			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.NO_SPLIT_PARTY);
 		}
-		if (!row.released() && lockedAt != null) {
-			return lockedAt.isAfter(activated) ? lockedAt : activated;
-		}
-		return release;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean hasWouldBeSplitParty(UUID milestoneId) {
+		// A normal Job's Mentor is always a party; a Milestone not funded yet has nothing to release.
+		Map.Entry<UUID, Timestamp> mode = this.jdbc.sql("""
+				SELECT j.id, m.funded_at FROM job.milestone m JOIN job.job j ON j.id = m.job_id
+				WHERE m.id = :id AND j.self_mentored AND m.funded_at IS NOT NULL
+				""")
+			.param("id", milestoneId)
+			.query((rs, n) -> Map.entry(rs.getObject("id", UUID.class), rs.getTimestamp("funded_at")))
+			.optional()
+			.orElse(null);
+		return mode == null
+				|| !this.crews.wouldBeParties(mode.getKey(), mode.getValue().toInstant(), this.clock.instant()).isEmpty();
 	}
 
 	@Override
@@ -303,13 +348,14 @@ class JobMilestoneSplits implements MilestoneSplits {
 	@Override
 	@Transactional(readOnly = true)
 	public List<SplitRead> readableBy(UUID jobId, UUID viewerId) {
+		// A normal Job's Customer never reads a split (AD-20); a Self-mentored Job's is the drafter of each (AD-29).
 		Boolean customer = this.jdbc.sql("""
-				SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND customer_account_id = :viewer)
+				SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND customer_account_id = :viewer AND NOT self_mentored)
 				""").param("job", jobId).param("viewer", viewerId).query(Boolean.class).single();
 		if (Boolean.TRUE.equals(customer)) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
-		List<SplitStore.Split> splits = this.store.ofParty(jobId, viewerId);
+		List<SplitStore.Split> splits = this.store.ofPartyOrDrafter(jobId, viewerId);
 		if (splits.isEmpty()) {
 			Boolean mentor = this.jdbc.sql("SELECT EXISTS (SELECT 1 FROM job.job WHERE id = :job AND mentor_account_id = :viewer AND "
 					+ Jobs.LIVE + ")").param("job", jobId).param("viewer", viewerId).query(Boolean.class).single();
@@ -347,14 +393,15 @@ class JobMilestoneSplits implements MilestoneSplits {
 		int members = (int) parties.stream().filter(party -> !party.mentor()).count();
 		Instant due = split.confirmationDueAt();
 		int editsUsed = this.store.editsUsed(versions);
-		return new SplitRead(split.id(), split.milestoneId(), split.number(), title, live, split.status(), split.finality(),
+		return new SplitRead(split.id(), split.milestoneId(), split.number(), title, live, split.selfMentored(),
+				SplitStore.remainderParty(parties).id(), split.status(), split.finality(),
 				split.capApplies(), this.commands.capOf(split), editsUsed, Math.max(0, limit - editsUsed), limit,
 				split.draftDueAt(), !split.draftDueAt().isAfter(now.plus(NEAR)),
 				split.status() == Status.AWAITING_DRAFT && !now.isBefore(split.draftDueAt()),
 				now.plus(Duration.ofDays(this.rules.value(split.jobId(), SplitCommands.CONFIRMATION_RULE,
 						SplitCommands.DEFAULT_CONFIRMATION_DAYS))),
 				due, due != null && !due.isAfter(now.plus(NEAR)), split.pastDue(now), split.finalAt(), confirmed.size(), members,
-				viewerId.equals(split.mentorId()), viewerParty != null && confirmed.contains(viewerParty), partyReads, latest,
+				split.draftedBy(viewerId), viewerParty != null && confirmed.contains(viewerParty), partyReads, latest,
 				reads.isEmpty() ? List.of() : reads.subList(1, reads.size()));
 	}
 
@@ -373,15 +420,9 @@ class JobMilestoneSplits implements MilestoneSplits {
 	public PreviewBasis previewBasis(UUID splitId, UUID mentorId, List<PercentLine> lines) {
 		SplitStore.Split split = this.store.find(splitId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		List<SplitStore.Party> parties = this.store.parties(splitId);
-		if (parties.stream().noneMatch(party -> mentorId.equals(party.accountId()))) {
-			throw new ApiException(ErrorCode.NOT_FOUND);
-		}
-		if (!mentorId.equals(split.mentorId())) {
-			throw new ApiException(ErrorCode.FORBIDDEN, JobReason.MENTOR_ONLY);
-		}
+		SplitCommands.requireDrafter(split, parties, mentorId);
 		Map<UUID, Integer> percents = this.commands.validated(split, parties, lines, this.commands.capOf(split));
-		UUID mentorParty = parties.stream().filter(SplitStore.Party::mentor).map(SplitStore.Party::id).findFirst().orElseThrow();
-		return new PreviewBasis(split.milestoneId(), mentorParty, percents);
+		return new PreviewBasis(split.milestoneId(), SplitStore.remainderParty(parties).id(), percents);
 	}
 
 	@Override
@@ -402,7 +443,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 		SplitStore.Interval interval = this.store.interval(split.id());
 		return new SplitCase(split.id(), split.jobId(), split.productId(), split.milestoneId(), split.number(),
 				this.store.title(split.jobId()).orElse(null), this.store.customerOf(split.jobId()).orElse(null), split.mentorId(),
-				split.status(), split.capApplies(), latest == null ? 0 : latest.number(), latest == null ? null : latest.capPercent(),
+				split.selfMentored(), split.status(), split.capApplies(), latest == null ? 0 : latest.number(),
+				latest == null ? null : latest.capPercent(),
 				split.confirmationDueAt(), split.pastDue(this.clock.instant()), interval.fundedAt(), interval.releasedAt(),
 				this.store.caseParties(split.id()));
 	}
@@ -426,8 +468,7 @@ class JobMilestoneSplits implements MilestoneSplits {
 		List<SplitStore.Party> parties = this.store.parties(splitId);
 		Integer cap = this.store.latest(splitId).map(SplitStore.Version::capPercent).orElse(null);
 		Map<UUID, Integer> percents = this.commands.validated(split, parties, lines, cap);
-		UUID mentorParty = parties.stream().filter(SplitStore.Party::mentor).map(SplitStore.Party::id).findFirst().orElseThrow();
-		return new PreviewBasis(split.milestoneId(), mentorParty, percents);
+		return new PreviewBasis(split.milestoneId(), SplitStore.remainderParty(parties).id(), percents);
 	}
 
 	@Override
@@ -459,7 +500,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 	@Transactional(readOnly = true)
 	public Optional<MilestoneSplitFinalized> finalSplitOf(UUID milestoneId) {
 		return this.store.ofMilestone(milestoneId)
-			.filter(split -> split.status() == Status.FINAL && split.mentorId() != null)
+			.filter(split -> split.status() == Status.FINAL
+					&& SplitStore.remainderParty(this.store.parties(split.id())).accountId() != null)
 			.map(split -> {
 				int versionNo = this.jdbc.sql("SELECT final_version_no FROM job.milestone_split WHERE id = :id")
 					.param("id", split.id())
@@ -467,7 +509,8 @@ class JobMilestoneSplits implements MilestoneSplits {
 					.single();
 				return new MilestoneSplitFinalized(this.ids.newId(), split.id(), split.jobId(), split.productId(),
 						split.milestoneId(), split.number(), this.store.title(split.jobId()).orElse(""),
-						Objects.requireNonNull(split.mentorId()), versionNo, this.finalization.percentages(split, versionNo),
+						Objects.requireNonNull(SplitStore.remainderParty(this.store.parties(split.id())).accountId()), versionNo,
+						this.finalization.percentages(split, versionNo),
 						Objects.requireNonNull(split.finality()));
 			});
 	}

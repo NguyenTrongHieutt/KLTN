@@ -52,8 +52,10 @@ type SplitProblem = ApiError['problem'] & { cap?: number; n?: number; pastDue?: 
  * JOB-10 "Phân chia tiền" (FR-83, FR-84, UX-DR105, UX-DR106): one card per accepted Milestone, newest first, for the
  * Mentor and the split's parties, leavers included, with the Split Resolutions of its Milestone. It stands on the
  * split's own rows, not on the role in the Job, since it stays open for a former member and after the Job is gone.
- * Every amount comes from the server. It reads every 30 s while a split is open. Never reachable by the Customer, whose
- * answer is the not-found screen.
+ * Every amount comes from the server. It reads every 30 s while a split is open. Never reachable by the Customer of a
+ * normal Job, whose answer is the not-found screen. In a Self-mentored Job (`selfMentored`, UX-DR131) the Customer is
+ * the drafter, in the Mentor's place and in no party: the card has no Mentor line and no cap, the members' words name
+ * the customer, and nothing here looks for "the Mentor party".
  */
 export function SplitPage() {
   const { jobId, milestoneId } = useParams()
@@ -161,10 +163,12 @@ function Chip({ card }: { card: SplitCard }) {
 }
 
 function Body({ jobId, card }: { jobId: string; card: SplitCard }) {
-  if (card.finality === 'MENTOR_ONLY') {
+  if (card.finality === 'MENTOR_ONLY' || card.finality === 'SOLE_MEMBER') {
     return (
       <>
-        <p className="text-body-sm">{t('screen.split.mentorOnly')}</p>
+        <p className="text-body-sm">
+          {t(card.finality === 'SOLE_MEMBER' ? 'screen.split.soleMember' : 'screen.split.mentorOnly')}
+        </p>
         <Lines card={card} version={card.latest} />
       </>
     )
@@ -207,9 +211,12 @@ function Body({ jobId, card }: { jobId: string; card: SplitCard }) {
   )
 }
 
-/** X5, for the Mentor and the leavers, whose rules change when nobody was in the Crew at acceptance. */
+/**
+ * X5, for the Mentor and the leavers, whose rules change when nobody was in the Crew at acceptance. A Self-mentored
+ * card has no cap to lift, and its Customer has no share to speak of, so it never shows this.
+ */
 function NoMemberNotice({ card }: { card: SplitCard }) {
-  return card.capApplies ? null : <p className="text-body-sm">{t('screen.split.noMember')}</p>
+  return card.capApplies || card.selfMentored ? null : <p className="text-body-sm">{t('screen.split.noMember')}</p>
 }
 
 function VersionNotices({ card }: { card: SplitCard }) {
@@ -217,18 +224,9 @@ function VersionNotices({ card }: { card: SplitCard }) {
   if (!version) {
     return null
   }
-  const mentorLine = version.lines.find((line) => partyOf(card, line.partyId)?.mentor)
   return (
     <>
-      {version.kind === 'DEFAULT' && (
-        <p className="text-body-sm">
-          {t(version.capPercent === undefined ? 'screen.split.defaultNoCap' : 'screen.split.default', {
-            date: formatDayMonth(card.draftDueAt),
-            pct: mentorLine?.percent ?? 0,
-            cap: version.capPercent ?? 0,
-          })}
-        </p>
-      )}
+      {version.kind === 'DEFAULT' && <p className="text-body-sm">{defaultText(card, version)}</p>}
       {card.status === 'IN_RESOLUTION' && <p className="text-body-sm">{t('screen.split.inResolution')}</p>}
       {card.status === 'FINAL' && (
         <p className="text-body-sm">
@@ -242,7 +240,7 @@ function VersionNotices({ card }: { card: SplitCard }) {
         version.kind === 'DRAFT' &&
         version.versionNo > 1 && (
           <p className="text-body-sm">
-            {t('screen.split.edited', {
+            {t(card.selfMentored ? 'screen.split.editedCustomer' : 'screen.split.edited', {
               k: card.editsUsed,
               n: card.editLimit,
               date: formatDayMonth(card.confirmationDueAt ?? ''),
@@ -251,6 +249,21 @@ function VersionNotices({ card }: { card: SplitCard }) {
         )}
     </>
   )
+}
+
+/** What the System did when no draft came: the Mentor's share and the cap, or in the mode an equal split of members. */
+function defaultText(card: SplitCard, version: SplitVersion): string {
+  const date = formatDayMonth(card.draftDueAt)
+  if (card.selfMentored) {
+    // Equal percentages, the leftover points one each to those who signed first: the table shows each exact figure.
+    return t(card.viewerIsMentor ? 'screen.split.defaultSelfCm' : 'screen.split.defaultSelfMember', { date })
+  }
+  const mentorLine = version.lines.find((line) => partyOf(card, line.partyId)?.mentor)
+  return t(version.capPercent === undefined ? 'screen.split.defaultNoCap' : 'screen.split.default', {
+    date,
+    pct: mentorLine?.percent ?? 0,
+    cap: version.capPercent ?? 0,
+  })
 }
 
 function howOf(card: SplitCard): string {
@@ -268,6 +281,12 @@ function stateOf(card: SplitCard): { text: string; tone: string } {
   if (card.finality === 'MENTOR_ONLY') {
     return { text: t('screen.split.state.mentorOnly'), tone: TONE.done }
   }
+  if (card.finality === 'SOLE_MEMBER') {
+    return {
+      text: t(card.viewerIsMentor ? 'screen.split.state.soleMemberCm' : 'screen.split.state.soleMember'),
+      tone: TONE.done,
+    }
+  }
   if (card.status === 'FINAL') {
     return { text: t('screen.split.state.final', { date: formatDayMonth(card.finalAt ?? '') }), tone: TONE.done }
   }
@@ -284,19 +303,20 @@ function stateOf(card: SplitCard): { text: string; tone: string } {
     }
     return card.viewerIsMentor
       ? { text: t('screen.split.state.draftMentor', { date }), tone: TONE.waiting }
-      : { text: t('screen.split.state.draftParty', { date }), tone: TONE.progress }
+      : {
+          text: t(card.selfMentored ? 'screen.split.state.draftCustomer' : 'screen.split.state.draftParty', { date }),
+          tone: TONE.progress,
+        }
   }
   const date = formatDayMonth(card.confirmationDueAt ?? '')
   const isDefault = card.latest?.kind === 'DEFAULT'
   if (card.viewerIsMentor) {
-    return {
-      text: t(isDefault ? 'screen.split.state.defaultMentor' : 'screen.split.state.sentMentor', {
-        k: card.k,
-        n: card.n,
-        date,
-      }),
-      tone: TONE.progress,
-    }
+    const key = !isDefault
+      ? 'screen.split.state.sentMentor'
+      : card.selfMentored
+        ? 'screen.split.state.defaultCm'
+        : 'screen.split.state.defaultMentor'
+    return { text: t(key, { k: card.k, n: card.n, date }), tone: TONE.progress }
   }
   if (card.viewerConfirmed) {
     return { text: t('screen.split.state.confirmed'), tone: TONE.progress }
@@ -614,8 +634,7 @@ function Draft({
                 id={hint}
                 className={cn('w-full text-caption', problem !== null ? 'text-destructive' : 'text-muted-foreground')}
               >
-                {problem ??
-                  (party.mentor && card.cap !== undefined ? t('screen.split.capHint', { cap: card.cap }) : null)}
+                {problem ?? hintOf(card, party)}
               </span>
             </div>
           )
@@ -627,6 +646,7 @@ function Draft({
       >
         {t('screen.split.sum', { sum })}
       </p>
+      {card.selfMentored && <RemainderNote card={card} />}
       {/* N-29 says how many edits are left, so no line of its own repeats the count above it. */}
       <p className="text-body-sm">{n29(card)}</p>
       {save.isError && !stale && (
@@ -693,19 +713,53 @@ function lineProblem(card: SplitCard, party: SplitParty, text: string): string |
   if (party.mentor && card.cap !== undefined && percent > card.cap) {
     return t('screen.split.lineOverCap', { cap: card.cap })
   }
-  if (!party.mentor && card.capApplies && party.wholeInterval && percent === 0) {
+  // The floor: a member there the whole Milestone gets more than 0. In a normal Job it holds while the cap does; in a
+  // Self-mentored Job there is no cap, and it holds always.
+  if (!party.mentor && (card.capApplies || card.selfMentored) && party.wholeInterval && percent === 0) {
     return t('screen.split.lineZero')
   }
   return null
 }
 
-/** N-29, with the sentence of X5 in place of the cap's when nobody was in the Crew at acceptance. */
+/** What stands under a line while it is in order: the Mentor's cap, or in the mode a whole-Milestone member's floor. */
+function hintOf(card: SplitCard, party: SplitParty): string | null {
+  if (party.mentor && card.cap !== undefined) {
+    return t('screen.split.capHint', { cap: card.cap })
+  }
+  return card.selfMentored && party.wholeInterval ? t('screen.split.floorHint') : null
+}
+
+/**
+ * Who gets the dong that does not divide, in the mode: the member who joined first, which the server names
+ * (`remainderPartyId`), not a Mentor line, for there is none.
+ */
+function RemainderNote({ card }: { card: SplitCard }) {
+  const party = partyOf(card, card.remainderPartyId)
+  if (!party) {
+    return null
+  }
+  return (
+    <p className="text-caption text-muted-foreground">
+      {t('screen.split.remainder', {
+        name: party.name || (party.erased ? t('screen.split.erased') : t('screen.split.noName')),
+      })}
+    </p>
+  )
+}
+
+/**
+ * N-29, with the sentence of X5 in place of the cap's when nobody was in the Crew at acceptance, and in a
+ * Self-mentored Job its variant: no cap, no share for the drafter, and nothing about the customer not seeing the split.
+ */
 function n29(card: SplitCard): string {
   const values = {
     date: formatDayMonth(card.nextConfirmationDueAt),
     k: card.editsLeft,
     n: card.editLimit,
     cap: card.cap ?? 0,
+  }
+  if (card.selfMentored) {
+    return t('screen.split.n29Self', values)
   }
   return card.cap === undefined ? t('screen.split.n29NoCap', values) : t('screen.split.n29', values)
 }

@@ -10,7 +10,9 @@ import vn.vibefix.job.internal.JobLifecycle.Applying;
  * M8 (FR-54, AD-31): an Administrator's decision settles the Held Milestone with the release and refund
  * totals {@code dispute} records. It records when and the totals, and with a release above 0 creates the
  * Milestone's one split with its parties fixed (AD-29, AD-41); {@code dispute} then has {@code payment} write the
- * RELEASE_POOLED and the refund in the same transaction. No release makes no pool and no split.
+ * RELEASE_POOLED and the refund in the same transaction. No release makes no pool and no split. A release on a
+ * Self-mentored Job's Milestone with no would-be split party is refused in the check ({@code NO_SPLIT_PARTY}):
+ * {@code dispute} refuses such a decision before it records it, so this guard is the backstop.
  */
 @Component
 class M8Settle implements JobLifecycle.Step {
@@ -37,6 +39,10 @@ class M8Settle implements JobLifecycle.Step {
 	public void check(Applying applying) {
 		if (!applying.has(RELEASE) || !applying.has(REFUND)) {
 			throw new IllegalArgumentException("M8 needs the release and refund totals");
+		}
+		// AD-29, AD-31: a release needs a split party, checked before any write; a Self-mentored Job may have none.
+		if (((Number) applying.input(RELEASE)).longValue() > 0) {
+			this.splits.requireParty(applying.job(), applying.milestoneId(), applying.now());
 		}
 	}
 

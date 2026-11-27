@@ -249,6 +249,10 @@ class SelfMentoredCrewIT extends IntegrationTest {
 			.param("member", TestPeople.student(this.jdbc, "Lê Văn Hải", true, java.util.List.of(TestPeople.REACT), "React",
 					java.time.LocalDate.parse("2026-09-30")))
 			.param("joined", joined).param("left", left).update();
+		// Seen once that time has passed: a signature the Clock has not reached yet is no work on the Milestone, for
+		// this guard as for a release (the one definition, Story 25.6).
+		cancellation().andExpect(jsonPath("$.noMember").value("ALONE"));
+		this.clock.advance(Duration.ofMinutes(3));
 
 		cancellation().andExpect(jsonPath("$.noMember").value("CREW_WAS_ACTIVE"));
 		cancel().andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("CREW_WAS_ACTIVE"));

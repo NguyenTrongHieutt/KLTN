@@ -24,9 +24,12 @@ public interface MilestoneSplits {
 		AWAITING_DRAFT, PROPOSED, IN_RESOLUTION, FINAL
 	}
 
-	/** Who saved a version: the Mentor, the draft Deadline, an Administrator, or the release, with the Mentor alone. */
+	/**
+	 * Who saved a version: the drafter (the Mentor, or the Customer of a Self-mentored Job), the draft Deadline, an
+	 * Administrator, or the release, with the Mentor alone or, in a Self-mentored Job, with one member alone.
+	 */
 	enum VersionKind {
-		DRAFT, DEFAULT, DECISION, MENTOR_ONLY
+		DRAFT, DEFAULT, DECISION, MENTOR_ONLY, SOLE_MEMBER
 	}
 
 	/**
@@ -87,10 +90,10 @@ public interface MilestoneSplits {
 
 	/**
 	 * A valid draft, for {@code payment}'s server-side preview through {@code shared.CrewSplit} (AD-33).
-	 * @param mentorPartyId who receives the remainder of the whole-VND split
+	 * @param remainderPartyId who receives the remainder of the whole-VND split: the party at position 0 (AD-33)
 	 * @param percents every party's whole percentage by party, in the fixed order, a party at 0 included
 	 */
-	record PreviewBasis(UUID milestoneId, UUID mentorPartyId, Map<UUID, Integer> percents) {
+	record PreviewBasis(UUID milestoneId, UUID remainderPartyId, Map<UUID, Integer> percents) {
 	}
 
 	/**
@@ -132,12 +135,17 @@ public interface MilestoneSplits {
 	 * @param pastDue {@code PROPOSED} and past that due time: A-09's "being finalized" state
 	 * @param confirmed the parties other than the Mentor who confirmed the latest version
 	 * @param confirmers the parties other than the Mentor
-	 * @param viewerIsMentor the reader is this split's Mentor
+	 * @param viewerIsMentor the reader is this split's drafter: its Mentor, or the Customer of a Self-mentored Job, who is
+	 * no party
 	 * @param viewerConfirmed the reader confirmed the latest version
 	 * @param latest the latest version, once one exists
 	 * @param earlier the versions before it, newest first
+	 * @param selfMentored the split of a Self-mentored Job: no Mentor party and no cap, every party confirms, and a member
+	 * of the whole Milestone still gets more than 0
+	 * @param remainderPartyId the party at position 0, who receives the remainder of the whole-VND split
 	 */
 	record SplitRead(UUID splitId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle, boolean jobLive,
+			boolean selfMentored, UUID remainderPartyId,
 			Status status, @Nullable Finality finality, boolean capApplies, @Nullable Integer cap, int editsUsed, int editsLeft,
 			int editLimit,
 			Instant draftDueAt, boolean draftNear, boolean draftLate, Instant nextConfirmationDueAt,
@@ -163,7 +171,9 @@ public interface MilestoneSplits {
 	 * and on a bare row.
 	 * @param jobTitle the title while a row of the Job exists
 	 * @param customerId the Job's Customer while a row names one; never a party
-	 * @param mentorId the split's Mentor, empty once an erasure anonymized them
+	 * @param mentorId the split's drafter: its Mentor, or the Customer of a Self-mentored Job, who is no party; empty once
+	 * an erasure anonymized them
+	 * @param selfMentored the split of a Self-mentored Job: no Mentor party, no cap, any party may raise
 	 * @param latestVersionNo 0 before any version
 	 * @param latestCap the cap stored on the latest version; empty when none applies (X5) or before any version
 	 * @param confirmationDueAt the current round's due time
@@ -171,7 +181,8 @@ public interface MilestoneSplits {
 	 * @param fundedAt when the Milestone was funded; empty on a split older than Story 22.3 whose Milestone had gone
 	 */
 	record SplitCase(UUID splitId, UUID jobId, UUID productId, UUID milestoneId, int milestoneNumber, @Nullable String jobTitle,
-			@Nullable UUID customerId, @Nullable UUID mentorId, Status status, boolean capApplies, int latestVersionNo,
+			@Nullable UUID customerId, @Nullable UUID mentorId, boolean selfMentored, Status status, boolean capApplies,
+			int latestVersionNo,
 			@Nullable Integer latestCap, @Nullable Instant confirmationDueAt, boolean pastDue, @Nullable Instant fundedAt,
 			Instant releasedAt, List<CaseParty> parties) {
 	}
@@ -232,13 +243,21 @@ public interface MilestoneSplits {
 	/**
 	 * The Job's splits {@code viewerId} is a party of, from the party rows and never the role in the Job, so a former
 	 * member keeps them after the Job ends, and a final or open split stays readable after the Job is gone. The Job's
-	 * Mentor with no split yet gets an empty list.
-	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for anyone else, the Job's Customer always
+	 * Mentor with no split yet gets an empty list. The Customer of a Self-mentored Job, the drafter of its splits and no
+	 * party of any, reads every one of them (AD-29, AD-47).
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for anyone else, a normal Job's Customer always
 	 */
 	List<SplitRead> readableBy(UUID jobId, UUID viewerId);
 
 	/**
-	 * Checks a draft by AD-29's rules without saving it, for the split's Mentor.
+	 * Whether a release of the Held Milestone would have a split party (AD-29, AD-31, AD-33): always in a normal Job,
+	 * whose Mentor is one; in a Self-mentored Job only when a Crew member was active at some time since the Milestone
+	 * was funded. {@code dispute}'s decision reads it before it records a release, because a recorded decision is final.
+	 */
+	boolean hasWouldBeSplitParty(UUID milestoneId);
+
+	/**
+	 * Checks a draft by AD-29's rules without saving it, for the split's drafter.
 	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} for a non-party, {@code FORBIDDEN MENTOR_ONLY} for another
 	 * party, {@code VALIDATION SPLIT_INVALID} for an invalid draft
 	 */
@@ -310,7 +329,8 @@ public interface MilestoneSplits {
 
 	/**
 	 * The Milestone's final split as {@link MilestoneSplitFinalized} carried it, for FR-64's retry of a refused one
-	 * ({@code payment.split_pool_refused}), with a new event ID; empty unless it is {@code FINAL} with its Mentor named.
+	 * ({@code payment.split_pool_refused}), with a new event ID; empty unless it is {@code FINAL} with its remainder
+	 * receiver named. It never needs the drafter.
 	 */
 	Optional<MilestoneSplitFinalized> finalSplitOf(UUID milestoneId);
 

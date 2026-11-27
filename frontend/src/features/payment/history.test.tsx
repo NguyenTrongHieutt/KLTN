@@ -583,3 +583,149 @@ describe("JOB-7 for a Crew member: their own lines of the Job (D1, UX-DR106)", (
     expect(screen.queryByRole('table')).toBeNull()
   })
 })
+
+describe('JOB-7 for the Customer of a Self-mentored Job: the members’ parts beside the funding (UX-DR131)', () => {
+  const selfJob = {
+    id: 'j1',
+    productId: 'p1',
+    productName: 'Sổ đặt bàn Quán Mây',
+    state: 'ACTIVE',
+    title: 'Sửa lỗi đặt bàn và thêm nhắc lịch',
+    jobTypes: ['BUG_FIX'],
+    skills: [],
+    screenshots: [],
+    createdAt: '2026-10-12T03:00:00Z',
+    updatedAt: '2026-10-18T03:00:00Z',
+    version: 12,
+    selfMentored: true,
+    canCancelSelection: false,
+    agreementShared: true,
+    agreementConfirmed: true,
+  }
+  const customerFunding = {
+    jobId: 'j1',
+    title: selfJob.title,
+    state: 'ACTIVE',
+    version: 12,
+    configured: true,
+    milestones: [
+      {
+        milestoneId: 'm1',
+        number: 1,
+        title: 'Sửa lỗi trùng giờ',
+        priceVnd: 2000000,
+        state: 'ACCEPTED',
+        fundable: false,
+        fundedVnd: 2000000,
+        topUpVnd: 0,
+        refundedVnd: 0,
+        releasedTotalVnd: 2000000,
+        refundAtEndVnd: 0,
+      },
+    ],
+    orders: [],
+  }
+  const memberRelease = (overrides: object) => mentorRelease({ role: 'CREW', ...overrides })
+
+  function customerMentorBackend(role: 'CUSTOMER' | 'CUSTOMER_MENTOR', milestone: object) {
+    return fakeBackend(signedInUser, {
+      ...inEveryJob(role),
+      'GET /api/v1/jobs/j1': () => json(role === 'CUSTOMER' ? { ...selfJob, selfMentored: false } : selfJob),
+      'GET /api/v1/jobs/j1/funding': () => json(customerFunding),
+      'GET /api/v1/jobs/j1/splits': () => json([]),
+      'GET /api/v1/mentor/jobs/j1/funding': () =>
+        json({ jobId: 'j1', title: selfJob.title, state: 'ACTIVE', milestones: [milestone], orders: [] }),
+    })
+  }
+
+  it('keeps the funding and shows “Chờ phân chia” for a split not final, with the way to JOB-10', { timeout: 25_000 }, async () => {
+    customerMentorBackend('CUSTOMER_MENTOR', mentorMilestone(open('AWAITING_DRAFT')))
+    renderAt('/cong-viec/j1/thanh-toan')
+
+    expect(await screen.findByRole('heading', { name: 'Phân chia tiền cho thành viên' })).toBeInTheDocument()
+    expect(await screen.findByText('Chờ phân chia')).toBeInTheDocument()
+    expect(screen.getByText(/của Giai đoạn 1 đang chờ phân chia/)).toHaveTextContent('2.000.000 VND')
+    expect(screen.getByRole('link', { name: 'Xem phân chia' })).toHaveAttribute('href', '/cong-viec/j1/phan-chia/m1')
+    // The Customer's own funding table is still there, and the combined role's tab row marks this tab.
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Thanh toán' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByText('Người hướng dẫn')).toBeNull()
+  })
+
+  it('lists each member’s part once the split is final, and never the Customer as a payee', { timeout: 25_000 }, async () => {
+    customerMentorBackend(
+      'CUSTOMER_MENTOR',
+      mentorMilestone({
+        releases: [
+          memberRelease({ name: 'Trần Quang Minh', amountVnd: 1200000, percent: 60 }),
+          memberRelease({ name: 'Lê Thu Hà', amountVnd: 800000, percent: 40 }),
+        ],
+      }),
+    )
+    renderAt('/cong-viec/j1/thanh-toan')
+
+    expect((await screen.findByText('Trần Quang Minh')).parentElement).toHaveTextContent('1.200.000 VND')
+    expect(screen.getByText('Lê Thu Hà').parentElement).toHaveTextContent('800.000 VND')
+    expect(screen.getByText('60%')).toBeInTheDocument()
+    expect(screen.getAllByText('Nhóm thực hiện')).toHaveLength(2)
+    expect(screen.getByText(/^Đã chốt ngày .* · mọi người đã xác nhận$/)).toBeInTheDocument()
+    expect(screen.queryByText('Người hướng dẫn')).toBeNull()
+  })
+
+  it('says a Crew of one needed no split', { timeout: 25_000 }, async () => {
+    customerMentorBackend(
+      'CUSTOMER_MENTOR',
+      mentorMilestone({
+        finality: 'SOLE_MEMBER',
+        releases: [memberRelease({ name: 'Trần Quang Minh', amountVnd: 2000000, percent: 100 })],
+      }),
+    )
+    renderAt('/cong-viec/j1/thanh-toan')
+
+    expect(await screen.findByText('Không cần phân chia · thành viên nhận 100%')).toBeInTheDocument()
+    expect(screen.getByText('Trần Quang Minh').parentElement).toHaveTextContent('2.000.000 VND')
+  })
+
+  it('leaves a Customer of a normal Job with the funding alone, and asks for no split read', { timeout: 25_000 }, async () => {
+    const seen = customerMentorBackend('CUSTOMER', mentorMilestone())
+    renderAt('/cong-viec/j1/thanh-toan')
+
+    expect(await screen.findByText('Chưa có lệnh thanh toán nào.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Phân chia tiền cho thành viên' })).toBeNull()
+    expect(seen.some((request) => request.url.includes('/mentor/jobs/j1/funding'))).toBe(false)
+  })
+})
+
+describe('MEN-7 for the Customer of a Self-mentored Job and a member of a Crew of one (UX-DR131)', () => {
+  it('shows an account with no line and no figure no Mentor lead, no held and no sent', { timeout: 25_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/balance': () => json(balance([])),
+    })
+    renderAt('/so-du')
+
+    expect(await screen.findByText('Chưa có lần chuyển tiền nào.')).toBeInTheDocument()
+    expect(screen.queryByText('Đã chuyển cho nhóm thực hiện')).toBeNull()
+    expect(screen.queryByText('Đang giữ chờ nghiệm thu')).toBeNull()
+    expect(screen.queryByText(/Phần lẻ dưới 1 đồng thuộc về người hướng dẫn/)).toBeNull()
+    expect(screen.queryByText(/không thấy phần của từng người/)).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: 'Nhóm thực hiện' })).toBeNull()
+  })
+
+  it('tells the one member of a Crew of one that no split was needed', { timeout: 25_000 }, async () => {
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CREW'),
+      'GET /api/v1/balance': () =>
+        json(
+          balance(
+            [release({ role: 'CREW', finality: 'SOLE_MEMBER', yourPartVnd: 1200000, yourPercent: 100, crew: [] })],
+            { balanceVnd: 1200000, releases: 1 },
+          ),
+        ),
+    })
+    renderAt('/so-du')
+
+    expect(await screen.findByText('Không cần phân chia · bạn nhận 100%')).toBeInTheDocument()
+    expect(screen.getByText('100%')).toBeInTheDocument()
+  })
+})
