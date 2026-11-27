@@ -299,10 +299,10 @@ class Cancellations {
 		if (!job.selfMentored() || job.mentorId() == null || !CANCELLABLE.contains(job.state())) {
 			return null;
 		}
-		// A Milestone funded before its time was recorded counts every member the Job ever had.
+		// A Held Milestone always records when it was funded (the table's milestone_funded_check).
 		Instant funded = this.jdbc.sql("""
-				SELECT min(coalesce(funded_at, TIMESTAMPTZ 'epoch')) FROM job.milestone WHERE job_id = :job
-				    AND removed_at IS NULL AND state IN ('FUNDED', 'REVISION_REQUESTED', 'SUBMITTED')
+				SELECT min(funded_at) FROM job.milestone WHERE job_id = :job AND removed_at IS NULL
+				    AND state IN ('FUNDED', 'REVISION_REQUESTED', 'SUBMITTED')
 				""").param("job", job.id()).query(Timestamp.class).optional().map(Timestamp::toInstant).orElse(null);
 		if (funded == null || !this.crews.countedActive(job.id()).isEmpty()) {
 			return null;

@@ -269,15 +269,6 @@ class SelfMentoredCrewIT extends IntegrationTest {
 		cancellation().andExpect(jsonPath("$.noMember").value("ALONE"));
 	}
 
-	/** A Held Milestone with no recorded funding time counts everyone the Job ever had: the money stays put. */
-	@Test
-	void aMilestoneWithNoRecordedFundingCountsEveryMemberTheJobEverHad() throws Exception {
-		leaveBeforeTheFunding();
-		this.jdbc.sql("UPDATE job.milestone SET funded_at = NULL WHERE id = :id").param("id", this.world.milestone()).update();
-
-		cancellation().andExpect(jsonPath("$.noMember").value("CREW_WAS_ACTIVE"));
-	}
-
 	/** A cascade is refused while a Dispute freezes the Job, so the page does not offer it then. */
 	@Test
 	void aFrozenJobIsNotOfferedTheCancellationAlone() throws Exception {
