@@ -76,6 +76,8 @@ function card(overrides: Partial<SplitCard> = {}): SplitCard {
     n: 2,
     viewerIsMentor: true,
     viewerConfirmed: false,
+    selfMentored: false,
+    remainderPartyId: 'p0',
     parties,
     earlier: [],
     ...overrides,
@@ -1423,5 +1425,402 @@ describe('JOB-10, a Split Resolution (FR-84, UX-DR106)', () => {
 
     await screen.findByRole('heading', { name: 'Giai đoạn 2' })
     expect(seen.some((request) => request.url.endsWith('/s1/resolutions'))).toBe(false)
+  })
+})
+
+/** A Self-mentored Job's split (UX-DR131): the Customer drafts and is no party, so no party is a Mentor and no cap is read. */
+describe('JOB-10, a Self-mentored Job (UX-DR131)', () => {
+  const memberParties = [
+    { partyId: 'p1', name: 'Trần Thảo Vy', erased: false, mentor: false, wholeInterval: true, activeAtRelease: true },
+    {
+      partyId: 'p2',
+      name: 'Nguyễn Văn Minh',
+      erased: false,
+      mentor: false,
+      wholeInterval: false,
+      activeAtRelease: true,
+    },
+  ]
+  const modeVersion = (overrides: Partial<SplitVersion> = {}) =>
+    version({
+      capPercent: undefined,
+      lines: [
+        { partyId: 'p1', percent: 60, amountVnd: 1_200_000, confirmed: false },
+        { partyId: 'p2', percent: 40, amountVnd: 800_000, confirmed: false },
+      ],
+      ...overrides,
+    })
+  /** The drafter's card by default (the Customer); `{ viewerIsMentor: false }` is a member's. */
+  const modeCard = (overrides: Partial<SplitCard> = {}) =>
+    card({
+      selfMentored: true,
+      capApplies: false,
+      cap: undefined,
+      remainderPartyId: 'p1',
+      n: 2,
+      parties: memberParties,
+      ...overrides,
+    })
+  const modeProposed = (overrides: Partial<SplitCard> = {}) =>
+    modeCard({ status: 'PROPOSED', confirmationDueAt: '2026-11-06T03:00:00Z', latest: modeVersion(), ...overrides })
+  const selfJob = {
+    id: 'j1',
+    title: 'Sửa sổ đặt bàn',
+    productName: 'Sổ đặt bàn Quán Mây',
+    state: 'ACTIVE',
+    version: 12,
+    jobTypes: ['BUG_FIX'],
+    selectedAt: '2026-10-18T03:00:00Z',
+    codeJob: true,
+    commitEmailNoticeAcknowledged: true,
+    agreementConfirmed: true,
+  }
+  /** The Customer of the Job reads it as the combined role, the Mentor's Job screens included. */
+  const asCustomer = (cards: SplitCard[], handlers: Parameters<typeof fakeBackend>[1] = {}) =>
+    backend(cards, {
+      ...inEveryJob('CUSTOMER_MENTOR'),
+      'GET /api/v1/mentor/jobs/j1': () => json(selfJob),
+      ...handlers,
+    })
+  const previewOf = () =>
+    json({
+      pooledVnd: 2_000_000,
+      lines: [
+        { partyId: 'p1', amountVnd: 1_200_000 },
+        { partyId: 'p2', amountVnd: 800_000 },
+      ],
+    })
+  const n29Self =
+    'Mỗi thành viên xác nhận trước 06/11, hoặc nhờ quản trị viên xem xét. Mỗi lần bạn sửa, các xác nhận cũ bị xóa và thời hạn bắt đầu lại; bạn còn 3/3 lần sửa. Bạn không nhận phần nào: toàn bộ tiền của giai đoạn chia cho các thành viên, và tổng phải bằng 100%.'
+
+  it('gives its Customer the draft with no cap, no line of their own and N-29’s variant', { timeout: 25_000 }, async () => {
+    const seen = asCustomer([modeCard()], {
+      'POST /api/v1/splits/s1/preview': previewOf,
+      'POST /api/v1/splits/s1/versions': () =>
+        json({ versionNo: 1, status: 'PROPOSED', confirmationDueAt: '2026-11-06T03:00:00Z' }),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Soạn phân chia trước 10/11')).toBeInTheDocument()
+    // The one tab row of the combined role, with this tab current.
+    expect(await screen.findByRole('link', { name: 'Phân chia tiền' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByText(n29Self)).toBeInTheDocument()
+    expect(screen.queryByText(/Khách hàng không thấy phần chia/)).toBeNull()
+    expect(screen.queryByText(/Phần của bạn tối đa/)).toBeNull()
+    expect(screen.queryByText(/Tối đa/)).toBeNull()
+    // X5's note speaks of the Mentor's uncapped share: never on this card.
+    expect(screen.queryByText(/Không còn thành viên nào trong nhóm/)).toBeNull()
+    // One input per member and none for the Customer; the leftover dong goes to the member the server names.
+    expect(screen.getAllByRole('textbox')).toHaveLength(2)
+    expect(screen.getByText('Phần lẻ dưới 1 đồng thuộc về Trần Thảo Vy, người vào nhóm trước.')).toBeInTheDocument()
+    // The floor's hint is on the member there the whole Milestone only.
+    expect(screen.getAllByText('Làm cả giai đoạn: phải lớn hơn 0%')).toHaveLength(1)
+
+    typePercent(/Trần Thảo Vy/, '70')
+    typePercent(/Nguyễn Văn Minh/, '20')
+    expect(screen.getByText('Tổng 90%, cần đúng 100%')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi để xác nhận' })).toBeDisabled()
+    expect(seen.some((request) => request.url.endsWith('/preview'))).toBe(false)
+
+    typePercent(/Trần Thảo Vy/, '60')
+    typePercent(/Nguyễn Văn Minh/, '40')
+    expect(await screen.findByText(/1\.200\.000 VND/)).toBeInTheDocument()
+    await sendThroughTheDialog('Gửi để xác nhận')
+
+    await waitFor(() => expect(seen.some((request) => request.url.endsWith('/versions'))).toBe(true))
+    const save = seen.find((request) => request.url.endsWith('/versions'))
+    expect(await save?.clone().json()).toEqual({
+      shownVersionNo: 0,
+      shares: [
+        { partyId: 'p1', percent: 60 },
+        { partyId: 'p2', percent: 40 },
+      ],
+    })
+  })
+
+  it('refuses 0% for a member there the whole Milestone, though no cap applies', { timeout: 25_000 }, async () => {
+    asCustomer([modeCard()], { 'POST /api/v1/splits/s1/preview': previewOf })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText('Soạn phân chia trước 10/11')
+
+    typePercent(/Trần Thảo Vy/, '0')
+    typePercent(/Nguyễn Văn Minh/, '100')
+
+    expect(screen.getByText('Thành viên làm cả giai đoạn phải lớn hơn 0%')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: 'Gửi để xác nhận' })).toBeDisabled()
+
+    // A member there part of the Milestone may take 0%.
+    typePercent(/Trần Thảo Vy/, '100')
+    typePercent(/Nguyễn Văn Minh/, '0')
+    expect(screen.getByRole('button', { name: 'Gửi để xác nhận' })).toBeEnabled()
+  })
+
+  it('says the server’s refusal without a cap, since the mode has none', { timeout: 25_000 }, async () => {
+    asCustomer([modeCard()], {
+      'POST /api/v1/splits/s1/preview': previewOf,
+      'POST /api/v1/splits/s1/versions': () => json({ status: 400, code: 'VALIDATION', reason: 'SPLIT_INVALID' }, 400),
+    })
+    renderAt('/cong-viec/j1/phan-chia')
+    await screen.findByText('Soạn phân chia trước 10/11')
+    typePercent(/Trần Thảo Vy/, '60')
+    typePercent(/Nguyễn Văn Minh/, '40')
+    await screen.findByText(/1\.200\.000 VND/)
+
+    await sendThroughTheDialog('Gửi để xác nhận')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Phần trăm phải là số nguyên; thành viên làm cả giai đoạn phải lớn hơn 0%.',
+    )
+  })
+
+  it('reads a sent split to its Customer as k of n, with edits and no confirmation', { timeout: 25_000 }, async () => {
+    asCustomer(
+      [
+        modeProposed({
+          k: 1,
+          editsLeft: 2,
+          latest: modeVersion({
+            lines: [
+              { partyId: 'p1', percent: 60, amountVnd: 1_200_000, confirmed: true },
+              { partyId: 'p2', percent: 40, amountVnd: 800_000, confirmed: false },
+            ],
+          }),
+        }),
+      ],
+      { 'POST /api/v1/splits/s1/preview': previewOf },
+    )
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Đã gửi · 1/2 đã xác nhận · hạn 06/11')).toBeInTheDocument()
+    expect(screen.getByText('Đã xác nhận')).toBeInTheDocument()
+    expect(screen.getByText('Chờ xác nhận')).toBeInTheDocument()
+    expect(screen.getByText('Còn 2/3 lần sửa')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sửa phân chia' })).toBeEnabled()
+    // The Customer is no party: nothing to confirm and no resolution to ask for.
+    expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
+    const lines = screen.getByRole('table')
+    expect(within(lines).getAllByRole('row')).toHaveLength(3)
+    expect(within(lines).queryByText(/người hướng dẫn/)).toBeNull()
+  })
+
+  it('reads the default split to its Customer as an equal split of the members', { timeout: 25_000 }, async () => {
+    asCustomer([
+      modeProposed({
+        latest: modeVersion({
+          kind: 'DEFAULT',
+          lines: [
+            { partyId: 'p1', percent: 50, amountVnd: 1_000_000, confirmed: false },
+            { partyId: 'p2', percent: 50, amountVnd: 1_000_000, confirmed: false },
+          ],
+        }),
+      }),
+    ])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Chia đều · không sửa được · 0/2 đã xác nhận · hạn 06/11')).toBeInTheDocument()
+    expect(
+      screen.getByText('Bạn chưa soạn phân chia trước 10/11, nên hệ thống đã chia đều cho các thành viên.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sửa phân chia' })).toBeNull()
+  })
+
+  it('tells a member the customer is to draft, with no inputs and no Mentor', { timeout: 25_000 }, async () => {
+    backend([modeCard({ viewerIsMentor: false })])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Chờ khách hàng soạn phân chia (hạn 10/11)')).toBeInTheDocument()
+    expect(screen.getByText('Trần Thảo Vy')).toBeInTheDocument()
+    expect(screen.queryByText(/Đỗ Mạnh Hùng/)).toBeNull()
+    expect(screen.queryByText(/người hướng dẫn/)).toBeNull()
+    expect(screen.queryByText(/Không còn thành viên nào trong nhóm/)).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
+  })
+
+  it('lets a member confirm the version it was shown, and reads the customer’s edit', { timeout: 25_000 }, async () => {
+    const seen = backend(
+      [modeProposed({ viewerIsMentor: false, editsUsed: 1, editsLeft: 2, latest: modeVersion({ versionNo: 2 }) })],
+      { 'POST /api/v1/splits/s1/confirmations': () => json({ versionNo: 2, status: 'PROPOSED' }) },
+    )
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Chờ bạn xác nhận trước 06/11')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Khách hàng đã sửa phân chia (lần 1/3). Các xác nhận cũ đã bị xóa; hãy xác nhận lại trước 06/11.',
+      ),
+    ).toBeInTheDocument()
+    await sendThroughTheDialog('Xác nhận')
+
+    await waitFor(() => expect(seen.some((request) => request.url.endsWith('/confirmations'))).toBe(true))
+    const confirm = seen.find((request) => request.url.endsWith('/confirmations'))
+    expect(await confirm?.clone().json()).toEqual({ splitVersionNo: 2 })
+  })
+
+  it('reads the default split to a member as the System’s, with the customer named', { timeout: 25_000 }, async () => {
+    backend([
+      modeProposed({
+        viewerIsMentor: false,
+        latest: modeVersion({
+          kind: 'DEFAULT',
+          lines: [
+            { partyId: 'p1', percent: 50, amountVnd: 1_000_000, confirmed: false },
+            { partyId: 'p2', percent: 50, amountVnd: 1_000_000, confirmed: false },
+          ],
+        }),
+      }),
+    ])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Hệ thống đã chia đều · chờ bạn xác nhận trước 06/11')).toBeInTheDocument()
+    expect(
+      screen.getByText('Khách hàng chưa soạn phân chia trước 10/11, nên hệ thống đã chia đều cho các thành viên.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument()
+  })
+
+  for (const [who, viewer, state] of [
+    ['its Customer', { viewerIsMentor: true }, 'Không cần phân chia · thành viên nhận 100%'],
+    ['a member', { viewerIsMentor: false }, 'Không cần phân chia · bạn nhận 100%'],
+  ] as const) {
+    it(`reads a Crew of one to ${who}: final at 100%, nothing to draft or confirm`, { timeout: 25_000 }, async () => {
+      const seen = asCustomer([
+        modeCard({
+          ...viewer,
+          status: 'FINAL',
+          finality: 'SOLE_MEMBER',
+          paid: true,
+          finalAt: '2026-11-03T03:00:00Z',
+          k: 0,
+          n: 1,
+          parties: [memberParties[0]],
+          latest: modeVersion({
+            kind: 'SOLE_MEMBER',
+            lines: [{ partyId: 'p1', percent: 100, amountVnd: 2_000_000, confirmed: false }],
+          }),
+        }),
+      ])
+      renderAt('/cong-viec/j1/phan-chia')
+
+      expect(await screen.findByText(state)).toBeInTheDocument()
+      expect(
+        screen.getByText('Chỉ có một thành viên trong giai đoạn này: thành viên nhận 100%, không cần phân chia.'),
+      ).toBeInTheDocument()
+      expect(screen.getByText('100%')).toBeInTheDocument()
+      expect(screen.getByText('Đã về số dư')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Gửi để xác nhận' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull()
+      expect(seen.some((request) => request.url.endsWith('/s1/resolutions'))).toBe(false)
+    })
+  }
+
+  it('keeps a normal Job’s card as it was, with its Mentor line and cap', { timeout: 25_000 }, async () => {
+    backend([card()])
+    renderAt('/cong-viec/j1/phan-chia')
+
+    expect(await screen.findByText('Soạn phân chia trước 10/11')).toBeInTheDocument()
+    expect(screen.getByText('Tối đa 30%')).toBeInTheDocument()
+    expect(screen.getByText(/Phần của bạn tối đa 30%\. Khách hàng không thấy phần chia\./)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Đỗ Mạnh Hùng/ })).toBeInTheDocument()
+    expect(screen.queryByText(/Phần lẻ dưới 1 đồng/)).toBeNull()
+    expect(screen.queryByText('Làm cả giai đoạn: phải lớn hơn 0%')).toBeNull()
+  })
+
+  describe('and its Split Resolution', () => {
+    const open = (overrides: object = {}) => ({
+      id: 'r1',
+      splitVersionNo: 1,
+      status: 'OPEN',
+      raiserPartyId: 'p1',
+      raiserName: 'Trần Thảo Vy',
+      reason: 'Phần của tôi quá ít',
+      raisedAt: '2026-11-04T03:00:00Z',
+      viewerIsRaiser: false,
+      viewerMayState: false,
+      statements: [],
+      ...overrides,
+    })
+
+    it(
+      'shows its Customer the case and the drafter’s statement as the customer’s, with no raise or withdrawal',
+      { timeout: 25_000 },
+      async () => {
+        const stated: unknown[] = []
+        asCustomer([modeProposed({ status: 'IN_RESOLUTION' })], {
+          'GET /api/v1/splits/s1/resolutions': () =>
+            json({
+              viewerMayRaise: false,
+              resolutions: [
+                open({
+                  viewerMayState: true,
+                  statements: [
+                    // The drafter is no party: no `partyId`, and the Mentor's flag.
+                    { mentor: true, text: 'Tôi chia theo việc từng người', submittedAt: '2026-11-04T04:00:00Z' },
+                    {
+                      mentor: true,
+                      name: 'Lê Khoa',
+                      text: 'Tôi giữ ý kiến này',
+                      submittedAt: '2026-11-04T05:00:00Z',
+                    },
+                    {
+                      partyId: 'p2',
+                      name: 'Nguyễn Văn Minh',
+                      mentor: false,
+                      text: 'Tôi đồng ý với Vy',
+                      submittedAt: '2026-11-04T06:00:00Z',
+                    },
+                  ],
+                }),
+              ],
+            }),
+          'POST /api/v1/split-resolutions/r1/statements': async (request) => {
+            stated.push(await request.json())
+            return json({ viewerMayRaise: false, resolutions: [open()] }, 201)
+          },
+        })
+        renderAt('/cong-viec/j1/phan-chia')
+
+        expect(await screen.findByText('Phần của tôi quá ít')).toBeInTheDocument()
+        expect(screen.getByText('Đang chờ quản trị viên xem xét', { selector: 'span' })).toBeInTheDocument()
+        expect(screen.getByText(/^Khách hàng \(người soạn phân chia\) · /)).toBeInTheDocument()
+        expect(screen.getByText(/^Lê Khoa · khách hàng \(người soạn phân chia\) · /)).toBeInTheDocument()
+        expect(screen.getByText(/^Nguyễn Văn Minh · /)).toBeInTheDocument()
+        expect(screen.queryByText(/người hướng dẫn/)).toBeNull()
+        expect(screen.queryByRole('button', { name: 'Nhờ quản trị viên xem xét' })).toBeNull()
+        expect(screen.queryByRole('button', { name: 'Rút yêu cầu' })).toBeNull()
+
+        // One statement of the drafter's own.
+        fireEvent.change(screen.getByRole('textbox', { name: 'Ý kiến của bạn' }), {
+          target: { value: 'Tôi chia theo việc từng người' },
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'Gửi ý kiến' }))
+        fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Gửi ý kiến' }))
+        await waitFor(() => expect(stated).toEqual([{ text: 'Tôi chia theo việc từng người' }]))
+      },
+    )
+
+    it(
+      'words a member’s request for the mode: no cap, the customer cannot edit, the customer reads it',
+      { timeout: 25_000 },
+      async () => {
+        backend([modeProposed({ viewerIsMentor: false })], {
+          'GET /api/v1/splits/s1/resolutions': () => json({ viewerMayRaise: true, resolutions: [] }),
+        })
+        renderAt('/cong-viec/j1/phan-chia')
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Nhờ quản trị viên xem xét' }))
+        const dialog = await screen.findByRole('dialog')
+        expect(within(dialog).getByText(/Trong lúc chờ, khách hàng không sửa được phần chia/)).toBeInTheDocument()
+        expect(within(dialog).queryByText(/người hướng dẫn/)).toBeNull()
+        expect(within(dialog).queryByText(/tối đa/)).toBeNull()
+        expect(
+          within(dialog).getByText(
+            'Mọi bên trong phân chia, khách hàng soạn phân chia và quản trị viên nhận xử lý đều đọc được.',
+          ),
+        ).toBeInTheDocument()
+      },
+    )
   })
 })

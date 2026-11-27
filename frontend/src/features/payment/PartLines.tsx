@@ -99,7 +99,7 @@ export function PartLines({
                   <p>{t('screen.payment.balance.version', { n: line.splitVersionNo })}</p>
                 )}
                 {!line.pending && line.status === 'FINAL' && (
-                  <p className="text-caption text-muted-foreground">{finalText(line.finality, line.finalAt)}</p>
+                  <p className="text-caption text-muted-foreground">{finalText(line.finality, line.finalAt, line.role === 'CREW')}</p>
                 )}
               </td>
             </tr>

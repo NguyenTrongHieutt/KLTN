@@ -44,9 +44,11 @@ function isStale(error: unknown): boolean {
  * reasoning once decided. A failed read says so with Retry, since the deadline runs on. A command reads the cases again
  * before it answers, which may flip what the reader may do: the command and its dialog stand above that gate, so a
  * refusal keeps its wording and the words typed.
+ * In a Self-mentored Job (UX-DR131) the drafter is the Customer: the server gives them no raise and no withdrawal and
+ * one statement, which has no party and reads as the customer's; the texts name the customer where they name the Mentor.
  */
 export function ResolutionPanel({ jobId, card }: { jobId: string; card: SplitCard }) {
-  const relevant = card.finality !== 'MENTOR_ONLY' && card.status !== 'AWAITING_DRAFT'
+  const relevant = card.finality !== 'MENTOR_ONLY' && card.finality !== 'SOLE_MEMBER' && card.status !== 'AWAITING_DRAFT'
   const resolutions = useSplitResolutions(card.splitId, relevant, relevant && card.status !== 'FINAL')
   const raise = useRaiseResolution(jobId, card.splitId)
   const [raising, setRaising] = useState(false)
@@ -104,9 +106,11 @@ function RaiseResolution({
   if (!version) {
     return null
   }
-  // N-31 keeps its cap clause only while a cap applies (X5): the one stored on the version the case would judge.
-  const notice =
-    version.capPercent === undefined
+  // N-31 keeps its cap clause only while a cap applies (X5): the one stored on the version the case would judge. In a
+  // Self-mentored Job there is no cap, and it is the customer who cannot edit meanwhile.
+  const notice = card.selfMentored
+    ? t('screen.split.resolution.n31Self')
+    : version.capPercent === undefined
       ? t('screen.split.resolution.n31NoCap')
       : t('screen.split.resolution.n31', { cap: version.capPercent })
   return (
@@ -142,7 +146,7 @@ function RaiseResolution({
                 className={cn(inputClass, 'min-h-24')}
               />
               <p id={`${ids}-hint`} className="text-caption text-muted-foreground">
-                {t('screen.split.resolution.reasonHint')}
+                {t(card.selfMentored ? 'screen.split.resolution.reasonHintSelf' : 'screen.split.resolution.reasonHint')}
               </p>
             </div>
             {raise.isError && !stale && (
@@ -227,11 +231,10 @@ function ResolutionCase({
         <div className="flex flex-col gap-1">
           <span className="text-caption text-muted-foreground">{t('screen.split.resolution.statements')}</span>
           <ul className="flex flex-col gap-1">
-            {resolution.statements.map((statement) => (
-              <li key={statement.partyId} className="rounded-md bg-muted p-2">
+            {resolution.statements.map((statement, index) => (
+              <li key={statement.partyId ?? `drafter-${index}`} className="rounded-md bg-muted p-2">
                 <p className="text-caption text-muted-foreground break-words">
-                  {statement.name ?? t('screen.split.resolution.unnamed')}
-                  {statement.mentor ? ` · ${t('screen.split.resolution.mentorMark')}` : ''}
+                  {statementAuthor(card, statement)}
                   {' · '}
                   {formatDayMonthTime(statement.submittedAt)}
                 </p>
@@ -250,6 +253,20 @@ function ResolutionCase({
       )}
     </section>
   )
+}
+
+/**
+ * Who wrote a statement: a party by name, the Mentor with the Mentor's mark, and in a Self-mentored Job the drafter,
+ * who is no party and may have no `partyId`, as the customer's.
+ */
+function statementAuthor(card: SplitCard, statement: SplitResolution['statements'][number]): string {
+  if (statement.mentor && card.selfMentored) {
+    return statement.name
+      ? `${statement.name} · ${t('screen.split.resolution.drafterMark')}`
+      : t('screen.split.resolution.drafterOnly')
+  }
+  const name = statement.name ?? t('screen.split.resolution.unnamed')
+  return statement.mentor ? `${name} · ${t('screen.split.resolution.mentorMark')}` : name
 }
 
 /** How a case ended: the new round or the final split a withdrawal left, or the Administrator's reasoning. */

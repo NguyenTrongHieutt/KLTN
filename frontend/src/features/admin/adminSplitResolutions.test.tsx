@@ -846,3 +846,140 @@ describe('ADM-4 "Phân chia tiền" (FR-84, AD-40, UX-DR107)', () => {
     expect(card).toHaveTextContent('2')
   })
 })
+
+describe('ADM-4 "Phân chia tiền" for a Self-mentored Job (UX-DR131)', () => {
+  const memberParties = [
+    { partyId: 'p1', name: 'Trần Thảo Vy', mentor: false, wholeInterval: true, activeAtRelease: true },
+    { partyId: 'p2', name: 'Nguyễn Văn Minh', mentor: false, wholeInterval: false, activeAtRelease: true },
+  ]
+  /** The case as its assignee reads it: no Mentor party, no cap, and a drafter's statement with no party. */
+  const modeCase = (overrides: object = {}) =>
+    mine({
+      selfMentored: true,
+      capApplies: false,
+      cap: undefined,
+      parties: memberParties,
+      statements: [
+        { text: 'Tôi chia theo việc từng người', submittedAt: '2026-10-24T03:00:00Z' },
+        { partyId: 'p2', name: 'Nguyễn Văn Minh', text: 'Tôi đồng ý với Vy', submittedAt: '2026-10-24T04:00:00Z' },
+      ],
+      ...overrides,
+    })
+  const modeEvidence = {
+    'GET /api/v1/admin/split-resolutions/r1/evidence/versions': () =>
+      json({
+        parties: [
+          { partyId: 'p1', name: 'Trần Thảo Vy', mentor: false, wholeInterval: true, activeAtRelease: true },
+          { partyId: 'p2', name: 'Nguyễn Văn Minh', mentor: false, wholeInterval: false, activeAtRelease: true },
+        ],
+        versions: [
+          {
+            versionNo: 1,
+            kind: 'DRAFT',
+            authorName: 'Lê Khoa',
+            createdAt: '2026-10-21T03:00:00Z',
+            lines: [
+              { partyId: 'p1', percent: 60 },
+              { partyId: 'p2', percent: 40, confirmedAt: '2026-10-22T03:00:00Z' },
+            ],
+          },
+          {
+            versionNo: 2,
+            kind: 'SOLE_MEMBER',
+            createdAt: '2026-10-23T03:00:00Z',
+            lines: [{ partyId: 'p1', percent: 100 }],
+          },
+        ],
+      }),
+  }
+
+  it('shows no Mentor line and no cap, and the drafter’s statement as the customer’s', { timeout: 25_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(modeCase()),
+      ...modeEvidence,
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+    expect(await screen.findByText('Phần của tôi quá ít')).toBeInTheDocument()
+    expect(screen.getByText(/^Khách hàng \(người soạn phân chia\) · /)).toBeInTheDocument()
+    expect(screen.getByText(/^Nguyễn Văn Minh · /)).toBeInTheDocument()
+    expect(screen.queryByText(/Tối đa/)).toBeNull()
+    expect(screen.queryByText(/Người hướng dẫn tối đa/)).toBeNull()
+    expect(screen.queryByRole('textbox', { name: /Đỗ Mạnh Hùng/ })).toBeNull()
+    expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Nguyễn Văn Minh/ })).toBeInTheDocument()
+    expect(screen.getByText(/Quyết định là cuối cùng: .* khách hàng soạn phân chia cũng được báo\.$/)).toBeInTheDocument()
+    expect(screen.queryByText(/Khách hàng không thấy gì/)).toBeNull()
+  })
+
+  it('still holds a member there the whole Milestone above 0%, with no cap to make it apply', { timeout: 25_000 }, async () => {
+    const decided: unknown[] = []
+    const user = userEvent.setup()
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(modeCase()),
+      ...modeEvidence,
+      'POST /api/v1/admin/split-resolutions/r1/preview': () =>
+        json({
+          pooledVnd: 2_000_000,
+          lines: [
+            { partyId: 'p1', amountVnd: 1_200_000 },
+            { partyId: 'p2', amountVnd: 800_000 },
+          ],
+        }),
+      'POST /api/v1/admin/split-resolutions/r1/decision': async (request) => {
+        decided.push(await request.json())
+        return json(modeCase())
+      },
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+    const send = await screen.findByRole('button', { name: 'Ghi quyết định' })
+    fireEvent.change(screen.getByRole('textbox', { name: /Trần Thảo Vy/ }), { target: { value: '0' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /Nguyễn Văn Minh/ }), { target: { value: '100' } })
+    expect(screen.getByText('Thành viên làm cả giai đoạn phải lớn hơn 0%')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Trần Thảo Vy/ })).toHaveAttribute('aria-invalid', 'true')
+
+    // A member there part of the Milestone may take 0%.
+    fireEvent.change(screen.getByRole('textbox', { name: /Trần Thảo Vy/ }), { target: { value: '100' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /Nguyễn Văn Minh/ }), { target: { value: '0' } })
+    expect(screen.queryByText('Thành viên làm cả giai đoạn phải lớn hơn 0%')).toBeNull()
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Trần Thảo Vy/ }), { target: { value: '60' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /Nguyễn Văn Minh/ }), { target: { value: '40' } })
+    expect(await screen.findByText(/Sau quyết định: Trần Thảo Vy 60% · 1\.200\.000 VND/)).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Lý do quyết định' }), { target: { value: 'Vy làm nhiều hơn' } })
+    expect(send).toBeEnabled()
+    await user.click(send)
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox'), '123456')
+    await user.click(within(dialog).getByRole('button', { name: 'Ghi quyết định' }))
+
+    await waitFor(() => expect(decided).toHaveLength(1))
+    expect(decided[0]).toEqual({
+      shares: [
+        { partyId: 'p1', percent: 60 },
+        { partyId: 'p2', percent: 40 },
+      ],
+      reasoning: 'Vy làm nhiều hơn',
+      stepUpCode: '123456',
+    })
+  })
+
+  it('reads a version of the mode as the customer’s, with no cap said, and a Crew of one as the System’s', { timeout: 25_000 }, async () => {
+    fakeBackend(administrator, {
+      'GET /api/v1/admin/split-resolutions': () => json([row({ assigned: true, assignedToMe: true })]),
+      'GET /api/v1/admin/split-resolutions/r1': () => json(modeCase()),
+      ...modeEvidence,
+    })
+    renderAt('/quan-tri/tranh-chap/phan-chia/r1')
+
+    const draft = (await screen.findByText(/Bản 1 · khách hàng soạn/)).closest('li') as HTMLElement
+    expect(within(draft).getByText('Người lưu: Lê Khoa')).toBeInTheDocument()
+    expect(within(draft).queryByText(/Không giới hạn phần của người hướng dẫn/)).toBeNull()
+    expect(within(draft).queryByText(/Tối đa/)).toBeNull()
+    const sole = screen.getByText(/Bản 2 · chỉ có một thành viên/).closest('li') as HTMLElement
+    expect(within(sole).getByText('Hệ thống lưu')).toBeInTheDocument()
+  })
+})

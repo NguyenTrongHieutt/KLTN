@@ -63,7 +63,9 @@ const ORDER_TONE: Record<string, string> = {
  * Payment Orders; "Thanh toán" creates the order and goes to VNPay's sandbox page in the same tab, and CUS-9 shows the
  * result. It never shows a part, a party, a pool, or a split. The Mentor's reads its own Assignee DTO: each
  * Milestone's split pending as "Chờ phân chia" with its pool, then each party's part. A Crew member's shows their own
- * lines of this Job from MEN-7 (Story 22.5, UX-DR106), and nothing for a member of no split yet.
+ * lines of this Job from MEN-7 (Story 22.5, UX-DR106), and nothing for a member of no split yet. The Customer of a
+ * Self-mentored Job (UX-DR131) keeps the Customer's funding side and reads beneath it what the Mentor's page says of
+ * the splits, from the same read: "Chờ phân chia", then each member's part, never a part of their own.
  */
 export function JobPaymentPage() {
   const { jobId } = useParams()
@@ -72,8 +74,8 @@ export function JobPaymentPage() {
       jobId={jobId}
       customer={() => <CustomerPayment jobId={jobId ?? ''} />}
       mentor={() => <MentorPayment jobId={jobId ?? ''} />}
-      // Funding is the Customer's: the Customer's side.
-      customerMentor={() => <CustomerPayment jobId={jobId ?? ''} />}
+      // Funding is the Customer's: the Customer's side, with the members' parts under it.
+      customerMentor={() => <CustomerPayment jobId={jobId ?? ''} selfMentored />}
       crew={(view) => <CrewPayment jobId={jobId ?? ''} left={view.left} />}
     />
   )
@@ -111,7 +113,10 @@ function CrewPayment({ jobId, left }: { jobId: string; left: boolean }) {
         <h2 id="crew-parts-heading" className="text-h2">
           {t('screen.payment.history.partsTitle')}
         </h2>
-        <p className="text-body-sm text-muted-foreground">{t('screen.payment.crew.lead')}</p>
+        {/* In a Self-mentored Job the Customer drafts the split and reads every part (AD-29). */}
+        <p className="text-body-sm text-muted-foreground">
+          {t(me.data?.selfMentored ? 'screen.payment.crew.leadSelfMentored' : 'screen.payment.crew.lead')}
+        </p>
         <RegionState query={balance} skeleton={<Skeleton className="h-32 w-full" />}>
           {balance.data &&
             (lines.length === 0 ? (
@@ -196,8 +201,6 @@ function MentorFunding({ funding }: { funding: MentorJobFunding }) {
  */
 function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: MentorFundingMilestone }) {
   const pending = milestone.pooledVnd != null && !milestone.paid
-  const final =
-    milestone.splitStatus === 'FINAL' && !pending ? finalText(milestone.finality, milestone.finalAt) : undefined
   return (
     <Card as="article" className="flex flex-col gap-2 text-body-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -222,6 +225,22 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
           </span>
         )}
       </p>
+      <SplitReleases jobId={jobId} milestone={milestone} />
+    </Card>
+  )
+}
+
+/**
+ * What a Milestone's split has paid, as the Mentor's JOB-7 shows it and the Customer's of a Self-mentored Job: while it
+ * has not paid out, "Chờ phân chia" with the pool and the way to JOB-10; then each party's final part, an erased
+ * person's as JOB-10 names them, and how the split became final.
+ */
+function SplitReleases({ jobId, milestone }: { jobId: string; milestone: MentorFundingMilestone }) {
+  const pending = milestone.pooledVnd != null && !milestone.paid
+  const final =
+    milestone.splitStatus === 'FINAL' && !pending ? finalText(milestone.finality, milestone.finalAt) : undefined
+  return (
+    <>
       <p className="text-label font-semibold">{t('screen.payment.mentor.releasesTitle')}</p>
       {pending ? (
         <div className="flex flex-col items-start gap-1">
@@ -263,11 +282,11 @@ function MentorMilestone({ jobId, milestone }: { jobId: string; milestone: Mento
         </ul>
       )}
       {final && <p className="text-caption text-muted-foreground">{final}</p>}
-    </Card>
+    </>
   )
 }
 
-function CustomerPayment({ jobId }: { jobId: string }) {
+function CustomerPayment({ jobId, selfMentored = false }: { jobId: string; selfMentored?: boolean }) {
   const job = useJob(jobId)
   const funding = useJobFunding(jobId)
   usePageTitle(job.data ? t('screen.payment.title', { job: job.data.title }) : t('screen.job.title'))
@@ -287,8 +306,47 @@ function CustomerPayment({ jobId }: { jobId: string }) {
         <RegionState query={funding} skeleton={<Skeleton className="h-64 w-full" />}>
           {funding.data && <Funding funding={funding.data} />}
         </RegionState>
+        {selfMentored && <MemberSplits jobId={jobId} />}
       </JobTabBody>
     </Page>
+  )
+}
+
+/**
+ * The Customer's of a Self-mentored Job, under the funding (UX-DR131): for each accepted Milestone what the Mentor's
+ * page says of its split, read from the same endpoint: "Chờ phân chia" with the way to JOB-10, then each member's part.
+ * The Customer drafts the split and takes no part of it, so no line here names the Customer a payee, and a Milestone
+ * with no split yet is left out.
+ */
+function MemberSplits({ jobId }: { jobId: string }) {
+  const funding = useMentorJobFunding(jobId)
+  const milestones = (funding.data?.milestones ?? []).filter(
+    (milestone) => milestone.splitStatus != null || milestone.pooledVnd != null || milestone.releases.length > 0,
+  )
+  return (
+    <section aria-labelledby="member-splits-heading" className="flex flex-col gap-3">
+      <h2 id="member-splits-heading" className="text-h2">
+        {t('screen.payment.self.title')}
+      </h2>
+      <p className="text-body-sm text-muted-foreground">{t('screen.payment.self.lead')}</p>
+      <RegionState query={funding} skeleton={<Skeleton className="h-32 w-full" />}>
+        {funding.data &&
+          (milestones.length === 0 ? (
+            <Card as="p" className="text-body-sm text-muted-foreground">
+              {t('screen.payment.mentor.noReleases')}
+            </Card>
+          ) : (
+            milestones.map((milestone) => (
+              <Card key={milestone.milestoneId} as="article" className="flex flex-col gap-2 text-body-sm">
+                <h3 className="text-h3 break-words">
+                  {t('screen.payment.row', { n: milestone.number, title: milestone.title })}
+                </h3>
+                <SplitReleases jobId={jobId} milestone={milestone} />
+              </Card>
+            ))
+          ))}
+      </RegionState>
+    </section>
   )
 }
 

@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button'
 import { t, type MessageKey } from '@/i18n/t'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd } from '@/lib/money'
-import { problemMessage } from '@/lib/problemMessage'
+import { ApiError } from '@/lib/apiClient'
+import { problemMessage, sentence } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { useAdminDispute, useAdminDisputes, useDisputeCommand, type AdminDispute } from './adminDisputesApi'
 import { CaseTabs } from './CaseTabs'
@@ -25,7 +26,10 @@ type Next = 'CONTINUE' | 'END' | 'CANCEL'
  * lý", the decision form (release and refund that sum to what is held, the next state, the reasoning),
  * the summary, the step-up, and the execution "Bước {k}/4" with "Thử lại". Totals only. The assignee reads
  * the Evidence Package until 30 days after the decision (Story 15.2); every Administrator reads a decided
- * Dispute's evidence snapshot, kept after the Job's data is retired (Story 15.3).
+ * Dispute's evidence snapshot, kept after the Job's data is retired (Story 15.3). A Held Milestone that is `refundOnly`
+ * (nobody in a Self-mentored Job's Crew worked on it) cannot release anything: the form says so before the amounts and
+ * fixes the release at 0 and the refund at all that is held; the server refuses any release above 0 with
+ * `NO_SPLIT_PARTY`.
  */
 export function AdminDisputesPage() {
   const { disputeId } = useParams()
@@ -113,7 +117,7 @@ function Detail({ data }: { data: AdminDispute }) {
   const toasts = useToasts()
   const command = useDisputeCommand(data.id)
   const [error, setError] = useState<string>()
-  const fail = (failure: unknown) => setError(problemMessage(failure, { module: 'dispute' }).text)
+  const fail = (failure: unknown) => setError(refusalText(failure))
   return (
     <Card as="section" className="flex flex-col gap-4 text-body-sm">
       <h2 className="text-h3 break-words">{data.jobTitle}</h2>
@@ -187,7 +191,13 @@ function Detail({ data }: { data: AdminDispute }) {
                 { action: 'decide', body },
                 {
                   onSuccess: () => toasts.success(t('screen.admin.disputes.decided')),
-                  onError: refused,
+                  onError: (failure) => {
+                    // The case itself, not the code: the words stand above the form, and the step-up closes.
+                    if (isNoSplitParty(failure)) {
+                      setError(refusalText(failure))
+                    }
+                    refused(failure)
+                  },
                 },
               )
             }
@@ -196,6 +206,17 @@ function Detail({ data }: { data: AdminDispute }) {
       )}
     </Card>
   )
+}
+
+function isNoSplitParty(error: unknown): boolean {
+  return error instanceof ApiError && error.problem.reason === 'NO_SPLIT_PARTY'
+}
+
+/** A 400 `VALIDATION` has the shared sentence, so the one reason that says why no release can be made reads its own. */
+function refusalText(error: unknown): string {
+  return isNoSplitParty(error)
+    ? sentence(t('reason.dispute.NO_SPLIT_PARTY'))
+    : problemMessage(error, { module: 'dispute' }).text
 }
 
 function Outcome({ data, onRetry, pending }: { data: AdminDispute; onRetry: () => void; pending: boolean }) {
@@ -248,8 +269,10 @@ function DecisionForm({
 }) {
   const ids = useId()
   const held = data.held?.releasableVnd
-  const [release, setRelease] = useState('')
-  const [refund, setRefund] = useState('')
+  // Nothing can be released on a Milestone no member worked on: the release is 0 and the refund is all that is held.
+  const refundOnly = held !== undefined && data.held?.refundOnly === true
+  const [release, setRelease] = useState(refundOnly ? '0' : '')
+  const [refund, setRefund] = useState(refundOnly ? String(held) : '')
   const [next, setNext] = useState<Next>(data.plannedRemains ? 'CONTINUE' : 'END')
   const [reasoning, setReasoning] = useState('')
   const [reviewing, setReviewing] = useState(false)
@@ -263,6 +286,11 @@ function DecisionForm({
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-border bg-background p-3">
       <legend className="px-1 text-label">{t('screen.admin.disputes.decision')}</legend>
+      {refundOnly && (
+        <p id={`${ids}-refund-only`} className="rounded-md bg-muted p-3">
+          {t('screen.admin.disputes.refundOnly')}
+        </p>
+      )}
       {held !== undefined && (
         <>
           <label htmlFor={`${ids}-release`} className="text-label">
@@ -272,8 +300,10 @@ function DecisionForm({
             id={`${ids}-release`}
             inputMode="numeric"
             value={release}
+            readOnly={refundOnly}
+            aria-describedby={refundOnly ? `${ids}-refund-only` : undefined}
             onChange={(event) => setRelease(event.target.value.replace(/[^0-9]/g, ''))}
-            className={inputClass}
+            className={cn(inputClass, refundOnly && 'bg-muted text-muted-foreground')}
           />
           <label htmlFor={`${ids}-refund`} className="text-label">
             {t('screen.admin.disputes.refund')}
@@ -282,8 +312,10 @@ function DecisionForm({
             id={`${ids}-refund`}
             inputMode="numeric"
             value={refund}
+            readOnly={refundOnly}
+            aria-describedby={refundOnly ? `${ids}-refund-only` : undefined}
             onChange={(event) => setRefund(event.target.value.replace(/[^0-9]/g, ''))}
-            className={inputClass}
+            className={cn(inputClass, refundOnly && 'bg-muted text-muted-foreground')}
           />
           <p role="status" className={cn('text-caption', amountsOk ? 'text-success' : 'text-destructive')}>
             {t('screen.admin.disputes.sum', { sum: formatVnd(sum), held: formatVnd(held) })} ·{' '}
@@ -349,7 +381,13 @@ function DecisionForm({
             held === undefined
               ? { nextState: next, reasoning: reasoning.trim(), stepUpCode: code }
               : { releaseVnd, refundVnd, nextState: next, reasoning: reasoning.trim(), stepUpCode: code },
-            refused,
+            (failure) => {
+              if (isNoSplitParty(failure)) {
+                setStepUp(false)
+              } else {
+                refused(failure)
+              }
+            },
           )
         }
       />

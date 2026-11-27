@@ -286,6 +286,42 @@ class SelfMentoredSplitIT extends IntegrationTest {
 
 		assertThatThrownBy(() -> partyRow(split, this.lan, false, 7)).hasMessageContaining("never a party");
 		assertThatThrownBy(() -> partyRow(split, this.hung, true, 8)).hasMessageContaining("no Mentor party");
+
+		// SG-23's daily check is the ledger's own backstop: a RELEASE that pays the Job's Customer is listed, however it
+		// got there.
+		assertThat(this.ledgerCheck.check()).isEmpty();
+		UUID entry = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO payment.ledger_entry (id, operation_key, entry_type, job_id, product_id, milestone_id, amount_vnd,
+				    party_account_id, split_version_no, share_percent, base_amount_vnd, created_at)
+				SELECT :id, :key, 'RELEASE', job_id, product_id, milestone_id, 1, :customer, 1, 1, :base, now()
+				FROM payment.ledger_account WHERE milestone_id = :milestone
+				""").param("id", entry).param("key", "RELEASE:" + split + ":" + this.lan).param("customer", this.lan)
+			.param("base", PRICE).param("milestone", this.milestone).update();
+		assertThat(this.ledgerCheck.check()).contains(entry);
+	}
+
+	/**
+	 * M-02: no finalization reads the drafter. A split whose drafter an erasure anonymized, which the open split's
+	 * blocker prevents and this test forces, still becomes final and is paid out to its parties.
+	 */
+	@Test
+	void aSplitWhoseDrafterIsGoneStillBecomesFinalAndIsPaid() throws Exception {
+		world(true);
+		UUID split = accepted();
+		save(this.lan, split, 0, 50, 50).andExpect(status().isOk());
+		this.jdbc.sql("UPDATE job.milestone_split SET mentor_account_id = NULL WHERE id = :id").param("id", split).update();
+
+		confirm(this.vy, split, 1).andExpect(status().isOk());
+		confirm(this.minh, split, 1).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FINAL"));
+		awaitListeners();
+
+		assertThat(release(this.minh)).isEqualTo(500_001);
+		assertThat(release(this.vy)).isEqualTo(500_000);
+		assertThat(count("SELECT count(*) FROM payment.ledger_entry WHERE entry_type = 'POOL_RELEASED'")).isOne();
+		assertThat(this.splits.finalSplitOf(this.milestone)).as("FR-64's retry needs no drafter either").isPresent();
+		this.mvc.perform(get("/api/v1/jobs/" + this.job + "/splits").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(0));
 	}
 
 	/** FR-84, AD-40: any party asks for a Split Resolution; the Customer drafts, states once, and neither raises nor withdraws. */

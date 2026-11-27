@@ -40,7 +40,9 @@ import { StatusBadge } from '@/components/ui/status-badge'
  * time" filter; one with "Nhận xử lý", refused with `CONFLICT_OF_INTEREST` when the Administrator is linked to an
  * account in the case; the Split Evidence Package, each view audited by the server; and the decision: whole percentages
  * with a live sum, the server's VND preview, written reasoning, and the step-up. A decision is final and the Customer
- * never takes part in it. Once decided, every Administrator reads the record.
+ * never takes part in it. Once decided, every Administrator reads the record. In a Self-mentored Job (`selfMentored`,
+ * UX-DR131) there is no Mentor line and no cap to show or hold, the floor for a member there the whole Milestone still
+ * holds, and the drafter's statement, which has no party, reads as the customer's.
  */
 export function AdminSplitResolutionsPage() {
   const { resolutionId } = useParams()
@@ -205,11 +207,10 @@ function Detail({ data }: { data: AdminSplitResolution }) {
               <p className="text-muted-foreground">{t('screen.admin.splitResolutions.noStatements')}</p>
             ) : (
               <ul className="flex flex-col gap-2">
-                {data.statements.map((statement) => (
-                  <li key={statement.partyId} className="flex flex-col gap-0.5 rounded-md bg-muted p-3">
+                {data.statements.map((statement, index) => (
+                  <li key={statement.partyId ?? `drafter-${index}`} className="flex flex-col gap-0.5 rounded-md bg-muted p-3">
                     <p className="text-caption text-muted-foreground break-words">
-                      {statement.name ?? t('screen.admin.splitResolutions.unnamed')} ·{' '}
-                      {formatDayMonthTime(statement.submittedAt)}
+                      {statementAuthor(data, statement)} · {formatDayMonthTime(statement.submittedAt)}
                     </p>
                     <p className="break-words whitespace-pre-line">{statement.text}</p>
                   </li>
@@ -269,9 +270,20 @@ function Detail({ data }: { data: AdminSplitResolution }) {
           }}
         />
       )}
-      {data.evidenceReadable && <Evidence resolutionId={data.id} />}
+      {data.evidenceReadable && <Evidence resolutionId={data.id} selfMentored={data.selfMentored} />}
     </Card>
   )
+}
+
+/**
+ * Who wrote a statement: a party by name. In a Self-mentored Job a statement with no party is the drafter's, the
+ * customer's, and is told so, with the name if the server sent one.
+ */
+function statementAuthor(data: AdminSplitResolution, statement: AdminSplitResolution['statements'][number]): string {
+  if (statement.partyId === undefined && data.selfMentored) {
+    return t('screen.admin.splitResolutions.drafter')
+  }
+  return statement.name ?? t('screen.admin.splitResolutions.unnamed')
 }
 
 function Outcome({ data }: { data: AdminSplitResolution }) {
@@ -318,10 +330,11 @@ function lineProblem(data: AdminSplitResolution, party: AdminSplitParty, text: s
   if (percent > 100) {
     return t('screen.admin.splitResolutions.decision.lineTooMuch')
   }
-  if (party.mentor && data.cap !== undefined && percent > data.cap) {
+  if (!data.selfMentored && party.mentor && data.cap !== undefined && percent > data.cap) {
     return t('screen.admin.splitResolutions.decision.lineOverCap', { cap: data.cap })
   }
-  if (!party.mentor && data.capApplies && party.wholeInterval && percent === 0) {
+  // The floor holds while the cap does in a normal Job, and always in a Self-mentored one, which has no cap.
+  if (!party.mentor && (data.capApplies || data.selfMentored) && party.wholeInterval && percent === 0) {
     return t('screen.admin.splitResolutions.decision.lineZero')
   }
   return null
@@ -394,7 +407,7 @@ function DecisionForm({
                 className={cn('w-full text-caption', problem !== null ? 'text-destructive' : 'text-muted-foreground')}
               >
                 {problem ??
-                  (party.mentor && data.cap !== undefined
+                  (!data.selfMentored && party.mentor && data.cap !== undefined
                     ? t('screen.admin.splitResolutions.decision.capHint', { cap: data.cap })
                     : null)}
               </span>
@@ -436,7 +449,9 @@ function DecisionForm({
       <p id={`${ids}-reasoning-hint`} className="text-caption text-muted-foreground">
         {t('screen.admin.splitResolutions.decision.reasoningHint')}
       </p>
-      <p className="text-caption text-muted-foreground">{t('screen.admin.splitResolutions.decision.final')}</p>
+      <p className="text-caption text-muted-foreground">
+        {t(data.selfMentored ? 'screen.admin.splitResolutions.decision.finalSelf' : 'screen.admin.splitResolutions.decision.final')}
+      </p>
       <div className="flex justify-end">
         <Button
           type="button"
@@ -499,7 +514,7 @@ type EvidenceTab = (typeof TABS)[number]
  * The Split Evidence Package, each tab one audited read of the server's, mounted only when opened. "Bàn giao" shows the
  * case's Milestone's handovers as the Dispute's Evidence Package shows a Job's (Story 24.3b).
  */
-function Evidence({ resolutionId }: { resolutionId: string }) {
+function Evidence({ resolutionId, selfMentored }: { resolutionId: string; selfMentored: boolean }) {
   const [tab, setTab] = useState<EvidenceTab>('versions')
   return (
     <section aria-labelledby="split-evidence" className="flex flex-col gap-3">
@@ -530,7 +545,7 @@ function Evidence({ resolutionId }: { resolutionId: string }) {
         ))}
       </div>
       <div role="tabpanel">
-        {tab === 'versions' && <VersionsTab resolutionId={resolutionId} />}
+        {tab === 'versions' && <VersionsTab resolutionId={resolutionId} selfMentored={selfMentored} />}
         {tab === 'handovers' && <HandoversTab resolutionId={resolutionId} />}
         {tab === 'commits' && <CommitsTab resolutionId={resolutionId} />}
         {tab === 'crewChat' && <CrewChatTab resolutionId={resolutionId} />}
@@ -540,7 +555,7 @@ function Evidence({ resolutionId }: { resolutionId: string }) {
   )
 }
 
-function VersionsTab({ resolutionId }: { resolutionId: string }) {
+function VersionsTab({ resolutionId, selfMentored }: { resolutionId: string; selfMentored: boolean }) {
   const versions = useSplitEvidenceVersions(resolutionId)
   const unnamed = t('screen.admin.splitResolutions.unnamed')
   return (
@@ -577,19 +592,26 @@ function VersionsTab({ resolutionId }: { resolutionId: string }) {
                   <p className="font-semibold">
                     {t('screen.admin.splitResolutions.evidence.version', {
                       n: version.versionNo,
-                      kind: t(`screen.admin.splitResolutions.evidence.kind.${version.kind}` as MessageKey),
+                      kind: t(
+                        `screen.admin.splitResolutions.evidence.kind.${selfMentored && version.kind === 'DRAFT' ? 'DRAFT_SELF' : version.kind}` as MessageKey,
+                      ),
                       date: formatDayMonthTime(version.createdAt),
                     })}
                   </p>
                   <p className="text-caption text-muted-foreground">
                     {[
-                      version.kind === 'DEFAULT' || version.kind === 'MENTOR_ONLY'
+                      version.kind === 'DEFAULT' || version.kind === 'MENTOR_ONLY' || version.kind === 'SOLE_MEMBER'
                         ? t('screen.admin.splitResolutions.evidence.system')
                         : t('screen.admin.splitResolutions.evidence.author', { name: version.authorName ?? unnamed }),
-                      version.capPercent === undefined
-                        ? t('screen.admin.splitResolutions.evidence.noCap')
-                        : t('screen.admin.splitResolutions.evidence.cap', { cap: version.capPercent }),
-                    ].join(' · ')}
+                      // A Self-mentored version has no Mentor share, so neither a cap nor its lack is said.
+                      selfMentored
+                        ? ''
+                        : version.capPercent === undefined
+                          ? t('screen.admin.splitResolutions.evidence.noCap')
+                          : t('screen.admin.splitResolutions.evidence.cap', { cap: version.capPercent }),
+                    ]
+                      .filter((part) => part !== '')
+                      .join(' · ')}
                   </p>
                   {version.lines.map((line) => (
                     <p key={line.partyId} className="text-caption">
