@@ -5222,7 +5222,7 @@ export interface components {
         };
         EvidenceAgreementVersion: {
             /** Format: date-time */
-            approvedAt: string;
+            approvedAt?: string;
             /** Format: date-time */
             confirmedAt: string;
             milestones: components["schemas"]["EvidenceMilestone"][];

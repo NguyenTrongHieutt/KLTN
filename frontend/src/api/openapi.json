@@ -12069,7 +12069,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "approvedAt", "confirmedAt", "milestones", "scope", "versionNo" ]
+        "required" : [ "confirmedAt", "milestones", "scope", "versionNo" ]
       },
       "EvidenceAuditEntry" : {
         "type" : "object",
