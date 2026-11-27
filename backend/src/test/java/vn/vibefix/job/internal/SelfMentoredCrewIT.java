@@ -203,12 +203,7 @@ class SelfMentoredCrewIT extends IntegrationTest {
 	 */
 	@Test
 	void aHeldMilestoneNobodyWorkedOnIsCancelledAloneWithTheFullRefund() throws Exception {
-		leave(this.vy, null).andExpect(status().isNoContent());
-		leave(this.minh, null).andExpect(status().isNoContent());
-		awaitListeners();
-		this.clock.advance(Duration.ofMinutes(5));
-		this.jdbc.sql("UPDATE job.milestone SET funded_at = :at WHERE id = :id").param("at", Timestamp.from(this.clock.instant()))
-			.param("id", this.world.milestone()).update();
+		leaveBeforeTheFunding();
 
 		cancellation().andExpect(jsonPath("$.noMember").value("ALONE")).andExpect(jsonPath("$.canPropose").value(true));
 		cancel().andExpect(status().isOk())
@@ -239,6 +234,60 @@ class SelfMentoredCrewIT extends IntegrationTest {
 		cancellation().andExpect(jsonPath("$.noMember").value("CREW_WAS_ACTIVE"));
 	}
 
+	/** A member who joined after the funding and left again worked on the Milestone, however briefly. */
+	@Test
+	void aMemberWhoJoinedAfterTheFundingAndLeftCounts() throws Exception {
+		leaveBeforeTheFunding();
+		cancellation().andExpect(jsonPath("$.noMember").value("ALONE"));
+		Timestamp joined = Timestamp.from(this.clock.instant().plus(Duration.ofMinutes(1)));
+		Timestamp left = Timestamp.from(this.clock.instant().plus(Duration.ofMinutes(2)));
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, signed_at, activated_at, window_end, released_at,
+				    released_reason, created_at)
+				VALUES (:id, :job, :member, 'RELEASED', :joined, :joined, :left, :left, 'LEFT', :joined)
+				""").param("id", UUID.randomUUID()).param("job", this.job)
+			.param("member", TestPeople.student(this.jdbc, "Lê Văn Hải", true, java.util.List.of(TestPeople.REACT), "React",
+					java.time.LocalDate.parse("2026-09-30")))
+			.param("joined", joined).param("left", left).update();
+
+		cancellation().andExpect(jsonPath("$.noMember").value("CREW_WAS_ACTIVE"));
+		cancel().andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.reason").value("CREW_WAS_ACTIVE"));
+	}
+
+	/** A pick that never signed did no work: it does not stand between the Customer and the refund. */
+	@Test
+	void aPickThatNeverSignedDoesNotCount() throws Exception {
+		leaveBeforeTheFunding();
+		this.jdbc.sql("""
+				INSERT INTO job.crew_row (id, job_id, member_account_id, status, created_at)
+				VALUES (:id, :job, :member, 'ASSIGNED', now())
+				""").param("id", UUID.randomUUID()).param("job", this.job)
+			.param("member", TestPeople.student(this.jdbc, "Lê Văn Hải", true, java.util.List.of(TestPeople.REACT), "React",
+					java.time.LocalDate.parse("2026-09-30")))
+			.update();
+
+		cancellation().andExpect(jsonPath("$.noMember").value("ALONE"));
+	}
+
+	/** A Held Milestone with no recorded funding time counts everyone the Job ever had: the money stays put. */
+	@Test
+	void aMilestoneWithNoRecordedFundingCountsEveryMemberTheJobEverHad() throws Exception {
+		leaveBeforeTheFunding();
+		this.jdbc.sql("UPDATE job.milestone SET funded_at = NULL WHERE id = :id").param("id", this.world.milestone()).update();
+
+		cancellation().andExpect(jsonPath("$.noMember").value("CREW_WAS_ACTIVE"));
+	}
+
+	/** A cascade is refused while a Dispute freezes the Job, so the page does not offer it then. */
+	@Test
+	void aFrozenJobIsNotOfferedTheCancellationAlone() throws Exception {
+		leaveBeforeTheFunding();
+		this.jdbc.sql("UPDATE job.job SET frozen_at = :at WHERE id = :id").param("at", Timestamp.from(this.clock.instant()))
+			.param("id", this.job).update();
+
+		cancellation().andExpect(jsonPath("$.noMember").value("ALONE")).andExpect(jsonPath("$.canPropose").value(false));
+	}
+
 	/** With a member still active the command proposes, as before; the members' agreement is Story 25.7's. */
 	@Test
 	void whileAMemberIsActiveTheCommandStillProposes() throws Exception {
@@ -267,6 +316,16 @@ class SelfMentoredCrewIT extends IntegrationTest {
 		assertThat(notices("job.crew_empty", normal.lan())).as("the Mentor carries on").isOne();
 		assertThat(notices("job.crew_member_left", normal.hung())).isEqualTo(2);
 		assertThat(param("job.crew_login_removed", normal.lan(), "who")).startsWith("@").doesNotContain("Trần").doesNotContain("Nguyễn");
+	}
+
+	/** Vy and Minh leave, and the Held Milestone is funded five minutes later: nobody worked on it. */
+	private void leaveBeforeTheFunding() throws Exception {
+		leave(this.vy, null).andExpect(status().isNoContent());
+		leave(this.minh, null).andExpect(status().isNoContent());
+		awaitListeners();
+		this.clock.advance(Duration.ofMinutes(5));
+		this.jdbc.sql("UPDATE job.milestone SET funded_at = :at WHERE id = :id").param("at", Timestamp.from(this.clock.instant()))
+			.param("id", this.world.milestone()).update();
 	}
 
 	private ResultActions cancellation() throws Exception {

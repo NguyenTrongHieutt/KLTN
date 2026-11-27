@@ -2378,14 +2378,16 @@
         "reason": "Lý do (không bắt buộc)",
         "reasonHint": "Chỉ người hướng dẫn đọc được.",
         "reasonHintSelfMentored": "Khách hàng đọc được lý do bạn rời đi.",
-        "customerSelfMentored": "Khách hàng được báo tên và GitHub username của bạn.",
+        "customerSelfMentored": "Khách hàng được báo tên của bạn, và GitHub username nếu bạn đã liên kết, để thu hồi quyền.",
         "back": "Quay lại",
         "done": "Bạn đã rời công việc này."
       },
       "noCrew": {
         "selfMentor": "Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.",
         "selfMentorAlone": "Công việc chưa có thành viên. Chưa ai bàn giao được, nên giai đoạn đang giữ tiền chưa nghiệm thu được. Hãy tuyển thành viên, hoặc hủy giai đoạn đang giữ tiền và nhận hoàn tiền đầy đủ.",
-        "selfMentorCrewWasActive": "Công việc chưa có thành viên. Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được. Hãy tuyển thành viên, hoặc mở tranh chấp. Bàn giao đã gửi vẫn nghiệm thu, yêu cầu sửa hoặc trả lại được.",
+        "selfMentorCrewWasActive": "Công việc chưa có thành viên. Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được. Hãy tuyển thành viên, hoặc mở tranh chấp. Bàn giao đã gửi vẫn nghiệm thu hoặc yêu cầu sửa được.",
+        "selfMentorStarting": "Công việc chưa có thành viên nên chưa bắt đầu được. Hãy tuyển thành viên, hoặc mở tranh chấp. Nếu công việc vẫn chưa bắt đầu khi hết hạn chuẩn bị, bạn tự hủy được và nhận hoàn tiền đầy đủ.",
+        "selfMentorStallPassed": "Công việc chưa có thành viên và đã quá hạn chuẩn bị. Hãy tuyển thành viên, hoặc tự hủy công việc và nhận hoàn tiền đầy đủ.",
         "cancelHeld": "Hủy giai đoạn đang giữ tiền",
         "cancelHeldTitle": "Hủy giai đoạn đang giữ tiền?",
         "cancelHeldRefund": "Giai đoạn đang giữ tiền bị hủy và bạn được hoàn đủ số tiền đó (thử nghiệm).",

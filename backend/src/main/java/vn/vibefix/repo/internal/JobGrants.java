@@ -603,6 +603,10 @@ class JobGrants {
 		}
 		this.administrators.activeIds().forEach(id -> recipients.add(new Recipient(id, Audience.ADMIN)));
 		audit("repo.grant_renewals_exhausted", grant);
+		if (recipients.isEmpty()) {
+			// A Self-mentored Job on a platform with no active Administrator: the audit alone records it.
+			return;
+		}
 		this.notifications.send(new NotificationRequest(EXHAUSTED, key(grant.id() + ":exhausted"), recipients,
 				Map.of("login", grant.login(), "job", job.title()), "/cong-viec/" + grant.jobId(), grant.jobId(), null));
 	}

@@ -152,32 +152,6 @@ class StallIT extends IntegrationTest {
 	}
 
 	/**
-	 * Story 25.4: one column records both stalls. An Agreement stall that passed before the Job went on must not let
-	 * anyone cancel alone in Starting before its own period, and the Starting stall is still told.
-	 */
-	@Test
-	void anAgreementStallThatPassedDoesNotCountInStarting() throws Exception {
-		UUID job = world("STARTING", true);
-		this.jdbc.sql("UPDATE job.job SET stall_deadline_passed_at = :at WHERE id = :id")
-			.param("at", Timestamp.from(this.clock.instant().minus(Duration.ofDays(2)))).param("id", job).update();
-		this.listeners.onJobTransitioned(event(job, "J6", "AGREEMENT", "STARTING"));
-		await().atMost(Duration.ofSeconds(10)).until(() -> count("SELECT count(*) FROM timers.deadline WHERE subject_id = '"
-				+ job + "'") >= 1);
-
-		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.canCancelAlone").value(false));
-		alone(this.lan, Role.CUSTOMER, job).andExpect(status().isUnprocessableEntity())
-			.andExpect(jsonPath("$.reason").value("DEADLINE_NOT_PASSED"));
-
-		this.clock.advance(Duration.ofDays(8));
-		this.poller.runDue();
-		assertThat(count("SELECT count(*) FROM notification.notification WHERE type = 'job.starting_deadline_passed'"))
-			.isEqualTo(2);
-		this.mvc.perform(get("/api/v1/boards/" + job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
-			.andExpect(jsonPath("$.canCancelAlone").value(true));
-	}
-
-	/**
 	 * FR-40, AD-47 exception 3, B-07, Story 25.4: the Customer of a Self-mentored Job hears of the stall once, cancels
 	 * alone after it with the full refund although a member worked since the funding (R49 does not guard a stall), and
 	 * the active member is told.

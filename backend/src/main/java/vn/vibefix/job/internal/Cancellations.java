@@ -159,7 +159,7 @@ class Cancellations {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.CREW_WAS_ACTIVE);
 		}
 		if (noMember == NoMember.ALONE) {
-			return applyAlone(job, account, party, text);
+			return applyAlone(job, account, party, scope, text);
 		}
 		Instant now = this.clock.instant();
 		Instant answerBy = now.plus(Duration.ofDays(days(jobId)));
@@ -257,11 +257,11 @@ class Cancellations {
 		if (text.isEmpty() || text.length() > 2000) {
 			throw new ApiException(ErrorCode.VALIDATION);
 		}
-		return applyAlone(job, account, party, text);
+		return applyAlone(job, account, party, Scope.JOB, text);
 	}
 
 	/** The cascade on one side's word alone, kept as a confirmed proposal marked alone. The caller holds the Job lock. */
-	private Proposal applyAlone(Job job, UUID account, Party party, String reason) {
+	private Proposal applyAlone(Job job, UUID account, Party party, Scope scope, String reason) {
 		UUID jobId = job.id();
 		List<Planned> cascade = cascade(job);
 		ApiException refusal = this.lifecycle.refusal(jobId, Trigger.USER, cascade);
@@ -275,10 +275,11 @@ class Cancellations {
 		this.jdbc.sql("""
 				INSERT INTO job.cancellation_proposal (id, job_id, scope, reason, proposer, proposer_account_id, status, answer_by,
 				    confirmed_by, created_at, decided_at, alone)
-				VALUES (:id, :job, 'JOB', :reason, :proposer, :account, 'CONFIRMED', :now, :account, :now, :now, true)
+				VALUES (:id, :job, :scope, :reason, :proposer, :account, 'CONFIRMED', :now, :account, :now, :now, true)
 				""")
 			.param("id", id)
 			.param("job", jobId)
+			.param("scope", scope.name())
 			.param("reason", reason)
 			.param("proposer", party.name())
 			.param("account", account)

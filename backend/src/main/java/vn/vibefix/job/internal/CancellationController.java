@@ -165,7 +165,9 @@ class CancellationController {
 		Proposal shown = open != null ? open : this.cancellations.latest(job.id()).orElse(null);
 		NoMember noMember = viewer.party() == null ? null : this.cancellations.noMember(job);
 		boolean canPropose = viewer.party() != null && open == null && Cancellations.CANCELLABLE.contains(job.state())
-				&& this.closures.open(job.id()).isEmpty() && noMember != NoMember.CREW_WAS_ACTIVE;
+				&& this.closures.open(job.id()).isEmpty() && noMember != NoMember.CREW_WAS_ACTIVE
+				// A cancellation applied at once is a cascade, which a freeze refuses; a proposal is only a question.
+				&& (noMember != NoMember.ALONE || job.frozenAt() == null);
 		CancellationProposalView proposal = shown == null ? null
 				: new CancellationProposalView(shown.id(), shown.scope().name(), shown.reason(), shown.proposer().name(),
 						shown.proposer() == viewer.party(), shown.status(), shown.answerBy(), shown.unansweredAt() != null,

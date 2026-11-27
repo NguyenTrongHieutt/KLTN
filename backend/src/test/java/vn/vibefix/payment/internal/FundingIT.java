@@ -166,11 +166,21 @@ class FundingIT extends IntegrationTest {
 		assertThat(notifications("payment.unknown_payment", admin)).isOne();
 		assertThat(orderStatus(orderId)).isEqualTo("OPEN");
 
+		// FR-40, Story 25.4: the Agreement stall passed before the Customer paid.
+		this.jdbc.sql("UPDATE job.job SET stall_deadline_passed_at = now() - INTERVAL '1 day' WHERE id = :id")
+			.param("id", this.job).update();
+
 		ipn(paid(ref, "14000001", 800000), null).andExpect(jsonPath("$.RspCode").value("00"));
 
 		assertThat(orderStatus(orderId)).isEqualTo("PAID");
 		assertThat(this.jdbc.sql("SELECT state FROM job.job WHERE id = :id").param("id", this.job).query(String.class).single())
 			.isEqualTo("STARTING");
+		assertThat(this.jdbc.sql("SELECT stall_deadline_passed_at IS NULL FROM job.job WHERE id = :id").param("id", this.job)
+			.query(Boolean.class).single()).as("J6 forgot the Agreement stall in its own transaction, before any listener")
+			.isTrue();
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/cancellation").with(as(this.lan, Role.CUSTOMER)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.canCancelAlone").value(false));
 		assertThat(this.jdbc.sql("SELECT state || ' ' || (funded_at IS NOT NULL) FROM job.milestone WHERE id = :id")
 			.param("id", MILESTONE).query(String.class).single()).isEqualTo("FUNDED true");
 		assertThat(this.jdbc

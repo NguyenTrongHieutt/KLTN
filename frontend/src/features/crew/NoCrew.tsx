@@ -10,11 +10,13 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { DialogBackdrop, DialogPopup } from '@/components/ui/dialog'
 import { useCancellation, useCancellationCommand, type Cancellation } from '@/features/job/cancellation/cancellationApi'
 import { useJobRole } from '@/features/job/jobRoleApi'
-import { t } from '@/i18n/t'
+import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { problemMessage } from '@/lib/problemMessage'
 
 const banner = 'flex flex-wrap items-center gap-3 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm'
+
+const compact = buttonVariants({ variant: 'secondary', size: 'compact' })
 
 /**
  * The No-Crew banner on JOB-H, so on JOB-1 and JOB-2 too (FR-82, Q7, R8, UX-DR104): for the Mentor of a Job in Starting
@@ -40,43 +42,55 @@ export function NoCrewBanner({ jobId }: { jobId: string }) {
 
 function RecruitLink({ jobId }: { jobId: string }) {
   return (
-    <Link to={`/cong-viec/${jobId}/tuyen-thanh-vien`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+    <Link to={`/cong-viec/${jobId}/tuyen-thanh-vien`} className={compact}>
       {t('screen.crew.mentor.recruit')}
     </Link>
   )
 }
 
 /**
- * The no-member banner of a Self-mentored Job (FR-85, R49, UX-DR124): only a member hands over, so the Mentor's
- * "continue alone" does not apply. It reads the cancellation's own answer to know which of three things to say: with
- * no Held Milestone, recruit; with a Held Milestone nobody worked on since it was funded, recruit or cancel it alone
- * with the full refund; with one a member worked on, why it cannot be cancelled alone, and recruit or open a Dispute.
- * While that answer loads it says the first, which holds in all three.
+ * The no-member banner of a Self-mentored Job (FR-85, FR-40, R49, UX-DR124): only a member hands over, so the Mentor's
+ * "continue alone" does not apply. It reads the cancellation's own answer to know what to say and offer:
+ * with no Held Milestone, recruit; with a Held Milestone nobody worked on since it was funded, recruit or cancel it
+ * alone with the full refund; with one a member worked on, why it cannot be cancelled alone, and recruit or open a
+ * Dispute. A Job still Starting adds that the Starting stall is the way out, and once that stall passed the banner
+ * points to JOB-1's "Hủy công việc", which cancels alone whoever worked (B-07). While the answer loads, and while a
+ * proposal is open, it says only to recruit, which holds in every case. The sentence alone is the live region.
  */
 function NoMemberBanner({ jobId }: { jobId: string }) {
   const cancellation = useCancellation(jobId).data
   const [asking, setAsking] = useState(false)
-  const state = cancellation?.noMember
+  const stallPassed = cancellation?.canCancelAlone === true
+  const alone = !stallPassed && cancellation?.noMember === 'ALONE' && cancellation.canPropose
+  const crewWasActive = !stallPassed && cancellation?.noMember === 'CREW_WAS_ACTIVE'
+  const text: MessageKey = stallPassed
+    ? 'screen.crew.noCrew.selfMentorStallPassed'
+    : alone
+      ? 'screen.crew.noCrew.selfMentorAlone'
+      : crewWasActive
+        ? cancellation.state === 'STARTING'
+          ? 'screen.crew.noCrew.selfMentorStarting'
+          : 'screen.crew.noCrew.selfMentorCrewWasActive'
+        : 'screen.crew.noCrew.selfMentor'
   return (
-    <div role="status" className={banner}>
+    <div className={banner}>
       <TriangleAlert aria-hidden="true" className="size-5 shrink-0 text-warning" />
-      <p className="min-w-60 flex-1 break-words">
-        {t(
-          state === 'ALONE'
-            ? 'screen.crew.noCrew.selfMentorAlone'
-            : state === 'CREW_WAS_ACTIVE'
-              ? 'screen.crew.noCrew.selfMentorCrewWasActive'
-              : 'screen.crew.noCrew.selfMentor',
-        )}
+      <p role="status" className="min-w-60 flex-1 break-words">
+        {t(text)}
       </p>
       <RecruitLink jobId={jobId} />
-      {state === 'ALONE' && cancellation?.canPropose && (
+      {stallPassed && (
+        <Link to={`/cong-viec/${jobId}#huy-cong-viec`} className={compact}>
+          {t('screen.cancellation.heading')}
+        </Link>
+      )}
+      {alone && (
         <Button type="button" variant="destructive" size="compact" onClick={() => setAsking(true)}>
           {t('screen.crew.noCrew.cancelHeld')}
         </Button>
       )}
-      {state === 'CREW_WAS_ACTIVE' && (
-        <Link to={`/cong-viec/${jobId}#tranh-chap`} className={buttonVariants({ variant: 'secondary', size: 'compact' })}>
+      {crewWasActive && (
+        <Link to={`/cong-viec/${jobId}#tranh-chap`} className={compact}>
           {t('screen.cancellation.openDispute')}
         </Link>
       )}

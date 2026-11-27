@@ -80,6 +80,12 @@ class J6Start implements JobLifecycle.Step {
 	public void apply(Applying applying) {
 		// Story 7.2: repo sets up a Code Job's repositories on J6.
 		applying.fact("code", String.valueOf(applying.job().code()));
+		// FR-40, Story 25.4: one column records both stalls, so an Agreement stall that passed before the Job went on is
+		// forgotten here, in J6's own transaction. Nobody then cancels alone in Starting before its own period, and
+		// the Starting stall is still recorded and told when it passes.
+		this.jdbc.sql("UPDATE job.job SET stall_deadline_passed_at = NULL WHERE id = :id AND stall_deadline_passed_at IS NOT NULL")
+			.param("id", applying.job().id())
+			.update();
 	}
 
 	@Override
