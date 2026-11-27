@@ -3750,8 +3750,9 @@ POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ASSIGNED,job=self,,200
 POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ACTIVE,job=self,,404 NOT_FOUND
 
 # The lists the Customer who mentors reads, the contact the Crew never reads in the mode either (R61), the Crew Chat
-# an Administrator without a grant on this Job does not read, the file the Dispute's grant will (Story 25.7), and an
-# unrelated user, whom the Self-mentored Job tells nothing.
+# the Administrator of the open Split Resolution reads under its grant, as on a normal Job (AD-40, Story 25.6: the
+# chat's own reads, never the Job's page of it), the file the Dispute's grant will (Story 25.7), and an unrelated user,
+# whom the Self-mentored Job tells nothing.
 GET /api/v1/my-jobs,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/mentor/jobs,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 GET /api/v1/todos,CUSTOMER_MENTOR,job=self,,200
@@ -3761,9 +3762,9 @@ GET /api/v1/customers/{customerId}/contact,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE,job=self,,404 NOT_FOUND
 GET /api/v1/customers/{customerId}/contact,CREW_ACTIVE_PARTY,job=self,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
-GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
-GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
-GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,404 NOT_FOUND
+GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self;shows=SM_CREW_CHAT,,200
+GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,200
+GET /api/v1/chat-messages/{messageId},ADMIN_SPLIT_RESOLUTION_GRANT,job=self,,200
 GET /api/v1/files/{fileId},ADMIN_DISPUTE_GRANT,job=self;file=chat;pending=25.7,,200
 GET /api/v1/jobs/{jobId},USER,job=self,,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/role,USER,job=self,,404 NOT_FOUND
