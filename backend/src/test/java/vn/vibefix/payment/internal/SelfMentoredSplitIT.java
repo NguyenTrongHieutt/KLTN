@@ -453,7 +453,8 @@ class SelfMentoredSplitIT extends IntegrationTest {
 	private String seededHandover() {
 		UUID handover = UUID.randomUUID();
 		Timestamp now = Timestamp.from(this.clock.instant());
-		this.jdbc.sql("UPDATE job.milestone SET state = 'SUBMITTED' WHERE id = :id").param("id", this.milestone).update();
+		this.jdbc.sql("UPDATE job.milestone SET state = 'SUBMITTED', submitted_at = :at, handover_id = :handover WHERE id = :id")
+			.param("at", now).param("handover", handover).param("id", this.milestone).update();
 		this.jdbc.sql("UPDATE job.job SET version = 6 WHERE id = :id").param("id", this.job).update();
 		UUID product = this.jdbc.sql("SELECT product_id FROM job.job WHERE id = :id").param("id", this.job).query(UUID.class)
 			.single();

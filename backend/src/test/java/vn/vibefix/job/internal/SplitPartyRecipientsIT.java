@@ -145,7 +145,8 @@ class SplitPartyRecipientsIT extends IntegrationTest {
 	private void send(HeldCrewJob world, UUID recipient, Audience audience, UUID milestone) {
 		new TransactionTemplate(this.transactionManager).executeWithoutResult(status -> this.notifications
 			.send(new NotificationRequest("job.split_pending", UUID.randomUUID(), List.of(new Recipient(recipient, audience)),
-					Map.of("n", "1", "job", "Sửa lỗi đặt bàn", "date", "10/11"), "/cong-viec/" + world.job() + "/phan-chia",
+					Map.of("n", "1", "job", "Sửa lỗi đặt bàn", "date", "10/11", "who", "người hướng dẫn"),
+					"/cong-viec/" + world.job() + "/phan-chia",
 					world.job(), null, milestone)));
 	}
 

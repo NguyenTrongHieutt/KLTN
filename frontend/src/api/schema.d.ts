@@ -4090,6 +4090,7 @@ export interface components {
             raisedAt: string;
             raiserName?: string;
             reason?: string;
+            selfMentored: boolean;
             statements: components["schemas"]["AdminSplitStatementView"][];
             /** @enum {string} */
             status: "OPEN" | "WITHDRAWN" | "DECIDED";
@@ -4124,7 +4125,7 @@ export interface components {
         AdminSplitStatementView: {
             name?: string;
             /** Format: uuid */
-            partyId: string;
+            partyId?: string;
             /** Format: date-time */
             submittedAt: string;
             text: string;
@@ -4419,7 +4420,7 @@ export interface components {
             /** Format: date-time */
             finalAt?: string;
             /** @enum {string} */
-            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
+            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY" | "SOLE_MEMBER";
             /** Format: uuid */
             jobId: string;
             jobLive: boolean;
@@ -5799,6 +5800,7 @@ export interface components {
             milestoneId: string;
             /** Format: int32 */
             number: number;
+            refundOnly: boolean;
             /** Format: int64 */
             releasableVnd: number;
             title: string;
@@ -6094,7 +6096,7 @@ export interface components {
             /** Format: date-time */
             finalAt?: string;
             /** @enum {string} */
-            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
+            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY" | "SOLE_MEMBER";
             /** Format: int64 */
             fundedVnd: number;
             /** Format: uuid */
@@ -7270,7 +7272,7 @@ export interface components {
             /** Format: date-time */
             finalAt?: string;
             /** @enum {string} */
-            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY";
+            finality?: "CONFIRMED" | "DEADLINE" | "DECISION" | "MENTOR_ONLY" | "SOLE_MEMBER";
             jobLive: boolean;
             jobTitle?: string;
             /** Format: int32 */
@@ -7289,6 +7291,9 @@ export interface components {
             pastDue: boolean;
             /** Format: int64 */
             pooledVnd: number;
+            /** Format: uuid */
+            remainderPartyId: string;
+            selfMentored: boolean;
             /** Format: uuid */
             splitId: string;
             /** @enum {string} */
@@ -7375,7 +7380,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** @enum {string} */
-            kind: "DRAFT" | "DEFAULT" | "DECISION" | "MENTOR_ONLY";
+            kind: "DRAFT" | "DEFAULT" | "DECISION" | "MENTOR_ONLY" | "SOLE_MEMBER";
             lines: components["schemas"]["SplitEvidenceLineView"][];
             /** Format: int32 */
             versionNo: number;
@@ -7435,7 +7440,7 @@ export interface components {
             mentor: boolean;
             name?: string;
             /** Format: uuid */
-            partyId: string;
+            partyId?: string;
             /** Format: date-time */
             submittedAt: string;
             text: string;
@@ -7531,7 +7536,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** @enum {string} */
-            kind: "DRAFT" | "DEFAULT" | "DECISION" | "MENTOR_ONLY";
+            kind: "DRAFT" | "DEFAULT" | "DECISION" | "MENTOR_ONLY" | "SOLE_MEMBER";
             lines: components["schemas"]["SplitLineView"][];
             /** Format: int32 */
             versionNo: number;
