@@ -1908,6 +1908,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/handovers/{handoverId}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["returnHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/handovers/{handoverId}/revision": {
         parameters: {
             query?: never;
@@ -5116,6 +5132,7 @@ export interface components {
             assessment: boolean;
             audience: string;
             auto: boolean;
+            byMember: boolean;
             /** Format: date-time */
             checkBy: string;
             checks: components["schemas"]["HandoverCheckView"][];
@@ -5139,6 +5156,7 @@ export interface components {
             /** Format: int32 */
             number: number;
             preview: components["schemas"]["HandoverPreviewView"];
+            returned?: components["schemas"]["HandoverReturnView"];
             /** Format: int32 */
             round: number;
             /** Format: int32 */
@@ -5651,6 +5669,10 @@ export interface components {
         HandoverDecisionView: {
             /** Format: int64 */
             releaseVnd: number;
+            /** Format: int32 */
+            returnLimit?: number;
+            /** Format: int32 */
+            returnsLeft?: number;
             revisionAllowed: boolean;
             /** Format: date */
             reworkDueOn?: string;
@@ -5677,9 +5699,11 @@ export interface components {
         HandoverListView: {
             assessment: boolean;
             audience: string;
+            canHandOver: boolean;
             handovers: components["schemas"]["HandoverSummaryView"][];
             /** Format: uuid */
             jobId: string;
+            selfMentored: boolean;
             title: string;
             waiting?: components["schemas"]["HandoverMilestoneView"];
         };
@@ -5720,6 +5744,16 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        HandoverReturnRequest: {
+            reason: string;
+            /** Format: int64 */
+            version: number;
+        };
+        HandoverReturnView: {
+            /** Format: date-time */
+            at: string;
+            reason: string;
+        };
         HandoverScreenshotView: {
             /** Format: uuid */
             fileId: string;
@@ -5755,6 +5789,7 @@ export interface components {
             milestoneTitle: string;
             /** Format: int32 */
             number: number;
+            returned: boolean;
             /** Format: int32 */
             round: number;
             status: string;
@@ -6938,11 +6973,11 @@ export interface components {
             /** Format: int32 */
             oldValue?: number;
             /** @enum {string} */
-            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT" | "SPLIT_UNDECIDED_FLAG_DAYS" | "REWORK_DAYS";
+            rule?: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT" | "SPLIT_UNDECIDED_FLAG_DAYS" | "REWORK_DAYS" | "HANDOVER_RETURN_LIMIT";
         };
         RuleView: {
             /** @enum {string} */
-            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT" | "SPLIT_UNDECIDED_FLAG_DAYS" | "REWORK_DAYS";
+            key: "AUTO_ACCEPTANCE_DAYS" | "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY" | "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY" | "RATING_WINDOW_DAYS" | "REVISION_ROUNDS" | "DISPUTE_RESPONSE_DAYS" | "TEAM_ISSUE_ANSWER_DAYS" | "TEAM_ISSUE_ESCALATION_DAYS" | "CLOSURE_CONFIRMATION_DAYS" | "CANCELLATION_CONFIRMATION_DAYS" | "AUTOMATIC_CLOSURE_DAYS" | "FINAL_MERGE_AUTHORIZATION_DAYS" | "AGREEMENT_STALL_DAYS" | "STARTING_STALL_DAYS" | "MENTOR_ACTIVE_JOB_LIMIT" | "MENTOR_SHARE_CAP_PERCENT" | "CREW_APPLICATION_LAPSE_DAYS" | "SPLIT_DRAFT_DAYS" | "SPLIT_CONFIRMATION_DAYS" | "SPLIT_EDIT_LIMIT" | "SPLIT_UNDECIDED_FLAG_DAYS" | "REWORK_DAYS" | "HANDOVER_RETURN_LIMIT";
             /** Format: int32 */
             max: number;
             /** Format: int32 */
@@ -10863,6 +10898,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["HandoverDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryReportView"];
+                };
+            };
+        };
+    };
+    returnHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handoverId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverReturnRequest"];
             };
         };
         responses: {

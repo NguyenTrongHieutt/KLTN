@@ -13,3 +13,7 @@ ALTER TABLE delivery.handover
     ADD CONSTRAINT handover_return_check CHECK (
         (return_reason IS NULL OR (status = 'VOIDED' AND length(btrim(return_reason)) BETWEEN 1 AND 2000))
         AND (returned_by_account_id IS NULL OR return_reason IS NOT NULL));
+
+-- The runtime role writes the handover's columns one grant at a time (the row is evidence): the return's two, the
+-- first of which erasure clears.
+GRANT UPDATE (returned_by_account_id, return_reason) ON delivery.handover TO ${runtime_role};

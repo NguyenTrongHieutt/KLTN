@@ -4107,6 +4107,43 @@
         "tags" : [ "handover-controller" ]
       }
     },
+    "/api/v1/handovers/{handoverId}/return" : {
+      "post" : {
+        "operationId" : "returnHandover",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "handoverId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandoverReturnRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryReportView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "handover-controller" ]
+      }
+    },
     "/api/v1/handovers/{handoverId}/revision" : {
       "post" : {
         "operationId" : "requestRevision",
@@ -11731,6 +11768,9 @@
           "auto" : {
             "type" : "boolean"
           },
+          "byMember" : {
+            "type" : "boolean"
+          },
           "checkBy" : {
             "type" : "string",
             "format" : "date-time"
@@ -11795,6 +11835,9 @@
           "preview" : {
             "$ref" : "#/components/schemas/HandoverPreviewView"
           },
+          "returned" : {
+            "$ref" : "#/components/schemas/HandoverReturnView"
+          },
           "round" : {
             "type" : "integer",
             "format" : "int32"
@@ -11817,7 +11860,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "assessment", "audience", "auto", "checkBy", "checks", "createdAt", "criteria", "id", "jobId", "jobTitle", "links", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
+        "required" : [ "assessment", "audience", "auto", "byMember", "checkBy", "checks", "createdAt", "criteria", "id", "jobId", "jobTitle", "links", "mentorName", "milestoneTitle", "number", "preview", "round", "roundsLeft", "screenshots", "status", "version" ]
       },
       "DisputeDecisionRequest" : {
         "type" : "object",
@@ -13271,6 +13314,14 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "returnLimit" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "returnsLeft" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "revisionAllowed" : {
             "type" : "boolean"
           },
@@ -13346,6 +13397,9 @@
           "audience" : {
             "type" : "string"
           },
+          "canHandOver" : {
+            "type" : "boolean"
+          },
           "handovers" : {
             "type" : "array",
             "items" : {
@@ -13356,6 +13410,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "title" : {
             "type" : "string"
           },
@@ -13363,7 +13420,7 @@
             "$ref" : "#/components/schemas/HandoverMilestoneView"
           }
         },
-        "required" : [ "assessment", "audience", "handovers", "jobId", "title" ]
+        "required" : [ "assessment", "audience", "canHandOver", "handovers", "jobId", "selfMentored", "title" ]
       },
       "HandoverMilestoneView" : {
         "type" : "object",
@@ -13497,6 +13554,34 @@
         },
         "required" : [ "criteria", "milestoneId", "version" ]
       },
+      "HandoverReturnRequest" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "reason", "version" ]
+      },
+      "HandoverReturnView" : {
+        "type" : "object",
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "at", "reason" ]
+      },
       "HandoverScreenshotView" : {
         "type" : "object",
         "properties" : {
@@ -13580,6 +13665,9 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "returned" : {
+            "type" : "boolean"
+          },
           "round" : {
             "type" : "integer",
             "format" : "int32"
@@ -13588,7 +13676,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "auto", "checkBy", "createdAt", "id", "milestoneTitle", "number", "round", "status" ]
+        "required" : [ "auto", "checkBy", "createdAt", "id", "milestoneTitle", "number", "returned", "round", "status" ]
       },
       "HeldMilestoneView" : {
         "type" : "object",
@@ -16871,7 +16959,7 @@
           },
           "rule" : {
             "type" : "string",
-            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT", "SPLIT_UNDECIDED_FLAG_DAYS", "REWORK_DAYS" ]
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT", "SPLIT_UNDECIDED_FLAG_DAYS", "REWORK_DAYS", "HANDOVER_RETURN_LIMIT" ]
           }
         },
         "required" : [ "changedAt", "kind" ]
@@ -16881,7 +16969,7 @@
         "properties" : {
           "key" : {
             "type" : "string",
-            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT", "SPLIT_UNDECIDED_FLAG_DAYS", "REWORK_DAYS" ]
+            "enum" : [ "AUTO_ACCEPTANCE_DAYS", "AUTO_ACCEPTANCE_FIRST_REMINDER_DAY", "AUTO_ACCEPTANCE_SECOND_REMINDER_DAY", "RATING_WINDOW_DAYS", "REVISION_ROUNDS", "DISPUTE_RESPONSE_DAYS", "TEAM_ISSUE_ANSWER_DAYS", "TEAM_ISSUE_ESCALATION_DAYS", "CLOSURE_CONFIRMATION_DAYS", "CANCELLATION_CONFIRMATION_DAYS", "AUTOMATIC_CLOSURE_DAYS", "FINAL_MERGE_AUTHORIZATION_DAYS", "AGREEMENT_STALL_DAYS", "STARTING_STALL_DAYS", "MENTOR_ACTIVE_JOB_LIMIT", "MENTOR_SHARE_CAP_PERCENT", "CREW_APPLICATION_LAPSE_DAYS", "SPLIT_DRAFT_DAYS", "SPLIT_CONFIRMATION_DAYS", "SPLIT_EDIT_LIMIT", "SPLIT_UNDECIDED_FLAG_DAYS", "REWORK_DAYS", "HANDOVER_RETURN_LIMIT" ]
           },
           "max" : {
             "type" : "integer",

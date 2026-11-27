@@ -28,6 +28,10 @@ import { Alert } from '@/components/ui/alert'
  * decision, a handover that holds the Mentor's N-33 confirmation quotes it: vibefix scans no team code, and the
  * Mentor confirmed this one holds none (FR-33, R28, Story 23.8b). A handover recorded before that story holds no
  * confirmation, so it says nothing, and an erased Mentor is named by the word for a deleted account.
+ *
+ * In a Self-mentored Job a Crew member made the handover (UX-DR126, Story 25.5): the report says "Bàn giao bởi
+ * {name}" and "Thành viên tự nhận xét", and N-33's line names the member. A handover the Customer returned (FR-86)
+ * says when and shows the reason as written.
  */
 export function DeliveryReportView({ report }: { report: DeliveryReport }) {
   const customer = report.audience === 'CUSTOMER'
@@ -39,7 +43,12 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           {t('screen.handover.report.title', { n: report.number, title: report.milestoneTitle })}
         </h2>
         <p className="text-body-sm text-muted-foreground">
-          {t('screen.handover.report.meta', { mentor: report.mentorName, date: formatDate(report.createdAt), round: report.round })}
+          {/* UX-DR126: a Self-mentored Job's handover names the member who made it. */}
+          {t(report.byMember ? 'screen.handover.report.metaMember' : 'screen.handover.report.meta', {
+            mentor: report.mentorName || t('screen.split.erased'),
+            date: formatDate(report.createdAt),
+            round: report.round,
+          })}
           {/* FR-87, UX-DR129: how many days after the due date in force this handover came; a record, for every reader. */}
           {report.daysLate != null && report.daysLate > 0 && (
             <>
@@ -51,9 +60,11 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
         <StatusBadge tone={handoverTone(report.status, report.auto, customer)}>
           {report.auto
             ? t('screen.handover.status.auto')
-            : customer && report.status === 'SUBMITTED'
-              ? t('screen.handover.status.customer', { date: formatDayMonth(report.checkBy) })
-              : t(`screen.handover.status.${report.status}` as MessageKey)}
+            : report.returned
+              ? t('screen.handover.status.RETURNED')
+              : customer && report.status === 'SUBMITTED'
+                ? t('screen.handover.status.customer', { date: formatDayMonth(report.checkBy) })
+                : t(`screen.handover.status.${report.status}` as MessageKey)}
         </StatusBadge>
       </header>
       {report.acceptance === 'MERGING' && (
@@ -66,7 +77,23 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           {t('screen.handover.acceptance.failed')}
         </p>
       )}
-      {(report.status === 'VOIDED' || report.acceptance === 'VOIDED') && (
+      {/*
+        FR-86, UX-DR127: a handover the Customer of a Self-mentored Job returned says so, with the reason as written,
+        to every reader. It is void too, but not because GitHub moved, so the other note is not shown for it.
+      */}
+      {report.returned && (
+        <div role="note" className="flex flex-col gap-2 rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
+          <p>
+            {t('screen.handover.voided.returned', { date: formatDate(report.returned.at) })}
+            {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
+          </p>
+          <figure className="flex flex-col gap-0.5">
+            <figcaption className="text-label">{t('screen.handover.voided.returnReason')}</figcaption>
+            <blockquote className="break-words whitespace-pre-wrap">{report.returned.reason}</blockquote>
+          </figure>
+        </div>
+      )}
+      {!report.returned && (report.status === 'VOIDED' || report.acceptance === 'VOIDED') && (
         <p role="note" className="rounded-md border-l-4 border-warning bg-warning-soft p-4 text-body-sm">
           <span>{t('reason.delivery.HANDOVER_VOIDED')}</span>
           {customer && <span> {t('screen.handover.voided.moneyHeld')}</span>}
@@ -80,7 +107,9 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
       {customer && report.decision && report.code?.teamCodeConfirmedAt && (
         <Alert tone="info">
           <p className="break-words">
-            {t('notice.teamCode.customer', { mentor: report.mentorName || t('screen.split.erased') })}
+            {t(report.byMember ? 'notice.teamCode.customerSelfMentored' : 'notice.teamCode.customer', {
+              mentor: report.mentorName || t('screen.split.erased'),
+            })}
           </p>
         </Alert>
       )}
@@ -89,10 +118,16 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
           aria-label={t('screen.handover.check.nextAction')}
           className="flex flex-wrap items-center justify-between gap-3 rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm"
         >
-          <span>
-            {report.decision.revisionAllowed
-              ? t('screen.handover.check.lead', { r: report.roundsLeft })
-              : t('screen.handover.check.leadNoRounds')}
+          <span className="flex min-w-60 flex-1 flex-col gap-1">
+            <span>
+              {report.decision.revisionAllowed
+                ? t('screen.handover.check.lead', { r: report.roundsLeft })
+                : t('screen.handover.check.leadNoRounds')}
+            </span>
+            {/* FR-86: the third decision of a Self-mentored Job's Customer, while a return is left. */}
+            {report.decision.returnsLeft != null && report.decision.returnsLeft > 0 && (
+              <span>{t('screen.handover.check.leadReturns', { n: report.decision.returnsLeft })}</span>
+            )}
           </span>
           <Link
             to={`/cong-viec/${report.jobId}/ban-giao/${report.id}/kiem-tra`}
@@ -119,7 +154,15 @@ export function DeliveryReportView({ report }: { report: DeliveryReport }) {
                 ) : (
                   <CircleX aria-hidden="true" className="size-4 text-destructive" />
                 )}
-                {t(criterion.met ? 'screen.handover.report.selfMet' : 'screen.handover.report.selfNotMet')}
+                {t(
+                  report.byMember
+                    ? criterion.met
+                      ? 'screen.handover.report.memberMet'
+                      : 'screen.handover.report.memberNotMet'
+                    : criterion.met
+                      ? 'screen.handover.report.selfMet'
+                      : 'screen.handover.report.selfNotMet',
+                )}
               </p>
               <p className="break-words whitespace-pre-wrap">{criterion.note}</p>
               <div className="rounded-md bg-muted p-3">

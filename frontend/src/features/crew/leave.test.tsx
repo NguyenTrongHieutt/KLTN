@@ -444,7 +444,7 @@ describe('No member left in a Self-mentored Job (FR-85, R49, UX-DR124)', () => {
     const banner = (
       await screen.findByText(/Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được\./)
     ).parentElement as HTMLElement
-    expect(within(banner).getByText(/Bàn giao đã gửi vẫn nghiệm thu hoặc yêu cầu sửa được\./)).toHaveAttribute('role', 'status')
+    expect(within(banner).getByText(/Bàn giao đã gửi vẫn nghiệm thu, yêu cầu sửa hoặc trả lại được\./)).toHaveAttribute('role', 'status')
     expect(within(banner).getByRole('link', { name: 'Tuyển thành viên' })).toBeInTheDocument()
     expect(within(banner).getByRole('link', { name: 'Mở tranh chấp' })).toHaveAttribute('href', '/cong-viec/j1#tranh-chap')
     expect(within(banner).queryByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' })).toBeNull()

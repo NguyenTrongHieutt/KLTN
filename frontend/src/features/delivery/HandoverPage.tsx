@@ -120,7 +120,12 @@ function Content({ jobId, handoverId, header }: { jobId: string; handoverId: str
             {t('screen.handover.back')}
           </Link>
           <PageHeading>{list.data?.title ?? t('screen.handover.tab')}</PageHeading>
-          <p className="text-body-sm text-muted-foreground">{t('screen.handover.readOnly')}</p>
+          {/* FR-32: in a Self-mentored Job the members hand over, so the line says so once the list has answered. */}
+          {list.data && (
+            <p className="text-body-sm text-muted-foreground">
+              {t(list.data.canHandOver ? 'screen.handover.membersHandOver' : 'screen.handover.readOnly')}
+            </p>
+          )}
           <JobRoleLine jobId={jobId} />
         </div>
       )}
@@ -210,9 +215,11 @@ function HandoverListPanel({ list, jobId, current }: { list: HandoverList; jobId
               <StatusBadge tone={handoverTone(handover.status, handover.auto, list.audience === 'CUSTOMER')} className="mt-1">
                 {handover.auto
                   ? t('screen.handover.status.auto')
-                  : list.audience === 'CUSTOMER' && handover.status === 'SUBMITTED'
-                    ? t('screen.handover.status.customer', { date: formatDayMonth(handover.checkBy) })
-                    : t(`screen.handover.status.${handover.status}` as MessageKey)}
+                  : handover.returned
+                    ? t('screen.handover.status.RETURNED')
+                    : list.audience === 'CUSTOMER' && handover.status === 'SUBMITTED'
+                      ? t('screen.handover.status.customer', { date: formatDayMonth(handover.checkBy) })
+                      : t(`screen.handover.status.${handover.status}` as MessageKey)}
               </StatusBadge>
             </Link>
           </li>
