@@ -42,6 +42,8 @@ import vn.vibefix.delivery.internal.Handovers.Preview;
 import vn.vibefix.delivery.internal.HandoverScreenshots.Screenshot;
 import vn.vibefix.identity.MentorDirectory;
 import vn.vibefix.identity.MentorDirectory.MentorCard;
+import vn.vibefix.identity.PersonDirectory;
+import vn.vibefix.identity.PersonDirectory.PersonCard;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.MilestoneHandovers.Rounds;
 import vn.vibefix.files.PreparedFile;
@@ -60,7 +62,8 @@ import vn.vibefix.shared.IdGenerator;
  * JOB-5 "Bàn giao" (FR-10, FR-32, AD-20, AD-23, UX-DR53, UX-DR54): the Job's handovers, the Mentor's
  * preflight and "Gửi bàn giao", and the Delivery Report, under {@code /api/v1/boards/{boardId}} like the
  * Job's other Active-phase reads (the path carries the Job's ID). The Customer, the Mentor, and the active
- * Crew read; only the Mentor hands over.
+ * Crew read; only the Mentor hands over. In a Self-mentored Job an active Crew member hands over, the report names
+ * them, and the Customer may return the handover (FR-86, AD-47 exceptions 1 and 2, Story 25.5).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -81,10 +84,14 @@ class HandoverController {
 	/**
 	 * JOB-5's list.
 	 * @param audience {@code CUSTOMER}, {@code MENTOR}, or {@code CREW}
-	 * @param waiting for the Mentor, the Milestone that waits for a handover
+	 * @param waiting for whoever hands over, the Milestone that waits for a handover
+	 * @param canHandOver the reader makes this Job's handovers: its Mentor, or in a Self-mentored Job an active Crew
+	 * member (FR-32)
+	 * @param selfMentored a Self-mentored Job, where the members hand over and no Mentor does
 	 */
 	record HandoverListView(UUID jobId, String title, String audience, boolean assessment,
-			@Nullable HandoverMilestoneView waiting, List<HandoverSummaryView> handovers) {
+			@Nullable HandoverMilestoneView waiting, List<HandoverSummaryView> handovers, boolean canHandOver,
+			boolean selfMentored) {
 	}
 
 	record HandoverCriterionInputView(UUID criterionId, int number, String statement, String checkSteps) {
@@ -227,8 +234,25 @@ class HandoverController {
 	 * @param revisionAllowed a Revision Round is left (FR-34)
 	 * @param reworkDueOn the due date in force a revision request made now would give the Milestone (FR-87); the
 	 * dialog shows it and computes no date itself; absent for a Milestone with no due date
+	 * @param returnLimit in a Self-mentored Job whose copied {@code HANDOVER_RETURN_LIMIT} is above 0, that limit:
+	 * "Trả lại bàn giao" is offered (FR-86). Absent in a normal Job and for a limit of 0, where it is not (R50)
+	 * @param returnsLeft with {@code returnLimit}, how many returns the Milestone has left; at 0 the action is shown
+	 * disabled with its reason (R65)
 	 */
-	record HandoverDecisionView(long releaseVnd, boolean revisionAllowed, @Nullable LocalDate reworkDueOn) {
+	record HandoverDecisionView(long releaseVnd, boolean revisionAllowed, @Nullable LocalDate reworkDueOn,
+			@Nullable Integer returnLimit, @Nullable Integer returnsLeft) {
+	}
+
+	/**
+	 * "Trả lại bàn giao" (FR-86).
+	 * @param version the Job's version the check loaded (AD-23)
+	 * @param reason why, in the Customer's words, which the members read as written
+	 */
+	record HandoverReturnRequest(@NotNull Long version, @NotBlank @Size(max = Handovers.MAX_NOTE) String reason) {
+	}
+
+	/** A handover the Customer of a Self-mentored Job returned (FR-86): when, and the reason as written. */
+	record HandoverReturnView(Instant at, String reason) {
 	}
 
 	record HandoverCheckRequest(@NotNull UUID criterionId, boolean met, @Nullable @Size(max = Handovers.MAX_NOTE) String comment) {
@@ -257,6 +281,10 @@ class HandoverController {
 	 * answered 409 and M3 applied, until the handover itself shows {@code VOIDED}
 	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, UX-DR129); the
 	 * report says so when above 0, to every reader
+	 * @param mentorName who handed over: the Mentor, or in a Self-mentored Job the member, by the name the Crew reads
+	 * @param byMember a Self-mentored Job's handover, which a Crew member made (UX-DR126): the report says "Bàn giao
+	 * bởi" and "Thành viên tự nhận xét"
+	 * @param returned for a handover the Customer returned, when and why; every reader of the report sees it
 	 */
 	record DeliveryReportView(UUID id, UUID jobId, String jobTitle, int number, String milestoneTitle, int round,
 			String status, String mentorName, Instant createdAt, Instant checkBy, boolean assessment, String audience,
@@ -264,7 +292,7 @@ class HandoverController {
 			@Nullable HandoverDecisionView decision, @Nullable Instant decidedAt, List<HandoverCheckView> checks,
 			boolean auto, @Nullable HandoverCodeView code, HandoverPreviewView preview,
 			List<HandoverScreenshotView> screenshots, List<HandoverEvidenceLinkView> links, @Nullable String acceptance,
-			@Nullable Integer daysLate) {
+			@Nullable Integer daysLate, boolean byMember, @Nullable HandoverReturnView returned) {
 	}
 
 	private final DeliveryAccess access;
@@ -297,10 +325,13 @@ class HandoverController {
 
 	private final Clock clock;
 
+	private final PersonDirectory people;
+
 	HandoverController(DeliveryAccess access, Handovers handovers, Decisions decisions, MilestoneHandovers jobs, Ledger ledger,
 			MentorDirectory mentors, CurrentCaller callers, CodeHandovers code, HandoverSubmissions submissions,
 			IdGenerator ids, PreviewChecks previews, HandoverScreenshots screenshots, AcceptanceMerges merges,
-			HandoverBranches branches, Clock clock) {
+			HandoverBranches branches, Clock clock, PersonDirectory people) {
+		this.people = people;
 		this.branches = branches;
 		this.clock = clock;
 		this.merges = merges;
@@ -321,7 +352,7 @@ class HandoverController {
 	@GetMapping("/api/v1/boards/{boardId}/handovers")
 	HandoverListView handovers(@PathVariable("boardId") UUID jobId) {
 		Viewer viewer = this.access.reader(jobId, this.callers.get());
-		HandoverMilestoneView waiting = viewer.mentor()
+		HandoverMilestoneView waiting = viewer.handsOver()
 				? this.handovers.waiting(jobId)
 					.map(milestone -> new HandoverMilestoneView(milestone.milestoneId(), milestone.number(), milestone.title()))
 					.orElse(null)
@@ -331,11 +362,12 @@ class HandoverController {
 					.stream()
 					.map(handover -> new HandoverSummaryView(handover.id(), handover.number(), handover.milestoneTitle(),
 							handover.round(), handover.status(), handover.createdAt(), handover.checkBy(), handover.auto()))
-					.toList());
+					.toList(),
+				viewer.handsOver(), viewer.job().selfMentored());
 	}
 
 	/**
-	 * The Mentor's preflight for "Tạo bàn giao" (UX-DR54).
+	 * The preflight for "Tạo bàn giao" (UX-DR54), for whoever hands over: the Mentor, or a member of a Self-mentored Job.
 	 * @param milestoneId the Milestone to hand over; by default the one waiting, else the first in force
 	 */
 	@GetMapping("/api/v1/boards/{boardId}/handovers/preflight")
@@ -495,14 +527,30 @@ class HandoverController {
 		return report(this.access.reader(handover.jobId(), this.callers.get()), decided);
 	}
 
+	/**
+	 * "Trả lại bàn giao" (FR-86, AD-47 exception 2): M3 by the Customer of a Self-mentored Job, with a reason. No
+	 * Revision Round is used. A normal Job has no such command, so there it finds nothing, for its Customer too.
+	 */
+	@PostMapping("/api/v1/handovers/{handoverId}/return")
+	DeliveryReportView returnHandover(@PathVariable UUID handoverId, @Valid @RequestBody HandoverReturnRequest body) {
+		Handover handover = this.handovers.find(handoverId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Viewer viewer = this.access.reader(handover.jobId(), this.callers.get());
+		Handover returned = this.decisions.returnHandover(viewer, handoverId, body.version(), body.reason());
+		return report(this.access.reader(handover.jobId(), this.callers.get()), returned);
+	}
+
 	private static List<Check> checks(HandoverDecisionRequest body) {
 		return body.checks() == null ? List.of()
 				: body.checks().stream().map(c -> new Check(c.criterionId(), c.met(), c.comment())).toList();
 	}
 
 	private DeliveryReportView report(Viewer viewer, Handover handover) {
-		String mentor = handover.mentorId() == null ? ""
+		boolean byMember = viewer.job().selfMentored();
+		String mentor = handover.mentorId() == null ? "" : byMember
+				// UX-DR126: the member who handed over, by the name the Crew reads; the Customer recruited them.
+				? this.people.cards(List.of(handover.mentorId())).stream().findFirst().map(PersonCard::shownName).orElse("")
 				: this.mentors.cards(List.of(handover.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse("");
+		MilestoneHandovers.Returns returns = this.jobs.returns(handover.milestoneId()).orElse(null);
 		int roundsLeft = this.jobs.rounds(handover.milestoneId()).map(Rounds::left).orElse(0);
 		String acceptance = "SUBMITTED".equals(handover.status())
 				? this.merges.latestStatus(handover.id())
@@ -512,7 +560,8 @@ class HandoverController {
 		HandoverDecisionView decision = viewer.kind() == Kind.CUSTOMER && "SUBMITTED".equals(handover.status())
 				&& !"MERGING".equals(acceptance) && !"VOIDED".equals(acceptance)
 						? new HandoverDecisionView(this.ledger.releasable(handover.milestoneId()), roundsLeft > 0,
-								this.jobs.reworkDueOn(handover.milestoneId()).orElse(null))
+								this.jobs.reworkDueOn(handover.milestoneId()).orElse(null),
+								returns == null ? null : returns.limit(), returns == null ? null : returns.left())
 						: null;
 		return new DeliveryReportView(handover.id(), handover.jobId(), viewer.job().title(), handover.number(),
 				handover.milestoneTitle(), handover.round(), handover.status(), mentor, handover.createdAt(),
@@ -534,7 +583,9 @@ class HandoverController {
 				previewView(viewer, this.handovers.preview(handover.id()).orElse(new Preview(null, null, null))),
 				this.screenshots.of(handover.id()).stream().map(HandoverController::screenshotView).toList(),
 				this.handovers.links(handover.id()).stream().map(HandoverController::linkView).toList(), acceptance,
-				handover.daysLate());
+				handover.daysLate(), byMember,
+				handover.returned() && handover.voidedAt() != null
+						? new HandoverReturnView(handover.voidedAt(), handover.returnReason()) : null);
 	}
 
 	/** N-11 needs the domain beside each link; the check's time is for the Mentor and the Crew. */

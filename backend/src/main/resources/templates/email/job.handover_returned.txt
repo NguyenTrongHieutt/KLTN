@@ -1,0 +1,9 @@
+subject: Khách hàng đã trả lại bàn giao Giai đoạn {n}
+---
+Xin chào,
+
+Khách hàng đã trả lại bàn giao Giai đoạn {n}. Lý do khách hàng ghi:
+
+{reason}
+
+Việc này không dùng lượt yêu cầu sửa. Tiền của giai đoạn vẫn được giữ. Hãy mở báo cáo bàn giao để xem, sửa rồi bàn giao lại.

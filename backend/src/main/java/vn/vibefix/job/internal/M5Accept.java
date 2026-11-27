@@ -1,6 +1,7 @@
 package vn.vibefix.job.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +33,9 @@ import vn.vibefix.timers.Deadlines;
  * {@code delivery} then has {@code payment} write the RELEASE_POOLED in the same transaction, so nobody is
  * paid at the release. With a Planned Milestone after it, the Customer hears that it waits for payment, and
  * {@link MilestoneUnfunded} reminds both sides if it still does 14 days later (FR-41).
+ * <p>
+ * In a Self-mentored Job {@code job.milestone_accepted} goes to the Customer and the active Crew members, who handed
+ * over (AD-47 exception 12 b, Story 25.5).
  */
 @Component
 class M5Accept implements JobLifecycle.Step {
@@ -54,12 +58,15 @@ class M5Accept implements JobLifecycle.Step {
 
 	private final JobMilestoneSplits splits;
 
+	private final CrewService crews;
+
 	/** The next Planned Milestone and its price. */
 	private record Next(UUID id, long priceVnd) {
 	}
 
 	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures,
-			Deadlines deadlines, JobMilestoneSplits splits) {
+			Deadlines deadlines, JobMilestoneSplits splits, CrewService crews) {
+		this.crews = crews;
 		this.splits = splits;
 		this.jdbc = jdbc;
 		this.deadlines = deadlines;
@@ -107,9 +114,17 @@ class M5Accept implements JobLifecycle.Step {
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), AUTO_ACCEPTED,
 					AuditObject.of("job.milestone", applying.milestoneId())).forJob(job.id()));
 		}
-		this.notifications.send(new NotificationRequest(ACCEPTED, applying.transitionId(),
-				List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
-						new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)),
+		List<Recipient> told = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER)));
+		if (job.selfMentored()) {
+			this.crews.rows(job.id())
+				.stream()
+				.filter(CrewService.Row::active)
+				.forEach(row -> told.add(new Recipient(row.studentId(), Audience.CREW_ACTIVE)));
+		}
+		else {
+			told.add(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
+		}
+		this.notifications.send(new NotificationRequest(ACCEPTED, applying.transitionId(), told,
 				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "job", job.title(), "how",
 						auto ? "tự nghiệm thu" : "nghiệm thu"),
 				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));

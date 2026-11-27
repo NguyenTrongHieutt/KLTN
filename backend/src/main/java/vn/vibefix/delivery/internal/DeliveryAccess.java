@@ -17,8 +17,9 @@ import vn.vibefix.shared.ErrorCode;
 /**
  * Who reads and makes handovers (FR-32, AD-20, AD-41, AD-43), by their role in the Job: the Job's Customer, its
  * Mentor, and its {@code ACTIVE} Crew members read; only the Mentor makes one. Everyone else finds nothing. The
- * Customer of a Self-mentored Job reads and decides as a Customer and never makes a handover: there the members hand
- * over (AD-47, D11), so that Customer is refused as the one outside the team.
+ * Customer of a Self-mentored Job reads and decides as a Customer and never makes a handover: there an {@code ACTIVE}
+ * member makes it (FR-32, AD-47 exception 1, D11, Story 25.5), and that Customer is refused as the one outside the
+ * team.
  */
 @Component
 class DeliveryAccess {
@@ -38,6 +39,14 @@ class DeliveryAccess {
 
 		boolean mentor() {
 			return this.kind == Kind.MENTOR;
+		}
+
+		/**
+		 * Whether this reader makes the Job's handovers: the Mentor, or in a Self-mentored Job an {@code ACTIVE} Crew
+		 * member, read from the Job's mode and never from who its Mentor is.
+		 */
+		boolean handsOver() {
+			return this.job.selfMentored() ? this.kind == Kind.CREW : this.kind == Kind.MENTOR;
 		}
 
 	}
@@ -74,9 +83,9 @@ class DeliveryAccess {
 	}
 
 	/**
-	 * The Mentor, who alone makes a handover.
-	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY} for the Customer or a Crew member; {@code FORBIDDEN TEAM_ONLY}
-	 * for the Customer of a Self-mentored Job, whose members hand over (AD-47, D11, R63)
+	 * Who makes a handover: the Mentor alone, or in a Self-mentored Job any {@code ACTIVE} Crew member.
+	 * @throws ApiException {@code FORBIDDEN MENTOR_ONLY} for the Customer or a Crew member of a normal Job;
+	 * {@code FORBIDDEN TEAM_ONLY} for the Customer of a Self-mentored Job, whose members hand over (AD-47, D11, R63)
 	 */
 	@Transactional(readOnly = true)
 	Viewer maker(UUID jobId, Caller caller) {
@@ -84,7 +93,7 @@ class DeliveryAccess {
 		if (viewer.selfMentor()) {
 			throw new ApiException(ErrorCode.FORBIDDEN, DeliveryReason.TEAM_ONLY);
 		}
-		if (!viewer.mentor()) {
+		if (!viewer.handsOver()) {
 			throw new ApiException(ErrorCode.FORBIDDEN, DeliveryReason.MENTOR_ONLY);
 		}
 		return viewer;

@@ -22,6 +22,10 @@ import vn.vibefix.shared.ErrorCode;
  * a Revision Round left and uses one; the Milestone records how many criteria were named, and the Mentor
  * gets {@code job.revision_requested} with the rounds left. {@code delivery} reopens the handover to-do.
  * The Milestone gets its rework due date when that is later than its due date (FR-87, {@link DueDates#rework}).
+ * <p>
+ * In a Self-mentored Job the notice goes to the active Crew members, who hand over (AD-47 exception 12 b, Story
+ * 25.5), and not to the Customer, who is the one asking: its text tells the reader to fix the work and hand it over
+ * again.
  */
 @Component
 class M4RequestRevision implements JobLifecycle.Step {
@@ -36,7 +40,10 @@ class M4RequestRevision implements JobLifecycle.Step {
 
 	private final DueDates dueDates;
 
-	M4RequestRevision(JdbcClient jdbc, M1Fund numbers, Notifications notifications, DueDates dueDates) {
+	private final CrewService crews;
+
+	M4RequestRevision(JdbcClient jdbc, M1Fund numbers, Notifications notifications, DueDates dueDates, CrewService crews) {
+		this.crews = crews;
 		this.jdbc = jdbc;
 		this.numbers = numbers;
 		this.notifications = notifications;
@@ -78,11 +85,20 @@ class M4RequestRevision implements JobLifecycle.Step {
 	public void afterWrite(Applying applying) {
 		Job job = applying.job();
 		Rounds rounds = rounds(applying.milestoneId());
-		this.notifications.send(new NotificationRequest(REQUESTED, applying.transitionId(),
-				List.of(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)),
-				Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "count",
-						String.valueOf(applying.input("criteria")), "rounds", String.valueOf(rounds.total() - rounds.used())),
-				"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+		List<Recipient> told = job.selfMentored()
+				? this.crews.rows(job.id())
+					.stream()
+					.filter(CrewService.Row::active)
+					.map(row -> new Recipient(row.studentId(), Audience.CREW_ACTIVE))
+					.toList()
+				: List.of(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
+		// A Self-mentored Job whose members all left has nobody to tell; the Customer reads the decision on the page.
+		if (!told.isEmpty()) {
+			this.notifications.send(new NotificationRequest(REQUESTED, applying.transitionId(), told,
+					Map.of("n", String.valueOf(this.numbers.number(job.id(), applying.milestoneId())), "count",
+							String.valueOf(applying.input("criteria")), "rounds", String.valueOf(rounds.total() - rounds.used())),
+					"/cong-viec/" + job.id() + "/ban-giao/" + applying.input("handoverId"), job.id(), null));
+		}
 		this.dueDates.reworked(applying);
 	}
 

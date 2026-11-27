@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.vibefix.job.JobRules;
 import vn.vibefix.job.MilestoneHandovers;
 import vn.vibefix.job.internal.JobLifecycle.Actor;
 import vn.vibefix.job.internal.JobLifecycle.Applied;
@@ -33,7 +34,10 @@ class JobHandovers implements MilestoneHandovers {
 
 	private final DueDates dueDates;
 
-	JobHandovers(JdbcClient jdbc, JobLifecycle lifecycle, M1Fund numbers, DueDates dueDates) {
+	private final JobRules rules;
+
+	JobHandovers(JdbcClient jdbc, JobLifecycle lifecycle, M1Fund numbers, DueDates dueDates, JobRules rules) {
+		this.rules = rules;
 		this.dueDates = dueDates;
 		this.jdbc = jdbc;
 		this.lifecycle = lifecycle;
@@ -49,7 +53,7 @@ class JobHandovers implements MilestoneHandovers {
 			.optional()
 			.map(job -> new HandoverJob(job.id(), job.productId(), job.customerId(), job.mentorId(), job.title(),
 					job.state().name(), job.version(), !job.code(),
-					job.jobTypes().stream().anyMatch(JobType::changesProduct)));
+					job.jobTypes().stream().anyMatch(JobType::changesProduct), job.selfMentored()));
 	}
 
 	@Override
@@ -131,6 +135,29 @@ class JobHandovers implements MilestoneHandovers {
 			.param("id", milestoneId)
 			.query((rs, n) -> new Rounds(rs.getInt("revision_rounds"), rs.getInt("revision_rounds_used")))
 			.optional();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<Returns> returns(UUID milestoneId) {
+		return this.jdbc.sql("""
+				SELECT j.id, m.handover_returns_used FROM job.milestone m JOIN job.job j ON j.id = m.job_id
+				WHERE m.id = :id AND j.self_mentored
+				""")
+			.param("id", milestoneId)
+			.query((rs, n) -> new Returns(this.rules.value(rs.getObject("id", UUID.class), M3Void.RETURN_RULE,
+					M3Void.DEFAULT_RETURN_LIMIT), rs.getInt("handover_returns_used")))
+			.optional()
+			.filter(returns -> returns.limit() > 0);
+	}
+
+	@Override
+	@Transactional
+	public Decided returnHandover(UUID jobId, UUID milestoneId, UUID customerId, long expectedVersion, UUID handoverId,
+			String reason) {
+		Applied applied = this.lifecycle.applyMilestone(Transition.M3, jobId, milestoneId, Actor.user(customerId), Trigger.USER,
+				expectedVersion, Map.of("handoverId", handoverId, "returnReason", reason));
+		return new Decided(applied.transitionId(), this.numbers.number(jobId, milestoneId), applied.version());
 	}
 
 	@Override

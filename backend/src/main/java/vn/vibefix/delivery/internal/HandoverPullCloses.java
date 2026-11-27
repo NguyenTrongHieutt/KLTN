@@ -37,6 +37,17 @@ class HandoverPullCloses {
 				+ "nhánh handover/" + handoverId + " được giữ làm bằng chứng. Người hướng dẫn sẽ bàn giao lại.";
 	}
 
+	/**
+	 * A return's reason comment (FR-86, AD-11, Story 25.5), with the Customer's reason as an indented code block: GitHub
+	 * shows it as written, and nothing in it becomes a mention, a link or markup.
+	 */
+	static String returnComment(UUID handoverId, String reason) {
+		String quoted = reason.strip().lines().map(line -> "    " + line).collect(java.util.stream.Collectors.joining("\n"));
+		return "Khách hàng đã trả lại bàn giao này. Lý do khách hàng ghi:\n\n" + quoted
+				+ "\n\nYêu cầu hợp nhất này được đóng; nhánh handover/" + handoverId
+				+ " được giữ làm bằng chứng. Lần bàn giao sau mở yêu cầu hợp nhất mới.";
+	}
+
 	private final Handovers handovers;
 
 	private final ExternalOperations operations;

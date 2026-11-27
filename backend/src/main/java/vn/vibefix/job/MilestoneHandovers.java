@@ -18,9 +18,11 @@ public interface MilestoneHandovers {
 	 * @param state the Job's state name
 	 * @param assessment an Assessment Job, whose handover is its Assessment Report (FR-10)
 	 * @param previewRequired a Job Type changes the running Product, so the handover needs a preview (FR-32)
+	 * @param selfMentored a Self-mentored Job, read from the mode column: an active Crew member hands over, and the
+	 * Customer may return a handover (FR-32, FR-86, AD-47)
 	 */
 	record HandoverJob(UUID jobId, UUID productId, UUID customerId, @Nullable UUID mentorId, String title, String state,
-			long version, boolean assessment, boolean previewRequired) {
+			long version, boolean assessment, boolean previewRequired, boolean selfMentored) {
 	}
 
 	/**
@@ -39,10 +41,11 @@ public interface MilestoneHandovers {
 	Optional<HandoverJob> job(UUID jobId);
 
 	/**
-	 * M2 by the Mentor on the Job version the form loaded, with {@code handoverId} as its evidence.
+	 * M2 by the Mentor on the Job version the form loaded, with {@code handoverId} as its evidence. In a Self-mentored
+	 * Job {@code mentorId} is the active Crew member who hands over (AD-47 exception 1).
 	 * @throws vn.vibefix.shared.ApiException {@code STALE STATE_CHANGED} for another version or a
-	 * Milestone not Funded or Revision Requested; {@code FORBIDDEN MENTOR_ONLY}; {@code CONFLICT
-	 * JOB_FROZEN}; {@code GUARD_FAILED HANDOVER_COMMIT_MISSING} for a Code Job
+	 * Milestone not Funded or Revision Requested; {@code FORBIDDEN MENTOR_ONLY}, or {@code MEMBER_ONLY} in a
+	 * Self-mentored Job; {@code CONFLICT JOB_FROZEN}; {@code GUARD_FAILED HANDOVER_COMMIT_MISSING} for a Code Job
 	 */
 	Submitted submit(UUID jobId, UUID milestoneId, UUID mentorId, long expectedVersion, UUID handoverId);
 
@@ -80,6 +83,36 @@ public interface MilestoneHandovers {
 	}
 
 	Optional<Rounds> rounds(UUID milestoneId);
+
+	/**
+	 * A Milestone's returns of a handover (FR-86): the Job's copied {@code HANDOVER_RETURN_LIMIT} and how many the
+	 * Milestone used.
+	 */
+	record Returns(int limit, int used) {
+
+		public int left() {
+			return Math.max(0, this.limit - this.used);
+		}
+
+	}
+
+	/**
+	 * The returns of a Milestone of a Self-mentored Job whose limit is above 0 (FR-86, R50).
+	 * @return empty in a normal Job, where no handover is returned, and for a limit of 0, which offers none
+	 */
+	Optional<Returns> returns(UUID milestoneId);
+
+	/**
+	 * M3 by the Customer of a Self-mentored Job, who returns the Milestone's current handover (FR-86, AD-4, AD-28), on
+	 * the loaded version: the Milestone goes back to where it was handed over from, no Revision Round is used, the
+	 * return is counted, the rework due date is set (FR-87), and the active members are told with the reason.
+	 * @param reason the Customer's reason as written, which the members read
+	 * @throws vn.vibefix.shared.ApiException {@code NOT_FOUND} in a normal Job; {@code FORBIDDEN CUSTOMER_ONLY};
+	 * {@code STALE} ({@code STATE_CHANGED} or {@code HANDOVER_CHANGED}); {@code GUARD_FAILED HANDOVER_RETURNS_USED};
+	 * {@code CONFLICT JOB_FROZEN}; {@code JOB_BUSY} while an operation holds the busy marker, never stored as pending
+	 */
+	Decided returnHandover(UUID jobId, UUID milestoneId, UUID customerId, long expectedVersion, UUID handoverId,
+			String reason);
 
 	/**
 	 * The due date in force the Milestone would have if its handover were sent back now (FR-87, AD-48): the later of

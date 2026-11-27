@@ -138,11 +138,23 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			row.put("at", rs.getTimestamp("team_code_confirmed_at").toInstant().toString());
 			return row;
 		}).list();
-		if (handovers.isEmpty() && decisions.isEmpty() && teamCode.isEmpty()) {
+		// FR-86 (Story 25.5): the handovers the Customer of a Self-mentored Job returned, each with the reason they wrote.
+		List<Map<String, Object>> returns = this.jdbc.sql("""
+				SELECT job_id, milestone_number, voided_at, return_reason FROM delivery.handover
+				WHERE returned_by_account_id = :id ORDER BY seq
+				""").param("id", accountId).query((rs, n) -> {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("jobId", rs.getObject("job_id", UUID.class).toString());
+			row.put("milestone", rs.getInt("milestone_number"));
+			row.put("at", rs.getTimestamp("voided_at").toInstant().toString());
+			row.put("reason", rs.getString("return_reason"));
+			return row;
+		}).list();
+		if (handovers.isEmpty() && decisions.isEmpty() && teamCode.isEmpty() && returns.isEmpty()) {
 			return Optional.empty();
 		}
-		return Optional.of(new PersonalDataSection("delivery",
-				Map.of("handovers", handovers, "decisions", decisions, "teamCodeConfirmations", teamCode)));
+		return Optional.of(new PersonalDataSection("delivery", Map.of("handovers", handovers, "decisions", decisions,
+				"teamCodeConfirmations", teamCode, "returns", returns)));
 	}
 
 	@Override
@@ -166,6 +178,10 @@ class DeliveryPersonalData implements PersonalDataParticipant {
 			.param("id", accountId)
 			.update();
 		this.jdbc.sql("UPDATE delivery.handover SET decided_by = NULL WHERE decided_by = :id").param("id", accountId).update();
+		// FR-86 (Story 25.5): a returned handover keeps its reason, as a decided one keeps its comments, without the person.
+		this.jdbc.sql("UPDATE delivery.handover SET returned_by_account_id = NULL WHERE returned_by_account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("UPDATE delivery.handover_acceptance SET customer_account_id = NULL WHERE customer_account_id = :id")
 			.param("id", accountId)
 			.update();

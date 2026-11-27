@@ -47,7 +47,8 @@ class TransitionTableTest {
 			entry("J7", Set.of(Trigger.SYSTEM)), entry("J8", Set.of(Trigger.USER, Trigger.AUTO, Trigger.DECISION)),
 			entry("J9", Set.of(Trigger.SYSTEM)), entry("J10", Set.of(Trigger.USER, Trigger.DECISION)),
 			entry("J11", Set.of(Trigger.USER)), entry("J12", Set.of(Trigger.USER)),
-			entry("M1", Set.of(Trigger.SYSTEM)), entry("M2", Set.of(Trigger.USER)), entry("M3", Set.of(Trigger.SYSTEM)),
+			entry("M1", Set.of(Trigger.SYSTEM)), entry("M2", Set.of(Trigger.USER)),
+			entry("M3", Set.of(Trigger.SYSTEM, Trigger.USER)),
 			entry("M4", Set.of(Trigger.USER)), entry("M5", Set.of(Trigger.USER, Trigger.AUTO)),
 			entry("M6", Set.of(Trigger.USER, Trigger.SYSTEM, Trigger.DECISION)), entry("M7", Set.of(Trigger.USER)),
 			entry("M8", Set.of(Trigger.DECISION)));
@@ -122,17 +123,26 @@ class TransitionTableTest {
 		assertThat(Transition.J1.auditAction()).isEqualTo("job.transition_j1");
 	}
 
-	/** Story 23.2 (D9, R25, R26): only the acceptance merge's 409 applies M3, and M3 and M4 close the pull request. */
+	/**
+	 * Story 23.2 (D9, R25, R26): no push applies M3, only the acceptance merge's 409, and M3 and M4 close the pull
+	 * request. Story 25.5 (FR-86, AD-4): M3 gains its second trigger, the Customer's return of a handover in a
+	 * Self-mentored Job, with its guard, and a return alerts no Administrator.
+	 */
 	@Test
-	void m3IsTheAcceptanceMergesRefusalAndM3AndM4CloseThePullRequest() {
+	void m3IsTheAcceptanceMergesRefusalOrAReturnAndM3AndM4CloseThePullRequest() {
 		assertThat(Transition.M3.trigger())
-			.isEqualTo("The acceptance merge answers 409: the handover branch no longer holds the Handover Commit (FR-33)")
+			.startsWith("The acceptance merge answers 409: the handover branch no longer holds the Handover Commit (FR-33)")
+			.contains("the Customer of a Self-mentored Job returns the handover (FR-86)")
 			.doesNotContainIgnoringCase("push");
-		assertThat(Transition.M3.triggers()).containsExactly(Trigger.SYSTEM);
+		assertThat(Transition.M3.triggers()).containsExactlyInAnyOrder(Trigger.SYSTEM, Trigger.USER);
+		assertThat(Transition.M3.guards()).extracting(Transition.Guard::fr).containsExactly("FR-86");
+		assertThat(Transition.M2.trigger()).contains("in a Self-mentored Job by an active Crew member");
 		String close = "The handover's pull request is closed with a reason comment and \"(lần {n})\" in its title";
 		assertThat(Transition.M3.effects()).extracting(Transition.Effect::module, Transition.Effect::text)
 			.contains(org.assertj.core.groups.Tuple.tuple("delivery", "The Handover is void"),
-					org.assertj.core.groups.Tuple.tuple("delivery", "Every Administrator is alerted (repo.acceptance_head_moved)"),
+					org.assertj.core.groups.Tuple.tuple("delivery",
+							"After a 409, every Administrator is alerted (repo.acceptance_head_moved); a return alerts nobody"),
+					org.assertj.core.groups.Tuple.tuple("job", "A return is counted on the Milestone and uses no Revision Round"),
 					org.assertj.core.groups.Tuple.tuple("delivery", close));
 		assertThat(Transition.M4.effects()).extracting(Transition.Effect::module, Transition.Effect::text)
 			.contains(org.assertj.core.groups.Tuple.tuple("delivery", close));

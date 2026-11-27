@@ -850,7 +850,8 @@
           "SPLIT_CONFIRMATION_DAYS": "Số ngày thành viên xác nhận mỗi bản phân chia tiền",
           "SPLIT_EDIT_LIMIT": "Số lần người hướng dẫn được sửa phân chia tiền của một giai đoạn",
           "SPLIT_UNDECIDED_FLAG_DAYS": "Số ngày chờ trước khi đánh dấu yêu cầu xem xét phân chia chưa được quyết định",
-          "REWORK_DAYS": "Số ngày để sửa sau khi bị yêu cầu sửa hoặc bàn giao bị hủy"
+          "REWORK_DAYS": "Số ngày để sửa sau khi bị yêu cầu sửa, bàn giao bị hủy hoặc bị trả lại",
+          "HANDOVER_RETURN_LIMIT": "Số lần trả lại bàn giao mỗi giai đoạn (công việc tự hướng dẫn)"
         },
         "bounds": "Từ {min} đến {max}",
         "domains": "Danh sách trường",

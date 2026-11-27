@@ -53,7 +53,9 @@ import vn.vibefix.timers.Deadlines;
  * which vibefix never fetches (D3, AD-32, Story 24.3): when a preview is impossible, the recording is one of
  * them. {@code job} applies M2 first, on the version the form loaded, so nothing is written when it refuses;
  * then the handover, its criteria and its links are stored, a Code Job's with its Handover Commit and range
- * (Story 8.2), and the to-dos move from the Mentor to the Customer. An Assessment Job hands over the Milestone
+ * (Story 8.2), and the to-dos move from the Mentor to the Customer. In a Self-mentored Job an active Crew member is
+ * the one who hands over, wherever this class says "the Mentor" (FR-32, AD-47 exception 1, Story 25.5), and
+ * {@code mentor_account_id} names that member. An Assessment Job hands over the Milestone
  * itself: its criteria are the Assessment Report's sections, and the report reaches the Customer as the
  * handover's "Tài liệu" link, since the platform stores no documents (FR-10).
  */
@@ -123,12 +125,24 @@ class Handovers {
 
 	/**
 	 * @param auto accepted by Auto-acceptance (FR-35)
+	 * @param mentorId who handed over: the Mentor, or in a Self-mentored Job the active Crew member (FR-32, AD-47
+	 * exception 1); the column kept its name
 	 * @param daysLate how many days after the Milestone's due date in force the handover came (FR-87, AD-48), as
 	 * {@code job} counted it at M2; {@code null} for a handover made before the figure was recorded
+	 * @param voidedAt when a {@code VOIDED} handover became void
+	 * @param returnReason for a handover the Customer of a Self-mentored Job returned (FR-86), the reason as written;
+	 * {@code null} for every other handover, one voided by an acceptance merge's 409 included
 	 */
 	record Handover(UUID id, UUID jobId, UUID productId, UUID milestoneId, int number, String milestoneTitle, int round,
 			@Nullable UUID mentorId, String status, long jobVersion, Instant checkBy, Instant createdAt,
-			@Nullable Instant decidedAt, boolean auto, @Nullable Integer daysLate) {
+			@Nullable Instant decidedAt, boolean auto, @Nullable Integer daysLate, @Nullable Instant voidedAt,
+			@Nullable String returnReason) {
+
+		/** Whether the Customer of a Self-mentored Job returned it (FR-86). */
+		boolean returned() {
+			return this.returnReason != null;
+		}
+
 	}
 
 	record Criterion(UUID criterionId, int number, String statement, String checkSteps, boolean met, String note) {
@@ -243,7 +257,7 @@ class Handovers {
 
 	private static final String COLUMNS = """
 			id, job_id, product_id, milestone_id, milestone_number, milestone_title, round, mentor_account_id, status,
-			job_version, check_by, created_at, decided_at, auto, days_late
+			job_version, check_by, created_at, decided_at, auto, days_late, voided_at, return_reason
 			""";
 
 	private final JdbcClient jdbc;
@@ -504,7 +518,8 @@ class Handovers {
 		if (code != null) {
 			recordCode(jobId, id, code);
 		}
-		this.todos.close(HAND_OVER, pending.mentorId(), milestoneId);
+		// Everyone's: in a Self-mentored Job each active member had the to-do, and one of them handed over.
+		this.todos.closeAll(HAND_OVER, milestoneId);
 		this.todos.open(new TodoRequest(REVIEW_HANDOVER, pending.customerId(), Audience.CUSTOMER, id,
 				Map.of("n", String.valueOf(pending.milestoneNumber()), "date", dayMonth(submitted.checkBy())),
 				"/cong-viec/" + jobId + "/ban-giao/" + id, submitted.checkBy(), jobId));
@@ -678,12 +693,14 @@ class Handovers {
 
 	private static Handover handover(ResultSet rs, int n) throws SQLException {
 		Timestamp decided = rs.getTimestamp("decided_at");
+		Timestamp voided = rs.getTimestamp("voided_at");
 		return new Handover(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				rs.getObject("product_id", UUID.class), rs.getObject("milestone_id", UUID.class),
 				rs.getInt("milestone_number"), rs.getString("milestone_title"), rs.getInt("round"),
 				rs.getObject("mentor_account_id", UUID.class), rs.getString("status"), rs.getLong("job_version"),
 				Objects.requireNonNull(rs.getTimestamp("check_by")).toInstant(), rs.getTimestamp("created_at").toInstant(),
-				decided == null ? null : decided.toInstant(), rs.getBoolean("auto"), (Integer) rs.getObject("days_late"));
+				decided == null ? null : decided.toInstant(), rs.getBoolean("auto"), (Integer) rs.getObject("days_late"),
+				voided == null ? null : voided.toInstant(), rs.getString("return_reason"));
 	}
 
 }

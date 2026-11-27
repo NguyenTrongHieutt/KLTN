@@ -615,15 +615,21 @@ class NotificationTypes implements NotificationCatalog {
 	static final NotificationType CHAT_CHAT_OPENED = new NotificationType("chat.chat_opened",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP, EmailClass.TRANSACTIONAL, "info", Set.of("job"));
 
-	/** M2 (FR-32): the Customer may check the handed-over Milestone, by the Auto-acceptance date. */
+	/**
+	 * M2 (FR-32): the Customer may check the handed-over Milestone, by the Auto-acceptance date. {@code who} names who
+	 * handed over: "Người hướng dẫn {name}", or in a Self-mentored Job "Thành viên {name}" (UX-DR126, Story 25.5).
+	 */
 	static final NotificationType JOB_MILESTONE_SUBMITTED = new NotificationType("job.milestone_submitted",
 			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
-			Set.of("mentor", "n", "date"));
+			Set.of("who", "n", "date"));
 
-	/** M5 (FR-33, FR-35): the Customer and the Mentor learn the Milestone is accepted, or accepted automatically. */
+	/**
+	 * M5 (FR-33, FR-35): the Customer and the Mentor learn the Milestone is accepted, or accepted automatically; in a
+	 * Self-mentored Job the Customer and the active Crew members, who handed over (AD-47 exception 12 b).
+	 */
 	static final NotificationType JOB_MILESTONE_ACCEPTED = new NotificationType("job.milestone_accepted",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "check",
-			Set.of("n", "job", "how"));
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "check", Set.of("n", "job", "how"));
 
 	/** FR-35: the Customer is reminded, twice, when the System accepts a handover they have not decided. */
 	static final NotificationType DELIVERY_ACCEPTANCE_REMINDER = new NotificationType("delivery.acceptance_reminder",
@@ -631,19 +637,29 @@ class NotificationTypes implements NotificationCatalog {
 
 	/**
 	 * M3 (FR-33, D9): the acceptance merge answered 409 because the handover branch changed, so the handover is
-	 * void; the Customer and the Mentor.
+	 * void; the Customer and the Mentor, and in a Self-mentored Job the Customer and the active Crew members (R66).
 	 */
 	static final NotificationType JOB_HANDOVER_VOIDED = new NotificationType("job.handover_voided",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
-			Set.of("n"));
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL,
+			EmailClass.TRANSACTIONAL, "alert", Set.of("n"));
+
+	/**
+	 * M3 by a return (FR-86, UX-DR130, Story 25.5): the Customer of a Self-mentored Job returned the handover; the
+	 * active Crew members read the reason as the Customer wrote it. No Revision Round is used.
+	 */
+	static final NotificationType JOB_HANDOVER_RETURNED = new NotificationType("job.handover_returned",
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "reason"));
 
 	/** An acceptance merge, manual or Auto-acceptance, answered 409 and M3 applied (FR-33, R25, R30): every Administrator. */
 	static final NotificationType REPO_ACCEPTANCE_HEAD_MOVED = new NotificationType("repo.acceptance_head_moved",
 			Set.of(Audience.ADMIN), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("n", "job"));
 
-	/** M4 (FR-33, FR-34): the Mentor learns what to fix and how many Revision Rounds are left. */
+	/**
+	 * M4 (FR-33, FR-34): the Mentor learns what to fix and how many Revision Rounds are left; in a Self-mentored Job
+	 * the active Crew members do (AD-47 exception 12 b).
+	 */
 	static final NotificationType JOB_REVISION_REQUESTED = new NotificationType("job.revision_requested",
-			Set.of(Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("n", "count", "rounds"));
 
 	/**
@@ -973,8 +989,12 @@ class NotificationTypes implements NotificationCatalog {
 	static final TodoType JOB_ANSWER_CLOSURE = new TodoType("job.answer_closure", Set.of(Audience.CUSTOMER, Audience.MENTOR), 1,
 			Set.of("job", "date"));
 
-	/** A Funded or Revision Requested Milestone waits for the Mentor's handover (FR-32): until M2. */
-	static final TodoType DELIVERY_HAND_OVER = new TodoType("delivery.hand_over", Set.of(Audience.MENTOR), 2, Set.of("n"));
+	/**
+	 * A Funded or Revision Requested Milestone waits for the Mentor's handover (FR-32): until M2. In a Self-mentored
+	 * Job it waits for a member's, so each active Crew member has it (AD-47 exception 1, Story 25.5).
+	 */
+	static final TodoType DELIVERY_HAND_OVER = new TodoType("delivery.hand_over",
+			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("n"));
 
 	/** A handed-over Milestone waits for the Customer's decision (FR-33): it decides itself if ignored. */
 	static final TodoType DELIVERY_REVIEW_HANDOVER = new TodoType("delivery.review_handover", Set.of(Audience.CUSTOMER), 1,
@@ -995,7 +1015,8 @@ class NotificationTypes implements NotificationCatalog {
 				REPO_CODE_RECEIPT_UNCONFIRMED, REPO_DOWNLOAD_REMINDER,
 				REPO_REVOCATION_CHECKLIST_PENDING, REPO_REVOCATION_CHECKLIST_REMINDER, GITHUB_UNEXPECTED_ACTOR, GITHUB_OPERATOR_ACCOUNT_USED, GITHUB_PLATFORM_DRIFT,
 				GITHUB_EXCHANGE_REFUSED, GITHUB_EXCHANGE_REVOKE_UNKNOWN, GITHUB_RUNNER_RUN_FAILED, GITHUB_RUNNER_MINUTES_80,
-				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, REPO_ACCEPTANCE_HEAD_MOVED,
+				REPO_ACCESS_REVOKED, OPERATIONS_REVOCATION_DELAYED, JOB_HANDOVER_VOIDED, JOB_HANDOVER_RETURNED,
+				REPO_ACCEPTANCE_HEAD_MOVED,
 				ADMINISTRATOR_CREATED, ADMINISTRATOR_ENROLMENT, ACCOUNT_LOCKED,
 				JOB_POST_LAPSED, MATCHING_APPLICATION_RECEIVED, MATCHING_APPLICATION_AUTO_WITHDRAWN, MATCHING_APPLICATION_WITHDRAWN,
 				MATCHING_CONFLICT_OF_INTEREST_REFUSED, JOB_ASSIGNEE_SELECTED, MATCHING_APPLICATIONS_ON_HOLD,
