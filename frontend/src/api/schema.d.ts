@@ -4519,6 +4519,7 @@ export interface components {
             audience: string;
             canCancelAlone: boolean;
             canPropose: boolean;
+            frozen: boolean;
             held: boolean;
             /** Format: uuid */
             jobId: string;

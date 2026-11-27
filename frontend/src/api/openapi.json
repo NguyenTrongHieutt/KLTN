@@ -10009,6 +10009,9 @@
           "canPropose" : {
             "type" : "boolean"
           },
+          "frozen" : {
+            "type" : "boolean"
+          },
           "held" : {
             "type" : "boolean"
           },
@@ -10031,7 +10034,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "audience", "canCancelAlone", "canPropose", "held", "jobId", "state", "version" ]
+        "required" : [ "audience", "canCancelAlone", "canPropose", "frozen", "held", "jobId", "state", "version" ]
       },
       "CapabilitiesView" : {
         "type" : "object",
