@@ -76,9 +76,11 @@ class HandoverController {
 	 * One handover in the list.
 	 * @param round the n-th handover of its Milestone
 	 * @param checkBy when the Customer should have checked by
+	 * @param returned a {@code VOIDED} handover the Customer of a Self-mentored Job returned (FR-86), which the list
+	 * names apart from one voided at acceptance
 	 */
 	record HandoverSummaryView(UUID id, int number, String milestoneTitle, int round, String status, Instant createdAt,
-			Instant checkBy, boolean auto) {
+			Instant checkBy, boolean auto, boolean returned) {
 	}
 
 	/**
@@ -361,7 +363,8 @@ class HandoverController {
 				this.handovers.of(jobId)
 					.stream()
 					.map(handover -> new HandoverSummaryView(handover.id(), handover.number(), handover.milestoneTitle(),
-							handover.round(), handover.status(), handover.createdAt(), handover.checkBy(), handover.auto()))
+							handover.round(), handover.status(), handover.createdAt(), handover.checkBy(), handover.auto(),
+							handover.returned()))
 					.toList(),
 				viewer.handsOver(), viewer.job().selfMentored());
 	}

@@ -2386,7 +2386,7 @@
       "noCrew": {
         "selfMentor": "Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.",
         "selfMentorAlone": "Công việc chưa có thành viên. Chưa ai bàn giao được, nên giai đoạn đang giữ tiền chưa nghiệm thu được. Hãy tuyển thành viên, hoặc hủy giai đoạn đang giữ tiền và nhận hoàn tiền đầy đủ.",
-        "selfMentorCrewWasActive": "Công việc chưa có thành viên. Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được. Hãy tuyển thành viên, hoặc mở tranh chấp. Bàn giao đã gửi vẫn nghiệm thu hoặc yêu cầu sửa được.",
+        "selfMentorCrewWasActive": "Công việc chưa có thành viên. Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được. Hãy tuyển thành viên, hoặc mở tranh chấp. Bàn giao đã gửi vẫn nghiệm thu, yêu cầu sửa hoặc trả lại được.",
         "selfMentorStarting": "Công việc chưa có thành viên nên chưa bắt đầu được. Hãy tuyển thành viên, hoặc mở tranh chấp. Nếu công việc vẫn chưa bắt đầu khi hết hạn chuẩn bị, bạn tự hủy được và nhận hoàn tiền đầy đủ.",
         "selfMentorStallPassed": "Công việc chưa có thành viên và đã quá hạn chuẩn bị. Hãy tuyển thành viên, hoặc tự hủy công việc và nhận hoàn tiền đầy đủ.",
         "cancelHeld": "Hủy giai đoạn đang giữ tiền",
@@ -2692,6 +2692,7 @@
       "title": "Bàn giao · {job}",
       "back": "← Công việc",
       "readOnly": "Bạn xem được các lần bàn giao; chỉ người hướng dẫn tạo bàn giao.",
+      "membersHandOver": "Bạn và các thành viên khác tạo bàn giao; khách hàng nghiệm thu, yêu cầu sửa hoặc trả lại.",
       "list": "Các lần bàn giao",
       "none": "Chưa có lần bàn giao nào.",
       "pick": "Chọn một lần bàn giao để xem báo cáo.",
@@ -2706,6 +2707,7 @@
         "ACCEPTED": "Đã nghiệm thu",
         "REVISION_REQUESTED": "Đã yêu cầu sửa",
         "VOIDED": "Đã hủy vì nội dung bàn giao thay đổi",
+        "RETURNED": "Khách hàng đã trả lại",
         "auto": "Đã tự nghiệm thu"
       },
       "acceptance": {
@@ -2713,16 +2715,21 @@
         "failed": "Chưa merge được. Quản trị viên đã được báo; bạn chưa cần làm gì."
       },
       "voided": {
-        "moneyHeld": "Tiền của giai đoạn vẫn được giữ."
+        "moneyHeld": "Tiền của giai đoạn vẫn được giữ.",
+        "returned": "Khách hàng đã trả lại bàn giao này ngày {date}. Việc này không dùng lượt yêu cầu sửa.",
+        "returnReason": "Lý do khách hàng ghi"
       },
       "report": {
         "title": "Báo cáo bàn giao · Giai đoạn {n} · {title}",
         "meta": "Người hướng dẫn {mentor} · {date} · lần thứ {round}",
+        "metaMember": "Bàn giao bởi {mentor} · {date} · lần thứ {round}",
         "daysLate": "bàn giao trễ {n} ngày",
         "criteria": "Tiêu chí nghiệm thu",
         "criterion": "Tiêu chí {n}: {statement}",
         "selfMet": "Người hướng dẫn tự nhận xét: Đạt",
         "selfNotMet": "Người hướng dẫn tự nhận xét: Chưa đạt",
+        "memberMet": "Thành viên tự nhận xét: Đạt",
+        "memberNotMet": "Thành viên tự nhận xét: Chưa đạt",
         "checkSteps": "Cách kiểm tra",
         "customerMet": "Khách hàng kiểm tra: Đạt",
         "customerNotMet": "Khách hàng kiểm tra: Chưa đạt"
@@ -2755,6 +2762,8 @@
         "step": "Tiêu chí {k}/{n}",
         "howTo": "Cách kiểm tra",
         "mentorNote": "Ghi chú của người hướng dẫn",
+        "memberNote": "Ghi chú của thành viên",
+        "leadReturns": "Nếu nhóm bấm bàn giao quá sớm, bạn có thể trả lại bàn giao mà không dùng lượt sửa: còn {n} lần trả lại.",
         "met": "Đạt",
         "notMet": "Chưa đạt",
         "comment": "Nhận xét của bạn (không bắt buộc)",
@@ -2772,6 +2781,20 @@
         "reviseTitle": "Yêu cầu sửa {n} tiêu chí?",
         "reviseBody": "Người hướng dẫn sẽ sửa rồi bàn giao lại. Yêu cầu này dùng một lượt sửa, còn {r} lượt sau đó.",
         "reviseDue": "Hạn mới của giai đoạn: {date}",
+        "acceptBodySelfMentored": "Khi nghiệm thu, {amount} được chuyển cho nhóm thực hiện. Bước này không hoàn tác được.",
+        "reviseBodySelfMentored": "Nhóm thực hiện sẽ sửa rồi bàn giao lại. Yêu cầu này dùng một lượt sửa, còn {r} lượt sau đó.",
+        "return": "Trả lại bàn giao",
+        "returnsLeft": "còn {n} lần trả lại",
+        "returnsUsed": "Đã dùng hết lần trả lại cho giai đoạn này.",
+        "returnTitle": "Trả lại bàn giao Giai đoạn {n}?",
+        "returnReason": "Lý do trả lại",
+        "returnReasonHelper": "Thành viên nhóm sẽ đọc nguyên văn lý do này.",
+        "returnWhat": "Bàn giao này bị hủy và giai đoạn trở về trạng thái trước khi bàn giao. Việc tự nghiệm thu dừng lại; tiền của giai đoạn vẫn được giữ.",
+        "returnWhatCode": "Yêu cầu merge của bàn giao được đóng kèm lý do này; nhánh bàn giao được giữ lại.",
+        "returnNoRound": "Việc này không dùng lượt yêu cầu sửa.",
+        "returnCount": "Bạn còn {n} lần trả lại cho giai đoạn này, còn {m} sau lần này.",
+        "returned": "Đã trả lại bàn giao Giai đoạn {n}. Tiền của giai đoạn vẫn được giữ.",
+        "returnedDue": "Đã trả lại bàn giao Giai đoạn {n}. Tiền của giai đoạn vẫn được giữ; hạn mới là {date}.",
         "confirm": "Xác nhận",
         "cancel": "Quay lại",
         "accepted": "Đã nghiệm thu Giai đoạn {n}.",
@@ -3693,7 +3716,8 @@
       "versionLine": "Lưu ý về mã của nhóm · phiên bản {version}",
       "title": "Mã của nhóm không được vibefix quét",
       "checkbox": "vibefix không quét mã của nhóm. Tôi đã kiểm tra: các commit của bàn giao này không chứa secret, mật khẩu hay dữ liệu thật. Nếu có khóa đã bị đẩy lên, tôi đã đổi hoặc thu hồi nó.",
-      "customer": "vibefix không quét mã của nhóm. Người hướng dẫn {mentor} đã xác nhận bàn giao này không chứa secret hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu."
+      "customer": "vibefix không quét mã của nhóm. Người hướng dẫn {mentor} đã xác nhận bàn giao này không chứa secret hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu.",
+      "customerSelfMentored": "vibefix không quét mã của nhóm. Thành viên {mentor} đã xác nhận bàn giao này không chứa secret hay dữ liệu thật; nếu bạn thấy có, hãy báo trong Trò chuyện trước khi nghiệm thu."
     },
     "proofConfidentialitySelfMentored": "Tệp và liên kết bạn đính kèm chỉ khách hàng tự hướng dẫn công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai.",
     "proofConfidentiality": "Tệp và liên kết bạn đính kèm chỉ {who} của công việc này xem được, và quản trị viên khi cần phân xử. Đừng đính kèm mã, tài liệu hay dữ liệu của khách hàng khác; hãy dùng sản phẩm của chính bạn hoặc phần đã được phép công khai."
@@ -4252,7 +4276,11 @@
     "job": {
       "handover_voided": {
         "title": "Bàn giao Giai đoạn {n} đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi nghiệm thu",
-        "body": "Tiền của giai đoạn vẫn được giữ. Người hướng dẫn sẽ bàn giao lại."
+        "body": "Tiền của giai đoạn vẫn được giữ. Giai đoạn cần được bàn giao lại."
+      },
+      "handover_returned": {
+        "title": "Khách hàng đã trả lại bàn giao Giai đoạn {n}",
+        "body": "Khách hàng ghi: {reason} · Việc này không dùng lượt yêu cầu sửa."
       },
       "job_post_lapsed": {
         "title": "Tin {job} đã hết hạn và trở về bản nháp"
@@ -4315,7 +4343,7 @@
         "title": "Đang chuẩn bị repo cho {job}"
       },
       "milestone_submitted": {
-        "title": "Người hướng dẫn {mentor} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước ngày tự nghiệm thu {date}."
+        "title": "{who} đã bàn giao Giai đoạn {n}. Hãy kiểm tra trước ngày tự nghiệm thu {date}."
       },
       "milestone_accepted": {
         "title": "Giai đoạn {n} của {job} đã được {how}"
@@ -4747,6 +4775,8 @@
       "MILESTONE_NOT_FUNDABLE": "giai đoạn này chưa đến lượt thanh toán",
       "REPOSITORIES_NOT_READY": "repo của công việc chưa sẵn sàng",
       "REVISION_ROUNDS_USED": "Giai đoạn này đã hết lượt sửa.",
+      "HANDOVER_RETURNS_USED": "Đã dùng hết lần trả lại cho giai đoạn này.",
+      "MEMBER_ONLY": "Chỉ thành viên nhóm thực hiện bàn giao được.",
       "HANDOVER_CHANGED": "Người hướng dẫn vừa bàn giao lại. Hãy mở bản bàn giao mới nhất.",
       "CUSTOMER_ONLY": "Chỉ khách hàng nghiệm thu hoặc yêu cầu sửa được.",
       "HANDOVER_NOT_MERGED": "Mã bàn giao cần được merge trước khi nghiệm thu giai đoạn.",
@@ -4854,7 +4884,8 @@
       "TOO_MANY_SCREENSHOTS": "Mỗi lần bàn giao có tối đa 5 hình ảnh.",
       "SCREENSHOT_UNKNOWN": "Có hình ảnh không còn trong danh sách. Hãy tải lại trang.",
       "JOB_FILE_QUOTA": "Tệp của công việc này đã đạt giới hạn 200 MB.",
-      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Người hướng dẫn sẽ bàn giao lại.",
+      "HANDOVER_VOIDED": "Bàn giao này đã bị hủy vì nội dung bàn giao trên GitHub đã thay đổi trước khi được nghiệm thu. Giai đoạn cần được bàn giao lại.",
+      "HANDOVER_RETURNED": "Bàn giao này đã được trả lại. Hãy mở lại báo cáo bàn giao.",
       "HANDOVER_COPYING": "Một bàn giao khác đang được sao chép sang repo trung gian. Hãy đợi xong rồi gửi tiếp.",
       "RUN_FAILED": "Lần sao chép bàn giao trên GitHub Actions không chạy xong.",
       "EXCHANGE_REFUSED": "Lần sao chép bàn giao không được vibefix cấp quyền.",
