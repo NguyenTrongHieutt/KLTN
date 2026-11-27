@@ -121,11 +121,14 @@ export function useApproveAgreement(jobId: string) {
   )
 }
 
-/** "Xác nhận thỏa thuận" at the Job and Crew versions the screen loaded (FR-17). */
+/**
+ * "Xác nhận thỏa thuận" at the Job and Crew versions the screen loaded (FR-17). In a Self-mentored Job it is the one
+ * step (Story 25.3): it also carries the draft revision, N-6 for a Code Job, and the live systems.
+ */
 export function useConfirmAgreement(jobId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { version: number; crewVersion: number }) =>
+    mutationFn: (body: components['schemas']['AgreementConfirmRequest']) =>
       unwrap(apiClient.POST('/api/v1/mentor/jobs/{jobId}/agreement/confirm', { params: { path: { jobId } }, body })),
     onSuccess: (draft) => queryClient.setQueryData([...key(jobId), 'draft'], draft),
     onSettled: () =>

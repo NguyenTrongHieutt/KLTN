@@ -60,6 +60,13 @@ class CrewCommitments {
 	/** The commitment text's version; its legal wording waits for OQ5, and {@code vi.json} shows the same version. */
 	static final String COMMITMENT_VERSION = "1.0";
 
+	/**
+	 * The version of N-35, the commitment's part for a Self-mentored Job (FR-85, R68): the member works under the
+	 * Customer, who reads their application and may contact them in the Crew Chat, and an Administrator deciding a
+	 * Dispute may read that chat. Its legal wording waits for OQ5.
+	 */
+	static final String SELF_MENTORED_NOTICE_VERSION = "1.0";
+
 	/** The signature period after a pick (FR-81, AD-7): not pausable. */
 	static final Duration SIGN_PERIOD = Duration.ofDays(3);
 

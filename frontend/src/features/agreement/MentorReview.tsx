@@ -161,8 +161,19 @@ export function ConfirmCard({ job, draft, crewVersion }: { job: MentorJob; draft
   )
 }
 
-/** The confirmed Agreement, read-only, in place of the editor (FR-17, AD-29). */
-export function ConfirmedView({ confirmed, reworkDays }: { confirmed: ConfirmedAgreement; reworkDays: number }) {
+/**
+ * The confirmed Agreement, read-only, in place of the editor (FR-17, AD-29). `alone` is a Self-mentored Job, whose
+ * Customer confirmed it in one step: no approval came before it (Story 25.3).
+ */
+export function ConfirmedView({
+  confirmed,
+  reworkDays,
+  alone = false,
+}: {
+  confirmed: ConfirmedAgreement
+  reworkDays: number
+  alone?: boolean
+}) {
   return (
     <div className="flex w-full max-w-reading-max flex-col gap-5">
       <Card as="section" role="status" className="flex flex-col gap-1 text-body-sm">
@@ -170,13 +181,15 @@ export function ConfirmedView({ confirmed, reworkDays }: { confirmed: ConfirmedA
           <CircleCheck aria-hidden="true" className="size-5 text-success" />
           {t('screen.agreement.review.confirmedTitle', { n: confirmed.versionNo })}
         </p>
-        <p>{t('screen.agreement.review.confirmedLine')}</p>
+        <p>{t(alone ? 'screen.agreement.alone.confirmedLine' : 'screen.agreement.review.confirmedLine')}</p>
         <p className="text-caption text-muted-foreground">
-          {t('screen.agreement.review.confirmedMeta', {
-            draft: confirmed.draftVersionNo,
-            approved: formatDayMonthTime(confirmed.approvedAt),
-            confirmed: formatDayMonthTime(confirmed.confirmedAt),
-          })}
+          {alone
+            ? t('screen.agreement.alone.confirmedMeta', { confirmed: formatDayMonthTime(confirmed.confirmedAt) })
+            : t('screen.agreement.review.confirmedMeta', {
+                draft: confirmed.draftVersionNo,
+                approved: formatDayMonthTime(confirmed.approvedAt),
+                confirmed: formatDayMonthTime(confirmed.confirmedAt),
+              })}
         </p>
       </Card>
       <AgreementContentView

@@ -38,6 +38,7 @@ import { PickDialog, WithdrawPickDialog } from './PickDialogs'
 import { SkillChips } from './SkillChips'
 import { FitMetricsList } from './FitMetrics'
 import { MentorTabHeader } from './MentorTabHeader'
+import { useJobRole } from '@/features/job/jobRoleApi'
 import { useMentorJob, type MentorJob } from './mentorJobApi'
 import { ProofList } from './ProofList'
 import { Page } from '@/components/ui/page'
@@ -82,6 +83,8 @@ export function RecruitmentPage() {
 }
 
 function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruitment }) {
+  // The Customer of a Self-mentored Job recruits here too, under N-20's own variant (UX-DR124, Story 25.3).
+  const role = useJobRole(job.id)
   return (
     <>
       <MentorTabHeader job={job} current="recruitment" />
@@ -91,15 +94,23 @@ function Recruiting({ job, recruitment }: { job: MentorJob; recruitment: Recruit
           <p className="break-words">{t('screen.recruitment.r7')}</p>
         </div>
       )}
-      <Settings key={recruitment.crewVersion} jobId={job.id} recruitment={recruitment} />
+      <Settings
+        key={recruitment.crewVersion}
+        jobId={job.id}
+        recruitment={recruitment}
+        selfMentored={role.data?.role === 'CUSTOMER_MENTOR'}
+      />
       <Applicants jobId={job.id} />
       <CrewList crew={recruitment.crew} />
     </>
   )
 }
 
-/** "Nhận đơn xin vào nhóm" under N-20 (UX-DR102, R2); off while on asks first, since the open applications lapse. */
-function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitment }) {
+/**
+ * "Nhận đơn xin vào nhóm" under N-20 (UX-DR102, R2); off while on asks first, since the open applications lapse. With
+ * `selfMentored` the notice is the Customer's: they read the applications, and take no part of the money.
+ */
+function Settings({ jobId, recruitment, selfMentored }: { jobId: string; recruitment: Recruitment; selfMentored: boolean }) {
   const ids = useId()
   const toasts = useToasts()
   const save = useSetRecruitment(jobId)
@@ -176,7 +187,7 @@ function Settings({ jobId, recruitment }: { jobId: string; recruitment: Recruitm
         {t('screen.recruitment.settings')}
       </h2>
       <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
-        {t('screen.recruitment.n20')}
+        {t(selfMentored ? 'screen.recruitment.n20SelfMentored' : 'screen.recruitment.n20')}
       </div>
       {/* A full Crew is why no application is taken: that one sentence says both, where two stood before. */}
       <p role="status" className="text-label font-semibold">

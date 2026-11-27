@@ -3445,7 +3445,7 @@ POST /api/v1/handovers/{handoverId}/accept,CUSTOMER_MENTOR,job=self,handover-acc
 POST /api/v1/handovers/{handoverId}/revision,CUSTOMER_MENTOR,job=self,handover-revision.json,409 STALE
 GET /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,200,requireActiveAccount
 PUT /api/v1/mentor/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,agreement.json,409 STALE,requireActiveAccount
-POST /api/v1/mentor/jobs/{jobId}/agreement/share,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-share.json,404 NOT_FOUND,requireActiveAccount
+POST /api/v1/mentor/jobs/{jobId}/agreement/share,CUSTOMER_MENTOR,job=self,agreement-share.json,404 NOT_FOUND,requireActiveAccount
 GET /api/v1/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/crew/jobs/{jobId}/agreement,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/agreement/read,CUSTOMER_MENTOR,job=self,agreement-read.json,404 NOT_FOUND
@@ -3453,9 +3453,9 @@ GET /api/v1/mentor/jobs/{jobId}/crew,CUSTOMER_MENTOR,job=self,,200,requireActive
 GET /api/v1/crew/jobs/{jobId}/commitment,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/commitment,CUSTOMER_MENTOR,job=self,commitment.json,404 NOT_FOUND
 POST /api/v1/crew/jobs/{jobId}/commitment/decline,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/agreement/comments,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-comment.json,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/agreement/changes,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-changes.json,404 NOT_FOUND
-POST /api/v1/jobs/{jobId}/agreement/approve,CUSTOMER_MENTOR,job=self;pending=25.3,agreement-approve.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/comments,CUSTOMER_MENTOR,job=self,agreement-comment.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/changes,CUSTOMER_MENTOR,job=self,agreement-changes.json,404 NOT_FOUND
+POST /api/v1/jobs/{jobId}/agreement/approve,CUSTOMER_MENTOR,job=self,agreement-approve.json,404 NOT_FOUND
 POST /api/v1/mentor/jobs/{jobId}/agreement/confirm,CUSTOMER_MENTOR,job=self,agreement-confirm.json,409 STALE,requireActiveAccount
 GET /api/v1/jobs/{jobId}/funding,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/jobs/{jobId}/milestones/{milestoneId}/payment-orders,CUSTOMER_MENTOR,job=self,payment-order.json,409 STALE
@@ -3681,6 +3681,25 @@ GET /api/v1/jobs/{jobId}/crew-chat,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,20
 GET /api/v1/crew-chats/{crewChatId}/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 GET /api/v1/boards/{boardId}/crew-chat/messages,ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
 GET /api/v1/chat-messages/{messageId},ADMIN_DISPUTE_GRANT,job=self;pending=25.7,,200
+
+# The Agreement and the commitment as the mode world's Crew reads them (Story 25.3): the Agreement for the picked
+# person and the active members, the Commitment panel for the picked person, each scanned for the Customer's contact
+# (R61). A member who left finds nothing, and a commitment that does not name N-35's version signs nothing.
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ASSIGNED,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_ACTIVE_PARTY,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER,job=self,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/agreement,CREW_FORMER_PARTY,job=self,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ASSIGNED,job=self,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_ACTIVE,job=self,agreement-read.json,204
+POST /api/v1/crew/jobs/{jobId}/agreement/read,CREW_FORMER,job=self,agreement-read.json,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_ASSIGNED,job=self,,200
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_ACTIVE,job=self,,404 NOT_FOUND
+GET /api/v1/crew/jobs/{jobId}/commitment,CREW_FORMER,job=self,,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_ASSIGNED,job=self,commitment.json,400 VALIDATION SELF_MENTORED_NOTICE_OUTDATED
+POST /api/v1/crew/jobs/{jobId}/commitment,CREW_ACTIVE,job=self,commitment.json,404 NOT_FOUND
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ASSIGNED,job=self,,200
+POST /api/v1/crew/jobs/{jobId}/commitment/decline,CREW_ACTIVE,job=self,,404 NOT_FOUND
 
 # The lists the Customer who mentors reads, the contact the Crew never reads in the mode either (R61), the Crew Chat
 # an Administrator without a grant on this Job does not read, the file the Dispute's grant will (Story 25.7), and an

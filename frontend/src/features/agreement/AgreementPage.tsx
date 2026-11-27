@@ -18,6 +18,7 @@ import { MentorJobTabs } from '@/features/matching/MentorJobTabs'
 import { useMentorJob } from '@/features/matching/mentorJobApi'
 import { NotFoundScreen } from '@/features/shared/NotFoundScreen'
 import { t, type MessageKey } from '@/i18n/t'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonthTime } from '@/lib/dates'
 import { formatVnd, groupDigits } from '@/lib/money'
@@ -25,10 +26,17 @@ import { isNotFound, problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import { TestTag } from '@/components/TestTag'
 import { CodeRights, DueRulesNote } from './AgreementContent'
-import { useMentorAgreement, useSaveAgreement, useShareAgreement, type AgreementContent, type AgreementDraft } from './agreementApi'
+import {
+  useConfirmAgreement,
+  useMentorAgreement,
+  useSaveAgreement,
+  useShareAgreement,
+  type AgreementContent,
+  type AgreementDraft,
+} from './agreementApi'
 import { digits, problemsOf, technicalOnly, type DraftAccess, type DraftMilestone, type DraftProblem } from './agreementChecks'
 import { CrewAgreement } from './CrewAgreement'
-import { CustomerAgreement } from './CustomerAgreement'
+import { CustomerAgreement, FreezeCommitment } from './CustomerAgreement'
 import { ChangeRequestSection } from './ChangeRequestSection'
 import { ExternalAccessSection } from './ExternalAccessSection'
 import { ConfirmCard, ConfirmedView, CustomerFeedback } from './MentorReview'
@@ -42,7 +50,8 @@ import { Card } from '@/components/ui/card'
  * the Mentor drafts and shares the Agreement with the Customer's comments in view, sees the Crew who signed below the
  * editor (recruited on JOB-9, Story 21.5), and confirms once the Customer approved, with no Crew condition (R7); the
  * Customer reviews the shared versions (`CustomerAgreement`); a picked applicant and an active Crew member read it
- * (`CrewAgreement`, Story 25.1b). The caller's role in the Job picks which (Story 20.6).
+ * (`CrewAgreement`, Story 25.1b). The caller's role in the Job picks which (Story 20.6). The Customer of a
+ * Self-mentored Job drafts in the same editor and confirms alone, in one step (UX-DR124, Story 25.3).
  */
 export function AgreementPage() {
   const { jobId = '' } = useParams()
@@ -73,6 +82,11 @@ function MentorAgreement({ jobId }: { jobId: string }) {
   const job = useMentorJob(jobId)
   const draft = useMentorAgreement(jobId)
   const crew = useMentorCrew(jobId)
+  // The one-step confirmation's N-6, dialog and request are kept here, since a save loads the editor again.
+  const [freeze, setFreeze] = useState(false)
+  const [asking, setAsking] = useState(false)
+  const confirm = useConfirmAgreement(jobId)
+  const alone = draft.data?.selfMentored === true
   usePageTitle(job.data ? t('screen.agreement.title', { job: job.data.title }) : t('screen.job.title'))
   if (job.isError && isNotFound(job.error)) {
     return <NotFoundScreen />
@@ -103,9 +117,29 @@ function MentorAgreement({ jobId }: { jobId: string }) {
         <RegionState query={draft} skeleton={<Skeleton className="h-96 w-full" />}>
           {draft.data &&
             (draft.data.confirmed ? (
-              <ConfirmedView confirmed={draft.data.confirmed} reworkDays={draft.data.reworkDays} />
+              <ConfirmedView confirmed={draft.data.confirmed} reworkDays={draft.data.reworkDays} alone={alone} />
             ) : (
-              <Editor key={draft.data.revision} jobId={jobId} draft={draft.data} />
+              <Editor
+                key={draft.data.revision}
+                jobId={jobId}
+                draft={draft.data}
+                alone={
+                  alone
+                    ? {
+                        // The mode is the draft's own word, so the editor never shows a normal Job's "Gửi cho khách
+                        // hàng" while the Job and its Crew are still loading; the confirmation waits for both.
+                        versions:
+                          job.data && crew.data ? { version: job.data.version, crewVersion: crew.data.crewVersion } : undefined,
+                        freeze,
+                        onFreeze: setFreeze,
+                        asking,
+                        onAsking: setAsking,
+                        confirming: confirm.isPending,
+                        confirm: confirm.mutateAsync,
+                      }
+                    : undefined
+                }
+              />
             ))}
         </RegionState>
         {draft.data?.confirmed && <ExternalAccessSection jobId={jobId} />}
@@ -113,7 +147,7 @@ function MentorAgreement({ jobId }: { jobId: string }) {
         <RegionState query={crew} skeleton={<Skeleton className="h-64 w-full" />}>
           {crew.data && <MentorCrewSection jobId={jobId} crew={crew.data} />}
         </RegionState>
-        {job.data && draft.data && crew.data && !draft.data.confirmed && (
+        {job.data && draft.data && crew.data && !draft.data.confirmed && !alone && (
           <ConfirmCard job={job.data} draft={draft.data} crewVersion={crew.data.crewVersion} />
         )}
       </JobTabBody>
@@ -132,11 +166,27 @@ function toMilestones(content: AgreementContent): DraftMilestone[] {
   }))
 }
 
+/** What the one-step confirmation of a Self-mentored Job carries from the page (Story 25.3). */
+type Alone = {
+  /** The Job's and the Crew's versions the confirmation names (AD-23); none until both have loaded. */
+  versions?: { version: number; crewVersion: number }
+  freeze: boolean
+  onFreeze: (checked: boolean) => void
+  asking: boolean
+  onAsking: (open: boolean) => void
+  confirming: boolean
+  confirm: ReturnType<typeof useConfirmAgreement>['mutateAsync']
+}
+
 /**
  * The Mentor's editor (FR-16, UX-DR34, UX-DR44): every entity keeps the UUID it was created with, the
  * draft saves only on "Lưu bản nháp", and "Gửi cho khách hàng" waits until nothing is missing.
+ *
+ * With `alone`, the Customer of a Self-mentored Job drafts here (FR-85, UX-DR124): nothing is shared and nobody
+ * reviews, so "Xác nhận thỏa thuận" takes the place of "Gửi cho khách hàng", with N-6 for a Code Job. A system the
+ * draft marks as production is a live system: the one person who drafts is the one who knows.
  */
-function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
+function Editor({ jobId, draft, alone }: { jobId: string; draft: AgreementDraft; alone?: Alone }) {
   const ids = useId()
   const content = draft.content
   const assessment = content.assessment
@@ -152,7 +202,7 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
   const problems = problemsOf({ scope, price, milestones, access }, assessment)
   const total = milestones.reduce((sum, milestone) => sum + (digits(milestone.price) ?? 0), 0)
   const agreed = digits(price)
-  const pending = save.isPending || share.isPending
+  const pending = save.isPending || share.isPending || alone?.confirming === true
   const defaultRounds = milestones[0]?.revisionRounds ?? 2
 
   const touch = <T,>(setter: (value: T) => void) => (value: T) => {
@@ -197,6 +247,41 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
     }
   }
   const last = draft.versions.at(-1)
+  const production = access.filter((entry) => entry.environment === 'PRODUCTION').map((entry) => entry.id)
+  const blocked: MessageKey | undefined =
+    problems.length > 0
+      ? 'screen.agreement.alone.blockedProblems'
+      : alone && content.codeJob && !alone.freeze
+        ? 'screen.agreement.alone.blockedFreeze'
+        : alone && !alone.versions
+          ? 'screen.agreement.alone.blockedWaiting'
+          : undefined
+  // The draft on screen is what is confirmed: unsaved edits are saved first, and the confirmation names that revision.
+  const confirmAlone = async () => {
+    if (!alone?.versions) {
+      return
+    }
+    const { version, crewVersion } = alone.versions
+    try {
+      const revision = dirty ? (await save.mutateAsync(body())).revision : draft.revision
+      await alone.confirm({
+        version,
+        crewVersion,
+        revision,
+        freezeCommitment: alone.freeze,
+        liveAccessIds: production,
+      })
+      toasts.success(t('screen.agreement.review.confirmed'))
+    } catch (error) {
+      toasts.error(
+        error instanceof ApiError && error.problem.code === 'STALE'
+          ? t('error.STALE')
+          : problemMessage(error, { module: 'job', action: t('screen.agreement.review.confirmAction') }).text,
+      )
+    } finally {
+      alone.onAsking(false)
+    }
+  }
 
   return (
     <div className="flex w-full flex-col gap-5">
@@ -210,9 +295,11 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
       />
       <div className="flex flex-wrap items-center justify-between gap-2 text-body-sm text-muted-foreground">
         <span>
-          {last
-            ? t('screen.agreement.lastShared', { n: last.versionNo, time: formatDayMonthTime(last.sharedAt) })
-            : t('screen.agreement.notShared')}
+          {alone
+            ? t('screen.agreement.alone.lead')
+            : last
+              ? t('screen.agreement.lastShared', { n: last.versionNo, time: formatDayMonthTime(last.sharedAt) })
+              : t('screen.agreement.notShared')}
         </span>
         {draft.quote && (
           <span>
@@ -337,14 +424,46 @@ function Editor({ jobId, draft }: { jobId: string; draft: AgreementDraft }) {
       <CodeRights />
 
       {problems.length > 0 && <ProblemSummary problems={problems} />}
+      {alone && content.codeJob && <FreezeCommitment checked={alone.freeze} onChange={alone.onFreeze} />}
       <div className="flex flex-wrap justify-between gap-3">
         <Button type="button" variant="secondary" onClick={saveDraft} disabled={pending || !dirty}>
           {t('screen.agreement.save')}
         </Button>
-        <Button type="button" onClick={shareDraft} disabled={pending || problems.length > 0}>
-          {t('screen.agreement.share')}
-        </Button>
+        {alone ? (
+          <Button
+            type="button"
+            onClick={() => alone.onAsking(true)}
+            disabled={pending || blocked !== undefined}
+            aria-describedby={`${ids}-alone-why`}
+          >
+            {t('screen.agreement.review.confirm')}
+          </Button>
+        ) : (
+          <Button type="button" onClick={shareDraft} disabled={pending || problems.length > 0}>
+            {t('screen.agreement.share')}
+          </Button>
+        )}
       </div>
+      {alone && (
+        <>
+          {/* The line keeps its height once the confirmation is unblocked, so the buttons above it stay put. */}
+          <p id={`${ids}-alone-why`} className="min-h-4.5 text-right text-caption text-muted-foreground">
+            {blocked && t(blocked)}
+          </p>
+          <ConfirmDialog
+            open={alone.asking}
+            title={t('screen.agreement.review.confirmDialogTitle')}
+            body={[
+              t('screen.agreement.alone.dialogBody'),
+              ...(production.length > 0 ? [t('screen.agreement.alone.dialogLive', { n: production.length })] : []),
+            ].join(' ')}
+            confirmLabel={t('screen.agreement.review.confirm')}
+            pending={pending}
+            onConfirm={confirmAlone}
+            onClose={() => alone.onAsking(false)}
+          />
+        </>
+      )}
     </div>
   )
 }

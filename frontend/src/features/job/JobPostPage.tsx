@@ -396,14 +396,17 @@ function CrewAction({
           {t('reason.matching.CREW_REJOIN_REFUSED')}
         </p>
       ) : (
-        <CrewApplicationArea jobId={post.id} />
+        <CrewApplicationArea jobId={post.id} selfMentored={post.selfMentored === true} />
       )}
     </Card>
   )
 }
 
-/** The user's place in the recruitment: busy elsewhere, their application, or the way to FND-2. */
-function CrewApplicationArea({ jobId }: { jobId: string }) {
+/**
+ * The user's place in the recruitment: busy elsewhere, their application, or the way to FND-2. With `selfMentored` the
+ * way there says who reads the application: the Customer (UX-DR124).
+ */
+function CrewApplicationArea({ jobId, selfMentored }: { jobId: string; selfMentored: boolean }) {
   const mine = useMyCrewApplications()
   const jobs = useMyJobs()
   if (mine.isPending || jobs.isPending) {
@@ -428,7 +431,9 @@ function CrewApplicationArea({ jobId }: { jobId: string }) {
           {crewApplicationStateText(latest)}
         </p>
       )}
-      <p className="text-body-sm text-muted-foreground">{t('screen.crewApply.actionLead')}</p>
+      <p className="text-body-sm text-muted-foreground">
+        {t(selfMentored ? 'screen.crewApply.actionLeadSelfMentored' : 'screen.crewApply.actionLead')}
+      </p>
       <Link to={`/tim-viec/${jobId}/xin-vao-nhom`} className={cn(buttonVariants(), 'w-fit')}>
         {t(latest ? 'screen.crewApply.again' : 'screen.crewApply.action')}
       </Link>

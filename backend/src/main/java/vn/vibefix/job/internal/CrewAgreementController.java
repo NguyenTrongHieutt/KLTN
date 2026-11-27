@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -27,8 +28,10 @@ import vn.vibefix.job.JobRules;
 import vn.vibefix.job.internal.AgreementReviews.Confirmed;
 import vn.vibefix.job.internal.Agreements.AccessLevel;
 import vn.vibefix.job.internal.Agreements.Content;
+import vn.vibefix.job.internal.Agreements.Draft;
 import vn.vibefix.job.internal.Agreements.Environment;
 import vn.vibefix.job.internal.Agreements.Version;
+import vn.vibefix.job.internal.Jobs.Job;
 import vn.vibefix.shared.Access;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.Caller;
@@ -87,9 +90,12 @@ class CrewAgreementController {
 	 * @param reworkDays the Job's copied {@code REWORK_DAYS}, for the note on due dates (FR-87)
 	 * @param changedSinceRead the reader opened a version before, and a newer one than that is readable now: "Bản nháp
 	 * thỏa thuận đã thay đổi từ lần bạn đọc trước." (UX-DR125)
+	 * @param selfMentored a Self-mentored Job (FR-85): an unconfirmed version is the Customer's live draft, named by its
+	 * revision, and nobody shared it
 	 */
 	record CrewAgreementView(String jobTitle, List<CrewAgreementOption> versions, @Nullable CrewAgreementOption shown,
-			@Nullable CrewAgreementContent content, List<UUID> liveAccessIds, int reworkDays, boolean changedSinceRead) {
+			@Nullable CrewAgreementContent content, List<UUID> liveAccessIds, int reworkDays, boolean changedSinceRead,
+			boolean selfMentored) {
 	}
 
 	/** The version the reader has in front of them, named as {@link CrewAgreementOption} names it. */
@@ -136,7 +142,14 @@ class CrewAgreementController {
 	@GetMapping("/api/v1/crew/jobs/{jobId}/agreement")
 	CrewAgreementView crewAgreement(@PathVariable UUID jobId, @RequestParam(required = false) @Nullable Integer version,
 			@RequestParam(required = false) @Nullable Boolean confirmed) {
-		String title = readerJobTitle(jobId);
+		return read(jobId, version, confirmed, true);
+	}
+
+	/** @param again whether a read of the newest version that a save overtook is tried once more */
+	private CrewAgreementView read(UUID jobId, @Nullable Integer version, @Nullable Boolean confirmed, boolean again) {
+		Job job = readerJob(jobId);
+		String title = job.title();
+		boolean selfMentored = job.selfMentored();
 		List<CrewAgreementOption> options = options(jobId);
 		int reworkDays = this.rules.value(jobId, DueDates.REWORK_RULE, DueDates.DEFAULT_REWORK_DAYS);
 		boolean changed = !options.isEmpty() && this.reads.of(jobId, this.callers.get().requireAccountId())
@@ -145,7 +158,7 @@ class CrewAgreementController {
 		CrewAgreementOption shown;
 		if (version == null && confirmed == null) {
 			if (options.isEmpty()) {
-				return new CrewAgreementView(title, List.of(), null, null, List.of(), reworkDays, false);
+				return new CrewAgreementView(title, List.of(), null, null, List.of(), reworkDays, false, selfMentored);
 			}
 			shown = options.getLast();
 		}
@@ -164,11 +177,24 @@ class CrewAgreementController {
 			Confirmed found = this.reviews.confirmed(jobId, shown.versionNo())
 				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 			return new CrewAgreementView(title, options, shown, content(found.content()), found.liveAccessIds(), reworkDays,
-					changed);
+					changed, selfMentored);
+		}
+		if (selfMentored) {
+			// AD-47, R54: nobody shares a draft here, so the reader opens the Customer's live draft at the revision named. A
+			// save between the two reads leaves that revision behind. A reader who asked for the newest is read again,
+			// once; one who named the revision finds nothing, and the page loads the newest.
+			int revision = shown.versionNo();
+			Optional<Draft> draft = this.agreements.draft(job).filter(live -> live.revision() == revision);
+			if (draft.isEmpty() && again && version == null) {
+				return read(jobId, null, null, false);
+			}
+			return new CrewAgreementView(title, options, shown,
+					content(draft.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND)).content()), List.of(), reworkDays,
+					changed, true);
 		}
 		Version shared = this.agreements.version(jobId, shown.versionNo())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
-		return new CrewAgreementView(title, options, shown, content(shared.content()), List.of(), reworkDays, changed);
+		return new CrewAgreementView(title, options, shown, content(shared.content()), List.of(), reworkDays, changed, false);
 	}
 
 	/**
@@ -181,7 +207,7 @@ class CrewAgreementController {
 	@PostMapping("/api/v1/crew/jobs/{jobId}/agreement/read")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void crewAgreementRead(@PathVariable UUID jobId, @Valid @RequestBody CrewAgreementReadRequest body) {
-		readerJobTitle(jobId);
+		readerJob(jobId);
 		AgreementReads.Mark opened = new AgreementReads.Mark(body.confirmed(), body.versionNo());
 		// The reader and the version are checked again with the write, under the Job row (AgreementReads.opened).
 		if (!this.reads.opened(jobId, this.callers.get().requireAccountId(), opened)) {
@@ -202,11 +228,10 @@ class CrewAgreementController {
 	}
 
 	/**
-	 * The title of the Job of a picked applicant or an active member calling, by their role in it (AD-41, AD-43),
-	 * unlocked. A former member, an applicant not picked, the Job's Customer, its Mentor and anyone else find nothing
-	 * here.
+	 * The Job of a picked applicant or an active member calling, by their role in it (AD-41, AD-43), unlocked. A former
+	 * member, an applicant not picked, the Job's Customer, its Mentor and anyone else find nothing here.
 	 */
-	private String readerJobTitle(UUID jobId) {
+	private Job readerJob(UUID jobId) {
 		Caller caller = this.callers.get();
 		JobRole role = this.roles.roleOf(jobId, caller);
 		Relationship kind = role.crewKind();
@@ -214,9 +239,9 @@ class CrewAgreementController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.gate.requireActiveAccount(caller.requireAccountId());
-		return this.jdbc.sql("SELECT title FROM job.job WHERE id = :id AND " + Jobs.LIVE)
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
 			.param("id", jobId)
-			.query(String.class)
+			.query(Jobs::job)
 			.optional()
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}

@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import vn.vibefix.audit.AuditObject;
 import vn.vibefix.identity.Notices;
 import vn.vibefix.job.CrewPicks;
 import vn.vibefix.job.CrewPicks.Assignment;
+import vn.vibefix.job.JobPosts;
+import vn.vibefix.job.JobPosts.JobPostState;
 import vn.vibefix.matching.internal.CrewApplications.CrewApplication;
 import vn.vibefix.matching.internal.CrewApplications.EndReason;
 import vn.vibefix.matching.internal.CrewApplications.Status;
@@ -31,6 +34,9 @@ import vn.vibefix.shared.ErrorCode;
  * application locked and {@code JOINED} and the NDA and commitment signature recorded ({@code matching.nda_signature},
  * with both versions and the time), all in one transaction, so a refused activation, a signature after J8 included,
  * leaves no signature behind. The Source Repository's contributors were read before the transaction.
+ * <p>
+ * In a Self-mentored Job (FR-85, R68, Story 25.3) the commitment includes N-35, so the signature names that notice's
+ * current version, which is recorded on the signature's row: once per Job the person signs, never once per account.
  */
 @Component
 class CrewSignatures {
@@ -43,6 +49,8 @@ class CrewSignatures {
 
 	private final CrewPicks picks;
 
+	private final JobPosts posts;
+
 	private final Notices notices;
 
 	private final Todos todos;
@@ -52,7 +60,8 @@ class CrewSignatures {
 	private final Clock clock;
 
 	CrewSignatures(JdbcClient jdbc, CrewApplications applications, CrewCommitments commitments, CrewPicks picks,
-			Notices notices, Todos todos, AuditLog auditLog, Clock clock) {
+			JobPosts posts, Notices notices, Todos todos, AuditLog auditLog, Clock clock) {
+		this.posts = posts;
 		this.jdbc = jdbc;
 		this.applications = applications;
 		this.commitments = commitments;
@@ -65,15 +74,17 @@ class CrewSignatures {
 
 	/**
 	 * Signs the NDA and the commitment, and the person joins the Crew. The caller checked the GitHub link (FR-80).
+	 * @param selfMentoredNoticeVersion the version of N-35 the panel showed; a normal Job's signature reads none
 	 * @param contribution what {@link SourceContributors} read before this transaction (A-03)
 	 * @throws ApiException {@code NOT_FOUND} without a pick; {@code GUARD_FAILED PICK_ENDED} for one that ended;
 	 * {@code VALIDATION} with {@code PUBLIC_CODE_NOT_ACKNOWLEDGED}, {@code NDA_VERSION_OUTDATED},
-	 * {@code COMMITMENT_VERSION_OUTDATED} or {@code COMMIT_EMAIL_NOT_ACKNOWLEDGED}; and {@code job.activateCrew}'s
-	 * refusals
+	 * {@code COMMITMENT_VERSION_OUTDATED}, {@code SELF_MENTORED_NOTICE_OUTDATED} (a Self-mentored Job) or
+	 * {@code COMMIT_EMAIL_NOT_ACKNOWLEDGED}; and {@code job.activateCrew}'s refusals
 	 */
 	@Transactional
-	void sign(UUID accountId, UUID jobId, String ndaVersion, String commitmentVersion, boolean publicCodeAcknowledged,
-			boolean commitEmailAcknowledged, Contribution contribution) {
+	void sign(UUID accountId, UUID jobId, String ndaVersion, String commitmentVersion,
+			@Nullable String selfMentoredNoticeVersion, boolean publicCodeAcknowledged, boolean commitEmailAcknowledged,
+			Contribution contribution) {
 		CrewApplication pick = this.applications.pickOf(jobId, accountId)
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		if (pick.status() != Status.PICKED || pick.crewRowId() == null) {
@@ -93,6 +104,12 @@ class CrewSignatures {
 		if (!CrewCommitments.COMMITMENT_VERSION.equals(commitmentVersion)) {
 			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.COMMITMENT_VERSION_OUTDATED);
 		}
+		// The mode changes only in a Draft or by J12, which starts from Open (AD-47); a pick exists from Agreement on, so
+		// the mode read here is the one the person was picked under.
+		boolean selfMentored = this.posts.post(jobId).map(JobPostState::selfMentored).orElse(false);
+		if (selfMentored && !CrewCommitments.SELF_MENTORED_NOTICE_VERSION.equals(selfMentoredNoticeVersion)) {
+			throw new ApiException(ErrorCode.VALIDATION, MatchingReason.SELF_MENTORED_NOTICE_OUTDATED);
+		}
 		Assignment assignment = this.picks.assignment(jobId, accountId)
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, MatchingReason.PICK_ENDED));
 		if (assignment.codeJob()) {
@@ -111,17 +128,22 @@ class CrewSignatures {
 			this.notices.acknowledge(accountId, Notices.COMMIT_EMAIL, Notices.COMMIT_EMAIL_VERSION);
 		}
 		// One NDA signature per Job and person: a former selected Mentor who later joins the Crew already holds a row, which
-		// keeps its NDA version and time and gains the commitment's version.
+		// keeps its NDA version and time and gains the commitment's version, and N-35's in a Self-mentored Job (a Mentor
+		// selected before the Job was switched, J12).
 		this.jdbc.sql("""
-				INSERT INTO matching.nda_signature (job_id, account_id, nda_version, commitment_version, signed_at)
-				VALUES (:job, :account, :nda, :commitment, :now)
+				INSERT INTO matching.nda_signature (job_id, account_id, nda_version, commitment_version,
+				    self_mentored_notice_version, signed_at)
+				VALUES (:job, :account, :nda, :commitment, :notice, :now)
 				ON CONFLICT (job_id, account_id) DO UPDATE
-				    SET commitment_version = coalesce(matching.nda_signature.commitment_version, EXCLUDED.commitment_version)
+				    SET commitment_version = coalesce(matching.nda_signature.commitment_version, EXCLUDED.commitment_version),
+				        self_mentored_notice_version = coalesce(matching.nda_signature.self_mentored_notice_version,
+				            EXCLUDED.self_mentored_notice_version)
 				""")
 			.param("job", jobId)
 			.param("account", accountId)
 			.param("nda", ndaVersion)
 			.param("commitment", commitmentVersion)
+			.param("notice", selfMentored ? CrewCommitments.SELF_MENTORED_NOTICE_VERSION : null)
 			.param("now", Timestamp.from(now))
 			.update();
 		this.todos.closeAll(CrewCommitments.SIGN_TODO, pick.id());

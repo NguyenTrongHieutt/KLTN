@@ -46,6 +46,14 @@ public final class PostgresTestDatabase {
 
 	static final String TEMPLATE = "vibefix_template";
 
+	/**
+	 * Where the image keeps its data, mounted in memory. A full run recreates the database from the template several
+	 * thousand times, and on a disk every copy is written into Docker's data disk, which grows and does not shrink: 34
+	 * tests grew it by 576 MB, and a day of full runs filled the machine's drive with a 77 GB file (2026-11-26). In
+	 * memory nothing of the database reaches that disk, and {@code max_wal_size} keeps the write-ahead log small.
+	 */
+	private static final String DATA_MOUNT = "/var/lib/postgresql";
+
 	/** How often a reset tries to connect when the machine has no socket to give, and the pause that grows between tries. */
 	private static final int CONNECT_ATTEMPTS = 5;
 
@@ -72,7 +80,8 @@ public final class PostgresTestDatabase {
 			.withUsername("postgres")
 			.withPassword(randomPassword())
 			.withEnv("TZ", "UTC")
-			.withCommand("postgres", "-c", "fsync=off", "-c", "full_page_writes=off")
+			.withCommand("postgres", "-c", "fsync=off", "-c", "full_page_writes=off", "-c", "max_wal_size=256MB")
+			.withTmpFs(Map.of(DATA_MOUNT, "rw"))
 			.withInitScript("db/init-roles.sql");
 		this.container.start();
 		executeAsSuperuser("postgres", "ALTER ROLE " + MIGRATOR + " PASSWORD '" + this.migratorPassword + "'",

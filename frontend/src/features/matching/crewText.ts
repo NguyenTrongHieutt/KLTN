@@ -133,6 +133,7 @@ export function pickRefusal(error: unknown, name: string): string {
  */
 const SIGN_REASONS = [
   'COMMITMENT_VERSION_OUTDATED',
+  'SELF_MENTORED_NOTICE_OUTDATED',
   'NDA_VERSION_OUTDATED',
   'COMMIT_EMAIL_NOT_ACKNOWLEDGED',
   'PUBLIC_CODE_NOT_ACKNOWLEDGED',

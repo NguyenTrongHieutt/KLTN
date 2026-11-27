@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { components } from '@/api/schema'
 import { JOBS_QUERY_KEY } from '@/features/job/jobApi'
+import { t } from '@/i18n/t'
 import { NOTIFICATION_QUERY_KEY } from '@/features/notification/api'
 import { ApiError, apiClient, formBody, unwrap } from '@/lib/apiClient'
 import type { BidProofUpload } from './applicationApi'
@@ -22,6 +23,12 @@ export const SIGN_DAYS = 3
 
 /** The commitment text's version, which the signature records; the legal wording waits for OQ5. */
 export const COMMITMENT_VERSION = '1.0'
+
+/**
+ * The version of N-35 as this bundle words it (R68): the signature of a Self-mentored Job's commitment names it, so a
+ * bundle that shows an older text is refused by the server and never signs a text it did not show.
+ */
+export const SELF_MENTORED_CREW_NOTICE_VERSION = t('screen.commitment.n35Version')
 
 /** Skills a recruitment seeks, or an application names, at most (the Skill picker's limit). */
 export const MAX_CREW_SKILLS = 10

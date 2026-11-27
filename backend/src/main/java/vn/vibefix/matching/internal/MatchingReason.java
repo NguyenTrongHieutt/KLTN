@@ -108,6 +108,12 @@ enum MatchingReason {
 	COMMITMENT_VERSION_OUTDATED,
 
 	/**
+	 * In a Self-mentored Job the signature did not name the current version of N-35, the part of the commitment that
+	 * says the member works under the Customer (FR-85, R68, Story 25.3).
+	 */
+	SELF_MENTORED_NOTICE_OUTDATED,
+
+	/**
 	 * A signature or a decline finds the pick ended: the Mentor withdrew it, the 3 days passed, the person was locked,
 	 * or the Job entered Closing or was cancelled (R4, AD-41, A-04).
 	 */

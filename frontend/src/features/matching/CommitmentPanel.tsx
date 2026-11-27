@@ -15,6 +15,7 @@ import { problemMessage } from '@/lib/problemMessage'
 import { cn } from '@/lib/utils'
 import {
   COMMITMENT_VERSION,
+  SELF_MENTORED_CREW_NOTICE_VERSION,
   useCommitment,
   useDeclineCommitment,
   useSignCommitment,
@@ -44,6 +45,10 @@ const ENDED: Partial<Record<string, MessageKey>> = {
  * N-23 for a Code Job (asked once per notice version), and the chip "Ký trước {date}", with "Ký và tham gia" or "Từ
  * chối". Once the pick ended, it gives way to why, with "Tìm việc khác"; once signed, to the way into the Job. Nothing
  * else of the Job is read here.
+ *
+ * In a Self-mentored Job (FR-85, UX-DR124, R68, Story 25.3) the panel names the Customer, who picked the person; N-19's
+ * variant and N-35 take the place of the disclosure sentences; the Agreement shown is the Customer's saved draft; and
+ * the signature names N-35's version.
  */
 export function CommitmentPanel({ jobId }: { jobId: string }) {
   const commitment = useCommitment(jobId)
@@ -71,6 +76,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
   const needsNotice = panel.codeJob && !panel.commitEmailNoticeAcknowledged
   const ready = publicCode && (!needsNotice || understood)
   const due = formatDayMonthTime(commitment.signDueAt)
+  const own = commitment.selfMentored
   const submit = () => {
     setError(undefined)
     sign.mutate(
@@ -79,6 +85,8 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         commitmentVersion: COMMITMENT_VERSION,
         publicCodeAcknowledged: publicCode,
         commitEmailNoticeAcknowledged: understood || panel.commitEmailNoticeAcknowledged,
+        // The version of the N-35 text this page shows, never the server's own number sent back to it.
+        selfMentoredNoticeVersion: own ? SELF_MENTORED_CREW_NOTICE_VERSION : undefined,
       },
       {
         onSuccess: () => toasts.success(t('screen.commitment.signed', { job: commitment.jobTitle })),
@@ -90,7 +98,7 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
     decline.mutate(undefined, {
       onSuccess: () => {
         setDeclining(false)
-        toasts.success(t('screen.commitment.declined'))
+        toasts.success(t(own ? 'screen.commitment.declinedSelfMentored' : 'screen.commitment.declined'))
       },
       onError: (failed) => {
         setDeclining(false)
@@ -109,21 +117,33 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
         </StatusBadge>
       </div>
       <div role="note" className="rounded-md border-l-4 border-info bg-info-soft p-4 text-body-sm">
-        {t('screen.commitment.n19', {
+        {t(own ? 'screen.commitment.n19SelfMentored' : 'screen.commitment.n19', {
           mentor: commitment.mentorName,
           job: commitment.jobTitle,
           date: due,
           login: panel.githubLogin ?? '',
         })}
       </div>
+      {own && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-label font-semibold">
+            {t('screen.commitment.n35Title', { version: SELF_MENTORED_CREW_NOTICE_VERSION })}
+          </h3>
+          <p className="text-body-sm">{t('screen.commitment.n35', { name: commitment.mentorName })}</p>
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         <h3 className="text-label font-semibold">{t('screen.commitment.scope')}</h3>
-        <p className="text-body-sm break-words whitespace-pre-line">{panel.scope ?? t('screen.commitment.noScope')}</p>
+        <p className="text-body-sm break-words whitespace-pre-line">
+          {panel.scope ?? t(own ? 'screen.commitment.noScopeSelfMentored' : 'screen.commitment.noScope')}
+        </p>
       </div>
       <div className="flex flex-col gap-2">
         <h3 className="text-label font-semibold">{t('screen.commitment.milestones')}</h3>
         {panel.milestones.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">{t('screen.commitment.noMilestones')}</p>
+          <p className="text-body-sm text-muted-foreground">
+            {t(own ? 'screen.commitment.noMilestonesSelfMentored' : 'screen.commitment.noMilestones')}
+          </p>
         ) : (
           <ol className="flex flex-col divide-y divide-border rounded-md border border-border">
             {panel.milestones.map((milestone, index) => (
@@ -143,7 +163,9 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
             ))}
           </ol>
         )}
-        <p className="text-caption text-muted-foreground">{t('screen.commitment.noShare')}</p>
+        <p className="text-caption text-muted-foreground">
+          {t(own ? 'screen.commitment.noShareSelfMentored' : 'screen.commitment.noShare')}
+        </p>
         <Link
           to={`/cong-viec/${commitment.jobId}/thoa-thuan`}
           className={cn(buttonVariants({ variant: 'secondary', size: 'compact' }), 'w-fit')}
@@ -154,10 +176,22 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
       <div className="flex flex-col gap-2">
         <h3 className="text-label font-semibold">{t('screen.commitment.splitRules')}</h3>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-body-sm">
-          <li>{t('screen.commitment.ruleCap', { n: panel.splitRules.mentorShareCapPercent })}</li>
-          <li>{t('screen.commitment.ruleDraft', { n: panel.splitRules.draftDays })}</li>
+          <li>
+            {own
+              ? t('screen.commitment.ruleCapSelfMentored')
+              : t('screen.commitment.ruleCap', { n: panel.splitRules.mentorShareCapPercent })}
+          </li>
+          <li>
+            {t(own ? 'screen.commitment.ruleDraftSelfMentored' : 'screen.commitment.ruleDraft', {
+              n: panel.splitRules.draftDays,
+            })}
+          </li>
           <li>{t('screen.commitment.ruleConfirm', { n: panel.splitRules.confirmationDays })}</li>
-          <li>{t('screen.commitment.ruleEdits', { n: panel.splitRules.editLimit })}</li>
+          <li>
+            {t(own ? 'screen.commitment.ruleEditsSelfMentored' : 'screen.commitment.ruleEdits', {
+              n: panel.splitRules.editLimit,
+            })}
+          </li>
         </ul>
       </div>
       <div className="flex flex-col gap-2">
@@ -172,7 +206,11 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
           aria-label={t('screen.commitment.textLabel')}
           className="max-h-48 overflow-auto rounded-md border border-border bg-background p-4 text-body-sm"
         >
-          <p>{t('screen.commitment.text', { login: panel.githubLogin ?? '' })}</p>
+          <p>
+            {own
+              ? t('screen.commitment.textSelfMentored', { version: SELF_MENTORED_CREW_NOTICE_VERSION })
+              : t('screen.commitment.text', { login: panel.githubLogin ?? '' })}
+          </p>
           <p className="mt-2">{t('screen.nda.pending')}</p>
         </div>
       </div>
@@ -212,7 +250,9 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
                 <X aria-hidden="true" className="size-5" />
               </Dialog.Close>
             </div>
-            <Dialog.Description className="text-body-sm">{t('screen.commitment.declineBody')}</Dialog.Description>
+            <Dialog.Description className="text-body-sm">
+              {t(own ? 'screen.commitment.declineBodySelfMentored' : 'screen.commitment.declineBody')}
+            </Dialog.Description>
             <div className="flex flex-wrap justify-between gap-3">
               <Dialog.Close render={<Button variant="secondary" />}>{t('screen.commitment.declineBack')}</Dialog.Close>
               <Button type="button" variant="destructive" onClick={confirmDecline} disabled={decline.isPending}>
@@ -229,7 +269,12 @@ function Signing({ commitment, panel }: { commitment: Commitment; panel: Panel }
 /** A pick that ended, or was signed: why, and the one way forward (UX-DR95, UX-DR103). */
 function Ended({ commitment }: { commitment: Commitment }) {
   const joined = commitment.status === 'JOINED'
-  const key = joined ? 'screen.commitment.joined' : (ENDED[commitment.endReason ?? ''] ?? 'screen.commitment.ended.other')
+  const withdrawnByCustomer = commitment.selfMentored && commitment.endReason === 'PICK_WITHDRAWN'
+  const key = joined
+    ? 'screen.commitment.joined'
+    : withdrawnByCustomer
+      ? 'screen.commitment.ended.PICK_WITHDRAWN_SELF_MENTORED'
+      : (ENDED[commitment.endReason ?? ''] ?? 'screen.commitment.ended.other')
   return (
     <Card role="status" className="flex flex-col gap-3">
       <p className="text-label font-semibold">{t(key, { job: commitment.jobTitle })}</p>

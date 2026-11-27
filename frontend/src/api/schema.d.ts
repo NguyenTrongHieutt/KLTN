@@ -4232,6 +4232,10 @@ export interface components {
         AgreementConfirmRequest: {
             /** Format: int64 */
             crewVersion: number;
+            freezeCommitment?: boolean;
+            liveAccessIds?: string[];
+            /** Format: int32 */
+            revision?: number;
             /** Format: int64 */
             version: number;
         };
@@ -4245,6 +4249,7 @@ export interface components {
             revision: number;
             /** Format: int32 */
             reworkDays: number;
+            selfMentored: boolean;
             /** @enum {string} */
             state: "DRAFT" | "OPEN" | "SELECTING" | "AGREEMENT" | "STARTING" | "ACTIVE" | "CLOSING" | "CLOSED" | "CANCELLED";
             versions: components["schemas"]["VersionSummary"][];
@@ -4756,6 +4761,7 @@ export interface components {
             milestones: components["schemas"]["CommitmentMilestoneView"][];
             ndaVersion: string;
             scope?: string;
+            selfMentoredNoticeVersion?: string;
             splitRules: components["schemas"]["SplitRulesView"];
         };
         CommitmentSignRequest: {
@@ -4763,6 +4769,7 @@ export interface components {
             commitmentVersion: string;
             ndaVersion: string;
             publicCodeAcknowledged: boolean;
+            selfMentoredNoticeVersion?: string;
         };
         CommitmentView: {
             /** Format: uuid */
@@ -4776,6 +4783,7 @@ export interface components {
             panel?: components["schemas"]["CommitmentPanelView"];
             /** Format: date-time */
             pickedAt: string;
+            selfMentored: boolean;
             /** Format: date-time */
             signDueAt: string;
             /** @enum {string} */
@@ -4919,6 +4927,7 @@ export interface components {
             liveAccessIds: string[];
             /** Format: int32 */
             reworkDays: number;
+            selfMentored: boolean;
             shown?: components["schemas"]["CrewAgreementOption"];
             versions: components["schemas"]["CrewAgreementOption"][];
         };
@@ -5213,7 +5222,7 @@ export interface components {
         };
         EvidenceAgreementVersion: {
             /** Format: date-time */
-            approvedAt: string;
+            approvedAt?: string;
             /** Format: date-time */
             confirmedAt: string;
             milestones: components["schemas"]["EvidenceMilestone"][];
@@ -5806,7 +5815,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE" | "NOT_PICKABLE" | "COMMITMENT_VERSION_OUTDATED" | "PICK_ENDED";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE" | "NOT_PICKABLE" | "COMMITMENT_VERSION_OUTDATED" | "SELF_MENTORED_NOTICE_OUTDATED" | "PICK_ENDED";
         };
         InviteRequest: {
             /** Format: uuid */
@@ -6691,7 +6700,7 @@ export interface components {
             /** Format: int32 */
             left: number;
             /** @enum {string} */
-            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE" | "NOT_PICKABLE" | "COMMITMENT_VERSION_OUTDATED" | "PICK_ENDED";
+            limit?: "JOB_POST_NOT_OPEN" | "JOB_POST_HIDDEN" | "ROLE_TAKEN" | "ALREADY_APPLIED" | "MENTOR_JOB_LIMIT" | "CONFLICT_OF_INTEREST" | "APPLICANT_IS_CONTRIBUTOR" | "CONTRIBUTORS_UNKNOWN" | "PUBLIC_CODE_NOT_ACKNOWLEDGED" | "NOT_WITHDRAWABLE" | "NDA_VERSION_OUTDATED" | "COMMIT_EMAIL_NOT_ACKNOWLEDGED" | "INVITEE_NOT_AVAILABLE" | "ALREADY_INVITED" | "INVITEE_ALREADY_APPLIED" | "INVITE_LIMIT_JOB_POST" | "INVITE_LIMIT_DAILY" | "PROFILE_REQUIRED" | "PROOF_LIMIT" | "LINK_INVALID" | "PROOF_FILE_UNKNOWN" | "RECRUITMENT_CLOSED" | "CREW_FULL" | "CREW_REJOIN_REFUSED" | "ON_ANOTHER_CREW" | "NOT_DECLINABLE" | "NOT_PICKABLE" | "COMMITMENT_VERSION_OUTDATED" | "SELF_MENTORED_NOTICE_OUTDATED" | "PICK_ENDED";
         };
         QuoteView: {
             /** Format: int64 */

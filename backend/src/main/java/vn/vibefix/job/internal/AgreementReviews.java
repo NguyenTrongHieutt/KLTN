@@ -275,12 +275,20 @@ class AgreementReviews {
 	 * "Xác nhận thỏa thuận" (FR-17): under the Job row lock, the approved latest version becomes the
 	 * confirmed Agreement version 1 with the GitHub usernames of the members {@code ACTIVE} at this moment, none
 	 * included (R7).
+	 * <p>
+	 * In a Self-mentored Job (FR-85, AD-47 exception 3, B-11) this is the one step: the Customer, who is also the Mentor,
+	 * confirms the live draft at the revision the screen loaded, with the Freeze Commitment for a Code Job and the
+	 * External Access entries marked as live systems, and nothing was shared or approved before it.
+	 * @param alone what the one step carries in a Self-mentored Job; a normal Job reads none of it
 	 * @throws ApiException {@code STALE} past Agreement, for a moved {@code Job.version} or
 	 * {@code crewVersion}, or once confirmed; {@code GUARD_FAILED AGREEMENT_NOT_APPROVED}, or
-	 * {@code DRAFT_CHANGED} when the live draft differs from the approved version
+	 * {@code DRAFT_CHANGED} when the live draft differs from the approved version. In a Self-mentored Job:
+	 * {@code STALE} for another draft revision too; {@code VALIDATION} without a revision, with
+	 * {@code AGREEMENT_INCOMPLETE} and its {@code problems}, with {@code FREEZE_COMMITMENT_REQUIRED} for a Code Job, or
+	 * for an ID that is not one of the draft's External Access entries
 	 */
 	@Transactional
-	Confirmed confirm(UUID mentorId, UUID jobId, long version, long crewVersion) {
+	Confirmed confirm(UUID mentorId, UUID jobId, long version, long crewVersion, Alone alone) {
 		Job job = lockJob(jobId);
 		if (!mentorId.equals(job.mentorId())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
@@ -289,6 +297,9 @@ class AgreementReviews {
 				|| job.agreementVersionNo() != null) {
 			throw new ApiException(ErrorCode.STALE);
 		}
+		if (job.selfMentored()) {
+			return confirmAlone(job, alone);
+		}
 		Version latest = this.agreements.version(jobId, null)
 			.orElseThrow(() -> new ApiException(ErrorCode.GUARD_FAILED, JobReason.AGREEMENT_NOT_APPROVED));
 		Approval approval = approval(jobId, latest.versionNo())
@@ -296,8 +307,6 @@ class AgreementReviews {
 		if (!draftMatchesShared(job, latest)) {
 			throw new ApiException(ErrorCode.GUARD_FAILED, JobReason.DRAFT_CHANGED);
 		}
-		List<Row> active = this.crews.rows(jobId).stream().filter(Row::active).toList();
-		List<String> usernames = this.crews.activeUsernames(jobId);
 		Instant now = this.clock.instant();
 		this.jdbc.sql("""
 				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames, live_access_ids,
@@ -309,10 +318,107 @@ class AgreementReviews {
 			.param("job", jobId)
 			.param("draft", latest.versionNo())
 			.param("content", JSON.writeValueAsString(latest.content()))
-			.param("crew", usernames.toArray(String[]::new))
+			.param("crew", this.crews.activeUsernames(jobId).toArray(String[]::new))
 			.param("mentor", mentorId)
 			.param("now", Timestamp.from(now))
 			.update();
+		List<String> usernames = confirmed(job, latest.content(), now);
+		// Story 25.1b: version 1 says what the approved draft said, so its Crew readers have read it and are told nothing.
+		this.reads.confirmedFromDraft(jobId, latest.versionNo(), 1);
+		return new Confirmed(1, latest.versionNo(), usernames, approval.liveAccessIds(), approval.freezeCommitted(),
+				approval.approvedAt(), now, latest.content());
+	}
+
+	/**
+	 * What the one-step confirmation of a Self-mentored Job carries (AD-47, B-11).
+	 * @param revision the draft revision the screen loaded (AD-23)
+	 * @param freezeCommitment N-6, which a Code Job needs
+	 * @param liveAccessIds the External Access entries the Customer marks as live systems
+	 */
+	record Alone(@Nullable Integer revision, boolean freezeCommitment, List<UUID> liveAccessIds) {
+
+		Alone {
+			liveAccessIds = List.copyOf(liveAccessIds);
+		}
+
+	}
+
+	/**
+	 * The one step of a Self-mentored Job, under the Job row lock {@link #confirm} took: the live draft becomes the
+	 * confirmed Agreement version 1. The draft is kept as a version of its own kind ({@code CONFIRMED_ALONE}), which the
+	 * confirmed Agreement names; no approval row is written, and the audit records the one actor once.
+	 */
+	private Confirmed confirmAlone(Job job, Alone alone) {
+		UUID jobId = job.id();
+		if (alone.revision() == null) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		Agreements.Draft draft = this.agreements.draft(job).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (draft.revision() != alone.revision()) {
+			throw new ApiException(ErrorCode.STALE);
+		}
+		Content content = draft.content();
+		List<Agreements.Problem> problems = this.agreements.problems(content);
+		if (!problems.isEmpty()) {
+			throw new ApiException(ErrorCode.VALIDATION, JobReason.AGREEMENT_INCOMPLETE, Map.of("problems", problems));
+		}
+		if (job.code() && !alone.freezeCommitment()) {
+			throw new ApiException(ErrorCode.VALIDATION, JobReason.FREEZE_COMMITMENT_REQUIRED);
+		}
+		List<UUID> live = alone.liveAccessIds().stream().distinct().toList();
+		if (!new HashSet<>(targets(content, TargetKind.EXTERNAL_ACCESS)).containsAll(live)) {
+			throw new ApiException(ErrorCode.VALIDATION);
+		}
+		boolean freeze = job.code() && alone.freezeCommitment();
+		Instant now = this.clock.instant();
+		int draftNo = this.jdbc.sql("SELECT coalesce(max(version_no), 0) + 1 FROM job.agreement_version WHERE job_id = :job")
+			.param("job", jobId)
+			.query(Integer.class)
+			.single();
+		this.jdbc.sql("""
+				INSERT INTO job.agreement_version (job_id, version_no, status, content, author_account_id, created_at)
+				VALUES (:job, :no, 'CONFIRMED_ALONE', CAST(:content AS JSONB), :author, :now)
+				""")
+			.param("job", jobId)
+			.param("no", draftNo)
+			.param("content", JSON.writeValueAsString(content))
+			.param("author", job.customerId())
+			.param("now", Timestamp.from(now))
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO job.confirmed_agreement (job_id, version_no, draft_version_no, content, crew_usernames, live_access_ids,
+				    freeze_committed, customer_account_id, approved_at, mentor_account_id, confirmed_at)
+				VALUES (:job, 1, :draft, CAST(:content AS JSONB), CAST(:crew AS TEXT[]), CAST(:live AS UUID[]), :freeze,
+				    :customer, :now, :customer, :now)
+				""")
+			.param("job", jobId)
+			.param("draft", draftNo)
+			.param("content", JSON.writeValueAsString(content))
+			.param("crew", this.crews.activeUsernames(jobId).toArray(String[]::new))
+			.param("live", live.toArray(UUID[]::new))
+			.param("freeze", freeze)
+			.param("customer", job.customerId())
+			.param("now", Timestamp.from(now))
+			.update();
+		List<String> usernames = confirmed(job, content, now);
+		// Whoever read the revision that was confirmed has read version 1; a reader behind it is told (AD-41, R67).
+		this.reads.confirmedFromDraft(jobId, draft.revision(), 1);
+		this.reads.newer(jobId, job.title(), new AgreementReads.Mark(true, 1));
+		return new Confirmed(1, draftNo, usernames, live, freeze, now, now, content);
+	}
+
+	/**
+	 * What follows the confirmed Agreement version 1 in every Job: the Job names it, the audit records the confirmer, the
+	 * Agreement to-dos close and the External Access ones open, everyone is told, Milestone 1 asks for its funding once a
+	 * member has signed, and {@link AgreementConfirmed} goes out. In a Self-mentored Job the Customer and the Mentor are
+	 * one account, told once, with the Customer's text (AD-47 exception 12).
+	 * @return the GitHub usernames of the members {@code ACTIVE} at this moment
+	 */
+	private List<String> confirmed(Job job, Content content, Instant now) {
+		UUID jobId = job.id();
+		UUID mentorId = Objects.requireNonNull(job.mentorId());
+		List<Row> active = this.crews.rows(jobId).stream().filter(Row::active).toList();
+		List<String> usernames = this.crews.activeUsernames(jobId);
 		this.jdbc.sql("UPDATE job.job SET agreement_version_no = 1, version = version + 1, updated_at = :now WHERE id = :id")
 			.param("id", jobId)
 			.param("now", Timestamp.from(now))
@@ -323,30 +429,29 @@ class AgreementReviews {
 			this.todos.closeAll(key, jobId);
 		}
 		// FR-66: N-8's guidance, one to-do per External Access item, which the Customer's tick closes.
-		for (ExternalAccess access : latest.content().externalAccess()) {
+		for (ExternalAccess access : content.externalAccess()) {
 			this.todos.open(new TodoRequest(ExternalAccessGrants.TODO, job.customerId(), Audience.CUSTOMER, access.id(),
 					Map.of("system", access.system()), Agreements.agreementLink(jobId), null, jobId));
 		}
-		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
-				new Recipient(mentorId, Audience.MENTOR)));
+		List<Recipient> everyone = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER)));
+		if (!job.selfMentored()) {
+			everyone.add(new Recipient(mentorId, Audience.MENTOR));
+		}
 		active.forEach(row -> everyone.add(new Recipient(row.studentId(), Audience.CREW_ACTIVE)));
 		this.notifications.send(new NotificationRequest(CONFIRMED, cause(jobId, "confirmed:1"), everyone,
 				Map.of("job", job.title(), "crew", usernames.isEmpty() ? NO_MEMBER_YET : String.join(" · ", usernames)),
 				Agreements.agreementLink(jobId), jobId, null));
 		if (!this.crews.countedActive(jobId).isEmpty()) {
-			askToFundMilestoneOne(job, latest.content());
+			askToFundMilestoneOne(job, content);
 		}
 		List<ConfirmedMilestone> milestones = new ArrayList<>();
-		for (int m = 0; m < latest.content().milestones().size(); m++) {
-			Milestone milestone = latest.content().milestones().get(m);
+		for (int m = 0; m < content.milestones().size(); m++) {
+			Milestone milestone = content.milestones().get(m);
 			milestones.add(new ConfirmedMilestone(milestone.id(), m + 1, milestone.title(),
 					milestone.priceVnd() == null ? 0 : milestone.priceVnd()));
 		}
 		this.events.publishEvent(new AgreementConfirmed(this.ids.newId(), jobId, job.productId(), job.customerId(), job.title(), 1, milestones));
-		// Story 25.1b: version 1 says what the approved draft said, so its Crew readers have read it and are told nothing.
-		this.reads.confirmedFromDraft(jobId, latest.versionNo(), 1);
-		return new Confirmed(1, latest.versionNo(), usernames, approval.liveAccessIds(), approval.freezeCommitted(),
-				approval.approvedAt(), now, latest.content());
+		return usernames;
 	}
 
 	/**
@@ -491,9 +596,13 @@ class AgreementReviews {
 		}
 	}
 
+	/**
+	 * The Customer's Job, locked for a review decision. A Self-mentored Job has no review (AD-47, B-11): commenting,
+	 * asking for changes and approving find nothing there, whatever the caller is.
+	 */
 	private Job lockCustomerJob(UUID customerId, UUID jobId) {
 		Job job = lockJob(jobId);
-		if (!customerId.equals(job.customerId())) {
+		if (!customerId.equals(job.customerId()) || job.selfMentored()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		return job;
