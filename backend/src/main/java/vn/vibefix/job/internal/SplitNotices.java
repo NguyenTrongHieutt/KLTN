@@ -70,7 +70,8 @@ class SplitNotices {
 		String date = ClosureProposals.dayMonth(split.draftDueAt());
 		Map<String, String> params = Map.of("n", String.valueOf(split.number()), "job", title, "date", date);
 		send(DRAFT_DUE, split, split.id(), mentor(split), params);
-		send(PENDING, split, split.id(), members(parties), params);
+		send(PENDING, split, split.id(), members(parties),
+				Map.of("n", String.valueOf(split.number()), "job", title, "date", date, "who", drafter(split)));
 		UUID mentor = split.mentorId();
 		if (mentor != null) {
 			this.todos.open(new TodoRequest(DRAFT_TODO, mentor, Audience.MENTOR, split.id(),
@@ -104,10 +105,18 @@ class SplitNotices {
 		}
 	}
 
-	/** The Mentor's first draft or an edit reached each party. */
+	/** The drafter's first draft or an edit reached each party. */
 	void sent(String type, Split split, int versionNo, String title, List<Party> parties, Instant due) {
-		send(type, split, cause(split, type + ":" + versionNo), members(parties),
-				Map.of("n", String.valueOf(split.number()), "job", title, "date", ClosureProposals.dayMonth(due)));
+		send(type, split, cause(split, type + ":" + versionNo), members(parties), Map.of("n", String.valueOf(split.number()),
+				"job", title, "date", ClosureProposals.dayMonth(due), "who", drafter(split)));
+	}
+
+	/**
+	 * What a party's notice calls the one who drafts the split (UX-DR131, E25-15): "khách hàng" in a Self-mentored Job,
+	 * where a normal Job's says "người hướng dẫn".
+	 */
+	static String drafter(Split split) {
+		return split.selfMentored() ? "khách hàng" : "người hướng dẫn";
 	}
 
 	/** The default version reached the Mentor and each party. */

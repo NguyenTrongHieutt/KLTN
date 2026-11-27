@@ -4399,13 +4399,13 @@
         "title": "Giai đoạn {n} của {job} đã được nghiệm thu. Hãy soạn phân chia tiền trước {date}."
       },
       "split_pending": {
-        "title": "Tiền Giai đoạn {n} của {job} đang chờ người hướng dẫn phân chia (hạn {date})"
+        "title": "Tiền Giai đoạn {n} của {job} đang chờ {who} phân chia (hạn {date})"
       },
       "split_draft_reminder": {
         "title": "Còn 1 ngày để soạn phân chia Giai đoạn {n}. Sau {date}, hệ thống sẽ chia đều."
       },
       "split_proposed": {
-        "title": "Người hướng dẫn đã đề xuất phân chia Giai đoạn {n} của {job}. Hãy xác nhận trước {date}."
+        "title": "Phân chia Giai đoạn {n} của {job} đã được {who} đề xuất. Hãy xác nhận trước {date}."
       },
       "split_defaulted": {
         "title": "Hệ thống đã chia đều tiền Giai đoạn {n} của {job} vì chưa có bản phân chia. Hãy xác nhận trước {date}."

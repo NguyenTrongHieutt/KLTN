@@ -3525,14 +3525,15 @@ GET /api/v1/mentor/job-posts/{postId}/crew-application-files,CUSTOMER_MENTOR,job
 DELETE /api/v1/mentor/job-posts/{postId}/crew-application-files/{fileId},CUSTOMER_MENTOR,job=self;file=crew-proof-upload,,404 NOT_FOUND,requireActiveAccount
 POST /api/v1/jobs/{jobId}/crew/leave,CUSTOMER_MENTOR,job=self,crew-leave.json,404 NOT_FOUND
 GET /api/v1/jobs/{jobId}/crew/me,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
-GET /api/v1/jobs/{jobId}/splits,CUSTOMER_MENTOR,job=self;pending=25.6,,200
-POST /api/v1/splits/{splitId}/versions,CUSTOMER_MENTOR,job=self;pending=25.6,split-version.json,200
-POST /api/v1/splits/{splitId}/confirmations,CUSTOMER_MENTOR,job=self;pending=25.6,split-confirmation.json,403 FORBIDDEN PARTY_ONLY
-POST /api/v1/splits/{splitId}/preview,CUSTOMER_MENTOR,job=self;pending=25.6,split-preview.json,200
-POST /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;pending=25.6,split-resolution.json,403 FORBIDDEN PARTY_ONLY
-GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;pending=25.6,,200
-POST /api/v1/split-resolutions/{resolutionId}/statements,CUSTOMER_MENTOR,job=self;pending=25.6,split-resolution-statement.json,201
-POST /api/v1/split-resolutions/{resolutionId}/withdraw,CUSTOMER_MENTOR,job=self;pending=25.6,,403 FORBIDDEN
+GET /api/v1/jobs/{jobId}/splits,CUSTOMER_MENTOR,job=self;shows=SM_SPLIT_PART,,200
+POST /api/v1/splits/{splitId}/versions,CUSTOMER_MENTOR,job=self,self-split-version.json,200
+POST /api/v1/splits/{splitId}/confirmations,CUSTOMER_MENTOR,job=self,split-confirmation.json,403 FORBIDDEN PARTY_ONLY
+POST /api/v1/splits/{splitId}/preview,CUSTOMER_MENTOR,job=self,self-split-preview.json,200
+POST /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self,split-resolution.json,403 FORBIDDEN PARTY_ONLY
+GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self,,200
+GET /api/v1/splits/{splitId}/resolutions,CUSTOMER_MENTOR,job=self;split=resolution;shows=SM_SPLIT_RESOLUTION_REASON,,200
+POST /api/v1/split-resolutions/{resolutionId}/statements,CUSTOMER_MENTOR,job=self,split-resolution-statement.json,201
+POST /api/v1/split-resolutions/{resolutionId}/withdraw,CUSTOMER_MENTOR,job=self,,403 FORBIDDEN
 GET /api/v1/admin/split-resolutions/{resolutionId},CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/split-resolutions/{resolutionId}/take,CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
 POST /api/v1/admin/split-resolutions/{resolutionId}/preview,CUSTOMER_MENTOR,job=self,admin-split-preview.json,404 NOT_FOUND

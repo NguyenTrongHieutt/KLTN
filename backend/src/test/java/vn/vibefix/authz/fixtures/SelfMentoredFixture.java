@@ -82,6 +82,9 @@ public class SelfMentoredFixture implements MatrixFixture {
 
 	private static final long HELD_PRICE = 900_000;
 
+	/** The third Milestone's price, accepted, its split held by the open Split Resolution (Story 25.6). */
+	private static final long RESOLVED_PRICE = 1_100_000;
+
 	/** The callers this fixture realizes in the mode world beside the Customer who mentors. */
 	private static final Set<MatrixCaller> PEOPLE = Set.of(MatrixCaller.CREW_ASSIGNED, MatrixCaller.CREW_ACTIVE,
 			MatrixCaller.CREW_FORMER, MatrixCaller.LOCKED, MatrixCaller.CREW_ACTIVE_PARTY, MatrixCaller.CREW_FORMER_PARTY,
@@ -176,9 +179,9 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("at", Timestamp.from(WRITTEN))
 			.update();
 		put(world, "changeRequestId", changeRequest);
-		// No Split Resolution exists in the mode world before Story 25.6: this Administrator holds no grant on the Job.
 		this.resolutionAdmin = IdentityTestSupport.insertAccount(this.jdbc, Role.ADMINISTRATOR, null);
 		enrol(this.resolutionAdmin, "phan-chia-tu-huong-dan");
+		splits(world, job, product);
 		memberJob(world);
 		// The Job Post's screenshot, which the Customer added on the Draft: public while the Job is listed.
 		UUID screenshot = storedFile("job.screenshot", this.customer, "man-hinh-loi.pdf");
@@ -188,10 +191,10 @@ public class SelfMentoredFixture implements MatrixFixture {
 				""").param("job", job).param("file", screenshot).param("at", Timestamp.from(SIGNED)).update();
 		put(world, "fileId", screenshot);
 		put(world, "screenshotId", screenshot);
-		// Nobody bids on a Self-mentored Job, no Abuse Report names its content, and it has no split yet (Story 25.6):
-		// the endpoints that name one of these answer for an object that does not exist.
-		for (String absent : List.of("applicationId", "proofFileId", "proofUploadId", "reportId", "resolutionId",
-				"resolutionActivePartyId", "resolutionFormerPartyId", "resolutionMentorPartyId")) {
+		// Nobody bids on a Self-mentored Job, no Abuse Report names its content, and its splits have no Mentor party
+		// (Story 25.6): the endpoints that name one of these answer for an object that does not exist.
+		for (String absent : List.of("applicationId", "proofFileId", "proofUploadId", "reportId", "mentorPartyId",
+				"resolutionMentorPartyId")) {
 			put(world, absent, UUID.randomUUID());
 		}
 		put(world, "resolutionStepUpCode", "000000");
@@ -204,6 +207,72 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("id", stalled)
 			.update();
 		put(world, "stalledBoardId", stalled);
+	}
+
+	/**
+	 * The mode world's splits (Story 25.6, AD-29, AD-40): none has a Mentor party, and the Customer drafts each and is no
+	 * party of any. The released Milestone's ({@code {selfSplitId}}, with the parties {@code {selfActivePartyId}} and
+	 * {@code {selfFormerPartyId}}) is out for confirmation at 57/43, the active party's line being {@code SM_SPLIT_PART}. A
+	 * third Milestone, accepted with its pool, has its split held by the former party's open Split Resolution
+	 * ({@code {selfResolutionId}} on {@code {selfResolutionSplitId}}, with the {@code SM_SPLIT_RESOLUTION_REASON}), which
+	 * {@link MatrixCaller#ADMIN_SPLIT_RESOLUTION_GRANT} took with its grant.
+	 */
+	private void splits(MatrixWorld world, UUID job, UUID product) {
+		if (RELEASED_PRICE * 57 / 100 != Long.parseLong(value("SM_SPLIT_PART"))) {
+			throw new IllegalStateException("The active party's line is the SM_SPLIT_PART canary");
+		}
+		UUID released = this.jdbc.sql("SELECT id FROM job.milestone WHERE job_id = :job AND position = 0")
+			.param("job", job)
+			.query(UUID.class)
+			.single();
+		Instant due = MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(3));
+		UUID[] proposed = JobContent.selfProposedSplit(this.jdbc, job, product, released, 1, this.customer, this.activeParty,
+				this.formerParty, 57, 43, "PROPOSED", SIGNED.plus(Duration.ofDays(1)), ACCEPTED, due);
+		put(world, "splitId", proposed[0]);
+		put(world, "activePartyId", proposed[1]);
+		put(world, "formerPartyId", proposed[2]);
+		UUID third = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
+				    funded_at, submitted_at, handover_id, accepted_at)
+				VALUES (:id, :job, 2, 'Giao diện đặt bàn', :price, DATE '2026-11-05', 2, :signed, 'ACCEPTED', :funded, :submitted,
+				    :handover, :accepted)
+				""").param("id", third).param("job", job).param("price", RESOLVED_PRICE).param("signed", Timestamp.from(SIGNED))
+			.param("funded", Timestamp.from(SIGNED.plus(Duration.ofDays(1))))
+			.param("submitted", Timestamp.from(ACCEPTED.minus(Duration.ofDays(1)))).param("handover", UUID.randomUUID())
+			.param("accepted", Timestamp.from(ACCEPTED)).update();
+		JobContent.fund(this.jdbc, job, product, third, this.customer, RESOLVED_PRICE, SIGNED.plus(Duration.ofDays(1)));
+		JobContent.pool(this.jdbc, job, product, third, RESOLVED_PRICE, ACCEPTED);
+		UUID[] held = JobContent.selfProposedSplit(this.jdbc, job, product, third, 3, this.customer, this.activeParty,
+				this.formerParty, 50, 50, "IN_RESOLUTION", SIGNED.plus(Duration.ofDays(1)), ACCEPTED, due);
+		UUID resolution = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO dispute.split_resolution (id, split_id, job_id, product_id, milestone_id, milestone_number, raiser_party_id,
+				    raiser_account_id, split_version_no, reason, status, raised_at, undecided_due_at)
+				VALUES (:id, :split, :job, :product, :milestone, 3, :party, :raiser, 1, :reason, 'OPEN', :raised, :due)
+				""")
+			.param("id", resolution)
+			.param("split", held[0])
+			.param("job", job)
+			.param("product", product)
+			.param("milestone", third)
+			.param("party", held[2])
+			.param("raiser", this.formerParty)
+			.param("reason", value("SM_SPLIT_RESOLUTION_REASON"))
+			.param("raised", Timestamp.from(WRITTEN))
+			.param("due", Timestamp.from(WRITTEN.plus(Duration.ofDays(7))))
+			.update();
+		grant(this.resolutionAdmin, job, AdminReadItem.forSplitResolution(held[0]), resolution, grant -> this.jdbc
+			.sql("UPDATE dispute.split_resolution SET assigned_admin_id = :admin, assigned_at = :at, grant_id = :grant WHERE id = :id")
+			.param("admin", this.resolutionAdmin)
+			.param("at", Timestamp.from(WRITTEN))
+			.param("grant", grant)
+			.param("id", resolution)
+			.update());
+		put(world, "resolutionId", resolution);
+		put(world, "resolutionSplitId", held[0]);
+		put(world, "resolutionActivePartyId", held[1]);
+		put(world, "resolutionFormerPartyId", held[2]);
 	}
 
 	/**

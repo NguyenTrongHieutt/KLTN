@@ -131,8 +131,8 @@ class SelfMentoredSplitIT extends IntegrationTest {
 			.andExpect(jsonPath("$.lines[0].amountVnd").value(660_001))
 			.andExpect(jsonPath("$.lines[1].amountVnd").value(340_000));
 		save(this.lan, split, 0, 66, 34).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PROPOSED"));
-		assertThat(this.jdbc.sql("SELECT cap_percent FROM job.milestone_split_version WHERE split_id = :id").param("id", split)
-			.query((rs, n) -> rs.getObject("cap_percent")).single()).as("no cap is stored").isNull();
+		assertThat(count("SELECT count(*) FROM job.milestone_split_version WHERE split_id = '" + split
+				+ "' AND cap_percent IS NOT NULL")).as("no cap is stored").isZero();
 		assertThat(openTodos("job.confirm_split", this.vy)).isOne();
 		assertThat(openTodos("job.confirm_split", this.lan)).as("the drafter confirms nothing").isZero();
 
@@ -177,7 +177,7 @@ class SelfMentoredSplitIT extends IntegrationTest {
 		world(true);
 		// Minh left before the Milestone was funded: Vy is its one party.
 		this.jdbc.sql("""
-				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', window_end = :end
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', released_at = :end, window_end = :end
 				WHERE job_id = :job AND member_account_id = :minh
 				""").param("end", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(3)))).param("job", this.job)
 			.param("minh", this.minh).update();
@@ -245,7 +245,7 @@ class SelfMentoredSplitIT extends IntegrationTest {
 		assertThat(this.splits.hasWouldBeSplitParty(this.milestone)).isTrue();
 
 		this.jdbc.sql("""
-				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', window_end = :end WHERE job_id = :job
+				UPDATE job.crew_row SET status = 'RELEASED', released_reason = 'LEFT', released_at = :end, window_end = :end WHERE job_id = :job
 				""").param("end", Timestamp.from(this.clock.instant().minus(Duration.ofMinutes(3)))).param("job", this.job).update();
 
 		assertThat(this.splits.hasWouldBeSplitParty(this.milestone)).isFalse();
