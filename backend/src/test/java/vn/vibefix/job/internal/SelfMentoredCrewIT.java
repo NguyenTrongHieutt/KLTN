@@ -194,7 +194,7 @@ class SelfMentoredCrewIT extends IntegrationTest {
 					{"on":true,"openSlots":1,"skillIds":["%s"],"note":"Cần một bạn làm tiếp giai đoạn 1","crewVersion":%d}
 					""".formatted(TestPeople.REACT, crewVersion)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.on").value(true));
+			.andExpect(jsonPath("$.recruiting").value(true));
 	}
 
 	/**

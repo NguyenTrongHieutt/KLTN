@@ -195,6 +195,15 @@ public class SelfMentoredFixture implements MatrixFixture {
 			put(world, absent, UUID.randomUUID());
 		}
 		put(world, "resolutionStepUpCode", "000000");
+		// Story 25.4 (FR-40, B-07): the Customer's second Job, on a Product of its own, in Agreement with its stall passed
+		// and nobody recruited yet, which they cancel alone ({@code selfJob=stalled}).
+		UUID stalled = job(JobContent.product(this.jdbc, this.customer, "Sản phẩm chờ thỏa thuận"),
+				"Việc tự hướng dẫn chờ thỏa thuận", "AGREEMENT");
+		this.jdbc.sql("UPDATE job.job SET stall_deadline_passed_at = :at WHERE id = :id")
+			.param("at", Timestamp.from(WRITTEN))
+			.param("id", stalled)
+			.update();
+		put(world, "stalledBoardId", stalled);
 	}
 
 	/**

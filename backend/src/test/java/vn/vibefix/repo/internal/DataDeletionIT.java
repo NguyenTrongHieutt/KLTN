@@ -127,10 +127,10 @@ class DataDeletionIT extends IntegrationTest {
 		UUID lan = IdentityTestSupport.insertAccount(this.jdbc, Role.CUSTOMER, null);
 		UUID vy = student("Trần Thảo Vy");
 		UUID hai = student("Lê Văn Hải");
-		UUID job = job(lan, lan);
+		UUID job = job(lan, TestPeople.mentor(this.jdbc, "Đỗ Mạnh Hùng", List.of(TestPeople.REACT), "React"));
 		this.jdbc.sql("""
 				UPDATE job.job SET self_mentored = TRUE, self_mentored_notice_version = '1.0', selected_application_id = NULL,
-				    state = 'CLOSING' WHERE id = :id
+				    mentor_account_id = customer_account_id, state = 'CLOSING' WHERE id = :id
 				""").param("id", job).update();
 		crewRow(job, vy, "ACTIVE", true);
 		crewRow(job, hai, "RELEASED", true);

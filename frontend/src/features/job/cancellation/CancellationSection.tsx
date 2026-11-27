@@ -16,13 +16,15 @@ import { Card } from '@/components/ui/card'
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): either side proposes cancelling the Job or its remaining
  * Milestones with a reason; the other side confirms through a destructive Confirmation dialog that
  * explains the full refund of held money; the proposer may withdraw. After the Agreement or Starting
- * deadline either side may cancel alone (FR-40). The active Crew reads it.
+ * deadline either side may cancel alone (FR-40). The active Crew reads it. In a Self-mentored Job whose Held Milestone
+ * has no member, the no-member banner holds the way out (R49, UX-DR124), so nothing is proposed from here.
  */
 export function CancellationSection({ jobId }: { jobId: string }) {
   const cancellation = useCancellation(jobId)
   const data = cancellation.data
   // An auxiliary part of the overview: nothing while loading, when the read fails, or with nothing to show.
-  if (!data || (!data.canPropose && !data.canCancelAlone && (!data.proposal || data.proposal.status !== 'OPEN'))) {
+  const canPropose = data?.canPropose === true && !data.noMember
+  if (!data || (!canPropose && !data.canCancelAlone && (!data.proposal || data.proposal.status !== 'OPEN'))) {
     return null
   }
   return <Content jobId={jobId} data={data} />
@@ -175,7 +177,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
               {t('screen.cancellation.alone')}
             </Button>
           )}
-          {data.canPropose && !proposing && !alone && (
+          {data.canPropose && !data.noMember && !proposing && !alone && (
             <Button type="button" variant="secondary" onClick={() => setProposing(true)}>
               {t('screen.cancellation.propose')}
             </Button>

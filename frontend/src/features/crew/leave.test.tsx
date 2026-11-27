@@ -33,6 +33,7 @@ const crewMe = (overrides: object = {}) => ({
   canLeave: true,
   codeJob: true,
   partyMilestones: [],
+  selfMentored: false,
   ...overrides,
 })
 
@@ -186,6 +187,26 @@ describe('JOB-1 for a Crew member (FR-77, UX-DR104)', () => {
     expect(within(dialog).getByText(`${N28.noRepository} ${N28.duties} ${N28.customer}`)).toBeInTheDocument()
   })
 
+  /** B-16, AD-47 exception 12 (c), Story 25.4: in a Self-mentored Job the Customer is the Mentor. */
+  it('says in a Self-mentored Job that the Customer reads the reason and is told the name', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...role({ role: 'CREW', crewKind: 'ACTIVE', left: false, noCrew: false }),
+      'GET /api/v1/jobs/j1/crew/me': () => json(crewMe({ selfMentored: true })),
+    })
+    renderAt('/cong-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Rời công việc' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Khách hàng đọc được lý do bạn rời đi.')).toBeInTheDocument()
+    expect(within(dialog).getByText(/Khách hàng được báo tên và GitHub username của bạn\./)).toBeInTheDocument()
+    expect(within(dialog).queryByText('Chỉ người hướng dẫn đọc được.')).toBeNull()
+    expect(within(dialog).queryByText(new RegExp(N28.customer))).toBeNull()
+    expect(within(dialog).getByRole('textbox', { name: 'Lý do (không bắt buộc)' })).toHaveAccessibleDescription(
+      'Khách hàng đọc được lý do bạn rời đi.',
+    )
+  })
+
   it('shows the refusal of a Job already closing in the dialog', { timeout: 20_000 }, async () => {
     const user = userEvent.setup()
     fakeBackend(signedInUser, {
@@ -321,6 +342,114 @@ describe('No Crew left (Q7, R8, UX-DR104)', () => {
 
     expect(await screen.findByText('Đang tìm nhóm thực hiện')).toBeInTheDocument()
     expect(screen.queryByText(/Nhóm thực hiện của người hướng dẫn hiện không còn/)).toBeNull()
+  })
+})
+
+describe('No member left in a Self-mentored Job (FR-85, R49, UX-DR124)', () => {
+  const selfMentoredJob = { ...customerJob, mentor: undefined, selfMentored: true }
+
+  const cancellation = (overrides: object = {}) => ({
+    jobId: 'j1',
+    audience: 'CUSTOMER',
+    state: 'ACTIVE',
+    version: 12,
+    canPropose: true,
+    held: true,
+    canCancelAlone: false,
+    ...overrides,
+  })
+
+  const asTheCustomerWhoMentors = (view: () => object, extra: Parameters<typeof fakeBackend>[1] = {}) =>
+    fakeBackend(signedInUser, {
+      ...role({ role: 'CUSTOMER_MENTOR', left: false, noCrew: true }),
+      'GET /api/v1/jobs/j1': () => json(selfMentoredJob),
+      'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'CUSTOMER' })),
+      'GET /api/v1/boards/j1/cancellation': () => json(view()),
+      ...extra,
+    })
+
+  it('says to recruit when no Milestone holds money', { timeout: 20_000 }, async () => {
+    asTheCustomerWhoMentors(() => cancellation({ held: false }))
+    renderAt('/cong-viec/j1')
+
+    const banner = (
+      await screen.findByText('Công việc chưa có thành viên. Chưa ai bàn giao được. Hãy tuyển thành viên để công việc tiếp tục.')
+    ).closest('[role="status"]') as HTMLElement
+    expect(within(banner).getByRole('link', { name: 'Tuyển thành viên' })).toHaveAttribute(
+      'href',
+      '/cong-viec/j1/tuyen-thanh-vien',
+    )
+    expect(within(banner).queryByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' })).toBeNull()
+    expect(within(banner).queryByRole('link', { name: 'Mở tranh chấp' })).toBeNull()
+    expect(screen.queryByText(/Bạn có thể tiếp tục một mình/)).toBeNull()
+  })
+
+  it('cancels a Held Milestone nobody worked on, alone, after a dialog that states the refund', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    let cancelled = false
+    asTheCustomerWhoMentors(
+      () => (cancelled ? cancellation({ state: 'CANCELLED', canPropose: false, held: false }) : cancellation({ noMember: 'ALONE' })),
+      {
+        'POST /api/v1/boards/j1/cancellation': async (request) => {
+          sent.push(await request.json())
+          cancelled = true
+          return json(cancellation({ state: 'CANCELLED', canPropose: false, held: false }))
+        },
+      },
+    )
+    renderAt('/cong-viec/j1')
+
+    const banner = (await screen.findByText(/hủy giai đoạn đang giữ tiền và nhận hoàn tiền đầy đủ\./)).closest(
+      '[role="status"]',
+    ) as HTMLElement
+    expect(within(banner).getByRole('link', { name: 'Tuyển thành viên' })).toBeInTheDocument()
+    // The banner holds the way out, so JOB-1's own section proposes nothing to nobody.
+    expect(screen.queryByRole('button', { name: 'Đề nghị hủy' })).toBeNull()
+
+    await user.click(within(banner).getByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Hủy giai đoạn đang giữ tiền?' })
+    expect(within(dialog).getByText(/bạn được hoàn đủ số tiền đó/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/công việc kết thúc\. Không hoàn tác được\./)).toBeInTheDocument()
+    const confirm = within(dialog).getByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' })
+    expect(confirm).toBeDisabled()
+
+    await user.type(within(dialog).getByRole('textbox', { name: 'Lý do' }), 'Không còn ai làm giai đoạn này')
+    await user.click(confirm)
+
+    expect(await screen.findByText('Đã hủy công việc.')).toBeInTheDocument()
+    expect(sent).toEqual([{ scope: 'JOB', reason: 'Không còn ai làm giai đoạn này', version: 12 }])
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('says why a Held Milestone a member worked on is not cancelled alone, and offers a Dispute', { timeout: 20_000 }, async () => {
+    asTheCustomerWhoMentors(() => cancellation({ noMember: 'CREW_WAS_ACTIVE', canPropose: false }))
+    renderAt('/cong-viec/j1')
+
+    const banner = (
+      await screen.findByText(/Đã có thành viên làm giai đoạn đang giữ tiền này, nên bạn không tự hủy và nhận lại tiền một mình được\./)
+    ).closest('[role="status"]') as HTMLElement
+    expect(within(banner).getByText(/Bàn giao đã gửi vẫn nghiệm thu, yêu cầu sửa hoặc trả lại được\./)).toBeInTheDocument()
+    expect(within(banner).getByRole('link', { name: 'Tuyển thành viên' })).toBeInTheDocument()
+    expect(within(banner).getByRole('link', { name: 'Mở tranh chấp' })).toHaveAttribute('href', '/cong-viec/j1#tranh-chap')
+    expect(within(banner).queryByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Đề nghị hủy' })).toBeNull()
+  })
+
+  it('shows the refusal when a member turned out to have worked on it', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    asTheCustomerWhoMentors(() => cancellation({ noMember: 'ALONE' }), {
+      'POST /api/v1/boards/j1/cancellation': () =>
+        json({ code: 'GUARD_FAILED', reason: 'CREW_WAS_ACTIVE', status: 422 }, 422),
+    })
+    renderAt('/cong-viec/j1')
+
+    await user.click(await screen.findByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Lý do' }), 'Không còn ai')
+    await user.click(within(dialog).getByRole('button', { name: 'Hủy giai đoạn đang giữ tiền' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Đã có thành viên làm giai đoạn đang giữ tiền/)
   })
 })
 
