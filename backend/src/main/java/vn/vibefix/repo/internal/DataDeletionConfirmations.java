@@ -96,17 +96,21 @@ class DataDeletionConfirmations implements DataDeletions {
 		return confirmedItems(jobId, accountId).size() == Item.values().length;
 	}
 
-	/** Everyone with the duty: the Mentor first, then each Crew member who was ever active. */
+	/**
+	 * Everyone with the duty: the Mentor first, then each Crew member who was ever active. In a Self-mentored Job only
+	 * the members have it (R51, AD-47 exception 13): its Mentor is the Customer, who is never asked as the Mentor.
+	 */
 	@Transactional(readOnly = true)
 	List<Duty> duties(JobPostState job) {
+		UUID mentor = job.selfMentored() ? null : job.mentorId();
 		Set<UUID> people = new LinkedHashSet<>();
-		if (job.mentorId() != null) {
-			people.add(job.mentorId());
+		if (mentor != null) {
+			people.add(mentor);
 		}
 		this.crews.crewOf(job.jobId(), Selection.EVER_ACTIVE).stream().map(CrewMember::studentId).forEach(people::add);
 		List<Duty> duties = new ArrayList<>();
 		for (UUID person : people) {
-			duties.add(new Duty(person, person.equals(job.mentorId()), confirmedItems(job.jobId(), person)));
+			duties.add(new Duty(person, person.equals(mentor), confirmedItems(job.jobId(), person)));
 		}
 		return duties;
 	}

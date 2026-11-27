@@ -113,6 +113,11 @@ class NotificationRegistry {
 		}
 	}
 
+	/** Whether the account holds the Job's combined role (AD-47), as the lookup that knows Jobs answers. */
+	boolean combinedRole(UUID accountId, UUID jobId) {
+		return this.lookups.stream().anyMatch(lookup -> lookup.combinedRole(accountId, jobId));
+	}
+
 	/** Refuses parameters other than those declared, or a declared one without a value. */
 	static void checkParams(String key, Set<String> declared, Map<String, String> params) {
 		if (!declared.equals(params.keySet())) {

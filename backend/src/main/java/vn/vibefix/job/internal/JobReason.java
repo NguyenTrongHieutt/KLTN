@@ -162,6 +162,12 @@ enum JobReason {
 	/** One side cancels alone only after the Agreement or Starting deadline passed (FR-40). */
 	DEADLINE_NOT_PASSED,
 
+	/**
+	 * A Self-mentored Job with no member now, whose Held Milestone a member was active on since it was funded: the
+	 * Customer does not cancel it alone, and recruits again or opens a Dispute (R49, AD-47 exception 1).
+	 */
+	CREW_WAS_ACTIVE,
+
 	/** An External Access identifier the scanning rules read as a secret; it is an account, never a credential (FR-66). */
 	IDENTIFIER_LOOKS_LIKE_SECRET,
 

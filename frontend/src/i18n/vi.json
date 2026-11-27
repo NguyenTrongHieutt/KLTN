@@ -4262,13 +4262,13 @@
         "title": "{name} đã tham gia nhóm thực hiện {job}"
       },
       "crew_login_added": {
-        "title": "Nhóm thực hiện {job} có thêm thành viên @{login}"
+        "title": "Nhóm thực hiện {job} có thêm thành viên {member}"
       },
       "crew_member_left": {
         "title": "{name} đã rời nhóm thực hiện {job}"
       },
       "crew_login_removed": {
-        "title": "@{login} đã rời nhóm thực hiện {job}"
+        "title": "{member} đã rời nhóm thực hiện {job}"
       },
       "crew_pick_released": {
         "title": "{name} không thể ký cam kết cho {job}"

@@ -589,12 +589,16 @@ class JobGrants {
 		}
 	}
 
-	/** A Crew change member's renewals ran out (FR-75): the Mentor hears, and Administrators are alerted. */
+	/**
+	 * A Crew change member's renewals ran out (FR-75): the Mentor hears, and Administrators are alerted. In a Self-mentored
+	 * Job Administrators alone hear: the notice describes the Working Repository, which is none of the Customer's (AD-11,
+	 * AD-47 exception 12 b).
+	 */
 	@Transactional
 	void exhausted(Grant grant) {
 		BusyJob job = this.busy.job(grant.jobId()).orElseThrow();
 		List<Recipient> recipients = new ArrayList<>();
-		if (job.mentorId() != null) {
+		if (job.mentorId() != null && !job.selfMentored()) {
 			recipients.add(new Recipient(job.mentorId(), Audience.MENTOR));
 		}
 		this.administrators.activeIds().forEach(id -> recipients.add(new Recipient(id, Audience.ADMIN)));

@@ -39,6 +39,10 @@ import vn.vibefix.shared.IdGenerator;
  * FR-66). When no counted {@code ACTIVE} row is left, {@link CrewEmptied} lets {@code matching} and {@code payment}
  * react before J6, and after J6 the Customer hears {@code job.crew_empty}; no Dispute opens for a Job with no Crew (Q7). A
  * reason never reaches a notice, a to-do or an event: it stays on the row, for JOB-9's Mentor alone.
+ *
+ * <p>In a Self-mentored Job the Customer is the Mentor and hears once (AD-47 exception 12 c, Story 25.4): by
+ * {@code job.crew_login_removed}, which there names the member, while {@code job.crew_member_left} goes to the other
+ * members only; and {@code job.crew_empty}, which says the Mentor carries on, is not sent.
  */
 @Component
 class CrewDepartures {
@@ -99,18 +103,26 @@ class CrewDepartures {
 		UUID member = row.studentId();
 		PersonCard card = card(member);
 		String link = "/cong-viec/" + job.id();
-		List<Recipient> crew = new ArrayList<>(List.of(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)));
+		String login = card == null ? null : card.githubLogin();
+		// AD-47 exception 12 (c): the Customer who mentors hears once, by the Customer's type, unless there is none to send.
+		List<Recipient> crew = new ArrayList<>();
+		if (!job.selfMentored() || login == null) {
+			crew.add(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
+		}
 		this.crews.rows(job.id())
 			.stream()
 			.filter(Row::active)
 			.forEach(other -> crew.add(new Recipient(other.studentId(), Audience.CREW_ACTIVE)));
-		this.notifications.send(new NotificationRequest(MEMBER_LEFT, key(row.id() + ":left"), crew,
-				Map.of("name", shownName(card), "job", job.title()), link, job.id(), null));
-		if (card != null && card.githubLogin() != null) {
-			// R15, UX-DR108: the Customer reads the GitHub username only, never a name or why.
+		if (!crew.isEmpty()) {
+			this.notifications.send(new NotificationRequest(MEMBER_LEFT, key(row.id() + ":left"), crew,
+					Map.of("name", shownName(card), "job", job.title()), link, job.id(), null));
+		}
+		if (login != null) {
+			// R15, UX-DR108: the Customer reads the GitHub username only, never a name or why. The Customer of a
+			// Self-mentored Job recruited the member, and reads the name the Mentor's notice gives.
 			this.notifications.send(new NotificationRequest(LOGIN_REMOVED, key(row.id() + ":login-removed"),
 					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-					Map.of("login", card.githubLogin(), "job", job.title()), link, job.id(), null));
+					Map.of("member", memberText(job, shownName(card), login), "job", job.title()), link, job.id(), null));
 		}
 		this.externalAccess.memberLeft(job, member);
 		this.events.publishEvent(new CrewMemberRemoved(this.ids.newId(), job.id(), row.id(), member));
@@ -124,9 +136,18 @@ class CrewDepartures {
 		UUID mentorId = Objects.requireNonNull(job.mentorId());
 		this.events.publishEvent(new CrewEmptied(this.ids.newId(), job.id(), mentorId, job.state().name(),
 				job.agreementVersionNo() != null, agreementDue(job.id())));
-		if (STARTED.contains(job.state())) {
+		if (STARTED.contains(job.state()) && !job.selfMentored()) {
+			// In a Self-mentored Job nobody carries on, and the Customer was just told who left; JOB-1's banner says the rest.
 			crewEmpty(job, mentorId);
 		}
+	}
+
+	/**
+	 * How a Customer-side notice names a member (R15, AD-47 exception 12 c): the GitHub username alone in a normal Job,
+	 * and "{name} (@{login})" for the Customer of a Self-mentored Job.
+	 */
+	static String memberText(Job job, String name, String login) {
+		return job.selfMentored() ? name + " (@" + login + ")" : "@" + login;
 	}
 
 	/** The member as the Crew reads their name. */

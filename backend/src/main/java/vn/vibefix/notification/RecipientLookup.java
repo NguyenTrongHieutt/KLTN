@@ -25,4 +25,13 @@ public interface RecipientLookup {
 		return holds(accountId, audience, jobId);
 	}
 
+	/**
+	 * Whether the account holds the combined role of the Job (AD-47): the Customer of a Self-mentored Job, who is its
+	 * Mentor too. A to-do opened to them as {@link Audience#CUSTOMER} or {@link Audience#MENTOR} records that one role
+	 * (exception 12 c). Only {@code job} knows the mode, so every other lookup answers no.
+	 */
+	default boolean combinedRole(UUID accountId, UUID jobId) {
+		return false;
+	}
+
 }

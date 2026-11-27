@@ -210,20 +210,28 @@ class JobCrewPicks implements CrewPicks {
 		PersonFacts person = this.profiles.factsOf(List.of(member)).get(member);
 		String name = person == null || person.displayName().isBlank() ? "Một thành viên nhóm" : person.displayName();
 		String link = "/cong-viec/" + jobId;
-		List<Recipient> crew = new ArrayList<>(List.of(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)));
+		String login = person == null ? null : person.githubLogin();
+		// AD-47 exception 12 (c): the Customer who mentors hears once, by the Customer's type, unless there is none to send.
+		List<Recipient> crew = new ArrayList<>();
+		if (!job.selfMentored() || login == null) {
+			crew.add(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
+		}
 		this.crews.rows(jobId)
 			.stream()
 			.filter(other -> other.active() && !other.id().equals(rowId))
 			.forEach(other -> crew.add(new Recipient(other.studentId(), Audience.CREW_ACTIVE)));
-		this.notifications.send(new NotificationRequest(JOINED, key(rowId + ":joined"), crew,
-				Map.of("name", name, "job", job.title()), link, jobId, null));
-		if (person != null && person.githubLogin() != null) {
-			// R15, UX-DR108: the Customer reads the GitHub username only, never a name, a profile or a pick.
+		if (!crew.isEmpty()) {
+			this.notifications.send(new NotificationRequest(JOINED, key(rowId + ":joined"), crew,
+					Map.of("name", name, "job", job.title()), link, jobId, null));
+		}
+		if (login != null) {
+			// R15, UX-DR108: the Customer reads the GitHub username only, never a name, a profile or a pick. The Customer
+			// of a Self-mentored Job picked the member, and reads the name the Mentor's notice gives.
 			this.notifications.send(new NotificationRequest(LOGIN_ADDED, key(rowId + ":login-added"),
 					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)),
-					Map.of("login", person.githubLogin(), "job", job.title()), link, jobId, null));
+					Map.of("member", CrewDepartures.memberText(job, name, login), "job", job.title()), link, jobId, null));
 			// R15, FR-66: the confirmation's to-dos named nobody, so the Customer grants a later member each item by name.
-			this.externalAccess.memberJoined(job, member, person.githubLogin());
+			this.externalAccess.memberJoined(job, member, login);
 		}
 		if (job.state() == JobState.AGREEMENT && job.agreementVersionNo() != null) {
 			this.reviews.confirmed(jobId).ifPresent(confirmed -> this.reviews.askToFundMilestoneOne(job, confirmed.content()));

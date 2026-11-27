@@ -19,6 +19,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import vn.vibefix.job.Crews.Relationship;
 import vn.vibefix.job.JobRole;
+import vn.vibefix.job.internal.Cancellations.NoMember;
 import vn.vibefix.job.internal.Cancellations.Proposal;
 import vn.vibefix.job.internal.Cancellations.Scope;
 import vn.vibefix.job.internal.ChangeRequests.Party;
@@ -33,7 +34,8 @@ import vn.vibefix.shared.Gate;
 /**
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): the Customer or the Mentor proposes, the other side confirms
  * on the loaded Job version, and the proposer may withdraw; the active Crew reads the proposal. Everyone
- * else finds nothing.
+ * else finds nothing. The Customer of a Self-mentored Job whose Held Milestone has no active member cancels at once
+ * through the proposal command, or is refused it (R49; {@link Cancellations.NoMember}).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
@@ -47,9 +49,13 @@ class CancellationController {
 	/**
 	 * @param held a Milestone holds money, which the confirmation refunds in full
 	 * @param canPropose the Job can be cancelled and nothing is open
+	 * @param noMember for the Customer of a Self-mentored Job whose Held Milestone has no active member (R49, UX-DR124):
+	 * {@code ALONE}, nobody was active since it was funded, so the proposal command cancels at once with the full refund;
+	 * {@code CREW_WAS_ACTIVE}, a member was, so the command is refused and the page offers recruiting again or a
+	 * Dispute. {@code null} everywhere else
 	 */
 	record CancellationView(UUID jobId, String audience, String state, long version, boolean canPropose, boolean held,
-			boolean canCancelAlone, @Nullable CancellationProposalView proposal) {
+			boolean canCancelAlone, @Nullable CancellationProposalView proposal, @Nullable NoMember noMember) {
 	}
 
 	record CancelAloneRequest(@NotBlank @Size(max = 2000) String reason, @NotNull Long version) {
@@ -157,15 +163,16 @@ class CancellationController {
 		Job job = viewer.job();
 		Proposal open = this.cancellations.open(job.id()).orElse(null);
 		Proposal shown = open != null ? open : this.cancellations.latest(job.id()).orElse(null);
+		NoMember noMember = viewer.party() == null ? null : this.cancellations.noMember(job);
 		boolean canPropose = viewer.party() != null && open == null && Cancellations.CANCELLABLE.contains(job.state())
-				&& this.closures.open(job.id()).isEmpty();
+				&& this.closures.open(job.id()).isEmpty() && noMember != NoMember.CREW_WAS_ACTIVE;
 		CancellationProposalView proposal = shown == null ? null
 				: new CancellationProposalView(shown.id(), shown.scope().name(), shown.reason(), shown.proposer().name(),
 						shown.proposer() == viewer.party(), shown.status(), shown.answerBy(), shown.unansweredAt() != null,
 						shown.createdAt(), shown.decidedAt());
 		boolean alone = viewer.party() != null && open == null && this.cancellations.aloneAllowed(job);
 		return new CancellationView(job.id(), viewer.party() == null ? "CREW" : viewer.party().name(), job.state().name(),
-				job.version(), canPropose, this.cancellations.held(job.id()), alone, proposal);
+				job.version(), canPropose, this.cancellations.held(job.id()), alone, proposal, noMember);
 	}
 
 }

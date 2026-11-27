@@ -68,6 +68,11 @@ class StallDeadlines {
 					now.plus(period(this.jdbc, jobId, state))));
 		}
 		else if (state == JobState.STARTING) {
+			// One column records both stalls: an Agreement stall that passed before the Job went on must not let anyone
+			// cancel alone in Starting before its own period, nor keep the Starting stall from being told (Story 25.4).
+			this.jdbc.sql("UPDATE job.job SET stall_deadline_passed_at = NULL WHERE id = :id AND stall_deadline_passed_at IS NOT NULL")
+				.param("id", jobId)
+				.update();
 			this.deadlines.schedule(new DeadlineRequest(StartingDeadline.KEY, jobId, jobId.toString(), jobId,
 					now.plus(period(this.jdbc, jobId, state))));
 		}

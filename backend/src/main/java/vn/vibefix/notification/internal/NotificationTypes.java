@@ -570,9 +570,12 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP, EmailClass.TRANSACTIONAL, "users",
 			Set.of("name", "job"));
 
-	/** The same, told to the Customer by GitHub username only (R15, Story 21.5): never a name or a profile. */
+	/**
+	 * The same, told to the Customer by GitHub username only (R15, Story 21.5): never a name or a profile. {@code member}
+	 * is "@login", and for the Customer of a Self-mentored Job "name (@login)" (AD-47 exception 12 c, Story 25.4).
+	 */
 	static final NotificationType JOB_CREW_LOGIN_ADDED = new NotificationType("job.crew_login_added",
-			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("login", "job"));
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "users", Set.of("member", "job"));
 
 	/**
 	 * An active Crew member left the Crew; a lock counts as leaving and reads the same, never why (FR-82, FR-59,
@@ -582,9 +585,12 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.MENTOR, Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info",
 			Set.of("name", "job"));
 
-	/** The same, told to the Customer by GitHub username only (R15, UX-DR108, Story 20.4). */
+	/**
+	 * The same, told to the Customer by GitHub username only (R15, UX-DR108, Story 20.4); {@code member} reads as in
+	 * {@link #JOB_CREW_LOGIN_ADDED}.
+	 */
 	static final NotificationType JOB_CREW_LOGIN_REMOVED = new NotificationType("job.crew_login_removed",
-			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("login", "job"));
+			Set.of(Audience.CUSTOMER), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "info", Set.of("member", "job"));
 
 	/**
 	 * A picked person who had not signed is locked, so the pick is released as {@code DECLINED} (FR-59, A-05,
