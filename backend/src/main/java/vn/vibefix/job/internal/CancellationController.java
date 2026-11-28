@@ -35,15 +35,26 @@ import vn.vibefix.shared.Gate;
  * JOB-1's "Hủy công việc" (FR-40, UX-DR16): the Customer or the Mentor proposes, the other side confirms
  * on the loaded Job version, and the proposer may withdraw; the active Crew reads the proposal. Everyone
  * else finds nothing. The Customer of a Self-mentored Job whose Held Milestone has no active member cancels at once
- * through the proposal command, or is refused it (R49; {@link Cancellations.NoMember}).
+ * through the proposal command, or is refused it (R49; {@link Cancellations.NoMember}). In a Self-mentored Job the
+ * members asked answer through their own command, the confirm command is not there, and with no Held Milestone the
+ * proposal command cancels at once (AD-47 exception 6, Story 25.7).
  */
 @RestController
 @Access(Gate.SIGNED_IN)
 class CancellationController {
 
-	/** @param status {@code OPEN}, {@code CONFIRMED}, or {@code WITHDRAWN} */
+	/**
+	 * @param status {@code OPEN}, {@code CONFIRMED}, {@code WITHDRAWN}, or, in a Self-mentored Job, {@code REFUSED} by a
+	 * member
+	 * @param asked in a Self-mentored Job, the members asked who still count (R56); absent in a normal Job and for a
+	 * cancellation applied alone
+	 * @param agreed those of them who agreed
+	 * @param mayAnswer the reader is one of them and has not answered
+	 * @param myAnswer the reader's own answer, {@code AGREED} or {@code REFUSED}
+	 */
 	record CancellationProposalView(UUID id, String scope, String reason, String proposer, boolean mine, String status,
-			Instant answerBy, boolean unanswered, Instant createdAt, @Nullable Instant decidedAt) {
+			Instant answerBy, boolean unanswered, Instant createdAt, @Nullable Instant decidedAt, @Nullable Integer asked,
+			@Nullable Integer agreed, boolean mayAnswer, @Nullable String myAnswer) {
 	}
 
 	/**
@@ -54,9 +65,16 @@ class CancellationController {
 	 * {@code CREW_WAS_ACTIVE}, a member was, so the command is refused and the page offers recruiting again or a
 	 * Dispute. {@code null} everywhere else
 	 * @param frozen a Dispute freezes the Job: nothing is cancelled at once, and no second Dispute opens
+	 * @param selfMentored a Self-mentored Job: with no Held Milestone the proposal command cancels at once, and with one
+	 * the members answer (AD-47 exception 6)
 	 */
 	record CancellationView(UUID jobId, String audience, String state, long version, boolean canPropose, boolean held,
-			boolean canCancelAlone, @Nullable CancellationProposalView proposal, @Nullable NoMember noMember, boolean frozen) {
+			boolean canCancelAlone, @Nullable CancellationProposalView proposal, @Nullable NoMember noMember, boolean frozen,
+			boolean selfMentored) {
+	}
+
+	/** A member's answer to the proposal the page showed. */
+	record CancellationAnswerRequest(@NotNull UUID proposalId, @NotNull Boolean agree) {
 	}
 
 	record CancelAloneRequest(@NotBlank @Size(max = 2000) String reason, @NotNull Long version) {
@@ -111,6 +129,20 @@ class CancellationController {
 		Viewer viewer = party(jobId);
 		this.cancellations.confirm(jobId, viewer.accountId(), viewer.party(), body.version());
 		return view(party(jobId));
+	}
+
+	/**
+	 * "Đồng ý hủy" or "Không đồng ý" of a member of a Self-mentored Job whom the Customer's proposal asks (AD-47
+	 * exception 6, B-04). A normal Job has no such command.
+	 */
+	@PostMapping("/api/v1/boards/{boardId}/cancellation/answer")
+	CancellationView answer(@PathVariable("boardId") UUID jobId, @Valid @RequestBody CancellationAnswerRequest body) {
+		Viewer viewer = viewer(jobId, this.callers.get());
+		if (!viewer.job().selfMentored()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		this.cancellations.answer(jobId, viewer.accountId(), body.proposalId(), body.agree());
+		return view(viewer(jobId, this.callers.get()));
 	}
 
 	/** After the Agreement or Starting deadline (FR-40): either side cancels alone. */
@@ -169,16 +201,22 @@ class CancellationController {
 				&& this.closures.open(job.id()).isEmpty() && noMember != NoMember.CREW_WAS_ACTIVE
 				// A cancellation applied at once is a cascade, which a freeze refuses; a proposal is only a question.
 				&& (noMember != NoMember.ALONE || job.frozenAt() == null);
-		CancellationProposalView proposal = shown == null ? null
-				: new CancellationProposalView(shown.id(), shown.scope().name(), shown.reason(), shown.proposer().name(),
-						shown.proposer() == viewer.party(), shown.status(), shown.answerBy(), shown.unansweredAt() != null,
-						shown.createdAt(), shown.decidedAt());
+		CancellationProposalView proposal = null;
+		if (shown != null) {
+			ProposalAnswers.Tally tally = this.cancellations.tally(job, shown);
+			boolean member = viewer.party() == null;
+			proposal = new CancellationProposalView(shown.id(), shown.scope().name(), shown.reason(), shown.proposer().name(),
+					shown.proposer() == viewer.party(), shown.status(), shown.answerBy(), shown.unansweredAt() != null,
+					shown.createdAt(), shown.decidedAt(), tally == null ? null : tally.asked(),
+					tally == null ? null : tally.agreed(), member && this.cancellations.mayAnswer(job, shown, viewer.accountId()),
+					member && job.selfMentored() ? this.cancellations.answerOf(shown, viewer.accountId()) : null);
+		}
 		// The stall's cancellation is a cascade too, so a frozen Job is not offered it (the command answers JOB_FROZEN).
 		boolean alone = viewer.party() != null && open == null && job.frozenAt() == null
 				&& this.cancellations.aloneAllowed(job);
 		return new CancellationView(job.id(), viewer.party() == null ? "CREW" : viewer.party().name(), job.state().name(),
 				job.version(), canPropose, this.cancellations.held(job.id()), alone, proposal, noMember,
-				job.frozenAt() != null);
+				job.frozenAt() != null, job.selfMentored());
 	}
 
 }

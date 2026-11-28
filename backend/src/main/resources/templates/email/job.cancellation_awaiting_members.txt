@@ -1,0 +1,5 @@
+subject: Khách hàng đề nghị hủy {job}. Hãy trả lời trước {date}.
+---
+Xin chào,
+
+Khách hàng đề nghị hủy công việc {job} khi một giai đoạn đang giữ tiền. Việc hủy chỉ có hiệu lực khi mọi thành viên đang làm đều đồng ý trước {date}: khi đó các giai đoạn chưa bắt đầu bị hủy và tiền đang giữ được hoàn đủ cho khách hàng (thử nghiệm). Nếu bạn không đồng ý, đề nghị dừng lại, và bạn hoặc khách hàng có thể mở tranh chấp. Hãy đọc lý do và trả lời trên vibefix.

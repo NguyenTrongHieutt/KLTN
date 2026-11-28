@@ -869,6 +869,18 @@ class NotificationTypes implements NotificationCatalog {
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert",
 			Set.of("job", "date"));
 
+	/**
+	 * FR-40, AD-47 exception 6, UX-DR130: the Customer of a Self-mentored Job proposes a cancellation with a Held
+	 * Milestone, and each member who is active then is asked to agree. It takes {@code job.cancellation_proposed}'s
+	 * place for them.
+	 */
+	static final NotificationType JOB_CANCELLATION_AWAITING_MEMBERS = new NotificationType("job.cancellation_awaiting_members",
+			Set.of(Audience.CREW_ACTIVE), Channel.IN_APP_AND_EMAIL, EmailClass.TRANSACTIONAL, "alert", Set.of("job", "date"));
+
+	/** AD-47 exception 6: a member refused the Customer's cancellation of a Self-mentored Job; a Dispute is the way on. */
+	static final NotificationType JOB_CANCELLATION_REFUSED = new NotificationType("job.cancellation_refused",
+			Set.of(Audience.CUSTOMER), Channel.IN_APP, EmailClass.TRANSACTIONAL, "alert", Set.of("job"));
+
 	/** FR-40: the copied days passed without an answer; a Dispute is the way on. */
 	static final NotificationType JOB_CANCELLATION_UNANSWERED = new NotificationType("job.cancellation_unanswered",
 			Set.of(Audience.CUSTOMER, Audience.MENTOR), Channel.IN_APP_AND_EMAIL, EmailClass.REMINDER, "info",
@@ -968,7 +980,7 @@ class NotificationTypes implements NotificationCatalog {
 
 	/** A cancellation proposal waits for the other side (FR-40): until confirmed or withdrawn. */
 	static final TodoType JOB_ANSWER_CANCELLATION = new TodoType("job.answer_cancellation",
-			Set.of(Audience.CUSTOMER, Audience.MENTOR), 2, Set.of("job", "date"));
+			Set.of(Audience.CUSTOMER, Audience.MENTOR, Audience.CREW_ACTIVE), 2, Set.of("job", "date"));
 
 	/** The Customer's Change Request waits for the Mentor's time impact (FR-36). */
 	static final TodoType JOB_ADD_CHANGE_IMPACT = new TodoType("job.add_change_impact", Set.of(Audience.MENTOR), 2,
@@ -1053,7 +1065,8 @@ class NotificationTypes implements NotificationCatalog {
 				DISPUTE_TEAM_ISSUE_ANSWERED, DISPUTE_TEAM_ISSUE_ESCALATED, DISPUTE_TEAM_ISSUE_DECIDED,
 				JOB_CHANGE_REQUEST_AWAITING_TOP_UP, DISPUTE_STATEMENT_SUBMITTED, ADMIN_ABUSE_REPORT_RESOLVED, IDENTITY_DELETION_REQUESTED,
 				ADMIN_SKILL_SUGGESTION_APPROVED, ADMIN_SKILL_SUGGESTION_DECLINED,
-				JOB_JOB_STARTING, JOB_SPLIT_DRAFT_DUE, JOB_SPLIT_PENDING, JOB_SPLIT_DRAFT_REMINDER,
+				JOB_JOB_STARTING, JOB_CANCELLATION_AWAITING_MEMBERS, JOB_CANCELLATION_REFUSED, JOB_SPLIT_DRAFT_DUE,
+				JOB_SPLIT_PENDING, JOB_SPLIT_DRAFT_REMINDER,
 				JOB_SPLIT_PROPOSED, JOB_SPLIT_DEFAULTED, JOB_SPLIT_EDITED, JOB_SPLIT_CONFIRMATION_REMINDER,
 				JOB_SPLIT_PARTY_CONFIRMED, JOB_SPLIT_FINAL,
 				PAYMENT_REFUND_REQUESTED, PAYMENT_SIMULATED_REFUND_REQUESTED, PAYMENT_REFUND_CONFIRMED);
