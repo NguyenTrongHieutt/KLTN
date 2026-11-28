@@ -25,7 +25,10 @@ class M8Settle implements JobLifecycle.Step {
 
 	private final JobMilestoneSplits splits;
 
-	M8Settle(M1Fund numbers, JobMilestoneSplits splits) {
+	private final CancellationMoot moot;
+
+	M8Settle(M1Fund numbers, JobMilestoneSplits splits, CancellationMoot moot) {
+		this.moot = moot;
 		this.numbers = numbers;
 		this.splits = splits;
 	}
@@ -56,6 +59,8 @@ class M8Settle implements JobLifecycle.Step {
 
 	@Override
 	public void afterWrite(Applying applying) {
+		// A Self-mentored Job's open cancellation asked the members about this Milestone while it was held.
+		this.moot.heldChanged(applying.job());
 		if (((Number) applying.input(RELEASE)).longValue() > 0) {
 			UUID jobId = applying.job().id();
 			this.splits.createAtRelease(applying.job(), applying.milestoneId(), this.numbers.number(jobId, applying.milestoneId()),

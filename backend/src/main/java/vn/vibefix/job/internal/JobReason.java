@@ -163,8 +163,8 @@ enum JobReason {
 	CANCELLATION_PROPOSER,
 
 	/**
-	 * The answer of someone the proposal does not ask (AD-47, R56): a member who joined after it was made, who left, or
-	 * the Customer who made it.
+	 * The answer of someone the proposal does not ask (AD-47, R56): a member who joined after it was made, or the
+	 * Customer who made it. A member who left finds nothing.
 	 */
 	NOT_ASKED,
 

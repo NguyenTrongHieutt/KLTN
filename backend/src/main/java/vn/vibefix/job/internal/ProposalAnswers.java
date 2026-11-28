@@ -18,7 +18,7 @@ import vn.vibefix.shared.IdGenerator;
  * cancellation with a Held Milestone, or a Change Request that is not only a later due date. The Customer is the Mentor
  * there, so "the other side" is the Crew: the members who are {@code ACTIVE} and unlocked when the proposal is made
  * each get a row and answer once. A member who leaves or is locked before answering no longer counts; one who joins
- * afterwards has no row and is not asked. Every caller holds the Job row lock.
+ * afterwards has no row and is not asked. Every command holds the Job row lock; a page reads the tally without it.
  */
 @Component
 class ProposalAnswers {
@@ -117,15 +117,6 @@ class ProposalAnswers {
 		List<Answer> counting = rows.stream().filter(row -> row.memberId() != null && counted.contains(row.memberId())).toList();
 		return new Tally(counting.size(), (int) counting.stream().filter(row -> "AGREED".equals(row.answer())).count(),
 				rows.stream().anyMatch(row -> "REFUSED".equals(row.answer())));
-	}
-
-	/** The members asked who still count and have not answered. */
-	List<UUID> waiting(UUID jobId, UUID proposalId) {
-		Set<UUID> counted = counted(jobId);
-		return of(proposalId).stream()
-			.filter(row -> row.answer() == null && row.memberId() != null && counted.contains(row.memberId()))
-			.map(Answer::memberId)
-			.toList();
 	}
 
 	private List<Answer> of(UUID proposalId) {

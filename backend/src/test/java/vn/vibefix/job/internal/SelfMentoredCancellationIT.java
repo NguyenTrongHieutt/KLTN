@@ -29,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.vibefix.identity.internal.IdentityTestSupport;
 import vn.vibefix.identity.internal.Role;
+import vn.vibefix.job.MilestoneSettlements;
 import vn.vibefix.payment.Ledger;
 import vn.vibefix.support.HeldCrewJob;
 import vn.vibefix.support.IntegrationTest;
@@ -67,6 +68,9 @@ class SelfMentoredCancellationIT extends IntegrationTest {
 
 	@Autowired
 	private Jobs jobs;
+
+	@Autowired
+	private MilestoneSettlements settlements;
 
 	private HeldCrewJob world;
 
@@ -215,17 +219,102 @@ class SelfMentoredCancellationIT extends IntegrationTest {
 		this.mvc.perform(post("/api/v1/boards/" + this.job + "/cancellation/withdraw").with(as(this.lan)).with(csrf()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$.proposal.status").value("WITHDRAWN"));
 
+		// An agreement a leaver leaves complete applies when they go, and their to-do closes with them.
 		String second = proposed();
 		answer(this.vy, second, true).andExpect(status().isOk()).andExpect(jsonPath("$.proposal.status").value("OPEN"));
 		leave(this.minh);
 		awaitListeners();
+
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + second + "'")).isEqualTo("CONFIRMED");
+		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("CANCELLED");
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'job.answer_cancellation' AND closed_at IS NULL"))
+			.isZero();
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.cancellation_agreed_by_all'")).isOne();
+	}
+
+	/**
+	 * AD-28: the Job is busy when a leaver completes the agreement, so nothing applies then; at the date the Deadline
+	 * comes again while the Job is busy, never telling the Customer "unanswered", and applies once the marker is gone.
+	 */
+	@Test
+	void aBusyJobDelaysACompleteAgreementAndAFrozenOneRefusesTheLastAnswer() throws Exception {
+		String proposal = proposed();
+		answer(this.vy, proposal, true).andExpect(status().isOk());
+		this.jdbc.sql("UPDATE job.job SET frozen_at = now() WHERE id = :id").param("id", this.job).update();
+		answer(this.minh, proposal, true).andExpect(status().isConflict()).andExpect(jsonPath("$.reason").value("JOB_FROZEN"));
+		assertThat(count("SELECT count(*) FROM job.proposal_answer WHERE answer IS NOT NULL")).as("the refused answer is not kept")
+			.isOne();
+		assertThat(openTodos("job.answer_cancellation", this.minh)).isOne();
+		this.jdbc.sql("""
+				UPDATE job.job SET frozen_at = NULL, busy_operation_key = 'test:busy', busy_purpose = 'ACCEPTANCE',
+				    busy_subject = 'test', busy_since = now() WHERE id = :id
+				""").param("id", this.job).update();
+
+		leave(this.minh);
+		awaitListeners();
 		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("ACTIVE");
+		assertThat(openTodos("job.answer_cancellation", this.minh)).as("the leaver is asked nothing more").isZero();
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+		awaitListeners();
+		assertThat(text("SELECT status || ':' || (unanswered_at IS NULL) FROM job.cancellation_proposal WHERE id = '" + proposal
+				+ "'")).isEqualTo("OPEN:true");
+		assertThat(notices("job.cancellation_unanswered", this.lan)).isZero();
+
+		this.jdbc.sql("""
+				UPDATE job.job SET busy_operation_key = NULL, busy_purpose = NULL, busy_subject = NULL, busy_since = NULL
+				WHERE id = :id
+				""").param("id", this.job).update();
+		this.poller.runDue();
+		awaitListeners();
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + proposal + "'")).isEqualTo("CONFIRMED");
+		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("CANCELLED");
+	}
+
+	/** R56: a locked member no longer counts, and with nobody left to ask nothing is agreed by default. */
+	@Test
+	void aLockedMemberNoLongerCountsAndNobodyLeftAgreesNothing() throws Exception {
+		String proposal = proposed();
+		this.jdbc.sql("UPDATE identity.account SET locked_at = :at, lock_reason = 'Vi phạm quy tắc' WHERE id = :id")
+			.param("at", Timestamp.from(this.clock.instant())).param("id", this.minh).update();
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/cancellation").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.proposal.asked").value(1));
+
+		leave(this.vy);
+		awaitListeners();
+		this.mvc.perform(get("/api/v1/boards/" + this.job + "/cancellation").with(as(this.lan))).andExpect(status().isOk())
+			.andExpect(jsonPath("$.proposal.status").value("OPEN"))
+			.andExpect(jsonPath("$.proposal.asked").value(0))
+			.andExpect(jsonPath("$.noMember").value("CREW_WAS_ACTIVE"));
 		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
 		this.poller.runDue();
 		awaitListeners();
 
-		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + second + "'")).isEqualTo("CONFIRMED");
-		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("CANCELLED");
+		assertThat(text("SELECT status || ':' || (unanswered_at IS NOT NULL) FROM job.cancellation_proposal WHERE id = '"
+				+ proposal + "'")).isEqualTo("OPEN:true");
+		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("ACTIVE");
+		assertThat(notices("job.cancellation_unanswered", this.lan)).isOne();
+	}
+
+	/**
+	 * The members were asked about a Held Milestone: once it is settled or accepted their answers are about another
+	 * state of the money, so the proposal ends and nothing they said applies.
+	 */
+	@Test
+	void theProposalEndsWhenItsMilestoneStopsBeingHeld() throws Exception {
+		String proposal = proposed();
+		answer(this.vy, proposal, true).andExpect(status().isOk());
+
+		this.settlements.settle(this.job, this.world.milestone(), 0, HeldCrewJob.PRICE);
+		awaitListeners();
+
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + proposal + "'")).isEqualTo("WITHDRAWN");
+		assertThat(count("SELECT count(*) FROM notification.todo WHERE todo_key = 'job.answer_cancellation' AND closed_at IS NULL"))
+			.isZero();
+		assertThat(count("SELECT count(*) FROM audit.audit_entry WHERE action = 'job.cancellation_moot'")).isOne();
+		answer(this.minh, proposal, true).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.reason").value("NO_CANCELLATION_OPEN"));
+		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("ACTIVE");
 	}
 
 	/** B-06: with no Held Milestone the Customer's word is enough, and the members are told by the Job's own notice. */

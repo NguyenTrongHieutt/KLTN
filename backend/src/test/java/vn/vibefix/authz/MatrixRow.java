@@ -323,7 +323,8 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		}
 		if (state.get(Binding.STALLED_SELF_JOB.key()) != null
 				&& !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
-			throw new IllegalArgumentException(Binding.STALLED_SELF_JOB.state() + " names a Job of the mode world, beside "
+			throw new IllegalArgumentException("selfJob=" + state.get(Binding.STALLED_SELF_JOB.key())
+					+ " names a Job of the mode world, beside "
 					+ Binding.SELF_JOB.state());
 		}
 		if (Binding.RETURNED_SELF_HANDOVER.value().equals(state.get(Binding.RETURNED_SELF_HANDOVER.key()))

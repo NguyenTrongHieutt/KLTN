@@ -64,8 +64,11 @@ class M5Accept implements JobLifecycle.Step {
 	private record Next(UUID id, long priceVnd) {
 	}
 
+	private final CancellationMoot moot;
+
 	M5Accept(JdbcClient jdbc, M1Fund numbers, Notifications notifications, AuditLog auditLog, ClosureProposals closures,
-			Deadlines deadlines, JobMilestoneSplits splits, CrewService crews) {
+			Deadlines deadlines, JobMilestoneSplits splits, CrewService crews, CancellationMoot moot) {
+		this.moot = moot;
 		this.crews = crews;
 		this.splits = splits;
 		this.jdbc = jdbc;
@@ -113,6 +116,8 @@ class M5Accept implements JobLifecycle.Step {
 		boolean auto = applying.trigger() == Trigger.AUTO;
 		this.splits.createAtRelease(job, applying.milestoneId(), this.numbers.number(job.id(), applying.milestoneId()),
 				applying.now());
+		// A Self-mentored Job's open cancellation asked the members about this Milestone while it was held.
+		this.moot.heldChanged(job);
 		if (auto) {
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), AUTO_ACCEPTED,
 					AuditObject.of("job.milestone", applying.milestoneId())).forJob(job.id()));

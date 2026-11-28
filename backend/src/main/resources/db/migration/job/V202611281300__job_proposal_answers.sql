@@ -12,7 +12,7 @@
 CREATE TABLE job.proposal_answer
 (
     id                UUID PRIMARY KEY,
-    job_id            UUID        NOT NULL,
+    job_id            UUID        NOT NULL REFERENCES job.job (id),
     proposal_kind     TEXT        NOT NULL CHECK (proposal_kind IN ('CANCELLATION', 'CHANGE_REQUEST')),
     proposal_id       UUID        NOT NULL,
     member_account_id UUID,

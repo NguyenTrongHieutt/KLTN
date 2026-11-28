@@ -40,8 +40,7 @@ class CancellationAnswer implements DeadlineHandler {
 			.orElse(false)) {
 			return DeadlineOutcome.REPAUSE;
 		}
-		return this.cancellations.getObject().unanswered(deadline.subjectId()) ? DeadlineOutcome.FIRED
-				: DeadlineOutcome.OBSOLETE;
+		return this.cancellations.getObject().unanswered(deadline.subjectId());
 	}
 
 }
