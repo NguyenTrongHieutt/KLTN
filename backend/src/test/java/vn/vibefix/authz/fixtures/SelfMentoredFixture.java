@@ -113,6 +113,9 @@ public class SelfMentoredFixture implements MatrixFixture {
 
 	private UUID former;
 
+	/** The member of the third Job whom its cancellation proposal asks ({@code selfJob=asking}). */
+	private UUID asked;
+
 	private UUID locked;
 
 	private UUID activeParty;
@@ -207,6 +210,47 @@ public class SelfMentoredFixture implements MatrixFixture {
 			.param("id", stalled)
 			.update();
 		put(world, "stalledBoardId", stalled);
+		asking(world);
+	}
+
+	/**
+	 * Story 25.7 (AD-47 exception 6, R56, B-04): the Customer's third Job, on a Product of its own, Active and not
+	 * frozen, with a Held Milestone and two active members whom the Customer's open cancellation proposal asks
+	 * ({@code selfJob=asking}, {@code {selfCancellationProposalId}}). On that Job {@link MatrixCaller#CREW_ACTIVE}
+	 * is the first of them, who has not answered.
+	 */
+	private void asking(MatrixWorld world) {
+		UUID product = JobContent.product(this.jdbc, this.customer, "Sản phẩm chờ hủy");
+		UUID asking = job(product, "Việc tự hướng dẫn chờ thành viên trả lời hủy", "ACTIVE");
+		this.asked = JobContent.member(this.jdbc, "Thành viên được hỏi (tự hướng dẫn)");
+		UUID other = JobContent.member(this.jdbc, "Thành viên được hỏi thứ hai (tự hướng dẫn)");
+		JobContent.crewRow(this.jdbc, asking, this.asked, "ACTIVE", null);
+		JobContent.crewRow(this.jdbc, asking, other, "ACTIVE", null);
+		UUID milestone = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.milestone (id, job_id, position, title, price_vnd, due_on, revision_rounds, created_at, state,
+				    funded_at)
+				VALUES (:id, :job, 0, 'Sửa lỗi đặt bàn', :price, DATE '2026-12-10', 2, :signed, 'FUNDED', :funded)
+				""").param("id", milestone).param("job", asking).param("price", HELD_PRICE).param("signed", Timestamp.from(SIGNED))
+			.param("funded", Timestamp.from(ACCEPTED)).update();
+		JobContent.fund(this.jdbc, asking, product, milestone, this.customer, HELD_PRICE, ACCEPTED);
+		UUID proposal = UUID.randomUUID();
+		this.jdbc.sql("""
+				INSERT INTO job.cancellation_proposal (id, job_id, scope, reason, proposer, proposer_account_id, status, answer_by,
+				    created_at)
+				VALUES (:id, :job, 'JOB', 'Sản phẩm đổi hướng', 'CUSTOMER', :customer, 'OPEN', :by, :at)
+				""").param("id", proposal).param("job", asking).param("customer", this.customer)
+			.param("by", Timestamp.from(MutableClock.DEFAULT_INSTANT.plus(Duration.ofDays(4))))
+			.param("at", Timestamp.from(WRITTEN)).update();
+		for (UUID member : List.of(this.asked, other)) {
+			this.jdbc.sql("""
+					INSERT INTO job.proposal_answer (id, job_id, proposal_kind, proposal_id, member_account_id, created_at)
+					VALUES (:id, :job, 'CANCELLATION', :proposal, :member, :at)
+					""").param("id", UUID.randomUUID()).param("job", asking).param("proposal", proposal).param("member", member)
+				.param("at", Timestamp.from(WRITTEN)).update();
+		}
+		put(world, "askingBoardId", asking);
+		put(world, "cancellationProposalId", proposal);
 	}
 
 	/**
@@ -773,6 +817,11 @@ public class SelfMentoredFixture implements MatrixFixture {
 		}
 		if (!PEOPLE.contains(caller)) {
 			return Optional.empty();
+		}
+		// On the Job whose cancellation waits for its members, the active member is one of those asked: the first
+		// Job's active member cannot be on two Crews. The runner says which Job the row runs on.
+		if (caller == MatrixCaller.CREW_ACTIVE && world.askingJob()) {
+			return signedIn(this.asked, Role.STUDENT);
 		}
 		return switch (caller) {
 			case CREW_ASSIGNED -> signedIn(this.assigned, Role.STUDENT);

@@ -124,7 +124,11 @@ class MatrixFilesTest {
 					+ " Job has handed none over through the form, so it has none to read",
 			"POST /api/v1/handovers/{handoverId}/return",
 			"a handover is returned only in a Self-mentored Job (FR-86, Story 25.5): the crew Job is a normal Job, where"
-					+ " the command finds nothing for anyone; the mode world's Customer passes its policy on job=self");
+					+ " the command finds nothing for anyone; the mode world's Customer passes its policy on job=self",
+			"POST /api/v1/boards/{boardId}/cancellation/answer",
+			"a member answers a cancellation only in a Self-mentored Job (AD-47 exception 6, Story 25.7): the crew Job"
+					+ " is a normal Job, where the command finds nothing for anyone; the mode world's member passes its"
+					+ " policy on selfJob=asking");
 
 	/**
 	 * The four reads of a Crew Chat (review iteration 3, G5): every grant caller runs each, so a grant that reads more

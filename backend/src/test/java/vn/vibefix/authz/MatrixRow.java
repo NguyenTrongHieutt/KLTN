@@ -98,6 +98,7 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		Set<String> names = new TreeSet<>(JOB_SCOPED);
 		names.addAll(Set.of("productId", "customerId", "ratingId", "username", "activePartyId", "formerPartyId",
 				"mentorPartyId", "resolutionActivePartyId", "resolutionFormerPartyId", "resolutionMentorPartyId",
+				"cancellationProposalId",
 				"resolutionStepUpCode", "teamIssueStepUpCode"));
 		SELF_WORLD = Set.copyOf(names);
 	}
@@ -146,6 +147,14 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		 * B-07, Story 25.4). In the mode world the value reads {@code selfStalledBoardId} ({@link MatrixRow#rebound()}).
 		 */
 		STALLED_SELF_JOB("selfJob", "stalled", "boardId", "stalledBoardId"),
+
+		/**
+		 * {@code selfJob=asking}, beside {@code job=self}: {@code {boardId}} names the mode world's third Job, Active and
+		 * not frozen, whose Customer's cancellation proposal waits for its two members' answers
+		 * ({@code {selfCancellationProposalId}}; AD-47 exception 6, B-04, Story 25.7). {@code CREW_ACTIVE} is there one
+		 * of the members asked ({@link MatrixWorld#askingJob()}).
+		 */
+		ASKING_SELF_JOB("selfJob", "asking", "boardId", "askingBoardId"),
 
 		/**
 		 * {@code selfHandover=returned}, beside {@code job=self}: {@code {handoverId}} names the handover of the mode
@@ -312,9 +321,10 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 			throw new IllegalArgumentException("only a " + Binding.SELF_JOB.state() + " row that is not pending shows a "
 					+ Canaries.MODE_PREFIX + "* canary");
 		}
-		if (Binding.STALLED_SELF_JOB.value().equals(state.get(Binding.STALLED_SELF_JOB.key()))
+		if (state.get(Binding.STALLED_SELF_JOB.key()) != null
 				&& !Binding.SELF_JOB.value().equals(state.get(Binding.SELF_JOB.key()))) {
-			throw new IllegalArgumentException(Binding.STALLED_SELF_JOB.state() + " names a Job of the mode world, beside "
+			throw new IllegalArgumentException("selfJob=" + state.get(Binding.STALLED_SELF_JOB.key())
+					+ " names a Job of the mode world, beside "
 					+ Binding.SELF_JOB.state());
 		}
 		if (Binding.RETURNED_SELF_HANDOVER.value().equals(state.get(Binding.RETURNED_SELF_HANDOVER.key()))

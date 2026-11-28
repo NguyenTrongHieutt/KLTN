@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -120,12 +121,17 @@ class ClosureProposals {
 		Instant now = this.clock.instant();
 		Instant confirmAt = now.plus(Duration.ofDays(days(job.id(), "AUTOMATIC_CLOSURE_DAYS", DEFAULT_AUTOMATIC_DAYS)));
 		UUID id = insert(job.id(), "AUTOMATIC", null, confirmAt, confirmAt, now);
-		this.notifications.send(new NotificationRequest(PROPOSED, causeId,
-				List.of(new Recipient(job.customerId(), Audience.CUSTOMER),
-						new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)),
+		// In a Self-mentored Job it asks only the Customer, once (AD-47 exception 6, B-06): there is no other side.
+		List<Recipient> asked = new ArrayList<>(List.of(new Recipient(job.customerId(), Audience.CUSTOMER)));
+		if (!job.selfMentored()) {
+			asked.add(new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR));
+		}
+		this.notifications.send(new NotificationRequest(PROPOSED, causeId, asked,
 				Map.of("job", job.title(), "proposer", "vibefix"), "/cong-viec/" + job.id(), job.id(), null));
 		answer(job, Party.CUSTOMER, id, confirmAt, 1);
-		answer(job, Party.MENTOR, id, confirmAt, 1);
+		if (!job.selfMentored()) {
+			answer(job, Party.MENTOR, id, confirmAt, 1);
+		}
 		this.deadlines.schedule(new DeadlineRequest(ClosureAutoConfirm.KEY, id, id.toString(), job.id(), confirmAt));
 	}
 
@@ -143,6 +149,20 @@ class ClosureProposals {
 				Map.of("job", job.title(), "proposer", proposer), "/cong-viec/" + job.id(), job.id(), null));
 		answer(job, other, id, answerBy, 2);
 		this.deadlines.schedule(new DeadlineRequest(ClosureAnswer.KEY, id, id.toString(), job.id(), answerBy));
+		return find(id).orElseThrow();
+	}
+
+	/**
+	 * The Customer of a Self-mentored Job closes alone (AD-47 exception 6, B-06): a proposal that both of the one
+	 * person's sides confirmed when it was made, so the closure applies at once and no row waits for an answer.
+	 */
+	Proposal alone(Job job, UUID account) {
+		Instant now = this.clock.instant();
+		UUID id = insert(job.id(), "PROPOSED", account, null, now, now);
+		this.jdbc.sql("UPDATE job.closure_proposal SET customer_confirmed_at = :now, mentor_confirmed_at = :now WHERE id = :id")
+			.param("id", id)
+			.param("now", Timestamp.from(now))
+			.update();
 		return find(id).orElseThrow();
 	}
 

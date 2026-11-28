@@ -162,6 +162,15 @@ enum JobReason {
 	/** The other side confirms a cancellation; the proposer may withdraw it (FR-40). */
 	CANCELLATION_PROPOSER,
 
+	/**
+	 * The answer of someone the proposal does not ask (AD-47, R56): a member who joined after it was made, or the
+	 * Customer who made it. A member who left finds nothing.
+	 */
+	NOT_ASKED,
+
+	/** A member answers a proposal once (AD-47, B-04). */
+	PROPOSAL_ANSWERED,
+
 	/** J10 cancels a Job without Accepted work; one with Accepted work goes through Closing (FR-40). */
 	HAS_ACCEPTED_WORK,
 

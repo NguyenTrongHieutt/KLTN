@@ -111,6 +111,7 @@ public final class MatrixRowRunner {
 	public void run(MatrixRow row) throws Exception {
 		MatrixWorld world = new MatrixWorld();
 		world.selfMode(row.modeWorld());
+		world.askingJob(row.binds(MatrixRow.Binding.ASKING_SELF_JOB));
 		this.fixtures.forEach(fixture -> fixture.seed(world));
 		boolean upload = row.body() != null && !row.body().endsWith(".json");
 		String path;

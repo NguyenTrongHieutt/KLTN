@@ -1060,6 +1060,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/{boardId}/cancellation/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["answer_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/{boardId}/cancellation/confirm": {
         parameters: {
             query?: never;
@@ -4505,16 +4521,27 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        CancellationAnswerRequest: {
+            agree: boolean;
+            /** Format: uuid */
+            proposalId: string;
+        };
         CancellationProposalView: {
+            /** Format: int32 */
+            agreed?: number;
             /** Format: date-time */
             answerBy: string;
+            /** Format: int32 */
+            asked?: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             decidedAt?: string;
             /** Format: uuid */
             id: string;
+            mayAnswer: boolean;
             mine: boolean;
+            myAnswer?: string;
             proposer: string;
             reason: string;
             scope: string;
@@ -4543,6 +4570,7 @@ export interface components {
             /** @enum {string} */
             noMember?: "ALONE" | "CREW_WAS_ACTIVE";
             proposal?: components["schemas"]["CancellationProposalView"];
+            selfMentored: boolean;
             state: string;
             /** Format: int64 */
             version: number;
@@ -4753,6 +4781,7 @@ export interface components {
             /** Format: uuid */
             jobId: string;
             proposal?: components["schemas"]["ClosureProposalView"];
+            selfMentored: boolean;
             state: string;
             steps: components["schemas"]["ClosureStepView"][];
             /** Format: int64 */
@@ -9446,6 +9475,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CancelAloneRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancellationView"];
+                };
+            };
+        };
+    };
+    answer_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancellationAnswerRequest"];
             };
         };
         responses: {

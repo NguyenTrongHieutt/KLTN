@@ -73,9 +73,11 @@ class ClosureController {
 	 * @param canPropose the viewer may propose closing an Active Job with no Held Milestone
 	 * @param disputable the latest closure proposal was declined, or went unanswered: either side may open a
 	 * Dispute (FR-39)
+	 * @param selfMentored a Self-mentored Job: its Customer, who is the Mentor, closes at once on their own word and
+	 * alone answers the System's proposal (AD-47 exception 6)
 	 */
 	record ClosureView(UUID jobId, String state, long version, String audience, boolean canPropose,
-			@Nullable ClosureProposalView proposal, List<ClosureStepView> steps, boolean disputable) {
+			@Nullable ClosureProposalView proposal, List<ClosureStepView> steps, boolean disputable, boolean selfMentored) {
 	}
 
 	record ClosureCommandRequest(@NotNull Long version) {
@@ -196,15 +198,19 @@ class ClosureController {
 			boolean mentorDone = ended || (proposal != null && proposal.mentorConfirmedAt() != null);
 			steps.add(new ClosureStepView("CUSTOMER", this.customers.displayName(job.customerId()), "CONFIRM_CLOSURE",
 					customerDone));
-			steps.add(new ClosureStepView("MENTOR",
-					this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse(""),
-					"CONFIRM_CLOSURE", mentorDone));
+			// A Self-mentored Job has one person on both sides: one step, theirs (AD-47 exception 6).
+			if (!job.selfMentored()) {
+				steps.add(new ClosureStepView("MENTOR",
+						this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse(""),
+						"CONFIRM_CLOSURE", mentorDone));
+			}
 		}
 		boolean disputable = viewer.party() != null && job.state() == JobState.ACTIVE && proposal != null
 				&& !proposal.automatic()
 				&& ("DECLINED".equals(proposal.status()) || (open && this.proposals.wentUnanswered(proposal.id())));
 		return new ClosureView(job.id(), job.state().name(), job.version(),
-				viewer.party() == null ? "CREW" : viewer.party().name(), canPropose, proposalView, steps, disputable);
+				viewer.party() == null ? "CREW" : viewer.party().name(), canPropose, proposalView, steps, disputable,
+				job.selfMentored());
 	}
 
 }

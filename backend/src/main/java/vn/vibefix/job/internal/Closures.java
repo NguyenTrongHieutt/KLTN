@@ -82,6 +82,14 @@ class Closures {
 		if (this.proposals.open(jobId).isPresent()) {
 			throw new ApiException(ErrorCode.CONFLICT, JobReason.CLOSURE_OPEN);
 		}
+		// AD-47 exception 6 (B-06): the Customer of a Self-mentored Job closes alone. J8 applies at once, the active
+		// members are told by its notice, and the audit records the one actor once.
+		if (job.selfMentored()) {
+			Proposal alone = this.proposals.alone(job, account);
+			close(job, alone, Trigger.USER);
+			audit(account, "job.closure_alone", alone.id(), jobId);
+			return this.proposals.find(alone.id()).orElseThrow();
+		}
 		Proposal proposal = this.proposals.propose(job, account, party);
 		audit(account, "job.closure_proposed", proposal.id(), jobId);
 		return proposal;
@@ -100,8 +108,10 @@ class Closures {
 		if (proposal.confirmedBy(party)) {
 			throw new ApiException(ErrorCode.CONFLICT, JobReason.CLOSURE_ANSWERED);
 		}
-		this.jdbc.sql("UPDATE job.closure_proposal SET " + (party == Party.CUSTOMER ? "customer" : "mentor")
-				+ "_confirmed_at = :now WHERE id = :id")
+		// In a Self-mentored Job the one person is both sides: one confirmation confirms it (AD-47 exception 6, B-06).
+		String sides = job.selfMentored() ? "customer_confirmed_at = :now, mentor_confirmed_at = :now"
+				: (party == Party.CUSTOMER ? "customer" : "mentor") + "_confirmed_at = :now";
+		this.jdbc.sql("UPDATE job.closure_proposal SET " + sides + " WHERE id = :id")
 			.param("id", proposal.id())
 			.param("now", Timestamp.from(this.clock.instant()))
 			.update();
@@ -135,9 +145,13 @@ class Closures {
 			.update();
 		this.todos.closeAll(ClosureProposals.ANSWER, proposal.id());
 		this.proposals.declined(proposal);
-		Party other = party == Party.CUSTOMER ? Party.MENTOR : Party.CUSTOMER;
-		this.notifications.send(new NotificationRequest(DECLINED, proposal.id(), List.of(ClosureProposals.recipient(job, other)),
-				Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(), null));
+		// A Self-mentored Job has no other side to tell: the Customer's decline withdraws the System's proposal (B-06).
+		if (!job.selfMentored()) {
+			Party other = party == Party.CUSTOMER ? Party.MENTOR : Party.CUSTOMER;
+			this.notifications.send(new NotificationRequest(DECLINED, proposal.id(),
+					List.of(ClosureProposals.recipient(job, other)), Map.of("job", job.title()), "/cong-viec/" + job.id(), job.id(),
+					null));
+		}
 		audit(account, "job.closure_declined", proposal.id(), jobId);
 		return this.proposals.find(proposal.id()).orElseThrow();
 	}

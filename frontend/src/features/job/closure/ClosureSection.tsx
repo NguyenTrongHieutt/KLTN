@@ -32,7 +32,9 @@ type Action = 'propose' | 'confirm' | 'decline'
  * Mentor -- and, once the Job ends, their Revocation Checklist (FR-66).
  * A Crew member sees their own step only. The Mentor and the Crew
  * tick their data-deletion Checklist once the Job has ended. Proposing, confirming, and each tick ask
- * for confirmation first.
+ * for confirmation first. In a Self-mentored Job the Customer is also the Mentor (Story 25.7): there is no second side,
+ * so their closure takes effect at once on their word, the System's proposal asks only them, and declining it only
+ * withdraws it.
  */
 export function ClosureSection({ jobId }: { jobId: string }) {
   const closure = useClosure(jobId)
@@ -47,8 +49,12 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
   const command = useClosureCommand(jobId)
   const [asking, setAsking] = useState<Action>()
   const [error, setError] = useState<string>()
+  // The Customer of a Self-mentored Job is its Mentor too: the view says so, in the same read as the rest.
+  const alone = closure.selfMentored && closure.audience === 'CUSTOMER'
   const proposal = closure.proposal
   const open = proposal?.status === 'OPEN'
+  // The combined role is the Mentor too: a second, Mentor's step would name the same person twice.
+  const steps = alone ? closure.steps.filter((step) => step.party !== 'MENTOR') : closure.steps
   if (!proposal && closure.steps.length === 0 && !closure.canPropose && !closure.disputable) {
     return null
   }
@@ -63,7 +69,9 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           toasts.success(
             t(
               action === 'decline'
-                ? 'screen.closure.declined'
+                ? alone
+                  ? 'screen.closure.self.declined'
+                  : 'screen.closure.declined'
                 : next.state === 'ACTIVE'
                   ? action === 'propose'
                     ? 'screen.closure.proposed'
@@ -99,21 +107,22 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           {proposal.kind === 'AUTOMATIC'
             ? t('screen.closure.automatic', { date: formatDayMonth(proposal.autoConfirmAt ?? proposal.answerBy) })
             : t(`screen.closure.proposedBy.${proposal.proposer}` as MessageKey, { date: formatDayMonth(proposal.answerBy) })}
+          {alone && proposal.answerable && <> {t('screen.closure.self.oneAnswer')}</>}
         </p>
       )}
-      {closure.steps.length > 0 &&
+      {steps.length > 0 &&
         (closure.state === 'CLOSED' ? (
           // Once the Job has ended, the finished steps fold into one line that opens on demand (2026-11-23).
           <details className="group text-body-sm">
             <summary className="w-fit cursor-pointer text-primary underline-offset-4 hover:underline">
               {t('screen.closure.stepsSummary', {
-                done: closure.steps.filter((step) => step.done).length + (deletion?.parties.filter((party) => party.confirmed).length ?? 0),
-                total: closure.steps.length + (deletion?.parties.length ?? 0),
+                done: steps.filter((step) => step.done).length + (deletion?.parties.filter((party) => party.confirmed).length ?? 0),
+                total: steps.length + (deletion?.parties.length ?? 0),
               })}
             </summary>
             <div className="mt-2">
               <ul className="flex flex-col gap-1.5 text-body-sm">
-                {closure.steps.map((step, index) => (
+                {steps.map((step, index) => (
                   <Step
                     key={`${step.party}-${index}`}
                     done={step.done}
@@ -132,7 +141,7 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           </details>
         ) : (
           <ul className="flex flex-col gap-1.5 text-body-sm">
-            {closure.steps.map((step, index) => (
+            {steps.map((step, index) => (
               <Step
                 key={`${step.party}-${index}`}
                 done={step.done}
@@ -172,6 +181,9 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           {error}
         </p>
       )}
+      {alone && open && proposal?.answerable && (
+        <p className="text-caption text-muted-foreground">{t('screen.closure.self.declineNote')}</p>
+      )}
       <div className="flex flex-wrap gap-3">
         {open && proposal?.answerable && (
           <>
@@ -185,7 +197,7 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
         )}
         {closure.canPropose && (
           <Button type="button" variant="secondary" onClick={() => setAsking('propose')} disabled={command.isPending}>
-            {t('screen.closure.propose')}
+            {t(alone ? 'screen.closure.self.propose' : 'screen.closure.propose')}
           </Button>
         )}
       </div>
@@ -194,15 +206,23 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
           <DialogBackdrop className="z-[60]" />
           <DialogPopup size="sm" className="z-[70]">
             <Dialog.Title className="text-h2">
-              {t(asking === 'propose' ? 'screen.closure.proposeTitle' : 'screen.closure.confirmTitle')}
+              {t(
+                asking === 'propose'
+                  ? alone
+                    ? 'screen.closure.self.proposeTitle'
+                    : 'screen.closure.proposeTitle'
+                  : 'screen.closure.confirmTitle',
+              )}
             </Dialog.Title>
-            <Dialog.Description className="text-body-sm">{t('screen.closure.effects')}</Dialog.Description>
+            <Dialog.Description className="text-body-sm">
+              {t(asking === 'propose' && alone ? 'screen.closure.self.effects' : 'screen.closure.effects')}
+            </Dialog.Description>
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => setAsking(undefined)}>
                 {t('screen.closure.cancel')}
               </Button>
               <Button type="button" disabled={command.isPending} onClick={() => asking && run(asking)}>
-                {t(asking === 'propose' ? 'screen.closure.propose' : 'screen.closure.confirm')}
+                {t(asking === 'propose' ? (alone ? 'screen.closure.self.propose' : 'screen.closure.propose') : 'screen.closure.confirm')}
               </Button>
             </div>
           </DialogPopup>

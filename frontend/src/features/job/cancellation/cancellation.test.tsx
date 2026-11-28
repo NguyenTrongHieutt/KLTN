@@ -169,3 +169,308 @@ describe('JOB-1 cancellation by agreement (FR-40)', () => {
     expect(await screen.findByText('Đã hủy · đã hoàn tiền')).toBeInTheDocument()
   })
 })
+
+const crewMe = {
+  jobId: 'j1',
+  title: 'Sửa sổ đặt bàn',
+  state: 'ACTIVE',
+  productName: 'Sổ đặt bàn Quán Mây',
+  mentorName: 'Đỗ Mạnh Hùng',
+  former: false,
+  canLeave: true,
+  codeJob: true,
+  partyMilestones: [],
+}
+
+/** A cancellation proposal of a Self-mentored Job: the Customer's, with two members asked and one agreed. */
+const selfProposal = (overrides: object = {}) =>
+  proposal({ scope: 'JOB', asked: 2, agreed: 1, mayAnswer: false, ...overrides })
+
+/** The Customer of a Self-mentored Job (role `CUSTOMER_MENTOR`) reading its overview. */
+function asCustomerMentor(handlers: Parameters<typeof fakeBackend>[1]) {
+  return fakeBackend(signedInUser, {
+    ...inEveryJob('CUSTOMER_MENTOR'),
+    'GET /api/v1/jobs/j1': () => json({ ...customerJob, selfMentored: true }),
+    'GET /api/v1/boards/j1/progress': () => json(progress()),
+    ...handlers,
+  })
+}
+
+/** A member of a Self-mentored Job reading its overview. */
+function asMember(handlers: Parameters<typeof fakeBackend>[1]) {
+  return fakeBackend(signedInUser, {
+    ...inEveryJob('CREW'),
+    'GET /api/v1/jobs/j1/crew/me': () => json(crewMe),
+    'GET /api/v1/boards/j1/progress': () => json(progress({ audience: 'CREW' })),
+    ...handlers,
+  })
+}
+
+const memberView = (overrides: object = {}) =>
+  cancellation({
+    audience: 'CREW',
+    selfMentored: true,
+    canPropose: false,
+    proposal: selfProposal({ mine: false, mayAnswer: true }),
+    ...overrides,
+  })
+
+describe('JOB-1 cancellation of a Self-mentored Job (Story 25.7, R14, R56, R57)', () => {
+  it('lets the Customer cancel at once, on their word alone, with no Held Milestone', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () => json(cancellation({ selfMentored: true, held: false })),
+      'POST /api/v1/boards/j1/cancellation': async (request) => {
+        sent.push(await request.json())
+        return json(
+          cancellation({
+            selfMentored: true,
+            held: false,
+            state: 'CANCELLED',
+            canPropose: false,
+            proposal: selfProposal({ status: 'CONFIRMED', asked: undefined, agreed: undefined }),
+          }),
+        )
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(within(section).getByText(/bạn hủy được ngay, không cần ai đồng ý/)).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Hủy công việc' }))
+    await user.type(within(section).getByLabelText('Lý do'), 'Không còn cần nữa')
+    await user.click(within(section).getByRole('button', { name: 'Hủy công việc' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Hủy công việc ngay?' })
+    expect(within(dialog).getByText(/có hiệu lực ngay, chỉ cần lời của bạn/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Các thành viên nhóm sẽ được báo/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/bên kia|xác nhận/i)).toBeNull()
+    await user.click(within(dialog).getByRole('button', { name: 'Hủy công việc' }))
+    await waitFor(() => expect(sent).toEqual([{ scope: 'JOB', reason: 'Không còn cần nữa', version: 12 }]))
+    // Cancelled: the section has nothing left to offer.
+    await waitFor(() => expect(screen.queryByRole('heading', { level: 2, name: 'Hủy công việc' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Xác nhận hủy' })).toBeNull()
+  })
+
+  it('asks the Customer to confirm a proposal that waits for the members, with no date before it is sent', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () => json(cancellation({ selfMentored: true })),
+      'POST /api/v1/boards/j1/cancellation': async (request) => {
+        sent.push(await request.json())
+        return json(
+          cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal({ asked: 2, agreed: 0 }) }),
+        )
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(within(section).getByText(/Mọi thành viên đang hoạt động phải đồng ý/)).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Đề nghị hủy' }))
+    await user.type(within(section).getByLabelText('Lý do'), 'Không còn cần nữa')
+    await user.click(within(section).getByRole('button', { name: 'Gửi đề nghị hủy' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Gửi đề nghị hủy cho các thành viên?' })
+    expect(within(dialog).getByText(/Mọi thành viên đang hoạt động bây giờ phải đồng ý/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/hoàn đủ cho bạn/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/mở tranh chấp/)).toBeInTheDocument()
+    // The answer date is the server's, fixed when the proposal is sent.
+    expect(dialog.textContent).not.toMatch(/\d{1,2}\/\d{1,2}/)
+    expect(sent).toEqual([])
+    await user.click(within(dialog).getByRole('button', { name: 'Gửi đề nghị hủy' }))
+    await waitFor(() => expect(sent).toEqual([{ scope: 'JOB', reason: 'Không còn cần nữa', version: 12 }]))
+    expect(await within(section).findByText('Chờ 0/2 thành viên đồng ý trước 25/10')).toBeInTheDocument()
+  })
+
+  it('shows the Customer how many members agreed, lets them withdraw, and never offers to confirm', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    let withdrawn = 0
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal() })),
+      'POST /api/v1/boards/j1/cancellation/withdraw': () => {
+        withdrawn += 1
+        return json(cancellation({ selfMentored: true, proposal: selfProposal({ status: 'WITHDRAWN' }) }))
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(await within(section).findByText('Chờ 1/2 thành viên đồng ý trước 25/10')).toBeInTheDocument()
+    expect(within(section).getByText('Không còn cần nữa')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Xác nhận hủy' })).toBeNull()
+    await user.click(within(section).getByRole('button', { name: 'Rút đề nghị' }))
+    await waitFor(() => expect(withdrawn).toBe(1))
+  })
+
+  it('tells the Customer when the members asked left and others joined, and offers to withdraw', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal({ asked: 0, agreed: 0 }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(await within(section).findByText('Các thành viên được hỏi đã rời nhóm. Hãy rút đề nghị rồi gửi lại để hỏi các thành viên hiện tại.')).toBeInTheDocument()
+    expect(within(section).queryByText(/Chờ 0\/0/)).toBeNull()
+    expect(within(section).getByRole('button', { name: 'Rút đề nghị' })).toBeInTheDocument()
+  })
+
+  it('tells the Customer when everyone asked agreed and the Job is busy or paused', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal({ asked: 1, agreed: 1 }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(
+      await within(section).findByText(
+        'Mọi thành viên được hỏi đã đồng ý. Việc hủy sẽ được thực hiện ngay khi công việc không còn bận hoặc tạm dừng.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/Chờ 1\/1/)).toBeNull()
+  })
+
+  it('hides a refusal once the Job can no longer be cancelled', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, state: 'CLOSED', canPropose: false, proposal: selfProposal({ status: 'REFUSED' }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    await screen.findByRole('heading', { level: 1 })
+    await waitFor(() => expect(screen.queryByText(/Một thành viên không đồng ý hủy/)).toBeNull())
+    expect(screen.queryByRole('heading', { level: 2, name: 'Hủy công việc' })).toBeNull()
+  })
+
+  it('reads a refusal to the Customer, who may propose again or open a Dispute', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, proposal: selfProposal({ status: 'REFUSED' }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(
+      await within(section).findByText(/Một thành viên không đồng ý hủy\. Bạn có thể đề nghị lại hoặc mở tranh chấp\./),
+    ).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'Mở tranh chấp' })).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Đề nghị hủy' })).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Rút đề nghị' })).toBeNull()
+  })
+
+  it('keeps the unanswered text for the Customer whose proposal passed its date', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal({ unanswered: true }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(await within(section).findByText(/Bên kia chưa trả lời trong thời hạn/)).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Rút đề nghị' })).toBeInTheDocument()
+  })
+
+  it('lets a member agree, after a dialog that says the answer is final', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asMember({
+      'GET /api/v1/boards/j1/cancellation': () => json(memberView()),
+      'POST /api/v1/boards/j1/cancellation/answer': async (request) => {
+        sent.push(await request.json())
+        return json(
+          memberView({ proposal: selfProposal({ mine: false, mayAnswer: false, myAnswer: 'AGREED', asked: 3, agreed: 2 }) }),
+        )
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(await within(section).findByText('Khách hàng đề nghị hủy công việc. Hãy trả lời trước 25/10.')).toBeInTheDocument()
+    expect(within(section).getByText('Không còn cần nữa')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Xác nhận hủy' })).toBeNull()
+    expect(within(section).queryByRole('button', { name: 'Rút đề nghị' })).toBeNull()
+    await user.click(within(section).getByRole('button', { name: 'Đồng ý hủy' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đồng ý hủy công việc?' })
+    expect(within(dialog).getByText(/hoàn đủ cho khách hàng/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/không đổi được câu trả lời/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Đồng ý hủy' }))
+    await waitFor(() => expect(sent).toEqual([{ proposalId: 'cp1', agree: true }]))
+    expect(await within(section).findByText('Bạn đã đồng ý hủy · 2/3 thành viên đã đồng ý')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Đồng ý hủy' })).toBeNull()
+    expect(within(section).queryByRole('button', { name: 'Không đồng ý' })).toBeNull()
+  })
+
+  it('lets a member refuse, after a dialog that says the proposal ends', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asMember({
+      'GET /api/v1/boards/j1/cancellation': () => json(memberView()),
+      'POST /api/v1/boards/j1/cancellation/answer': async (request) => {
+        sent.push(await request.json())
+        return json(
+          memberView({
+            proposal: selfProposal({ mine: false, mayAnswer: false, myAnswer: 'REFUSED', status: 'REFUSED' }),
+          }),
+        )
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    await user.click(await within(section).findByRole('button', { name: 'Không đồng ý' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Không đồng ý hủy công việc?' })
+    expect(within(dialog).getByText(/Đề nghị hủy sẽ kết thúc/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/mở tranh chấp/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Không đồng ý' }))
+    await waitFor(() => expect(sent).toEqual([{ proposalId: 'cp1', agree: false }]))
+    expect(await within(section).findByText('Bạn đã không đồng ý hủy')).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'Mở tranh chấp' })).toBeInTheDocument()
+  })
+
+  it('tells a member who joined later that they were not asked, with no action', { timeout: 20_000 }, async () => {
+    asMember({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(memberView({ proposal: selfProposal({ mine: false, mayAnswer: false }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(
+      await within(section).findByText('Bạn không được hỏi vì vào nhóm sau khi khách hàng gửi đề nghị.'),
+    ).toBeInTheDocument()
+    expect(within(section).getByText('Không còn cần nữa')).toBeInTheDocument()
+    expect(within(section).queryByRole('button')).toBeNull()
+  })
+
+  it('shows a refusal of the answer inside the dialog', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    asMember({
+      'GET /api/v1/boards/j1/cancellation': () => json(memberView()),
+      'POST /api/v1/boards/j1/cancellation/answer': () =>
+        json({ status: 403, code: 'FORBIDDEN', reason: 'NOT_ASKED' }, 403),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    await user.click(await within(section).findByRole('button', { name: 'Đồng ý hủy' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đồng ý hủy công việc?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Đồng ý hủy' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Đề nghị này không hỏi bạn.')
+  })
+
+  it('leaves a normal Job’s Crew member reading the proposal, with nothing to answer', { timeout: 20_000 }, async () => {
+    asMember({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ audience: 'CREW', canPropose: false, proposal: proposal({ mine: false }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(await within(section).findByText('Trả lời trước 25/10.')).toBeInTheDocument()
+    expect(within(section).getByText(/Khi cả hai bên đồng ý/)).toBeInTheDocument()
+    expect(within(section).queryByRole('button')).toBeNull()
+  })
+})

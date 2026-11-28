@@ -82,8 +82,8 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 				"job.external_access", "job.agreement_version", "job.crew_row", "job.agreement_comment",
 				"job.agreement_change_request", "job.agreement_approval",
 				"job.confirmed_agreement", "job.closure_proposal", "job.change_request", "job.cancellation_proposal",
-				"job.external_access_identifier", "job.agreement_read", "job.admin_read_grant", "job.milestone_split",
-				"job.milestone_split_party",
+				"job.external_access_identifier", "job.agreement_read", "job.admin_read_grant", "job.proposal_answer",
+				"job.milestone_split", "job.milestone_split_party",
 				"job.milestone_split_version", "job.milestone_split_share", "job.milestone_split_confirmation");
 	}
 
@@ -224,6 +224,10 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 		this.jdbc.sql("DELETE FROM job.agreement_read WHERE account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("DELETE FROM job.admin_read_grant WHERE admin_account_id = :id").param("id", accountId).update();
 		this.jdbc.sql("UPDATE job.crew_row SET left_note = NULL WHERE member_account_id = :id").param("id", accountId).update();
+		// A member's answer to a proposal stays as an answer, without the person.
+		this.jdbc.sql("UPDATE job.proposal_answer SET member_account_id = NULL WHERE member_account_id = :id")
+			.param("id", accountId)
+			.update();
 		this.jdbc.sql("UPDATE job.closure_proposal SET proposer_account_id = NULL WHERE proposer_account_id = :id")
 			.param("id", accountId)
 			.update();
@@ -327,7 +331,7 @@ class JobPersonalData implements PersonalDataParticipant, GitHubLinkParticipant 
 			.query(UUID.class)
 			.list()
 			.forEach(this.files::delete);
-		for (String table : List.of("job.job_screenshot", "job.cancellation_proposal",
+		for (String table : List.of("job.job_screenshot", "job.proposal_answer", "job.cancellation_proposal",
 				"job.change_request", "job.closure_proposal",
 				"job.agreement_comment",
 				"job.agreement_change_request",

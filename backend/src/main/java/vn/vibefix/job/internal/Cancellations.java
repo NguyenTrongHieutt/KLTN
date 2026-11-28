@@ -37,6 +37,7 @@ import vn.vibefix.notification.Todos;
 import vn.vibefix.shared.ApiException;
 import vn.vibefix.shared.ErrorCode;
 import vn.vibefix.shared.IdGenerator;
+import vn.vibefix.timers.DeadlineOutcome;
 import vn.vibefix.timers.DeadlineRequest;
 import vn.vibefix.timers.Deadlines;
 
@@ -51,6 +52,13 @@ import vn.vibefix.timers.Deadlines;
  * <p>In a Self-mentored Job with a Held Milestone and no counted member, nobody is there to confirm, so the proposal
  * command decides at once (R49, AD-47 exceptions 1 and 6): the cancellation applies on the Customer's word alone when
  * no member was active since that Milestone was funded, and is refused otherwise ({@link NoMember}).
+ *
+ * <p>In a Self-mentored Job the Customer is the Mentor, so nobody is "the other side" (AD-47 exception 6, Story 25.7).
+ * With no Held Milestone the Customer's proposal command cancels at once, and the active members are told by the
+ * cascade's own notice. With a Held Milestone and members who count, the proposal waits for the agreement of every
+ * member who was active when it was made ({@link ProposalAnswers}, R56): each answers once through {@link #answer};
+ * the cancellation applies when all who still count have agreed, a refusal ends it {@code REFUSED}, and no answer by
+ * the date tells the Customer. The confirm command does not exist there.
  */
 @Component
 class Cancellations {
@@ -61,6 +69,12 @@ class Cancellations {
 	static final String PROPOSED = "job.cancellation_proposed";
 
 	static final String UNANSWERED = "job.cancellation_unanswered";
+
+	/** A Self-mentored Job's members are asked to agree to the Customer's cancellation (UX-DR130). */
+	static final String AWAITING_MEMBERS = "job.cancellation_awaiting_members";
+
+	/** A member of a Self-mentored Job refused the Customer's cancellation. */
+	static final String REFUSED = "job.cancellation_refused";
 
 	static final String ANSWER = "job.answer_cancellation";
 
@@ -85,8 +99,9 @@ class Cancellations {
 		ALONE, CREW_WAS_ACTIVE
 	}
 
+	/** @param alone applied on one side's word alone: after a stall, or in a Self-mentored Job with nobody to ask */
 	record Proposal(UUID id, UUID jobId, Scope scope, String reason, Party proposer, String status, Instant answerBy,
-			@Nullable Instant unansweredAt, Instant createdAt, @Nullable Instant decidedAt) {
+			@Nullable Instant unansweredAt, Instant createdAt, @Nullable Instant decidedAt, boolean alone) {
 	}
 
 	private final JdbcClient jdbc;
@@ -113,9 +128,12 @@ class Cancellations {
 
 	private final CrewService crews;
 
+	private final ProposalAnswers answers;
+
 	Cancellations(JdbcClient jdbc, Jobs jobs, JobLifecycle lifecycle, ClosureProposals closures, Deadlines deadlines,
 			Notifications notifications, Todos todos, AuditLog auditLog, IdGenerator ids, Clock clock,
-			StallDeadlines stalls, CrewService crews) {
+			StallDeadlines stalls, CrewService crews, ProposalAnswers answers) {
+		this.answers = answers;
 		this.stalls = stalls;
 		this.crews = crews;
 		this.jdbc = jdbc;
@@ -161,6 +179,10 @@ class Cancellations {
 		if (noMember == NoMember.ALONE) {
 			return applyAlone(job, account, party, scope, text);
 		}
+		// AD-47 exception 6 (B-06): with no Held Milestone the Customer of a Self-mentored Job cancels alone, at once.
+		if (job.selfMentored() && !held(jobId)) {
+			return applyAlone(job, account, party, scope, text);
+		}
 		Instant now = this.clock.instant();
 		Instant answerBy = now.plus(Duration.ofDays(days(jobId)));
 		UUID id = this.ids.newId();
@@ -180,10 +202,24 @@ class Cancellations {
 			.update();
 		this.deadlines.schedule(new DeadlineRequest(CancellationAnswer.KEY, id, id.toString(), jobId, answerBy));
 		audit(account, "job.cancellation_proposed", id, jobId);
-		Recipient other = party == Party.CUSTOMER ? new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)
-				: new Recipient(job.customerId(), Audience.CUSTOMER);
 		String date = DAY_MONTH.format(answerBy.atZone(VIETNAM));
 		String link = "/cong-viec/" + jobId;
+		if (job.selfMentored()) {
+			// The other side is the members who count now (R56), never the proposer's own account (B-05 a).
+			List<Recipient> members = this.answers.ask(jobId, ProposalAnswers.Kind.CANCELLATION, id)
+				.stream()
+				.map(member -> new Recipient(member, Audience.CREW_ACTIVE))
+				.toList();
+			this.notifications.send(new NotificationRequest(AWAITING_MEMBERS, id, members,
+					Map.of("job", job.title(), "date", date), link, jobId, null));
+			for (Recipient member : members) {
+				this.todos.open(new TodoRequest(ANSWER, member.accountId(), member.audience(), id,
+						Map.of("job", job.title(), "date", date), link, answerBy, jobId));
+			}
+			return find(id).orElseThrow();
+		}
+		Recipient other = party == Party.CUSTOMER ? new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR)
+				: new Recipient(job.customerId(), Audience.CUSTOMER);
 		this.notifications.send(new NotificationRequest(PROPOSED, id, List.of(other), Map.of("job", job.title(), "date", date),
 				link, jobId, null));
 		this.todos.open(new TodoRequest(ANSWER, other.accountId(), other.audience(), id, Map.of("job", job.title(), "date", date),
@@ -198,24 +234,130 @@ class Cancellations {
 	 */
 	@Transactional
 	Proposal confirm(UUID jobId, UUID account, Party party, long version) {
-		Job job = locked(jobId, version);
+		Job job = this.jobs.lock(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		// In a Self-mentored Job the members answer through their own command (B-04, B-11): this one is not there,
+		// whatever version the request names.
+		if (job.selfMentored()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		if (job.version() != version) {
+			throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
+		}
 		Proposal proposal = open(jobId).orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, JobReason.NO_CANCELLATION_OPEN));
 		if (proposal.proposer() == party) {
 			throw new ApiException(ErrorCode.FORBIDDEN, JobReason.CANCELLATION_PROPOSER);
 		}
+		applyAgreed(job, proposal, account);
+		audit(account, "job.cancellation_confirmed", proposal.id(), jobId);
+		return find(proposal.id()).orElseThrow();
+	}
+
+	/** The cascade of an agreed proposal, which then stands {@code CONFIRMED}. The caller holds the Job lock. */
+	private void applyAgreed(Job job, Proposal proposal, @Nullable UUID account) {
 		List<Planned> cascade = cascade(job);
-		ApiException refusal = this.lifecycle.refusal(jobId, Trigger.USER, cascade);
+		ApiException refusal = this.lifecycle.refusal(job.id(), Trigger.USER, cascade);
 		if (refusal != null) {
 			throw refusal;
 		}
-		this.lifecycle.tryApplyCascade(jobId, Trigger.USER, cascade)
-			.orElseThrow(() -> new IllegalStateException("The cancellation of " + jobId + " passed its checks but did not apply"));
-		this.jdbc.sql("""
-				UPDATE job.cancellation_proposal SET status = 'CONFIRMED', confirmed_by = :account, decided_at = :now WHERE id = :id
+		this.lifecycle.tryApplyCascade(job.id(), Trigger.USER, cascade)
+			.orElseThrow(() -> new IllegalStateException("The cancellation of " + job.id() + " passed its checks but did not apply"));
+		int confirmed = this.jdbc.sql("""
+				UPDATE job.cancellation_proposal SET status = 'CONFIRMED', confirmed_by = :account, decided_at = :now
+				WHERE id = :id AND status = 'OPEN'
 				""").param("id", proposal.id()).param("account", account).param("now", Timestamp.from(this.clock.instant())).update();
+		if (confirmed != 1) {
+			// Every caller read the open proposal under the Job lock, so this cannot be: nothing may apply without it.
+			throw new IllegalStateException("The cancellation proposal " + proposal.id() + " was no longer open");
+		}
 		this.todos.closeAll(ANSWER, proposal.id());
-		audit(account, "job.cancellation_confirmed", proposal.id(), jobId);
-		return find(proposal.id()).orElseThrow();
+	}
+
+	/**
+	 * A member left the Self-mentored Job or was locked (R56): they no longer count for its open proposal, so their
+	 * to-do closes, and when those who still count have all agreed the cancellation applies now. When the Job refuses
+	 * the cascade for the moment (a freeze, the busy marker), a Deadline of the proposal's own kind is due at once: it
+	 * waits out a freeze and comes again while the Job is busy, whether or not the proposal's date has passed
+	 * ({@link #unanswered}). Nothing in a normal Job.
+	 */
+	@Transactional
+	void memberGone(UUID jobId, UUID memberId) {
+		Job job = this.jobs.lock(jobId).orElse(null);
+		Proposal proposal = job == null || !job.selfMentored() ? null : open(jobId).orElse(null);
+		if (proposal == null) {
+			return;
+		}
+		this.todos.close(ANSWER, memberId, proposal.id());
+		if (!this.answers.tally(jobId, proposal.id()).agreedByAll()) {
+			return;
+		}
+		if (this.lifecycle.refusal(jobId, Trigger.USER, cascade(job)) == null) {
+			applyAgreed(job, proposal, null);
+			this.auditLog.record(AuditEntry.of(AuditActor.system(), "job.cancellation_agreed_by_all",
+					AuditObject.of("job.cancellation_proposal", proposal.id())).forJob(jobId));
+			return;
+		}
+		this.deadlines.schedule(new DeadlineRequest(CancellationAnswer.KEY, proposal.id(), proposal.id() + ":agreed:" + memberId,
+				jobId, this.clock.instant()));
+	}
+
+	/**
+	 * A member of a Self-mentored Job answers the Customer's cancellation (AD-47 exception 6, R56, B-04): once, and only a
+	 * member who was asked and still counts. When every such member has agreed the cancellation applies, with the full
+	 * refund of the Held Milestone; a refusal ends the proposal, and the Customer is told.
+	 * @param proposalId the proposal the member was shown, the open one
+	 * @throws ApiException {@code NOT_FOUND} in a normal Job; {@code CONFLICT NO_CANCELLATION_OPEN}; {@code STALE} when
+	 * another proposal is open than the one shown; {@code FORBIDDEN NOT_ASKED}; {@code CONFLICT PROPOSAL_ANSWERED}; the
+	 * cascade's refusals, the freeze among them, which leave the answer unrecorded
+	 */
+	@Transactional
+	Proposal answer(UUID jobId, UUID account, UUID proposalId, boolean agree) {
+		Job job = this.jobs.lock(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		if (!job.selfMentored()) {
+			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		Proposal proposal = open(jobId).orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, JobReason.NO_CANCELLATION_OPEN));
+		if (!proposal.id().equals(proposalId)) {
+			throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
+		}
+		if (!this.answers.asked(jobId, proposalId, account)) {
+			throw new ApiException(ErrorCode.FORBIDDEN, JobReason.NOT_ASKED);
+		}
+		if (!this.answers.record(proposalId, account, agree)) {
+			throw new ApiException(ErrorCode.CONFLICT, JobReason.PROPOSAL_ANSWERED);
+		}
+		this.todos.close(ANSWER, account, proposalId);
+		this.auditLog.record(AuditEntry.of(AuditActor.user(account), agree ? "job.cancellation_agreed" : "job.cancellation_refused",
+				AuditObject.of("job.cancellation_proposal", proposalId)).forJob(jobId));
+		if (!agree) {
+			this.jdbc.sql("UPDATE job.cancellation_proposal SET status = 'REFUSED', decided_at = :now WHERE id = :id")
+				.param("id", proposalId)
+				.param("now", Timestamp.from(this.clock.instant()))
+				.update();
+			this.todos.closeAll(ANSWER, proposalId);
+			this.notifications.send(new NotificationRequest(REFUSED, proposalId,
+					List.of(new Recipient(job.customerId(), Audience.CUSTOMER)), Map.of("job", job.title()), "/cong-viec/" + jobId,
+					jobId, null));
+		}
+		else if (this.answers.tally(jobId, proposalId).agreedByAll()) {
+			applyAgreed(job, proposal, account);
+		}
+		return find(proposalId).orElseThrow();
+	}
+
+	/** Where the members' answers to a Self-mentored Job's proposal stand; {@code null} for a normal Job's proposal. */
+	ProposalAnswers.@Nullable Tally tally(Job job, Proposal proposal) {
+		return job.selfMentored() && !proposal.alone() ? this.answers.tally(job.id(), proposal.id()) : null;
+	}
+
+	/** Whether the member is asked about the open proposal, still counts, and has not answered. */
+	boolean mayAnswer(Job job, Proposal proposal, UUID account) {
+		return job.selfMentored() && "OPEN".equals(proposal.status()) && this.answers.asked(job.id(), proposal.id(), account)
+				&& this.answers.answerOf(proposal.id(), account) == null;
+	}
+
+	/** The member's own answer to the proposal, if they gave one. */
+	@Nullable String answerOf(Proposal proposal, UUID account) {
+		return this.answers.answerOf(proposal.id(), account);
 	}
 
 	/**
@@ -316,14 +458,36 @@ class Cancellations {
 		return Set.of(JobState.AGREEMENT, JobState.STARTING).contains(job.state()) && this.stalls.passed(job.id());
 	}
 
-	/** The copied days passed: the proposer is told once; the proposal stays open (FR-40). */
+	/**
+	 * The copied days passed: the proposer is told once; the proposal stays open (FR-40). In a Self-mentored Job an
+	 * agreement that is complete among the members who still count applies instead (R56), at the date or whenever a
+	 * Deadline {@link #memberGone} scheduled comes, also after the date and after the Customer was told; if the Job is
+	 * busy just then the Deadline comes again (AD-28), and for any other refusal, which no known state gives, the
+	 * Customer is not told a falsehood: the proposal waits as it is.
+	 */
 	@Transactional
-	boolean unanswered(UUID proposalId) {
-		Proposal proposal = find(proposalId).orElse(null);
-		if (proposal == null || !"OPEN".equals(proposal.status()) || proposal.unansweredAt() != null) {
-			return false;
+	DeadlineOutcome unanswered(UUID proposalId) {
+		UUID jobId = find(proposalId).map(Proposal::jobId).orElse(null);
+		Job job = jobId == null ? null : this.jobs.lock(jobId).orElse(null);
+		// Read again under the Job lock: an answer or a withdrawal may have ended it since.
+		Proposal proposal = job == null ? null : find(proposalId).orElse(null);
+		if (proposal == null || !"OPEN".equals(proposal.status())) {
+			return DeadlineOutcome.OBSOLETE;
 		}
-		Job job = this.jobs.lock(proposal.jobId()).orElseThrow();
+		if (job.selfMentored() && this.answers.tally(job.id(), proposalId).agreedByAll()) {
+			ApiException refusal = this.lifecycle.refusal(job.id(), Trigger.USER, cascade(job));
+			if (refusal == null) {
+				applyAgreed(job, proposal, null);
+				this.auditLog.record(AuditEntry.of(AuditActor.system(), "job.cancellation_agreed_by_all",
+						AuditObject.of("job.cancellation_proposal", proposalId)).forJob(job.id()));
+				return DeadlineOutcome.FIRED;
+			}
+			return refusal.code() == ErrorCode.JOB_BUSY ? DeadlineOutcome.REARM : DeadlineOutcome.OBSOLETE;
+		}
+		// Told once, and only once the date has come: a Deadline scheduled by a leave may run before it.
+		if (proposal.unansweredAt() != null || this.clock.instant().isBefore(proposal.answerBy())) {
+			return DeadlineOutcome.OBSOLETE;
+		}
 		this.jdbc.sql("UPDATE job.cancellation_proposal SET unanswered_at = :now WHERE id = :id")
 			.param("id", proposalId)
 			.param("now", Timestamp.from(this.clock.instant()))
@@ -332,7 +496,7 @@ class Cancellations {
 				: new Recipient(Objects.requireNonNull(job.mentorId()), Audience.MENTOR);
 		this.notifications.send(new NotificationRequest(UNANSWERED, proposalId, List.of(proposer), Map.of("job", job.title()),
 				"/cong-viec/" + job.id(), job.id(), null));
-		return true;
+		return DeadlineOutcome.FIRED;
 	}
 
 	Optional<Proposal> open(UUID jobId) {
@@ -420,7 +584,7 @@ class Cancellations {
 		return new Proposal(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class),
 				Scope.valueOf(rs.getString("scope")), rs.getString("reason"), Party.valueOf(rs.getString("proposer")),
 				rs.getString("status"), rs.getTimestamp("answer_by").toInstant(), unanswered == null ? null : unanswered.toInstant(),
-				rs.getTimestamp("created_at").toInstant(), decided == null ? null : decided.toInstant());
+				rs.getTimestamp("created_at").toInstant(), decided == null ? null : decided.toInstant(), rs.getBoolean("alone"));
 	}
 
 }

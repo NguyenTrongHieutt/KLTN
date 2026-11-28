@@ -1545,6 +1545,20 @@ POST /api/v1/boards/{boardId}/cancellation/withdraw,CROSS_ROLE,,,403 FORBIDDEN
 POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMINISTRATOR,,,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/cancellation/withdraw,ADMIN_TEAM_ISSUE_GRANT,,,404 NOT_FOUND
 # Cancelling alone after FR-40's Agreement or Starting deadline: the fixture's Job is Active, so it is refused.
+# A member's answer to a Self-mentored Job's cancellation (Story 25.7): a normal Job has no such command.
+POST /api/v1/boards/{boardId}/cancellation/answer,ANONYMOUS,,cancellation-answer.json,401
+POST /api/v1/boards/{boardId}/cancellation/answer,USER_UNVERIFIED,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,USER,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,LOCKED,,cancellation-answer.json,401
+POST /api/v1/boards/{boardId}/cancellation/answer,CUSTOMER,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,MENTOR,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,BIDDER,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ASSIGNED,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ACTIVE,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_FORMER,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CROSS_ROLE,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,ADMINISTRATOR,,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,ADMIN_TEAM_ISSUE_GRANT,,cancellation-answer.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/cancellation/alone,ANONYMOUS,,cancel-alone.json,401
 POST /api/v1/boards/{boardId}/cancellation/alone,USER_UNVERIFIED,,cancel-alone.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/cancellation/alone,USER,,cancel-alone.json,404 NOT_FOUND
@@ -3430,13 +3444,34 @@ POST /api/v1/change-requests/{changeRequestId}/withdraw,CUSTOMER_MENTOR,job=self
 GET /api/v1/boards/{boardId}/agreement-versions,CUSTOMER_MENTOR,job=self,,200
 GET /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self,cancellation.json,200
-POST /api/v1/boards/{boardId}/cancellation/confirm,CUSTOMER_MENTOR,job=self;pending=25.7,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/confirm,CUSTOMER_MENTOR,job=self,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CUSTOMER_MENTOR,job=self,cancellation-answer.json,409 CONFLICT NO_CANCELLATION_OPEN
 POST /api/v1/boards/{boardId}/cancellation/withdraw,CUSTOMER_MENTOR,job=self,,409 CONFLICT NO_CANCELLATION_OPEN
 POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER_MENTOR,job=self,cancel-alone.json,422 GUARD_FAILED DEADLINE_NOT_PASSED
 # The mode world's second Job (selfJob=stalled, Story 25.4): in Agreement, its FR-40 stall passed. Its Customer, who is
 # its Mentor, cancels it alone; the R49 guard of a Held Milestone does not apply to a stall (AD-47 exception 3, B-07).
 GET /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self;selfJob=stalled,,200
 POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER_MENTOR,job=self;selfJob=stalled,cancel-alone.json,200
+# The mode world's third Job (selfJob=asking, Story 25.7): Active and not frozen, a Held Milestone, and the Customer's
+# cancellation proposal waiting for its two members. CREW_ACTIVE is there one of them, since the first Job's active
+# member cannot be on two Crews. The members answer through their own command; the confirm command is not there; the
+# Customer is not asked and may withdraw.
+GET /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self;selfJob=asking,,200
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self;selfJob=asking,,200
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ACTIVE,job=self;selfJob=asking,self-cancellation-answer.json,200
+POST /api/v1/boards/{boardId}/cancellation/answer,CUSTOMER_MENTOR,job=self;selfJob=asking,self-cancellation-answer.json,403 FORBIDDEN NOT_ASKED
+POST /api/v1/boards/{boardId}/cancellation/confirm,CUSTOMER_MENTOR,job=self;selfJob=asking,change-version.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/withdraw,CUSTOMER_MENTOR,job=self;selfJob=asking,,200
+# On the first Job, frozen and with no proposal open, the members' answer command finds nothing to answer.
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ASSIGNED,job=self,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ACTIVE,job=self,cancellation-answer.json,409 CONFLICT NO_CANCELLATION_OPEN
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_FORMER,job=self,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ACTIVE_PARTY,job=self,cancellation-answer.json,409 CONFLICT NO_CANCELLATION_OPEN
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_FORMER_PARTY,job=self,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,LOCKED,job=self,cancellation-answer.json,401
+POST /api/v1/boards/{boardId}/cancellation/answer,ADMIN_DISPUTE_GRANT,job=self,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,ADMIN_SPLIT_RESOLUTION_GRANT,job=self,cancellation-answer.json,404 NOT_FOUND
+POST /api/v1/boards/{boardId}/cancellation/answer,ADMIN_TEAM_ISSUE_GRANT,job=self,cancellation-answer.json,404 NOT_FOUND
 GET /api/v1/boards/{boardId}/dispute,CUSTOMER_MENTOR,job=self,,200
 POST /api/v1/boards/{boardId}/disputes,CUSTOMER_MENTOR,job=self,dispute.json,409 CONFLICT DISPUTE_ALREADY_OPEN
 GET /api/v1/admin/disputes/{disputeId},CUSTOMER_MENTOR,job=self,,404 NOT_FOUND
