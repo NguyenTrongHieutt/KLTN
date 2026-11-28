@@ -314,3 +314,115 @@ describe('JOB-1 closure section (FR-37, FR-67, UX-DR55)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Còn giai đoạn đang làm nên chưa kết thúc được.')
   })
 })
+
+/** The Customer of a Self-mentored Job (role `CUSTOMER_MENTOR`) reading its overview. */
+function asCustomerMentor(handlers: Parameters<typeof fakeBackend>[1]) {
+  return fakeBackend(signedInUser, {
+    ...inEveryJob('CUSTOMER_MENTOR'),
+    'GET /api/v1/jobs/j1': () => json({ ...customerJob, selfMentored: true }),
+    'GET /api/v1/boards/j1/progress': () => json(progress),
+    ...handlers,
+  })
+}
+
+describe('JOB-1 closure of a Self-mentored Job (Story 25.7, B-06)', () => {
+  it('lets the Customer close at once on their word, after a dialog that says so', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/closure': () => json(closure({ canPropose: true, proposal: null, steps: [] })),
+      'POST /api/v1/boards/j1/closure': async (request) => {
+        sent.push(await request.json())
+        return json(
+          closure({
+            state: 'CLOSED',
+            canPropose: false,
+            proposal: { ...closure().proposal, kind: 'PROPOSED', proposer: 'CUSTOMER', status: 'CONFIRMED', answerable: false },
+            steps: [],
+          }),
+          201,
+        )
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
+    expect(within(section).queryByRole('button', { name: 'Đề nghị kết thúc công việc' })).toBeNull()
+    await user.click(within(section).getByRole('button', { name: 'Kết thúc công việc' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Kết thúc công việc ngay?' })
+    expect(within(dialog).getByText(/kết thúc ngay, chỉ cần lời của bạn/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/các thành viên nhóm sẽ được báo/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/không hoàn tác được/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/bên còn lại|bên kia/)).toBeNull()
+    await user.click(within(dialog).getByRole('button', { name: 'Kết thúc công việc' }))
+    await waitFor(() => expect(sent).toEqual([{ version: 13 }]))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Công việc đã hoàn thành' })).toBeInTheDocument()
+  })
+
+  it('asks only the Customer about the System’s proposal, and one confirmation closes it', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/closure': () =>
+        json(closure({ proposal: { ...closure().proposal, mentorConfirmed: false } })),
+      'POST /api/v1/boards/j1/closure/confirm': async (request) => {
+        sent.push(await request.json())
+        return json(closure({ state: 'CLOSED', proposal: { ...closure().proposal, status: 'CONFIRMED', answerable: false } }))
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
+    expect(within(section).getByText(/Hệ thống sẽ tự xác nhận kết thúc ngày 06\/11/)).toBeInTheDocument()
+    expect(within(section).getByText(/Hệ thống chỉ hỏi bạn/)).toBeInTheDocument()
+    // The Customer is the Mentor too: one step, never a second side.
+    expect(within(section).getByText('Khách hàng Lan Nguyễn: xác nhận kết thúc')).toBeInTheDocument()
+    expect(within(section).queryByText(/Người hướng dẫn Đỗ Mạnh Hùng: xác nhận kết thúc/)).toBeNull()
+    await user.click(within(section).getByRole('button', { name: 'Xác nhận kết thúc' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận kết thúc công việc?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Xác nhận kết thúc' }))
+    await waitFor(() => expect(sent).toEqual([{ version: 13 }]))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Công việc đã hoàn thành' })).toBeInTheDocument()
+  })
+
+  it('lets the Customer decline the System’s proposal, which only withdraws it', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/closure': () => json(closure()),
+      'POST /api/v1/boards/j1/closure/decline': async (request) => {
+        sent.push(await request.json())
+        return json(closure({ canPropose: true, proposal: null, steps: [] }))
+      },
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
+    expect(within(section).getByText(/chỉ rút đề nghị này\. Công việc vẫn đang chạy/)).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Từ chối' }))
+    await waitFor(() => expect(sent).toEqual([{ version: 13 }]))
+    expect(await within(section).findByRole('button', { name: 'Kết thúc công việc' })).toBeInTheDocument()
+    expect(within(section).queryByText(/chỉ rút đề nghị này/)).toBeNull()
+  })
+
+  it('leaves a normal Job’s closure screen as it was', { timeout: 20_000 }, async () => {
+    const user = userEvent.setup()
+    fakeBackend(signedInUser, {
+      ...inEveryJob('CUSTOMER'),
+      'GET /api/v1/jobs/j1': () => json(customerJob),
+      'GET /api/v1/boards/j1/progress': () => json(progress),
+      'GET /api/v1/boards/j1/closure': () => json(closure({ canPropose: true })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Kết thúc công việc' })).closest('section')!
+    expect(within(section).getByText('Khách hàng Lan Nguyễn: xác nhận kết thúc')).toBeInTheDocument()
+    expect(within(section).getByText('Người hướng dẫn Đỗ Mạnh Hùng: xác nhận kết thúc')).toBeInTheDocument()
+    expect(within(section).queryByText(/Hệ thống chỉ hỏi bạn|chỉ rút đề nghị này/)).toBeNull()
+    expect(within(section).queryByRole('button', { name: 'Kết thúc công việc' })).toBeNull()
+    await user.click(within(section).getByRole('button', { name: 'Đề nghị kết thúc công việc' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đề nghị kết thúc công việc?' })
+    expect(within(dialog).getByText(/Khi công việc kết thúc, các giai đoạn chưa bắt đầu sẽ bị hủy/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/chỉ cần lời của bạn/)).toBeNull()
+  })
+})

@@ -196,9 +196,12 @@ class ClosureController {
 			boolean mentorDone = ended || (proposal != null && proposal.mentorConfirmedAt() != null);
 			steps.add(new ClosureStepView("CUSTOMER", this.customers.displayName(job.customerId()), "CONFIRM_CLOSURE",
 					customerDone));
-			steps.add(new ClosureStepView("MENTOR",
-					this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse(""),
-					"CONFIRM_CLOSURE", mentorDone));
+			// A Self-mentored Job has one person on both sides: one step, theirs (AD-47 exception 6).
+			if (!job.selfMentored()) {
+				steps.add(new ClosureStepView("MENTOR",
+						this.mentors.cards(List.of(job.mentorId())).stream().findFirst().map(MentorCard::displayName).orElse(""),
+						"CONFIRM_CLOSURE", mentorDone));
+			}
 		}
 		boolean disputable = viewer.party() != null && job.state() == JobState.ACTIVE && proposal != null
 				&& !proposal.automatic()
