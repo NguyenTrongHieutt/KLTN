@@ -142,7 +142,9 @@ class CancellationController {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		this.cancellations.answer(jobId, viewer.accountId(), body.proposalId(), body.agree());
-		return view(viewer(jobId, this.callers.get()));
+		// The last agreement cancels the Job and releases the member's Crew row, so the answer is read back as the
+		// member who gave it, not by a role the cancellation has just ended.
+		return view(new Viewer(live(jobId), viewer.accountId(), null));
 	}
 
 	/** After the Agreement or Starting deadline (FR-40): either side cancels alone. */
@@ -170,11 +172,7 @@ class CancellationController {
 
 	/** The Customer, the Mentor, or an active Crew member (party empty), by role in the Job, from Agreement on. */
 	private Viewer viewer(UUID jobId, Caller caller) {
-		Job job = this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
-			.param("id", jobId)
-			.query(Jobs::job)
-			.optional()
-			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		Job job = live(jobId);
 		UUID account = caller.accountId();
 		if (account == null || job.mentorId() == null || !VISIBLE.contains(job.state())) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
@@ -190,6 +188,14 @@ class CancellationController {
 			return new Viewer(job, account, null);
 		}
 		throw new ApiException(ErrorCode.NOT_FOUND);
+	}
+
+	private Job live(UUID jobId) {
+		return this.jdbc.sql("SELECT " + Jobs.COLUMNS + " FROM job.job WHERE id = :id AND " + Jobs.LIVE)
+			.param("id", jobId)
+			.query(Jobs::job)
+			.optional()
+			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 	}
 
 	private CancellationView view(Viewer viewer) {

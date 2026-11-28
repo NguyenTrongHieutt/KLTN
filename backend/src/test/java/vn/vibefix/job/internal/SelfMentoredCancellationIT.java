@@ -257,7 +257,7 @@ class SelfMentoredCancellationIT extends IntegrationTest {
 		accepted();
 
 		this.mvc.perform(post("/api/v1/boards/" + this.job + "/closure").with(as(this.lan)).with(csrf())
-			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":" + version() + "}")).andExpect(status().isOk())
+			.contentType(MediaType.APPLICATION_JSON).content("{\"version\":" + version() + "}")).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.proposal.status").value("CONFIRMED"));
 		awaitListeners();
 

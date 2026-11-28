@@ -91,7 +91,8 @@ class ProposalAnswers {
 
 	/** The account's answer, if it gave one. */
 	@Nullable String answerOf(UUID proposalId, UUID accountId) {
-		return of(proposalId).stream().filter(row -> accountId.equals(row.memberId())).map(Answer::answer).findFirst().orElse(null);
+		// Optional.map, not the stream's: an unanswered row holds no answer, and a stream cannot carry one.
+		return of(proposalId).stream().filter(row -> accountId.equals(row.memberId())).findFirst().map(Answer::answer).orElse(null);
 	}
 
 	/**
