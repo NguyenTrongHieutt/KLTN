@@ -233,10 +233,14 @@ class Cancellations {
 	 */
 	@Transactional
 	Proposal confirm(UUID jobId, UUID account, Party party, long version) {
-		Job job = locked(jobId, version);
-		// In a Self-mentored Job the members answer through their own command (B-04, B-11): this one is not there.
+		Job job = this.jobs.lock(jobId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+		// In a Self-mentored Job the members answer through their own command (B-04, B-11): this one is not there,
+		// whatever version the request names.
 		if (job.selfMentored()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
+		}
+		if (job.version() != version) {
+			throw new ApiException(ErrorCode.STALE, JobReason.STATE_CHANGED);
 		}
 		Proposal proposal = open(jobId).orElseThrow(() -> new ApiException(ErrorCode.CONFLICT, JobReason.NO_CANCELLATION_OPEN));
 		if (proposal.proposer() == party) {
