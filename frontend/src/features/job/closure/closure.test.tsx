@@ -79,6 +79,7 @@ const deletion = (overrides: object = {}) => ({
 })
 
 const closure = (overrides: object = {}) => ({
+  selfMentored: false,
   jobId: 'j1',
   state: 'ACTIVE',
   version: 13,
@@ -330,11 +331,12 @@ describe('JOB-1 closure of a Self-mentored Job (Story 25.7, B-06)', () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     asCustomerMentor({
-      'GET /api/v1/boards/j1/closure': () => json(closure({ canPropose: true, proposal: null, steps: [] })),
+      'GET /api/v1/boards/j1/closure': () => json(closure({ selfMentored: true, canPropose: true, proposal: null, steps: [] })),
       'POST /api/v1/boards/j1/closure': async (request) => {
         sent.push(await request.json())
         return json(
           closure({
+            selfMentored: true,
             state: 'CLOSED',
             canPropose: false,
             proposal: { ...closure().proposal, kind: 'PROPOSED', proposer: 'CUSTOMER', status: 'CONFIRMED', answerable: false },
@@ -364,10 +366,10 @@ describe('JOB-1 closure of a Self-mentored Job (Story 25.7, B-06)', () => {
     const sent: unknown[] = []
     asCustomerMentor({
       'GET /api/v1/boards/j1/closure': () =>
-        json(closure({ proposal: { ...closure().proposal, mentorConfirmed: false } })),
+        json(closure({ selfMentored: true, proposal: { ...closure().proposal, mentorConfirmed: false } })),
       'POST /api/v1/boards/j1/closure/confirm': async (request) => {
         sent.push(await request.json())
-        return json(closure({ state: 'CLOSED', proposal: { ...closure().proposal, status: 'CONFIRMED', answerable: false } }))
+        return json(closure({ selfMentored: true, state: 'CLOSED', proposal: { ...closure().proposal, status: 'CONFIRMED', answerable: false } }))
       },
     })
     renderAt('/cong-viec/j1')
@@ -389,10 +391,10 @@ describe('JOB-1 closure of a Self-mentored Job (Story 25.7, B-06)', () => {
     const user = userEvent.setup()
     const sent: unknown[] = []
     asCustomerMentor({
-      'GET /api/v1/boards/j1/closure': () => json(closure()),
+      'GET /api/v1/boards/j1/closure': () => json(closure({ selfMentored: true })),
       'POST /api/v1/boards/j1/closure/decline': async (request) => {
         sent.push(await request.json())
-        return json(closure({ canPropose: true, proposal: null, steps: [] }))
+        return json(closure({ selfMentored: true, canPropose: true, proposal: null, steps: [] }))
       },
     })
     renderAt('/cong-viec/j1')

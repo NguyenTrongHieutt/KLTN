@@ -312,7 +312,7 @@ describe('JOB-1 cancellation of a Self-mentored Job (Story 25.7, R14, R56, R57)'
     renderAt('/cong-viec/j1')
 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
-    expect(await within(section).findByText('Không còn thành viên nào được hỏi. Hãy rút đề nghị rồi hủy lại.')).toBeInTheDocument()
+    expect(await within(section).findByText('Các thành viên được hỏi đã rời nhóm. Hãy rút đề nghị rồi gửi lại để hỏi các thành viên hiện tại.')).toBeInTheDocument()
     expect(within(section).queryByText(/Chờ 0\/0/)).toBeNull()
     expect(within(section).getByRole('button', { name: 'Rút đề nghị' })).toBeInTheDocument()
   })

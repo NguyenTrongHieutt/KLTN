@@ -265,6 +265,8 @@ class SelfMentoredCancellationIT extends IntegrationTest {
 				UPDATE job.job SET busy_operation_key = NULL, busy_purpose = NULL, busy_subject = NULL, busy_since = NULL
 				WHERE id = :id
 				""").param("id", this.job).update();
+		// The Deadline was armed again for the next poll.
+		this.clock.advance(Duration.ofMinutes(10));
 		this.poller.runDue();
 		awaitListeners();
 		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + proposal + "'")).isEqualTo("CONFIRMED");

@@ -7,7 +7,6 @@ import { t, type MessageKey } from '@/i18n/t'
 import { ApiError } from '@/lib/apiClient'
 import { formatDayMonth, formatDayMonthTime } from '@/lib/dates'
 import { problemMessage } from '@/lib/problemMessage'
-import { useJobRole } from '@/features/job/jobRoleApi'
 import {
   useClosure,
   useClosureCommand,
@@ -50,8 +49,8 @@ function Content({ jobId, closure, deletion }: { jobId: string; closure: Closure
   const command = useClosureCommand(jobId)
   const [asking, setAsking] = useState<Action>()
   const [error, setError] = useState<string>()
-  // `ClosureView` carries no mode flag: the caller's role in the Job tells it (AD-43, AD-47).
-  const alone = useJobRole(jobId).data?.role === 'CUSTOMER_MENTOR'
+  // The Customer of a Self-mentored Job is its Mentor too: the view says so, in the same read as the rest.
+  const alone = closure.selfMentored && closure.audience === 'CUSTOMER'
   const proposal = closure.proposal
   const open = proposal?.status === 'OPEN'
   // The combined role is the Mentor too: a second, Mentor's step would name the same person twice.

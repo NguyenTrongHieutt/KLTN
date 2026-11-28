@@ -4781,6 +4781,7 @@ export interface components {
             /** Format: uuid */
             jobId: string;
             proposal?: components["schemas"]["ClosureProposalView"];
+            selfMentored: boolean;
             state: string;
             steps: components["schemas"]["ClosureStepView"][];
             /** Format: int64 */

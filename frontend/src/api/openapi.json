@@ -10756,6 +10756,9 @@
           "proposal" : {
             "$ref" : "#/components/schemas/ClosureProposalView"
           },
+          "selfMentored" : {
+            "type" : "boolean"
+          },
           "state" : {
             "type" : "string"
           },
@@ -10770,7 +10773,7 @@
             "format" : "int64"
           }
         },
-        "required" : [ "audience", "canPropose", "disputable", "jobId", "state", "steps", "version" ]
+        "required" : [ "audience", "canPropose", "disputable", "jobId", "selfMentored", "state", "steps", "version" ]
       },
       "CodeReceiptRequest" : {
         "type" : "object",

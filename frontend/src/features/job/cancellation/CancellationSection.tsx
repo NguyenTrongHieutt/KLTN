@@ -34,7 +34,11 @@ export function CancellationSection({ jobId }: { jobId: string }) {
   // An auxiliary part of the overview: nothing while loading, when the read fails, or with nothing to show.
   const canPropose = data?.canPropose === true && !data.noMember
   // A refused proposal of the mode stays readable: the members read their own answer, the Customer the way on.
-  const refused = data?.selfMentored === true && data.proposal?.status === 'REFUSED'
+  // Only while the Job can still be cancelled: afterwards the way on it names is gone.
+  const refused =
+    data?.selfMentored === true &&
+    data.proposal?.status === 'REFUSED' &&
+    ['AGREEMENT', 'STARTING', 'ACTIVE'].includes(data.state)
   if (!data || (!canPropose && !data.canCancelAlone && !refused && (!data.proposal || data.proposal.status !== 'OPEN'))) {
     return null
   }
@@ -137,7 +141,7 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
           </span>
           <p className="break-words whitespace-pre-line">{proposal.reason}</p>
           {selfMentored ? (
-            <SelfMentoredStatus proposal={proposal} member={member} />
+            <SelfMentoredStatus proposal={proposal} member={member} noActiveMember={!!data.noMember} />
           ) : (
             <span className="text-caption text-muted-foreground">
               {t('screen.cancellation.answerBy', { date: formatDayMonth(proposal.answerBy) })}
@@ -422,14 +426,26 @@ function Content({ jobId, data }: { jobId: string; data: Cancellation }) {
  * Customer, how many of those asked agreed and by when (or that nobody is left to ask); to a member, the question
  * with its date, their own answer once given, or that they were not asked because they joined later.
  */
-function SelfMentoredStatus({ proposal, member }: { proposal: CancellationProposal; member: boolean }) {
+function SelfMentoredStatus({
+  proposal,
+  member,
+  noActiveMember,
+}: {
+  proposal: CancellationProposal
+  member: boolean
+  noActiveMember: boolean
+}) {
   const date = formatDayMonth(proposal.answerBy)
   const asked = proposal.asked ?? 0
   const agreed = proposal.agreed ?? 0
+  // Nobody asked still counts: with no member at all the no-member banner holds the way on (R49); with members who
+  // joined later, a new proposal asks them. Everyone agreed and still open: the Job is busy or paused just now.
   const text = !member
     ? asked === 0
-      ? t('screen.cancellation.self.nobody')
-      : t('screen.cancellation.self.waiting', { agreed, asked, date })
+      ? t(noActiveMember ? 'screen.cancellation.self.nobody' : 'screen.cancellation.self.nobodyAsked')
+      : agreed === asked
+        ? t('screen.cancellation.self.allAgreed')
+        : t('screen.cancellation.self.waiting', { agreed, asked, date })
     : proposal.mayAnswer
       ? t('screen.cancellation.self.memberAsk', { date })
       : proposal.myAnswer === 'AGREED'
