@@ -151,8 +151,8 @@ public record MatrixRow(HttpMethod method, String path, MatrixCaller caller, Map
 		/**
 		 * {@code selfJob=asking}, beside {@code job=self}: {@code {boardId}} names the mode world's third Job, Active and
 		 * not frozen, whose Customer's cancellation proposal waits for its two members' answers
-		 * ({@code {selfCancellationProposalId}}; AD-47 exception 6, B-04, Story 25.7). {@code CREW_ACTIVE} is there one
-		 * of the members asked.
+		 * ({@code {selfCancellationProposalId}}; AD-47 exception 6, B-04, Story 25.7). A row there with the caller state
+		 * {@code member=asked} runs {@code CREW_ACTIVE} as one of the members asked.
 		 */
 		ASKING_SELF_JOB("selfJob", "asking", "boardId", "askingBoardId"),
 
