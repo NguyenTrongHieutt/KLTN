@@ -216,8 +216,8 @@ public class SelfMentoredFixture implements MatrixFixture {
 	/**
 	 * Story 25.7 (AD-47 exception 6, R56, B-04): the Customer's third Job, on a Product of its own, Active and not
 	 * frozen, with a Held Milestone and two active members whom the Customer's open cancellation proposal asks
-	 * ({@code selfJob=asking}, {@code {selfCancellationProposalId}}). A row with {@code member=asked} runs
-	 * {@link MatrixCaller#CREW_ACTIVE} as the first of them, who has not answered.
+	 * ({@code selfJob=asking}, {@code {selfCancellationProposalId}}). On that Job {@link MatrixCaller#CREW_ACTIVE}
+	 * is the first of them, who has not answered.
 	 */
 	private void asking(MatrixWorld world) {
 		UUID product = JobContent.product(this.jdbc, this.customer, "Sản phẩm chờ hủy");
@@ -818,9 +818,9 @@ public class SelfMentoredFixture implements MatrixFixture {
 		if (!PEOPLE.contains(caller)) {
 			return Optional.empty();
 		}
-		// On the Job whose cancellation waits for its members, the active member is one of those asked: the row says
-		// so in its own state (member=asked), since a realizer never sees a world binding.
-		if (caller == MatrixCaller.CREW_ACTIVE && "asked".equals(state.get("member"))) {
+		// On the Job whose cancellation waits for its members, the active member is one of those asked: the first
+		// Job's active member cannot be on two Crews. The runner says which Job the row runs on.
+		if (caller == MatrixCaller.CREW_ACTIVE && world.askingJob()) {
 			return signedIn(this.asked, Role.STUDENT);
 		}
 		return switch (caller) {

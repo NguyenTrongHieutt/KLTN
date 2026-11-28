@@ -3453,12 +3453,12 @@ POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER_MENTOR,job=self,cancel
 GET /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self;selfJob=stalled,,200
 POST /api/v1/boards/{boardId}/cancellation/alone,CUSTOMER_MENTOR,job=self;selfJob=stalled,cancel-alone.json,200
 # The mode world's third Job (selfJob=asking, Story 25.7): Active and not frozen, a Held Milestone, and the Customer's
-# cancellation proposal waiting for its two members. member=asked makes CREW_ACTIVE one of them, since the first Job's
-# active member cannot be on two Crews. The members answer through their own command; the confirm command is not there;
-# the Customer is not asked and may withdraw.
+# cancellation proposal waiting for its two members. CREW_ACTIVE is there one of them, since the first Job's active
+# member cannot be on two Crews. The members answer through their own command; the confirm command is not there; the
+# Customer is not asked and may withdraw.
 GET /api/v1/boards/{boardId}/cancellation,CUSTOMER_MENTOR,job=self;selfJob=asking,,200
-GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self;selfJob=asking;member=asked,,200
-POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ACTIVE,job=self;selfJob=asking;member=asked,self-cancellation-answer.json,200
+GET /api/v1/boards/{boardId}/cancellation,CREW_ACTIVE,job=self;selfJob=asking,,200
+POST /api/v1/boards/{boardId}/cancellation/answer,CREW_ACTIVE,job=self;selfJob=asking,self-cancellation-answer.json,200
 POST /api/v1/boards/{boardId}/cancellation/answer,CUSTOMER_MENTOR,job=self;selfJob=asking,self-cancellation-answer.json,403 FORBIDDEN NOT_ASKED
 POST /api/v1/boards/{boardId}/cancellation/confirm,CUSTOMER_MENTOR,job=self;selfJob=asking,change-version.json,404 NOT_FOUND
 POST /api/v1/boards/{boardId}/cancellation/withdraw,CUSTOMER_MENTOR,job=self;selfJob=asking,,200

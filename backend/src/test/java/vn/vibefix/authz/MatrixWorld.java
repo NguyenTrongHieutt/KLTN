@@ -29,6 +29,8 @@ public final class MatrixWorld {
 
 	private boolean selfMode;
 
+	private boolean askingJob;
+
 	/**
 	 * Whether the row runs in the mode world (AD-47): the runner says so before the fixtures seed, the mode world's
 	 * fixture seeds only then, and it, not the crew Job's, realizes the Crew and grant callers.
@@ -39,6 +41,19 @@ public final class MatrixWorld {
 
 	public void selfMode(boolean selfMode) {
 		this.selfMode = selfMode;
+	}
+
+	/**
+	 * Whether the row runs on the mode world's Job whose cancellation waits for its members ({@code selfJob=asking},
+	 * Story 25.7): the runner says so, because a realizer sees no world binding, and that Job's active member is not the
+	 * first Job's.
+	 */
+	public boolean askingJob() {
+		return this.askingJob;
+	}
+
+	public void askingJob(boolean askingJob) {
+		this.askingJob = askingJob;
 	}
 
 	public void put(String name, Object value) {
