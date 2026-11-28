@@ -261,17 +261,23 @@ class Cancellations {
 		}
 		this.lifecycle.tryApplyCascade(job.id(), Trigger.USER, cascade)
 			.orElseThrow(() -> new IllegalStateException("The cancellation of " + job.id() + " passed its checks but did not apply"));
-		this.jdbc.sql("""
+		int confirmed = this.jdbc.sql("""
 				UPDATE job.cancellation_proposal SET status = 'CONFIRMED', confirmed_by = :account, decided_at = :now
 				WHERE id = :id AND status = 'OPEN'
 				""").param("id", proposal.id()).param("account", account).param("now", Timestamp.from(this.clock.instant())).update();
+		if (confirmed != 1) {
+			// Every caller read the open proposal under the Job lock, so this cannot be: nothing may apply without it.
+			throw new IllegalStateException("The cancellation proposal " + proposal.id() + " was no longer open");
+		}
 		this.todos.closeAll(ANSWER, proposal.id());
 	}
 
 	/**
 	 * A member left the Self-mentored Job or was locked (R56): they no longer count for its open proposal, so their
-	 * to-do closes, and when those who still count have all agreed the cancellation applies now. A cascade the Job
-	 * refuses for the moment (a freeze, the busy marker) is left for the proposal's date. Nothing in a normal Job.
+	 * to-do closes, and when those who still count have all agreed the cancellation applies now. When the Job refuses
+	 * the cascade for the moment (a freeze, the busy marker), a Deadline of the proposal's own kind is due at once: it
+	 * waits out a freeze and comes again while the Job is busy, whether or not the proposal's date has passed
+	 * ({@link #unanswered}). Nothing in a normal Job.
 	 */
 	@Transactional
 	void memberGone(UUID jobId, UUID memberId) {
@@ -281,12 +287,17 @@ class Cancellations {
 			return;
 		}
 		this.todos.close(ANSWER, memberId, proposal.id());
-		if (this.answers.tally(jobId, proposal.id()).agreedByAll()
-				&& this.lifecycle.refusal(jobId, Trigger.USER, cascade(job)) == null) {
+		if (!this.answers.tally(jobId, proposal.id()).agreedByAll()) {
+			return;
+		}
+		if (this.lifecycle.refusal(jobId, Trigger.USER, cascade(job)) == null) {
 			applyAgreed(job, proposal, null);
 			this.auditLog.record(AuditEntry.of(AuditActor.system(), "job.cancellation_agreed_by_all",
 					AuditObject.of("job.cancellation_proposal", proposal.id())).forJob(jobId));
+			return;
 		}
+		this.deadlines.schedule(new DeadlineRequest(CancellationAnswer.KEY, proposal.id(), proposal.id() + ":agreed:" + memberId,
+				jobId, this.clock.instant()));
 	}
 
 	/**
@@ -449,9 +460,10 @@ class Cancellations {
 
 	/**
 	 * The copied days passed: the proposer is told once; the proposal stays open (FR-40). In a Self-mentored Job an
-	 * agreement that is complete among the members who still count applies instead (R56); if the Job is busy just then
-	 * the Deadline comes again (AD-28), and for any other refusal the Customer is not told a falsehood: the proposal
-	 * waits as it is.
+	 * agreement that is complete among the members who still count applies instead (R56), at the date or whenever a
+	 * Deadline {@link #memberGone} scheduled comes, also after the date and after the Customer was told; if the Job is
+	 * busy just then the Deadline comes again (AD-28), and for any other refusal, which no known state gives, the
+	 * Customer is not told a falsehood: the proposal waits as it is.
 	 */
 	@Transactional
 	DeadlineOutcome unanswered(UUID proposalId) {
@@ -459,7 +471,7 @@ class Cancellations {
 		Job job = jobId == null ? null : this.jobs.lock(jobId).orElse(null);
 		// Read again under the Job lock: an answer or a withdrawal may have ended it since.
 		Proposal proposal = job == null ? null : find(proposalId).orElse(null);
-		if (proposal == null || !"OPEN".equals(proposal.status()) || proposal.unansweredAt() != null) {
+		if (proposal == null || !"OPEN".equals(proposal.status())) {
 			return DeadlineOutcome.OBSOLETE;
 		}
 		if (job.selfMentored() && this.answers.tally(job.id(), proposalId).agreedByAll()) {
@@ -471,6 +483,10 @@ class Cancellations {
 				return DeadlineOutcome.FIRED;
 			}
 			return refusal.code() == ErrorCode.JOB_BUSY ? DeadlineOutcome.REARM : DeadlineOutcome.OBSOLETE;
+		}
+		// Told once, and only once the date has come: a Deadline scheduled by a leave may run before it.
+		if (proposal.unansweredAt() != null || this.clock.instant().isBefore(proposal.answerBy())) {
+			return DeadlineOutcome.OBSOLETE;
 		}
 		this.jdbc.sql("UPDATE job.cancellation_proposal SET unanswered_at = :now WHERE id = :id")
 			.param("id", proposalId)

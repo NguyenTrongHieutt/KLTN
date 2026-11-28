@@ -11,7 +11,9 @@ import vn.vibefix.timers.DueDeadline;
 /**
  * {@value #KEY} (FR-40, AD-7): the other side did not answer a cancellation proposal within the Job's
  * copied days, so its proposer is told. Pausable: a frozen Job pauses it. The generation is the proposal;
- * a decided proposal leaves it {@code OBSOLETE}. Collaborators are looked up on use.
+ * a decided proposal leaves it {@code OBSOLETE}. In a Self-mentored Job it also applies an agreement that is complete
+ * among the members who still count, at the date or when a member's leave scheduled it, and comes again while the Job
+ * is busy (AD-28, AD-47 exception 6). Collaborators are looked up on use.
  */
 @Component
 class CancellationAnswer implements DeadlineHandler {

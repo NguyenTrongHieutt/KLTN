@@ -304,7 +304,7 @@ describe('JOB-1 cancellation of a Self-mentored Job (Story 25.7, R14, R56, R57)'
     await waitFor(() => expect(withdrawn).toBe(1))
   })
 
-  it('tells the Customer when no member is left to ask, and offers only to withdraw', { timeout: 20_000 }, async () => {
+  it('tells the Customer when the members asked left and others joined, and offers to withdraw', { timeout: 20_000 }, async () => {
     asCustomerMentor({
       'GET /api/v1/boards/j1/cancellation': () =>
         json(cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal({ asked: 0, agreed: 0 }) })),
@@ -315,6 +315,34 @@ describe('JOB-1 cancellation of a Self-mentored Job (Story 25.7, R14, R56, R57)'
     expect(await within(section).findByText('Các thành viên được hỏi đã rời nhóm. Hãy rút đề nghị rồi gửi lại để hỏi các thành viên hiện tại.')).toBeInTheDocument()
     expect(within(section).queryByText(/Chờ 0\/0/)).toBeNull()
     expect(within(section).getByRole('button', { name: 'Rút đề nghị' })).toBeInTheDocument()
+  })
+
+  it('tells the Customer when everyone asked agreed and the Job is busy or paused', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, canPropose: false, proposal: selfProposal({ asked: 1, agreed: 1 }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Hủy công việc' })).closest('section')!
+    expect(
+      await within(section).findByText(
+        'Mọi thành viên được hỏi đã đồng ý. Việc hủy sẽ được thực hiện ngay khi công việc không còn bận hoặc tạm dừng.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/Chờ 1\/1/)).toBeNull()
+  })
+
+  it('hides a refusal once the Job can no longer be cancelled', { timeout: 20_000 }, async () => {
+    asCustomerMentor({
+      'GET /api/v1/boards/j1/cancellation': () =>
+        json(cancellation({ selfMentored: true, state: 'CLOSED', canPropose: false, proposal: selfProposal({ status: 'REFUSED' }) })),
+    })
+    renderAt('/cong-viec/j1')
+
+    await screen.findByRole('heading', { level: 1 })
+    await waitFor(() => expect(screen.queryByText(/Một thành viên không đồng ý hủy/)).toBeNull())
+    expect(screen.queryByRole('heading', { level: 2, name: 'Hủy công việc' })).toBeNull()
   })
 
   it('reads a refusal to the Customer, who may propose again or open a Dispute', { timeout: 20_000 }, async () => {

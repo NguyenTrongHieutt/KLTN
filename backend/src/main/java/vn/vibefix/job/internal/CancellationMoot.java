@@ -18,9 +18,11 @@ import vn.vibefix.notification.Todos;
  * Ends a Self-mentored Job's open cancellation proposal when the Milestone it was about stops being held (AD-47
  * exception 6, Story 25.7): the members agreed, or were asked to agree, to a cancellation that refunds a Held Milestone
  * in full, so once that Milestone is accepted (M5) or settled (M8) their answers are about another state of the money
- * and must not apply. The proposal ends {@code WITHDRAWN}, by the System, and its to-dos close; the Customer may propose
- * again, which then cancels at once if nothing is held. It runs in the transition's apply, under the Job row lock, and
- * depends on nothing of the lifecycle, so a step may call it.
+ * and must not apply. The proposal ends {@code WITHDRAWN}, by the System, and its to-dos close; nobody is told, and the
+ * Customer may propose again, which then cancels at once if nothing is held. It runs after the transition's write, in
+ * its transaction and under the Job row lock, and depends on nothing of the lifecycle, so a step may call it. A Change
+ * Request that removes the Held Milestone (M7) does not come through here: it refunds that Milestone in full, as the
+ * cancellation the members were asked about would.
  */
 @Component
 class CancellationMoot {

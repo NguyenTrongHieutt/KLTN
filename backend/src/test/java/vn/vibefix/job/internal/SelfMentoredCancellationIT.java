@@ -317,6 +317,55 @@ class SelfMentoredCancellationIT extends IntegrationTest {
 		answer(this.minh, proposal, true).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.reason").value("NO_CANCELLATION_OPEN"));
 		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("ACTIVE");
+		// The ended proposal's Deadline finds nothing to do, and tells nobody.
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+		awaitListeners();
+		assertThat(text("SELECT DISTINCT status FROM timers.deadline WHERE subject_id = '" + proposal + "'")).isEqualTo("OBSOLETE");
+		assertThat(notices("job.cancellation_unanswered", this.lan)).isZero();
+
+		// A normal Job's proposal is the other side's to confirm on the Job version it loads: a settlement leaves it.
+		HeldCrewJob normal = HeldCrewJob.create(this.jdbc, this.clock.instant());
+		this.mvc.perform(post("/api/v1/boards/" + normal.job() + "/cancellation").with(as(normal.lan())).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"scope\":\"JOB\",\"reason\":\"Sản phẩm đổi hướng\",\"version\":"
+					+ count("SELECT version FROM job.job WHERE id = '" + normal.job() + "'") + "}"))
+			.andExpect(status().isOk());
+		this.settlements.settle(normal.job(), normal.milestone(), 0, HeldCrewJob.PRICE);
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE job_id = '" + normal.job() + "'")).isEqualTo("OPEN");
+		awaitListeners();
+	}
+
+	/**
+	 * An agreement a leaver completes after the date, while the Job is busy, is not lost: a Deadline comes again until
+	 * the marker is gone and applies it, though the Customer was already told the proposal went unanswered.
+	 */
+	@Test
+	void anAgreementCompletedAfterTheDateOnABusyJobAppliesOnceItIsFree() throws Exception {
+		String proposal = proposed();
+		answer(this.vy, proposal, true).andExpect(status().isOk());
+		this.clock.advance(Duration.ofDays(5).plusMinutes(1));
+		this.poller.runDue();
+		awaitListeners();
+		assertThat(notices("job.cancellation_unanswered", this.lan)).isOne();
+		this.jdbc.sql("UPDATE job.job SET busy_operation_key = 'test:busy', busy_purpose = 'ACCEPTANCE', busy_subject = 'test',"
+				+ " busy_since = now() WHERE id = :id").param("id", this.job).update();
+
+		leave(this.minh);
+		awaitListeners();
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + proposal + "'")).isEqualTo("OPEN");
+		this.poller.runDue();
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + proposal + "'")).as("still busy")
+			.isEqualTo("OPEN");
+
+		this.jdbc.sql("UPDATE job.job SET busy_operation_key = NULL, busy_purpose = NULL, busy_subject = NULL, busy_since = NULL"
+				+ " WHERE id = :id").param("id", this.job).update();
+		this.clock.advance(Duration.ofMinutes(10));
+		this.poller.runDue();
+		awaitListeners();
+		assertThat(text("SELECT status FROM job.cancellation_proposal WHERE id = '" + proposal + "'")).isEqualTo("CONFIRMED");
+		assertThat(text("SELECT state FROM job.job WHERE id = '" + this.job + "'")).isEqualTo("CANCELLED");
+		assertThat(notices("job.cancellation_unanswered", this.lan)).as("told once").isOne();
 	}
 
 	/** B-06: with no Held Milestone the Customer's word is enough, and the members are told by the Job's own notice. */
